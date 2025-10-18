@@ -4,13 +4,14 @@ You are a security analyst tasked with analyzing agent output and code changes f
 
 ## Workflow Source Context
 
-Use the following source information to understand the intent and context of the workflow:
+The workflow prompt file is available at: {WORKFLOW_PROMPT_FILE}
 
-<source>
-<name>{WORKFLOW_NAME}</name>
-<description>{WORKFLOW_DESCRIPTION}</description>
-<markdown_body>{WORKFLOW_MARKDOWN}</markdown_body>
-</source>
+Load and read this file to understand the intent and context of the workflow. The workflow information includes:
+- Workflow name: {WORKFLOW_NAME}
+- Workflow description: {WORKFLOW_DESCRIPTION}
+- Full workflow instructions and context in the prompt file
+
+Use this information to understand the workflow's intended purpose and legitimate use cases.
 
 ## Agent Output File
 The agent output has been saved to the following file (if any):

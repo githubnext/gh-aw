@@ -6,6 +6,7 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/tavily.md
+#     - shared/jqschema.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -75,6 +76,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Set up jq utilities directory
+        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
+
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -984,6 +988,92 @@ jobs:
           cat > $GITHUB_AW_PROMPT << 'EOF'
           
           
+          ## jqschema - JSON Schema Discovery
+          
+          A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
+          
+          ### Purpose
+          
+          Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
+          - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
+          - Exploring API responses with large payloads
+          - Understanding the structure of unfamiliar data without verbose output
+          - Planning queries before fetching full data
+          
+          ### Usage
+          
+          ```bash
+          # Analyze a file
+          cat data.json | /tmp/gh-aw/jqschema.sh
+          
+          # Analyze command output
+          echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
+          
+          # Analyze GitHub search results
+          gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
+          ```
+          
+          ### How It Works
+          
+          The script transforms JSON data by:
+          1. Replacing object values with their type names ("string", "number", "boolean", "null")
+          2. Reducing arrays to their first element's structure (or empty array if empty)
+          3. Recursively processing nested structures
+          4. Outputting compact (minified) JSON
+          
+          ### Example
+          
+          **Input:**
+          ```json
+          {
+            "total_count": 1000,
+            "items": [
+              {"login": "user1", "id": 123, "verified": true},
+              {"login": "user2", "id": 456, "verified": false}
+            ]
+          }
+          ```
+          
+          **Output:**
+          ```json
+          {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
+          ```
+          
+          ### Best Practices
+          
+          **Use this script when:**
+          - You need to understand the structure of tool outputs before requesting full data
+          - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
+          - Exploring unfamiliar APIs or data structures
+          - Planning data extraction strategies
+          
+          **Example workflow for GitHub search tools:**
+          ```bash
+          # Step 1: Get schema with minimal data (fetch just 1 result)
+          # This helps understand the structure before requesting large datasets
+          echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
+          
+          # Output shows the schema:
+          # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
+          
+          # Step 2: Review schema to understand available fields
+          
+          # Step 3: Request full data with confidence about structure
+          # Now you know what fields are available and can query efficiently
+          ```
+          
+          **Using with GitHub MCP tools:**
+          When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
+          ```bash
+          # Save a minimal search result to a file
+          gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
+          
+          # Generate schema to understand structure
+          cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
+          
+          # Now you know which fields exist and can use them in your analysis
+          ```
+          
           # Daily News
           
           Write an upbeat, friendly, motivating summary of recent activity in the repo.
@@ -1323,6 +1413,20 @@ jobs:
         # --allow-tool github(search_repositories)
         # --allow-tool github(search_users)
         # --allow-tool safe_outputs
+        # --allow-tool shell(/tmp/gh-aw/jqschema.sh)
+        # --allow-tool shell(cat)
+        # --allow-tool shell(date)
+        # --allow-tool shell(echo)
+        # --allow-tool shell(grep)
+        # --allow-tool shell(head)
+        # --allow-tool shell(jq *)
+        # --allow-tool shell(ls)
+        # --allow-tool shell(pwd)
+        # --allow-tool shell(sort)
+        # --allow-tool shell(tail)
+        # --allow-tool shell(uniq)
+        # --allow-tool shell(wc)
+        # --allow-tool shell(yq)
         # --allow-tool tavily
         # --allow-tool tavily(*)
         # --allow-tool web-fetch
@@ -1331,7 +1435,7 @@ jobs:
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool web-fetch --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool 'shell(/tmp/gh-aw/jqschema.sh)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq *)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool web-fetch --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
@@ -3574,6 +3678,12 @@ jobs:
       group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     steps:
+      - name: Download prompt artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: prompt.txt
+          path: /tmp/gh-aw/threat-detection/
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@v5
@@ -3596,10 +3706,22 @@ jobs:
         env:
           WORKFLOW_NAME: "Daily News"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "\n\n# Daily News\n\nWrite an upbeat, friendly, motivating summary of recent activity in the repo.\n\n- Include some or all of the following:\n  * Recent issues activity\n  * Recent pull requests\n  * Recent discussions\n  * Recent releases\n  * Recent comments\n  * Recent code reviews\n  * Recent code changes\n  * Recent failed CI runs\n  * Look at the changesets in ./changeset folder\n\n- If little has happened, don't write too much.\n\n- Give some deep thought to ways the team can improve their productivity, and suggest some ways to do that.\n\n- Include a description of open source community engagement, if any.\n\n- Highlight suggestions for possible investment, ideas for features and project plan, ways to improve community engagement, and so on.\n\n- Be helpful, thoughtful, respectful, positive, kind, and encouraging.\n\n- Use emojis to make the report more engaging and fun, but don't overdo it.\n\n- Include a short haiku at the end of the report to help orient the team to the season of their work.\n\n- In a note at the end of the report, include a log of\n  * all search queries (web, issues, pulls, content) you used to generate the data for the report\n  * all commands you used to generate the data for the report\n  * all files you read to generate the data for the report\n  * places you didn't have time to read or search, but would have liked to\n\nCreate a new GitHub discussion with a title containing today's date (e.g., \"Daily Status - 2024-10-10\") containing a markdown report with your findings. Use links where appropriate.\n\nOnly a new discussion should be created, do not close or update any existing discussions.\n"
         with:
           script: |
             const fs = require('fs');
+            const promptPath = '/tmp/gh-aw/threat-detection/prompt.txt';
+            let promptFileInfo = 'No prompt file found';
+            if (fs.existsSync(promptPath)) {
+              try {
+                const stats = fs.statSync(promptPath);
+                promptFileInfo = promptPath + ' (' + stats.size + ' bytes)';
+                core.info('Prompt file found: ' + promptFileInfo);
+              } catch (error) {
+                core.warning('Failed to stat prompt file: ' + error.message);
+              }
+            } else {
+              core.info('No prompt file found at: ' + promptPath);
+            }
             const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
             let agentOutputFileInfo = 'No agent output file found';
             if (fs.existsSync(agentOutputPath)) {
@@ -3629,12 +3751,12 @@ jobs:
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
             ## Workflow Source Context
-            Use the following source information to understand the intent and context of the workflow:
-            <source>
-            <name>{WORKFLOW_NAME}</name>
-            <description>{WORKFLOW_DESCRIPTION}</description>
-            <markdown_body>{WORKFLOW_MARKDOWN}</markdown_body>
-            </source>
+            The workflow prompt file is available at: {WORKFLOW_PROMPT_FILE}
+            Load and read this file to understand the intent and context of the workflow. The workflow information includes:
+            - Workflow name: {WORKFLOW_NAME}
+            - Workflow description: {WORKFLOW_DESCRIPTION}
+            - Full workflow instructions and context in the prompt file
+            Use this information to understand the workflow's intended purpose and legitimate use cases.
             ## Agent Output File
             The agent output has been saved to the following file (if any):
             <agent-output-file>
@@ -3671,7 +3793,7 @@ jobs:
             let promptContent = templateContent
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
-              .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
+              .replace(/{WORKFLOW_PROMPT_FILE}/g, promptFileInfo)
               .replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;

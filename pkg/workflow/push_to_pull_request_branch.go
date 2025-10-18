@@ -169,25 +169,11 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 				}
 			}
 
-			// Parse title-prefix
-			if titlePrefix, exists := configMap["title-prefix"]; exists {
-				if titlePrefixStr, ok := titlePrefix.(string); ok {
-					pushToBranchConfig.TitlePrefix = titlePrefixStr
-				}
-			}
+			// Parse title-prefix using shared helper
+			pushToBranchConfig.TitlePrefix = parseTitlePrefixFromConfig(configMap)
 
-			// Parse labels
-			if labels, exists := configMap["labels"]; exists {
-				if labelsArray, ok := labels.([]any); ok {
-					var labelStrings []string
-					for _, label := range labelsArray {
-						if labelStr, ok := label.(string); ok {
-							labelStrings = append(labelStrings, labelStr)
-						}
-					}
-					pushToBranchConfig.Labels = labelStrings
-				}
-			}
+			// Parse labels using shared helper
+			pushToBranchConfig.Labels = parseLabelsFromConfig(configMap)
 
 			// Parse common base fields
 			c.parseBaseSafeOutputConfig(configMap, &pushToBranchConfig.BaseSafeOutputConfig)

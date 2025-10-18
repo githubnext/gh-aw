@@ -156,37 +156,6 @@
               "additionalProperties": true
             }
           ]
-        },
-        "claude": {
-          "description": "Claude tools configuration",
-          "oneOf": [
-            {
-              "type": "string",
-              "description": "Simple claude tool string"
-            },
-            {
-              "type": "object",
-              "description": "Claude tools object configuration",
-              "properties": {
-                "allowed": {
-                  "description": "Allowed Claude tools",
-                  "oneOf": [
-                    {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    {
-                      "type": "object",
-                      "additionalProperties": true
-                    }
-                  ]
-                }
-              },
-              "additionalProperties": true
-            }
-          ]
         }
       },
       "additionalProperties": {

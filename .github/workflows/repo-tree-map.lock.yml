@@ -3514,6 +3514,12 @@ jobs:
       group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     steps:
+      - name: Download prompt artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: prompt.txt
+          path: /tmp/gh-aw/threat-detection/
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@v5
@@ -3536,10 +3542,22 @@ jobs:
         env:
           WORKFLOW_NAME: "Repository Tree Map Generator"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Repository Tree Map Generator\n\nGenerate a comprehensive ASCII tree map visualization of the repository file structure.\n\n## Mission\n\nYour task is to analyze the repository structure and create an ASCII tree map that visualizes:\n1. Directory hierarchy\n2. File sizes (relative visualization)\n3. File counts per directory\n4. Key statistics about the repository\n\n## Analysis Steps\n\n### 1. Collect Repository Statistics\n\nUse bash tools to gather:\n- **Total file count** across the repository\n- **Total repository size** (excluding .git directory)\n- **File type distribution** (count by extension)\n- **Largest files** in the repository (top 10)\n- **Largest directories** by total size\n- **Directory depth** and structure\n\nExample commands you might use:\n```bash\n# Count total files\nfind . -type f -not -path \"./.git/*\" | wc -l\n\n# Get repository size\ndu -sh . --exclude=.git\n\n# Count files by extension\nfind . -type f -not -path \"./.git/*\" | sed 's/.*\\.//' | sort | uniq -c | sort -rn | head -20\n\n# Find largest files\nfind . -type f -not -path \"./.git/*\" -exec du -h {} + | sort -rh | head -10\n\n# Directory sizes\ndu -h --max-depth=2 --exclude=.git . | sort -rh | head -15\n```\n\n### 2. Generate ASCII Tree Map\n\nCreate an ASCII visualization that shows:\n- **Directory tree structure** with indentation\n- **Size indicators** using symbols or bars (e.g., █ ▓ ▒ ░)\n- **File counts** in brackets [count]\n- **Relative size representation** (larger files/directories shown with more bars)\n\nExample visualization format:\n```\nRepository Tree Map\n===================\n\n/ [1234 files, 45.2 MB]\n│\n├─ .github/ [156 files, 2.3 MB] ████████░░\n│  ├─ workflows/ [89 files, 1.8 MB] ██████░░\n│  └─ actions/ [12 files, 234 KB] ██░░\n│\n├─ pkg/ [456 files, 28.5 MB] ██████████████████░░\n│  ├─ cli/ [78 files, 5.2 MB] ████░░\n│  ├─ parser/ [34 files, 3.1 MB] ███░░\n│  └─ workflow/ [124 files, 12.8 MB] ████████░░\n│\n├─ docs/ [234 files, 8.7 MB] ██████░░\n│  └─ src/ [189 files, 7.2 MB] █████░░\n│\n└─ cmd/ [45 files, 2.1 MB] ██░░\n```\n\n### Visualization Guidelines\n\n- Use **box-drawing characters** for tree structure: │ ├ └ ─\n- Use **block characters** for size bars: █ ▓ ▒ ░\n- Scale the visualization bars **proportionally** to sizes\n- Keep the tree **readable** - don't go too deep (max 3-4 levels recommended)\n- Add **color indicators** using emojis:\n  - 📁 for directories\n  - 📄 for files\n  - 🔧 for config files\n  - 📚 for documentation\n  - 🧪 for test files\n\n### 5. Output Format\n\nCreate a GitHub discussion with:\n- **Title**: \"Repository Tree Map - [current date]\"\n- **Body**: Your complete tree map visualization with all sections\n- Use proper markdown formatting with code blocks for the ASCII art\n\n## Important Notes\n\n- **Exclude .git directory** from all calculations to avoid skewing results\n- **Exclude package manager directories** (node_modules, vendor, etc.) if present\n- **Handle special characters** in filenames properly\n- **Format sizes** in human-readable units (KB, MB, GB)\n- **Round percentages** to 1-2 decimal places\n- **Sort intelligently** - largest first for most sections\n- **Be creative** with the ASCII visualization but keep it readable\n- **Test your bash commands** before including them in analysis\n- The tree map should give a **quick visual understanding** of the repository structure and size distribution\n\n## Security\n\nTreat all repository content as trusted since you're analyzing the repository you're running in. However:\n- Don't execute any code files\n- Don't read sensitive files (.env, secrets, etc.)\n- Focus on file metadata (sizes, counts, names) rather than content\n\n## Tips\n\nYour terminal is already in the workspace root. No need to use `cd`.\n"
         with:
           script: |
             const fs = require('fs');
+            const promptPath = '/tmp/gh-aw/threat-detection/prompt.txt';
+            let promptFileInfo = 'No prompt file found';
+            if (fs.existsSync(promptPath)) {
+              try {
+                const stats = fs.statSync(promptPath);
+                promptFileInfo = promptPath + ' (' + stats.size + ' bytes)';
+                core.info('Prompt file found: ' + promptFileInfo);
+              } catch (error) {
+                core.warning('Failed to stat prompt file: ' + error.message);
+              }
+            } else {
+              core.info('No prompt file found at: ' + promptPath);
+            }
             const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
             let agentOutputFileInfo = 'No agent output file found';
             if (fs.existsSync(agentOutputPath)) {
@@ -3569,12 +3587,12 @@ jobs:
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
             ## Workflow Source Context
-            Use the following source information to understand the intent and context of the workflow:
-            <source>
-            <name>{WORKFLOW_NAME}</name>
-            <description>{WORKFLOW_DESCRIPTION}</description>
-            <markdown_body>{WORKFLOW_MARKDOWN}</markdown_body>
-            </source>
+            The workflow prompt file is available at: {WORKFLOW_PROMPT_FILE}
+            Load and read this file to understand the intent and context of the workflow. The workflow information includes:
+            - Workflow name: {WORKFLOW_NAME}
+            - Workflow description: {WORKFLOW_DESCRIPTION}
+            - Full workflow instructions and context in the prompt file
+            Use this information to understand the workflow's intended purpose and legitimate use cases.
             ## Agent Output File
             The agent output has been saved to the following file (if any):
             <agent-output-file>
@@ -3611,7 +3629,7 @@ jobs:
             let promptContent = templateContent
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
-              .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
+              .replace(/{WORKFLOW_PROMPT_FILE}/g, promptFileInfo)
               .replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;

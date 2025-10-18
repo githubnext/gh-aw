@@ -12,6 +12,7 @@ engine:
     
     - name: Convert prompt to GenAI format
       run: |
+        mkdir -p /tmp/gh-aw/aw-prompts
         echo "---" > /tmp/gh-aw/aw-prompts/prompt.genai.md
         echo "model: ${GITHUB_AW_AGENT_MODEL_VERSION}" >> /tmp/gh-aw/aw-prompts/prompt.genai.md
         echo "system: []" >> /tmp/gh-aw/aw-prompts/prompt.genai.md

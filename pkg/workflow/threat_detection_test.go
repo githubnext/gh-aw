@@ -656,3 +656,95 @@ func TestThreatDetectionStepsIncludeEcho(t *testing.T) {
 		t.Error("Expected echo step to reference needs.agent.outputs.output_types")
 	}
 }
+
+func TestDownloadArtifactStepIncludesPrompt(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	// Test that the download artifact step includes prompt.txt download
+	steps := compiler.buildDownloadArtifactStep()
+
+	if len(steps) == 0 {
+		t.Fatal("Expected non-empty steps for download artifact")
+	}
+
+	// Join all steps into a single string for easier verification
+	stepsString := strings.Join(steps, "")
+
+	// Verify key components of the download prompt step
+	expectedComponents := []string{
+		"name: Download prompt artifact",
+		"continue-on-error: true",
+		"uses: actions/download-artifact@v5",
+		"name: prompt.txt",
+		"path: /tmp/gh-aw/threat-detection/",
+	}
+
+	for _, expected := range expectedComponents {
+		if !strings.Contains(stepsString, expected) {
+			t.Errorf("Expected download artifact step to contain %q, but it was not found.\nGenerated steps:\n%s", expected, stepsString)
+		}
+	}
+
+	// Verify it still includes agent output and patch downloads
+	if !strings.Contains(stepsString, "Download agent output artifact") {
+		t.Error("Expected download steps to include agent output artifact")
+	}
+	if !strings.Contains(stepsString, "Download patch artifact") {
+		t.Error("Expected download steps to include patch artifact")
+	}
+}
+
+func TestSetupScriptReferencesPromptFile(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	// Test that the setup script references the prompt file instead of WORKFLOW_MARKDOWN
+	script := compiler.buildSetupScript()
+
+	// Verify the script checks for the prompt file
+	if !strings.Contains(script, "const promptPath = '/tmp/gh-aw/threat-detection/prompt.txt'") {
+		t.Error("Expected setup script to check for prompt file at /tmp/gh-aw/threat-detection/prompt.txt")
+	}
+
+	// Verify the script reads the prompt file info
+	if !strings.Contains(script, "let promptFileInfo = 'No prompt file found'") {
+		t.Error("Expected setup script to initialize promptFileInfo variable")
+	}
+
+	// Verify the script uses WORKFLOW_PROMPT_FILE placeholder
+	if !strings.Contains(script, ".replace(/{WORKFLOW_PROMPT_FILE}/g, promptFileInfo)") {
+		t.Error("Expected setup script to replace WORKFLOW_PROMPT_FILE placeholder")
+	}
+
+	// Verify the script does NOT reference WORKFLOW_MARKDOWN
+	if strings.Contains(script, "WORKFLOW_MARKDOWN") {
+		t.Error("Setup script should not reference WORKFLOW_MARKDOWN")
+	}
+}
+
+func TestBuildWorkflowContextEnvVarsExcludesMarkdown(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	data := &WorkflowData{
+		Name:            "Test Workflow",
+		Description:     "Test Description",
+		MarkdownContent: "This should not be included",
+	}
+
+	envVars := compiler.buildWorkflowContextEnvVars(data)
+
+	// Join all env vars into a single string for easier verification
+	envVarsString := strings.Join(envVars, "")
+
+	// Verify WORKFLOW_NAME and WORKFLOW_DESCRIPTION are present
+	if !strings.Contains(envVarsString, "WORKFLOW_NAME:") {
+		t.Error("Expected env vars to include WORKFLOW_NAME")
+	}
+	if !strings.Contains(envVarsString, "WORKFLOW_DESCRIPTION:") {
+		t.Error("Expected env vars to include WORKFLOW_DESCRIPTION")
+	}
+
+	// Verify WORKFLOW_MARKDOWN is NOT present
+	if strings.Contains(envVarsString, "WORKFLOW_MARKDOWN") {
+		t.Error("Environment variables should not include WORKFLOW_MARKDOWN")
+	}
+}

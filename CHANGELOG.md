@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.22.9 - 2025-10-18
+
+### Bug Fixes
+
+#### Add assignees support to create_issue safe-output job
+
+#### Add installation instructions and usage tips for ffmpeg
+
+
 ## v0.22.8 - 2025-10-18
 
 ### Bug Fixes

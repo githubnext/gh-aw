@@ -1657,49 +1657,6 @@
             }
           ]
         },
-        "claude": {
-          "description": "Claude tools configuration",
-          "oneOf": [
-            {
-              "type": "string",
-              "description": "Simple claude tool string"
-            },
-            {
-              "type": "object",
-              "description": "Claude tools object configuration",
-              "properties": {
-                "allowed": {
-                  "description": "Allowed Claude tools",
-                  "oneOf": [
-                    {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    {
-                      "type": "object",
-                      "additionalProperties": {
-                        "oneOf": [
-                          {
-                            "type": "null"
-                          },
-                          {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
-                          }
-                        ]
-                      }
-                    }
-                  ]
-                }
-              },
-              "additionalProperties": false
-            }
-          ]
-        },
         "bash": {
           "description": "Bash shell command execution tool for running command-line programs and scripts",
           "oneOf": [

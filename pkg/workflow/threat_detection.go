@@ -132,20 +132,33 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 
 // buildDownloadArtifactStep creates the artifact download step
 func (c *Compiler) buildDownloadArtifactStep() []string {
-	return []string{
-		"      - name: Download agent output artifact\n",
-		"        continue-on-error: true\n",
-		"        uses: actions/download-artifact@v5\n",
-		"        with:\n",
-		"          name: agent_output.json\n",
-		"          path: /tmp/gh-aw/threat-detection/\n",
-		"      - name: Download patch artifact\n",
-		"        continue-on-error: true\n",
-		"        uses: actions/download-artifact@v5\n",
-		"        with:\n",
-		"          name: aw.patch\n",
-		"          path: /tmp/gh-aw/threat-detection/\n",
-	}
+	var steps []string
+
+	// Download prompt artifact
+	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: "prompt.txt",
+		DownloadPath: "/tmp/gh-aw/threat-detection/",
+		SetupEnvStep: false,
+		StepName:     "Download prompt artifact",
+	})...)
+
+	// Download agent output artifact
+	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: "agent_output.json",
+		DownloadPath: "/tmp/gh-aw/threat-detection/",
+		SetupEnvStep: false,
+		StepName:     "Download agent output artifact",
+	})...)
+
+	// Download patch artifact
+	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: "aw.patch",
+		DownloadPath: "/tmp/gh-aw/threat-detection/",
+		SetupEnvStep: false,
+		StepName:     "Download patch artifact",
+	})...)
+
+	return steps
 }
 
 // buildEchoAgentOutputsStep creates a step that echoes the agent outputs
@@ -212,6 +225,21 @@ func (c *Compiler) buildSetupScript() string {
 	// Build the JavaScript code with proper handling of backticks for markdown code blocks
 	script := `const fs = require('fs');
 
+// Check if prompt file exists
+const promptPath = '/tmp/gh-aw/threat-detection/prompt.txt';
+let promptFileInfo = 'No prompt file found';
+if (fs.existsSync(promptPath)) {
+  try {
+    const stats = fs.statSync(promptPath);
+    promptFileInfo = promptPath + ' (' + stats.size + ' bytes)';
+    core.info('Prompt file found: ' + promptFileInfo);
+  } catch (error) {
+    core.warning('Failed to stat prompt file: ' + error.message);
+  }
+} else {
+  core.info('No prompt file found at: ' + promptPath);
+}
+
 // Check if agent output file exists
 const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
 let agentOutputFileInfo = 'No agent output file found';
@@ -247,7 +275,7 @@ const templateContent = %s;
 let promptContent = templateContent
   .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
   .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
-  .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
+  .replace(/{WORKFLOW_PROMPT_FILE}/g, promptFileInfo)
   .replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)
   .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
 
@@ -364,15 +392,9 @@ func (c *Compiler) buildWorkflowContextEnvVars(data *WorkflowData) []string {
 		workflowDescription = "No description provided"
 	}
 
-	workflowMarkdown := data.MarkdownContent
-	if workflowMarkdown == "" {
-		workflowMarkdown = "No content provided"
-	}
-
 	return []string{
 		fmt.Sprintf("          WORKFLOW_NAME: %q\n", workflowName),
 		fmt.Sprintf("          WORKFLOW_DESCRIPTION: %q\n", workflowDescription),
-		fmt.Sprintf("          WORKFLOW_MARKDOWN: %q\n", workflowMarkdown),
 	}
 }
 

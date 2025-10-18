@@ -9,6 +9,8 @@ permissions:
 engine: claude
 network: 
    allowed: [defaults, "registry.npmjs.org", "api.github.com", "ghcr.io"]
+imports:
+  - shared/jqschema.md
 tools:
   web-fetch:
   bash:
