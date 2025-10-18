@@ -61,18 +61,13 @@ def _snapshot_path_for(file_path: Path) -> Path:
 
 def _build_config() -> TemplateMinerConfig:
     cfg = TemplateMinerConfig()
-    cfg.set("DRAIN", "sim_th", str(SIM_TH))
-    cfg.set("DRAIN", "depth", str(DEPTH))
-    cfg.set("DRAIN", "max_children", str(MAX_CHILDREN))
+    cfg.drain_sim_th = SIM_TH
+    cfg.drain_depth = DEPTH
+    cfg.drain_max_children = MAX_CHILDREN
     if MAX_CLUSTERS > 0:
-        cfg.set("DRAIN", "max_clusters", str(MAX_CLUSTERS))
-    # Sensible masking to improve template quality
-    cfg.set("MASKING", "masking", json.dumps([
-        {"regex_pattern": r"((?<=[^A-Za-z0-9])|^)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})((?=[^A-Za-z0-9])|$)", "mask_with": "IP"},
-        {"regex_pattern": r"((?<=[^A-Za-z0-9])|^)([\-+]?\d+)((?=[^A-Za-z0-9])|$)", "mask_with": "NUM"},
-        {"regex_pattern": r"0x[0-9a-fA-F]+", "mask_with": "HEX"},
-        {"regex_pattern": r"[a-f0-9]{8}\-[a-f0-9\-]{27,36}", "mask_with": "GUID"},
-    ]))
+        cfg.drain_max_clusters = MAX_CLUSTERS
+    # Use default masking configuration from drain3
+    # Custom masking caused serialization errors with dict objects
     return cfg
 
 def _new_miner(snapshot_path: Path) -> TemplateMiner:
@@ -103,62 +98,89 @@ def _jsonl(obj: Any) -> str:
 # MCP tools (streaming)
 # -----------------------
 @mcp.tool()
-def index_file(path: str, encoding: str = "utf-8", max_lines: Optional[int] = None):
+def index_file(paths: List[str], encoding: str = "utf-8", max_lines: Optional[int] = None):
     """
-    Stream-mines templates from a log file and persists a Drain3 snapshot.
+    Stream-mines templates from one or more log files and persists Drain3 snapshots.
+    Accepts an array of file paths and processes them sequentially as a single operation.
     Yields JSONL lines progressively:
-      - {"event":"start", ...}
-      - {"event":"progress", processed:<n>}
-      - {"event":"template", cluster_id, size, template}
-      - {"event":"summary", cluster_count, processed_lines, ...}
+      - {"event":"start", file, snapshot, ...}
+      - {"event":"progress", file, processed:<n>}
+      - {"event":"template", file, cluster_id, size, template}
+      - {"event":"file_summary", file, cluster_count, processed_lines, ...}
+      - {"event":"total_summary", total_files, total_lines, total_clusters, ...}
     """
-    logger.info(f"index_file called: path={path}, encoding={encoding}, max_lines={max_lines}")
-    p = Path(path).expanduser().resolve()
-    if not p.exists() or not p.is_file():
-        logger.error(f"File not found: {str(p)}")
-        yield _jsonl({"event": "error", "error": f"File not found: {str(p)}"})
-        return
+    # Handle both single string (backward compat) and array
+    if isinstance(paths, str):
+        paths = [paths]
     
-    logger.info(f"File found: {str(p)}")
+    logger.info(f"index_file called: paths={paths}, encoding={encoding}, max_lines={max_lines}")
+    
+    total_files = 0
+    total_lines = 0
+    total_clusters_count = 0
+    failed_files = []
+    
+    for path in paths:
+        p = Path(path).expanduser().resolve()
+        if not p.exists() or not p.is_file():
+            logger.error(f"File not found: {str(p)}")
+            yield _jsonl({"event": "error", "error": f"File not found: {str(p)}", "file": str(p)})
+            failed_files.append(str(p))
+            continue
+        
+        logger.info(f"File found: {str(p)}")
 
-    snapshot = _snapshot_path_for(p)
-    logger.info(f"Snapshot path: {str(snapshot)}")
-    miner = _new_miner(snapshot)
-    logger.info("Template miner created")
+        snapshot = _snapshot_path_for(p)
+        logger.info(f"Snapshot path: {str(snapshot)}")
+        miner = _new_miner(snapshot)
+        logger.info("Template miner created")
 
-    yield _jsonl({"event": "start", "file": str(p), "snapshot": str(snapshot)})
-    logger.info("Started processing file")
+        yield _jsonl({"event": "start", "file": str(p), "snapshot": str(snapshot)})
+        logger.info("Started processing file")
 
-    processed = 0
-    for processed, ln in enumerate(_read_lines(p, encoding), start=1):
-        if max_lines and processed > max_lines:
-            processed -= 1  # last increment doesn't count
-            break
-        if ln.strip():
-            miner.add_log_message(ln)
+        processed = 0
+        for processed, ln in enumerate(_read_lines(p, encoding), start=1):
+            if max_lines and processed > max_lines:
+                processed -= 1  # last increment doesn't count
+                break
+            if ln.strip():
+                miner.add_log_message(ln)
 
-        if processed % STREAM_FLUSH_EVERY == 0:
-            yield _jsonl({"event": "progress", "processed": processed})
-            if STREAM_SLEEP > 0:
-                time.sleep(STREAM_SLEEP)
+            if processed % STREAM_FLUSH_EVERY == 0:
+                yield _jsonl({"event": "progress", "file": str(p), "processed": processed})
+                if STREAM_SLEEP > 0:
+                    time.sleep(STREAM_SLEEP)
 
-    # Save at end (older Drain3 may auto-save, but we try explicitly)
-    try:
-        miner.save_state("manual_save")
-    except Exception:
-        pass
+        # Save at end (older Drain3 may auto-save, but we try explicitly)
+        try:
+            miner.save_state("manual_save")
+        except Exception:
+            pass
 
-    clusters = _clusters_as_dicts(miner)
-    # Emit clusters as independent events so consumers can start handling immediately
-    for c in clusters:
-        yield _jsonl({"event": "template", **c})
+        clusters = _clusters_as_dicts(miner)
+        # Emit clusters as independent events so consumers can start handling immediately
+        for c in clusters:
+            yield _jsonl({"event": "template", "file": str(p), **c})
 
+        yield _jsonl({
+            "event": "file_summary",
+            "file": str(p),
+            "snapshot": str(snapshot),
+            "processed_lines": processed,
+            "cluster_count": len(clusters),
+        })
+        
+        total_files += 1
+        total_lines += processed
+        total_clusters_count += len(clusters)
+    
+    # Final summary across all files
     yield _jsonl({
-        "event": "summary",
-        "file": str(p),
-        "snapshot": str(snapshot),
-        "processed_lines": processed,
-        "cluster_count": len(clusters),
+        "event": "total_summary",
+        "total_files": total_files,
+        "total_lines": total_lines,
+        "total_clusters": total_clusters_count,
+        "failed_files": failed_files,
     })
 
 @mcp.tool()
