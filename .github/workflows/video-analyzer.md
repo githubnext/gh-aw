@@ -6,16 +6,6 @@ on:
         description: 'URL to video file to analyze (must be publicly accessible)'
         required: true
         type: string
-      analysis_type:
-        description: 'Type of analysis to perform'
-        required: true
-        type: choice
-        options:
-          - keyframes
-          - scenes
-          - audio_extract
-          - full_analysis
-        default: full_analysis
 
 permissions:
   contents: read
@@ -47,12 +37,11 @@ You are a video analysis agent that uses ffmpeg to process and analyze video fil
 
 - **Repository**: ${{ github.repository }}
 - **Video URL**: "${{ github.event.inputs.video_url }}"
-- **Analysis Type**: "${{ github.event.inputs.analysis_type }}"
 - **Triggered by**: @${{ github.actor }}
 
 ## Your Task
 
-Analyze the provided video file using ffmpeg and create a detailed report.
+Perform a comprehensive video analysis using ffmpeg, including keyframe extraction, scene detection, and audio analysis. Create a detailed report with all findings.
 
 ### Step 1: Download and Verify Video
 
@@ -69,11 +58,11 @@ Analyze the provided video file using ffmpeg and create a detailed report.
    - Audio codec (if present)
    - File size
 
-### Step 2: Perform Requested Analysis
+### Step 2: Perform Full Analysis
 
-Based on the `analysis_type` input, perform the appropriate analysis:
+Perform all three analyses to provide a comprehensive report:
 
-#### If "keyframes" Analysis:
+#### Keyframe Analysis:
 1. Extract all keyframes from the video:
    ```bash
    ffmpeg -i video.mp4 -vf "select='eq(pict_type,I)'" -fps_mode vfr -frame_pts 1 keyframe_%06d.jpg
@@ -82,7 +71,7 @@ Based on the `analysis_type` input, perform the appropriate analysis:
 3. Report keyframe distribution (approximately every N seconds)
 4. List the first 10 keyframe filenames with their timestamps
 
-#### If "scenes" Analysis:
+#### Scene Detection:
 1. Detect scene changes using threshold 0.4:
    ```bash
    ffmpeg -i video.mp4 -vf "select='gt(scene,0.4)',showinfo" -fps_mode passthrough -frame_pts 1 scene_%06d.jpg
@@ -99,7 +88,7 @@ Based on the `analysis_type` input, perform the appropriate analysis:
 - If too many scenes detected, try higher threshold (0.5)
 - Adjust based on video content type (action vs. documentary)
 
-#### If "audio_extract" Analysis:
+#### Audio Analysis:
 1. Check if video has audio stream
 2. Extract audio in multiple formats for comparison:
    ```bash
@@ -117,12 +106,9 @@ Based on the `analysis_type` input, perform the appropriate analysis:
    - Duration
    - Estimated quality
 
-#### If "full_analysis" Analysis:
-Perform all three analyses above (keyframes, scenes, and audio extraction) and provide a comprehensive report combining all findings.
-
 ### Step 3: Generate Analysis Report
 
-Create a GitHub issue with your analysis containing:
+Create a GitHub issue with your comprehensive analysis containing:
 
 #### Video Information Section
 - Source URL
@@ -133,10 +119,10 @@ Create a GitHub issue with your analysis containing:
 - Estimated bitrate
 
 #### Analysis Results Section
-Based on the analysis type performed:
-- Keyframe analysis results (if applicable)
-- Scene detection results (if applicable)
-- Audio extraction results (if applicable)
+Include results from all three analyses:
+- Keyframe analysis results
+- Scene detection results
+- Audio extraction results
 
 #### Technical Details Section
 - FFmpeg version used
@@ -148,8 +134,8 @@ Based on the analysis type performed:
 Provide actionable recommendations based on the analysis:
 - Suggested optimal encoding settings
 - Potential quality improvements
-- Scene detection threshold recommendations (if applicable)
-- Audio quality optimization suggestions (if applicable)
+- Scene detection threshold recommendations
+- Audio quality optimization suggestions
 
 ## Output Format
 
@@ -171,9 +157,17 @@ Create your issue with the following markdown structure:
 
 ## 🔍 Analysis Results
 
-### [Analysis Type] Analysis
+### Keyframe Analysis
 
-[Detailed results based on analysis type]
+[Detailed keyframe analysis results]
+
+### Scene Detection Analysis
+
+[Detailed scene detection results]
+
+### Audio Analysis
+
+[Detailed audio analysis results]
 
 ## 🛠 Technical Details
 
@@ -190,34 +184,3 @@ Create your issue with the following markdown structure:
 *Generated using ffmpeg via GitHub Agentic Workflows*
 ```
 
-## Important Notes
-
-### Performance Considerations
-- Process operations sequentially to avoid memory issues
-- Clean up intermediate files to save disk space
-- Monitor GitHub Actions runner resources
-- Consider file size limits for uploads/artifacts
-
-### Error Handling
-- Verify video download succeeded before processing
-- Check ffmpeg commands return success (exit code 0)
-- Validate output files exist and are not empty
-- Report any errors clearly in the issue
-
-### Best Practices from GenAIScript Implementation
-1. **Caching**: Store results to avoid reprocessing
-2. **Concurrency**: Process one video at a time
-3. **Formats**: Use JPG for frames (good quality/size balance)
-4. **Thresholds**: Scene detection works best at 0.3-0.5
-5. **Quality**: Use CRF 23 for good balance of quality/size
-6. **Timestamps**: Be precise with timestamp-based extraction
-7. **Size control**: Always specify output dimensions when needed
-
-### Security Considerations
-- Only process videos from trusted sources
-- Validate input URLs before downloading
-- Set reasonable timeout limits
-- Monitor disk space usage
-- Clean up temporary files after processing
-
-Good luck with your video analysis!
