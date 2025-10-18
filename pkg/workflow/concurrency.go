@@ -36,37 +36,8 @@ func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
 		return workflowData.EngineConfig.Concurrency
 	}
 
-	// Check if the engine has default concurrency enabled
-	engineID := ""
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
-		engineID = workflowData.EngineConfig.ID
-	}
-
-	// Get the engine to check if default concurrency should be applied
-	registry := GetGlobalEngineRegistry()
-	engine, err := registry.GetEngine(engineID)
-
-	// If engine not found or doesn't have default concurrency, return empty string (no concurrency)
-	if err != nil || !engine.HasDefaultConcurrency() {
-		return ""
-	}
-
-	// Default behavior: single job per engine across all workflows
-	// Pattern: gh-aw-{engine-id}
-	var keys []string
-
-	// Prepend with gh-aw- prefix
-	keys = append(keys, "gh-aw")
-
-	// Use engine ID for isolation between different engines
-	keys = append(keys, engineID)
-
-	groupValue := strings.Join(keys, "-")
-
-	// Build the concurrency configuration (no cancel-in-progress at agent level)
-	concurrencyConfig := fmt.Sprintf("concurrency:\n  group: \"%s\"", groupValue)
-
-	return concurrencyConfig
+	// No default concurrency - return empty string
+	return ""
 }
 
 // isPullRequestWorkflow checks if a workflow's "on" section contains pull_request triggers
