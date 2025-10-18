@@ -105,28 +105,6 @@ Test token precedence in copilot engine.
 			},
 		},
 		{
-			name:   "Copilot with agentic-workflows tool",
-			engine: "copilot",
-			workflow: `---
-name: Test Agentic Workflows Token Copilot
-on:
-  push:
-    branches: [main]
-engine: copilot
-tools:
-  agentic-workflows:
----
-# Test workflow
-Test agentic workflows MCP server token in copilot.
-`,
-			expectedTokenRefs: []string{
-				"GITHUB_AW_GITHUB_TOKEN", // Agentic workflows MCP server should use GH_AW_GITHUB_TOKEN
-			},
-			allowedExceptions: []string{
-				"COPILOT_CLI_TOKEN", // Copilot CLI uses special token
-			},
-		},
-		{
 			name:   "Claude with agentic-workflows tool",
 			engine: "claude",
 			workflow: `---

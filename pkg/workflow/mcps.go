@@ -200,12 +200,6 @@ func hasGitHubTool(tools map[string]any) bool {
 	return exists
 }
 
-// hasAgenticWorkflowsTool checks if the agentic-workflows tool is configured
-func hasAgenticWorkflowsTool(tools map[string]any) bool {
-	_, exists := tools["agentic-workflows"]
-	return exists
-}
-
 // getGitHubType extracts the mode from GitHub tool configuration (local or remote)
 func getGitHubType(githubTool any) string {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
