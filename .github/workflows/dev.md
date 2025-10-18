@@ -9,16 +9,57 @@ engine: copilot
 permissions:
   contents: read
   actions: read
+
+services:
+  jupyter:
+    image: jupyter/base-notebook:latest
+    ports:
+      - 8888:8888
+    env:
+      JUPYTER_TOKEN: ${{ github.run_id }}
+
+steps:
+  - name: Generate and verify Jupyter Token
+    id: jupyter-token
+    run: |
+      # Use github.run_id as the token (it's unique and secure enough for ephemeral sessions)
+      TOKEN="${{ github.run_id }}"
+      echo "token=$TOKEN" >> $GITHUB_OUTPUT
+      echo "Generated Jupyter token from run ID"
+      
+  - name: Wait for Jupyter to be ready
+    run: |
+      echo "Waiting for Jupyter server to start..."
+      for i in {1..30}; do
+        if curl -f http://jupyter:8888/api 2>/dev/null; then
+          echo "✓ Jupyter server is ready!"
+          break
+        fi
+        echo "Attempt $i: Waiting for Jupyter..."
+        sleep 2
+      done
+      curl -f http://jupyter:8888/api || (echo "Failed to connect to Jupyter" && exit 1)
+
 tools:
   edit:
   github:
+  
+mcp-servers:
+  jupyter:
+    container: "datalayer/jupyter-mcp-server"
+    version: "latest"
+    env:
+      JUPYTER_URL: "http://jupyter:8888"
+      JUPYTER_TOKEN: "${{ github.run_id }}"
+      DOCUMENT_ID: "notebook.ipynb"
+      ALLOW_IMG_OUTPUT: "true"
+    allowed: ["*"]
+
 safe-outputs:
   create-discussion:
     category: "general"
     max: 1
   upload-assets:
-imports:
-  - shared/mcp/jupyter.md
 ---
 
 # File Size Distribution Analysis

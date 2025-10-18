@@ -3,10 +3,6 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mcp/jupyter.md
-#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -65,6 +61,13 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
+    services:
+      jupyter:
+        env:
+          JUPYTER_TOKEN: ${{ github.run_id }}
+        image: jupyter/base-notebook:latest
+        ports:
+        - 8888:8888
     permissions:
       actions: read
       contents: read
@@ -82,6 +85,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - id: jupyter-token
+        name: Generate and verify Jupyter Token
+        run: "# Use github.run_id as the token (it's unique and secure enough for ephemeral sessions)\nTOKEN=\"${{ github.run_id }}\"\necho \"token=$TOKEN\" >> $GITHUB_OUTPUT\necho \"Generated Jupyter token from run ID\"\n"
+      - name: Wait for Jupyter to be ready
+        run: "echo \"Waiting for Jupyter server to start...\"\nfor i in {1..30}; do\n  if curl -f http://jupyter:8888/api 2>/dev/null; then\n    echo \"✓ Jupyter server is ready!\"\n    break\n  fi\n  echo \"Attempt $i: Waiting for Jupyter...\"\n  sleep 2\ndone\ncurl -f http://jupyter:8888/api || (echo \"Failed to connect to Jupyter\" && exit 1)\n"
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -939,8 +947,8 @@ jobs:
                 "env": {
                   "ALLOW_IMG_OUTPUT": "true",
                   "DOCUMENT_ID": "notebook.ipynb",
-                  "JUPYTER_TOKEN": "${{ secrets.JUPYTER_TOKEN || github.run_id }}",
-                  "JUPYTER_URL": "http://host.docker.internal:8888"
+                  "JUPYTER_TOKEN": "${{ github.run_id }}",
+                  "JUPYTER_URL": "http://jupyter:8888"
                 }
               },
               "safe_outputs": {
@@ -973,8 +981,6 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          
-          
           # File Size Distribution Analysis
           
           You are a data analyst using Jupyter notebooks to analyze the repository.
@@ -2226,11 +2232,10 @@ jobs:
             await main();
 
         env:
-          GITHUB_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,JUPYTER_TOKEN'
+          GITHUB_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SECRET_JUPYTER_TOKEN: ${{ secrets.JUPYTER_TOKEN }}
       - name: Upload engine output files
         uses: actions/upload-artifact@v4
         with:
@@ -3565,7 +3570,7 @@ jobs:
         env:
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "<!--\n\n# Jupyter Notebook MCP Server\n# Manipulate Jupyter notebooks and execute code cells\n\nProvides integration with Jupyter servers to run code cells, manage notebooks,\nand visualize data using the Jupyter MCP Server.\n\nDocumentation: https://pypi.org/project/jupyter-mcp-server/\n\nAvailable tools:\n  - execute_cell: Execute code in a notebook cell\n  - get_cell_output: Retrieve output from executed cells\n  - create_notebook: Create new Jupyter notebooks\n  - list_notebooks: List available notebooks\n  - get_notebook_content: Read notebook contents\n\nConfiguration:\n  The server connects to a Jupyter server instance using the provided URL and token.\n  Set DOCUMENT_ID to specify the default notebook to work with.\n  Enable ALLOW_IMG_OUTPUT to support image outputs from cells.\n\nSetup:\n  1. Start a Jupyter server locally or remotely\n  2. Generate a Jupyter token for authentication\n  3. Add the following secrets to your GitHub repository:\n     - JUPYTER_TOKEN: Your Jupyter server authentication token\n\n  4. Include in Your Workflow:\n     imports:\n       - shared/mcp/jupyter.md\n\nConnection:\n  The server connects to Jupyter via the JUPYTER_URL (default: http://host.docker.internal:8888)\n  which allows Docker containers to access services running on the host machine.\n\nSecurity:\n  - Store the JUPYTER_TOKEN as a GitHub secret\n  - Ensure your Jupyter server is properly secured\n  - Consider network restrictions if running in production\n\nExample Usage:\n  Create a Jupyter notebook that analyzes repository data and generates visualizations.\n  Execute Python code cells to process data and create charts.\n\nUsage:\n  imports:\n    - shared/mcp/jupyter.md\n\n-->\n\n# File Size Distribution Analysis\n\nYou are a data analyst using Jupyter notebooks to analyze the repository.\n\n## Your Task\n\n1. **Analyze Repository Files**: Scan the repository ${{ github.repository }} to gather file size information for all files\n2. **Generate Distribution Chart**: Use Jupyter notebook to create a visual distribution chart showing:\n   - File size ranges (e.g., <1KB, 1-10KB, 10-100KB, 100KB-1MB, >1MB)\n   - Number of files in each size range\n   - A bar chart or histogram visualization\n3. **Save Chart**: Save the generated chart as a file in the current directory\n4. **Upload Chart as Asset**: Use the `upload_asset` output type to upload the chart file\n5. **Create Discussion**: Create a GitHub discussion with:\n   - Summary statistics (total files, average size, median size, largest files)\n   - Description of the file size distribution\n   - Link to the uploaded chart asset on the assets branch\n   - Any interesting insights about the repository structure\n\n## Important Notes\n\n- Use Python code in the Jupyter notebook for data processing\n- Use matplotlib or seaborn for visualization\n- Ensure the chart is clear, labeled, and professional-looking\n- The chart will be automatically uploaded to the assets branch via safe-outputs\n"
+          WORKFLOW_MARKDOWN: "# File Size Distribution Analysis\n\nYou are a data analyst using Jupyter notebooks to analyze the repository.\n\n## Your Task\n\n1. **Analyze Repository Files**: Scan the repository ${{ github.repository }} to gather file size information for all files\n2. **Generate Distribution Chart**: Use Jupyter notebook to create a visual distribution chart showing:\n   - File size ranges (e.g., <1KB, 1-10KB, 10-100KB, 100KB-1MB, >1MB)\n   - Number of files in each size range\n   - A bar chart or histogram visualization\n3. **Save Chart**: Save the generated chart as a file in the current directory\n4. **Upload Chart as Asset**: Use the `upload_asset` output type to upload the chart file\n5. **Create Discussion**: Create a GitHub discussion with:\n   - Summary statistics (total files, average size, median size, largest files)\n   - Description of the file size distribution\n   - Link to the uploaded chart asset on the assets branch\n   - Any interesting insights about the repository structure\n\n## Important Notes\n\n- Use Python code in the Jupyter notebook for data processing\n- Use matplotlib or seaborn for visualization\n- Ensure the chart is clear, labeled, and professional-looking\n- The chart will be automatically uploaded to the assets branch via safe-outputs\n"
         with:
           script: |
             const fs = require('fs');
