@@ -18,7 +18,7 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 	// Both of these create a comment_id that can be updated on failure
 	hasAddComment := data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil
 	hasReaction := data.AIReaction != ""
-	
+
 	if !hasAddComment && !hasReaction {
 		return nil, nil
 	}
