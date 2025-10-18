@@ -52,8 +52,6 @@ jobs:
     permissions:
       actions: read
       contents: read
-    concurrency:
-      group: "gh-aw-copilot"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5

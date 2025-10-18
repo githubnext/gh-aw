@@ -87,8 +87,6 @@ jobs:
     permissions:
       actions: read
       contents: read
-    concurrency:
-      group: "gh-aw-copilot"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"notion-add-comment\":{\"description\":\"Add a comment to a Notion page\",\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"}},\"output\":\"Comment added to Notion successfully!\"},\"post-to-slack-channel\":{\"description\":\"Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, \\u003equote, and links \\u003curl|text\\u003e. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set.\",\"inputs\":{\"message\":{\"description\":\"The message to post (max 200 characters, supports Slack markdown)\",\"required\":true,\"type\":\"string\"}},\"output\":\"Message posted to Slack successfully!\"}}"
@@ -4387,8 +4385,6 @@ jobs:
     needs: agent
     runs-on: ubuntu-latest
     permissions: read-all
-    concurrency:
-      group: "gh-aw-copilot"
     timeout-minutes: 10
     steps:
       - name: Download agent output artifact

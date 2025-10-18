@@ -27,7 +27,7 @@ func NewCopilotEngine() *CopilotEngine {
 			supportsMaxTurns:       false, // Copilot CLI does not support max-turns feature yet
 			supportsWebFetch:       false, // Copilot CLI does not have built-in web-fetch support
 			supportsWebSearch:      false, // Copilot CLI does not have built-in web-search support
-			hasDefaultConcurrency:  true,  // Copilot HAS default concurrency enabled
+			hasDefaultConcurrency:  false, // Copilot does NOT have default concurrency enabled (uses same formula as other engines)
 		},
 	}
 }

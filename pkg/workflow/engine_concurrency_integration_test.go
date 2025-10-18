@@ -16,7 +16,7 @@ func TestEngineConcurrencyIntegration(t *testing.T) {
 		description      string
 	}{
 		{
-			name: "Copilot engine has default concurrency",
+			name: "Copilot engine does NOT have default concurrency",
 			markdown: `---
 on: push
 engine:
@@ -28,9 +28,8 @@ tools:
 
 # Test workflow
 Test content`,
-			expectedInJob: `concurrency:
-      group: "gh-aw-copilot"`,
-			description: "Copilot should use default pattern gh-aw-{engine-id}",
+			notExpectedInJob: `concurrency:`,
+			description:      "Copilot should NOT have default concurrency in agent job (uses same formula as other engines)",
 		},
 		{
 			name: "Claude engine does NOT have default concurrency",

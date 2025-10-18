@@ -316,13 +316,12 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 		description  string
 	}{
 		{
-			name: "Default concurrency with copilot engine",
+			name: "No default concurrency with copilot engine",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{ID: "copilot"},
 			},
-			expected: `concurrency:
-  group: "gh-aw-copilot"`,
-			description: "Copilot should use default pattern gh-aw-{engine-id} (has default concurrency enabled)",
+			expected:    "",
+			description: "Copilot should NOT have default concurrency (uses same formula as other engines)",
 		},
 		{
 			name: "No default concurrency with claude engine",

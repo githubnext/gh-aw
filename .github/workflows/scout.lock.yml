@@ -941,8 +941,6 @@ jobs:
     permissions:
       actions: read
       contents: read
-    concurrency:
-      group: "gh-aw-copilot"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"missing_tool\":{}}"
@@ -4623,8 +4621,6 @@ jobs:
     needs: agent
     runs-on: ubuntu-latest
     permissions: read-all
-    concurrency:
-      group: "gh-aw-copilot"
     timeout-minutes: 10
     steps:
       - name: Download agent output artifact
