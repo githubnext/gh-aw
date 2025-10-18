@@ -419,8 +419,12 @@ func TestGetClaudeConfig(t *testing.T) {
 			t.Fatal("expected non-nil config")
 		}
 
-		if config.Allowed == nil {
-			t.Error("expected Allowed to be set")
+		if len(config.AllowedTools) == 0 {
+			t.Error("expected AllowedTools to be set")
+		}
+
+		if len(config.AllowedTools) != 2 {
+			t.Errorf("expected 2 allowed tools, got %d", len(config.AllowedTools))
 		}
 	})
 }
