@@ -3346,13 +3346,6 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
-      - if: always()
-        name: Upload MCP logs for debugging
-        uses: actions/upload-artifact@v4
-        with:
-          name: mcp-logs
-          path: /tmp/gh-aw/mcp-logs/
-          retention-days: 7
 
   create_issue:
     needs:

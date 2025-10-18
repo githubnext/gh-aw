@@ -18,14 +18,6 @@ safe-outputs:
     assignees: copilot
 imports:
   - shared/mcp/drain3.md
-post-steps:
-  - name: Upload MCP logs for debugging
-    if: always()
-    uses: actions/upload-artifact@v4
-    with:
-      name: mcp-logs
-      path: /tmp/gh-aw/mcp-logs/
-      retention-days: 7
 ---
 
 # Go Source Code Pattern Analysis
