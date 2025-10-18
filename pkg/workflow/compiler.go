@@ -160,6 +160,7 @@ type WorkflowData struct {
 	Container           string // container setting for the main job
 	Services            string // services setting for the main job
 	Tools               map[string]any
+	ParsedTools         *Tools // Structured tools configuration (NEW: parsed from Tools map)
 	MarkdownContent     string
 	AI                  string        // "claude" or "codex" (for backwards compatibility)
 	EngineConfig        *EngineConfig // Extended engine configuration
@@ -822,6 +823,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		ImportedFiles:       importsResult.ImportedFiles,
 		IncludedFiles:       allIncludedFiles,
 		Tools:               tools,
+		ParsedTools:         NewTools(tools),
 		Runtimes:            runtimes,
 		MarkdownContent:     markdownContent,
 		AI:                  engineSetting,
