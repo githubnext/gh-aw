@@ -11,31 +11,22 @@
 # - Instructions on how to use ffmpeg
 # - Best practices for video/audio processing
 
+tools:
+  bash:
+    - "ffmpeg *"
+    - "ffprobe *"
+
 steps:
   - name: Setup FFmpeg
     run: |
       sudo apt-get update && sudo apt-get install -y ffmpeg
       ffmpeg -version
+      mkdir -p /tmp/gh-aw/ffmpeg
 ---
 
 # FFmpeg Usage Guide
 
-FFmpeg has been installed and is available in your PATH.
-
-## Finding FFmpeg
-
-You can verify ffmpeg installation and get information:
-
-```bash
-# Check ffmpeg version and installation
-ffmpeg -version
-
-# Get ffmpeg location
-which ffmpeg
-
-# Get ffprobe (companion tool) location
-which ffprobe
-```
+FFmpeg has been installed and is available in your PATH. A temporary folder `/tmp/gh-aw/ffmpeg` is available for caching intermediate results.
 
 ## Common FFmpeg Operations
 
@@ -44,12 +35,6 @@ which ffprobe
 ```bash
 # Extract audio as MP3 with high quality
 ffmpeg -i input.mp4 -vn -acodec libmp3lame -ab 192k output.mp3
-
-# Extract audio as WAV (uncompressed)
-ffmpeg -i input.mp4 -vn -acodec pcm_s16le output.wav
-
-# Extract audio as AAC
-ffmpeg -i input.mp4 -vn -acodec aac -ab 128k output.aac
 
 # Extract audio for transcription (optimized for speech-to-text)
 # Uses Opus codec with mono channel and low bitrate for optimal transcription
@@ -140,10 +125,4 @@ ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:no
 # Get video dimensions
 ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 input.mp4
 ```
-
-## References
-
-- FFmpeg Official Documentation: https://ffmpeg.org/documentation.html
-- FFmpeg Wiki: https://trac.ffmpeg.org/wiki
-- Opus Codec Documentation: https://opus-codec.org/
 
