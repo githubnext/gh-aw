@@ -141,59 +141,9 @@ ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:no
 ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 input.mp4
 ```
 
-## Best Practices
-
-### Performance Optimization
-
-1. **Use hardware acceleration when available:**
-   ```bash
-   ffmpeg -hwaccel auto -i input.mp4 output.mp4
-   ```
-
-2. **Limit concurrent operations:**
-   - Process videos one at a time for large files
-   - Use batch processing for small files
-   - Monitor memory usage on runners
-
-3. **Cache processed results:**
-   - Store processed outputs in workflow artifacts
-   - Use GitHub Actions cache for intermediate results
-   - Hash input files to detect changes
-
-### Quality vs Speed Tradeoffs
-
-1. **Fast encoding (lower quality):**
-   ```bash
-   ffmpeg -i input.mp4 -preset ultrafast -crf 28 output.mp4
-   ```
-
-2. **Slow encoding (higher quality):**
-   ```bash
-   ffmpeg -i input.mp4 -preset slow -crf 18 output.mp4
-   ```
-
-3. **Presets:** ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
-
-### Error Handling
-
-```bash
-# Check if ffmpeg command succeeded
-if ffmpeg -i input.mp4 output.mp4; then
-  echo "Success"
-else
-  echo "Failed with exit code $?"
-  exit 1
-fi
-
-# Verify output file exists and is not empty
-if [ ! -s output.mp4 ]; then
-  echo "Output file is empty or missing"
-  exit 1
-fi
-```
-
 ## References
 
 - FFmpeg Official Documentation: https://ffmpeg.org/documentation.html
 - FFmpeg Wiki: https://trac.ffmpeg.org/wiki
 - Opus Codec Documentation: https://opus-codec.org/
+
