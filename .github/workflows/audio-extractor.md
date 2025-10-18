@@ -33,7 +33,7 @@ permissions:
 engine: copilot
 
 imports:
-  - shared/ffmpeg-setup.md
+  - shared/ffmpeg.md
 
 tools:
   bash:
@@ -57,14 +57,6 @@ You are an audio extraction agent that uses ffmpeg to extract audio from video f
 ## Your Task
 
 Extract audio from the provided video file and save it as an artifact.
-
-### Step 0: Install FFmpeg
-
-First, install ffmpeg on the runner:
-```bash
-sudo apt-get update && sudo apt-get install -y ffmpeg
-ffmpeg -version
-```
 
 ### Step 1: Download Video
 

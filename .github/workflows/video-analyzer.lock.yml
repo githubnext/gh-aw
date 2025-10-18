@@ -5,7 +5,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/ffmpeg-setup.md
+#     - shared/ffmpeg.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -90,6 +90,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Setup FFmpeg
+        run: |-
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          ffmpeg -version
+
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -955,32 +960,7 @@ jobs:
           cat > $GITHUB_AW_PROMPT << 'EOF'
           # FFmpeg Usage Guide
           
-          ## Installing FFmpeg
-          
-          FFmpeg is **not** pre-installed on GitHub Actions runners. You need to install it first using the `FedericoCarboni/setup-ffmpeg` action.
-          
-          **Add this step to your workflow BEFORE using ffmpeg:**
-          
-          If you're using a custom engine with explicit steps:
-          ```yaml
-          steps:
-            - name: Setup FFmpeg
-              uses: FedericoCarboni/setup-ffmpeg@v3
-              id: setup-ffmpeg
-              with:
-                ffmpeg-version: release
-          ```
-          
-          If you're using Copilot/Claude/Codex engines, you can install ffmpeg using bash:
-          ```bash
-          # Install ffmpeg on Ubuntu runners
-          sudo apt-get update && sudo apt-get install -y ffmpeg
-          
-          # Verify installation
-          ffmpeg -version
-          ```
-          
-          FFmpeg will be available in your PATH after installation.
+          FFmpeg has been installed and is available in your PATH.
           
           ## Finding FFmpeg
           
@@ -1010,12 +990,25 @@ jobs:
           
           # Extract audio as AAC
           ffmpeg -i input.mp4 -vn -acodec aac -ab 128k output.aac
+          
+          # Extract audio for transcription (optimized for speech-to-text)
+          # Uses Opus codec with mono channel and low bitrate for optimal transcription
+          ffmpeg -i input.mp4 -vn -acodec libopus -ac 1 -ab 12k -application voip -map_metadata -1 -f ogg output.ogg
           ```
           
           **Key flags:**
           - `-vn`: No video output
-          - `-acodec`: Audio codec (libmp3lame, pcm_s16le, aac)
-          - `-ab`: Audio bitrate (128k, 192k, 256k, 320k)
+          - `-acodec`: Audio codec (libmp3lame, pcm_s16le, aac, libopus)
+          - `-ab`: Audio bitrate (128k, 192k, 256k, 320k, or 12k for transcription)
+          - `-ac`: Audio channels (1 for mono, 2 for stereo)
+          - `-application voip`: Optimize Opus for voice (for transcription)
+          - `-map_metadata -1`: Remove metadata
+          
+          **For transcription:**
+          - Use `libopus` codec with OGG format
+          - Mono channel (`-ac 1`) is sufficient for speech
+          - Low bitrate (12k) keeps file size small
+          - `-application voip` optimizes for voice
           
           ### Extract Video Frames
           
@@ -1139,75 +1132,11 @@ jobs:
           fi
           ```
           
-          ## Common Issues and Solutions
-          
-          ### Issue: "No such file or directory"
-          **Solution:** Use absolute paths or verify working directory
-          
-          ### Issue: "Unknown decoder" or "Codec not found"
-          **Solution:** Check available codecs with `ffmpeg -codecs` and use supported alternatives
-          
-          ### Issue: "Output file is empty"
-          **Solution:** Check input file format compatibility and verify ffmpeg command syntax
-          
-          ### Issue: "Conversion failed" with large files
-          **Solution:** 
-          - Increase memory limits for GitHub Actions runner
-          - Process video in smaller chunks
-          - Use lower quality settings
-          - Consider using two-pass encoding for better efficiency
-          
-          ## Advanced Techniques
-          
-          ### Two-Pass Encoding for Better Quality
-          
-          ```bash
-          # First pass
-          ffmpeg -i input.mp4 -c:v libx264 -b:v 2M -pass 1 -f null /dev/null
-          
-          # Second pass
-          ffmpeg -i input.mp4 -c:v libx264 -b:v 2M -pass 2 output.mp4
-          ```
-          
-          ### Extract Audio with Noise Reduction
-          
-          ```bash
-          # Apply high-pass filter to remove low-frequency noise
-          ffmpeg -i input.mp4 -vn -af "highpass=f=200" output.mp3
-          
-          # Apply noise reduction with custom profile
-          ffmpeg -i input.mp4 -vn -af "anlmdn=s=10:p=0.002:r=0.002:m=15" output.mp3
-          ```
-          
-          ### Timestamp-Based Frame Extraction
-          
-          ```bash
-          # Extract frames at specific timestamps (in seconds)
-          timestamps=(5.5 10.2 15.8 20.3)
-          for ts in "${timestamps[@]}"; do
-            ffmpeg -ss "$ts" -i input.mp4 -frames:v 1 "frame_${ts}.jpg"
-          done
-          ```
-          
-          ### Batch Processing with Progress
-          
-          ```bash
-          # Process multiple videos with progress tracking
-          total_files=$(ls *.mp4 | wc -l)
-          current=0
-          
-          for video in *.mp4; do
-            current=$((current + 1))
-            echo "Processing $current/$total_files: $video"
-            ffmpeg -i "$video" -c:v libx264 -crf 23 "processed_${video}"
-          done
-          ```
-          
           ## References
           
           - FFmpeg Official Documentation: https://ffmpeg.org/documentation.html
           - FFmpeg Wiki: https://trac.ffmpeg.org/wiki
-          - setup-ffmpeg Action: https://github.com/FedericoCarboni/setup-ffmpeg
+          - Opus Codec Documentation: https://opus-codec.org/
           
           # Video Analysis Agent
           
@@ -1223,14 +1152,6 @@ jobs:
           ## Your Task
           
           Analyze the provided video file using ffmpeg and create a detailed report.
-          
-          ### Step 0: Install FFmpeg
-          
-          First, install ffmpeg on the runner:
-          ```bash
-          sudo apt-get update && sudo apt-get install -y ffmpeg
-          ffmpeg -version
-          ```
           
           ### Step 1: Download and Verify Video
           
@@ -3991,7 +3912,7 @@ jobs:
         env:
           WORKFLOW_NAME: "Video Analysis Agent"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# FFmpeg Usage Guide\n\n## Installing FFmpeg\n\nFFmpeg is **not** pre-installed on GitHub Actions runners. You need to install it first using the `FedericoCarboni/setup-ffmpeg` action.\n\n**Add this step to your workflow BEFORE using ffmpeg:**\n\nIf you're using a custom engine with explicit steps:\n```yaml\nsteps:\n  - name: Setup FFmpeg\n    uses: FedericoCarboni/setup-ffmpeg@v3\n    id: setup-ffmpeg\n    with:\n      ffmpeg-version: release\n```\n\nIf you're using Copilot/Claude/Codex engines, you can install ffmpeg using bash:\n```bash\n# Install ffmpeg on Ubuntu runners\nsudo apt-get update && sudo apt-get install -y ffmpeg\n\n# Verify installation\nffmpeg -version\n```\n\nFFmpeg will be available in your PATH after installation.\n\n## Finding FFmpeg\n\nYou can verify ffmpeg installation and get information:\n\n```bash\n# Check ffmpeg version and installation\nffmpeg -version\n\n# Get ffmpeg location\nwhich ffmpeg\n\n# Get ffprobe (companion tool) location\nwhich ffprobe\n```\n\n## Common FFmpeg Operations\n\n### Extract Audio from Video\n\n```bash\n# Extract audio as MP3 with high quality\nffmpeg -i input.mp4 -vn -acodec libmp3lame -ab 192k output.mp3\n\n# Extract audio as WAV (uncompressed)\nffmpeg -i input.mp4 -vn -acodec pcm_s16le output.wav\n\n# Extract audio as AAC\nffmpeg -i input.mp4 -vn -acodec aac -ab 128k output.aac\n```\n\n**Key flags:**\n- `-vn`: No video output\n- `-acodec`: Audio codec (libmp3lame, pcm_s16le, aac)\n- `-ab`: Audio bitrate (128k, 192k, 256k, 320k)\n\n### Extract Video Frames\n\n```bash\n# Extract all keyframes (I-frames)\nffmpeg -i input.mp4 -vf \"select='eq(pict_type,I)'\" -fps_mode vfr -frame_pts 1 keyframe_%06d.jpg\n\n# Extract frames at specific interval (e.g., 1 frame per second)\nffmpeg -i input.mp4 -vf \"fps=1\" frame_%06d.jpg\n\n# Extract single frame at specific timestamp\nffmpeg -i input.mp4 -ss 00:00:05 -frames:v 1 frame.jpg\n```\n\n**Key flags:**\n- `-vf`: Video filter\n- `-fps_mode vfr`: Variable frame rate (for keyframes)\n- `-frame_pts 1`: Include frame presentation timestamp\n- `-ss`: Seek to timestamp (HH:MM:SS or seconds)\n- `-frames:v`: Number of video frames to extract\n\n### Scene Detection\n\n```bash\n# Detect scene changes with threshold (0.0-1.0, default 0.4)\n# Lower threshold = more sensitive to changes\nffmpeg -i input.mp4 -vf \"select='gt(scene,0.3)',showinfo\" -fps_mode passthrough -frame_pts 1 scene_%06d.jpg\n\n# Common threshold values:\n# 0.1-0.2: Very sensitive (minor changes trigger detection)\n# 0.3-0.4: Moderate sensitivity (good for most videos)\n# 0.5-0.6: Less sensitive (only major scene changes)\n```\n\n**Scene detection tips:**\n- Start with threshold 0.4 and adjust based on results\n- Use `showinfo` filter to see timestamps in logs\n- Lower threshold detects more scenes but may include false positives\n- Higher threshold misses gradual transitions\n\n### Resize and Convert\n\n```bash\n# Resize video to specific dimensions (maintains aspect ratio)\nffmpeg -i input.mp4 -vf \"scale=1280:720\" output.mp4\n\n# Resize with padding to maintain aspect ratio\nffmpeg -i input.mp4 -vf \"scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2\" output.mp4\n\n# Convert to different format with quality control\nffmpeg -i input.mp4 -c:v libx264 -crf 23 -c:a aac -b:a 128k output.mp4\n```\n\n**Quality flags:**\n- `-crf`: Constant Rate Factor (0-51, lower=better quality, 23 is default)\n- `18`: Visually lossless\n- `23`: High quality (default)\n- `28`: Medium quality\n\n### Get Video Information\n\n```bash\n# Get detailed video information\nffprobe -v quiet -print_format json -show_format -show_streams input.mp4\n\n# Get video duration\nffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 input.mp4\n\n# Get video dimensions\nffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 input.mp4\n```\n\n## Best Practices\n\n### Performance Optimization\n\n1. **Use hardware acceleration when available:**\n   ```bash\n   ffmpeg -hwaccel auto -i input.mp4 output.mp4\n   ```\n\n2. **Limit concurrent operations:**\n   - Process videos one at a time for large files\n   - Use batch processing for small files\n   - Monitor memory usage on runners\n\n3. **Cache processed results:**\n   - Store processed outputs in workflow artifacts\n   - Use GitHub Actions cache for intermediate results\n   - Hash input files to detect changes\n\n### Quality vs Speed Tradeoffs\n\n1. **Fast encoding (lower quality):**\n   ```bash\n   ffmpeg -i input.mp4 -preset ultrafast -crf 28 output.mp4\n   ```\n\n2. **Slow encoding (higher quality):**\n   ```bash\n   ffmpeg -i input.mp4 -preset slow -crf 18 output.mp4\n   ```\n\n3. **Presets:** ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow\n\n### Error Handling\n\n```bash\n# Check if ffmpeg command succeeded\nif ffmpeg -i input.mp4 output.mp4; then\n  echo \"Success\"\nelse\n  echo \"Failed with exit code $?\"\n  exit 1\nfi\n\n# Verify output file exists and is not empty\nif [ ! -s output.mp4 ]; then\n  echo \"Output file is empty or missing\"\n  exit 1\nfi\n```\n\n## Common Issues and Solutions\n\n### Issue: \"No such file or directory\"\n**Solution:** Use absolute paths or verify working directory\n\n### Issue: \"Unknown decoder\" or \"Codec not found\"\n**Solution:** Check available codecs with `ffmpeg -codecs` and use supported alternatives\n\n### Issue: \"Output file is empty\"\n**Solution:** Check input file format compatibility and verify ffmpeg command syntax\n\n### Issue: \"Conversion failed\" with large files\n**Solution:** \n- Increase memory limits for GitHub Actions runner\n- Process video in smaller chunks\n- Use lower quality settings\n- Consider using two-pass encoding for better efficiency\n\n## Advanced Techniques\n\n### Two-Pass Encoding for Better Quality\n\n```bash\n# First pass\nffmpeg -i input.mp4 -c:v libx264 -b:v 2M -pass 1 -f null /dev/null\n\n# Second pass\nffmpeg -i input.mp4 -c:v libx264 -b:v 2M -pass 2 output.mp4\n```\n\n### Extract Audio with Noise Reduction\n\n```bash\n# Apply high-pass filter to remove low-frequency noise\nffmpeg -i input.mp4 -vn -af \"highpass=f=200\" output.mp3\n\n# Apply noise reduction with custom profile\nffmpeg -i input.mp4 -vn -af \"anlmdn=s=10:p=0.002:r=0.002:m=15\" output.mp3\n```\n\n### Timestamp-Based Frame Extraction\n\n```bash\n# Extract frames at specific timestamps (in seconds)\ntimestamps=(5.5 10.2 15.8 20.3)\nfor ts in \"${timestamps[@]}\"; do\n  ffmpeg -ss \"$ts\" -i input.mp4 -frames:v 1 \"frame_${ts}.jpg\"\ndone\n```\n\n### Batch Processing with Progress\n\n```bash\n# Process multiple videos with progress tracking\ntotal_files=$(ls *.mp4 | wc -l)\ncurrent=0\n\nfor video in *.mp4; do\n  current=$((current + 1))\n  echo \"Processing $current/$total_files: $video\"\n  ffmpeg -i \"$video\" -c:v libx264 -crf 23 \"processed_${video}\"\ndone\n```\n\n## References\n\n- FFmpeg Official Documentation: https://ffmpeg.org/documentation.html\n- FFmpeg Wiki: https://trac.ffmpeg.org/wiki\n- setup-ffmpeg Action: https://github.com/FedericoCarboni/setup-ffmpeg\n\n# Video Analysis Agent\n\nYou are a video analysis agent that uses ffmpeg to process and analyze video files.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Video URL**: \"${{ github.event.inputs.video_url }}\"\n- **Analysis Type**: \"${{ github.event.inputs.analysis_type }}\"\n- **Triggered by**: @${{ github.actor }}\n\n## Your Task\n\nAnalyze the provided video file using ffmpeg and create a detailed report.\n\n### Step 0: Install FFmpeg\n\nFirst, install ffmpeg on the runner:\n```bash\nsudo apt-get update && sudo apt-get install -y ffmpeg\nffmpeg -version\n```\n\n### Step 1: Download and Verify Video\n\n1. Download the video file from the provided URL\n2. Verify the file is valid and get basic information:\n   ```bash\n   ffprobe -v quiet -print_format json -show_format -show_streams video.mp4\n   ```\n3. Extract key metadata:\n   - Video duration\n   - Resolution (width x height)\n   - Frame rate\n   - Video codec\n   - Audio codec (if present)\n   - File size\n\n### Step 2: Perform Requested Analysis\n\nBased on the `analysis_type` input, perform the appropriate analysis:\n\n#### If \"keyframes\" Analysis:\n1. Extract all keyframes from the video:\n   ```bash\n   ffmpeg -i video.mp4 -vf \"select='eq(pict_type,I)'\" -fps_mode vfr -frame_pts 1 keyframe_%06d.jpg\n   ```\n2. Count the number of keyframes extracted\n3. Report keyframe distribution (approximately every N seconds)\n4. List the first 10 keyframe filenames with their timestamps\n\n#### If \"scenes\" Analysis:\n1. Detect scene changes using threshold 0.4:\n   ```bash\n   ffmpeg -i video.mp4 -vf \"select='gt(scene,0.4)',showinfo\" -fps_mode passthrough -frame_pts 1 scene_%06d.jpg\n   ```\n2. Count the number of scenes detected\n3. Analyze scene change patterns:\n   - Average time between scene changes\n   - Longest scene duration\n   - Shortest scene duration\n4. List the first 10 scenes with timestamps\n\n**Scene Detection Tips**:\n- If too few scenes detected, try lower threshold (0.3)\n- If too many scenes detected, try higher threshold (0.5)\n- Adjust based on video content type (action vs. documentary)\n\n#### If \"audio_extract\" Analysis:\n1. Check if video has audio stream\n2. Extract audio in multiple formats for comparison:\n   ```bash\n   # High quality MP3\n   ffmpeg -i video.mp4 -vn -acodec libmp3lame -ab 192k audio.mp3\n   \n   # Uncompressed WAV\n   ffmpeg -i video.mp4 -vn -acodec pcm_s16le audio.wav\n   ```\n3. Compare file sizes and report compression ratio\n4. Report audio properties:\n   - Sample rate\n   - Bit depth\n   - Channels (mono/stereo)\n   - Duration\n   - Estimated quality\n\n#### If \"full_analysis\" Analysis:\nPerform all three analyses above (keyframes, scenes, and audio extraction) and provide a comprehensive report combining all findings.\n\n### Step 3: Generate Analysis Report\n\nCreate a GitHub issue with your analysis containing:\n\n#### Video Information Section\n- Source URL\n- File size\n- Duration (MM:SS format)\n- Resolution and frame rate\n- Video codec and audio codec\n- Estimated bitrate\n\n#### Analysis Results Section\nBased on the analysis type performed:\n- Keyframe analysis results (if applicable)\n- Scene detection results (if applicable)\n- Audio extraction results (if applicable)\n\n#### Technical Details Section\n- FFmpeg version used\n- Processing time for each operation\n- Any warnings or issues encountered\n- File sizes of generated outputs\n\n#### Recommendations Section\nProvide actionable recommendations based on the analysis:\n- Suggested optimal encoding settings\n- Potential quality improvements\n- Scene detection threshold recommendations (if applicable)\n- Audio quality optimization suggestions (if applicable)\n\n## Output Format\n\nCreate your issue with the following markdown structure:\n\n```markdown\n# Video Analysis Report: [Video Filename]\n\n*Analysis performed by @${{ github.actor }} on [Date]*\n\n## 📊 Video Information\n\n- **Source**: [URL]\n- **Duration**: [MM:SS]\n- **Resolution**: [Width]x[Height] @ [FPS]fps\n- **File Size**: [Size in MB]\n- **Video Codec**: [Codec]\n- **Audio Codec**: [Codec] (if present)\n\n## 🔍 Analysis Results\n\n### [Analysis Type] Analysis\n\n[Detailed results based on analysis type]\n\n## 🛠 Technical Details\n\n- **FFmpeg Version**: [Version]\n- **Processing Time**: [Time]\n- **Output Files**: [List of generated files with sizes]\n\n## 💡 Recommendations\n\n[Actionable recommendations based on analysis]\n\n---\n\n*Generated using ffmpeg via GitHub Agentic Workflows*\n```\n\n## Important Notes\n\n### Performance Considerations\n- Process operations sequentially to avoid memory issues\n- Clean up intermediate files to save disk space\n- Monitor GitHub Actions runner resources\n- Consider file size limits for uploads/artifacts\n\n### Error Handling\n- Verify video download succeeded before processing\n- Check ffmpeg commands return success (exit code 0)\n- Validate output files exist and are not empty\n- Report any errors clearly in the issue\n\n### Best Practices from GenAIScript Implementation\n1. **Caching**: Store results to avoid reprocessing\n2. **Concurrency**: Process one video at a time\n3. **Formats**: Use JPG for frames (good quality/size balance)\n4. **Thresholds**: Scene detection works best at 0.3-0.5\n5. **Quality**: Use CRF 23 for good balance of quality/size\n6. **Timestamps**: Be precise with timestamp-based extraction\n7. **Size control**: Always specify output dimensions when needed\n\n### Security Considerations\n- Only process videos from trusted sources\n- Validate input URLs before downloading\n- Set reasonable timeout limits\n- Monitor disk space usage\n- Clean up temporary files after processing\n\nGood luck with your video analysis!\n"
+          WORKFLOW_MARKDOWN: "# FFmpeg Usage Guide\n\nFFmpeg has been installed and is available in your PATH.\n\n## Finding FFmpeg\n\nYou can verify ffmpeg installation and get information:\n\n```bash\n# Check ffmpeg version and installation\nffmpeg -version\n\n# Get ffmpeg location\nwhich ffmpeg\n\n# Get ffprobe (companion tool) location\nwhich ffprobe\n```\n\n## Common FFmpeg Operations\n\n### Extract Audio from Video\n\n```bash\n# Extract audio as MP3 with high quality\nffmpeg -i input.mp4 -vn -acodec libmp3lame -ab 192k output.mp3\n\n# Extract audio as WAV (uncompressed)\nffmpeg -i input.mp4 -vn -acodec pcm_s16le output.wav\n\n# Extract audio as AAC\nffmpeg -i input.mp4 -vn -acodec aac -ab 128k output.aac\n\n# Extract audio for transcription (optimized for speech-to-text)\n# Uses Opus codec with mono channel and low bitrate for optimal transcription\nffmpeg -i input.mp4 -vn -acodec libopus -ac 1 -ab 12k -application voip -map_metadata -1 -f ogg output.ogg\n```\n\n**Key flags:**\n- `-vn`: No video output\n- `-acodec`: Audio codec (libmp3lame, pcm_s16le, aac, libopus)\n- `-ab`: Audio bitrate (128k, 192k, 256k, 320k, or 12k for transcription)\n- `-ac`: Audio channels (1 for mono, 2 for stereo)\n- `-application voip`: Optimize Opus for voice (for transcription)\n- `-map_metadata -1`: Remove metadata\n\n**For transcription:**\n- Use `libopus` codec with OGG format\n- Mono channel (`-ac 1`) is sufficient for speech\n- Low bitrate (12k) keeps file size small\n- `-application voip` optimizes for voice\n\n### Extract Video Frames\n\n```bash\n# Extract all keyframes (I-frames)\nffmpeg -i input.mp4 -vf \"select='eq(pict_type,I)'\" -fps_mode vfr -frame_pts 1 keyframe_%06d.jpg\n\n# Extract frames at specific interval (e.g., 1 frame per second)\nffmpeg -i input.mp4 -vf \"fps=1\" frame_%06d.jpg\n\n# Extract single frame at specific timestamp\nffmpeg -i input.mp4 -ss 00:00:05 -frames:v 1 frame.jpg\n```\n\n**Key flags:**\n- `-vf`: Video filter\n- `-fps_mode vfr`: Variable frame rate (for keyframes)\n- `-frame_pts 1`: Include frame presentation timestamp\n- `-ss`: Seek to timestamp (HH:MM:SS or seconds)\n- `-frames:v`: Number of video frames to extract\n\n### Scene Detection\n\n```bash\n# Detect scene changes with threshold (0.0-1.0, default 0.4)\n# Lower threshold = more sensitive to changes\nffmpeg -i input.mp4 -vf \"select='gt(scene,0.3)',showinfo\" -fps_mode passthrough -frame_pts 1 scene_%06d.jpg\n\n# Common threshold values:\n# 0.1-0.2: Very sensitive (minor changes trigger detection)\n# 0.3-0.4: Moderate sensitivity (good for most videos)\n# 0.5-0.6: Less sensitive (only major scene changes)\n```\n\n**Scene detection tips:**\n- Start with threshold 0.4 and adjust based on results\n- Use `showinfo` filter to see timestamps in logs\n- Lower threshold detects more scenes but may include false positives\n- Higher threshold misses gradual transitions\n\n### Resize and Convert\n\n```bash\n# Resize video to specific dimensions (maintains aspect ratio)\nffmpeg -i input.mp4 -vf \"scale=1280:720\" output.mp4\n\n# Resize with padding to maintain aspect ratio\nffmpeg -i input.mp4 -vf \"scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2\" output.mp4\n\n# Convert to different format with quality control\nffmpeg -i input.mp4 -c:v libx264 -crf 23 -c:a aac -b:a 128k output.mp4\n```\n\n**Quality flags:**\n- `-crf`: Constant Rate Factor (0-51, lower=better quality, 23 is default)\n- `18`: Visually lossless\n- `23`: High quality (default)\n- `28`: Medium quality\n\n### Get Video Information\n\n```bash\n# Get detailed video information\nffprobe -v quiet -print_format json -show_format -show_streams input.mp4\n\n# Get video duration\nffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 input.mp4\n\n# Get video dimensions\nffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 input.mp4\n```\n\n## Best Practices\n\n### Performance Optimization\n\n1. **Use hardware acceleration when available:**\n   ```bash\n   ffmpeg -hwaccel auto -i input.mp4 output.mp4\n   ```\n\n2. **Limit concurrent operations:**\n   - Process videos one at a time for large files\n   - Use batch processing for small files\n   - Monitor memory usage on runners\n\n3. **Cache processed results:**\n   - Store processed outputs in workflow artifacts\n   - Use GitHub Actions cache for intermediate results\n   - Hash input files to detect changes\n\n### Quality vs Speed Tradeoffs\n\n1. **Fast encoding (lower quality):**\n   ```bash\n   ffmpeg -i input.mp4 -preset ultrafast -crf 28 output.mp4\n   ```\n\n2. **Slow encoding (higher quality):**\n   ```bash\n   ffmpeg -i input.mp4 -preset slow -crf 18 output.mp4\n   ```\n\n3. **Presets:** ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow\n\n### Error Handling\n\n```bash\n# Check if ffmpeg command succeeded\nif ffmpeg -i input.mp4 output.mp4; then\n  echo \"Success\"\nelse\n  echo \"Failed with exit code $?\"\n  exit 1\nfi\n\n# Verify output file exists and is not empty\nif [ ! -s output.mp4 ]; then\n  echo \"Output file is empty or missing\"\n  exit 1\nfi\n```\n\n## References\n\n- FFmpeg Official Documentation: https://ffmpeg.org/documentation.html\n- FFmpeg Wiki: https://trac.ffmpeg.org/wiki\n- Opus Codec Documentation: https://opus-codec.org/\n\n# Video Analysis Agent\n\nYou are a video analysis agent that uses ffmpeg to process and analyze video files.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Video URL**: \"${{ github.event.inputs.video_url }}\"\n- **Analysis Type**: \"${{ github.event.inputs.analysis_type }}\"\n- **Triggered by**: @${{ github.actor }}\n\n## Your Task\n\nAnalyze the provided video file using ffmpeg and create a detailed report.\n\n### Step 1: Download and Verify Video\n\n1. Download the video file from the provided URL\n2. Verify the file is valid and get basic information:\n   ```bash\n   ffprobe -v quiet -print_format json -show_format -show_streams video.mp4\n   ```\n3. Extract key metadata:\n   - Video duration\n   - Resolution (width x height)\n   - Frame rate\n   - Video codec\n   - Audio codec (if present)\n   - File size\n\n### Step 2: Perform Requested Analysis\n\nBased on the `analysis_type` input, perform the appropriate analysis:\n\n#### If \"keyframes\" Analysis:\n1. Extract all keyframes from the video:\n   ```bash\n   ffmpeg -i video.mp4 -vf \"select='eq(pict_type,I)'\" -fps_mode vfr -frame_pts 1 keyframe_%06d.jpg\n   ```\n2. Count the number of keyframes extracted\n3. Report keyframe distribution (approximately every N seconds)\n4. List the first 10 keyframe filenames with their timestamps\n\n#### If \"scenes\" Analysis:\n1. Detect scene changes using threshold 0.4:\n   ```bash\n   ffmpeg -i video.mp4 -vf \"select='gt(scene,0.4)',showinfo\" -fps_mode passthrough -frame_pts 1 scene_%06d.jpg\n   ```\n2. Count the number of scenes detected\n3. Analyze scene change patterns:\n   - Average time between scene changes\n   - Longest scene duration\n   - Shortest scene duration\n4. List the first 10 scenes with timestamps\n\n**Scene Detection Tips**:\n- If too few scenes detected, try lower threshold (0.3)\n- If too many scenes detected, try higher threshold (0.5)\n- Adjust based on video content type (action vs. documentary)\n\n#### If \"audio_extract\" Analysis:\n1. Check if video has audio stream\n2. Extract audio in multiple formats for comparison:\n   ```bash\n   # High quality MP3\n   ffmpeg -i video.mp4 -vn -acodec libmp3lame -ab 192k audio.mp3\n   \n   # Uncompressed WAV\n   ffmpeg -i video.mp4 -vn -acodec pcm_s16le audio.wav\n   ```\n3. Compare file sizes and report compression ratio\n4. Report audio properties:\n   - Sample rate\n   - Bit depth\n   - Channels (mono/stereo)\n   - Duration\n   - Estimated quality\n\n#### If \"full_analysis\" Analysis:\nPerform all three analyses above (keyframes, scenes, and audio extraction) and provide a comprehensive report combining all findings.\n\n### Step 3: Generate Analysis Report\n\nCreate a GitHub issue with your analysis containing:\n\n#### Video Information Section\n- Source URL\n- File size\n- Duration (MM:SS format)\n- Resolution and frame rate\n- Video codec and audio codec\n- Estimated bitrate\n\n#### Analysis Results Section\nBased on the analysis type performed:\n- Keyframe analysis results (if applicable)\n- Scene detection results (if applicable)\n- Audio extraction results (if applicable)\n\n#### Technical Details Section\n- FFmpeg version used\n- Processing time for each operation\n- Any warnings or issues encountered\n- File sizes of generated outputs\n\n#### Recommendations Section\nProvide actionable recommendations based on the analysis:\n- Suggested optimal encoding settings\n- Potential quality improvements\n- Scene detection threshold recommendations (if applicable)\n- Audio quality optimization suggestions (if applicable)\n\n## Output Format\n\nCreate your issue with the following markdown structure:\n\n```markdown\n# Video Analysis Report: [Video Filename]\n\n*Analysis performed by @${{ github.actor }} on [Date]*\n\n## 📊 Video Information\n\n- **Source**: [URL]\n- **Duration**: [MM:SS]\n- **Resolution**: [Width]x[Height] @ [FPS]fps\n- **File Size**: [Size in MB]\n- **Video Codec**: [Codec]\n- **Audio Codec**: [Codec] (if present)\n\n## 🔍 Analysis Results\n\n### [Analysis Type] Analysis\n\n[Detailed results based on analysis type]\n\n## 🛠 Technical Details\n\n- **FFmpeg Version**: [Version]\n- **Processing Time**: [Time]\n- **Output Files**: [List of generated files with sizes]\n\n## 💡 Recommendations\n\n[Actionable recommendations based on analysis]\n\n---\n\n*Generated using ffmpeg via GitHub Agentic Workflows*\n```\n\n## Important Notes\n\n### Performance Considerations\n- Process operations sequentially to avoid memory issues\n- Clean up intermediate files to save disk space\n- Monitor GitHub Actions runner resources\n- Consider file size limits for uploads/artifacts\n\n### Error Handling\n- Verify video download succeeded before processing\n- Check ffmpeg commands return success (exit code 0)\n- Validate output files exist and are not empty\n- Report any errors clearly in the issue\n\n### Best Practices from GenAIScript Implementation\n1. **Caching**: Store results to avoid reprocessing\n2. **Concurrency**: Process one video at a time\n3. **Formats**: Use JPG for frames (good quality/size balance)\n4. **Thresholds**: Scene detection works best at 0.3-0.5\n5. **Quality**: Use CRF 23 for good balance of quality/size\n6. **Timestamps**: Be precise with timestamp-based extraction\n7. **Size control**: Always specify output dimensions when needed\n\n### Security Considerations\n- Only process videos from trusted sources\n- Validate input URLs before downloading\n- Set reasonable timeout limits\n- Monitor disk space usage\n- Clean up temporary files after processing\n\nGood luck with your video analysis!\n"
         with:
           script: |
             const fs = require('fs');

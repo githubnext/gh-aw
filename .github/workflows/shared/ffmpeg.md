@@ -1,45 +1,26 @@
 ---
-# FFmpeg Setup Instructions
-# Shared instructions for installing and using ffmpeg in workflows
+# FFmpeg Setup
+# Shared configuration for installing and using ffmpeg in workflows
 #
 # Usage:
 #   imports:
-#     - shared/ffmpeg-setup.md
+#     - shared/ffmpeg.md
 #
 # This import provides:
-# - Instructions on how to install ffmpeg using FedericoCarboni/setup-ffmpeg action
-# - Instructions on how to find and use ffmpeg
+# - Automatic ffmpeg installation via setup steps
+# - Instructions on how to use ffmpeg
 # - Best practices for video/audio processing
+
+steps:
+  - name: Setup FFmpeg
+    run: |
+      sudo apt-get update && sudo apt-get install -y ffmpeg
+      ffmpeg -version
 ---
 
 # FFmpeg Usage Guide
 
-## Installing FFmpeg
-
-FFmpeg is **not** pre-installed on GitHub Actions runners. You need to install it first using the `FedericoCarboni/setup-ffmpeg` action.
-
-**Add this step to your workflow BEFORE using ffmpeg:**
-
-If you're using a custom engine with explicit steps:
-```yaml
-steps:
-  - name: Setup FFmpeg
-    uses: FedericoCarboni/setup-ffmpeg@v3
-    id: setup-ffmpeg
-    with:
-      ffmpeg-version: release
-```
-
-If you're using Copilot/Claude/Codex engines, you can install ffmpeg using bash:
-```bash
-# Install ffmpeg on Ubuntu runners
-sudo apt-get update && sudo apt-get install -y ffmpeg
-
-# Verify installation
-ffmpeg -version
-```
-
-FFmpeg will be available in your PATH after installation.
+FFmpeg has been installed and is available in your PATH.
 
 ## Finding FFmpeg
 
@@ -69,12 +50,25 @@ ffmpeg -i input.mp4 -vn -acodec pcm_s16le output.wav
 
 # Extract audio as AAC
 ffmpeg -i input.mp4 -vn -acodec aac -ab 128k output.aac
+
+# Extract audio for transcription (optimized for speech-to-text)
+# Uses Opus codec with mono channel and low bitrate for optimal transcription
+ffmpeg -i input.mp4 -vn -acodec libopus -ac 1 -ab 12k -application voip -map_metadata -1 -f ogg output.ogg
 ```
 
 **Key flags:**
 - `-vn`: No video output
-- `-acodec`: Audio codec (libmp3lame, pcm_s16le, aac)
-- `-ab`: Audio bitrate (128k, 192k, 256k, 320k)
+- `-acodec`: Audio codec (libmp3lame, pcm_s16le, aac, libopus)
+- `-ab`: Audio bitrate (128k, 192k, 256k, 320k, or 12k for transcription)
+- `-ac`: Audio channels (1 for mono, 2 for stereo)
+- `-application voip`: Optimize Opus for voice (for transcription)
+- `-map_metadata -1`: Remove metadata
+
+**For transcription:**
+- Use `libopus` codec with OGG format
+- Mono channel (`-ac 1`) is sufficient for speech
+- Low bitrate (12k) keeps file size small
+- `-application voip` optimizes for voice
 
 ### Extract Video Frames
 
@@ -198,72 +192,8 @@ if [ ! -s output.mp4 ]; then
 fi
 ```
 
-## Common Issues and Solutions
-
-### Issue: "No such file or directory"
-**Solution:** Use absolute paths or verify working directory
-
-### Issue: "Unknown decoder" or "Codec not found"
-**Solution:** Check available codecs with `ffmpeg -codecs` and use supported alternatives
-
-### Issue: "Output file is empty"
-**Solution:** Check input file format compatibility and verify ffmpeg command syntax
-
-### Issue: "Conversion failed" with large files
-**Solution:** 
-- Increase memory limits for GitHub Actions runner
-- Process video in smaller chunks
-- Use lower quality settings
-- Consider using two-pass encoding for better efficiency
-
-## Advanced Techniques
-
-### Two-Pass Encoding for Better Quality
-
-```bash
-# First pass
-ffmpeg -i input.mp4 -c:v libx264 -b:v 2M -pass 1 -f null /dev/null
-
-# Second pass
-ffmpeg -i input.mp4 -c:v libx264 -b:v 2M -pass 2 output.mp4
-```
-
-### Extract Audio with Noise Reduction
-
-```bash
-# Apply high-pass filter to remove low-frequency noise
-ffmpeg -i input.mp4 -vn -af "highpass=f=200" output.mp3
-
-# Apply noise reduction with custom profile
-ffmpeg -i input.mp4 -vn -af "anlmdn=s=10:p=0.002:r=0.002:m=15" output.mp3
-```
-
-### Timestamp-Based Frame Extraction
-
-```bash
-# Extract frames at specific timestamps (in seconds)
-timestamps=(5.5 10.2 15.8 20.3)
-for ts in "${timestamps[@]}"; do
-  ffmpeg -ss "$ts" -i input.mp4 -frames:v 1 "frame_${ts}.jpg"
-done
-```
-
-### Batch Processing with Progress
-
-```bash
-# Process multiple videos with progress tracking
-total_files=$(ls *.mp4 | wc -l)
-current=0
-
-for video in *.mp4; do
-  current=$((current + 1))
-  echo "Processing $current/$total_files: $video"
-  ffmpeg -i "$video" -c:v libx264 -crf 23 "processed_${video}"
-done
-```
-
 ## References
 
 - FFmpeg Official Documentation: https://ffmpeg.org/documentation.html
 - FFmpeg Wiki: https://trac.ffmpeg.org/wiki
-- setup-ffmpeg Action: https://github.com/FedericoCarboni/setup-ffmpeg
+- Opus Codec Documentation: https://opus-codec.org/

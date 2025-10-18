@@ -24,7 +24,7 @@ permissions:
 engine: copilot
 
 imports:
-  - shared/ffmpeg-setup.md
+  - shared/ffmpeg.md
 
 tools:
   bash:
@@ -53,14 +53,6 @@ You are a video analysis agent that uses ffmpeg to process and analyze video fil
 ## Your Task
 
 Analyze the provided video file using ffmpeg and create a detailed report.
-
-### Step 0: Install FFmpeg
-
-First, install ffmpeg on the runner:
-```bash
-sudo apt-get update && sudo apt-get install -y ffmpeg
-ffmpeg -version
-```
 
 ### Step 1: Download and Verify Video
 
