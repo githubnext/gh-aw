@@ -229,9 +229,11 @@ jobs:
               const reactionId = response.data?.id;
               if (reactionId) {
                 core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
+                core.info(JSON.stringify(response.data, null, 2));
                 core.setOutput("reaction-id", reactionId.toString());
               } else {
                 core.info(`Successfully added reaction: ${reaction}`);
+                core.info(JSON.stringify(response.data, null, 2));
                 core.setOutput("reaction-id", "");
               }
             }
@@ -264,6 +266,7 @@ jobs:
               );
               const reactionId = result.addReaction.reaction.id;
               core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
+              core.info(JSON.stringify(result.addReaction.reaction, null, 2));
               core.setOutput("reaction-id", reactionId);
             }
             async function getDiscussionId(owner, repo, discussionNumber) {
@@ -334,6 +337,7 @@ jobs:
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
                   core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+                  core.info(JSON.stringify(comment, null, 2));
                   core.setOutput("comment-id", comment.id);
                   core.setOutput("comment-url", comment.url);
                   core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
@@ -370,6 +374,7 @@ jobs:
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
                   core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+                  core.info(JSON.stringify(comment, null, 2));
                   core.setOutput("comment-id", comment.id);
                   core.setOutput("comment-url", comment.url);
                   core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
@@ -403,6 +408,7 @@ jobs:
                 core.info(`Comment ID: ${createResponse.data.id}`);
                 core.info(`Comment URL: ${createResponse.data.html_url}`);
                 core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+                core.info(JSON.stringify(createResponse.data, null, 2));
                 core.setOutput("comment-id", createResponse.data.id.toString());
                 core.setOutput("comment-url", createResponse.data.html_url);
                 core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
@@ -704,6 +710,7 @@ jobs:
                     core.info(`Comment content length: ${body.length}`);
                     comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body);
                     core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+                    core.info(JSON.stringify(comment, null, 2));
                     comment.discussion_url = comment.discussion_url;
                   } else {
                     core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
@@ -716,6 +723,7 @@ jobs:
                     });
                     comment = restComment;
                     core.info("Created comment #" + comment.id + ": " + comment.html_url);
+                    core.info(JSON.stringify(comment, null, 2));
                   }
                   createdComments.push(comment);
                   if (i === commentItems.length - 1) {
@@ -4249,6 +4257,7 @@ jobs:
                       labels: labels,
                     });
                     core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                    core.info(JSON.stringify(issue, null, 2));
                     core.setOutput("issue_number", issue.number);
                     core.setOutput("issue_url", issue.html_url);
                     core.setOutput("branch_name", branchName);
@@ -4298,6 +4307,7 @@ jobs:
                   draft: draft,
                 });
                 core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
+                core.info(JSON.stringify(pullRequest, null, 2));
                 if (labels.length > 0) {
                   await github.rest.issues.addLabels({
                     owner: context.repo.owner,
@@ -4346,6 +4356,7 @@ jobs:
                     labels: labels,
                   });
                   core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                  core.info(JSON.stringify(issue, null, 2));
                   core.setOutput("issue_number", issue.number);
                   core.setOutput("issue_url", issue.html_url);
                   core.setOutput("branch_name", branchName);

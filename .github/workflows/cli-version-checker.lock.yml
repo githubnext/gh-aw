@@ -3382,6 +3382,7 @@ jobs:
                       labels: labels,
                     });
                     core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                    core.info(JSON.stringify(issue, null, 2));
                     core.setOutput("issue_number", issue.number);
                     core.setOutput("issue_url", issue.html_url);
                     core.setOutput("branch_name", branchName);
@@ -3431,6 +3432,7 @@ jobs:
                   draft: draft,
                 });
                 core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
+                core.info(JSON.stringify(pullRequest, null, 2));
                 if (labels.length > 0) {
                   await github.rest.issues.addLabels({
                     owner: context.repo.owner,
@@ -3479,6 +3481,7 @@ jobs:
                     labels: labels,
                   });
                   core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                  core.info(JSON.stringify(issue, null, 2));
                   core.setOutput("issue_number", issue.number);
                   core.setOutput("issue_url", issue.html_url);
                   core.setOutput("branch_name", branchName);

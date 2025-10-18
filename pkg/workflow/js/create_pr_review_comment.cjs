@@ -333,6 +333,7 @@ async function main() {
       const { data: comment } = await github.rest.pulls.createReviewComment(requestParams);
 
       core.info("Created review comment #" + comment.id + ": " + comment.html_url);
+      core.info(JSON.stringify(comment, null, 2));
       createdComments.push(comment);
 
       // Set output for the last created comment (for backward compatibility)

@@ -3370,6 +3370,7 @@ jobs:
                     continue;
                   }
                   core.info("Created discussion #" + discussion.number + ": " + discussion.url);
+                  core.info(JSON.stringify(discussion, null, 2));
                   createdDiscussions.push(discussion);
                   if (i === createDiscussionItems.length - 1) {
                     core.setOutput("discussion_number", discussion.number);

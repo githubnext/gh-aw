@@ -200,6 +200,7 @@ async function main() {
       });
 
       core.info("Updated issue #" + issue.number + ": " + issue.html_url);
+      core.info(JSON.stringify(issue, null, 2));
       updatedIssues.push(issue);
 
       // Set output for the last updated issue (for backward compatibility)

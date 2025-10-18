@@ -328,6 +328,7 @@ async function main() {
         // Create discussion comment using GraphQL
         comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body);
         core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+        core.info(JSON.stringify(comment, null, 2));
 
         // Add discussion_url to the comment object for consistency
         comment.discussion_url = comment.discussion_url;
@@ -345,6 +346,7 @@ async function main() {
 
         comment = restComment;
         core.info("Created comment #" + comment.id + ": " + comment.html_url);
+        core.info(JSON.stringify(comment, null, 2));
       }
 
       createdComments.push(comment);

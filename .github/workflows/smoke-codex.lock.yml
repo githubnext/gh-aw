@@ -2748,6 +2748,7 @@ jobs:
                     labels: labels,
                   });
                   core.info("Created issue #" + issue.number + ": " + issue.html_url);
+                  core.info(JSON.stringify(issue, null, 2));
                   createdIssues.push(issue);
                   if (effectiveParentIssueNumber) {
                     try {

@@ -181,13 +181,14 @@ No labels were added (no valid labels found in agent output).
   }
   core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
   try {
-    await github.rest.issues.addLabels({
+    const result = await github.rest.issues.addLabels({
       owner: context.repo.owner,
       repo: context.repo.repo,
       issue_number: itemNumber,
       labels: uniqueLabels,
     });
     core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
+    core.info(JSON.stringify(result.data, null, 2));
     core.setOutput("labels_added", uniqueLabels.join("\n"));
     const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
     await core.summary

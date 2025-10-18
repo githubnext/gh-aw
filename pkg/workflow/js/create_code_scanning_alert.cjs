@@ -238,6 +238,7 @@ async function main() {
     fs.writeFileSync(sarifFilePath, JSON.stringify(sarifContent, null, 2));
     core.info(`✓ Created SARIF file: ${sarifFilePath}`);
     core.info(`SARIF file size: ${fs.statSync(sarifFilePath).size} bytes`);
+    core.info(JSON.stringify(sarifContent, null, 2));
 
     // Set outputs for the GitHub Action
     core.setOutput("sarif_file", sarifFilePath);

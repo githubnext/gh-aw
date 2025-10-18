@@ -361,6 +361,7 @@ jobs:
                     core.info(`Comment content length: ${body.length}`);
                     comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body);
                     core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+                    core.info(JSON.stringify(comment, null, 2));
                     comment.discussion_url = comment.discussion_url;
                   } else {
                     core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
@@ -373,6 +374,7 @@ jobs:
                     });
                     comment = restComment;
                     core.info("Created comment #" + comment.id + ": " + comment.html_url);
+                    core.info(JSON.stringify(comment, null, 2));
                   }
                   createdComments.push(comment);
                   if (i === commentItems.length - 1) {
@@ -3778,6 +3780,7 @@ jobs:
                       labels: labels,
                     });
                     core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                    core.info(JSON.stringify(issue, null, 2));
                     core.setOutput("issue_number", issue.number);
                     core.setOutput("issue_url", issue.html_url);
                     core.setOutput("branch_name", branchName);
@@ -3827,6 +3830,7 @@ jobs:
                   draft: draft,
                 });
                 core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
+                core.info(JSON.stringify(pullRequest, null, 2));
                 if (labels.length > 0) {
                   await github.rest.issues.addLabels({
                     owner: context.repo.owner,
@@ -3875,6 +3879,7 @@ jobs:
                     labels: labels,
                   });
                   core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                  core.info(JSON.stringify(issue, null, 2));
                   core.setOutput("issue_number", issue.number);
                   core.setOutput("issue_url", issue.html_url);
                   core.setOutput("branch_name", branchName);

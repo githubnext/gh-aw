@@ -170,9 +170,11 @@ async function addReaction(endpoint, reaction) {
   const reactionId = response.data?.id;
   if (reactionId) {
     core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
+    core.info(JSON.stringify(response.data, null, 2));
     core.setOutput("reaction-id", reactionId.toString());
   } else {
     core.info(`Successfully added reaction: ${reaction}`);
+    core.info(JSON.stringify(response.data, null, 2));
     core.setOutput("reaction-id", "");
   }
 }
@@ -215,6 +217,7 @@ async function addDiscussionReaction(subjectId, reaction) {
 
   const reactionId = result.addReaction.reaction.id;
   core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
+  core.info(JSON.stringify(result.addReaction.reaction, null, 2));
   core.setOutput("reaction-id", reactionId);
 }
 
@@ -330,6 +333,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
       core.info(`Comment ID: ${comment.id}`);
       core.info(`Comment URL: ${comment.url}`);
       core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+      core.info(JSON.stringify(comment, null, 2));
       core.setOutput("comment-id", comment.id);
       core.setOutput("comment-url", comment.url);
       core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
@@ -372,6 +376,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
       core.info(`Comment ID: ${comment.id}`);
       core.info(`Comment URL: ${comment.url}`);
       core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+      core.info(JSON.stringify(comment, null, 2));
       core.setOutput("comment-id", comment.id);
       core.setOutput("comment-url", comment.url);
       core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
@@ -410,6 +415,7 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     core.info(`Comment ID: ${createResponse.data.id}`);
     core.info(`Comment URL: ${createResponse.data.html_url}`);
     core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+    core.info(JSON.stringify(createResponse.data, null, 2));
     core.setOutput("comment-id", createResponse.data.id.toString());
     core.setOutput("comment-url", createResponse.data.html_url);
     core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);

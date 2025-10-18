@@ -358,6 +358,7 @@ jobs:
                     core.info(`Comment content length: ${body.length}`);
                     comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body);
                     core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+                    core.info(JSON.stringify(comment, null, 2));
                     comment.discussion_url = comment.discussion_url;
                   } else {
                     core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
@@ -370,6 +371,7 @@ jobs:
                     });
                     comment = restComment;
                     core.info("Created comment #" + comment.id + ": " + comment.html_url);
+                    core.info(JSON.stringify(comment, null, 2));
                   }
                   createdComments.push(comment);
                   if (i === commentItems.length - 1) {
@@ -3949,6 +3951,7 @@ jobs:
                     labels: labels,
                   });
                   core.info("Created issue #" + issue.number + ": " + issue.html_url);
+                  core.info(JSON.stringify(issue, null, 2));
                   createdIssues.push(issue);
                   if (effectiveParentIssueNumber) {
                     try {

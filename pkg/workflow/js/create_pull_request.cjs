@@ -392,6 +392,7 @@ ${patchPreview}`;
         });
 
         core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+        core.info(JSON.stringify(issue, null, 2));
 
         // Set outputs for push failure fallback
         core.setOutput("issue_number", issue.number);
@@ -454,6 +455,7 @@ ${patchPreview}`;
     });
 
     core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
+    core.info(JSON.stringify(pullRequest, null, 2));
 
     // Add labels if specified
     if (labels.length > 0) {
@@ -520,6 +522,7 @@ You can manually create a pull request from the branch if needed.${patchPreview}
       });
 
       core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+      core.info(JSON.stringify(issue, null, 2));
 
       // Set output for other jobs to use (issue instead of PR)
       core.setOutput("issue_number", issue.number);
