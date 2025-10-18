@@ -41,9 +41,13 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 				}
 			}
 
-			// Parse assignees
+			// Parse assignees (supports both string and array)
 			if assignees, exists := configMap["assignees"]; exists {
-				if assigneesArray, ok := assignees.([]any); ok {
+				if assigneeStr, ok := assignees.(string); ok {
+					// Single string format
+					issuesConfig.Assignees = []string{assigneeStr}
+				} else if assigneesArray, ok := assignees.([]any); ok {
+					// Array format
 					var assigneeStrings []string
 					for _, assignee := range assigneesArray {
 						if assigneeStr, ok := assignee.(string); ok {
@@ -132,12 +136,25 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	// Add assignee steps if assignees are configured
 	if len(data.SafeOutputs.CreateIssues.Assignees) > 0 {
+		// Get the effective GitHub token to use for gh CLI
+		var safeOutputsToken string
+		if data.SafeOutputs != nil {
+			safeOutputsToken = data.SafeOutputs.GitHubToken
+		}
+		effectiveToken := getEffectiveGitHubToken(token, getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken))
+
 		for i, assignee := range data.SafeOutputs.CreateIssues.Assignees {
+			// Special handling: "copilot" is the username for "copilot-swe-agent"
+			actualAssignee := assignee
+			if assignee == "copilot" {
+				actualAssignee = "copilot-swe-agent"
+			}
+
 			steps = append(steps, fmt.Sprintf("      - name: Assign issue to %s\n", assignee))
 			steps = append(steps, "        if: steps.create_issue.outputs.issue_number != ''\n")
 			steps = append(steps, "        env:\n")
-			steps = append(steps, "          GH_TOKEN: ${{ github.token }}\n")
-			steps = append(steps, fmt.Sprintf("          ASSIGNEE: %q\n", assignee))
+			steps = append(steps, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
+			steps = append(steps, fmt.Sprintf("          ASSIGNEE: %q\n", actualAssignee))
 			steps = append(steps, "          ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}\n")
 			steps = append(steps, "        run: |\n")
 			steps = append(steps, "          gh issue edit \"$ISSUE_NUMBER\" --add-assignee \"$ASSIGNEE\"\n")

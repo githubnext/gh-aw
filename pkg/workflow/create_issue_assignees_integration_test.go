@@ -93,9 +93,9 @@ This is a test workflow that should create an issue and assign it to multiple us
 		t.Error("Expected conditional if statement for assignee steps")
 	}
 
-	// Verify GH_TOKEN is set
-	if !strings.Contains(compiledStr, "GH_TOKEN: ${{ github.token }}") {
-		t.Error("Expected GH_TOKEN environment variable in compiled workflow")
+	// Verify GH_TOKEN is set with proper token expression
+	if !strings.Contains(compiledStr, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+		t.Error("Expected GH_TOKEN environment variable with proper token expression in compiled workflow")
 	}
 
 	// Verify environment variables for assignees are properly quoted
@@ -170,5 +170,126 @@ This workflow should compile successfully without assignees configuration.
 	}
 	if strings.Contains(compiledStr, "gh issue edit") {
 		t.Error("Did not expect gh issue edit command in workflow without assignees")
+	}
+}
+
+// TestCreateIssueWorkflowWithCopilotAssignee tests that "copilot" is mapped to "copilot-swe-agent"
+func TestCreateIssueWorkflowWithCopilotAssignee(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "copilot-assignee-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	testContent := `---
+name: Test Copilot Assignee
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  create-issue:
+    assignees: copilot
+---
+
+# Test Workflow
+
+Create an issue and assign to copilot.
+`
+
+	testFile := filepath.Join(tmpDir, "test-copilot.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler(false, "", "test")
+	err = compiler.CompileWorkflow(testFile)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the compiled output
+	outputFile := filepath.Join(tmpDir, "test-copilot.lock.yml")
+	compiledContent, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled output: %v", err)
+	}
+
+	compiledStr := string(compiledContent)
+
+	// Verify that step name shows "copilot"
+	if !strings.Contains(compiledStr, "Assign issue to copilot") {
+		t.Error("Expected assignee step name to show 'copilot'")
+	}
+
+	// Verify that actual assignee is "copilot-swe-agent"
+	if !strings.Contains(compiledStr, `ASSIGNEE: "copilot-swe-agent"`) {
+		t.Error("Expected ASSIGNEE to be mapped to 'copilot-swe-agent'")
+	}
+
+	// Verify that "copilot" is NOT used as the actual assignee value
+	if strings.Contains(compiledStr, `ASSIGNEE: "copilot"`) {
+		t.Error("Did not expect 'copilot' to be used directly as assignee value")
+	}
+}
+
+// TestCreateIssueWorkflowWithStringAssignee tests that single string assignee works
+func TestCreateIssueWorkflowWithStringAssignee(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "string-assignee-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	testContent := `---
+name: Test String Assignee
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  create-issue:
+    assignees: single-user
+---
+
+# Test Workflow
+
+Create an issue with a single assignee.
+`
+
+	testFile := filepath.Join(tmpDir, "test-string.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler(false, "", "test")
+	err = compiler.CompileWorkflow(testFile)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the compiled output
+	outputFile := filepath.Join(tmpDir, "test-string.lock.yml")
+	compiledContent, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled output: %v", err)
+	}
+
+	compiledStr := string(compiledContent)
+
+	// Verify that assignee step is created
+	if !strings.Contains(compiledStr, "Assign issue to single-user") {
+		t.Error("Expected assignee step for single-user")
+	}
+
+	// Verify the assignee environment variable
+	if !strings.Contains(compiledStr, `ASSIGNEE: "single-user"`) {
+		t.Error("Expected ASSIGNEE environment variable for single-user")
 	}
 }
