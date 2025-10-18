@@ -5784,3 +5784,90 @@ Test post-steps indentation fix.
 
 	t.Log("Post-steps indentation verified successfully")
 }
+
+func TestPromptUploadArtifact(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "prompt-upload-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test markdown file with basic frontmatter
+	testContent := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+---
+
+# Test Prompt Upload
+
+This workflow should generate a step to upload the prompt as an artifact.
+`
+
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	err = compiler.CompileWorkflow(testFile)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockYAML := string(lockContent)
+
+	// Verify that the prompt upload step is present
+	if !strings.Contains(lockYAML, "- name: Upload prompt") {
+		t.Error("Expected 'Upload prompt' step to be in generated workflow")
+	}
+
+	// Verify the upload step uses the correct action
+	if !strings.Contains(lockYAML, "uses: actions/upload-artifact@v4") {
+		t.Error("Expected 'actions/upload-artifact@v4' action to be used")
+	}
+
+	// Verify the upload step has the correct artifact name
+	if !strings.Contains(lockYAML, "name: prompt.txt") {
+		t.Error("Expected artifact name to be 'prompt.txt'")
+	}
+
+	// Verify the upload step has the correct path
+	if !strings.Contains(lockYAML, "path: /tmp/gh-aw/aw-prompts/prompt.txt") {
+		t.Error("Expected artifact path to be '/tmp/gh-aw/aw-prompts/prompt.txt'")
+	}
+
+	// Verify the upload step has the if-no-files-found configuration
+	if !strings.Contains(lockYAML, "if-no-files-found: warn") {
+		t.Error("Expected 'if-no-files-found: warn' in upload step")
+	}
+
+	// Verify the upload step runs always (with if: always())
+	uploadStepIndex := strings.Index(lockYAML, "- name: Upload prompt")
+	if uploadStepIndex == -1 {
+		t.Fatal("Upload prompt step not found")
+	}
+
+	// Check for "if: always()" in the section after the upload prompt step name
+	afterUploadStep := lockYAML[uploadStepIndex:]
+	nextStepIndex := strings.Index(afterUploadStep[20:], "- name:")
+	if nextStepIndex == -1 {
+		nextStepIndex = len(afterUploadStep) - 20
+	}
+	uploadStepSection := afterUploadStep[:20+nextStepIndex]
+
+	if !strings.Contains(uploadStepSection, "if: always()") {
+		t.Error("Expected 'if: always()' in upload prompt step")
+	}
+
+	t.Log("Prompt upload artifact step verified successfully")
+}

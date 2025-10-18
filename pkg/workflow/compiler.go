@@ -2515,6 +2515,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add prompt creation step
 	c.generatePrompt(yaml, data)
 
+	// Upload prompt to artifact
+	c.generateUploadPrompt(yaml)
+
 	logFile := "agent-stdio"
 	logFileFull := "/tmp/gh-aw/agent-stdio.log"
 
@@ -2709,6 +2712,16 @@ func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: aw_info.json\n")
 	yaml.WriteString("          path: /tmp/gh-aw/aw_info.json\n")
+	yaml.WriteString("          if-no-files-found: warn\n")
+}
+
+func (c *Compiler) generateUploadPrompt(yaml *strings.Builder) {
+	yaml.WriteString("      - name: Upload prompt\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: prompt.txt\n")
+	yaml.WriteString("          path: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
