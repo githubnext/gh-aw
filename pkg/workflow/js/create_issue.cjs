@@ -224,7 +224,7 @@ async function main() {
           const botNodeIdQuery = `
             query($owner: String!, $repo: String!) {
               repository(owner: $owner, name: $repo) {
-                suggestedActors(capabilities: [CAN_BE_ASSIGNED], first: 100) {
+                assignableUsers(capabilities: [CAN_BE_ASSIGNED], first: 100) {
                   nodes {
                     login
                     ... on User { id }
@@ -241,8 +241,11 @@ async function main() {
           });
           core.info(JSON.stringify(botResult));
           // @ts-ignore - graphql result type
-          const botNodeId = botResult.id;
+          const botNodeId = botResult.repository.assignableUsers.nodes.find(n => n.login === assignToBot)?.id;
           core.info(`Bot user node ID: ${botNodeId}`);
+          if (!botNodeId) {
+            throw new Error(`Bot user "${assignToBot}" not found among assignable users`);
+          }
 
           // Create issue with bot assigned in one mutation
           core.info(`Creating issue and assigning to ${assignToBot} in one operation`);
