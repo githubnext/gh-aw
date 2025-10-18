@@ -81,11 +81,29 @@ The script transforms JSON data by:
 - Exploring unfamiliar APIs or data structures
 - Planning data extraction strategies
 
-**Example workflow:**
+**Example workflow for GitHub search tools:**
 ```bash
-# Step 1: Get schema with minimal data
-github.search_repositories(query="language:go", perPage=1) | /tmp/gh-aw/jq/json-schema-minify.sh
+# Step 1: Get schema with minimal data (fetch just 1 result)
+# This helps understand the structure before requesting large datasets
+echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jq/json-schema-minify.sh
+
+# Output shows the schema:
+# {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
 
 # Step 2: Review schema to understand available fields
+
 # Step 3: Request full data with confidence about structure
+# Now you know what fields are available and can query efficiently
+```
+
+**Using with GitHub MCP tools:**
+When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through the minifier to discover available fields:
+```bash
+# Save a minimal search result to a file
+gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
+
+# Generate schema to understand structure
+cat /tmp/sample.json | /tmp/gh-aw/jq/json-schema-minify.sh
+
+# Now you know which fields exist and can use them in your analysis
 ```
