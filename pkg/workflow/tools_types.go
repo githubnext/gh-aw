@@ -3,25 +3,25 @@ package workflow
 // Tools represents the parsed tools configuration from workflow frontmatter
 type Tools struct {
 	// Built-in tools
-	GitHub             any `yaml:"github,omitempty"`
-	Claude             any `yaml:"claude,omitempty"`
-	Bash               any `yaml:"bash,omitempty"`
-	WebFetch           any `yaml:"web-fetch,omitempty"`
-	WebSearch          any `yaml:"web-search,omitempty"`
-	Edit               any `yaml:"edit,omitempty"`
-	Playwright         any `yaml:"playwright,omitempty"`
-	AgenticWorkflows   any `yaml:"agentic-workflows,omitempty"`
-	CacheMemory        any `yaml:"cache-memory,omitempty"`
-	SafetyPrompt       any `yaml:"safety-prompt,omitempty"`
-	Timeout            any `yaml:"timeout,omitempty"`
-	StartupTimeout     any `yaml:"startup-timeout,omitempty"`
-	
+	GitHub           any `yaml:"github,omitempty"`
+	Claude           any `yaml:"claude,omitempty"`
+	Bash             any `yaml:"bash,omitempty"`
+	WebFetch         any `yaml:"web-fetch,omitempty"`
+	WebSearch        any `yaml:"web-search,omitempty"`
+	Edit             any `yaml:"edit,omitempty"`
+	Playwright       any `yaml:"playwright,omitempty"`
+	AgenticWorkflows any `yaml:"agentic-workflows,omitempty"`
+	CacheMemory      any `yaml:"cache-memory,omitempty"`
+	SafetyPrompt     any `yaml:"safety-prompt,omitempty"`
+	Timeout          any `yaml:"timeout,omitempty"`
+	StartupTimeout   any `yaml:"startup-timeout,omitempty"`
+
 	// Custom MCP tools (anything not in the above list)
 	Custom map[string]any `yaml:",inline"`
-	
+
 	// Raw map for backwards compatibility
 	raw map[string]any
-	
+
 	// Track which known tools are explicitly set (even if nil)
 	hasGitHub           bool
 	hasClaude           bool
@@ -39,13 +39,13 @@ type Tools struct {
 
 // GitHubToolConfig represents the configuration for the GitHub tool
 type GitHubToolConfig struct {
-	Allowed      []string `yaml:"allowed,omitempty"`
-	Mode         string   `yaml:"mode,omitempty"`
-	Version      string   `yaml:"version,omitempty"`
-	Args         []string `yaml:"args,omitempty"`
-	ReadOnly     bool     `yaml:"read-only,omitempty"`
-	GitHubToken  string   `yaml:"github-token,omitempty"`
-	Toolset      []string `yaml:"toolset,omitempty"`
+	Allowed     []string `yaml:"allowed,omitempty"`
+	Mode        string   `yaml:"mode,omitempty"`
+	Version     string   `yaml:"version,omitempty"`
+	Args        []string `yaml:"args,omitempty"`
+	ReadOnly    bool     `yaml:"read-only,omitempty"`
+	GitHubToken string   `yaml:"github-token,omitempty"`
+	Toolset     []string `yaml:"toolset,omitempty"`
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool
@@ -68,17 +68,17 @@ func NewTools(toolsMap map[string]any) *Tools {
 			raw:    make(map[string]any),
 		}
 	}
-	
+
 	tools := &Tools{
 		Custom: make(map[string]any),
 		raw:    make(map[string]any),
 	}
-	
+
 	// Copy raw map
 	for k, v := range toolsMap {
 		tools.raw[k] = v
 	}
-	
+
 	// Extract known tools (check for existence in map, not just non-nil values)
 	if _, exists := toolsMap["github"]; exists {
 		tools.GitHub = toolsMap["github"]
@@ -128,29 +128,29 @@ func NewTools(toolsMap map[string]any) *Tools {
 		tools.StartupTimeout = toolsMap["startup-timeout"]
 		tools.hasStartupTimeout = true
 	}
-	
+
 	// Extract custom MCP tools (anything not in the known list)
 	knownTools := map[string]bool{
-		"github":             true,
-		"claude":             true,
-		"bash":               true,
-		"web-fetch":          true,
-		"web-search":         true,
-		"edit":               true,
-		"playwright":         true,
-		"agentic-workflows":  true,
-		"cache-memory":       true,
-		"safety-prompt":      true,
-		"timeout":            true,
-		"startup-timeout":    true,
+		"github":            true,
+		"claude":            true,
+		"bash":              true,
+		"web-fetch":         true,
+		"web-search":        true,
+		"edit":              true,
+		"playwright":        true,
+		"agentic-workflows": true,
+		"cache-memory":      true,
+		"safety-prompt":     true,
+		"timeout":           true,
+		"startup-timeout":   true,
 	}
-	
+
 	for name, config := range toolsMap {
 		if !knownTools[name] {
 			tools.Custom[name] = config
 		}
 	}
-	
+
 	return tools
 }
 
@@ -159,9 +159,9 @@ func (t *Tools) ToMap() map[string]any {
 	if t == nil {
 		return make(map[string]any)
 	}
-	
+
 	result := make(map[string]any)
-	
+
 	// Add known tools if they exist (use has flags to check)
 	if t.hasGitHub {
 		result["github"] = t.GitHub
@@ -199,12 +199,12 @@ func (t *Tools) ToMap() map[string]any {
 	if t.hasStartupTimeout {
 		result["startup-timeout"] = t.StartupTimeout
 	}
-	
+
 	// Add custom MCP tools
 	for name, config := range t.Custom {
 		result[name] = config
 	}
-	
+
 	return result
 }
 
@@ -213,7 +213,7 @@ func (t *Tools) HasTool(name string) bool {
 	if t == nil {
 		return false
 	}
-	
+
 	switch name {
 	case "github":
 		return t.hasGitHub
@@ -250,7 +250,7 @@ func (t *Tools) GetTool(name string) any {
 	if t == nil {
 		return nil
 	}
-	
+
 	switch name {
 	case "github":
 		return t.GitHub
@@ -286,9 +286,9 @@ func (t *Tools) GetToolNames() []string {
 	if t == nil {
 		return []string{}
 	}
-	
+
 	names := []string{}
-	
+
 	if t.hasGitHub {
 		names = append(names, "github")
 	}
@@ -325,12 +325,12 @@ func (t *Tools) GetToolNames() []string {
 	if t.hasStartupTimeout {
 		names = append(names, "startup-timeout")
 	}
-	
+
 	// Add custom tools
 	for name := range t.Custom {
 		names = append(names, name)
 	}
-	
+
 	return names
 }
 
@@ -339,11 +339,11 @@ func (t *Tools) GetGitHubConfig() *GitHubToolConfig {
 	if t == nil || t.GitHub == nil {
 		return nil
 	}
-	
+
 	// If it's a map, convert it
 	if configMap, ok := t.GitHub.(map[string]any); ok {
 		config := &GitHubToolConfig{}
-		
+
 		if allowed, ok := configMap["allowed"].([]any); ok {
 			config.Allowed = make([]string, 0, len(allowed))
 			for _, item := range allowed {
@@ -352,15 +352,15 @@ func (t *Tools) GetGitHubConfig() *GitHubToolConfig {
 				}
 			}
 		}
-		
+
 		if mode, ok := configMap["mode"].(string); ok {
 			config.Mode = mode
 		}
-		
+
 		if version, ok := configMap["version"].(string); ok {
 			config.Version = version
 		}
-		
+
 		if args, ok := configMap["args"].([]any); ok {
 			config.Args = make([]string, 0, len(args))
 			for _, item := range args {
@@ -369,15 +369,15 @@ func (t *Tools) GetGitHubConfig() *GitHubToolConfig {
 				}
 			}
 		}
-		
+
 		if readOnly, ok := configMap["read-only"].(bool); ok {
 			config.ReadOnly = readOnly
 		}
-		
+
 		if token, ok := configMap["github-token"].(string); ok {
 			config.GitHubToken = token
 		}
-		
+
 		if toolset, ok := configMap["toolset"].([]any); ok {
 			config.Toolset = make([]string, 0, len(toolset))
 			for _, item := range toolset {
@@ -386,10 +386,10 @@ func (t *Tools) GetGitHubConfig() *GitHubToolConfig {
 				}
 			}
 		}
-		
+
 		return config
 	}
-	
+
 	return nil
 }
 
@@ -398,19 +398,19 @@ func (t *Tools) GetPlaywrightConfig() *PlaywrightToolConfig {
 	if t == nil || t.Playwright == nil {
 		return nil
 	}
-	
+
 	// If it's a map, convert it
 	if configMap, ok := t.Playwright.(map[string]any); ok {
 		config := &PlaywrightToolConfig{}
-		
+
 		if version, ok := configMap["version"].(string); ok {
 			config.Version = version
 		}
-		
+
 		if allowedDomains, ok := configMap["allowed_domains"]; ok {
 			config.AllowedDomains = allowedDomains
 		}
-		
+
 		if args, ok := configMap["args"].([]any); ok {
 			config.Args = make([]string, 0, len(args))
 			for _, item := range args {
@@ -419,10 +419,10 @@ func (t *Tools) GetPlaywrightConfig() *PlaywrightToolConfig {
 				}
 			}
 		}
-		
+
 		return config
 	}
-	
+
 	return nil
 }
 
@@ -431,17 +431,17 @@ func (t *Tools) GetClaudeConfig() *ClaudeToolConfig {
 	if t == nil || t.Claude == nil {
 		return nil
 	}
-	
+
 	// If it's a map, convert it
 	if configMap, ok := t.Claude.(map[string]any); ok {
 		config := &ClaudeToolConfig{}
-		
+
 		if allowed, ok := configMap["allowed"]; ok {
 			config.Allowed = allowed
 		}
-		
+
 		return config
 	}
-	
+
 	return nil
 }
