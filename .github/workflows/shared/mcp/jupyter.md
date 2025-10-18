@@ -1,11 +1,25 @@
 ---
+steps:
+  - name: Wait for Jupyter to be ready
+    run: |
+      echo "Waiting for Jupyter server to start..."
+      for i in {1..30}; do
+        if curl -f http://jupyter:8888/api 2>/dev/null; then
+          echo "✓ Jupyter server is ready!"
+          break
+        fi
+        echo "Attempt $i: Waiting for Jupyter..."
+        sleep 2
+      done
+      curl -f http://jupyter:8888/api || (echo "Failed to connect to Jupyter" && exit 1)
+
 mcp-servers:
   jupyter:
     container: "datalayer/jupyter-mcp-server"
     version: "latest"
     env:
-      JUPYTER_URL: "http://host.docker.internal:8888"
-      JUPYTER_TOKEN: "${{ secrets.JUPYTER_TOKEN || github.run_id }}"
+      JUPYTER_URL: "http://jupyter:8888"
+      JUPYTER_TOKEN: "${{ github.run_id }}"
       DOCUMENT_ID: "notebook.ipynb"
       ALLOW_IMG_OUTPUT: "true"
     allowed: ["*"]
