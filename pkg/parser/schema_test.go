@@ -671,19 +671,6 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			errContains: "additional properties 'invalid_prop' not allowed",
 		},
 		{
-			name: "invalid claude tools with additional properties",
-			frontmatter: map[string]any{
-				"tools": map[string]any{
-					"claude": map[string]any{
-						"allowed":      []string{"WebFetch"},
-						"invalid_prop": "value",
-					},
-				},
-			},
-			wantErr:     true,
-			errContains: "additional properties 'invalid_prop' not allowed",
-		},
-		{
 			name: "invalid custom tool with additional properties",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
@@ -927,12 +914,7 @@ func TestValidateIncludedFileFrontmatterWithSchema(t *testing.T) {
 					"github": map[string]any{
 						"allowed": []string{"list_issues", "get_issue"},
 					},
-					"claude": map[string]any{
-						"allowed": map[string]any{
-							"Edit":     nil,
-							"WebFetch": nil,
-						},
-					},
+					"bash": []string{"echo", "ls"},
 				},
 			},
 			wantErr: false,
