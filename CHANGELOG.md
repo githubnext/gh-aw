@@ -2,16 +2,6 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
-
-### Updates
-
-#### Update Claude Code to 2.0.22 and GitHub Copilot CLI to 0.0.344
-
-- Updated Claude Code from version 2.0.21 to 2.0.22
-- Updated GitHub Copilot CLI from version 0.0.343 to 0.0.344
-- Added `--disable-builtin-mcps` flag to Copilot CLI command to disable built-in MCP servers (as introduced in Copilot CLI 0.0.344)
-
 ## v0.22.7 - 2025-10-17
 
 ### Bug Fixes
