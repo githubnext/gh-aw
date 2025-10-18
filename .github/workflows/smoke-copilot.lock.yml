@@ -3413,13 +3413,21 @@ jobs:
                       core.info(`Repository node ID: ${repositoryId}`);
                       core.info(`Fetching node ID for bot user: ${assignToBot}`);
                       const botNodeIdQuery = `
-                        query($login: String!) {
-                          user(login: $login) {
-                            id
+                        query($owner: String!, $repo: String!) {
+                          repository(owner: $owner, name: $repo) {
+                            suggestedActors(capabilities: [CAN_BE_ASSIGNED], first: 100) {
+                              nodes {
+                                login
+                                __typename
+                                id
+                              }
+                            }
                           }
-                        }
+                        }          
                       `;
                       const botResult = await github.graphql(botNodeIdQuery, {
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
                         login: assignToBot,
                       });
                       core.info(JSON.stringify(botResult));
