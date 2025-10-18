@@ -1,6 +1,38 @@
 ---
-tools:
-  agentic-workflows: {}
+mcp-servers:
+  gh-aw:
+    type: http
+    url: http://localhost:8765
+    allowed:
+      - mcp-inspect
+steps:
+  - name: Set up Go
+    uses: actions/setup-go@v5
+    with:
+      go-version-file: go.mod
+      cache: true
+  - name: Install dependencies
+    run: make deps-dev
+  - name: Install binary as 'gh-aw'
+    run: make build
+  - name: Start MCP server
+    run: |
+      set -e
+      ./gh-aw mcp-server --cmd ./gh-aw --port 8765 &
+      MCP_PID=$!
+      
+      # Wait a moment for server to start
+      sleep 2
+      
+      # Check if server is still running
+      if ! kill -0 $MCP_PID 2>/dev/null; then
+        echo "MCP server failed to start"
+        exit 1
+      fi
+      
+      echo "MCP server started successfully with PID $MCP_PID"
+    env:
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 ---
 
 ## MCP Server Debugging Assistant
@@ -9,11 +41,14 @@ This shared workflow provides tools and procedures to debug MCP (Model Context P
 
 ### Available Tools
 
-**Agentic Workflows Tool**: Enables introspection of workflow configurations and MCP server status using:
-- `status` - Show status of workflow files in the repository
-- `compile` - Compile markdown workflows to YAML
-- `logs` - Download and analyze workflow run logs
-- `audit` - Investigate workflow run failures and generate reports
+**mcp-inspect Tool**: Use the `mcp-inspect` tool to inspect MCP server configurations and diagnose connectivity issues.
+
+The tool can:
+- List all workflows with MCP servers
+- Inspect specific MCP servers in a workflow
+- Show available tools and their status
+- Display tool schemas and parameters
+- Verify HTTP endpoint connectivity
 
 ### MCP Logs Location
 
@@ -67,25 +102,33 @@ Look for:
 - Configuration validation errors
 - Stack traces showing the failure point
 
-#### Step 3: Use MCP Inspect for HTTP Servers
+#### Step 3: Use mcp-inspect Tool for HTTP Servers
 
-For HTTP-based MCP servers, use the `gh aw mcp inspect` command to diagnose connectivity and tool availability:
+For HTTP-based MCP servers, use the `mcp-inspect` tool to diagnose connectivity and tool availability.
 
-```bash
-# Inspect all MCP servers in a workflow
-gh aw mcp inspect <workflow-name>
+**Tool Parameters:**
+- `workflow_file`: The workflow file to inspect (e.g., "dev" or "audit-workflows")
+- `server`: (Optional) Filter to inspect only the specified MCP server
+- `tool`: (Optional) Show detailed information about a specific tool
 
-# Inspect a specific MCP server
-gh aw mcp inspect <workflow-name> --server <server-name>
+**Usage Examples:**
 
-# Get detailed information about a specific tool
-gh aw mcp inspect <workflow-name> --server <server-name> --tool <tool-name>
-
-# Verbose output with connection details
-gh aw mcp inspect <workflow-name> --server <server-name> -v
+To inspect all MCP servers in the current workflow:
+```
+Use mcp-inspect tool with workflow_file parameter set to the current workflow name
 ```
 
-The inspect command will:
+To inspect a specific MCP server:
+```
+Use mcp-inspect tool with workflow_file="<workflow-name>" and server="<server-name>"
+```
+
+To get detailed information about a specific tool:
+```
+Use mcp-inspect tool with workflow_file="<workflow-name>", server="<server-name>", and tool="<tool-name>"
+```
+
+The mcp-inspect tool will:
 - Verify HTTP endpoint connectivity
 - List available tools and their status
 - Show tool schemas and parameters
@@ -133,7 +176,7 @@ Based on the logs and inspection results, determine:
 **Symptoms**: MCP tools show as "not allowed" or unavailable
 
 **Debug steps**:
-1. Use `gh aw mcp inspect` to list available tools
+1. Use the `mcp-inspect` tool to list available tools
 2. Compare with workflow's `allowed` list
 3. Check tool registration in server code
 4. Verify server initialized successfully
@@ -153,14 +196,14 @@ imports:
 ```
 
 This provides:
-- Access to agentic-workflows tool for workflow introspection
+- Access to mcp-inspect tool for MCP server diagnostics
 - Documentation for MCP debugging procedures
 - Reference for common issues and solutions
 
 ### Best Practices
 
 1. **Always check logs first**: MCP server logs contain the most direct information about failures
-2. **Use inspect for HTTP servers**: The `gh aw mcp inspect` command provides real-time diagnostics
+2. **Use mcp-inspect tool for HTTP servers**: The tool provides real-time diagnostics for MCP server connectivity
 3. **Document your findings**: Include log excerpts and error messages in issues
 4. **Test incrementally**: Debug one server at a time
 5. **Verify dependencies**: Ensure all required packages are installed before starting servers
@@ -168,20 +211,19 @@ This provides:
 
 ### Example Debugging Session
 
-```bash
+```
 # 1. Server failed - check what went wrong
-cat /tmp/gh-aw/mcp-logs/drain3/server.log
+Read /tmp/gh-aw/mcp-logs/drain3/server.log
 # Output: ModuleNotFoundError: No module named 'fastmcp'
 
-# 2. Install missing dependency
-pip install fastmcp
+# 2. Document the error and check if dependencies need to be installed
+# Note: In a workflow context, dependency installation should be added to the workflow steps
 
-# 3. Restart and verify
-# (server restarts automatically in workflow)
-gh aw mcp inspect dev --server drain3
+# 3. After server restarts, verify connectivity
+Use mcp-inspect tool with workflow_file="dev" and server="drain3"
 # Output: ✓ Successfully connected, 3 tools available
 
-# 4. Verify specific tool
-gh aw mcp inspect dev --server drain3 --tool index_file
+# 4. Verify specific tool details
+Use mcp-inspect tool with workflow_file="dev", server="drain3", and tool="index_file"
 # Output: Tool details showing correct configuration
 ```
