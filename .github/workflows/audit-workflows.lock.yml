@@ -7,6 +7,7 @@
 #   Imports:
 #     - shared/mcp/gh-aw.md
 #     - shared/jqschema.md
+#     - shared/mcp/drain3.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -93,6 +94,24 @@ jobs:
         run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Wait a moment for server to start\nsleep 2\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"MCP server failed to start\"\n  exit 1\nfi\n\necho \"MCP server started successfully with PID $MCP_PID\"\n"
       - name: Set up jq utilities directory
         run: "cat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Drain3 dependencies
+        run: |
+          pip install fastmcp drain3
+      - name: Copy Drain3 MCP server script
+        run: |
+          mkdir -p /tmp/gh-aw/mcp-servers/drain3/
+          cp .github/workflows/shared/mcp/drain3_server.py /tmp/gh-aw/mcp-servers/drain3/
+          chmod +x /tmp/gh-aw/mcp-servers/drain3/drain3_server.py
+      - env:
+          HOST: 0.0.0.0
+          PORT: "8766"
+          STATE_DIR: /tmp/gh-aw/cache-memory
+        name: Start Drain3 MCP server
+        run: "set -e\nmkdir -p /tmp/gh-aw/mcp-logs/drain3/\npython /tmp/gh-aw/mcp-servers/drain3/drain3_server.py > /tmp/gh-aw/mcp-logs/drain3/server.log 2>&1 &\nMCP_PID=$!\n\n# Wait for server to start\nsleep 3\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"Drain3 MCP server failed to start\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/server.log || true\n  exit 1\nfi\n\n# Check if server is listening on port 8766\nif ! netstat -tln | grep -q \":8766 \"; then\n  echo \"Drain3 MCP server not listening on port 8766\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/server.log || true\n  exit 1\nfi\n\n# Test HTTP endpoint with curl\necho \"Testing HTTP endpoint with curl...\"\nif curl -v -X GET http://localhost:8766/mcp 2>&1 | tee /tmp/gh-aw/mcp-logs/drain3/curl-test.log; then\n  echo \"✓ HTTP endpoint responded\"\nelse\n  echo \"✗ HTTP endpoint did not respond\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/server.log || true\n  echo \"Curl test logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/curl-test.log || true\n  exit 1\nfi\n\necho \"Drain3 MCP server started successfully with PID $MCP_PID\"\necho \"Server logs (first 50 lines):\"\nhead -n 50 /tmp/gh-aw/mcp-logs/drain3/server.log || true\n"
 
       - name: Create gh-aw temp directory
         run: |
@@ -982,6 +1001,10 @@ jobs:
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
           {
             "mcpServers": {
+              "drain3": {
+                "type": "http",
+                "url": "http://localhost:8766/mcp"
+              },
               "gh-aw": {
                 "type": "http",
                 "url": "http://localhost:8765"
@@ -1110,6 +1133,8 @@ jobs:
           
           # Now you know which fields exist and can use them in your analysis
           ```
+          
+          
           
           # Agentic Workflow Audit Agent
           
@@ -1626,6 +1651,9 @@ jobs:
         # - TodoWrite
         # - Write
         # - Write(/tmp/gh-aw/cache-memory/*)
+        # - mcp__drain3__index_file
+        # - mcp__drain3__list_templates
+        # - mcp__drain3__query_file
         # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
         # - mcp__github__get_commit
@@ -1684,7 +1712,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(/tmp/gh-aw/jqschema.sh),Bash(cat),Bash(date),Bash(echo),Bash(grep),Bash(head),Bash(jq *),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(/tmp/gh-aw/jqschema.sh),Bash(cat),Bash(date),Bash(echo),Bash(grep),Bash(head),Bash(jq *),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__drain3__index_file,mcp__drain3__list_templates,mcp__drain3__query_file,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
