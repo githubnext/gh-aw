@@ -17,6 +17,7 @@ timeout_minutes: 20
 strict: true
 imports:
   - shared/mcp/gh-aw.md
+  - shared/jqschema.md
 ---
 
 # Agentic Workflow Audit Agent
