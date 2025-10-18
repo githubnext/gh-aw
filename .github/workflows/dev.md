@@ -18,6 +18,7 @@ safe-outputs:
     assignees: copilot
 imports:
   - shared/mcp/drain3.md
+  - shared/mcp-debug.md
 ---
 
 # Go Source Code Pattern Analysis
