@@ -45,6 +45,7 @@ The --force flag overwrites existing workflow files.`,
 			nameFlag, _ := cmd.Flags().GetString("name")
 			prFlag, _ := cmd.Flags().GetBool("pr")
 			forceFlag, _ := cmd.Flags().GetBool("force")
+			appendText, _ := cmd.Flags().GetString("append")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
 			// If no arguments provided and not in CI, automatically use interactive mode
@@ -66,12 +67,12 @@ The --force flag overwrites existing workflow files.`,
 
 			// Handle normal mode
 			if prFlag {
-				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, true); err != nil {
+				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, true); err != nil {
 					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 					os.Exit(1)
 				}
 			} else {
-				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, false); err != nil {
+				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, false); err != nil {
 					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 					os.Exit(1)
 				}
@@ -97,12 +98,15 @@ The --force flag overwrites existing workflow files.`,
 	// Add force flag to add command
 	cmd.Flags().Bool("force", false, "Overwrite existing workflow files")
 
+	// Add append flag to add command
+	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
+
 	return cmd
 }
 
 // AddWorkflows adds one or more workflows from components to .github/workflows
 // with optional repository installation and PR creation
-func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, createPR bool) error {
+func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, appendText string, createPR bool) error {
 	if len(workflows) == 0 {
 		return fmt.Errorf("at least one workflow name is required")
 	}
@@ -170,15 +174,15 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 
 	// Handle PR creation workflow
 	if createPR {
-		return addWorkflowsWithPR(processedWorkflows, number, verbose, engineOverride, name, force)
+		return addWorkflowsWithPR(processedWorkflows, number, verbose, engineOverride, name, force, appendText)
 	}
 
 	// Handle normal workflow addition
-	return addWorkflowsNormal(processedWorkflows, number, verbose, engineOverride, name, force)
+	return addWorkflowsNormal(processedWorkflows, number, verbose, engineOverride, name, force, appendText)
 }
 
 // addWorkflowsNormal handles normal workflow addition without PR creation
-func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool) error {
+func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string) error {
 	// Create file tracker for all operations
 	tracker, err := NewFileTracker()
 	if err != nil {
@@ -205,7 +209,7 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 			currentName = name
 		}
 
-		if err := addWorkflowWithTracking(workflow, number, verbose, engineOverride, currentName, force, tracker); err != nil {
+		if err := addWorkflowWithTracking(workflow, number, verbose, engineOverride, currentName, force, appendText, tracker); err != nil {
 			return fmt.Errorf("failed to add workflow '%s': %w", workflow.String(), err)
 		}
 	}
@@ -218,7 +222,7 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 }
 
 // addWorkflowsWithPR handles workflow addition with PR creation
-func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool) error {
+func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string) error {
 	// Get current branch for restoration later
 	currentBranch, err := getCurrentBranch()
 	if err != nil {
@@ -247,7 +251,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 	}()
 
 	// Add workflows using the normal function logic
-	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force); err != nil {
+	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force, appendText); err != nil {
 		// Rollback on error
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
@@ -326,7 +330,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 }
 
 // addWorkflowWithTracking adds a workflow from components to .github/workflows with file tracking
-func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, tracker *FileTracker) error {
+func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, tracker *FileTracker) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflow.String())))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Number of copies: %d", number)))
@@ -470,6 +474,15 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 			} else {
 				content = processedContent
 			}
+		}
+
+		// Append text if provided
+		if appendText != "" {
+			// Ensure we have a newline before appending
+			if !strings.HasSuffix(content, "\n") {
+				content += "\n"
+			}
+			content += "\n" + appendText
 		}
 
 		// Track the file based on whether it existed before (if tracker is available)
