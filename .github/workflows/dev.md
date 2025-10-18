@@ -10,14 +10,6 @@ permissions:
   contents: read
   actions: read
 
-services:
-  jupyter:
-    image: jupyter/base-notebook:latest
-    ports:
-      - 8888:8888
-    env:
-      JUPYTER_TOKEN: ${{ github.run_id }}
-
 tools:
   edit:
   github:

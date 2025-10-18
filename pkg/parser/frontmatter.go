@@ -94,6 +94,7 @@ type ImportsResult struct {
 	MergedMarkdown    string   // Merged markdown content from all imports
 	MergedSteps       string   // Merged steps configuration from all imports
 	MergedRuntimes    string   // Merged runtimes configuration from all imports
+	MergedServices    string   // Merged services configuration from all imports
 	ImportedFiles     []string // List of imported file paths (for manifest)
 }
 
@@ -395,6 +396,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var markdownBuilder strings.Builder
 	var stepsBuilder strings.Builder
 	var runtimesBuilder strings.Builder
+	var servicesBuilder strings.Builder
 	var engines []string
 	var safeOutputs []string
 	var processedFiles []string
@@ -483,6 +485,12 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		if err == nil && runtimesContent != "" && runtimesContent != "{}" {
 			runtimesBuilder.WriteString(runtimesContent + "\n")
 		}
+
+		// Extract services from imported file
+		servicesContent, err := extractServicesFromContent(string(content))
+		if err == nil && servicesContent != "" {
+			servicesBuilder.WriteString(servicesContent + "\n")
+		}
 	}
 
 	return &ImportsResult{
@@ -493,6 +501,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		MergedMarkdown:    markdownBuilder.String(),
 		MergedSteps:       stepsBuilder.String(),
 		MergedRuntimes:    runtimesBuilder.String(),
+		MergedServices:    servicesBuilder.String(),
 		ImportedFiles:     processedFiles,
 	}, nil
 }
@@ -916,6 +925,28 @@ func extractEngineFromContent(content string) (string, error) {
 // extractRuntimesFromContent extracts runtimes section from frontmatter as JSON string
 func extractRuntimesFromContent(content string) (string, error) {
 	return extractFrontmatterField(content, "runtimes", "{}")
+}
+
+// extractServicesFromContent extracts services section from frontmatter as YAML string
+func extractServicesFromContent(content string) (string, error) {
+	result, err := ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return "", nil // Return empty string on error
+	}
+
+	// Extract services section
+	services, exists := result.Frontmatter["services"]
+	if !exists {
+		return "", nil
+	}
+
+	// Convert to YAML string (similar to how steps are handled)
+	servicesYAML, err := yaml.Marshal(services)
+	if err != nil {
+		return "", nil
+	}
+
+	return strings.TrimSpace(string(servicesYAML)), nil
 }
 
 // extractFrontmatterField extracts a specific field from frontmatter as JSON string

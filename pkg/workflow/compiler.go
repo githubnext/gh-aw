@@ -887,6 +887,43 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Environment = c.extractTopLevelYAMLSection(result.Frontmatter, "environment")
 	workflowData.Container = c.extractTopLevelYAMLSection(result.Frontmatter, "container")
 	workflowData.Services = c.extractTopLevelYAMLSection(result.Frontmatter, "services")
+
+	// Merge imported services if any
+	if importsResult.MergedServices != "" {
+		// Parse imported services from YAML
+		var importedServices map[string]any
+		if err := yaml.Unmarshal([]byte(importsResult.MergedServices), &importedServices); err == nil {
+			// If there are main workflow services, parse and merge them
+			if workflowData.Services != "" {
+				// Parse main workflow services
+				var mainServicesWrapper map[string]any
+				if err := yaml.Unmarshal([]byte(workflowData.Services), &mainServicesWrapper); err == nil {
+					if mainServices, ok := mainServicesWrapper["services"].(map[string]any); ok {
+						// Merge: main workflow services take precedence over imported
+						for key, value := range importedServices {
+							if _, exists := mainServices[key]; !exists {
+								mainServices[key] = value
+							}
+						}
+						// Convert back to YAML with "services:" wrapper
+						servicesWrapper := map[string]any{"services": mainServices}
+						servicesYAML, err := yaml.Marshal(servicesWrapper)
+						if err == nil {
+							workflowData.Services = string(servicesYAML)
+						}
+					}
+				}
+			} else {
+				// Only imported services exist, wrap in "services:" format
+				servicesWrapper := map[string]any{"services": importedServices}
+				servicesYAML, err := yaml.Marshal(servicesWrapper)
+				if err == nil {
+					workflowData.Services = string(servicesYAML)
+				}
+			}
+		}
+	}
+
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
 
 	// Extract cache-memory config and check for errors

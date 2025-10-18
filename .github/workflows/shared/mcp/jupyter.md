@@ -1,4 +1,12 @@
 ---
+services:
+  jupyter:
+    image: jupyter/base-notebook:latest
+    ports:
+      - 8888:8888
+    env:
+      JUPYTER_TOKEN: ${{ github.run_id }}
+
 steps:
   - name: Wait for Jupyter to be ready
     run: |
