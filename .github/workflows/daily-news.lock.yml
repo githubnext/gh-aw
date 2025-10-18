@@ -3678,6 +3678,12 @@ jobs:
       group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     steps:
+      - name: Download prompt artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: prompt.txt
+          path: /tmp/gh-aw/threat-detection/
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@v5
@@ -3700,10 +3706,22 @@ jobs:
         env:
           WORKFLOW_NAME: "Daily News"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "\n\n## jqschema - JSON Schema Discovery\n\nA utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.\n\n### Purpose\n\nGenerate a compact structural schema (keys + types) from JSON input. This is particularly useful when:\n- Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)\n- Exploring API responses with large payloads\n- Understanding the structure of unfamiliar data without verbose output\n- Planning queries before fetching full data\n\n### Usage\n\n```bash\n# Analyze a file\ncat data.json | /tmp/gh-aw/jqschema.sh\n\n# Analyze command output\necho '{\"name\": \"test\", \"count\": 42, \"items\": [{\"id\": 1}]}' | /tmp/gh-aw/jqschema.sh\n\n# Analyze GitHub search results\ngh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh\n```\n\n### How It Works\n\nThe script transforms JSON data by:\n1. Replacing object values with their type names (\"string\", \"number\", \"boolean\", \"null\")\n2. Reducing arrays to their first element's structure (or empty array if empty)\n3. Recursively processing nested structures\n4. Outputting compact (minified) JSON\n\n### Example\n\n**Input:**\n```json\n{\n  \"total_count\": 1000,\n  \"items\": [\n    {\"login\": \"user1\", \"id\": 123, \"verified\": true},\n    {\"login\": \"user2\", \"id\": 456, \"verified\": false}\n  ]\n}\n```\n\n**Output:**\n```json\n{\"total_count\":\"number\",\"items\":[{\"login\":\"string\",\"id\":\"number\",\"verified\":\"boolean\"}]}\n```\n\n### Best Practices\n\n**Use this script when:**\n- You need to understand the structure of tool outputs before requesting full data\n- GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)\n- Exploring unfamiliar APIs or data structures\n- Planning data extraction strategies\n\n**Example workflow for GitHub search tools:**\n```bash\n# Step 1: Get schema with minimal data (fetch just 1 result)\n# This helps understand the structure before requesting large datasets\necho '{}' | gh api search/repositories -f q=\"language:go\" -f per_page=1 | /tmp/gh-aw/jqschema.sh\n\n# Output shows the schema:\n# {\"incomplete_results\":\"boolean\",\"items\":[{...}],\"total_count\":\"number\"}\n\n# Step 2: Review schema to understand available fields\n\n# Step 3: Request full data with confidence about structure\n# Now you know what fields are available and can query efficiently\n```\n\n**Using with GitHub MCP tools:**\nWhen using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:\n```bash\n# Save a minimal search result to a file\ngh api search/code -f q=\"jq in:file language:bash\" -f per_page=1 > /tmp/sample.json\n\n# Generate schema to understand structure\ncat /tmp/sample.json | /tmp/gh-aw/jqschema.sh\n\n# Now you know which fields exist and can use them in your analysis\n```\n\n# Daily News\n\nWrite an upbeat, friendly, motivating summary of recent activity in the repo.\n\n- Include some or all of the following:\n  * Recent issues activity\n  * Recent pull requests\n  * Recent discussions\n  * Recent releases\n  * Recent comments\n  * Recent code reviews\n  * Recent code changes\n  * Recent failed CI runs\n  * Look at the changesets in ./changeset folder\n\n- If little has happened, don't write too much.\n\n- Give some deep thought to ways the team can improve their productivity, and suggest some ways to do that.\n\n- Include a description of open source community engagement, if any.\n\n- Highlight suggestions for possible investment, ideas for features and project plan, ways to improve community engagement, and so on.\n\n- Be helpful, thoughtful, respectful, positive, kind, and encouraging.\n\n- Use emojis to make the report more engaging and fun, but don't overdo it.\n\n- Include a short haiku at the end of the report to help orient the team to the season of their work.\n\n- In a note at the end of the report, include a log of\n  * all search queries (web, issues, pulls, content) you used to generate the data for the report\n  * all commands you used to generate the data for the report\n  * all files you read to generate the data for the report\n  * places you didn't have time to read or search, but would have liked to\n\nCreate a new GitHub discussion with a title containing today's date (e.g., \"Daily Status - 2024-10-10\") containing a markdown report with your findings. Use links where appropriate.\n\nOnly a new discussion should be created, do not close or update any existing discussions.\n"
         with:
           script: |
             const fs = require('fs');
+            const promptPath = '/tmp/gh-aw/threat-detection/prompt.txt';
+            let promptFileInfo = 'No prompt file found';
+            if (fs.existsSync(promptPath)) {
+              try {
+                const stats = fs.statSync(promptPath);
+                promptFileInfo = promptPath + ' (' + stats.size + ' bytes)';
+                core.info('Prompt file found: ' + promptFileInfo);
+              } catch (error) {
+                core.warning('Failed to stat prompt file: ' + error.message);
+              }
+            } else {
+              core.info('No prompt file found at: ' + promptPath);
+            }
             const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
             let agentOutputFileInfo = 'No agent output file found';
             if (fs.existsSync(agentOutputPath)) {
@@ -3733,12 +3751,12 @@ jobs:
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
             ## Workflow Source Context
-            Use the following source information to understand the intent and context of the workflow:
-            <source>
-            <name>{WORKFLOW_NAME}</name>
-            <description>{WORKFLOW_DESCRIPTION}</description>
-            <markdown_body>{WORKFLOW_MARKDOWN}</markdown_body>
-            </source>
+            The workflow prompt file is available at: {WORKFLOW_PROMPT_FILE}
+            Load and read this file to understand the intent and context of the workflow. The workflow information includes:
+            - Workflow name: {WORKFLOW_NAME}
+            - Workflow description: {WORKFLOW_DESCRIPTION}
+            - Full workflow instructions and context in the prompt file
+            Use this information to understand the workflow's intended purpose and legitimate use cases.
             ## Agent Output File
             The agent output has been saved to the following file (if any):
             <agent-output-file>
@@ -3775,7 +3793,7 @@ jobs:
             let promptContent = templateContent
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
-              .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
+              .replace(/{WORKFLOW_PROMPT_FILE}/g, promptFileInfo)
               .replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;
