@@ -16,6 +16,7 @@
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   pre_activation["pre_activation"]
+#   upload_assets["upload_assets"]
 #   pre_activation --> activation
 #   activation --> agent
 #   agent --> create_discussion
@@ -23,6 +24,8 @@
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
+#   agent --> upload_assets
+#   detection --> upload_assets
 # ```
 
 name: "Dev"
@@ -68,8 +71,11 @@ jobs:
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
+      GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+      GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+      GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -149,7 +155,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_tool":{}}
+          {"create_discussion":{"max":1},"missing_tool":{},"upload_asset":{}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -933,7 +939,7 @@ jobs:
                 "env": {
                   "ALLOW_IMG_OUTPUT": "true",
                   "DOCUMENT_ID": "notebook.ipynb",
-                  "JUPYTER_TOKEN": "${{ secrets.JUPYTER_TOKEN }}",
+                  "JUPYTER_TOKEN": "${{ secrets.JUPYTER_TOKEN || github.run_id }}",
                   "JUPYTER_URL": "http://host.docker.internal:8888"
                 }
               },
@@ -980,11 +986,12 @@ jobs:
              - File size ranges (e.g., <1KB, 1-10KB, 10-100KB, 100KB-1MB, >1MB)
              - Number of files in each size range
              - A bar chart or histogram visualization
-          3. **Save Chart**: Save the generated chart as `/tmp/file-size-chart.png`
-          4. **Create Discussion**: Create a GitHub discussion with:
+          3. **Save Chart**: Save the generated chart as a file in the current directory
+          4. **Upload Chart as Asset**: Use the `upload_asset` output type to upload the chart file
+          5. **Create Discussion**: Create a GitHub discussion with:
              - Summary statistics (total files, average size, median size, largest files)
              - Description of the file size distribution
-             - Link to the uploaded chart artifact
+             - Link to the uploaded chart asset on the assets branch
              - Any interesting insights about the repository structure
           
           ## Important Notes
@@ -992,7 +999,7 @@ jobs:
           - Use Python code in the Jupyter notebook for data processing
           - Use matplotlib or seaborn for visualization
           - Ensure the chart is clear, labeled, and professional-looking
-          - The chart will be automatically uploaded as an artifact after execution
+          - The chart will be automatically uploaded to the assets branch via safe-outputs
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1067,9 +1074,17 @@ jobs:
           
           ---
           
-          ## Reporting Missing Tools or Functionality
+          ## Uploading Assets, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          
+          **Uploading Assets**
+          
+          To upload files as URL-addressable assets:
+          1. Use the `upload asset` tool from the safe-outputs MCP
+          2. Provide the path to the file you want to upload
+          3. The tool will copy the file to a staging area and return a GitHub raw content URL
+          4. Assets are uploaded to an orphaned git branch after workflow completion
           
           **Reporting Missing Tools or Functionality**
           
@@ -1279,10 +1294,13 @@ jobs:
           copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool jupyter --allow-tool 'jupyter(*)' --allow-tool safe_outputs --allow-tool write --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+          GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
           GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
@@ -1299,7 +1317,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
         with:
           script: |
             async function main() {
@@ -3028,6 +3046,13 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      - name: Upload safe outputs assets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safe-outputs-assets
+          path: /tmp/gh-aw/safe-outputs/assets/
+          if-no-files-found: ignore
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v8
@@ -3263,14 +3288,6 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
-      - if: always()
-        name: Upload Chart Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          if-no-files-found: ignore
-          name: file-size-distribution-chart
-          path: /tmp/file-size-chart.png
-          retention-days: 7
 
   create_discussion:
     needs:
@@ -3548,7 +3565,7 @@ jobs:
         env:
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "<!--\n\n# Jupyter Notebook MCP Server\n# Manipulate Jupyter notebooks and execute code cells\n\nProvides integration with Jupyter servers to run code cells, manage notebooks,\nand visualize data using the Jupyter MCP Server.\n\nDocumentation: https://pypi.org/project/jupyter-mcp-server/\n\nAvailable tools:\n  - execute_cell: Execute code in a notebook cell\n  - get_cell_output: Retrieve output from executed cells\n  - create_notebook: Create new Jupyter notebooks\n  - list_notebooks: List available notebooks\n  - get_notebook_content: Read notebook contents\n\nConfiguration:\n  The server connects to a Jupyter server instance using the provided URL and token.\n  Set DOCUMENT_ID to specify the default notebook to work with.\n  Enable ALLOW_IMG_OUTPUT to support image outputs from cells.\n\nSetup:\n  1. Start a Jupyter server locally or remotely\n  2. Generate a Jupyter token for authentication\n  3. Add the following secrets to your GitHub repository:\n     - JUPYTER_TOKEN: Your Jupyter server authentication token\n\n  4. Include in Your Workflow:\n     imports:\n       - shared/mcp/jupyter.md\n\nConnection:\n  The server connects to Jupyter via the JUPYTER_URL (default: http://host.docker.internal:8888)\n  which allows Docker containers to access services running on the host machine.\n\nSecurity:\n  - Store the JUPYTER_TOKEN as a GitHub secret\n  - Ensure your Jupyter server is properly secured\n  - Consider network restrictions if running in production\n\nExample Usage:\n  Create a Jupyter notebook that analyzes repository data and generates visualizations.\n  Execute Python code cells to process data and create charts.\n\nUsage:\n  imports:\n    - shared/mcp/jupyter.md\n\n-->\n\n# File Size Distribution Analysis\n\nYou are a data analyst using Jupyter notebooks to analyze the repository.\n\n## Your Task\n\n1. **Analyze Repository Files**: Scan the repository ${{ github.repository }} to gather file size information for all files\n2. **Generate Distribution Chart**: Use Jupyter notebook to create a visual distribution chart showing:\n   - File size ranges (e.g., <1KB, 1-10KB, 10-100KB, 100KB-1MB, >1MB)\n   - Number of files in each size range\n   - A bar chart or histogram visualization\n3. **Save Chart**: Save the generated chart as `/tmp/file-size-chart.png`\n4. **Create Discussion**: Create a GitHub discussion with:\n   - Summary statistics (total files, average size, median size, largest files)\n   - Description of the file size distribution\n   - Link to the uploaded chart artifact\n   - Any interesting insights about the repository structure\n\n## Important Notes\n\n- Use Python code in the Jupyter notebook for data processing\n- Use matplotlib or seaborn for visualization\n- Ensure the chart is clear, labeled, and professional-looking\n- The chart will be automatically uploaded as an artifact after execution\n"
+          WORKFLOW_MARKDOWN: "<!--\n\n# Jupyter Notebook MCP Server\n# Manipulate Jupyter notebooks and execute code cells\n\nProvides integration with Jupyter servers to run code cells, manage notebooks,\nand visualize data using the Jupyter MCP Server.\n\nDocumentation: https://pypi.org/project/jupyter-mcp-server/\n\nAvailable tools:\n  - execute_cell: Execute code in a notebook cell\n  - get_cell_output: Retrieve output from executed cells\n  - create_notebook: Create new Jupyter notebooks\n  - list_notebooks: List available notebooks\n  - get_notebook_content: Read notebook contents\n\nConfiguration:\n  The server connects to a Jupyter server instance using the provided URL and token.\n  Set DOCUMENT_ID to specify the default notebook to work with.\n  Enable ALLOW_IMG_OUTPUT to support image outputs from cells.\n\nSetup:\n  1. Start a Jupyter server locally or remotely\n  2. Generate a Jupyter token for authentication\n  3. Add the following secrets to your GitHub repository:\n     - JUPYTER_TOKEN: Your Jupyter server authentication token\n\n  4. Include in Your Workflow:\n     imports:\n       - shared/mcp/jupyter.md\n\nConnection:\n  The server connects to Jupyter via the JUPYTER_URL (default: http://host.docker.internal:8888)\n  which allows Docker containers to access services running on the host machine.\n\nSecurity:\n  - Store the JUPYTER_TOKEN as a GitHub secret\n  - Ensure your Jupyter server is properly secured\n  - Consider network restrictions if running in production\n\nExample Usage:\n  Create a Jupyter notebook that analyzes repository data and generates visualizations.\n  Execute Python code cells to process data and create charts.\n\nUsage:\n  imports:\n    - shared/mcp/jupyter.md\n\n-->\n\n# File Size Distribution Analysis\n\nYou are a data analyst using Jupyter notebooks to analyze the repository.\n\n## Your Task\n\n1. **Analyze Repository Files**: Scan the repository ${{ github.repository }} to gather file size information for all files\n2. **Generate Distribution Chart**: Use Jupyter notebook to create a visual distribution chart showing:\n   - File size ranges (e.g., <1KB, 1-10KB, 10-100KB, 100KB-1MB, >1MB)\n   - Number of files in each size range\n   - A bar chart or histogram visualization\n3. **Save Chart**: Save the generated chart as a file in the current directory\n4. **Upload Chart as Asset**: Use the `upload_asset` output type to upload the chart file\n5. **Create Discussion**: Create a GitHub discussion with:\n   - Summary statistics (total files, average size, median size, largest files)\n   - Description of the file size distribution\n   - Link to the uploaded chart asset on the assets branch\n   - Any interesting insights about the repository structure\n\n## Important Notes\n\n- Use Python code in the Jupyter notebook for data processing\n- Use matplotlib or seaborn for visualization\n- Ensure the chart is clear, labeled, and professional-looking\n- The chart will be automatically uploaded to the assets branch via safe-outputs\n"
         with:
           script: |
             const fs = require('fs');
@@ -3939,6 +3956,204 @@ jobs:
                 core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
                 return;
               }
+            }
+            await main();
+
+  upload_assets:
+    needs:
+      - agent
+      - detection
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required for creating orphaned branch and pushing assets
+    timeout-minutes: 10
+    outputs:
+      branch_name: ${{ steps.upload_assets.outputs.branch_name }}
+      published_count: ${{ steps.upload_assets.outputs.published_count }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Configure Git credentials
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download assets
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: safe-outputs-assets
+          path: /tmp/gh-aw/safe-outputs/assets/
+      - name: List downloaded asset files
+        continue-on-error: true
+        run: |
+          echo "Downloaded asset files:"
+          ls -la /tmp/gh-aw/safe-outputs/assets/
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safe-outputs/
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+      - name: Upload Assets to Orphaned Branch
+        id: upload_assets
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
+          GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
+          GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const crypto = require("crypto");
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
+            async function main() {
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
+              if (!branchName || typeof branchName !== "string") {
+                core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
+                return;
+              }
+              const normalizedBranchName = normalizeBranchName(branchName);
+              core.info(`Using assets branch: ${normalizedBranchName}`);
+              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              const uploadAssetItems = validatedOutput.items.filter( item => item.type === "upload_asset");
+              if (uploadAssetItems.length === 0) {
+                core.info("No upload-asset items found in agent output");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              core.info(`Found ${uploadAssetItems.length} upload-asset item(s)`);
+              let uploadCount = 0;
+              let hasChanges = false;
+              try {
+                try {
+                  await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
+                  await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
+                  core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
+                } catch (originError) {
+                  core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
+                  await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
+                  await exec.exec(`git rm -rf .`);
+                  await exec.exec(`git clean -fdx`);
+                }
+                for (const asset of uploadAssetItems) {
+                  try {
+                    const { fileName, sha, size, targetFileName } = asset;
+                    if (!fileName || !sha || !targetFileName) {
+                      core.error(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
+                      continue;
+                    }
+                    const assetSourcePath = path.join("/tmp/gh-aw/safe-outputs/assets", fileName);
+                    if (!fs.existsSync(assetSourcePath)) {
+                      core.warning(`Asset file not found: ${assetSourcePath}`);
+                      continue;
+                    }
+                    const fileContent = fs.readFileSync(assetSourcePath);
+                    const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
+                    if (computedSha !== sha) {
+                      core.warning(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
+                      continue;
+                    }
+                    if (fs.existsSync(targetFileName)) {
+                      core.info(`Asset ${targetFileName} already exists, skipping`);
+                      continue;
+                    }
+                    fs.copyFileSync(assetSourcePath, targetFileName);
+                    await exec.exec(`git add "${targetFileName}"`);
+                    uploadCount++;
+                    hasChanges = true;
+                    core.info(`Added asset: ${targetFileName} (${size} bytes)`);
+                  } catch (error) {
+                    core.warning(`Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`);
+                  }
+                }
+                if (hasChanges) {
+                  const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
+                  await exec.exec(`git`, [`commit`, `-m`, `"${commitMessage}"`]);
+                  if (isStaged) {
+                    core.summary.addRaw("## Staged Asset Publication");
+                  } else {
+                    await exec.exec(`git push origin ${normalizedBranchName}`);
+                    core.summary
+                      .addRaw("## Assets")
+                      .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
+                      .addRaw("");
+                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
+                  }
+                  for (const asset of uploadAssetItems) {
+                    if (asset.fileName && asset.sha && asset.size && asset.url) {
+                      core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
+                    }
+                  }
+                  core.summary.write();
+                } else {
+                  core.info("No new assets to upload");
+                }
+              } catch (error) {
+                core.setFailed(`Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              core.setOutput("upload_count", uploadCount.toString());
+              core.setOutput("branch_name", normalizedBranchName);
             }
             await main();
 

@@ -5,7 +5,7 @@ mcp-servers:
     version: "latest"
     env:
       JUPYTER_URL: "http://host.docker.internal:8888"
-      JUPYTER_TOKEN: "${{ secrets.JUPYTER_TOKEN }}"
+      JUPYTER_TOKEN: "${{ secrets.JUPYTER_TOKEN || github.run_id }}"
       DOCUMENT_ID: "notebook.ipynb"
       ALLOW_IMG_OUTPUT: "true"
     allowed: ["*"]

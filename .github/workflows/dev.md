@@ -16,17 +16,9 @@ safe-outputs:
   create-discussion:
     category: "general"
     max: 1
+  upload-assets:
 imports:
   - shared/mcp/jupyter.md
-post-steps:
-  - name: Upload Chart Artifact
-    if: always()
-    uses: actions/upload-artifact@v4
-    with:
-      name: file-size-distribution-chart
-      path: /tmp/file-size-chart.png
-      retention-days: 7
-      if-no-files-found: ignore
 ---
 
 # File Size Distribution Analysis
@@ -40,11 +32,12 @@ You are a data analyst using Jupyter notebooks to analyze the repository.
    - File size ranges (e.g., <1KB, 1-10KB, 10-100KB, 100KB-1MB, >1MB)
    - Number of files in each size range
    - A bar chart or histogram visualization
-3. **Save Chart**: Save the generated chart as `/tmp/file-size-chart.png`
-4. **Create Discussion**: Create a GitHub discussion with:
+3. **Save Chart**: Save the generated chart as a file in the current directory
+4. **Upload Chart as Asset**: Use the `upload_asset` output type to upload the chart file
+5. **Create Discussion**: Create a GitHub discussion with:
    - Summary statistics (total files, average size, median size, largest files)
    - Description of the file size distribution
-   - Link to the uploaded chart artifact
+   - Link to the uploaded chart asset on the assets branch
    - Any interesting insights about the repository structure
 
 ## Important Notes
@@ -52,4 +45,4 @@ You are a data analyst using Jupyter notebooks to analyze the repository.
 - Use Python code in the Jupyter notebook for data processing
 - Use matplotlib or seaborn for visualization
 - Ensure the chart is clear, labeled, and professional-looking
-- The chart will be automatically uploaded as an artifact after execution
+- The chart will be automatically uploaded to the assets branch via safe-outputs
