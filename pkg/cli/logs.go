@@ -265,7 +265,7 @@ Downloaded artifacts include:
 - agent_output/: Agent logs directory (if the workflow produced logs)
 - agent-stdio.log: Agent standard output/error logs
 - aw.patch: Git patch of changes made during execution
-- Various log files with execution details and metrics
+- workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 
 The agentic-workflow-id is the basename of the markdown file without the .md extension.
 For example, for 'weekly-research.md', use 'weekly-research' as the workflow ID.
@@ -982,13 +982,19 @@ func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error 
 		return fmt.Errorf("failed to write logs zip file: %w", err)
 	}
 
-	// Unzip the logs into the output directory
-	if err := unzipFile(tmpZip, outputDir, verbose); err != nil {
+	// Create a subdirectory for workflow logs to keep the run directory organized
+	workflowLogsDir := filepath.Join(outputDir, "workflow-logs")
+	if err := os.MkdirAll(workflowLogsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create workflow-logs directory: %w", err)
+	}
+
+	// Unzip the logs into the workflow-logs subdirectory
+	if err := unzipFile(tmpZip, workflowLogsDir, verbose); err != nil {
 		return fmt.Errorf("failed to unzip workflow logs: %w", err)
 	}
 
 	if verbose {
-		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Downloaded and extracted workflow run logs to %s", outputDir)))
+		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Downloaded and extracted workflow run logs to %s", workflowLogsDir)))
 	}
 
 	return nil
