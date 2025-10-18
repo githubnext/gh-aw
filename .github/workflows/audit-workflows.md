@@ -18,7 +18,6 @@ strict: true
 imports:
   - shared/mcp/gh-aw.md
   - shared/jqschema.md
-  - shared/mcp/drain3.md
 ---
 
 # Agentic Workflow Audit Agent
