@@ -312,6 +312,7 @@ function parseDebugLogFormat(logContent) {
   let model = "unknown";
   let sessionId = null;
   let modelInfo = null;
+  let tools = [];
   const modelMatch = logContent.match(/Starting Copilot CLI: ([\d.]+)/);
   if (modelMatch) {
     sessionId = `copilot-${modelMatch[1]}-${Date.now()}`;
@@ -367,6 +368,89 @@ function parseDebugLogFormat(logContent) {
           modelInfo = JSON.parse(modelInfoJson);
         } catch (e) {
           // Failed to parse model info, continue without it
+        }
+      }
+    }
+  }
+
+  // Extract tools from "[DEBUG] Tools:" section
+  // The format is: [DEBUG] Tools: \n[DEBUG] [\n  { "type": "function", "function": { "name": "..." } }\n]
+  const toolsIndex = logContent.indexOf("[DEBUG] Tools:");
+  if (toolsIndex !== -1) {
+    // Find the start of the JSON array - look for a line that starts with [DEBUG] [
+    // Skip past the "Tools:" line first
+    const afterToolsLine = logContent.indexOf("\n", toolsIndex);
+    let toolsStart = logContent.indexOf("[DEBUG] [", afterToolsLine);
+    if (toolsStart !== -1) {
+      // Find the actual '[' character after '[DEBUG] '
+      toolsStart = logContent.indexOf("[", toolsStart + 7); // Skip '[DEBUG] ' which is 8 chars
+    }
+    if (toolsStart !== -1) {
+      // Track brackets to find the end of the JSON array
+      let bracketCount = 0;
+      let inString = false;
+      let escapeNext = false;
+      let toolsEnd = -1;
+
+      for (let i = toolsStart; i < logContent.length; i++) {
+        const char = logContent[i];
+
+        if (escapeNext) {
+          escapeNext = false;
+          continue;
+        }
+
+        if (char === "\\") {
+          escapeNext = true;
+          continue;
+        }
+
+        if (char === '"' && !escapeNext) {
+          inString = !inString;
+          continue;
+        }
+
+        if (inString) continue;
+
+        if (char === "[") {
+          bracketCount++;
+        } else if (char === "]") {
+          bracketCount--;
+          if (bracketCount === 0) {
+            toolsEnd = i + 1;
+            break;
+          }
+        }
+      }
+
+      if (toolsEnd !== -1) {
+        // Remove [DEBUG] prefixes from each line in the JSON
+        let toolsJson = logContent.substring(toolsStart, toolsEnd);
+        toolsJson = toolsJson.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /gm, "");
+
+        try {
+          const toolsArray = JSON.parse(toolsJson);
+          // Extract tool names from the OpenAI function format
+          // Format: [{ "type": "function", "function": { "name": "bash", ... } }, ...]
+          if (Array.isArray(toolsArray)) {
+            tools = toolsArray
+              .map(tool => {
+                if (tool.type === "function" && tool.function && tool.function.name) {
+                  // Convert github-* names to mcp__github__* format for consistency
+                  let name = tool.function.name;
+                  if (name.startsWith("github-")) {
+                    name = "mcp__github__" + name.substring(7);
+                  } else if (name.startsWith("safe_outputs-")) {
+                    name = name; // Keep safe_outputs names as-is
+                  }
+                  return name;
+                }
+                return null;
+              })
+              .filter(name => name !== null);
+          }
+        } catch (e) {
+          // Failed to parse tools, continue without them
         }
       }
     }
@@ -606,7 +690,7 @@ function parseDebugLogFormat(logContent) {
       subtype: "init",
       session_id: sessionId,
       model: model,
-      tools: [], // We don't have tool info from debug logs
+      tools: tools, // Tools extracted from [DEBUG] Tools: section
     };
 
     // Add model info if available
