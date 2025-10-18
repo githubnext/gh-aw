@@ -32,6 +32,19 @@ func TestCreateIssueJobWithAssignees(t *testing.T) {
 		t.Error("Expected checkout step for gh CLI")
 	}
 
+	// Verify that checkout step is conditional on issue creation
+	checkoutPattern := "Checkout repository for gh CLI"
+	checkoutIndex := strings.Index(stepsContent, checkoutPattern)
+	if checkoutIndex == -1 {
+		t.Error("Expected checkout step")
+	} else {
+		// Check that conditional appears after the checkout step name
+		afterCheckout := stepsContent[checkoutIndex:]
+		if !strings.Contains(afterCheckout, "if: steps.create_issue.outputs.issue_number != ''") {
+			t.Error("Expected checkout step to be conditional on issue creation")
+		}
+	}
+
 	// Check that assignee steps are included
 	if !strings.Contains(stepsContent, "Assign issue to user1") {
 		t.Error("Expected assignee step for user1")

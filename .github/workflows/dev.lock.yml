@@ -3527,6 +3527,7 @@ jobs:
               await main();
             })();
       - name: Checkout repository for gh CLI
+        if: steps.create_issue.outputs.issue_number != ''
         uses: actions/checkout@v5
       - name: Assign issue to copilot
         if: steps.create_issue.outputs.issue_number != ''

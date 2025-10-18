@@ -107,6 +107,17 @@ This is a test workflow that should create an issue and assign it to multiple us
 		t.Error("Expected checkout to use actions/checkout@v5 in compiled workflow")
 	}
 
+	// Verify checkout step is conditional on issue creation
+	checkoutPattern := "Checkout repository for gh CLI"
+	checkoutIndex := strings.Index(compiledStr, checkoutPattern)
+	if checkoutIndex != -1 {
+		// Check that conditional appears after the checkout step name
+		afterCheckout := compiledStr[checkoutIndex:]
+		if !strings.Contains(afterCheckout[:200], "if: steps.create_issue.outputs.issue_number != ''") {
+			t.Error("Expected checkout step to be conditional on issue creation")
+		}
+	}
+
 	// Verify environment variables for assignees are properly quoted
 	if !strings.Contains(compiledStr, `ASSIGNEE: "user1"`) {
 		t.Error("Expected quoted ASSIGNEE environment variable for user1")
