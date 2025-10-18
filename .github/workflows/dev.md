@@ -13,6 +13,7 @@ tools:
   edit:
   github:
 safe-outputs:
+  staged: true
   create-issue:
     assignees: copilot
 imports:

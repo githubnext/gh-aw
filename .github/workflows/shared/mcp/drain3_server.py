@@ -61,18 +61,18 @@ def _snapshot_path_for(file_path: Path) -> Path:
 
 def _build_config() -> TemplateMinerConfig:
     cfg = TemplateMinerConfig()
-    cfg.set("DRAIN", "sim_th", str(SIM_TH))
-    cfg.set("DRAIN", "depth", str(DEPTH))
-    cfg.set("DRAIN", "max_children", str(MAX_CHILDREN))
+    cfg.drain_sim_th = SIM_TH
+    cfg.drain_depth = DEPTH
+    cfg.drain_max_children = MAX_CHILDREN
     if MAX_CLUSTERS > 0:
-        cfg.set("DRAIN", "max_clusters", str(MAX_CLUSTERS))
+        cfg.drain_max_clusters = MAX_CLUSTERS
     # Sensible masking to improve template quality
-    cfg.set("MASKING", "masking", json.dumps([
+    cfg.masking_instructions = [
         {"regex_pattern": r"((?<=[^A-Za-z0-9])|^)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})((?=[^A-Za-z0-9])|$)", "mask_with": "IP"},
         {"regex_pattern": r"((?<=[^A-Za-z0-9])|^)([\-+]?\d+)((?=[^A-Za-z0-9])|$)", "mask_with": "NUM"},
         {"regex_pattern": r"0x[0-9a-fA-F]+", "mask_with": "HEX"},
         {"regex_pattern": r"[a-f0-9]{8}\-[a-f0-9\-]{27,36}", "mask_with": "GUID"},
-    ]))
+    ]
     return cfg
 
 def _new_miner(snapshot_path: Path) -> TemplateMiner:
