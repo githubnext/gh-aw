@@ -2055,6 +2055,13 @@
                     "type": "string"
                   }
                 },
+                "assignees": {
+                  "type": "array",
+                  "description": "Optional list of GitHub usernames to assign the created issue to (e.g., ['user1', 'user2', 'bot-name'])",
+                  "items": {
+                    "type": "string"
+                  }
+                },
                 "max": {
                   "type": "integer",
                   "description": "Maximum number of issues to create (default: 1)",
