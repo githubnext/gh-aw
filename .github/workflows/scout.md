@@ -20,6 +20,7 @@ imports:
   - shared/mcp/deepwiki.md
   - shared/mcp/context7.md
   - shared/mcp/markitdown.md
+  - shared/jqschema.md
 tools:
   edit:
   cache-memory: true

@@ -6,6 +6,7 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/changeset-format.md
+#     - shared/jqschema.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -578,11 +579,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Set up jq utilities directory
+        run: "cat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
       - name: Setup changeset directory
         run: |-
           mkdir -p .changeset
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -1513,6 +1517,92 @@ jobs:
           - Use quotes around package names in YAML frontmatter
           - Brief summary should be from PR title or first line of description
           
+          ## jqschema - JSON Schema Discovery
+          
+          A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
+          
+          ### Purpose
+          
+          Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
+          - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
+          - Exploring API responses with large payloads
+          - Understanding the structure of unfamiliar data without verbose output
+          - Planning queries before fetching full data
+          
+          ### Usage
+          
+          ```bash
+          # Analyze a file
+          cat data.json | /tmp/gh-aw/jqschema.sh
+          
+          # Analyze command output
+          echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
+          
+          # Analyze GitHub search results
+          gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
+          ```
+          
+          ### How It Works
+          
+          The script transforms JSON data by:
+          1. Replacing object values with their type names ("string", "number", "boolean", "null")
+          2. Reducing arrays to their first element's structure (or empty array if empty)
+          3. Recursively processing nested structures
+          4. Outputting compact (minified) JSON
+          
+          ### Example
+          
+          **Input:**
+          ```json
+          {
+            "total_count": 1000,
+            "items": [
+              {"login": "user1", "id": 123, "verified": true},
+              {"login": "user2", "id": 456, "verified": false}
+            ]
+          }
+          ```
+          
+          **Output:**
+          ```json
+          {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
+          ```
+          
+          ### Best Practices
+          
+          **Use this script when:**
+          - You need to understand the structure of tool outputs before requesting full data
+          - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
+          - Exploring unfamiliar APIs or data structures
+          - Planning data extraction strategies
+          
+          **Example workflow for GitHub search tools:**
+          ```bash
+          # Step 1: Get schema with minimal data (fetch just 1 result)
+          # This helps understand the structure before requesting large datasets
+          echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
+          
+          # Output shows the schema:
+          # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
+          
+          # Step 2: Review schema to understand available fields
+          
+          # Step 3: Request full data with confidence about structure
+          # Now you know what fields are available and can query efficiently
+          ```
+          
+          **Using with GitHub MCP tools:**
+          When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
+          ```bash
+          # Save a minimal search result to a file
+          gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
+          
+          # Generate schema to understand structure
+          cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
+          
+          # Now you know which fields exist and can use them in your analysis
+          ```
+          
           # Changeset Generator
           
           You are the Changeset Generator agent - responsible for automatically creating changeset files when a pull request becomes ready for review.
@@ -1791,6 +1881,7 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
+        # - Bash(/tmp/gh-aw/jqschema.sh)
         # - Bash(cat)
         # - Bash(date)
         # - Bash(echo)
@@ -1804,6 +1895,7 @@ jobs:
         # - Bash(git switch:*)
         # - Bash(grep)
         # - Bash(head)
+        # - Bash(jq *)
         # - Bash(ls)
         # - Bash(pwd)
         # - Bash(sort)
@@ -1883,7 +1975,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat),Bash(date),Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(/tmp/gh-aw/jqschema.sh),Bash(cat),Bash(date),Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep),Bash(head),Bash(jq *),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -3462,7 +3554,7 @@ jobs:
         env:
           WORKFLOW_NAME: "Changeset Generator"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "## Changeset Format Reference\n\nBased on https://github.com/changesets/changesets/blob/main/docs/adding-a-changeset.md\n\n### Basic Format\n\n```markdown\n---\n\"gh-aw\": patch\n---\n\nFixed a bug in the component rendering logic\n```\n\n### Version Bump Types\n- **patch**: Bug fixes, documentation updates, refactoring, non-breaking additions, new shared workflows (0.0.X)\n- **minor**: Breaking changes in the cli (0.X.0)\n- **major**: Major breaking changes. Very unlikely to be used often (X.0.0). You should be very careful when using this, it's probably a **minor**.\n\n### Changeset File Structure\n- Create file in `.changeset/` directory with descriptive kebab-case name\n- Format: `<type>-<short-description>.md` (e.g., `minor-add-new-feature.md`)\n- Use quotes around package names in YAML frontmatter\n- Brief summary should be from PR title or first line of description\n\n# Changeset Generator\n\nYou are the Changeset Generator agent - responsible for automatically creating changeset files when a pull request becomes ready for review.\n\n## Mission\n\nWhen a pull request is marked as ready for review, analyze the changes and create a properly formatted changeset file that documents the changes according to the changeset specification.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Pull Request Number**: ${{ github.event.pull_request.number }}\n- **Pull Request Content**: \"${{ needs.activation.outputs.text }}\"\n\n**IMPORTANT - Token Optimization**: The pull request content above is already sanitized and available. DO NOT use `pull_request_read` or similar GitHub API tools to fetch PR details - you already have everything you need in the context above. Using API tools wastes 40k+ tokens per call.\n\n## Task\n\nYour task is to:\n\n1. **Analyze the Pull Request**: Review the pull request title and description above to understand what has been modified.\n\n2. **Use the repository name as the package identifier** (gh-aw)\n\n3. **Determine the Change Type**:\n   - **major**: Major breaking changes (X.0.0) - Very unlikely, probably should be **minor**\n   - **minor**: Breaking changes in the CLI (0.X.0) - indicated by \"BREAKING CHANGE\" or major API changes\n   - **patch**: Bug fixes, docs, refactoring, internal changes, tooling, new shared workflows (0.0.X)\n   \n   **Important**: Internal changes, tooling, and documentation are always \"patch\" level.\n\n4. **Generate the Changeset File**:\n   - Create file in `.changeset/` directory (already created by pre-step)\n   - Use format from the changeset format reference above\n   - Filename: `<type>-<short-description>.md` (e.g., `patch-fix-bug.md`)\n\n5. **Commit and Push Changes**:\n   - Git is already configured by pre-step\n   - Add and commit the changeset file to the current pull request branch\n   - Use the push-to-pull-request-branch tool from safe-outputs to push changes\n   - The changeset will be added directly to this pull request\n\n## Guidelines\n\n- **Be Accurate**: Analyze the PR content carefully to determine the correct change type\n- **Be Clear**: The changeset description should clearly explain what changed\n- **Be Concise**: Keep descriptions brief but informative\n- **Follow Conventions**: Use the exact changeset format specified above\n- **Single Package Default**: If unsure about package structure, default to \"gh-aw\"\n- **Smart Naming**: Use descriptive filenames that indicate the change (e.g., `patch-fix-rendering-bug.md`)\n"
+          WORKFLOW_MARKDOWN: "## Changeset Format Reference\n\nBased on https://github.com/changesets/changesets/blob/main/docs/adding-a-changeset.md\n\n### Basic Format\n\n```markdown\n---\n\"gh-aw\": patch\n---\n\nFixed a bug in the component rendering logic\n```\n\n### Version Bump Types\n- **patch**: Bug fixes, documentation updates, refactoring, non-breaking additions, new shared workflows (0.0.X)\n- **minor**: Breaking changes in the cli (0.X.0)\n- **major**: Major breaking changes. Very unlikely to be used often (X.0.0). You should be very careful when using this, it's probably a **minor**.\n\n### Changeset File Structure\n- Create file in `.changeset/` directory with descriptive kebab-case name\n- Format: `<type>-<short-description>.md` (e.g., `minor-add-new-feature.md`)\n- Use quotes around package names in YAML frontmatter\n- Brief summary should be from PR title or first line of description\n\n## jqschema - JSON Schema Discovery\n\nA utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.\n\n### Purpose\n\nGenerate a compact structural schema (keys + types) from JSON input. This is particularly useful when:\n- Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)\n- Exploring API responses with large payloads\n- Understanding the structure of unfamiliar data without verbose output\n- Planning queries before fetching full data\n\n### Usage\n\n```bash\n# Analyze a file\ncat data.json | /tmp/gh-aw/jqschema.sh\n\n# Analyze command output\necho '{\"name\": \"test\", \"count\": 42, \"items\": [{\"id\": 1}]}' | /tmp/gh-aw/jqschema.sh\n\n# Analyze GitHub search results\ngh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh\n```\n\n### How It Works\n\nThe script transforms JSON data by:\n1. Replacing object values with their type names (\"string\", \"number\", \"boolean\", \"null\")\n2. Reducing arrays to their first element's structure (or empty array if empty)\n3. Recursively processing nested structures\n4. Outputting compact (minified) JSON\n\n### Example\n\n**Input:**\n```json\n{\n  \"total_count\": 1000,\n  \"items\": [\n    {\"login\": \"user1\", \"id\": 123, \"verified\": true},\n    {\"login\": \"user2\", \"id\": 456, \"verified\": false}\n  ]\n}\n```\n\n**Output:**\n```json\n{\"total_count\":\"number\",\"items\":[{\"login\":\"string\",\"id\":\"number\",\"verified\":\"boolean\"}]}\n```\n\n### Best Practices\n\n**Use this script when:**\n- You need to understand the structure of tool outputs before requesting full data\n- GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)\n- Exploring unfamiliar APIs or data structures\n- Planning data extraction strategies\n\n**Example workflow for GitHub search tools:**\n```bash\n# Step 1: Get schema with minimal data (fetch just 1 result)\n# This helps understand the structure before requesting large datasets\necho '{}' | gh api search/repositories -f q=\"language:go\" -f per_page=1 | /tmp/gh-aw/jqschema.sh\n\n# Output shows the schema:\n# {\"incomplete_results\":\"boolean\",\"items\":[{...}],\"total_count\":\"number\"}\n\n# Step 2: Review schema to understand available fields\n\n# Step 3: Request full data with confidence about structure\n# Now you know what fields are available and can query efficiently\n```\n\n**Using with GitHub MCP tools:**\nWhen using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:\n```bash\n# Save a minimal search result to a file\ngh api search/code -f q=\"jq in:file language:bash\" -f per_page=1 > /tmp/sample.json\n\n# Generate schema to understand structure\ncat /tmp/sample.json | /tmp/gh-aw/jqschema.sh\n\n# Now you know which fields exist and can use them in your analysis\n```\n\n# Changeset Generator\n\nYou are the Changeset Generator agent - responsible for automatically creating changeset files when a pull request becomes ready for review.\n\n## Mission\n\nWhen a pull request is marked as ready for review, analyze the changes and create a properly formatted changeset file that documents the changes according to the changeset specification.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Pull Request Number**: ${{ github.event.pull_request.number }}\n- **Pull Request Content**: \"${{ needs.activation.outputs.text }}\"\n\n**IMPORTANT - Token Optimization**: The pull request content above is already sanitized and available. DO NOT use `pull_request_read` or similar GitHub API tools to fetch PR details - you already have everything you need in the context above. Using API tools wastes 40k+ tokens per call.\n\n## Task\n\nYour task is to:\n\n1. **Analyze the Pull Request**: Review the pull request title and description above to understand what has been modified.\n\n2. **Use the repository name as the package identifier** (gh-aw)\n\n3. **Determine the Change Type**:\n   - **major**: Major breaking changes (X.0.0) - Very unlikely, probably should be **minor**\n   - **minor**: Breaking changes in the CLI (0.X.0) - indicated by \"BREAKING CHANGE\" or major API changes\n   - **patch**: Bug fixes, docs, refactoring, internal changes, tooling, new shared workflows (0.0.X)\n   \n   **Important**: Internal changes, tooling, and documentation are always \"patch\" level.\n\n4. **Generate the Changeset File**:\n   - Create file in `.changeset/` directory (already created by pre-step)\n   - Use format from the changeset format reference above\n   - Filename: `<type>-<short-description>.md` (e.g., `patch-fix-bug.md`)\n\n5. **Commit and Push Changes**:\n   - Git is already configured by pre-step\n   - Add and commit the changeset file to the current pull request branch\n   - Use the push-to-pull-request-branch tool from safe-outputs to push changes\n   - The changeset will be added directly to this pull request\n\n## Guidelines\n\n- **Be Accurate**: Analyze the PR content carefully to determine the correct change type\n- **Be Clear**: The changeset description should clearly explain what changed\n- **Be Concise**: Keep descriptions brief but informative\n- **Follow Conventions**: Use the exact changeset format specified above\n- **Single Package Default**: If unsure about package structure, default to \"gh-aw\"\n- **Smart Naming**: Use descriptive filenames that indicate the change (e.g., `patch-fix-rendering-bug.md`)\n"
         with:
           script: |
             const fs = require('fs');
