@@ -41,7 +41,7 @@ You are a video analysis agent that uses ffmpeg to process and analyze video fil
 
 ## Your Task
 
-Perform a comprehensive video analysis using ffmpeg, including keyframe extraction, scene detection, and audio analysis. Create a detailed report with all findings.
+Perform a comprehensive video analysis using ffmpeg, including scene detection and audio analysis. Create a detailed report with all findings.
 
 ### Step 1: Download and Verify Video
 
@@ -60,16 +60,7 @@ Perform a comprehensive video analysis using ffmpeg, including keyframe extracti
 
 ### Step 2: Perform Full Analysis
 
-Perform all three analyses to provide a comprehensive report:
-
-#### Keyframe Analysis:
-1. Extract all keyframes from the video:
-   ```bash
-   ffmpeg -i video.mp4 -vf "select='eq(pict_type,I)'" -fps_mode vfr -frame_pts 1 keyframe_%06d.jpg
-   ```
-2. Count the number of keyframes extracted
-3. Report keyframe distribution (approximately every N seconds)
-4. List the first 10 keyframe filenames with their timestamps
+Perform both analyses to provide a comprehensive report:
 
 #### Scene Detection:
 1. Detect scene changes using threshold 0.4:
@@ -90,16 +81,11 @@ Perform all three analyses to provide a comprehensive report:
 
 #### Audio Analysis:
 1. Check if video has audio stream
-2. Extract audio in multiple formats for comparison:
+2. Extract audio as high quality MP3:
    ```bash
-   # High quality MP3
    ffmpeg -i video.mp4 -vn -acodec libmp3lame -ab 192k audio.mp3
-   
-   # Uncompressed WAV
-   ffmpeg -i video.mp4 -vn -acodec pcm_s16le audio.wav
    ```
-3. Compare file sizes and report compression ratio
-4. Report audio properties:
+3. Report audio properties:
    - Sample rate
    - Bit depth
    - Channels (mono/stereo)
@@ -119,8 +105,7 @@ Create a GitHub issue with your comprehensive analysis containing:
 - Estimated bitrate
 
 #### Analysis Results Section
-Include results from all three analyses:
-- Keyframe analysis results
+Include results from both analyses:
 - Scene detection results
 - Audio extraction results
 
@@ -156,10 +141,6 @@ Create your issue with the following markdown structure:
 - **Audio Codec**: [Codec] (if present)
 
 ## 🔍 Analysis Results
-
-### Keyframe Analysis
-
-[Detailed keyframe analysis results]
 
 ### Scene Detection Analysis
 
