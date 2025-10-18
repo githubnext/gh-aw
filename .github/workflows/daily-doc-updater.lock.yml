@@ -63,6 +63,8 @@ jobs:
       actions: read
       contents: read
       pull-requests: read
+    concurrency:
+      group: "gh-aw-claude-${{ github.workflow }}"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_pull_request\":{},\"missing_tool\":{}}"
@@ -3528,6 +3530,8 @@ jobs:
     needs: agent
     runs-on: ubuntu-latest
     permissions: read-all
+    concurrency:
+      group: "gh-aw-claude-${{ github.workflow }}"
     timeout-minutes: 10
     steps:
       - name: Download agent output artifact

@@ -399,6 +399,8 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions: read-all
+    concurrency:
+      group: "gh-aw-claude-${{ github.workflow }}"
     env:
       GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
       GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
@@ -3900,6 +3902,8 @@ jobs:
     needs: agent
     runs-on: ubuntu-latest
     permissions: read-all
+    concurrency:
+      group: "gh-aw-claude-${{ github.workflow }}"
     timeout-minutes: 10
     steps:
       - name: Download agent output artifact

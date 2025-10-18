@@ -16,7 +16,7 @@ func TestEngineConcurrencyIntegration(t *testing.T) {
 		description      string
 	}{
 		{
-			name: "Copilot engine does NOT have default concurrency",
+			name: "Copilot with push does NOT have default concurrency",
 			markdown: `---
 on: push
 engine:
@@ -29,12 +29,31 @@ tools:
 # Test workflow
 Test content`,
 			notExpectedInJob: `concurrency:`,
-			description:      "Copilot should NOT have default concurrency in agent job (uses same formula as other engines)",
+			description:      "Copilot with push trigger should NOT have default concurrency (special case)",
 		},
 		{
-			name: "Claude engine does NOT have default concurrency",
+			name: "Copilot with workflow_dispatch HAS default concurrency",
 			markdown: `---
-on: push
+on: workflow_dispatch
+engine:
+  id: copilot
+tools:
+  github:
+    allowed: [list_issues]
+---
+
+# Test workflow
+Test content`,
+			expectedInJob: `concurrency:
+      group: "gh-aw-copilot-${{ github.workflow }}"`,
+			description: "Copilot with workflow_dispatch should have default concurrency",
+		},
+		{
+			name: "Claude with issues does NOT have default concurrency",
+			markdown: `---
+on:
+  issues:
+    types: [opened]
 engine:
   id: claude
 tools:
@@ -45,7 +64,24 @@ tools:
 # Test workflow
 Test content`,
 			notExpectedInJob: `concurrency:`,
-			description:      "Claude should NOT have default concurrency in agent job",
+			description:      "Claude with issues trigger should NOT have default concurrency (special case)",
+		},
+		{
+			name: "Claude with workflow_dispatch HAS default concurrency",
+			markdown: `---
+on: workflow_dispatch
+engine:
+  id: claude
+tools:
+  github:
+    allowed: [list_issues]
+---
+
+# Test workflow
+Test content`,
+			expectedInJob: `concurrency:
+      group: "gh-aw-claude-${{ github.workflow }}"`,
+			description: "Claude with workflow_dispatch should have default concurrency",
 		},
 		{
 			name: "Custom concurrency with string format",

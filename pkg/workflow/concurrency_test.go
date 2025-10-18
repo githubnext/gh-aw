@@ -316,20 +316,42 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 		description  string
 	}{
 		{
-			name: "No default concurrency with copilot engine",
+			name: "Default concurrency for workflow_dispatch with copilot engine",
 			workflowData: &WorkflowData{
+				On:           "on:\n  workflow_dispatch:",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			expected: `concurrency:
+  group: "gh-aw-copilot-${{ github.workflow }}"`,
+			description: "Copilot with workflow_dispatch should get default concurrency",
+		},
+		{
+			name: "Default concurrency for workflow_dispatch with claude engine",
+			workflowData: &WorkflowData{
+				On:           "on:\n  workflow_dispatch:",
+				EngineConfig: &EngineConfig{ID: "claude"},
+			},
+			expected: `concurrency:
+  group: "gh-aw-claude-${{ github.workflow }}"`,
+			description: "Claude with workflow_dispatch should get default concurrency",
+		},
+		{
+			name: "No default concurrency for push workflows",
+			workflowData: &WorkflowData{
+				On:           "on:\n  push:\n    branches: [main]",
 				EngineConfig: &EngineConfig{ID: "copilot"},
 			},
 			expected:    "",
-			description: "Copilot should NOT have default concurrency (uses same formula as other engines)",
+			description: "Push workflows should NOT get default concurrency (special case)",
 		},
 		{
-			name: "No default concurrency with claude engine",
+			name: "No default concurrency for issue workflows",
 			workflowData: &WorkflowData{
+				On:           "on:\n  issues:\n    types: [opened]",
 				EngineConfig: &EngineConfig{ID: "claude"},
 			},
 			expected:    "",
-			description: "Claude should NOT have default concurrency (returns empty string)",
+			description: "Issue workflows should NOT get default concurrency (special case)",
 		},
 		{
 			name: "Custom concurrency string (simple group)",
@@ -360,12 +382,14 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 			description: "Should preserve cancel-in-progress when specified",
 		},
 		{
-			name: "No default concurrency with codex engine",
+			name: "Default concurrency for schedule with codex engine",
 			workflowData: &WorkflowData{
+				On:           "on:\n  schedule:\n    - cron: '0 0 * * *'",
 				EngineConfig: &EngineConfig{ID: "codex"},
 			},
-			expected:    "",
-			description: "Codex should NOT have default concurrency (returns empty string)",
+			expected: `concurrency:
+  group: "gh-aw-codex-${{ github.workflow }}"`,
+			description: "Codex with schedule should get default concurrency",
 		},
 	}
 
