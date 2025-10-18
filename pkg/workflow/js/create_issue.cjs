@@ -231,6 +231,7 @@ async function main() {
           const botResult = await github.graphql(botNodeIdQuery, {
             login: assignToBot,
           });
+          core.info(JSON.stringify(botResult));
           // @ts-ignore - graphql result type
           const botNodeId = botResult.user.id;
           core.info(`Bot user node ID: ${botNodeId}`);
@@ -259,6 +260,7 @@ async function main() {
               }
             }
           `;
+          core.info(createIssueMutation)
 
           const createResult = await github.graphql(createIssueMutation, {
             repositoryId: repositoryId,
@@ -267,6 +269,7 @@ async function main() {
             assigneeIds: [botNodeId],
           });
           
+          core.info(JSON.stringify(createResult))
           // @ts-ignore - graphql result type
           const createdIssue = createResult.createIssue.issue;
           

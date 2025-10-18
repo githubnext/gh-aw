@@ -4836,6 +4836,7 @@ jobs:
                       const botResult = await github.graphql(botNodeIdQuery, {
                         login: assignToBot,
                       });
+                      core.info(JSON.stringify(botResult));
                       const botNodeId = botResult.user.id;
                       core.info(`Bot user node ID: ${botNodeId}`);
                       core.info(`Creating issue and assigning to ${assignToBot} in one operation`);
@@ -4861,12 +4862,14 @@ jobs:
                           }
                         }
                       `;
+                      core.info(createIssueMutation)
                       const createResult = await github.graphql(createIssueMutation, {
                         repositoryId: repositoryId,
                         title: title,
                         body: body,
                         assigneeIds: [botNodeId],
                       });
+                      core.info(JSON.stringify(createResult))
                       const createdIssue = createResult.createIssue.issue;
                       issue = {
                         number: createdIssue.number,
