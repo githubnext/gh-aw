@@ -18,7 +18,6 @@ tools:
     - "git *"
     - "make *"
     - "npm install *"
-    - "npx *"
     - "claude-code --help"
     - "copilot --help"
     - "codex --help"
@@ -65,9 +64,9 @@ For each CLI tool update:
    - Copilot CLI: `npm install -g @github/copilot@<version>`
    - Codex: `npm install -g @openai/codex@<version>`
 2. Invoke help to discover commands and flags:
-   - Run `claude-code --help` or `npx claude-code --help`
-   - Run `copilot --help` or `npx copilot --help`
-   - Run `codex --help` or `npx codex --help`
+   - Run `claude-code --help`
+   - Run `copilot --help`
+   - Run `codex --help`
 3. Compare help output with previous version to identify:
    - New commands or subcommands
    - New command-line flags or options
