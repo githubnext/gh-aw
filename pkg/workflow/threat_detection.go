@@ -132,26 +132,33 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 
 // buildDownloadArtifactStep creates the artifact download step
 func (c *Compiler) buildDownloadArtifactStep() []string {
-	return []string{
-		"      - name: Download prompt artifact\n",
-		"        continue-on-error: true\n",
-		"        uses: actions/download-artifact@v5\n",
-		"        with:\n",
-		"          name: prompt.txt\n",
-		"          path: /tmp/gh-aw/threat-detection/\n",
-		"      - name: Download agent output artifact\n",
-		"        continue-on-error: true\n",
-		"        uses: actions/download-artifact@v5\n",
-		"        with:\n",
-		"          name: agent_output.json\n",
-		"          path: /tmp/gh-aw/threat-detection/\n",
-		"      - name: Download patch artifact\n",
-		"        continue-on-error: true\n",
-		"        uses: actions/download-artifact@v5\n",
-		"        with:\n",
-		"          name: aw.patch\n",
-		"          path: /tmp/gh-aw/threat-detection/\n",
-	}
+	var steps []string
+
+	// Download prompt artifact
+	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: "prompt.txt",
+		DownloadPath: "/tmp/gh-aw/threat-detection/",
+		SetupEnvStep: false,
+		StepName:     "Download prompt artifact",
+	})...)
+
+	// Download agent output artifact
+	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: "agent_output.json",
+		DownloadPath: "/tmp/gh-aw/threat-detection/",
+		SetupEnvStep: false,
+		StepName:     "Download agent output artifact",
+	})...)
+
+	// Download patch artifact
+	steps = append(steps, buildArtifactDownloadSteps(ArtifactDownloadConfig{
+		ArtifactName: "aw.patch",
+		DownloadPath: "/tmp/gh-aw/threat-detection/",
+		SetupEnvStep: false,
+		StepName:     "Download patch artifact",
+	})...)
+
+	return steps
 }
 
 // buildEchoAgentOutputsStep creates a step that echoes the agent outputs
