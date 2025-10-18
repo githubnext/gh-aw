@@ -56,6 +56,7 @@ gh aw new issue-handler --force
 gh aw add githubnext/agentics/ci-doctor
 gh aw add githubnext/agentics/ci-doctor --name my-custom-doctor --pr --engine copilot
 gh aw add githubnext/agentics/ci-doctor --number 3  # Create 3 copies
+gh aw add githubnext/agentics/ci-doctor --append "Extra content"  # Append custom content
 
 # Remove workflows
 gh aw remove WorkflowName
@@ -127,6 +128,7 @@ gh aw trial ./my-local-workflow.md         # Test local file
 gh aw trial workflow1 workflow2            # Compare multiple workflows
 gh aw trial ./workflow.md --logical-repo myorg/myrepo --host-repo myorg/host-repo # Act as if in a different logical repo. Uses PAT to see issues/PRs
 gh aw trial ./workflow.md --clone-repo myorg/myrepo --host-repo myorg/host-repo # Copy the code of the clone repo for into host repo. Agentic will see the codebase of clone repo but not the issues/PRs.
+gh aw trial ./workflow.md --append "Extra content"  # Append custom content to workflow
 
 # Test issue-triggered workflows with context
 gh aw trial ./issue-workflow.md --trigger-context https://github.com/owner/repo/issues/123
@@ -138,6 +140,7 @@ Other flags:
  --repeat N                  # Repeat N times
  --force-delete-host-repo-before  # Force delete existing host repo BEFORE start
  --delete-host-repo-after         # Delete host repo AFTER trial
+ --append TEXT                # Append extra content to workflow files
 ```
 
 Trial results are saved to `trials/` directory and captured in the trial repository for inspection. Set `GH_AW_GITHUB_TOKEN` to override authentication. See the [Security Guide](/gh-aw/guides/security/#authorization-and-token-management).
