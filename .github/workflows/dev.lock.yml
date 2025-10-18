@@ -5,7 +5,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/tavily.md
+#     - shared/mcp/drain3.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -76,10 +76,49 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Drain3 dependencies
+        run: |
+          pip install fastmcp drain3
+      - name: Copy Drain3 MCP server script
+        run: |
+          mkdir -p /tmp/gh-aw/mcp-servers/drain3/
+          cp .github/workflows/shared/mcp/drain3_server.py /tmp/gh-aw/mcp-servers/drain3/
+          chmod +x /tmp/gh-aw/mcp-servers/drain3/drain3_server.py
+      - env:
+          HOST: 0.0.0.0
+          PORT: "8766"
+          STATE_DIR: /tmp/gh-aw/cache-memory
+        name: Start Drain3 MCP server
+        run: "set -e\nmkdir -p /tmp/gh-aw/mcp-logs/drain3/\npython /tmp/gh-aw/mcp-servers/drain3/drain3_server.py > /tmp/gh-aw/mcp-logs/drain3/server.log 2>&1 &\nMCP_PID=$!\n\n# Wait for server to start\nsleep 3\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"Drain3 MCP server failed to start\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/server.log || true\n  exit 1\nfi\n\n# Check if server is listening on port 8766\nif ! netstat -tln | grep -q \":8766 \"; then\n  echo \"Drain3 MCP server not listening on port 8766\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/server.log || true\n  exit 1\nfi\n\n# Test HTTP endpoint with curl\necho \"Testing HTTP endpoint with curl...\"\nif curl -v -X GET http://localhost:8766/mcp 2>&1 | tee /tmp/gh-aw/mcp-logs/drain3/curl-test.log; then\n  echo \"✓ HTTP endpoint responded\"\nelse\n  echo \"✗ HTTP endpoint did not respond\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/server.log || true\n  echo \"Curl test logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/curl-test.log || true\n  exit 1\nfi\n\necho \"Drain3 MCP server started successfully with PID $MCP_PID\"\necho \"Server logs (first 50 lines):\"\nhead -n 50 /tmp/gh-aw/mcp-logs/drain3/server.log || true\n"
+
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: |
+          mkdir -p /tmp/gh-aw/cache-memory
+          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
+          echo "This folder provides persistent file storage across workflow runs"
+          echo "LLMs and agentic tools can freely read and write files in this directory"
+      - name: Cache memory file share data
+        uses: actions/cache@v4
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-${{ github.workflow }}-
+            memory-
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -836,6 +875,15 @@ jobs:
           cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
+              "drain3": {
+                "type": "http",
+                "url": "http://localhost:8766/mcp",
+                "tools": [
+                  "index_file",
+                  "query_file",
+                  "list_templates"
+                ]
+              },
               "github": {
                 "type": "local",
                 "command": "docker",
@@ -921,19 +969,6 @@ jobs:
                   "GITHUB_AW_ASSETS_MAX_SIZE_KB": "\${GITHUB_AW_ASSETS_MAX_SIZE_KB}",
                   "GITHUB_AW_ASSETS_ALLOWED_EXTS": "\${GITHUB_AW_ASSETS_ALLOWED_EXTS}"
                 }
-              },
-              "tavily": {
-                "type": "http",
-                "url": "https://mcp.tavily.com/mcp/",
-                "headers": {
-                  "Authorization": "Bearer \${TAVILY_API_KEY}"
-                },
-                "tools": [
-                  "*"
-                ],
-                "env": {
-                  "TAVILY_API_KEY": "\${TAVILY_API_KEY}"
-                }
               }
             }
           }
@@ -954,7 +989,22 @@ jobs:
           cat > $GITHUB_AW_PROMPT << 'EOF'
           
           
-          Write a creative poem about GitHub Agentic Workflows and create an issue with the poem. Assign the issue to copilot.
+          # Go Source Code Pattern Analysis
+          
+          Use the drain3 tool to analyze Go source files in this repository and extract log templates.
+          
+          ## Task
+          
+          1. **Find Go Source Files**: Locate all `.go` files in the repository
+          2. **Index Files with Drain3**: Use the `index_file` tool to analyze each Go file and extract templates
+          3. **List Extracted Templates**: Use the `list_templates` tool to display all templates found
+          4. **Create Summary Issue**: Create an issue with:
+             - Total number of Go files analyzed
+             - Number of templates extracted
+             - Top 10 most common templates
+             - Insights about code patterns
+          
+          Assign the issue to copilot.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1020,6 +1070,31 @@ jobs:
           
           **Do NOT** attempt to edit files outside these directories as you do not have the necessary permissions.
           
+          EOF
+      - name: Append cache memory instructions to prompt
+        env:
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          
+          ---
+          
+          ## Cache Folder Available
+          
+          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
+          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
+          - **File Share**: Use this as a simple file share - organize files as you see fit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
+          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
+          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
+          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           EOF
       - name: Append safe outputs instructions to prompt
         env:
@@ -1180,6 +1255,10 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
+        # --allow-tool drain3
+        # --allow-tool drain3(index_file)
+        # --allow-tool drain3(list_templates)
+        # --allow-tool drain3(query_file)
         # --allow-tool github(download_workflow_run_artifact)
         # --allow-tool github(get_code_scanning_alert)
         # --allow-tool github(get_commit)
@@ -1235,14 +1314,12 @@ jobs:
         # --allow-tool github(search_repositories)
         # --allow-tool github(search_users)
         # --allow-tool safe_outputs
-        # --allow-tool tavily
-        # --allow-tool tavily(*)
         # --allow-tool write
         timeout-minutes: 20
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool write --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool drain3 --allow-tool 'drain3(index_file)' --allow-tool 'drain3(list_templates)' --allow-tool 'drain3(query_file)' --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
@@ -1252,7 +1329,6 @@ jobs:
           GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
-          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           XDG_CONFIG_HOME: /home/runner
       - name: Upload Safe Outputs
         if: always()
@@ -2175,11 +2251,10 @@ jobs:
             await main();
 
         env:
-          GITHUB_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,TAVILY_API_KEY'
+          GITHUB_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SECRET_TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
       - name: Upload engine output files
         uses: actions/upload-artifact@v4
         with:
