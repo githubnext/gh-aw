@@ -281,35 +281,3 @@ func TestPlaywrightConfigParsing(t *testing.T) {
 		}
 	})
 }
-
-func TestClaudeConfigParsing(t *testing.T) {
-	t.Run("returns nil when claude not set", func(t *testing.T) {
-		tools := NewTools(map[string]any{})
-		if tools.Claude != nil {
-			t.Error("expected nil Claude config when claude not set")
-		}
-	})
-
-	t.Run("parses claude config map", func(t *testing.T) {
-		toolsMap := map[string]any{
-			"claude": map[string]any{
-				"allowed": []any{"bash", "edit"},
-			},
-		}
-
-		tools := NewTools(toolsMap)
-		config := tools.Claude
-
-		if config == nil {
-			t.Fatal("expected non-nil config")
-		}
-
-		if len(config.AllowedTools) == 0 {
-			t.Error("expected AllowedTools to be set")
-		}
-
-		if len(config.AllowedTools) != 2 {
-			t.Errorf("expected 2 allowed tools, got %d", len(config.AllowedTools))
-		}
-	})
-}

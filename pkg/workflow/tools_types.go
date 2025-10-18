@@ -4,7 +4,6 @@ package workflow
 type Tools struct {
 	// Built-in tools - using pointers to distinguish between "not set" and "set to nil/empty"
 	GitHub           *GitHubToolConfig           `yaml:"github,omitempty"`
-	Claude           *ClaudeToolConfig           `yaml:"claude,omitempty"`
 	Bash             *BashToolConfig             `yaml:"bash,omitempty"`
 	WebFetch         *WebFetchToolConfig         `yaml:"web-fetch,omitempty"`
 	WebSearch        *WebSearchToolConfig        `yaml:"web-search,omitempty"`
@@ -21,20 +20,6 @@ type Tools struct {
 
 	// Raw map for backwards compatibility
 	raw map[string]any
-
-	// Track which known tools are explicitly set (even if nil)
-	hasGitHub           bool
-	hasClaude           bool
-	hasBash             bool
-	hasWebFetch         bool
-	hasWebSearch        bool
-	hasEdit             bool
-	hasPlaywright       bool
-	hasAgenticWorkflows bool
-	hasCacheMemory      bool
-	hasSafetyPrompt     bool
-	hasTimeout          bool
-	hasStartupTimeout   bool
 }
 
 // GitHubToolConfig represents the configuration for the GitHub tool
@@ -54,16 +39,6 @@ type PlaywrightToolConfig struct {
 	Version        string   `yaml:"version,omitempty"`
 	AllowedDomains []string `yaml:"allowed_domains,omitempty"`
 	Args           []string `yaml:"args,omitempty"`
-}
-
-// ClaudeToolConfig represents the configuration for Claude tools
-// The Allowed field can be an array of strings or an object mapping tool names to arrays
-type ClaudeToolConfig struct {
-	// Allowed can be:
-	// - []string: list of allowed tools
-	// - map[string][]string: tool categories with specific allowed functions
-	AllowedTools []string            `yaml:"-"` // When Allowed is an array
-	AllowedMap   map[string][]string `yaml:"-"` // When Allowed is an object
 }
 
 // BashToolConfig represents the configuration for the Bash tool
@@ -122,57 +97,41 @@ func NewTools(toolsMap map[string]any) *Tools {
 	// Extract and parse known tools
 	if val, exists := toolsMap["github"]; exists {
 		tools.GitHub = parseGitHubTool(val)
-		tools.hasGitHub = true
-	}
-	if val, exists := toolsMap["claude"]; exists {
-		tools.Claude = parseClaudeTool(val)
-		tools.hasClaude = true
 	}
 	if val, exists := toolsMap["bash"]; exists {
 		tools.Bash = parseBashTool(val)
-		tools.hasBash = true
 	}
 	if val, exists := toolsMap["web-fetch"]; exists {
 		tools.WebFetch = parseWebFetchTool(val)
-		tools.hasWebFetch = true
 	}
 	if val, exists := toolsMap["web-search"]; exists {
 		tools.WebSearch = parseWebSearchTool(val)
-		tools.hasWebSearch = true
 	}
 	if val, exists := toolsMap["edit"]; exists {
 		tools.Edit = parseEditTool(val)
-		tools.hasEdit = true
 	}
 	if val, exists := toolsMap["playwright"]; exists {
 		tools.Playwright = parsePlaywrightTool(val)
-		tools.hasPlaywright = true
 	}
 	if val, exists := toolsMap["agentic-workflows"]; exists {
 		tools.AgenticWorkflows = parseAgenticWorkflowsTool(val)
-		tools.hasAgenticWorkflows = true
 	}
 	if val, exists := toolsMap["cache-memory"]; exists {
 		tools.CacheMemory = parseCacheMemoryTool(val)
-		tools.hasCacheMemory = true
 	}
 	if val, exists := toolsMap["safety-prompt"]; exists {
 		tools.SafetyPrompt = parseSafetyPromptTool(val)
-		tools.hasSafetyPrompt = true
 	}
 	if val, exists := toolsMap["timeout"]; exists {
 		tools.Timeout = parseTimeoutTool(val)
-		tools.hasTimeout = true
 	}
 	if val, exists := toolsMap["startup-timeout"]; exists {
 		tools.StartupTimeout = parseStartupTimeoutTool(val)
-		tools.hasStartupTimeout = true
 	}
 
 	// Extract custom MCP tools (anything not in the known list)
 	knownTools := map[string]bool{
 		"github":            true,
-		"claude":            true,
 		"bash":              true,
 		"web-fetch":         true,
 		"web-search":        true,
@@ -256,53 +215,6 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 	}
 
 	return &GitHubToolConfig{}
-}
-
-// parseClaudeTool converts raw claude tool configuration to ClaudeToolConfig
-func parseClaudeTool(val any) *ClaudeToolConfig {
-	if val == nil {
-		return &ClaudeToolConfig{}
-	}
-
-	// Handle string type
-	if _, ok := val.(string); ok {
-		return &ClaudeToolConfig{}
-	}
-
-	// Handle map type
-	if configMap, ok := val.(map[string]any); ok {
-		config := &ClaudeToolConfig{}
-
-		if allowed, ok := configMap["allowed"]; ok {
-			// Check if it's an array
-			if allowedArray, ok := allowed.([]any); ok {
-				config.AllowedTools = make([]string, 0, len(allowedArray))
-				for _, item := range allowedArray {
-					if str, ok := item.(string); ok {
-						config.AllowedTools = append(config.AllowedTools, str)
-					}
-				}
-			} else if allowedMap, ok := allowed.(map[string]any); ok {
-				// It's an object mapping tool names to arrays
-				config.AllowedMap = make(map[string][]string)
-				for key, val := range allowedMap {
-					if valArray, ok := val.([]any); ok {
-						strArray := make([]string, 0, len(valArray))
-						for _, item := range valArray {
-							if str, ok := item.(string); ok {
-								strArray = append(strArray, str)
-							}
-						}
-						config.AllowedMap[key] = strArray
-					}
-				}
-			}
-		}
-
-		return config
-	}
-
-	return &ClaudeToolConfig{}
 }
 
 // parseBashTool converts raw bash tool configuration to BashToolConfig
@@ -449,29 +361,27 @@ func (t *Tools) HasTool(name string) bool {
 
 	switch name {
 	case "github":
-		return t.hasGitHub
-	case "claude":
-		return t.hasClaude
+		return t.GitHub != nil
 	case "bash":
-		return t.hasBash
+		return t.Bash != nil
 	case "web-fetch":
-		return t.hasWebFetch
+		return t.WebFetch != nil
 	case "web-search":
-		return t.hasWebSearch
+		return t.WebSearch != nil
 	case "edit":
-		return t.hasEdit
+		return t.Edit != nil
 	case "playwright":
-		return t.hasPlaywright
+		return t.Playwright != nil
 	case "agentic-workflows":
-		return t.hasAgenticWorkflows
+		return t.AgenticWorkflows != nil
 	case "cache-memory":
-		return t.hasCacheMemory
+		return t.CacheMemory != nil
 	case "safety-prompt":
-		return t.hasSafetyPrompt
+		return t.SafetyPrompt != nil
 	case "timeout":
-		return t.hasTimeout
+		return t.Timeout != nil
 	case "startup-timeout":
-		return t.hasStartupTimeout
+		return t.StartupTimeout != nil
 	default:
 		_, exists := t.Custom[name]
 		return exists
@@ -486,40 +396,37 @@ func (t *Tools) GetToolNames() []string {
 
 	names := []string{}
 
-	if t.hasGitHub {
+	if t.GitHub != nil {
 		names = append(names, "github")
 	}
-	if t.hasClaude {
-		names = append(names, "claude")
-	}
-	if t.hasBash {
+	if t.Bash != nil {
 		names = append(names, "bash")
 	}
-	if t.hasWebFetch {
+	if t.WebFetch != nil {
 		names = append(names, "web-fetch")
 	}
-	if t.hasWebSearch {
+	if t.WebSearch != nil {
 		names = append(names, "web-search")
 	}
-	if t.hasEdit {
+	if t.Edit != nil {
 		names = append(names, "edit")
 	}
-	if t.hasPlaywright {
+	if t.Playwright != nil {
 		names = append(names, "playwright")
 	}
-	if t.hasAgenticWorkflows {
+	if t.AgenticWorkflows != nil {
 		names = append(names, "agentic-workflows")
 	}
-	if t.hasCacheMemory {
+	if t.CacheMemory != nil {
 		names = append(names, "cache-memory")
 	}
-	if t.hasSafetyPrompt {
+	if t.SafetyPrompt != nil {
 		names = append(names, "safety-prompt")
 	}
-	if t.hasTimeout {
+	if t.Timeout != nil {
 		names = append(names, "timeout")
 	}
-	if t.hasStartupTimeout {
+	if t.StartupTimeout != nil {
 		names = append(names, "startup-timeout")
 	}
 
