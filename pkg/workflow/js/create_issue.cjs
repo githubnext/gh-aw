@@ -227,8 +227,8 @@ async function main() {
                 suggestedActors(capabilities: [CAN_BE_ASSIGNED], first: 100) {
                   nodes {
                     login
-                    __typename
-                    id
+                    ... on User { id }
+                    ... on Bot { id }
                   }
                 }
               }
@@ -241,7 +241,7 @@ async function main() {
           });
           core.info(JSON.stringify(botResult));
           // @ts-ignore - graphql result type
-          const botNodeId = botResult.user.id;
+          const botNodeId = botResult.id;
           core.info(`Bot user node ID: ${botNodeId}`);
 
           // Create issue with bot assigned in one mutation
