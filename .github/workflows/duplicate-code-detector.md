@@ -14,6 +14,7 @@ safe-outputs:
   create-issue:
     title-prefix: "[duplicate-code] "
     labels: [code-quality, automated-analysis]
+    assignees: copilot
 timeout_minutes: 15
 strict: true
 ---
