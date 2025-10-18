@@ -48,6 +48,8 @@ Activate the project in Serena:
 
 Identify and analyze modified files:
 - Determine files changed in the recent commits
+- **ONLY analyze .go files** - exclude all other file types
+- **Exclude all JavaScript files** from analysis (files matching patterns: `*.js`, `*.cjs`, `*.mjs`, `*.jsx`, `*.ts`, `*.tsx`)
 - **Exclude test files** from analysis (files matching patterns: `*_test.go`, `*.test.js`, `*.spec.js`, `*.test.ts`, `*.spec.ts`, `*_test.py`, `test_*.py`, or located in directories named `test`, `tests`, `__tests__`, or `spec`)
 - **Exclude workflow files** from analysis (files under `.github/workflows/*`)
 - Use `get_symbols_overview` to understand file structure
@@ -115,6 +117,7 @@ Create an issue if significant duplication is found (threshold: >10 lines of dup
 
 - Standard boilerplate code (imports, exports, etc.)
 - Test setup/teardown code (acceptable duplication in tests)
+- **All JavaScript files** (files matching: `*.js`, `*.cjs`, `*.mjs`, `*.jsx`, `*.ts`, `*.tsx`)
 - **All test files** (files matching: `*_test.go`, `*.test.js`, `*.spec.js`, `*.test.ts`, `*.spec.ts`, `*_test.py`, `test_*.py`, or in `test/`, `tests/`, `__tests__/`, `spec/` directories)
 - **All workflow files** (files under `.github/workflows/*`)
 - Configuration files with similar structure
@@ -123,9 +126,10 @@ Create an issue if significant duplication is found (threshold: >10 lines of dup
 
 ### Analysis Depth
 
-- **Primary Focus**: All files changed in the current push (excluding test files and workflow files)
-- **Secondary Analysis**: Check for duplication with existing codebase (excluding test files and workflow files)
-- **Cross-Reference**: Look for patterns across the repository
+- **File Type Restriction**: ONLY analyze .go files - ignore all other file types
+- **Primary Focus**: All .go files changed in the current push (excluding test files and workflow files)
+- **Secondary Analysis**: Check for duplication with existing .go codebase (excluding test files and workflow files)
+- **Cross-Reference**: Look for patterns across .go files in the repository
 - **Historical Context**: Consider if duplication is new or existing
 
 ## Issue Template
