@@ -72,6 +72,15 @@ jobs:
         image: jupyter/base-notebook:latest
         ports:
         - 8888:8888
+      jupyter-mcp:
+        env:
+          ALLOW_IMG_OUTPUT: "true"
+          DOCUMENT_ID: notebook.ipynb
+          JUPYTER_TOKEN: ${{ github.run_id }}
+          JUPYTER_URL: http://jupyter:8888
+        image: datalayer/jupyter-mcp-server:latest
+        ports:
+        - 3000:3000
 
     permissions:
       actions: read
@@ -92,6 +101,8 @@ jobs:
         uses: actions/checkout@v5
       - name: Wait for Jupyter to be ready
         run: "echo \"Waiting for Jupyter server to start...\"\nfor i in {1..30}; do\n  if curl -f http://jupyter:8888/api 2>/dev/null; then\n    echo \"✓ Jupyter server is ready!\"\n    break\n  fi\n  echo \"Attempt $i: Waiting for Jupyter...\"\n  sleep 2\ndone\ncurl -f http://jupyter:8888/api || (echo \"Failed to connect to Jupyter\" && exit 1)\n"
+      - name: Wait for Jupyter MCP server to be ready
+        run: "echo \"Waiting for Jupyter MCP server to start...\"\nfor i in {1..30}; do\n  if curl -f http://jupyter-mcp:3000/health 2>/dev/null; then\n    echo \"✓ Jupyter MCP server is ready!\"\n    break\n  fi\n  echo \"Attempt $i: Waiting for Jupyter MCP server...\"\n  sleep 2\ndone\n"
 
       - name: Create gh-aw temp directory
         run: |
@@ -160,7 +171,6 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull datalayer/jupyter-mcp-server:latest
           docker pull ghcr.io/github/github-mcp-server:v0.18.0
       - name: Setup Safe Outputs Collector MCP
         run: |
@@ -928,31 +938,11 @@ jobs:
                 }
               },
               "jupyter": {
-                "type": "local",
-                "command": "docker",
+                "type": "http",
+                "url": "http://jupyter-mcp:3000",
                 "tools": [
                   "*"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "ALLOW_IMG_OUTPUT",
-                  "-e",
-                  "DOCUMENT_ID",
-                  "-e",
-                  "JUPYTER_TOKEN",
-                  "-e",
-                  "JUPYTER_URL",
-                  "datalayer/jupyter-mcp-server:latest"
-                ],
-                "env": {
-                  "ALLOW_IMG_OUTPUT": "true",
-                  "DOCUMENT_ID": "notebook.ipynb",
-                  "JUPYTER_TOKEN": "${{ github.run_id }}",
-                  "JUPYTER_URL": "http://jupyter:8888"
-                }
+                ]
               },
               "safe_outputs": {
                 "type": "local",
