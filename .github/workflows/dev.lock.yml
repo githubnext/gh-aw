@@ -1016,8 +1016,25 @@ jobs:
           - **query_file**: Match log lines against previously indexed templates
           - **list_templates**: List all extracted templates from indexed files
           
+          ## Error Handling
+          
+          **IMPORTANT**: If the drain3 MCP server is not available or fails to start:
+          1. Check the MCP server logs at `/tmp/gh-aw/mcp-logs/drain3/server.log` to understand the failure
+          2. Check the curl test logs at `/tmp/gh-aw/mcp-logs/drain3/curl-test.log` for connection issues
+          3. **Give up gracefully** - Do NOT attempt to use drain3 tools if they are unavailable
+          4. Create an issue explaining:
+             - That drain3 MCP server was not available
+             - The failure reason from the logs (if accessible)
+             - That the Go source code analysis could not be completed
+             - Suggestions for fixing the drain3 server setup
+          
           ## Task
           
+          **Step 1: Verify drain3 Availability**
+          - Check if drain3 tools are available by attempting to list them
+          - If drain3 is not available, follow the error handling steps above and exit gracefully
+          
+          **Step 2: Analyze Go Source Files (only if drain3 is available)**
           1. **Find Go Source Files**: Locate all `.go` files in the repository
           2. **Index Files with Drain3**: Use the `index_file` tool to analyze each Go file and extract templates
           3. **List Extracted Templates**: Use the `list_templates` tool to display all templates found
@@ -3329,6 +3346,13 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
+      - if: always()
+        name: Upload MCP logs for debugging
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-logs
+          path: /tmp/gh-aw/mcp-logs/
+          retention-days: 7
 
   create_issue:
     needs:
