@@ -24,6 +24,29 @@ imports:
 
 Use the drain3 tool to analyze Go source files in this repository and extract log templates.
 
+## Diagnostic Information
+
+To diagnose drain3 MCP server issues locally, use:
+
+```bash
+# Inspect all MCP servers in this workflow
+gh aw mcp inspect dev
+
+# Inspect only the drain3 server
+gh aw mcp inspect dev --server drain3
+
+# View detailed information about the index_file tool
+gh aw mcp inspect dev --server drain3 --tool index_file
+
+# Verbose output with connection details
+gh aw mcp inspect dev --server drain3 -v
+```
+
+The drain3 MCP server provides three tools:
+- **index_file**: Stream-mine templates from log files and persist snapshots
+- **query_file**: Match log lines against previously indexed templates
+- **list_templates**: List all extracted templates from indexed files
+
 ## Task
 
 1. **Find Go Source Files**: Locate all `.go` files in the repository
