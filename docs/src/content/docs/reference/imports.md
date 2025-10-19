@@ -48,9 +48,10 @@ Workflow instructions here...
 ## Frontmatter Merging
 
 When importing files, frontmatter fields are merged with the main workflow:
-- **Only `tools:` and `mcp-servers:` frontmatter** is allowed in imported files, other entries give a warning.
+- **Only `tools:`, `mcp-servers:`, and `services:` frontmatter** is allowed in imported files, other entries give a warning.
 - **Tool merging**: `allowed:` tools are merged across all imported files
 - **MCP server merging**: MCP servers defined in imported files are merged with the main workflow
+- **Services merging**: Docker services defined in imported files are merged with the main workflow
 
 ### Example MCP Server Merging
 
@@ -75,6 +76,39 @@ mcp-servers:
 ```
 
 **Result**: Final workflow has the Tavily MCP server configured and available to the AI engine.
+
+### Example Services Merging
+
+```aw wrap
+# Base workflow
+---
+on: issues
+engine: copilot
+imports:
+  - shared/mcp/jupyter.md
+---
+```
+
+```aw wrap
+# shared/mcp/jupyter.md
+---
+services:
+  jupyter:
+    image: jupyter/base-notebook:latest
+    ports:
+      - 8888:8888
+    env:
+      JUPYTER_TOKEN: ${{ github.run_id }}
+
+mcp-servers:
+  jupyter:
+    type: http
+    url: "http://jupyter:3000"
+    allowed: ["*"]
+---
+```
+
+**Result**: Final workflow has the Jupyter service and MCP server configured with shared networking.
 
 ## Related Documentation
 
