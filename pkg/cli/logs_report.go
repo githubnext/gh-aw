@@ -257,7 +257,7 @@ func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary
 
 	var result []MissingToolSummary
 	for _, summary := range toolSummary {
-		// Populate display fields for console rendering (truncation handled by maxlen tag)
+		// Populate WorkflowsDisplay and FirstReasonDisplay fields for console rendering (truncation handled by maxlen tag)
 		summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
 		summary.FirstReasonDisplay = summary.FirstReason
 
