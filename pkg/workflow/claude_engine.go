@@ -501,11 +501,17 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 		} else {
 			// Handle cache-memory as a special case - it provides file system access but no MCP tool
 			if toolName == "cache-memory" {
-				// Cache-memory provides file share access with the new naming scheme
+				// Cache-memory provides file share access
+				// Default cache uses /tmp/gh-aw/cache-memory/, others use /tmp/gh-aw/cache-memory-{id}/
 				// Add path-specific Read and Write tools for each cache directory
 				if cacheMemoryConfig != nil {
 					for _, cache := range cacheMemoryConfig.Caches {
-						cacheDirPattern := fmt.Sprintf("/tmp/cache-memory-%s/*", cache.ID)
+						var cacheDirPattern string
+						if cache.ID == "default" {
+							cacheDirPattern = "/tmp/gh-aw/cache-memory/*"
+						} else {
+							cacheDirPattern = fmt.Sprintf("/tmp/gh-aw/cache-memory-%s/*", cache.ID)
+						}
 
 						// Add path-specific tools for cache directory access
 						if !slices.Contains(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern)) {

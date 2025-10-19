@@ -14,9 +14,11 @@ This document covers "cache memory".
 
 ## Cache Memory
 
-The `cache-memory` feature enables agentic workflows to maintain persistent file storage across workflow runs using GitHub Actions cache infrastructure. AI agents can store and retrieve files using standard file system operations at `/tmp/cache-memory-{id}/`.
+The `cache-memory` feature enables agentic workflows to maintain persistent file storage across workflow runs using GitHub Actions cache infrastructure. AI agents can store and retrieve files using standard file system operations.
 
 When enabled, the workflow compiler automatically creates the cache directory, adds GitHub Actions cache steps for restore and save operations, generates intelligent cache keys with progressive fallback, and informs the AI agent about the available storage location.
+
+**Default cache** uses `/tmp/gh-aw/cache-memory/` for backward compatibility. **Additional caches** use `/tmp/gh-aw/cache-memory-{id}/` to prevent path conflicts.
 
 ## Enabling Cache Memory
 
@@ -32,7 +34,7 @@ tools:
 ---
 ```
 
-This uses the default cache key `memory-${{ github.workflow }}-${{ github.run_id }}` and stores files at `/tmp/cache-memory-default/` using standard file operations.
+This uses the default cache key `memory-${{ github.workflow }}-${{ github.run_id }}` and stores files at `/tmp/gh-aw/cache-memory/` using standard file operations.
 
 ## Using the Cache Folder
 
@@ -86,7 +88,11 @@ tools:
 ---
 ```
 
-Each cache mounts at `/tmp/cache-memory-{id}/` with independent persistence. The `id` field is required for array notation and determines the cache folder name. If `key` is omitted, it defaults to `memory-{id}-${{ github.workflow }}-${{ github.run_id }}`.
+Each cache mounts at its own directory with independent persistence:
+- **Default cache**: `/tmp/gh-aw/cache-memory/`
+- **Other caches**: `/tmp/gh-aw/cache-memory-{id}/`
+
+The `id` field is required for array notation and determines the cache folder name. If `key` is omitted, it defaults to `memory-{id}-${{ github.workflow }}-${{ github.run_id }}`.
 
 When multiple caches are configured, the AI agent receives information about all available cache folders and can organize data across different storage locations based on purpose (e.g., session data, logs, persistent configuration).
 
@@ -136,7 +142,7 @@ tools:
 ---
 ```
 
-Result: Two cache folders at `/tmp/cache-memory-shared-state/` and `/tmp/cache-memory-local-logs/`.
+Result: Two cache folders at `/tmp/gh-aw/cache-memory/` and `/tmp/gh-aw/cache-memory-local-logs/`.
 
 ## Cache Behavior and GitHub Actions Integration
 
@@ -153,7 +159,7 @@ Cache Memory leverages GitHub Actions cache with 7-day retention, 10GB per repos
 **File Organization**: Use descriptive file names and directory structures:
 
 ```
-/tmp/cache-memory-default/
+/tmp/gh-aw/cache-memory/
 ├── preferences/user-settings.json
 ├── logs/activity.log
 ├── state/context.json
@@ -168,9 +174,9 @@ Cache Memory leverages GitHub Actions cache with 7-day retention, 10GB per repos
 
 ## Troubleshooting
 
-**Files Not Persisting**: Ensure cache keys are consistent between runs, verify `/tmp/cache-memory-{id}/` directory exists, and check workflow logs for cache restore/save messages.
+**Files Not Persisting**: Ensure cache keys are consistent between runs, verify the cache directory exists, and check workflow logs for cache restore/save messages.
 
-**File Access Issues**: Create subdirectories before use, verify write permissions, and use absolute paths within `/tmp/cache-memory-{id}/`.
+**File Access Issues**: Create subdirectories before use, verify write permissions, and use absolute paths within the cache directory.
 
 **Cache Size Issues**: Track cache growth, implement periodic cache clearing, or use time-based cache keys for automatic expiration.
 
@@ -229,8 +235,8 @@ tools:
       retention-days: 14
 ---
 
-# Store agent context in /tmp/cache-memory-context/
-# Store build artifacts in /tmp/cache-memory-artifacts/
+# Store agent context in /tmp/gh-aw/cache-memory/
+# Store build artifacts in /tmp/gh-aw/cache-memory-artifacts/
 ```
 
 ## Related Documentation
