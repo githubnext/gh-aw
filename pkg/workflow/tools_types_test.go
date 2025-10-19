@@ -281,3 +281,189 @@ func TestPlaywrightConfigParsing(t *testing.T) {
 		}
 	})
 }
+
+func TestExtractMapFromFrontmatter(t *testing.T) {
+	tests := []struct {
+		name         string
+		frontmatter  map[string]any
+		key          string
+		expectedLen  int
+		expectedKeys []string
+	}{
+		{
+			name: "extracts existing map",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"github": nil,
+					"bash":   []any{"echo"},
+				},
+			},
+			key:          "tools",
+			expectedLen:  2,
+			expectedKeys: []string{"github", "bash"},
+		},
+		{
+			name: "returns empty map when key doesn't exist",
+			frontmatter: map[string]any{
+				"other": "value",
+			},
+			key:          "tools",
+			expectedLen:  0,
+			expectedKeys: []string{},
+		},
+		{
+			name: "returns empty map when value is not a map",
+			frontmatter: map[string]any{
+				"tools": "not-a-map",
+			},
+			key:          "tools",
+			expectedLen:  0,
+			expectedKeys: []string{},
+		},
+		{
+			name: "returns empty map when value is nil",
+			frontmatter: map[string]any{
+				"tools": nil,
+			},
+			key:          "tools",
+			expectedLen:  0,
+			expectedKeys: []string{},
+		},
+		{
+			name: "returns empty map when value is array",
+			frontmatter: map[string]any{
+				"tools": []string{"github", "bash"},
+			},
+			key:          "tools",
+			expectedLen:  0,
+			expectedKeys: []string{},
+		},
+		{
+			name:         "handles nil frontmatter",
+			frontmatter:  nil,
+			key:          "tools",
+			expectedLen:  0,
+			expectedKeys: []string{},
+		},
+		{
+			name:         "handles empty frontmatter",
+			frontmatter:  map[string]any{},
+			key:          "tools",
+			expectedLen:  0,
+			expectedKeys: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractMapFromFrontmatter(tt.frontmatter, tt.key)
+
+			if result == nil {
+				t.Fatal("expected non-nil result")
+			}
+
+			if len(result) != tt.expectedLen {
+				t.Errorf("expected map with %d entries, got %d", tt.expectedLen, len(result))
+			}
+
+			for _, key := range tt.expectedKeys {
+				if _, ok := result[key]; !ok {
+					t.Errorf("expected key %q to exist in result", key)
+				}
+			}
+		})
+	}
+}
+
+func TestExtractToolsFromFrontmatter(t *testing.T) {
+	frontmatter := map[string]any{
+		"tools": map[string]any{
+			"github": nil,
+			"bash":   []any{"echo"},
+		},
+		"mcp-servers": map[string]any{
+			"my-server": map[string]any{"command": "node"},
+		},
+	}
+
+	result := extractToolsFromFrontmatter(frontmatter)
+
+	if len(result) != 2 {
+		t.Errorf("expected 2 tools, got %d", len(result))
+	}
+
+	if _, ok := result["github"]; !ok {
+		t.Error("expected 'github' key in result")
+	}
+
+	if _, ok := result["bash"]; !ok {
+		t.Error("expected 'bash' key in result")
+	}
+
+	// Should not include mcp-servers
+	if _, ok := result["my-server"]; ok {
+		t.Error("unexpected 'my-server' key in result")
+	}
+}
+
+func TestExtractMCPServersFromFrontmatter(t *testing.T) {
+	frontmatter := map[string]any{
+		"tools": map[string]any{
+			"github": nil,
+		},
+		"mcp-servers": map[string]any{
+			"my-server":      map[string]any{"command": "node"},
+			"another-server": map[string]any{"command": "python"},
+		},
+	}
+
+	result := extractMCPServersFromFrontmatter(frontmatter)
+
+	if len(result) != 2 {
+		t.Errorf("expected 2 MCP servers, got %d", len(result))
+	}
+
+	if _, ok := result["my-server"]; !ok {
+		t.Error("expected 'my-server' key in result")
+	}
+
+	if _, ok := result["another-server"]; !ok {
+		t.Error("expected 'another-server' key in result")
+	}
+
+	// Should not include tools
+	if _, ok := result["github"]; ok {
+		t.Error("unexpected 'github' key in result")
+	}
+}
+
+func TestExtractRuntimesFromFrontmatter(t *testing.T) {
+	frontmatter := map[string]any{
+		"tools": map[string]any{
+			"github": nil,
+		},
+		"runtimes": map[string]any{
+			"node":   map[string]any{"version": "18"},
+			"python": map[string]any{"version": "3.11"},
+		},
+	}
+
+	result := extractRuntimesFromFrontmatter(frontmatter)
+
+	if len(result) != 2 {
+		t.Errorf("expected 2 runtimes, got %d", len(result))
+	}
+
+	if _, ok := result["node"]; !ok {
+		t.Error("expected 'node' key in result")
+	}
+
+	if _, ok := result["python"]; !ok {
+		t.Error("expected 'python' key in result")
+	}
+
+	// Should not include tools
+	if _, ok := result["github"]; ok {
+		t.Error("unexpected 'github' key in result")
+	}
+}
