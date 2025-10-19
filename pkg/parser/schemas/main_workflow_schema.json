@@ -2169,6 +2169,22 @@
                     "type": "string"
                   }
                 },
+                "reviewers": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Single reviewer username to assign to the pull request. Use 'copilot' to assign to copilot-swe-agent."
+                    },
+                    {
+                      "type": "array",
+                      "description": "List of reviewer usernames to assign to the pull request. Use 'copilot' to assign to copilot-swe-agent.",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ],
+                  "description": "Optional reviewer(s) to assign to the pull request. Accepts either a single string or an array of usernames. Use 'copilot' to assign to copilot-swe-agent."
+                },
                 "draft": {
                   "type": "boolean",
                   "description": "Whether to create pull request as draft (defaults to true)"

@@ -10,6 +10,7 @@ type CreatePullRequestsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
 	Labels               []string `yaml:"labels,omitempty"`
+	Reviewers            []string `yaml:"reviewers,omitempty"`     // List of users/bots to assign as reviewers to the pull request
 	Draft                *bool    `yaml:"draft,omitempty"`         // Pointer to distinguish between unset (nil) and explicitly false
 	IfNoChanges          string   `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn" (default), "error", or "ignore"
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`   // Target repository in format "owner/repo" for cross-repository pull requests
@@ -92,6 +93,43 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	})
 	steps = append(steps, scriptSteps...)
 
+	// Add reviewer steps if reviewers are configured
+	if len(data.SafeOutputs.CreatePullRequests.Reviewers) > 0 {
+		// Add checkout step for gh CLI to work
+		steps = append(steps, "      - name: Checkout repository for gh CLI\n")
+		steps = append(steps, "        if: steps.create_pull_request.outputs.pull_request_url != ''\n")
+		steps = append(steps, "        uses: actions/checkout@v5\n")
+
+		// Get the effective GitHub token to use for gh CLI
+		var safeOutputsToken string
+		if data.SafeOutputs != nil {
+			safeOutputsToken = data.SafeOutputs.GitHubToken
+		}
+		effectiveToken := getEffectiveGitHubToken(data.SafeOutputs.CreatePullRequests.GitHubToken, getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken))
+
+		for i, reviewer := range data.SafeOutputs.CreatePullRequests.Reviewers {
+			// Special handling: "copilot" is the username for "copilot-swe-agent"
+			actualReviewer := reviewer
+			if reviewer == "copilot" {
+				actualReviewer = "copilot-swe-agent"
+			}
+
+			steps = append(steps, fmt.Sprintf("      - name: Add %s as reviewer\n", reviewer))
+			steps = append(steps, "        if: steps.create_pull_request.outputs.pull_request_url != ''\n")
+			steps = append(steps, "        env:\n")
+			steps = append(steps, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
+			steps = append(steps, fmt.Sprintf("          REVIEWER: %q\n", actualReviewer))
+			steps = append(steps, "          PR_URL: ${{ steps.create_pull_request.outputs.pull_request_url }}\n")
+			steps = append(steps, "        run: |\n")
+			steps = append(steps, "          gh pr edit \"$PR_URL\" --add-reviewer \"$REVIEWER\"\n")
+
+			// Add a comment after each reviewer step except the last
+			if i < len(data.SafeOutputs.CreatePullRequests.Reviewers)-1 {
+				steps = append(steps, "\n")
+			}
+		}
+	}
+
 	// Create outputs for the job
 	outputs := map[string]string{
 		"pull_request_number": "${{ steps.create_pull_request.outputs.pull_request_number }}",
@@ -135,6 +173,23 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 
 		// Parse labels using shared helper
 		pullRequestsConfig.Labels = parseLabelsFromConfig(configMap)
+
+		// Parse reviewers (supports both string and array)
+		if reviewers, exists := configMap["reviewers"]; exists {
+			if reviewerStr, ok := reviewers.(string); ok {
+				// Single string format
+				pullRequestsConfig.Reviewers = []string{reviewerStr}
+			} else if reviewersArray, ok := reviewers.([]any); ok {
+				// Array format
+				var reviewerStrings []string
+				for _, reviewer := range reviewersArray {
+					if reviewerStr, ok := reviewer.(string); ok {
+						reviewerStrings = append(reviewerStrings, reviewerStr)
+					}
+				}
+				pullRequestsConfig.Reviewers = reviewerStrings
+			}
+		}
 
 		// Parse draft
 		if draft, exists := configMap["draft"]; exists {
