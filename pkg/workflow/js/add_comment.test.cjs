@@ -472,4 +472,81 @@ describe("add_comment.cjs", () => {
     // Clean up
     delete global.context.payload.pull_request;
   });
+
+  it("should create comment on discussion using GraphQL when in discussion_comment context", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "Test discussion comment",
+        },
+      ],
+    });
+
+    // Simulate discussion_comment context
+    global.context.eventName = "discussion_comment";
+    global.context.payload.discussion = { number: 1993 };
+    delete global.context.payload.issue;
+    delete global.context.payload.pull_request;
+
+    // Mock GraphQL responses for discussion
+    const mockGraphqlResponse = vi.fn();
+    mockGraphqlResponse
+      .mockResolvedValueOnce({
+        // First call: get discussion ID
+        repository: {
+          discussion: {
+            id: "D_kwDOPc1QR84BpqRs",
+            url: "https://github.com/testowner/testrepo/discussions/1993",
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        // Second call: create comment
+        addDiscussionComment: {
+          comment: {
+            id: "DC_kwDOPc1QR84BpqRt",
+            body: "Test discussion comment",
+            createdAt: "2025-10-19T22:00:00Z",
+            url: "https://github.com/testowner/testrepo/discussions/1993#discussioncomment-123",
+          },
+        },
+      });
+
+    global.github.graphql = mockGraphqlResponse;
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify GraphQL was called with correct queries
+    expect(mockGraphqlResponse).toHaveBeenCalledTimes(2);
+
+    // First call should fetch discussion ID
+    expect(mockGraphqlResponse.mock.calls[0][0]).toContain("query");
+    expect(mockGraphqlResponse.mock.calls[0][0]).toContain("discussion(number: $num)");
+    expect(mockGraphqlResponse.mock.calls[0][1]).toEqual({
+      owner: "testowner",
+      repo: "testrepo",
+      num: 1993,
+    });
+
+    // Second call should create the comment
+    expect(mockGraphqlResponse.mock.calls[1][0]).toContain("mutation");
+    expect(mockGraphqlResponse.mock.calls[1][0]).toContain("addDiscussionComment");
+    expect(mockGraphqlResponse.mock.calls[1][1].body).toContain("Test discussion comment");
+
+    // Verify REST API was NOT called
+    expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+
+    // Verify outputs were set
+    expect(mockCore.setOutput).toHaveBeenCalledWith("comment_id", "DC_kwDOPc1QR84BpqRt");
+    expect(mockCore.setOutput).toHaveBeenCalledWith(
+      "comment_url",
+      "https://github.com/testowner/testrepo/discussions/1993#discussioncomment-123"
+    );
+
+    // Clean up
+    delete global.github.graphql;
+    delete global.context.payload.discussion;
+  });
 });
