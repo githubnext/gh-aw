@@ -74,14 +74,14 @@ Test cache-memory import without local definition.
 	// We expect the imported caches to be present
 	expectedStrings := []string{
 		"- name: Create cache-memory directory (session)",
-		"path: /tmp/gh-aw/cache-memory/session",
+		"path: /tmp/gh-aw/cache-memory-session",
 		"key: shared-session-${{ github.run_id }}",
 		"- name: Create cache-memory directory (logs)",
-		"path: /tmp/gh-aw/cache-memory/logs",
+		"path: /tmp/gh-aw/cache-memory-logs",
 		"key: shared-logs-${{ github.run_id }}",
 		"## Cache Folders Available",
-		"- **session**: `/tmp/gh-aw/cache-memory/session/`",
-		"- **logs**: `/tmp/gh-aw/cache-memory/logs/`",
+		"- **session**: `/tmp/gh-aw/cache-memory-session/`",
+		"- **logs**: `/tmp/gh-aw/cache-memory-logs/`",
 	}
 
 	for _, expected := range expectedStrings {
