@@ -23,30 +23,36 @@ safe-outputs:
 
 imports:
   - shared/mcp-debug.md
+  - shared/mcp/drain3.md
 ---
 
-# File Size Distribution Analysis
+# Go Source Code Pattern Analysis
 
-You are a data analyst using Jupyter notebooks to analyze the repository.
+You are a code analyst using drain3 to analyze patterns in Go source files.
 
 ## Your Task
 
-1. **Analyze Repository Files**: Scan the repository ${{ github.repository }} to gather file size information for all files
-2. **Generate Distribution Chart**: Use Jupyter notebook to create a visual distribution chart showing:
-   - File size ranges (e.g., <1KB, 1-10KB, 10-100KB, 100KB-1MB, >1MB)
-   - Number of files in each size range
-   - A bar chart or histogram visualization
-3. **Save Chart**: Save the generated chart as a file in the current directory
-4. **Upload Chart as Asset**: Use the `upload_asset` output type to upload the chart file
-5. **Create Discussion**: Create a GitHub discussion with:
-   - Summary statistics (total files, average size, median size, largest files)
-   - Description of the file size distribution
-   - Link to the uploaded chart asset on the assets branch
-   - Any interesting insights about the repository structure
+1. **Collect Go Source Files**: Find all `.go` files in the repository ${{ github.repository }}
+2. **Analyze with Drain3**: 
+   - Use the `index_file` tool to analyze Go source files and extract code patterns
+   - Use the `list_clusters` tool to enumerate all discovered patterns
+   - Use the `find_anomalies` tool to identify rare or unusual code patterns
+   - Use the `search_pattern` tool to search for specific patterns (e.g., error handling, logging statements)
+3. **Generate Insights**: Analyze the patterns to identify:
+   - Common code structures and idioms used in the codebase
+   - Potential code duplications or repeated patterns
+   - Unusual or anomalous patterns that might need review
+   - Consistent coding patterns vs variations
+4. **Create Discussion**: Create a GitHub discussion with:
+   - Summary of total Go files analyzed
+   - Top 10 most common code patterns found
+   - Anomalous patterns detected and their significance
+   - Recommendations for code consistency or refactoring
+   - Any interesting insights about the codebase structure
 
 ## Important Notes
 
-- Use Python code in the Jupyter notebook for data processing
-- Use matplotlib or seaborn for visualization
-- Ensure the chart is clear, labeled, and professional-looking
-- The chart will be automatically uploaded to the assets branch via safe-outputs
+- Focus on analyzing Go source files (`.go` extension)
+- Use drain3 tools to extract and analyze patterns
+- Provide actionable insights based on pattern analysis
+- Include specific examples of patterns found
