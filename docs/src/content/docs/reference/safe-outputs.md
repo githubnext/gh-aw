@@ -67,7 +67,7 @@ The agentic part of your workflow should describe the issue(s) it wants created.
 
 **Configuration Options:**
 - **`assignees:`** - GitHub username(s) to automatically assign to created issues. Accepts either a single string (`assignees: user1`) or an array of strings (`assignees: [user1, user2]`). The workflow automatically adds steps that call `gh issue edit --add-assignee` for each assignee after the issue is created. Only runs if the issue was successfully created.
-  - **Special value**: Use `copilot` to assign to the `copilot-swe-agent` bot
+  - **Special value**: Use `copilot` to assign to the Copilot bot
   - Uses the configured GitHub token (respects `github-token` precedence: create-issue config > safe-outputs config > top-level config > default)
 
 :::note
@@ -247,10 +247,20 @@ safe-outputs:
   create-pull-request:               # Creates exactly one pull request
     title-prefix: "[ai] "            # Optional: prefix for PR titles
     labels: [automation, agentic]    # Optional: labels to attach to PRs
+    reviewers: [user1, user2, copilot] # Optional: users/bots to assign as reviewers to the pull request
     draft: true                      # Optional: create as draft PR (defaults to true)
     if-no-changes: "warn"            # Optional: behavior when no changes to commit (defaults to "warn")
     target-repo: "owner/target-repo" # Optional: create PR in a different repository (requires github-token with appropriate permissions)
 ```
+
+**Configuration Options:**
+- **`reviewers:`** - GitHub username(s) to automatically assign as reviewers to the created pull request. Accepts either a single string (`reviewers: user1`) or an array of strings (`reviewers: [user1, user2]`). The workflow automatically adds steps that call `gh pr edit --add-reviewer` for each reviewer after the pull request is created. Only runs if the pull request was successfully created.
+  - **Special value**: Use `copilot` to assign the Copilot bot as a reviewer
+  - Uses the configured GitHub token (respects `github-token` precedence: create-pull-request config > safe-outputs config > top-level config > default)
+
+:::note
+To add bots as reviewers (including `copilot`), you must use a Personal Access Token (PAT) with appropriate permissions. The default `GITHUB_TOKEN` does not have permission to add bots as reviewers. Configure a PAT using the `github-token` field at the workflow, safe-outputs, or create-pull-request level.
+:::
 
 **Fallback Behavior:**
 
@@ -890,6 +900,69 @@ In staged mode, this shows as a preview error rather than failing the workflow.
 - Avoid GitHub API limits and timeouts
 - Ensure manageable code review sizes
 - Control CI/CD resource usage
+
+## Assigning Issues and Pull Requests to Copilot
+
+Both `create-issue` and `create-pull-request` safe outputs support assigning the created issue or adding reviewers to the pull request using the special value `copilot`. This provides automated code review and issue analysis.
+
+### Assigning Issues to Copilot
+
+Use the `assignees` field in `create-issue` configuration to automatically assign created issues to the Copilot bot:
+
+```yaml
+safe-outputs:
+  create-issue:
+    assignees: copilot  # Assigns to the Copilot bot
+    # Or with multiple assignees:
+    # assignees: [user1, copilot, user2]
+```
+
+### Adding Copilot as Reviewer to Pull Requests
+
+Use the `reviewers` field in `create-pull-request` configuration to automatically add the Copilot bot as a reviewer:
+
+```yaml
+safe-outputs:
+  create-pull-request:
+    reviewers: copilot  # Adds the Copilot bot as reviewer
+    # Or with multiple reviewers:
+    # reviewers: [user1, copilot, user2]
+```
+
+### Authentication Requirements
+
+:::caution
+To assign issues to bots or add bots as reviewers (including `copilot`), you must use a **Personal Access Token (PAT)** with appropriate permissions. The default `GITHUB_TOKEN` does not have permission to assign issues to bots or add bots as reviewers.
+:::
+
+Configure a PAT using the `github-token` field at any of these levels (in order of precedence):
+1. Specific safe output level (`create-issue` or `create-pull-request`)
+2. Safe outputs section level
+3. Top-level workflow configuration
+
+**Example with custom token:**
+
+```yaml
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  actions: read
+engine: copilot
+safe-outputs:
+  github-token: ${{ secrets.COPILOT_PAT }}  # PAT with permissions to add bot assignees/reviewers
+  create-issue:
+    assignees: copilot
+  create-pull-request:
+    reviewers: copilot
+---
+
+# AI Issue and PR Handler
+
+Analyze issues and create follow-up items with Copilot assigned for automated assistance.
+```
 
 ## Custom runner image
 

@@ -36,6 +36,7 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[tidy] "
     labels: [automation, maintenance]
+    reviewers: copilot
     draft: false
   push-to-pull-request-branch:
   missing-tool:
