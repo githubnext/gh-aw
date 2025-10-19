@@ -21,6 +21,7 @@ tools:
 safe-outputs:
   add-comment:
     max: 1
+    target: "*"
 timeout_minutes: 10
 strict: true
 ---
