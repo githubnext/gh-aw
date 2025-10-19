@@ -22,7 +22,6 @@ safe-outputs:
   upload-assets:
 
 imports:
-  - shared/mcp/jupyter.md
   - shared/mcp-debug.md
 ---
 
