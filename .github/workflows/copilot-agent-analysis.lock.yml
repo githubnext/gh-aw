@@ -1016,26 +1016,32 @@ jobs:
           
           ### Phase 1: Collect PR Data
           
-          Search for pull requests created by copilot-swe-agent in the last 24 hours.
+          Search for pull requests created by Copilot in the last 24 hours.
           
-          **Important**: The copilot-swe-agent may appear under various usernames:
-          - `copilot-swe-agent`
-          - `github-actions[bot]` (with specific patterns)
-          - Other bot accounts
+          **Important**: The Copilot coding agent creates PRs under the username `Copilot` (user ID 198982749, a Bot account). GitHub's search API doesn't support searching by bot authors using `author:` filter, so we need alternative approaches.
           
-          Use the GitHub `search_pull_requests` tool to find PRs:
+          Use the GitHub tools with one of these strategies:
           
-          1. **Search Query**: Use a query like:
+          1. **Search by keywords in title/body (Recommended)**:
              ```
-             repo:${{ github.repository }} is:pr author:copilot-swe-agent created:>=YYYY-MM-DD
+             repo:${{ github.repository }} is:pr "START COPILOT CODING AGENT" created:>=YYYY-MM-DD
              ```
+             This searches for PRs containing the signature text that Copilot adds to PR bodies.
              Replace `YYYY-MM-DD` with yesterday's date (24 hours ago).
           
-          2. **Alternative Search**: If the bot uses a different username, adjust the query:
+          2. **List all PRs and filter by author**:
+             Use `list_pull_requests` tool to get recent PRs, then filter by checking if:
+             - `user.login == "Copilot"` 
+             - `user.id == 198982749`
+             - `user.type == "Bot"`
+             
+             This is more reliable but requires processing all recent PRs.
+          
+          3. **Search by common patterns**:
              ```
-             repo:${{ github.repository }} is:pr created:>=YYYY-MM-DD
+             repo:${{ github.repository }} is:pr "Original prompt" created:>=YYYY-MM-DD
              ```
-             Then filter by PR author or labels that indicate copilot-swe-agent involvement.
+             Copilot PRs typically contain "Original prompt" in their body.
           
           3. **Get PR Details**: For each found PR, use `pull_request_read` to get:
              - PR number
@@ -1050,7 +1056,7 @@ jobs:
           
           ### Phase 2: Analyze Each PR
           
-          For each PR created by copilot-swe-agent in the last 24 hours:
+          For each PR created by Copilot in the last 24 hours:
           
           #### 2.1 Determine Outcome
           - **Merged**: PR was successfully merged
@@ -1201,9 +1207,11 @@ jobs:
           
           **For Each Missing Day:**
           ```
-          # Query PRs for specific date
-          repo:${{ github.repository }} is:pr author:copilot-swe-agent created:YYYY-MM-DD..YYYY-MM-DD
+          # Query PRs for specific date using keyword search
+          repo:${{ github.repository }} is:pr "START COPILOT CODING AGENT" created:YYYY-MM-DD..YYYY-MM-DD
           ```
+          
+          Or use `list_pull_requests` with date filtering and filter results by `user.login == "Copilot"` and `user.id == 198982749`.
           
           **Process:**
           - Start with the oldest missing date in your target range (e.g., 30 days ago)
@@ -1258,7 +1266,7 @@ jobs:
           
           ### Phase 5: Check for Instruction Changes
           
-          Check if there have been changes to copilot-swe-agent instruction files that might correlate with performance changes:
+          Check if there have been changes to Copilot coding agent instruction files that might correlate with performance changes:
           
           #### 5.1 Find Instruction Files
           
@@ -1477,6 +1485,12 @@ jobs:
           - **Limit retention**: Consider keeping only last 90 days of daily data
           - **Handle errors**: If cache is corrupted, reinitialize gracefully
           - **Backup important data**: Store critical metrics redundantly
+          EOF
+      - name: Append prompt (part 2)
+        env:
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GITHUB_AW_PROMPT << 'EOF'
           - **Progressive data collection**: If historical data is missing, rebuild incrementally
             - Prioritize most recent days first (they're more relevant for trends)
             - Process one day at a time to avoid overwhelming the context
@@ -1485,12 +1499,6 @@ jobs:
           
           ### Trend Analysis
           - **Require sufficient data**: Don't report trends with less than 7 days of data
-          EOF
-      - name: Append prompt (part 2)
-        env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
           - **Use appropriate metrics**: Choose statistical measures that make sense
           - **Indicate confidence**: Note when sample sizes are small
           - **Avoid overreaction**: Small fluctuations are normal
@@ -1498,13 +1506,13 @@ jobs:
           ## Edge Cases
           
           ### No PRs in Last 24 Hours
-          If no PRs were created by copilot-swe-agent in the last 24 hours:
+          If no PRs were created by Copilot in the last 24 hours:
           - Create a brief discussion noting "No activity"
           - Still update cache memory with zero counts
           - Don't skip the analysis entirely
           
           ### Bot Username Changes
-          If copilot-swe-agent appears under different usernames:
+          If Copilot appears under different usernames:
           - Document the username variance
           - Adjust search queries accordingly
           - Note this in the discussion for future reference
@@ -1518,7 +1526,7 @@ jobs:
           ## Success Criteria
           
           A successful analysis:
-          - ✅ Finds all copilot-swe-agent PRs from last 24 hours
+          - ✅ Finds all Copilot PRs from last 24 hours
           - ✅ Calculates accurate metrics for each PR
           - ✅ Generates a clear, formatted summary table
           - ✅ Updates cache memory with today's metrics
