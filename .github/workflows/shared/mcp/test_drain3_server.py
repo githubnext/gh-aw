@@ -55,7 +55,7 @@ def test_structure():
                     if isinstance(decorator.func, ast.Attribute) and decorator.func.attr == "tool":
                         tool_functions.append(node.name)
     
-    expected_tools = ["index_file", "query_file", "list_templates"]
+    expected_tools = ["index_file", "query_file", "list_templates", "list_clusters", "cluster_stats", "find_anomalies", "compare_runs", "search_pattern"]
     missing_tools = [tool for tool in expected_tools if tool not in tool_functions]
     
     if missing_tools:

@@ -240,6 +240,297 @@ def list_templates(path: str, limit: Optional[int] = None):
 
     yield _jsonl({"event": "summary", "file": str(p), "snapshot": str(snapshot), "count": len(clusters)})
 
+@mcp.tool()
+def list_clusters(path: str, limit: Optional[int] = None):
+    """
+    Enumerate all discovered log pattern clusters from an indexed file.
+    Streams cluster information including cluster_id, size, and template.
+      - one {"event":"cluster", ...} per cluster
+      - final {"event":"summary", count, ...}
+    """
+    logger.info(f"list_clusters called: path={path}, limit={limit}")
+    p = Path(path).expanduser().resolve()
+    snapshot = _snapshot_path_for(p)
+    if not snapshot.exists():
+        logger.error(f"No snapshot found for {str(p)}")
+        yield _jsonl({"event": "error", "error": f"No snapshot for {str(p)}. Run index_file first.", "file": str(p)})
+        return
+    
+    logger.info(f"Snapshot exists: {str(snapshot)}")
+
+    miner = _new_miner(snapshot)
+    clusters = _clusters_as_dicts(miner, limit)
+    for c in clusters:
+        yield _jsonl({"event": "cluster", "file": str(p), "snapshot": str(snapshot), **c})
+
+    yield _jsonl({"event": "summary", "file": str(p), "snapshot": str(snapshot), "count": len(clusters)})
+
+@mcp.tool()
+def cluster_stats(path: str, cluster_id: int):
+    """
+    Retrieve detailed metrics for a specific cluster including count, frequency, and examples.
+    Returns:
+      - {"event":"stats", cluster_id, size, template, frequency, ...}
+    """
+    logger.info(f"cluster_stats called: path={path}, cluster_id={cluster_id}")
+    p = Path(path).expanduser().resolve()
+    snapshot = _snapshot_path_for(p)
+    if not snapshot.exists():
+        logger.error(f"No snapshot found for {str(p)}")
+        yield _jsonl({"event": "error", "error": f"No snapshot for {str(p)}. Run index_file first.", "file": str(p)})
+        return
+    
+    logger.info(f"Snapshot exists: {str(snapshot)}")
+
+    miner = _new_miner(snapshot)
+    clusters = getattr(miner.drain, "clusters", []) or []
+    
+    # Find the cluster by ID
+    target_cluster = None
+    for c in clusters:
+        if getattr(c, "cluster_id", None) == cluster_id:
+            target_cluster = c
+            break
+    
+    if target_cluster is None:
+        yield _jsonl({"event": "error", "error": f"Cluster {cluster_id} not found", "file": str(p)})
+        return
+    
+    # Calculate statistics
+    size = getattr(target_cluster, "size", 0)
+    template_tokens = getattr(target_cluster, "log_template_tokens", []) or []
+    template = " ".join(template_tokens)
+    
+    yield _jsonl({
+        "event": "stats",
+        "file": str(p),
+        "snapshot": str(snapshot),
+        "cluster_id": cluster_id,
+        "size": size,
+        "template": template,
+        "frequency": size,  # size represents the count of occurrences
+    })
+
+@mcp.tool()
+def find_anomalies(path: str, threshold: float = 0.01):
+    """
+    Detect outlier clusters or rare patterns that may indicate new issues.
+    Clusters with frequency below the threshold (as a percentage of total lines) are considered anomalies.
+    Streams anomalous clusters:
+      - {"event":"anomaly", cluster_id, size, template, frequency_pct, ...}
+      - {"event":"summary", anomaly_count, total_clusters, ...}
+    """
+    logger.info(f"find_anomalies called: path={path}, threshold={threshold}")
+    p = Path(path).expanduser().resolve()
+    snapshot = _snapshot_path_for(p)
+    if not snapshot.exists():
+        logger.error(f"No snapshot found for {str(p)}")
+        yield _jsonl({"event": "error", "error": f"No snapshot for {str(p)}. Run index_file first.", "file": str(p)})
+        return
+    
+    logger.info(f"Snapshot exists: {str(snapshot)}")
+
+    miner = _new_miner(snapshot)
+    clusters = getattr(miner.drain, "clusters", []) or []
+    
+    # Calculate total log lines processed
+    total_lines = sum(getattr(c, "size", 0) for c in clusters)
+    
+    if total_lines == 0:
+        yield _jsonl({"event": "summary", "file": str(p), "anomaly_count": 0, "total_clusters": 0})
+        return
+    
+    anomalies = []
+    for c in clusters:
+        size = getattr(c, "size", 0)
+        frequency_pct = (size / total_lines) * 100
+        
+        if frequency_pct <= threshold:
+            cluster_id = getattr(c, "cluster_id", None)
+            template_tokens = getattr(c, "log_template_tokens", []) or []
+            template = " ".join(template_tokens)
+            
+            anomalies.append({
+                "cluster_id": cluster_id,
+                "size": size,
+                "template": template,
+                "frequency_pct": frequency_pct
+            })
+    
+    # Stream anomalies
+    for anomaly in anomalies:
+        yield _jsonl({"event": "anomaly", "file": str(p), "snapshot": str(snapshot), **anomaly})
+    
+    yield _jsonl({
+        "event": "summary",
+        "file": str(p),
+        "snapshot": str(snapshot),
+        "anomaly_count": len(anomalies),
+        "total_clusters": len(clusters),
+        "threshold_pct": threshold
+    })
+
+@mcp.tool()
+def compare_runs(path1: str, path2: str):
+    """
+    Compare two log files or runs to identify added, removed, or changed clusters.
+    Both files must have been indexed previously.
+    Streams comparison results:
+      - {"event":"added", cluster_id, template, ...}
+      - {"event":"removed", cluster_id, template, ...}
+      - {"event":"changed", cluster_id, template, old_size, new_size, ...}
+      - {"event":"summary", added_count, removed_count, changed_count, ...}
+    """
+    logger.info(f"compare_runs called: path1={path1}, path2={path2}")
+    
+    # Load first file
+    p1 = Path(path1).expanduser().resolve()
+    snapshot1 = _snapshot_path_for(p1)
+    if not snapshot1.exists():
+        logger.error(f"No snapshot found for {str(p1)}")
+        yield _jsonl({"event": "error", "error": f"No snapshot for {str(p1)}. Run index_file first.", "file": str(p1)})
+        return
+    
+    # Load second file
+    p2 = Path(path2).expanduser().resolve()
+    snapshot2 = _snapshot_path_for(p2)
+    if not snapshot2.exists():
+        logger.error(f"No snapshot found for {str(p2)}")
+        yield _jsonl({"event": "error", "error": f"No snapshot for {str(p2)}. Run index_file first.", "file": str(p2)})
+        return
+    
+    logger.info(f"Both snapshots exist: {str(snapshot1)}, {str(snapshot2)}")
+
+    # Load miners
+    miner1 = _new_miner(snapshot1)
+    miner2 = _new_miner(snapshot2)
+    
+    clusters1 = getattr(miner1.drain, "clusters", []) or []
+    clusters2 = getattr(miner2.drain, "clusters", []) or []
+    
+    # Build template -> cluster mapping for comparison
+    templates1 = {}
+    for c in clusters1:
+        template = " ".join(getattr(c, "log_template_tokens", []) or [])
+        templates1[template] = {
+            "cluster_id": getattr(c, "cluster_id", None),
+            "size": getattr(c, "size", 0),
+            "template": template
+        }
+    
+    templates2 = {}
+    for c in clusters2:
+        template = " ".join(getattr(c, "log_template_tokens", []) or [])
+        templates2[template] = {
+            "cluster_id": getattr(c, "cluster_id", None),
+            "size": getattr(c, "size", 0),
+            "template": template
+        }
+    
+    # Find added, removed, and changed clusters
+    added = []
+    removed = []
+    changed = []
+    
+    # Check for added and changed
+    for template, info2 in templates2.items():
+        if template not in templates1:
+            added.append(info2)
+        elif templates1[template]["size"] != info2["size"]:
+            changed.append({
+                **info2,
+                "old_size": templates1[template]["size"],
+                "new_size": info2["size"]
+            })
+    
+    # Check for removed
+    for template, info1 in templates1.items():
+        if template not in templates2:
+            removed.append(info1)
+    
+    # Stream results
+    for item in added:
+        yield _jsonl({"event": "added", "file1": str(p1), "file2": str(p2), **item})
+    
+    for item in removed:
+        yield _jsonl({"event": "removed", "file1": str(p1), "file2": str(p2), **item})
+    
+    for item in changed:
+        yield _jsonl({"event": "changed", "file1": str(p1), "file2": str(p2), **item})
+    
+    yield _jsonl({
+        "event": "summary",
+        "file1": str(p1),
+        "file2": str(p2),
+        "added_count": len(added),
+        "removed_count": len(removed),
+        "changed_count": len(changed),
+        "total_clusters_file1": len(clusters1),
+        "total_clusters_file2": len(clusters2)
+    })
+
+@mcp.tool()
+def search_pattern(path: str, pattern: str, use_regex: bool = False):
+    """
+    Search logs for specific text or regex patterns, returning matching clusters.
+    Streams matching clusters:
+      - {"event":"match", cluster_id, size, template, ...}
+      - {"event":"summary", match_count, total_clusters, ...}
+    """
+    logger.info(f"search_pattern called: path={path}, pattern={pattern}, use_regex={use_regex}")
+    p = Path(path).expanduser().resolve()
+    snapshot = _snapshot_path_for(p)
+    if not snapshot.exists():
+        logger.error(f"No snapshot found for {str(p)}")
+        yield _jsonl({"event": "error", "error": f"No snapshot for {str(p)}. Run index_file first.", "file": str(p)})
+        return
+    
+    logger.info(f"Snapshot exists: {str(snapshot)}")
+
+    miner = _new_miner(snapshot)
+    clusters = getattr(miner.drain, "clusters", []) or []
+    
+    matches = []
+    import re
+    
+    for c in clusters:
+        template_tokens = getattr(c, "log_template_tokens", []) or []
+        template = " ".join(template_tokens)
+        
+        # Check if pattern matches
+        if use_regex:
+            try:
+                if re.search(pattern, template, re.IGNORECASE):
+                    matches.append({
+                        "cluster_id": getattr(c, "cluster_id", None),
+                        "size": getattr(c, "size", 0),
+                        "template": template
+                    })
+            except re.error as e:
+                yield _jsonl({"event": "error", "error": f"Invalid regex pattern: {str(e)}", "file": str(p)})
+                return
+        else:
+            if pattern.lower() in template.lower():
+                matches.append({
+                    "cluster_id": getattr(c, "cluster_id", None),
+                    "size": getattr(c, "size", 0),
+                    "template": template
+                })
+    
+    # Stream matches
+    for match in matches:
+        yield _jsonl({"event": "match", "file": str(p), "snapshot": str(snapshot), **match})
+    
+    yield _jsonl({
+        "event": "summary",
+        "file": str(p),
+        "snapshot": str(snapshot),
+        "match_count": len(matches),
+        "total_clusters": len(clusters),
+        "pattern": pattern,
+        "use_regex": use_regex
+    })
+
 # -----------------------
 # Entry point
 # -----------------------
