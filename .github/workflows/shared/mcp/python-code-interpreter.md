@@ -1,67 +1,17 @@
 ---
 mcp-servers:
   python-code-interpreter:
-    type: http
-    url: http://localhost:9753/mcp
+    container: "python-code-interpreter:latest"
+    args:
+      - "-v"
+      - "${{ github.workspace }}:/workspace"
     allowed:
       - run_python_query
 steps:
-  - name: Set up Python
-    uses: actions/setup-python@v5
-    with:
-      python-version: '3.11'
-  - name: Install Python code interpreter dependencies
+  - name: Build Python code interpreter Docker image
     run: |
-      pip install fastmcp pandas numpy scipy matplotlib seaborn plotly
-  - name: Copy Python code interpreter MCP server script
-    run: |
-      mkdir -p /tmp/gh-aw/mcp-servers/python-code-interpreter/
-      cp .github/workflows/shared/mcp/python-code-interpreter_server.py /tmp/gh-aw/mcp-servers/python-code-interpreter/
-      chmod +x /tmp/gh-aw/mcp-servers/python-code-interpreter/python-code-interpreter_server.py
-  - name: Start Python code interpreter MCP server
-    run: |
-      set -e
-      mkdir -p /tmp/gh-aw/mcp-logs/python-code-interpreter/
-      python /tmp/gh-aw/mcp-servers/python-code-interpreter/python-code-interpreter_server.py > /tmp/gh-aw/mcp-logs/python-code-interpreter/server.log 2>&1 &
-      MCP_PID=$!
-      
-      # Wait for server to start
-      sleep 3
-      
-      # Check if server is still running
-      if ! kill -0 $MCP_PID 2>/dev/null; then
-        echo "Python code interpreter MCP server failed to start"
-        echo "Server logs:"
-        cat /tmp/gh-aw/mcp-logs/python-code-interpreter/server.log || true
-        exit 1
-      fi
-      
-      # Check if server is listening on port 9753
-      if ! netstat -tln | grep -q ":9753 "; then
-        echo "Python code interpreter MCP server not listening on port 9753"
-        echo "Server logs:"
-        cat /tmp/gh-aw/mcp-logs/python-code-interpreter/server.log || true
-        exit 1
-      fi
-      
-      # Test HTTP endpoint with curl
-      echo "Testing HTTP endpoint with curl..."
-      if curl -v -X GET http://localhost:9753/mcp 2>&1 | tee /tmp/gh-aw/mcp-logs/python-code-interpreter/curl-test.log; then
-        echo "✓ HTTP endpoint responded"
-      else
-        echo "✗ HTTP endpoint did not respond"
-        echo "Server logs:"
-        cat /tmp/gh-aw/mcp-logs/python-code-interpreter/server.log || true
-        echo "Curl test logs:"
-        cat /tmp/gh-aw/mcp-logs/python-code-interpreter/curl-test.log || true
-        exit 1
-      fi
-      
-      echo "Python code interpreter MCP server started successfully with PID $MCP_PID"
-      echo "Server logs (first 50 lines):"
-      head -n 50 /tmp/gh-aw/mcp-logs/python-code-interpreter/server.log || true
-    env:
-      PORT: "9753"
+      cd .github/workflows/shared/mcp
+      docker build -f python-code-interpreter.Dockerfile -t python-code-interpreter:latest .
 ---
 
 <!--
@@ -76,7 +26,7 @@ file copying support for data analysis workflows.
 Documentation: https://github.com/jlowin/fastmcp
 
 Features:
-- Isolated execution: Each request runs in /tmp/gh-aw/python-runs/<uuid>
+- Isolated execution: Each request runs in /app/runs/<uuid>
 - File support: Copy input files into the run directory
 - Real-time streaming: See execution output as it happens
 - Output collection: All generated files are tracked and returned
@@ -90,15 +40,16 @@ Available tools:
     Returns: Run metadata including run_id, run_path, exit_code, and list of files
 
 Configuration:
-  The server runs on port 9753 and executes Python 3.11+ code with common
-  data analysis libraries pre-installed.
+  The server runs as a Docker container with Python 3.11 and executes code using
+  stdio transport (FastMCP default). The workspace is mounted to /workspace for
+  file access.
 
 Setup:
   1. Include in Your Workflow:
      imports:
        - shared/mcp/python-code-interpreter.md
 
-  2. The server will be automatically installed and started on localhost:9753
+  2. The Docker image will be built automatically and the server started
 
 Example Usage:
   Generate a histogram plot of file sizes in the repository:
@@ -113,17 +64,18 @@ Example Usage:
   providing the full path in the files parameter.
 
 Connection Type:
-  This configuration uses a local HTTP MCP server running Python with FastMCP 2.0.
-  The server runs with transport="http" and responses stream for real-time output.
+  This configuration uses a Docker container with stdio transport (FastMCP default).
+  The server runs via `mcp.run()` and communicates through standard input/output.
 
 Troubleshooting:
-  Server Failed to Start:
-  - Verify Python 3.11+ is available
-  - Check that port 9753 is not in use
-  - Review server logs for dependency installation issues
+  Docker Build Failed:
+  - Verify Docker is available in the runner
+  - Check network connectivity for dependency downloads
+  - Review Docker build logs
   
   Execution Errors:
-  - Ensure file paths are absolute when using the files parameter
+  - Ensure file paths are accessible from within the container
+  - Use /workspace prefix for files in the GitHub workspace
   - Check that required Python libraries are available
   - Verify file permissions are readable
 

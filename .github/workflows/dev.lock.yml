@@ -82,22 +82,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install Python code interpreter dependencies
-        run: |
-          pip install fastmcp pandas numpy scipy matplotlib seaborn plotly
-      - name: Copy Python code interpreter MCP server script
-        run: |
-          mkdir -p /tmp/gh-aw/mcp-servers/python-code-interpreter/
-          cp .github/workflows/shared/mcp/python-code-interpreter_server.py /tmp/gh-aw/mcp-servers/python-code-interpreter/
-          chmod +x /tmp/gh-aw/mcp-servers/python-code-interpreter/python-code-interpreter_server.py
-      - env:
-          PORT: "9753"
-        name: Start Python code interpreter MCP server
-        run: "set -e\nmkdir -p /tmp/gh-aw/mcp-logs/python-code-interpreter/\npython /tmp/gh-aw/mcp-servers/python-code-interpreter/python-code-interpreter_server.py > /tmp/gh-aw/mcp-logs/python-code-interpreter/server.log 2>&1 &\nMCP_PID=$!\n\n# Wait for server to start\nsleep 3\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"Python code interpreter MCP server failed to start\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/python-code-interpreter/server.log || true\n  exit 1\nfi\n\n# Check if server is listening on port 9753\nif ! netstat -tln | grep -q \":9753 \"; then\n  echo \"Python code interpreter MCP server not listening on port 9753\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/python-code-interpreter/server.log || true\n  exit 1\nfi\n\n# Test HTTP endpoint with curl\necho \"Testing HTTP endpoint with curl...\"\nif curl -v -X GET http://localhost:9753/mcp 2>&1 | tee /tmp/gh-aw/mcp-logs/python-code-interpreter/curl-test.log; then\n  echo \"✓ HTTP endpoint responded\"\nelse\n  echo \"✗ HTTP endpoint did not respond\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/python-code-interpreter/server.log || true\n  echo \"Curl test logs:\"\n  cat /tmp/gh-aw/mcp-logs/python-code-interpreter/curl-test.log || true\n  exit 1\nfi\n\necho \"Python code interpreter MCP server started successfully with PID $MCP_PID\"\necho \"Server logs (first 50 lines):\"\nhead -n 50 /tmp/gh-aw/mcp-logs/python-code-interpreter/server.log || true\n"
+      - name: Build Python code interpreter Docker image
+        run: |-
+          cd .github/workflows/shared/mcp
+          docker build -f python-code-interpreter.Dockerfile -t python-code-interpreter:latest .
 
       - name: Create gh-aw temp directory
         run: |
@@ -167,6 +155,7 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.18.0
+          docker pull python-code-interpreter:latest
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
@@ -933,10 +922,18 @@ jobs:
                 }
               },
               "python-code-interpreter": {
-                "type": "http",
-                "url": "http://localhost:9753/mcp",
+                "type": "local",
+                "command": "docker",
                 "tools": [
                   "run_python_query"
+                ],
+                "args": [
+                  "run",
+                  "--rm",
+                  "-i",
+                  "-v",
+                  "${{ github.workspace }}:/workspace",
+                  "python-code-interpreter:latest"
                 ]
               },
               "safe_outputs": {

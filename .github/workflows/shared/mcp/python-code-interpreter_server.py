@@ -13,7 +13,7 @@ Features:
 from fastmcp import MCP, Stream
 import subprocess, os, uuid, shutil
 
-BASE_DIR = "/tmp/gh-aw/python-runs"
+BASE_DIR = "/app/runs"
 os.makedirs(BASE_DIR, exist_ok=True)
 
 mcp = MCP(name="python-code-interpreter", version="2.0.0")
@@ -81,6 +81,4 @@ def run_python_query(code: str, stream: Stream, files: list[str] | None = None):
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", "9753"))
-    print(f"🚀 FastMCP v2 Python Data Agent running on port {port}")
-    mcp.run_http(host="0.0.0.0", port=port)
+    mcp.run()
