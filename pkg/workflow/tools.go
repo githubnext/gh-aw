@@ -140,38 +140,29 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	data.Tools = c.applyDefaultTools(data.Tools, data.SafeOutputs)
 }
 
+// extractMapFromFrontmatter is a generic helper to extract a map[string]any from frontmatter
+func extractMapFromFrontmatter(frontmatter map[string]any, key string) map[string]any {
+	if value, exists := frontmatter[key]; exists {
+		if valueMap, ok := value.(map[string]any); ok {
+			return valueMap
+		}
+	}
+	return make(map[string]any)
+}
+
 // extractToolsFromFrontmatter extracts tools section from frontmatter map
 func extractToolsFromFrontmatter(frontmatter map[string]any) map[string]any {
-	tools, exists := frontmatter["tools"]
-	if !exists {
-		return make(map[string]any)
-	}
-
-	if toolsMap, ok := tools.(map[string]any); ok {
-		return toolsMap
-	}
-
-	return make(map[string]any)
+	return extractMapFromFrontmatter(frontmatter, "tools")
 }
 
 // extractMCPServersFromFrontmatter extracts mcp-servers section from frontmatter
 func extractMCPServersFromFrontmatter(frontmatter map[string]any) map[string]any {
-	if mcpServers, exists := frontmatter["mcp-servers"]; exists {
-		if mcpServersMap, ok := mcpServers.(map[string]any); ok {
-			return mcpServersMap
-		}
-	}
-	return make(map[string]any)
+	return extractMapFromFrontmatter(frontmatter, "mcp-servers")
 }
 
 // extractRuntimesFromFrontmatter extracts runtimes section from frontmatter map
 func extractRuntimesFromFrontmatter(frontmatter map[string]any) map[string]any {
-	if runtimes, exists := frontmatter["runtimes"]; exists {
-		if runtimesMap, ok := runtimes.(map[string]any); ok {
-			return runtimesMap
-		}
-	}
-	return make(map[string]any)
+	return extractMapFromFrontmatter(frontmatter, "runtimes")
 }
 
 // mergeToolsAndMCPServers merges tools, mcp-servers, and included tools

@@ -223,6 +223,16 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 	return result
 }
 
+// addUniqueWorkflow adds a workflow to the list if it's not already present
+func addUniqueWorkflow(workflows []string, workflow string) []string {
+	for _, wf := range workflows {
+		if wf == workflow {
+			return workflows
+		}
+	}
+	return append(workflows, workflow)
+}
+
 // buildMissingToolsSummary aggregates missing tools across all runs
 func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary {
 	toolSummary := make(map[string]*MissingToolSummary)
@@ -231,17 +241,7 @@ func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary
 		for _, tool := range pr.MissingTools {
 			if summary, exists := toolSummary[tool.Tool]; exists {
 				summary.Count++
-				// Add workflow if not already in the list
-				found := false
-				for _, wf := range summary.Workflows {
-					if wf == tool.WorkflowName {
-						found = true
-						break
-					}
-				}
-				if !found {
-					summary.Workflows = append(summary.Workflows, tool.WorkflowName)
-				}
+				summary.Workflows = addUniqueWorkflow(summary.Workflows, tool.WorkflowName)
 				summary.RunIDs = append(summary.RunIDs, tool.RunID)
 			} else {
 				toolSummary[tool.Tool] = &MissingToolSummary{
@@ -280,17 +280,7 @@ func buildMCPFailuresSummary(processedRuns []ProcessedRun) []MCPFailureSummary {
 		for _, failure := range pr.MCPFailures {
 			if summary, exists := failureSummary[failure.ServerName]; exists {
 				summary.Count++
-				// Add workflow if not already in the list
-				found := false
-				for _, wf := range summary.Workflows {
-					if wf == failure.WorkflowName {
-						found = true
-						break
-					}
-				}
-				if !found {
-					summary.Workflows = append(summary.Workflows, failure.WorkflowName)
-				}
+				summary.Workflows = addUniqueWorkflow(summary.Workflows, failure.WorkflowName)
 				summary.RunIDs = append(summary.RunIDs, failure.RunID)
 			} else {
 				failureSummary[failure.ServerName] = &MCPFailureSummary{
@@ -305,7 +295,6 @@ func buildMCPFailuresSummary(processedRuns []ProcessedRun) []MCPFailureSummary {
 
 	var result []MCPFailureSummary
 	for _, summary := range failureSummary {
-		// Populate display field for workflows
 		// Populate display field (truncation handled by console rendering with maxlen tag)
 		summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
 
