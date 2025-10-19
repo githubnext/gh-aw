@@ -171,6 +171,11 @@ install: build
 	gh extension remove gh-aw || true
 	gh extension install .
 
+# Generate schema documentation
+.PHONY: generate-schema-docs
+generate-schema-docs:
+	node scripts/generate-schema-docs.js
+
 # Recompile all workflow files
 .PHONY: recompile
 recompile: build 
@@ -198,7 +203,7 @@ release: test
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt fmt-cjs lint build test-all recompile
+agent-finish: deps-dev fmt fmt-cjs lint build test-all recompile generate-schema-docs
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -225,6 +230,7 @@ help:
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
+	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
 
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
 	@echo "  version   - Preview next version from changesets"
