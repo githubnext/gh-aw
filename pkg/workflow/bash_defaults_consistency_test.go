@@ -92,7 +92,7 @@ func TestBashDefaultsConsistency(t *testing.T) {
 
 			// Extract cache-memory config for Claude
 			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfig(claudeTools)
-			
+
 			// Get results from both engines
 			claudeResult := claudeEngine.computeAllowedClaudeToolsString(claudeTools, tt.safeOutputs, cacheMemoryConfig)
 			copilotResult := copilotEngine.computeCopilotToolArguments(copilotTools, tt.safeOutputs)

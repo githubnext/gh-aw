@@ -1193,8 +1193,8 @@ jobs:
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: |
-          mkdir -p /tmp/gh-aw/cache-memory
-          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
+          mkdir -p /tmp/cache-memory-default
+          echo "Cache memory directory created at /tmp/cache-memory-default"
           echo "This folder provides persistent file storage across workflow runs"
           echo "LLMs and agentic tools can freely read and write files in this directory"
       - name: Cache memory file share data
