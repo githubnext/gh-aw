@@ -1,0 +1,159 @@
+package cli
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
+)
+
+// TestMissingToolDetectionIntegration tests the complete flow from artifact file to report
+func TestMissingToolDetectionIntegration(t *testing.T) {
+	// Create a temporary directory structure mimicking a real workflow run
+	tmpDir := t.TempDir()
+	runDir := filepath.Join(tmpDir, "run-18635648039")
+	err := os.MkdirAll(runDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create test directory: %v", err)
+	}
+
+	// Create agent_output.json with the actual data from the workflow run
+	agentOutputContent := `{
+  "items": [
+    {
+      "type": "missing_tool",
+      "tool": "run_python_query (python-code-interpreter MCP)",
+      "reason": "Task requires Python execution via MCP server but tool is not available. Bash execution is blocked.",
+      "alternatives": "Direct Python/matplotlib execution through available MCP servers or unblocked bash access",
+      "timestamp": "2025-10-19T20:29:26.971Z"
+    }
+  ],
+  "errors": []
+}`
+
+	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+	err = os.WriteFile(agentOutputPath, []byte(agentOutputContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write agent_output.json: %v", err)
+	}
+
+	// Create aw_info.json
+	awInfoContent := `{
+  "engine_id": "copilot",
+  "workflow_name": "Dev",
+  "staged": false
+}`
+	awInfoPath := filepath.Join(runDir, "aw_info.json")
+	err = os.WriteFile(awInfoPath, []byte(awInfoContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write aw_info.json: %v", err)
+	}
+
+	// Create test run
+	testRun := WorkflowRun{
+		DatabaseID:   18635648039,
+		WorkflowName: "Dev",
+	}
+
+	// Extract missing tools
+	missingTools, err := extractMissingToolsFromRun(runDir, testRun, false)
+	if err != nil {
+		t.Fatalf("Error extracting missing tools: %v", err)
+	}
+
+	// Verify results
+	if len(missingTools) != 1 {
+		t.Errorf("Expected 1 missing tool, got %d", len(missingTools))
+		return
+	}
+
+	tool := missingTools[0]
+	expectedTool := "run_python_query (python-code-interpreter MCP)"
+	if tool.Tool != expectedTool {
+		t.Errorf("Expected tool '%s', got '%s'", expectedTool, tool.Tool)
+	}
+
+	expectedReason := "Task requires Python execution via MCP server but tool is not available. Bash execution is blocked."
+	if tool.Reason != expectedReason {
+		t.Errorf("Expected reason '%s', got '%s'", expectedReason, tool.Reason)
+	}
+
+	expectedAlternatives := "Direct Python/matplotlib execution through available MCP servers or unblocked bash access"
+	if tool.Alternatives != expectedAlternatives {
+		t.Errorf("Expected alternatives '%s', got '%s'", expectedAlternatives, tool.Alternatives)
+	}
+
+	if tool.WorkflowName != testRun.WorkflowName {
+		t.Errorf("Expected workflow name '%s', got '%s'", testRun.WorkflowName, tool.WorkflowName)
+	}
+
+	if tool.RunID != testRun.DatabaseID {
+		t.Errorf("Expected run ID %d, got %d", testRun.DatabaseID, tool.RunID)
+	}
+}
+
+// TestMissingToolTypeConsistency ensures the type field is consistent across the codebase
+func TestMissingToolTypeConsistency(t *testing.T) {
+	// This test documents that the missing tool type must be "missing_tool" (with underscore)
+	// to match the JavaScript code that generates the agent output
+	
+	tmpDir := t.TempDir()
+	runDir := filepath.Join(tmpDir, "test-run")
+	err := os.MkdirAll(runDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create test directory: %v", err)
+	}
+
+	testRun := WorkflowRun{
+		DatabaseID:   12345,
+		WorkflowName: "Test",
+	}
+
+	// Test with correct type (underscore)
+	correctTypeContent := `{
+  "items": [
+    {
+      "type": "missing_tool",
+      "tool": "test_tool",
+      "reason": "Test reason"
+    }
+  ]
+}`
+	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+	err = os.WriteFile(agentOutputPath, []byte(correctTypeContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	tools, err := extractMissingToolsFromRun(runDir, testRun, false)
+	if err != nil {
+		t.Fatalf("Error extracting with correct type: %v", err)
+	}
+	if len(tools) != 1 {
+		t.Errorf("Expected 1 tool with correct type 'missing_tool', got %d", len(tools))
+	}
+
+	// Test with incorrect type (hyphen) - should not match
+	incorrectTypeContent := `{
+  "items": [
+    {
+      "type": "missing-tool",
+      "tool": "test_tool",
+      "reason": "Test reason"
+    }
+  ]
+}`
+	err = os.WriteFile(agentOutputPath, []byte(incorrectTypeContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	tools, err = extractMissingToolsFromRun(runDir, testRun, false)
+	if err != nil {
+		t.Fatalf("Error extracting with incorrect type: %v", err)
+	}
+	if len(tools) != 0 {
+		t.Errorf("Expected 0 tools with incorrect type 'missing-tool' (hyphen), got %d. The type must use underscore to match JavaScript code.", len(tools))
+	}
+}
