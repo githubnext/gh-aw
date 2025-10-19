@@ -321,7 +321,9 @@ async function main() {
     try {
       let comment;
 
-      if (isDiscussion) {
+      // Use GraphQL API for discussions, REST API for issues/PRs
+      // Check both explicit isDiscussion flag and detected commentEndpoint
+      if (isDiscussion || commentEndpoint === "discussions") {
         core.info(`Creating comment on discussion #${itemNumber}`);
         core.info(`Comment content length: ${body.length}`);
 

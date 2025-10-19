@@ -854,7 +854,7 @@ jobs:
                 );
                 try {
                   let comment;
-                  if (isDiscussion) {
+                  if (isDiscussion || commentEndpoint === "discussions") {
                     core.info(`Creating comment on discussion #${itemNumber}`);
                     core.info(`Comment content length: ${body.length}`);
                     comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body);
