@@ -295,7 +295,7 @@ func buildMCPFailuresSummary(processedRuns []ProcessedRun) []MCPFailureSummary {
 
 	var result []MCPFailureSummary
 	for _, summary := range failureSummary {
-		// Populate display field (truncation handled by console rendering with maxlen tag)
+		// Populate display field for workflows (truncation handled by console rendering with maxlen tag)
 		summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
 
 		result = append(result, *summary)
