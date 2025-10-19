@@ -88,7 +88,7 @@ You are an AI analytics agent that monitors and analyzes the performance of the 
 
 ## Mission
 
-Daily analysis of pull requests created by copilot-swe-agent in the last 24 hours, tracking performance metrics and identifying trends. Provides daily, weekly, and monthly performance summaries.
+Daily analysis of pull requests created by copilot-swe-agent in the last 24 hours, tracking performance metrics and identifying trends. **Focus on concise summaries** - provide key metrics and insights without excessive detail.
 
 ## Current Context
 
@@ -191,34 +191,13 @@ For each PR, assess:
 - Whether tests were added/modified
 - Whether documentation was updated
 
-### Phase 3: Generate Summary Table
+### Phase 3: Generate Concise Summary
 
-Create a summary table with the following columns:
-
-| PR # | Title | Outcome | Comments | Agent Duration | Total Duration | Files Changed | Status |
-|------|-------|---------|----------|----------------|----------------|---------------|--------|
-| #123 | Fix bug | Merged | 5 | 15m | 2h 30m | 3 | ✅ |
-| #124 | Add feature | Closed | 2 | 8m | 45m | 5 | ❌ |
-| #125 | Update docs | Open | 1 | 5m | - | 2 | ⏳ |
-
-**Table Columns Explained**:
-- **PR #**: Pull request number
-- **Title**: PR title (truncated if needed)
-- **Outcome**: Merged ✅ / Closed ❌ / Open ⏳
-- **Comments**: Number of human comments
-- **Agent Duration**: Time from PR creation to last commit by agent
-- **Total Duration**: Time from PR creation to merge/close (or current time if still open)
-- **Files Changed**: Number of files modified
-- **Status**: Visual indicator of outcome
-
-**Summary Statistics**:
-- Total PRs analyzed: [count]
-- Merged: [count] ([percentage]%)
-- Closed without merge: [count] ([percentage]%)
-- Still open: [count]
-- Average human comments per PR: [number]
-- Average agent duration: [time]
-- Average total duration (for completed PRs): [time]
+**Create a brief summary focusing on:**
+- Total PRs in last 24 hours with success rate
+- Only list PRs if there are issues (failed, closed without merge)
+- Omit the detailed PR table unless there are notable PRs to highlight
+- Keep metrics concise - show only key statistics
 
 ### Phase 4: Historical Trending Analysis
 
@@ -255,27 +234,21 @@ The history file should contain daily metrics in this format:
 
 If the history file doesn't exist or has gaps in the data, rebuild it by querying historical PRs:
 
-1. **Determine Missing Date Range**: Identify which dates need data (up to last 7 days maximum for meaningful trends)
+1. **Determine Missing Date Range**: Identify which dates need data (up to last 3 days maximum for concise trends)
 
-2. **Query PRs One Day at a Time**: To avoid context explosion, query PRs for each missing day separately:
-   ```
-   repo:${{ github.repository }} is:pr author:copilot-swe-agent created:YYYY-MM-DD..YYYY-MM-DD
-   ```
-   
+2. **Query PRs One Day at a Time**: To avoid context explosion, query PRs for each missing day separately
+
 3. **Process Each Day**: For each day with missing data:
    - Query PRs created on that specific date
    - Calculate the same metrics as for today (total PRs, merged, closed, success rate, etc.)
    - Store in the history file
-   - Limit processing to avoid timeout - prioritize most recent days first
+   - Limit to 3 days total to keep reports concise
 
-4. **Incremental Approach**: 
+4. **Simplified Approach**: 
    - Process one day at a time in chronological order (oldest to newest)
    - Save after each day to preserve progress
-   - If you have 5+ days of data, that's sufficient for basic trend analysis
-   - Aim for 7 days maximum for week-over-week trends
-   - Do not attempt to collect more than 7 days of historical data
-
-5. **Rate Limiting**: Be mindful of API rate limits - if approaching limits, save what you have and continue next run
+   - **Stop at 3 days** - this is sufficient for concise trend analysis
+   - Prioritize most recent days first
 
 #### 4.2 Store Today's Metrics
 
@@ -299,12 +272,12 @@ Store the data in JSON format with proper structure.
 
 **When to Rebuild:**
 - History file doesn't exist
-- History file has gaps (missing dates in the last 7 days)
-- Insufficient data for trend analysis (< 7 days)
+- History file has gaps (missing dates in the last 3 days)
+- Insufficient data for trend analysis (< 3 days)
 
 **Rebuilding Strategy:**
 1. **Assess Current State**: Check how many days of data you have
-2. **Target Collection**: Aim for at least 7 days maximum (for weekly trends)
+2. **Target Collection**: Aim for 3 days maximum (for concise trends)
 3. **One Day at a Time**: Query PRs for each missing date separately to avoid context explosion
 
 **For Each Missing Day:**
@@ -316,21 +289,20 @@ repo:${{ github.repository }} is:pr "START COPILOT CODING AGENT" created:YYYY-MM
 Or use `list_pull_requests` with date filtering and filter results by `user.login == "Copilot"` and `user.id == 198982749`.
 
 **Process:**
-- Start with the oldest missing date in your target range (maximum 7 days ago)
+- Start with the oldest missing date in your target range (maximum 3 days ago)
 - For each date:
   1. Search for PRs created on that date
   2. Analyze each PR (same as Phase 2)
   3. Calculate daily metrics (same as Phase 4.2)
   4. Add to history.json
   5. Save immediately to preserve progress
-- Continue until you have sufficient data (up to 7 days) or reach time limits
+- Stop at 3 days total
 
 **Important Constraints:**
 - Process dates in chronological order (oldest first)
 - Save after processing each day
-- If time is running short (> 10 minutes elapsed), stop and save what you have
-- Next run will continue from where you left off
-- Prioritize data quality over quantity - better to have accurate data for fewer days
+- **Maximum 3 days** of historical data for concise reporting
+- Prioritize data quality over quantity
 
 #### 4.3 Store Today's Metrics
 
@@ -346,221 +318,75 @@ Append to history.json in the cache memory.
 
 #### 4.4 Analyze Trends
 
-If historical data exists (at least 7 days), analyze trends:
+**Concise Trend Analysis** - If historical data exists (at least 3 days), show:
 
-**Week-over-Week Comparison** (last 7 days vs previous 7 days):
-- Success rate trend (improving/declining/stable)
-- Average duration trend (faster/slower/stable)
-- Comment count trend (more engagement/less engagement)
-- Volume trend (more/fewer PRs)
+**3-Day Comparison** (focus on last 3 days):
+- Success rate trend (improving/declining/stable with percentage)
+- Notable changes only - omit stable metrics
 
-**Monthly Summary** (if 30+ days of data):
-- 30-day average success rate
-- 30-day average duration
-- 30-day average comments
-- Total PRs in last 30 days
-- Weekly breakdown of the month
+**Skip monthly summaries** unless specifically showing anomalies or significant changes.
 
 **Trend Indicators**:
-- 📈 Improving: Metric is better than comparison period
-- 📉 Declining: Metric is worse than comparison period
-- ➡️ Stable: Metric is within 5% of comparison period
+- 📈 Improving: Metric significantly better (>10% change)
+- 📉 Declining: Metric significantly worse (>10% change)
+- ➡️ Stable: Metric within 10% (don't report unless notable)
 
-### Phase 5: Check for Instruction Changes
+### Phase 5: Skip Instruction Changes Analysis
 
-Check if there have been changes to Copilot coding agent instruction files that might correlate with performance changes:
+**Omit this phase** - instruction file correlation analysis adds unnecessary verbosity. Only include if there's a clear, immediate issue to investigate.
 
-#### 5.1 Find Instruction Files
+### Phase 6: Create Concise Analysis Discussion
 
-Look for instruction or prompt files in the repository:
-```bash
-find .github -name '*copilot*' -o -name '*swe*' -o -name '*agent*' -o -name '*instruction*' -o -name '*prompt*' 2>/dev/null || echo "No matching files found"
-```
-
-Common locations:
-- `.github/agents/`
-- `.github/instructions/`
-- `.github/prompts/`
-
-#### 5.2 Check Recent Changes
-
-For each instruction file found, check if it was modified in the last 7 days:
-```bash
-git log --oneline --since="7 days ago" -- .github/agents/
-git log --oneline --since="7 days ago" -- .github/instructions/
-```
-
-Use `get_commit` to get details of any recent changes to instruction files.
-
-#### 5.3 Correlate with Performance
-
-If instruction files were modified recently:
-- Note the date of the change
-- Compare performance metrics before and after the change
-- Identify if there's a correlation (improved/degraded performance)
-
-**Example Correlation Analysis**:
-```
-Instruction file `.github/agents/copilot-swe.md` was updated on 2024-10-14.
-
-Performance before change (Oct 11-13):
-- Success rate: 65%
-- Avg duration: 15m
-
-Performance after change (Oct 15-17):
-- Success rate: 75% 📈 (+10%)
-- Avg duration: 12m 📈 (20% faster)
-
-**Conclusion**: Performance improved after instruction update.
-```
-
-### Phase 6: Create Analysis Discussion
-
-Create a comprehensive discussion with your findings using the safe-outputs create-discussion functionality.
+Create a **concise** discussion with your findings using the safe-outputs create-discussion functionality.
 
 **Discussion Title**: `Daily Copilot Agent Analysis - [DATE]`
 
-**Discussion Template**:
+**Concise Discussion Template**:
 ```markdown
 # 🤖 Copilot Agent PR Analysis - [DATE]
 
 ## Summary
 
 **Analysis Period**: Last 24 hours  
-**Total PRs Analyzed**: [count]  
-**Success Rate**: [percentage]%
+**Total PRs**: [count] | **Merged**: [count] ([percentage]%) | **Avg Duration**: [time]
 
-## PR Summary Table
+## Performance Metrics
 
-[Include the detailed table from Phase 3]
+| Date | PRs | Merged | Success Rate | Avg Duration | Avg Comments |
+|------|-----|--------|--------------|--------------|--------------| 
+| [today] | [count] | [count] | [%] | [time] | [count] |
+| [today-1] | [count] | [count] | [%] | [time] | [count] |
+| [today-2] | [count] | [count] | [%] | [time] | [count] |
 
-## Metrics
+**Trend**: [Only mention if significant change >10%]
 
-### Today's Performance
-- **PRs Created**: [count]
-- **PRs Merged**: [count] ([percentage]%)
-- **PRs Closed (not merged)**: [count] ([percentage]%)
-- **PRs Still Open**: [count]
-- **Average Human Comments**: [number]
-- **Average Agent Duration**: [time]
-- **Average Total Duration**: [time]
+## Notable PRs
 
-### Weekly Summary (Last 7 Days)
+[Only list if there are failures, closures, or issues - otherwise omit this section]
 
-[If at least 7 days of historical data available]
-
-**Performance Metrics:**
-- **Total PRs**: [count]
-- **Success Rate**: [percentage]%
-- **Average Duration**: [time]
-- **Average Comments**: [number]
-
-**Daily Breakdown (Last 7 Days):**
-| Date | PRs | Merged | Success Rate | Avg Duration |
-|------|-----|--------|--------------|--------------|
-| [date] | [count] | [count] | [%] | [time] |
-| ... | ... | ... | ... | ... |
-
-### Monthly Summary (Last 30 Days)
-
-[If at least 30 days of historical data available]
-
-**Performance Metrics:**
-- **Total PRs**: [count]
-- **Average Success Rate**: [percentage]%
-- **Average Duration**: [time]
-- **Average Comments per PR**: [number]
-
-**Weekly Trends (4 weeks):**
-| Week | PRs | Success Rate | Avg Duration | Avg Comments |
-|------|-----|--------------|--------------|--------------|
-| Week 1 (most recent) | [count] | [%] | [time] | [number] |
-| Week 2 | [count] | [%] | [time] | [number] |
-| Week 3 | [count] | [%] | [time] | [number] |
-| Week 4 (oldest) | [count] | [%] | [time] | [number] |
-
-**Monthly Trends:**
-- Success Rate Trend: [trend indicator with explanation]
-- Duration Trend: [trend indicator with explanation]
-- Volume Trend: [trend indicator with explanation]
-- Engagement Trend: [trend indicator with explanation]
-
-### Historical Comparison (7-day trend)
-
-[If historical data available but less than 30 days]
-
-- **Success Rate**: [current]% vs [7-day avg]% [trend indicator]
-- **Agent Duration**: [current] vs [7-day avg] [trend indicator]
-- **Human Engagement**: [current comments] vs [7-day avg] [trend indicator]
-
-## Instruction File Changes
-
-[If any instruction files were modified in the last 7 days]
-
-Recent changes detected:
-- **File**: `.github/[path]/[filename]`
-- **Date**: [date]
-- **Commit**: [commit hash]
-
-**Performance Correlation**:
-[Analysis of whether performance changed after instruction update]
-
-[If no changes]
-No instruction file changes detected in the last 7 days.
-
-## Detailed PR Analysis
-
-### Merged PRs ✅
-
-[For each merged PR]
-- **PR #[number]**: [title]
-  - Human comments: [count]
-  - Agent duration: [time]
-  - Total duration: [time]
-  - Files changed: [count]
-
-### Closed PRs ❌
-
-[For each closed PR]
-- **PR #[number]**: [title]
-  - Reason for closure: [if apparent from comments]
-  - Human comments: [count]
-  - Agent duration: [time]
+### Issues ⚠️
+- **PR #[number]**: [title] - [brief reason for failure/closure]
 
 ### Open PRs ⏳
+[Only list if open for >24 hours]
+- **PR #[number]**: [title] - [age]
 
-[For each open PR]
-- **PR #[number]**: [title]
-  - Age: [time since creation]
-  - Human comments: [count]
-  - Current status: [if reviews pending, etc.]
+## Key Insights
 
-## Recommendations
-
-[Based on trends and analysis, provide actionable recommendations]
-
-**If success rate is declining**:
-- Review recent instruction changes
-- Investigate common failure patterns
-- Consider adjusting agent prompts
-
-**If duration is increasing**:
-- Check for increased complexity in tasks
-- Review if agent is making efficient tool calls
-- Consider optimization opportunities
-
-**If human engagement is low**:
-- Agent may be working well independently
-- Consider if reviews are being bypassed
-
-## Notes
-
-[Any additional observations or context]
+[1-2 bullet points only, focus on actionable items or notable observations]
 
 ---
 
-_This analysis was generated automatically by the Copilot Agent Analysis workflow._
+_Generated by Copilot Agent Analysis (Run: [run_id])_
 ```
+
+**Important Brevity Guidelines:**
+- **Skip the "PR Summary Table"** - use simple 3-day metrics table instead
+- **Omit "Detailed PR Analysis"** section - only show notable PRs with issues
+- **Skip "Weekly Summary"** and **"Monthly Summary"** sections - use 3-day trend only
+- **Remove "Instruction File Changes"** section entirely
+- **Eliminate "Recommendations"** section - fold into "Key Insights" (1-2 bullets max)
+- **Remove verbose methodology** and historical context sections
 
 ## Important Guidelines
 
@@ -578,54 +404,47 @@ _This analysis was generated automatically by the Copilot Agent Analysis workflo
 
 ### Cache Memory Management
 - **Organize data**: Keep historical data well-structured in JSON format
-- **Limit retention**: Keep last 1 year (365 days) of daily data (cache can be cleared to delete old data)
+- **Limit retention**: Keep last 90 days (3 months) of daily data for trend analysis
 - **Handle errors**: If cache is corrupted, reinitialize gracefully
-- **Backup important data**: Store critical metrics redundantly
-- **Progressive data collection**: If historical data is missing, rebuild incrementally
-  - Prioritize most recent days first (they're more relevant for trends)
-  - Process one day at a time to avoid overwhelming the context
+- **Simplified data collection**: Focus on 3-day trends, not weekly or monthly
+  - Only collect and maintain last 3 days of data for trend comparison
   - Save progress after each day to ensure data persistence
-  - Aim for at least 7 days for weekly trends, 30 days for monthly trends
+  - Stop at 3 days - sufficient for concise reports
 
 ### Trend Analysis
-- **Require sufficient data**: Don't report trends with less than 7 days of data
-- **Use appropriate metrics**: Choose statistical measures that make sense
-- **Indicate confidence**: Note when sample sizes are small
-- **Avoid overreaction**: Small fluctuations are normal
+- **Require sufficient data**: Don't report trends with less than 3 days of data
+- **Focus on significant changes**: Only report metrics with >10% change
+- **Be concise**: Avoid verbose explanations - use trend indicators and percentages
+- **Skip stable metrics**: Don't clutter the report with metrics that haven't changed significantly
 
 ## Edge Cases
 
 ### No PRs in Last 24 Hours
 If no PRs were created by Copilot in the last 24 hours:
-- Create a brief discussion noting "No activity"
-- Still update cache memory with zero counts
-- Don't skip the analysis entirely
+- Create a minimal discussion: "No Copilot agent activity in the last 24 hours."
+- Update cache memory with zero counts
+- Keep it to 2-3 sentences max
 
 ### Bot Username Changes
 If Copilot appears under different usernames:
-- Document the username variance
+- Note briefly in Key Insights section
 - Adjust search queries accordingly
-- Note this in the discussion for future reference
 
 ### Incomplete PR Data
 If some PRs have missing metadata:
-- Note which PRs have incomplete data
+- Note count of incomplete PRs in one line
 - Calculate metrics only from complete data
-- Document data quality in the discussion
 
 ## Success Criteria
 
-A successful analysis:
+A successful **concise** analysis:
 - ✅ Finds all Copilot PRs from last 24 hours
-- ✅ Calculates accurate metrics for each PR
-- ✅ Generates a clear, formatted summary table
+- ✅ Calculates key metrics (success rate, duration, comments)
+- ✅ Shows 3-day trend comparison (not 7-day or monthly)
 - ✅ Updates cache memory with today's metrics
-- ✅ Rebuilds missing historical data if needed (one day at a time, up to 7 days maximum)
-- ✅ Analyzes trends with available historical data
-- ✅ Provides weekly summary (if 7 days of data available)
-- ✅ Provides monthly summary (if 30+ days of data available)
-- ✅ Checks for instruction file changes
-- ✅ Creates a comprehensive discussion with findings
-- ✅ Provides actionable insights and recommendations
+- ✅ Only highlights notable PRs (failures, closures, long-open)
+- ✅ Keeps discussion to ~15-20 lines of essential information
+- ✅ Omits verbose tables, detailed breakdowns, and methodology sections
+- ✅ Provides 1-2 actionable insights maximum
 
-Begin your analysis now. Gather PR data, calculate metrics, analyze trends, and create a detailed report.
+**Remember**: Less is more. Focus on key metrics and notable changes only.
