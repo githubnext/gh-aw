@@ -67,7 +67,7 @@ The agentic part of your workflow should describe the issue(s) it wants created.
 
 **Configuration Options:**
 - **`assignees:`** - GitHub username(s) to automatically assign to created issues. Accepts either a single string (`assignees: user1`) or an array of strings (`assignees: [user1, user2]`). The workflow automatically adds steps that call `gh issue edit --add-assignee` for each assignee after the issue is created. Only runs if the issue was successfully created.
-  - **Special value**: Use `copilot` to assign to the `copilot-swe-agent` bot
+  - **Special value**: Use `copilot` to assign to the Copilot bot
   - Uses the configured GitHub token (respects `github-token` precedence: create-issue config > safe-outputs config > top-level config > default)
 
 :::note
@@ -255,7 +255,7 @@ safe-outputs:
 
 **Configuration Options:**
 - **`reviewers:`** - GitHub username(s) to automatically assign as reviewers to the created pull request. Accepts either a single string (`reviewers: user1`) or an array of strings (`reviewers: [user1, user2]`). The workflow automatically adds steps that call `gh pr edit --add-reviewer` for each reviewer after the pull request is created. Only runs if the pull request was successfully created.
-  - **Special value**: Use `copilot` to assign the `copilot-swe-agent` bot as a reviewer
+  - **Special value**: Use `copilot` to assign the Copilot bot as a reviewer
   - Uses the configured GitHub token (respects `github-token` precedence: create-pull-request config > safe-outputs config > top-level config > default)
 
 :::note
@@ -903,7 +903,7 @@ In staged mode, this shows as a preview error rather than failing the workflow.
 
 ## Assigning Issues and Pull Requests to Copilot
 
-Both `create-issue` and `create-pull-request` safe outputs support assigning the created issue or adding reviewers to the pull request using the special value `copilot`. This automatically maps to the `copilot-swe-agent` bot, which can provide automated code review and issue analysis.
+Both `create-issue` and `create-pull-request` safe outputs support assigning the created issue or adding reviewers to the pull request using the special value `copilot`. This provides automated code review and issue analysis.
 
 ### Assigning Issues to Copilot
 
@@ -912,7 +912,7 @@ Use the `assignees` field in `create-issue` configuration to automatically assig
 ```yaml
 safe-outputs:
   create-issue:
-    assignees: copilot  # Assigns to copilot-swe-agent bot
+    assignees: copilot  # Assigns to the Copilot bot
     # Or with multiple assignees:
     # assignees: [user1, copilot, user2]
 ```
@@ -924,7 +924,7 @@ Use the `reviewers` field in `create-pull-request` configuration to automaticall
 ```yaml
 safe-outputs:
   create-pull-request:
-    reviewers: copilot  # Adds copilot-swe-agent as reviewer
+    reviewers: copilot  # Adds the Copilot bot as reviewer
     # Or with multiple reviewers:
     # reviewers: [user1, copilot, user2]
 ```
@@ -968,16 +968,15 @@ Analyze issues and create follow-up items with Copilot assigned for automated as
 
 When you use `copilot` in the `assignees` or `reviewers` configuration:
 
-1. **Name Mapping**: The workflow automatically translates `copilot` to `copilot-swe-agent` (the actual bot username)
-2. **Step Name**: The generated workflow step shows the friendly name "copilot" (e.g., "Assign issue to copilot" or "Add copilot as reviewer")
-3. **Actual Assignment**: The underlying `gh issue edit --add-assignee` or `gh pr edit --add-reviewer` command uses `copilot-swe-agent`
-4. **Conditional Execution**: Assignment/reviewer steps only run if the issue or pull request was successfully created
+1. **Automatic Mapping**: The workflow automatically handles the special `copilot` value
+2. **Step Name**: The generated workflow step shows "copilot" (e.g., "Assign issue to copilot" or "Add copilot as reviewer")
+3. **Conditional Execution**: Assignment/reviewer steps only run if the issue or pull request was successfully created
 
 ### Benefits
 
 - **Automated Review**: Copilot can automatically review pull requests and provide feedback
 - **Issue Analysis**: Copilot can analyze and provide suggestions on assigned issues
-- **Consistent Bot Naming**: Use the friendly `copilot` name instead of remembering `copilot-swe-agent`
+- **Simple Configuration**: Use the friendly `copilot` value for easy setup
 - **Safe Failure**: If assignment fails, the workflow continues (the issue/PR is still created)
 
 ## Custom runner image
