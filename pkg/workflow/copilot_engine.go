@@ -82,9 +82,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	toolArgs := e.computeCopilotToolArguments(workflowData.Tools, workflowData.SafeOutputs)
 	copilotArgs = append(copilotArgs, toolArgs...)
 
-	// if cache-memory tool is used, --add-dir
+	// if cache-memory tool is used, --add-dir for each cache
 	if workflowData.CacheMemoryConfig != nil {
-		copilotArgs = append(copilotArgs, "--add-dir", "/tmp/gh-aw/cache-memory/")
+		for _, cache := range workflowData.CacheMemoryConfig.Caches {
+			cacheDir := fmt.Sprintf("/tmp/cache-memory-%s/", cache.ID)
+			copilotArgs = append(copilotArgs, "--add-dir", cacheDir)
+		}
 	}
 
 	// Add --allow-all-paths when edit tool is enabled to allow write on all paths

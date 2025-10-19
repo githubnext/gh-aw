@@ -77,21 +77,21 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 					"key": "test-memory-key",
 				},
 			},
-			expected: "Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write(/tmp/gh-aw/cache-memory/*)",
+			expected: "Edit(/tmp/cache-memory-default/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/cache-memory-default/*),NotebookRead,Read,Read(/tmp/cache-memory-default/*),Task,TodoWrite,Write(/tmp/cache-memory-default/*)",
 		},
 		{
 			name: "cache-memory with boolean true",
 			tools: map[string]any{
 				"cache-memory": true,
 			},
-			expected: "Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write(/tmp/gh-aw/cache-memory/*)",
+			expected: "Edit(/tmp/cache-memory-default/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/cache-memory-default/*),NotebookRead,Read,Read(/tmp/cache-memory-default/*),Task,TodoWrite,Write(/tmp/cache-memory-default/*)",
 		},
 		{
 			name: "cache-memory with nil value (no value specified)",
 			tools: map[string]any{
 				"cache-memory": nil,
 			},
-			expected: "Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write(/tmp/gh-aw/cache-memory/*)",
+			expected: "Edit(/tmp/cache-memory-default/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/cache-memory-default/*),NotebookRead,Read,Read(/tmp/cache-memory-default/*),Task,TodoWrite,Write(/tmp/cache-memory-default/*)",
 		},
 		{
 			name: "cache-memory with github tools",
@@ -101,7 +101,7 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 					"allowed": []any{"get_repository"},
 				},
 			},
-			expected: "Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write(/tmp/gh-aw/cache-memory/*),mcp__github__get_repository",
+			expected: "Edit(/tmp/cache-memory-default/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/cache-memory-default/*),NotebookRead,Read,Read(/tmp/cache-memory-default/*),Task,TodoWrite,Write(/tmp/cache-memory-default/*),mcp__github__get_repository",
 		},
 		{
 			name: "mixed neutral and mcp tools",
@@ -290,7 +290,10 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := engine.computeAllowedClaudeToolsString(tt.tools, nil)
+			// Extract cache-memory config from tools if present
+			compiler := NewCompiler(false, "", "test")
+			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfig(tt.tools)
+			result := engine.computeAllowedClaudeToolsString(tt.tools, nil, cacheMemoryConfig)
 
 			// Parse expected and actual results into sets for comparison
 			expectedTools := make(map[string]bool)
@@ -407,7 +410,10 @@ func TestClaudeEngineComputeAllowedToolsWithSafeOutputs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := engine.computeAllowedClaudeToolsString(tt.tools, tt.safeOutputs)
+			// Extract cache-memory config from tools if present
+			compiler := NewCompiler(false, "", "test")
+			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfig(tt.tools)
+			result := engine.computeAllowedClaudeToolsString(tt.tools, tt.safeOutputs, cacheMemoryConfig)
 
 			// Split both expected and result into slices and check each tool is present
 			expectedTools := strings.Split(tt.expected, ",")

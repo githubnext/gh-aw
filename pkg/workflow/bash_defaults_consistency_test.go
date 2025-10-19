@@ -90,8 +90,11 @@ func TestBashDefaultsConsistency(t *testing.T) {
 			claudeTools = compiler.applyDefaultTools(claudeTools, tt.safeOutputs)
 			copilotTools = compiler.applyDefaultTools(copilotTools, tt.safeOutputs)
 
+			// Extract cache-memory config for Claude
+			cacheMemoryConfig, _ := compiler.extractCacheMemoryConfig(claudeTools)
+			
 			// Get results from both engines
-			claudeResult := claudeEngine.computeAllowedClaudeToolsString(claudeTools, tt.safeOutputs)
+			claudeResult := claudeEngine.computeAllowedClaudeToolsString(claudeTools, tt.safeOutputs, cacheMemoryConfig)
 			copilotResult := copilotEngine.computeCopilotToolArguments(copilotTools, tt.safeOutputs)
 
 			t.Logf("Claude tools after defaults: %+v", claudeTools)

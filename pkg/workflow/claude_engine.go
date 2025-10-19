@@ -110,7 +110,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Add allowed tools configuration
-	allowedTools := e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs)
+	allowedTools := e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs, workflowData.CacheMemoryConfig)
 	if allowedTools != "" {
 		claudeArgs = append(claudeArgs, "--allowed-tools", allowedTools)
 	}
@@ -145,7 +145,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Add allowed tools comment before the run section
-	allowedToolsComment := e.generateAllowedToolsComment(e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs), "        ")
+	allowedToolsComment := e.generateAllowedToolsComment(e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs, workflowData.CacheMemoryConfig), "        ")
 	if allowedToolsComment != "" {
 		// Split the comment into lines and add each line
 		commentLines := strings.Split(strings.TrimSuffix(allowedToolsComment, "\n"), "\n")
@@ -369,7 +369,7 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 // 2. converts neutral tools to Claude-specific tools format
 // 3. adds default Claude tools and git commands based on safe outputs configuration
 // 4. generates the allowed tools string for Claude
-func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, safeOutputs *SafeOutputsConfig) string {
+func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, safeOutputs *SafeOutputsConfig, cacheMemoryConfig *CacheMemoryConfig) string {
 	// Initialize tools map if nil
 	if tools == nil {
 		tools = make(map[string]any)
@@ -501,22 +501,26 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 		} else {
 			// Handle cache-memory as a special case - it provides file system access but no MCP tool
 			if toolName == "cache-memory" {
-				// Cache-memory now provides simple file share access at /tmp/gh-aw/cache-memory/
-				// Add path-specific Read and Write tools for the cache directory only
-				cacheDirPattern := "/tmp/gh-aw/cache-memory/*"
+				// Cache-memory provides file share access with the new naming scheme
+				// Add path-specific Read and Write tools for each cache directory
+				if cacheMemoryConfig != nil {
+					for _, cache := range cacheMemoryConfig.Caches {
+						cacheDirPattern := fmt.Sprintf("/tmp/cache-memory-%s/*", cache.ID)
 
-				// Add path-specific tools for cache directory access
-				if !slices.Contains(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern)) {
-					allowedTools = append(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern))
-				}
-				if !slices.Contains(allowedTools, fmt.Sprintf("Write(%s)", cacheDirPattern)) {
-					allowedTools = append(allowedTools, fmt.Sprintf("Write(%s)", cacheDirPattern))
-				}
-				if !slices.Contains(allowedTools, fmt.Sprintf("Edit(%s)", cacheDirPattern)) {
-					allowedTools = append(allowedTools, fmt.Sprintf("Edit(%s)", cacheDirPattern))
-				}
-				if !slices.Contains(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern)) {
-					allowedTools = append(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern))
+						// Add path-specific tools for cache directory access
+						if !slices.Contains(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern)) {
+							allowedTools = append(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern))
+						}
+						if !slices.Contains(allowedTools, fmt.Sprintf("Write(%s)", cacheDirPattern)) {
+							allowedTools = append(allowedTools, fmt.Sprintf("Write(%s)", cacheDirPattern))
+						}
+						if !slices.Contains(allowedTools, fmt.Sprintf("Edit(%s)", cacheDirPattern)) {
+							allowedTools = append(allowedTools, fmt.Sprintf("Edit(%s)", cacheDirPattern))
+						}
+						if !slices.Contains(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern)) {
+							allowedTools = append(allowedTools, fmt.Sprintf("MultiEdit(%s)", cacheDirPattern))
+						}
+					}
 				}
 				continue
 			}
