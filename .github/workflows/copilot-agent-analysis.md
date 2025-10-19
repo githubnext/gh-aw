@@ -24,6 +24,9 @@ safe-outputs:
     category: "audits"
     max: 1
 
+imports:
+  - shared/jqschema.md
+
 tools:
   cache-memory: true
   github:
@@ -40,6 +43,41 @@ tools:
     - "ls -la .github"
     - "git log --oneline"
     - "git diff"
+    - "gh pr list *"
+    - "gh search prs *"
+    - "jq *"
+    - "/tmp/gh-aw/jqschema.sh"
+
+steps:
+  - name: Fetch Copilot PR data
+    run: |
+      # Create output directory
+      mkdir -p /tmp/gh-aw/pr-data
+      
+      # Calculate date 30 days ago
+      DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
+      
+      # Search for PRs created by Copilot in the last 30 days using gh CLI
+      # Output in JSON format for easy processing with jq
+      echo "Fetching Copilot PRs from the last 30 days..."
+      gh search prs \
+        --repo "${{ github.repository }}" \
+        --json number,title,state,createdAt,closedAt,mergedAt,author,comments,additions,deletions,changedFiles,commits,url \
+        --created ">=$DATE_30_DAYS_AGO" \
+        --limit 1000 \
+        > /tmp/gh-aw/pr-data/copilot-prs-raw.json
+      
+      # Filter to only Copilot author (user.login == "Copilot" and user.id == 198982749)
+      jq '[.[] | select(.author.login == "Copilot" or .author.id == 198982749)]' \
+        /tmp/gh-aw/pr-data/copilot-prs-raw.json \
+        > /tmp/gh-aw/pr-data/copilot-prs.json
+      
+      # Generate schema for reference
+      cat /tmp/gh-aw/pr-data/copilot-prs.json | /tmp/gh-aw/jqschema.sh > /tmp/gh-aw/pr-data/copilot-prs-schema.json
+      
+      echo "PR data saved to /tmp/gh-aw/pr-data/copilot-prs.json"
+      echo "Schema saved to /tmp/gh-aw/pr-data/copilot-prs-schema.json"
+      echo "Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)"
 
 timeout_minutes: 15
 strict: true
@@ -62,6 +100,25 @@ Daily analysis of pull requests created by copilot-swe-agent in the last 24 hour
 ## Task Overview
 
 ### Phase 1: Collect PR Data
+
+**Pre-fetched Data Available**: This workflow includes a preparation step that has already fetched Copilot PR data for the last 30 days using gh CLI. The data is available at:
+- `/tmp/gh-aw/pr-data/copilot-prs.json` - Full PR data in JSON format
+- `/tmp/gh-aw/pr-data/copilot-prs-schema.json` - Schema showing the structure
+
+You can use `jq` to process this data directly. For example:
+```bash
+# Get PRs from the last 24 hours
+TODAY=$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')
+jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today)]' /tmp/gh-aw/pr-data/copilot-prs.json
+
+# Count total PRs
+jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json
+
+# Get PR numbers for the last 24 hours
+jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today) | .number]' /tmp/gh-aw/pr-data/copilot-prs.json
+```
+
+**Alternative Approaches** (if you need additional data not in the pre-fetched file):
 
 Search for pull requests created by Copilot in the last 24 hours.
 
