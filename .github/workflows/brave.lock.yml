@@ -739,6 +739,25 @@ jobs:
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
                 summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
+                const createdIssueUrl = process.env.GITHUB_AW_CREATED_ISSUE_URL;
+                const createdIssueNumber = process.env.GITHUB_AW_CREATED_ISSUE_NUMBER;
+                const createdDiscussionUrl = process.env.GITHUB_AW_CREATED_DISCUSSION_URL;
+                const createdDiscussionNumber = process.env.GITHUB_AW_CREATED_DISCUSSION_NUMBER;
+                const createdPullRequestUrl = process.env.GITHUB_AW_CREATED_PULL_REQUEST_URL;
+                const createdPullRequestNumber = process.env.GITHUB_AW_CREATED_PULL_REQUEST_NUMBER;
+                if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
+                  summaryContent += "**Related Items:**\n";
+                  if (createdIssueUrl && createdIssueNumber) {
+                    summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+                  }
+                  if (createdDiscussionUrl && createdDiscussionNumber) {
+                    summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+                  }
+                  if (createdPullRequestUrl && createdPullRequestNumber) {
+                    summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+                  }
+                  summaryContent += "\n";
+                }
                 for (let i = 0; i < commentItems.length; i++) {
                   const item = commentItems[i];
                   summaryContent += `### Comment ${i + 1}\n`;
@@ -833,6 +852,29 @@ jobs:
                   continue;
                 }
                 let body = commentItem.body.trim();
+                const createdIssueUrl = process.env.GITHUB_AW_CREATED_ISSUE_URL;
+                const createdIssueNumber = process.env.GITHUB_AW_CREATED_ISSUE_NUMBER;
+                const createdDiscussionUrl = process.env.GITHUB_AW_CREATED_DISCUSSION_URL;
+                const createdDiscussionNumber = process.env.GITHUB_AW_CREATED_DISCUSSION_NUMBER;
+                const createdPullRequestUrl = process.env.GITHUB_AW_CREATED_PULL_REQUEST_URL;
+                const createdPullRequestNumber = process.env.GITHUB_AW_CREATED_PULL_REQUEST_NUMBER;
+                let hasReferences = false;
+                let referencesSection = "\n\n## Related Items\n\n";
+                if (createdIssueUrl && createdIssueNumber) {
+                  referencesSection += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+                  hasReferences = true;
+                }
+                if (createdDiscussionUrl && createdDiscussionNumber) {
+                  referencesSection += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+                  hasReferences = true;
+                }
+                if (createdPullRequestUrl && createdPullRequestNumber) {
+                  referencesSection += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+                  hasReferences = true;
+                }
+                if (hasReferences) {
+                  body += referencesSection;
+                }
                 const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
                 const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
                 const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";

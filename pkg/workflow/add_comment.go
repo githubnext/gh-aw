@@ -18,7 +18,7 @@ type AddCommentsConfig struct {
 }
 
 // buildCreateOutputAddCommentJob creates the add_comment job
-func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
+func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobName string, createIssueJobName string, createDiscussionJobName string, createPullRequestJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.AddComments == nil {
 		return nil, fmt.Errorf("safe-outputs.add-comment configuration is required")
 	}
@@ -47,6 +47,20 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	// Pass the comment target configuration
 	if data.SafeOutputs.AddComments.Target != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_COMMENT_TARGET: %q\n", data.SafeOutputs.AddComments.Target))
+	}
+
+	// Add environment variables for the URLs from other safe output jobs if they exist
+	if createIssueJobName != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_CREATED_ISSUE_URL: ${{ needs.%s.outputs.issue_url }}\n", createIssueJobName))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_CREATED_ISSUE_NUMBER: ${{ needs.%s.outputs.issue_number }}\n", createIssueJobName))
+	}
+	if createDiscussionJobName != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_CREATED_DISCUSSION_URL: ${{ needs.%s.outputs.discussion_url }}\n", createDiscussionJobName))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_CREATED_DISCUSSION_NUMBER: ${{ needs.%s.outputs.discussion_number }}\n", createDiscussionJobName))
+	}
+	if createPullRequestJobName != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_CREATED_PULL_REQUEST_URL: ${{ needs.%s.outputs.pull_request_url }}\n", createPullRequestJobName))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.%s.outputs.pull_request_number }}\n", createPullRequestJobName))
 	}
 
 	// Add common safe output job environment variables (staged/target repo)
@@ -92,6 +106,18 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		jobCondition = buildAnd(jobCondition, eventCondition)
 	}
 
+	// Build the needs list - always depend on mainJobName, and conditionally on the other jobs
+	needs := []string{mainJobName}
+	if createIssueJobName != "" {
+		needs = append(needs, createIssueJobName)
+	}
+	if createDiscussionJobName != "" {
+		needs = append(needs, createDiscussionJobName)
+	}
+	if createPullRequestJobName != "" {
+		needs = append(needs, createPullRequestJobName)
+	}
+
 	job := &Job{
 		Name:           "add_comment",
 		If:             jobCondition.Render(),
@@ -100,7 +126,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
-		Needs:          []string{mainJobName}, // Depend on the main workflow job
+		Needs:          needs,
 	}
 
 	return job, nil

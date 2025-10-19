@@ -22,6 +22,8 @@
 #   upload_assets["upload_assets"]
 #   pre_activation --> activation
 #   agent --> add_comment
+#   create_issue --> add_comment
+#   create_pull_request --> add_comment
 #   detection --> add_comment
 #   agent --> add_labels
 #   detection --> add_labels
@@ -42,9 +44,9 @@
 #   agent --> update_reaction
 #   activation --> update_reaction
 #   create_issue --> update_reaction
+#   create_pull_request --> update_reaction
 #   add_comment --> update_reaction
 #   create_pr_review_comment --> update_reaction
-#   create_pull_request --> update_reaction
 #   add_labels --> update_reaction
 #   update_issue --> update_reaction
 #   push_to_pull_request_branch --> update_reaction
@@ -604,6 +606,8 @@ jobs:
   add_comment:
     needs:
       - agent
+      - create_issue
+      - create_pull_request
       - detection
     if: (always()) && (contains(needs.agent.outputs.output_types, 'add_comment'))
     runs-on: ubuntu-latest
@@ -642,6 +646,10 @@ jobs:
           GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GITHUB_AW_COMMENT_TARGET: "*"
+          GITHUB_AW_CREATED_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
+          GITHUB_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
+          GITHUB_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
+          GITHUB_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -770,6 +778,25 @@ jobs:
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
                 summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
+                const createdIssueUrl = process.env.GITHUB_AW_CREATED_ISSUE_URL;
+                const createdIssueNumber = process.env.GITHUB_AW_CREATED_ISSUE_NUMBER;
+                const createdDiscussionUrl = process.env.GITHUB_AW_CREATED_DISCUSSION_URL;
+                const createdDiscussionNumber = process.env.GITHUB_AW_CREATED_DISCUSSION_NUMBER;
+                const createdPullRequestUrl = process.env.GITHUB_AW_CREATED_PULL_REQUEST_URL;
+                const createdPullRequestNumber = process.env.GITHUB_AW_CREATED_PULL_REQUEST_NUMBER;
+                if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
+                  summaryContent += "**Related Items:**\n";
+                  if (createdIssueUrl && createdIssueNumber) {
+                    summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+                  }
+                  if (createdDiscussionUrl && createdDiscussionNumber) {
+                    summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+                  }
+                  if (createdPullRequestUrl && createdPullRequestNumber) {
+                    summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+                  }
+                  summaryContent += "\n";
+                }
                 for (let i = 0; i < commentItems.length; i++) {
                   const item = commentItems[i];
                   summaryContent += `### Comment ${i + 1}\n`;
@@ -864,6 +891,29 @@ jobs:
                   continue;
                 }
                 let body = commentItem.body.trim();
+                const createdIssueUrl = process.env.GITHUB_AW_CREATED_ISSUE_URL;
+                const createdIssueNumber = process.env.GITHUB_AW_CREATED_ISSUE_NUMBER;
+                const createdDiscussionUrl = process.env.GITHUB_AW_CREATED_DISCUSSION_URL;
+                const createdDiscussionNumber = process.env.GITHUB_AW_CREATED_DISCUSSION_NUMBER;
+                const createdPullRequestUrl = process.env.GITHUB_AW_CREATED_PULL_REQUEST_URL;
+                const createdPullRequestNumber = process.env.GITHUB_AW_CREATED_PULL_REQUEST_NUMBER;
+                let hasReferences = false;
+                let referencesSection = "\n\n## Related Items\n\n";
+                if (createdIssueUrl && createdIssueNumber) {
+                  referencesSection += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+                  hasReferences = true;
+                }
+                if (createdDiscussionUrl && createdDiscussionNumber) {
+                  referencesSection += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+                  hasReferences = true;
+                }
+                if (createdPullRequestUrl && createdPullRequestNumber) {
+                  referencesSection += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+                  hasReferences = true;
+                }
+                if (hasReferences) {
+                  body += referencesSection;
+                }
                 const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
                 const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
                 const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
@@ -6656,9 +6706,9 @@ jobs:
       - agent
       - activation
       - create_issue
+      - create_pull_request
       - add_comment
       - create_pr_review_comment
-      - create_pull_request
       - add_labels
       - update_issue
       - push_to_pull_request_branch

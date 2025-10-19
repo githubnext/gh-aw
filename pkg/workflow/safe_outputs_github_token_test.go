@@ -153,7 +153,7 @@ func TestSafeOutputsGitHubTokenIntegration(t *testing.T) {
 
 			// Test add-comment job if configured
 			if config != nil && config.AddComments != nil {
-				job, err := compiler.buildCreateOutputAddCommentJob(workflowData, "main")
+				job, err := compiler.buildCreateOutputAddCommentJob(workflowData, "main", "", "", "")
 				if err != nil {
 					t.Fatalf("Failed to build add issue comment job: %v", err)
 				}

@@ -160,7 +160,7 @@ func TestSafeOutputsEnvIntegration(t *testing.T) {
 			}
 
 			if strings.Contains(tt.expectedSafeOutput, "add-comment") {
-				job, err := compiler.buildCreateOutputAddCommentJob(data, "main_job")
+				job, err := compiler.buildCreateOutputAddCommentJob(data, "main_job", "", "", "")
 				if err != nil {
 					t.Errorf("Error building add issue comment job: %v", err)
 				}
