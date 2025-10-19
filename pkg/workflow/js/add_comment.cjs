@@ -96,8 +96,6 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
 async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-  // Check if we're targeting discussions
-  const isDiscussion = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
 
   // Read the validated output content from environment variable
   const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
@@ -169,6 +167,18 @@ async function main() {
     return item.item_number;
   }
 
+  // Get the target configuration from environment variable
+  const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
+  core.info(`Comment target configuration: ${commentTarget}`);
+
+  // Check if we're in an issue, pull request, or discussion context
+  const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+  const isPRContext =
+    context.eventName === "pull_request" ||
+    context.eventName === "pull_request_review" ||
+    context.eventName === "pull_request_review_comment";
+  const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+
   // If in staged mode, emit step summary instead of creating comments
   if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
@@ -180,7 +190,7 @@ async function main() {
       const targetNumber = getTargetNumber(item);
       if (targetNumber) {
         const repoUrl = getRepositoryUrl();
-        if (isDiscussion) {
+        if (isDiscussionContext) {
           const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
           summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
         } else {
@@ -188,7 +198,7 @@ async function main() {
           summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
         }
       } else {
-        if (isDiscussion) {
+        if (isDiscussionContext) {
           summaryContent += `**Target:** Current discussion\n\n`;
         } else {
           summaryContent += `**Target:** Current issue/PR\n\n`;
@@ -203,19 +213,6 @@ async function main() {
     core.info("📝 Comment creation preview written to step summary");
     return;
   }
-
-  // Get the target configuration from environment variable
-  const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
-  core.info(`Comment target configuration: ${commentTarget}`);
-  core.info(`Discussion mode: ${isDiscussion}`);
-
-  // Check if we're in an issue, pull request, or discussion context
-  const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-  const isPRContext =
-    context.eventName === "pull_request" ||
-    context.eventName === "pull_request_review" ||
-    context.eventName === "pull_request_review_comment";
-  const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
 
   // Validate context based on target configuration
   if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
@@ -250,7 +247,7 @@ async function main() {
           core.info(`Invalid target number specified: ${targetNumber}`);
           continue;
         }
-        commentEndpoint = isDiscussion ? "discussions" : "issues";
+        commentEndpoint = isDiscussionContext ? "discussions" : "issues";
       } else {
         core.info(`Target is "*" but no number specified in comment item`);
         continue;
@@ -262,7 +259,7 @@ async function main() {
         core.info(`Invalid target number in target configuration: ${commentTarget}`);
         continue;
       }
-      commentEndpoint = isDiscussion ? "discussions" : "issues";
+      commentEndpoint = isDiscussionContext ? "discussions" : "issues";
     } else {
       // Default behavior: use triggering issue/PR/discussion
       if (isIssueContext) {
@@ -322,8 +319,7 @@ async function main() {
       let comment;
 
       // Use GraphQL API for discussions, REST API for issues/PRs
-      // Check both explicit isDiscussion flag and detected commentEndpoint
-      if (isDiscussion || commentEndpoint === "discussions") {
+      if (commentEndpoint === "discussions") {
         core.info(`Creating comment on discussion #${itemNumber}`);
         core.info(`Comment content length: ${body.length}`);
 

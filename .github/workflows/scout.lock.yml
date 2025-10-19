@@ -722,7 +722,6 @@ jobs:
             }
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const isDiscussion = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
               const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
                 core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
@@ -772,6 +771,14 @@ jobs:
               function getTargetNumber(item) {
                 return item.item_number;
               }
+              const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
+              core.info(`Comment target configuration: ${commentTarget}`);
+              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+              const isPRContext =
+                context.eventName === "pull_request" ||
+                context.eventName === "pull_request_review" ||
+                context.eventName === "pull_request_review_comment";
+              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
                 summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
@@ -781,7 +788,7 @@ jobs:
                   const targetNumber = getTargetNumber(item);
                   if (targetNumber) {
                     const repoUrl = getRepositoryUrl();
-                    if (isDiscussion) {
+                    if (isDiscussionContext) {
                       const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
                       summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
                     } else {
@@ -789,7 +796,7 @@ jobs:
                       summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
                     }
                   } else {
-                    if (isDiscussion) {
+                    if (isDiscussionContext) {
                       summaryContent += `**Target:** Current discussion\n\n`;
                     } else {
                       summaryContent += `**Target:** Current issue/PR\n\n`;
@@ -802,15 +809,6 @@ jobs:
                 core.info("📝 Comment creation preview written to step summary");
                 return;
               }
-              const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
-              core.info(`Comment target configuration: ${commentTarget}`);
-              core.info(`Discussion mode: ${isDiscussion}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment";
-              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
               if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
                 core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
                 return;
@@ -834,7 +832,7 @@ jobs:
                       core.info(`Invalid target number specified: ${targetNumber}`);
                       continue;
                     }
-                    commentEndpoint = isDiscussion ? "discussions" : "issues";
+                    commentEndpoint = isDiscussionContext ? "discussions" : "issues";
                   } else {
                     core.info(`Target is "*" but no number specified in comment item`);
                     continue;
@@ -845,7 +843,7 @@ jobs:
                     core.info(`Invalid target number in target configuration: ${commentTarget}`);
                     continue;
                   }
-                  commentEndpoint = isDiscussion ? "discussions" : "issues";
+                  commentEndpoint = isDiscussionContext ? "discussions" : "issues";
                 } else {
                   if (isIssueContext) {
                     itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
@@ -897,7 +895,7 @@ jobs:
                 );
                 try {
                   let comment;
-                  if (isDiscussion || commentEndpoint === "discussions") {
+                  if (commentEndpoint === "discussions") {
                     core.info(`Creating comment on discussion #${itemNumber}`);
                     core.info(`Comment content length: ${body.length}`);
                     comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body);
