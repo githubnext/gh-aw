@@ -633,6 +633,7 @@ func TestPermissionsMerge(t *testing.T) {
 		want   map[PermissionScope]PermissionLevel
 		wantSH string
 	}{
+		// Map-to-Map merges
 		{
 			name:  "merge two maps - write overrides read",
 			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionRead}),
@@ -655,22 +656,316 @@ func TestPermissionsMerge(t *testing.T) {
 			},
 		},
 		{
-			name:   "merge shorthand into shorthand - write-all wins",
+			name:  "merge two maps - multiple scopes with conflicts",
+			base: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionRead,
+				PermissionIssues:       PermissionWrite,
+				PermissionPullRequests: PermissionRead,
+			}),
+			merge: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionWrite,
+				PermissionIssues:       PermissionRead,
+				PermissionDiscussions:  PermissionWrite,
+			}),
+			want: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionWrite, // write wins
+				PermissionIssues:       PermissionWrite, // write preserved
+				PermissionPullRequests: PermissionRead,  // kept from base
+				PermissionDiscussions:  PermissionWrite, // added from merge
+			},
+		},
+		{
+			name:  "merge two maps - none overrides read",
+			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionRead}),
+			merge: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionNone}),
+			want:  map[PermissionScope]PermissionLevel{PermissionContents: PermissionRead},
+		},
+		{
+			name:  "merge two maps - none overrides none",
+			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionNone}),
+			merge: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionNone}),
+			want:  map[PermissionScope]PermissionLevel{PermissionContents: PermissionNone},
+		},
+		{
+			name:  "merge two maps - write overrides none",
+			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionNone}),
+			merge: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionWrite}),
+			want:  map[PermissionScope]PermissionLevel{PermissionContents: PermissionWrite},
+		},
+		{
+			name: "merge two maps - all permission scopes",
+			base: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionActions:        PermissionRead,
+				PermissionChecks:         PermissionRead,
+				PermissionContents:       PermissionRead,
+				PermissionDeployments:    PermissionRead,
+				PermissionDiscussions:    PermissionRead,
+				PermissionIssues:         PermissionRead,
+				PermissionPackages:       PermissionRead,
+			}),
+			merge: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionPages:          PermissionWrite,
+				PermissionPullRequests:   PermissionWrite,
+				PermissionRepositoryProj: PermissionWrite,
+				PermissionSecurityEvents: PermissionWrite,
+				PermissionStatuses:       PermissionWrite,
+				PermissionModels:         PermissionWrite,
+			}),
+			want: map[PermissionScope]PermissionLevel{
+				PermissionActions:        PermissionRead,
+				PermissionChecks:         PermissionRead,
+				PermissionContents:       PermissionRead,
+				PermissionDeployments:    PermissionRead,
+				PermissionDiscussions:    PermissionRead,
+				PermissionIssues:         PermissionRead,
+				PermissionPackages:       PermissionRead,
+				PermissionPages:          PermissionWrite,
+				PermissionPullRequests:   PermissionWrite,
+				PermissionRepositoryProj: PermissionWrite,
+				PermissionSecurityEvents: PermissionWrite,
+				PermissionStatuses:       PermissionWrite,
+				PermissionModels:         PermissionWrite,
+			},
+		},
+
+		// Shorthand-to-Shorthand merges
+		{
+			name:   "merge shorthand - write-all wins over read-all",
 			base:   NewPermissionsReadAll(),
 			merge:  NewPermissionsWriteAll(),
 			wantSH: "write-all",
 		},
 		{
-			name:   "merge shorthand into shorthand - write wins over read",
+			name:   "merge shorthand - write-all wins over read",
+			base:   NewPermissionsRead(),
+			merge:  NewPermissionsWriteAll(),
+			wantSH: "write-all",
+		},
+		{
+			name:   "merge shorthand - write-all wins over write",
+			base:   NewPermissionsWrite(),
+			merge:  NewPermissionsWriteAll(),
+			wantSH: "write-all",
+		},
+		{
+			name:   "merge shorthand - write-all wins over none",
+			base:   NewPermissionsNone(),
+			merge:  NewPermissionsWriteAll(),
+			wantSH: "write-all",
+		},
+		{
+			name:   "merge shorthand - write wins over read-all",
+			base:   NewPermissionsReadAll(),
+			merge:  NewPermissionsWrite(),
+			wantSH: "write",
+		},
+		{
+			name:   "merge shorthand - write wins over read",
 			base:   NewPermissionsRead(),
 			merge:  NewPermissionsWrite(),
 			wantSH: "write",
 		},
 		{
-			name:  "merge nil",
+			name:   "merge shorthand - write wins over none",
+			base:   NewPermissionsNone(),
+			merge:  NewPermissionsWrite(),
+			wantSH: "write",
+		},
+		{
+			name:   "merge shorthand - read-all wins over read",
+			base:   NewPermissionsRead(),
+			merge:  NewPermissionsReadAll(),
+			wantSH: "read-all",
+		},
+		{
+			name:   "merge shorthand - read-all wins over none",
+			base:   NewPermissionsNone(),
+			merge:  NewPermissionsReadAll(),
+			wantSH: "read-all",
+		},
+		{
+			name:   "merge shorthand - read wins over none",
+			base:   NewPermissionsNone(),
+			merge:  NewPermissionsRead(),
+			wantSH: "read",
+		},
+		{
+			name:   "merge shorthand - read-all preserved when merging read",
+			base:   NewPermissionsReadAll(),
+			merge:  NewPermissionsRead(),
+			wantSH: "read-all",
+		},
+		{
+			name:   "merge shorthand - write-all preserved when merging write",
+			base:   NewPermissionsWriteAll(),
+			merge:  NewPermissionsWrite(),
+			wantSH: "write-all",
+		},
+		{
+			name:   "merge shorthand - same shorthand preserved (read-all)",
+			base:   NewPermissionsReadAll(),
+			merge:  NewPermissionsReadAll(),
+			wantSH: "read-all",
+		},
+		{
+			name:   "merge shorthand - same shorthand preserved (write-all)",
+			base:   NewPermissionsWriteAll(),
+			merge:  NewPermissionsWriteAll(),
+			wantSH: "write-all",
+		},
+		{
+			name:   "merge shorthand - same shorthand preserved (none)",
+			base:   NewPermissionsNone(),
+			merge:  NewPermissionsNone(),
+			wantSH: "none",
+		},
+
+		// Shorthand-to-Map merges
+		{
+			name:  "merge read-all shorthand into map - adds all missing scopes as read",
+			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionWrite}),
+			merge: NewPermissionsReadAll(),
+			want: map[PermissionScope]PermissionLevel{
+				PermissionContents:       PermissionWrite, // preserved
+				PermissionActions:        PermissionRead,  // added
+				PermissionChecks:         PermissionRead,
+				PermissionDeployments:    PermissionRead,
+				PermissionDiscussions:    PermissionRead,
+				PermissionIssues:         PermissionRead,
+				PermissionPackages:       PermissionRead,
+				PermissionPages:          PermissionRead,
+				PermissionPullRequests:   PermissionRead,
+				PermissionRepositoryProj: PermissionRead,
+				PermissionSecurityEvents: PermissionRead,
+				PermissionStatuses:       PermissionRead,
+				PermissionModels:         PermissionRead,
+			},
+		},
+		{
+			name:  "merge write-all shorthand into map - adds all missing scopes as write",
+			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionRead}),
+			merge: NewPermissionsWriteAll(),
+			want: map[PermissionScope]PermissionLevel{
+				PermissionContents:       PermissionRead, // preserved (not overwritten)
+				PermissionActions:        PermissionWrite,
+				PermissionChecks:         PermissionWrite,
+				PermissionDeployments:    PermissionWrite,
+				PermissionDiscussions:    PermissionWrite,
+				PermissionIssues:         PermissionWrite,
+				PermissionPackages:       PermissionWrite,
+				PermissionPages:          PermissionWrite,
+				PermissionPullRequests:   PermissionWrite,
+				PermissionRepositoryProj: PermissionWrite,
+				PermissionSecurityEvents: PermissionWrite,
+				PermissionStatuses:       PermissionWrite,
+				PermissionModels:         PermissionWrite,
+			},
+		},
+		{
+			name:  "merge read shorthand into map - adds all missing scopes as read",
+			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionWrite}),
+			merge: NewPermissionsRead(),
+			want: map[PermissionScope]PermissionLevel{
+				PermissionContents:       PermissionWrite,
+				PermissionActions:        PermissionRead,
+				PermissionChecks:         PermissionRead,
+				PermissionDeployments:    PermissionRead,
+				PermissionDiscussions:    PermissionRead,
+				PermissionIssues:         PermissionRead,
+				PermissionPackages:       PermissionRead,
+				PermissionPages:          PermissionRead,
+				PermissionPullRequests:   PermissionRead,
+				PermissionRepositoryProj: PermissionRead,
+				PermissionSecurityEvents: PermissionRead,
+				PermissionStatuses:       PermissionRead,
+				PermissionModels:         PermissionRead,
+			},
+		},
+		{
+			name:  "merge write shorthand into map - adds all missing scopes as write",
+			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionIssues: PermissionRead}),
+			merge: NewPermissionsWrite(),
+			want: map[PermissionScope]PermissionLevel{
+				PermissionIssues:         PermissionRead,
+				PermissionActions:        PermissionWrite,
+				PermissionChecks:         PermissionWrite,
+				PermissionContents:       PermissionWrite,
+				PermissionDeployments:    PermissionWrite,
+				PermissionDiscussions:    PermissionWrite,
+				PermissionPackages:       PermissionWrite,
+				PermissionPages:          PermissionWrite,
+				PermissionPullRequests:   PermissionWrite,
+				PermissionRepositoryProj: PermissionWrite,
+				PermissionSecurityEvents: PermissionWrite,
+				PermissionStatuses:       PermissionWrite,
+				PermissionModels:         PermissionWrite,
+			},
+		},
+		{
+			name:  "merge none shorthand into map - no change",
+			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionRead}),
+			merge: NewPermissionsNone(),
+			want:  map[PermissionScope]PermissionLevel{PermissionContents: PermissionRead},
+		},
+
+		// Map-to-Shorthand merges (shorthand converts to map)
+		{
+			name:  "merge map into read-all shorthand - shorthand cleared, map created",
+			base:  NewPermissionsReadAll(),
+			merge: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionIssues: PermissionWrite}),
+			want:  map[PermissionScope]PermissionLevel{PermissionIssues: PermissionWrite},
+		},
+		{
+			name:  "merge map into write-all shorthand - shorthand cleared, map created",
+			base:  NewPermissionsWriteAll(),
+			merge: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionRead}),
+			want:  map[PermissionScope]PermissionLevel{PermissionContents: PermissionRead},
+		},
+		{
+			name:  "merge map into none shorthand - shorthand cleared, map created",
+			base:  NewPermissionsNone(),
+			merge: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionIssues: PermissionWrite}),
+			want:  map[PermissionScope]PermissionLevel{PermissionIssues: PermissionWrite},
+		},
+		{
+			name: "merge complex map into read shorthand",
+			base: NewPermissionsRead(),
+			merge: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionWrite,
+				PermissionIssues:       PermissionRead,
+				PermissionPullRequests: PermissionWrite,
+			}),
+			want: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionWrite,
+				PermissionIssues:       PermissionRead,
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+
+		// Nil and edge cases
+		{
+			name:  "merge nil into map - no change",
 			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionRead}),
 			merge: nil,
 			want:  map[PermissionScope]PermissionLevel{PermissionContents: PermissionRead},
+		},
+		{
+			name:   "merge nil into shorthand - no change",
+			base:   NewPermissionsReadAll(),
+			merge:  nil,
+			wantSH: "read-all",
+		},
+		{
+			name:  "merge empty map into map - no change",
+			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionRead}),
+			merge: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{}),
+			want:  map[PermissionScope]PermissionLevel{PermissionContents: PermissionRead},
+		},
+		{
+			name:  "merge map into empty map - scopes added",
+			base:  NewPermissionsFromMap(map[PermissionScope]PermissionLevel{}),
+			merge: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionIssues: PermissionWrite}),
+			want:  map[PermissionScope]PermissionLevel{PermissionIssues: PermissionWrite},
 		},
 	}
 
