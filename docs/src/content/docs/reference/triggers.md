@@ -19,16 +19,17 @@ GitHub Agentic Workflows supports all standard GitHub Actions triggers plus addi
 
 ### Dispatch Triggers (`workflow_dispatch:`)
 
-You can create manual triggers using `workflow_dispatch:` to run workflows on-demand from the GitHub UI, GitHub API or by using `gh aw run` or `gh aw trial`.
+Run workflows manually from the GitHub UI, API, or via `gh aw run`/`gh aw trial`. [Full syntax reference](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#on).
 
 ```yaml
 on:
     workflow_dispatch:
 ```
 
-See GitHub Docs for more details: [Workflow syntax for GitHub Actions - on](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#on).
-
 ### Scheduled Triggers (`schedule:`)
+
+Run workflows on a recurring schedule using [cron syntax](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule).
+
 ```yaml
 on:
   schedule:
@@ -36,18 +37,20 @@ on:
   stop-after: "+7d"     # Stop after a week
 ```
 
-See GitHub Docs for more details: [Events that trigger workflows - Schedule](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule).
-
 ### Issue Triggers (`issues:`)
+
+Trigger on issue events. [Full event reference](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#issues).
+
 ```yaml
 on:
   issues:
     types: [opened, edited, labeled]
 ```
 
-See GitHub Docs for more details: [Events that trigger workflows - Issues](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#issues).
-
 ### Pull Request Triggers (`pull_request:`)
+
+Trigger on pull request events. [Full event reference](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request).
+
 ```yaml
 on:
   pull_request:
@@ -55,8 +58,6 @@ on:
     names: [ready-for-review, needs-review]
   reaction: "rocket"
 ```
-
-See GitHub Docs for more details: [Events that trigger workflows - Pull Request](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request).
 
 ### Comment Triggers
 ```yaml
@@ -98,29 +99,15 @@ on:
   reaction: "eyes"
 ```
 
-**Behavior:**
-- **For `issues` and `pull_request` events**: Adds the emoji reaction AND creates a comment with a link to the workflow run
-- **For comment events** (`issue_comment`, `pull_request_review_comment`): Adds the emoji reaction and edits the comment to include the workflow run link (command workflows only)
+The reaction is added to the triggering item. For issues/PRs, a comment with the workflow run link is also created. For comment events in command workflows, the comment is edited to include the run link.
 
-**Outputs:**
-The `add_reaction` job exposes the following outputs for use by downstream jobs:
-- `reaction_id`: The ID of the created reaction
-- `comment_id`: The ID of the created comment (for `issues`/`pull_request` events)
-- `comment_url`: The URL of the created comment (for `issues`/`pull_request` events)
+**Available reactions:** `+1` 👍, `-1` 👎, `laugh` 😄, `confused` 😕, `heart` ❤️, `hooray` 🎉, `rocket` 🚀, `eyes` 👀
 
-**Available reactions:**
-- `+1` (👍)
-- `-1` (👎)
-- `laugh` (😄)
-- `confused` (😕)
-- `heart` (❤️)
-- `hooray` (🎉)
-- `rocket` (🚀)
-- `eyes` (👀)
+**Job outputs** (`add_reaction`): `reaction_id`, `comment_id` (issues/PRs only), `comment_url` (issues/PRs only)
 
 ### Stop After Configuration (`stop-after:`)
 
-An additional configuration option `stop-after:` is available within the `on:` section as a cost-control measure to automatically disable workflow triggering after a deadline:
+Automatically disable workflow triggering after a deadline to control costs.
 
 ```yaml
 on:
@@ -129,28 +116,7 @@ on:
   stop-after: "+25h"  # 25 hours from compilation time
 ```
 
-**Relative time delta (calculated from compilation time):**
-```yaml
-on:
-  issues:
-    types: [opened]
-  stop-after: "+25h"      # 25 hours from now
-```
-
-**Supported absolute date formats:**
-- Standard: `YYYY-MM-DD HH:MM:SS`, `YYYY-MM-DD`
-- US format: `MM/DD/YYYY HH:MM:SS`, `MM/DD/YYYY`  
-- European: `DD/MM/YYYY HH:MM:SS`, `DD/MM/YYYY`
-- Readable: `January 2, 2006`, `2 January 2006`, `Jan 2, 2006`
-- Ordinals: `1st June 2025`, `June 1st 2025`, `23rd December 2025`
-- ISO 8601: `2006-01-02T15:04:05Z`
-
-**Supported delta units:**
-- `d` - days
-- `h` - hours
-- `m` - minutes
-
-Note that if you specify a relative time, it is calculated at the time of workflow compilation, not when the workflow runs. If you re-compile your workflow, e.g. after a change, the effective stop time will be reset.
+Accepts absolute dates (`YYYY-MM-DD`, `MM/DD/YYYY`, `DD/MM/YYYY`, `January 2 2006`, `1st June 2025`, ISO 8601) or relative deltas (`+7d`, `+25h`, `+90m`) calculated from compilation time. Recompiling the workflow resets the stop time.
 
 ## Related Documentation
 
