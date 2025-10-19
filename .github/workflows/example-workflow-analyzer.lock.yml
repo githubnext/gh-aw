@@ -255,7 +255,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           echo "Installing gh-aw extension..."
-          gh extension install githubnext/gh-aw || gh extension upgrade githubnext/gh-aw
+          gh extension install githubnext/gh-aw
           gh aw --version
       - name: Setup Safe Outputs Collector MCP
         run: |

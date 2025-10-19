@@ -149,7 +149,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          echo \"Installing gh-aw extension...\"\n")
-		yaml.WriteString("          gh extension install githubnext/gh-aw || gh extension upgrade githubnext/gh-aw\n")
+		yaml.WriteString("          gh extension install githubnext/gh-aw\n")
 		yaml.WriteString("          gh aw --version\n")
 	}
 
