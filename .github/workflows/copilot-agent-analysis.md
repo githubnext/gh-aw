@@ -52,6 +52,7 @@ steps:
   - name: Fetch Copilot PR data
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       # Create output directory
       mkdir -p /tmp/gh-aw/pr-data
@@ -62,10 +63,8 @@ steps:
       # Search for PRs created by Copilot in the last 30 days using gh CLI
       # Output in JSON format for easy processing with jq
       echo "Fetching Copilot PRs from the last 30 days..."
-      gh search prs \
-        --repo "${{ github.repository }}" \
-        --json number,title,state,createdAt,closedAt,mergedAt,author,comments,additions,deletions,changedFiles,commits,url \
-        --created ">=$DATE_30_DAYS_AGO" \
+      gh search prs "repo:${{ github.repository }} created:>=$DATE_30_DAYS_AGO" \
+        --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository \
         --limit 1000 \
         > /tmp/gh-aw/pr-data/copilot-prs-raw.json
       
