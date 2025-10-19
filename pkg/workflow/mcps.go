@@ -145,6 +145,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	if hasAgenticWorkflows {
 		yaml.WriteString("      - name: Install gh-aw extension\n")
+		yaml.WriteString("        env:\n")
+		yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          echo \"Installing gh-aw extension...\"\n")
 		yaml.WriteString("          gh extension install githubnext/gh-aw || gh extension upgrade githubnext/gh-aw\n")

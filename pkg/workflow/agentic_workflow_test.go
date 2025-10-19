@@ -119,3 +119,42 @@ func TestAgenticWorkflowsHasMCPServers(t *testing.T) {
 		t.Error("Expected HasMCPServers to return true for agentic-workflows tool")
 	}
 }
+
+func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
+	// Create workflow data with agentic-workflows tool
+	workflowData := &WorkflowData{
+		Tools: map[string]any{
+			"agentic-workflows": nil,
+		},
+	}
+
+	// Create compiler
+	c := NewCompiler(false, "", "test")
+	c.SetSkipValidation(true)
+
+	// Generate MCP setup
+	var yaml strings.Builder
+	engine := NewCopilotEngine()
+
+	c.generateMCPSetup(&yaml, workflowData.Tools, engine, workflowData)
+	result := yaml.String()
+
+	// Verify the install step is present
+	if !strings.Contains(result, "Install gh-aw extension") {
+		t.Error("Expected 'Install gh-aw extension' step not found in generated YAML")
+	}
+
+	// Verify GH_TOKEN environment variable is set
+	if !strings.Contains(result, "GH_TOKEN: ${{ github.token }}") {
+		t.Errorf("Expected GH_TOKEN environment variable to be set in install step, got:\n%s", result)
+	}
+
+	// Verify the install commands are present
+	if !strings.Contains(result, "gh extension install githubnext/gh-aw") {
+		t.Error("Expected 'gh extension install' command not found in generated YAML")
+	}
+
+	if !strings.Contains(result, "gh aw --version") {
+		t.Error("Expected 'gh aw --version' command not found in generated YAML")
+	}
+}
