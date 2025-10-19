@@ -16,6 +16,7 @@
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   pre_activation["pre_activation"]
+#   report_diagnostics_to_pull_request["report_diagnostics_to_pull_request"]
 #   upload_assets["upload_assets"]
 #   pre_activation --> activation
 #   activation --> agent
@@ -24,6 +25,8 @@
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
+#   agent --> report_diagnostics_to_pull_request
+#   detection --> report_diagnostics_to_pull_request
 #   agent --> upload_assets
 #   detection --> upload_assets
 # ```
@@ -75,7 +78,7 @@ jobs:
       GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
       GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"report-diagnostics-to-pull-request\":{\"description\":\"Post MCP diagnostic findings as a comment on the pull request associated with the triggering branch\",\"inputs\":{\"message\":{\"description\":\"The diagnostic message to post as a PR comment\",\"required\":true,\"type\":\"string\"}},\"output\":\"Diagnostic report posted to pull request successfully!\"},\"upload_asset\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -168,7 +171,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_tool":{},"upload_asset":{}}
+          {"create_discussion":{"max":1},"missing_tool":{},"report-diagnostics-to-pull-request":{"description":"Post MCP diagnostic findings as a comment on the pull request associated with the triggering branch","inputs":{"message":{"description":"The diagnostic message to post as a PR comment","required":true,"type":"string"}},"output":"Diagnostic report posted to pull request successfully!"},"upload_asset":{}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1139,6 +1142,50 @@ jobs:
           - Access to mcp-inspect tool for MCP server diagnostics
           - Documentation for MCP debugging procedures
           - Reference for common issues and solutions
+          - Safe-output job for posting diagnostic reports to pull requests
+          
+          ### Safe Job: report-diagnostics-to-pull-request
+          
+          The `report_diagnostics_to_pull_request` safe-job allows agentic workflows to post MCP diagnostic findings as comments on the pull request associated with the triggering branch.
+          
+          **Purpose**: Enable AI agents to report MCP debugging findings directly on pull requests for collaborative review and resolution.
+          
+          **Agent Output Format:**
+          
+          The agent should output JSON with items of type `report_diagnostics_to_pull_request`:
+          
+          ```json
+          {
+            "items": [
+              {
+                "type": "report_diagnostics_to_pull_request",
+                "message": "## MCP Diagnostic Report\n\n**Issue**: Server failed to start\n\n**Analysis**: Missing dependency..."
+              }
+            ]
+          }
+          ```
+          
+          **Behavior:**
+          - Automatically resolves the pull request associated with the current branch
+          - Posts the diagnostic message as a comment on that PR
+          - If no open PR is found for the branch, a warning is logged and the job completes without error
+          - Supports staged mode for preview without posting
+          
+          **Required Permissions:**
+          - `contents: read` - To checkout the repository
+          - `pull-requests: write` - To post comments on pull requests
+          
+          **Staged Mode Support:**
+          
+          When `staged: true` is set in the workflow's safe-outputs configuration, diagnostic reports will be previewed in the step summary instead of being posted to the pull request.
+          
+          **Example Usage in Workflow:**
+          
+          ```markdown
+          Use the mcp-inspect tool to diagnose the drain3 server.
+          Post a summary of your findings using the report_diagnostics_to_pull_request output type.
+          Include the specific error, root cause analysis, and recommended fixes.
+          ```
           
           ### Best Practices
           
@@ -1493,7 +1540,7 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"report-diagnostics-to-pull-request\":{\"description\":\"Post MCP diagnostic findings as a comment on the pull request associated with the triggering branch\",\"inputs\":{\"message\":{\"description\":\"The diagnostic message to post as a PR comment\",\"required\":true,\"type\":\"string\"}},\"output\":\"Diagnostic report posted to pull request successfully!\"},\"upload_asset\":{}}"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -1511,7 +1558,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"report-diagnostics-to-pull-request\":{\"description\":\"Post MCP diagnostic findings as a comment on the pull request associated with the triggering branch\",\"inputs\":{\"message\":{\"description\":\"The diagnostic message to post as a PR comment\",\"required\":true,\"type\":\"string\"}},\"output\":\"Diagnostic report posted to pull request successfully!\"},\"upload_asset\":{}}"
         with:
           script: |
             async function main() {
@@ -4170,6 +4217,136 @@ jobs:
               }
             }
             await main();
+
+  report_diagnostics_to_pull_request:
+    needs:
+      - agent
+      - detection
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'report_diagnostics_to_pull_request'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-jobs/
+      - name: Setup Safe Job Environment Variables
+        run: |
+          find /tmp/gh-aw/safe-jobs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent_output.json" >> $GITHUB_ENV
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Post diagnostic report to pull request
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true';
+            const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+
+            // Read and parse agent output
+            if (!outputContent) {
+              core.info('No GITHUB_AW_AGENT_OUTPUT environment variable found');
+              return;
+            }
+
+            let agentOutputData;
+            try {
+              const fileContent = fs.readFileSync(outputContent, 'utf8');
+              agentOutputData = JSON.parse(fileContent);
+            } catch (error) {
+              core.setFailed(`Error reading or parsing agent output: ${error instanceof Error ? error.message : String(error)}`);
+              return;
+            }
+
+            if (!agentOutputData.items || !Array.isArray(agentOutputData.items)) {
+              core.info('No valid items found in agent output');
+              return;
+            }
+
+            // Filter for report_diagnostics_to_pull_request items
+            const diagnosticItems = agentOutputData.items.filter(item => item.type === 'report_diagnostics_to_pull_request');
+
+            if (diagnosticItems.length === 0) {
+              core.info('No report_diagnostics_to_pull_request items found in agent output');
+              return;
+            }
+
+            core.info(`Found ${diagnosticItems.length} report_diagnostics_to_pull_request item(s)`);
+
+            // Get the current branch
+            const ref = context.ref;
+            const branch = ref.replace('refs/heads/', '');
+            core.info(`Current branch: ${branch}`);
+
+            // Find pull requests associated with this branch
+            let pullRequests;
+            try {
+              const { data } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                head: `${context.repo.owner}:${branch}`,
+                state: 'open'
+              });
+              pullRequests = data;
+            } catch (error) {
+              core.setFailed(`Failed to list pull requests: ${error instanceof Error ? error.message : String(error)}`);
+              return;
+            }
+
+            if (pullRequests.length === 0) {
+              core.warning(`No open pull requests found for branch: ${branch}`);
+              core.info('Diagnostic report cannot be posted without an associated pull request');
+              return;
+            }
+
+            const pullRequest = pullRequests[0];
+            const prNumber = pullRequest.number;
+            core.info(`Found pull request #${prNumber} for branch ${branch}`);
+
+            // Process each diagnostic item
+            for (let i = 0; i < diagnosticItems.length; i++) {
+              const item = diagnosticItems[i];
+              const message = item.message;
+
+              if (!message) {
+                core.warning(`Item ${i + 1}: Missing message field, skipping`);
+                continue;
+              }
+
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Diagnostic Report Preview\n\n";
+                summaryContent += "The following diagnostic report would be posted to the pull request if staged mode was disabled:\n\n";
+                summaryContent += `**Pull Request:** #${prNumber}\n`;
+                summaryContent += `**Branch:** ${branch}\n\n`;
+                summaryContent += `**Diagnostic Message:**\n\n${message}\n\n`;
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Diagnostic report preview written to step summary");
+                continue;
+              }
+
+              core.info(`Posting diagnostic report ${i + 1}/${diagnosticItems.length} to PR #${prNumber}`);
+
+              try {
+                const { data: comment } = await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  body: message
+                });
+
+                core.info(`✅ Diagnostic report ${i + 1} posted successfully`);
+                core.info(`Comment ID: ${comment.id}`);
+                core.info(`Comment URL: ${comment.html_url}`);
+              } catch (error) {
+                core.setFailed(`Failed to post diagnostic report ${i + 1}: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+            }
 
   upload_assets:
     needs:
