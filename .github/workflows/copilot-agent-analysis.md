@@ -6,10 +6,7 @@ on:
     - cron: "0 10 * * *"
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pull-requests: read
-  actions: read
+permissions: read-all
 
 engine: claude
 
@@ -23,6 +20,9 @@ safe-outputs:
     title-prefix: "[copilot-agent-analysis] "
     category: "audits"
     max: 1
+
+imports:
+  - shared/jqschema.md
 
 tools:
   cache-memory: true
@@ -40,6 +40,42 @@ tools:
     - "ls -la .github"
     - "git log --oneline"
     - "git diff"
+    - "gh pr list *"
+    - "gh search prs *"
+    - "jq *"
+    - "/tmp/gh-aw/jqschema.sh"
+
+steps:
+  - name: Fetch Copilot PR data
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      # Create output directory
+      mkdir -p /tmp/gh-aw/pr-data
+      
+      # Calculate date 30 days ago
+      DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
+      
+      # Search for PRs created by Copilot in the last 30 days using gh CLI
+      # Output in JSON format for easy processing with jq
+      echo "Fetching Copilot PRs from the last 30 days..."
+      gh search prs repo:${{ github.repository }} created:">=$DATE_30_DAYS_AGO" \
+        --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository \
+        --limit 1000 \
+        > /tmp/gh-aw/pr-data/copilot-prs-raw.json
+      
+      # Filter to only Copilot author (user.login == "Copilot" and user.id == 198982749)
+      jq '[.[] | select(.author.login == "Copilot" or .author.id == 198982749)]' \
+        /tmp/gh-aw/pr-data/copilot-prs-raw.json \
+        > /tmp/gh-aw/pr-data/copilot-prs.json
+      
+      # Generate schema for reference
+      cat /tmp/gh-aw/pr-data/copilot-prs.json | /tmp/gh-aw/jqschema.sh > /tmp/gh-aw/pr-data/copilot-prs-schema.json
+      
+      echo "PR data saved to /tmp/gh-aw/pr-data/copilot-prs.json"
+      echo "Schema saved to /tmp/gh-aw/pr-data/copilot-prs-schema.json"
+      echo "Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)"
 
 timeout_minutes: 15
 strict: true
@@ -62,6 +98,25 @@ Daily analysis of pull requests created by copilot-swe-agent in the last 24 hour
 ## Task Overview
 
 ### Phase 1: Collect PR Data
+
+**Pre-fetched Data Available**: This workflow includes a preparation step that has already fetched Copilot PR data for the last 30 days using gh CLI. The data is available at:
+- `/tmp/gh-aw/pr-data/copilot-prs.json` - Full PR data in JSON format
+- `/tmp/gh-aw/pr-data/copilot-prs-schema.json` - Schema showing the structure
+
+You can use `jq` to process this data directly. For example:
+```bash
+# Get PRs from the last 24 hours
+TODAY=$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')
+jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today)]' /tmp/gh-aw/pr-data/copilot-prs.json
+
+# Count total PRs
+jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json
+
+# Get PR numbers for the last 24 hours
+jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today) | .number]' /tmp/gh-aw/pr-data/copilot-prs.json
+```
+
+**Alternative Approaches** (if you need additional data not in the pre-fetched file):
 
 Search for pull requests created by Copilot in the last 24 hours.
 
@@ -200,7 +255,7 @@ The history file should contain daily metrics in this format:
 
 If the history file doesn't exist or has gaps in the data, rebuild it by querying historical PRs:
 
-1. **Determine Missing Date Range**: Identify which dates need data (up to last 30 days for meaningful trends)
+1. **Determine Missing Date Range**: Identify which dates need data (up to last 7 days maximum for meaningful trends)
 
 2. **Query PRs One Day at a Time**: To avoid context explosion, query PRs for each missing day separately:
    ```
@@ -217,8 +272,8 @@ If the history file doesn't exist or has gaps in the data, rebuild it by queryin
    - Process one day at a time in chronological order (oldest to newest)
    - Save after each day to preserve progress
    - If you have 5+ days of data, that's sufficient for basic trend analysis
-   - Aim for 7+ days for week-over-week trends
-   - Aim for 30 days for monthly trends
+   - Aim for 7 days maximum for week-over-week trends
+   - Do not attempt to collect more than 7 days of historical data
 
 5. **Rate Limiting**: Be mindful of API rate limits - if approaching limits, save what you have and continue next run
 
@@ -244,12 +299,12 @@ Store the data in JSON format with proper structure.
 
 **When to Rebuild:**
 - History file doesn't exist
-- History file has gaps (missing dates in the last 30 days)
+- History file has gaps (missing dates in the last 7 days)
 - Insufficient data for trend analysis (< 7 days)
 
 **Rebuilding Strategy:**
 1. **Assess Current State**: Check how many days of data you have
-2. **Target Collection**: Aim for at least 7 days (for weekly trends) or 30 days (for monthly trends)
+2. **Target Collection**: Aim for at least 7 days maximum (for weekly trends)
 3. **One Day at a Time**: Query PRs for each missing date separately to avoid context explosion
 
 **For Each Missing Day:**
@@ -261,14 +316,14 @@ repo:${{ github.repository }} is:pr "START COPILOT CODING AGENT" created:YYYY-MM
 Or use `list_pull_requests` with date filtering and filter results by `user.login == "Copilot"` and `user.id == 198982749`.
 
 **Process:**
-- Start with the oldest missing date in your target range (e.g., 30 days ago)
+- Start with the oldest missing date in your target range (maximum 7 days ago)
 - For each date:
   1. Search for PRs created on that date
   2. Analyze each PR (same as Phase 2)
   3. Calculate daily metrics (same as Phase 4.2)
   4. Add to history.json
   5. Save immediately to preserve progress
-- Continue until you have sufficient data or reach time limits
+- Continue until you have sufficient data (up to 7 days) or reach time limits
 
 **Important Constraints:**
 - Process dates in chronological order (oldest first)
@@ -395,16 +450,10 @@ Create a comprehensive discussion with your findings using the safe-outputs crea
 [If at least 7 days of historical data available]
 
 **Performance Metrics:**
-- **Total PRs**: [count] ([trend indicator] vs previous week)
-- **Success Rate**: [percentage]% ([trend indicator] vs previous week)
-- **Average Duration**: [time] ([trend indicator] vs previous week)
-- **Average Comments**: [number] ([trend indicator] vs previous week)
-
-**Week-over-Week Change:**
-- PRs Created: [change] ([percentage]% change)
-- Success Rate: [change] ([percentage point] change)
-- Duration: [change] ([percentage]% change)
-- Comments: [change] ([percentage]% change)
+- **Total PRs**: [count]
+- **Success Rate**: [percentage]%
+- **Average Duration**: [time]
+- **Average Comments**: [number]
 
 **Daily Breakdown (Last 7 Days):**
 | Date | PRs | Merged | Success Rate | Avg Duration |
@@ -529,7 +578,7 @@ _This analysis was generated automatically by the Copilot Agent Analysis workflo
 
 ### Cache Memory Management
 - **Organize data**: Keep historical data well-structured in JSON format
-- **Limit retention**: Consider keeping only last 90 days of daily data
+- **Limit retention**: Keep last 1 year (365 days) of daily data (cache can be cleared to delete old data)
 - **Handle errors**: If cache is corrupted, reinitialize gracefully
 - **Backup important data**: Store critical metrics redundantly
 - **Progressive data collection**: If historical data is missing, rebuild incrementally
@@ -571,9 +620,9 @@ A successful analysis:
 - ✅ Calculates accurate metrics for each PR
 - ✅ Generates a clear, formatted summary table
 - ✅ Updates cache memory with today's metrics
-- ✅ Rebuilds missing historical data if needed (one day at a time)
+- ✅ Rebuilds missing historical data if needed (one day at a time, up to 7 days maximum)
 - ✅ Analyzes trends with available historical data
-- ✅ Provides weekly summary (if 7+ days of data available)
+- ✅ Provides weekly summary (if 7 days of data available)
 - ✅ Provides monthly summary (if 30+ days of data available)
 - ✅ Checks for instruction file changes
 - ✅ Creates a comprehensive discussion with findings
