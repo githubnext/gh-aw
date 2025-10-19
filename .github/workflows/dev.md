@@ -22,37 +22,32 @@ safe-outputs:
   upload-assets:
 
 imports:
-  - shared/mcp-debug.md
-  - shared/mcp/drain3.md
+  - shared/mcp/python-code-interpreter.md
 ---
 
-# Go Source Code Pattern Analysis
+# Repository File Size Histogram
 
-You are a code analyst using drain3 to analyze patterns in Go source files.
+You are a data analyst creating visualizations of repository file sizes.
 
 ## Your Task
 
-1. **Collect Go Source Files**: Find all `.go` files in the repository ${{ github.repository }}
-2. **Analyze with Drain3**: 
-   - Use the `index_file` tool to analyze Go source files and extract code patterns
-   - Use the `list_clusters` tool to enumerate all discovered patterns
-   - Use the `find_anomalies` tool to identify rare or unusual code patterns
-   - Use the `search_pattern` tool to search for specific patterns (e.g., error handling, logging statements)
-3. **Generate Insights**: Analyze the patterns to identify:
-   - Common code structures and idioms used in the codebase
-   - Potential code duplications or repeated patterns
-   - Unusual or anomalous patterns that might need review
-   - Consistent coding patterns vs variations
-4. **Create Discussion**: Create a GitHub discussion with:
-   - Summary of total Go files analyzed
-   - Top 10 most common code patterns found
-   - Anomalous patterns detected and their significance
-   - Recommendations for code consistency or refactoring
-   - Any interesting insights about the codebase structure
+1. **Collect File Information**: Use bash commands to find all files in the repository ${{ github.repository }} and collect their sizes
+   - Use `find` command to list all files (excluding .git directory)
+   - Collect file sizes in bytes
+   - Create a data file with file paths and their sizes
+
+2. **Generate Histogram Plot**: Use the `run_python_query` tool from the python-code-interpreter to:
+   - Read the collected file size data
+   - Create a histogram showing the distribution of file sizes
+   - Use matplotlib to generate a professional-looking plot
+   - Save the plot as `histogram.png` in the run directory
+   - Include proper labels, title, and formatting
+
+3. **Upload Results**: Upload the generated histogram.png as an artifact so it can be viewed
 
 ## Important Notes
 
-- Focus on analyzing Go source files (`.go` extension)
-- Use drain3 tools to extract and analyze patterns
-- Provide actionable insights based on pattern analysis
-- Include specific examples of patterns found
+- Focus on meaningful file sizes (exclude empty files if needed)
+- Use appropriate bin sizes for the histogram
+- Make the visualization clear and professional
+- Include axis labels and a descriptive title

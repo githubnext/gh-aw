@@ -5,8 +5,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp-debug.md
-#     - shared/mcp/drain3.md
+#     - shared/mcp/python-code-interpreter.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -17,7 +16,6 @@
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   pre_activation["pre_activation"]
-#   report_diagnostics_to_pull_request["report_diagnostics_to_pull_request"]
 #   upload_assets["upload_assets"]
 #   pre_activation --> activation
 #   activation --> agent
@@ -26,8 +24,6 @@
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
-#   agent --> report_diagnostics_to_pull_request
-#   detection --> report_diagnostics_to_pull_request
 #   agent --> upload_assets
 #   detection --> upload_assets
 # ```
@@ -79,69 +75,34 @@ jobs:
       GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
       GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"report-diagnostics-to-pull-request\":{\"description\":\"Post MCP diagnostic findings as a comment on the pull request associated with the triggering branch\",\"inputs\":{\"message\":{\"description\":\"The diagnostic message to post as a PR comment\",\"required\":true,\"type\":\"string\"}},\"output\":\"Diagnostic report posted to pull request successfully!\"},\"upload_asset\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          cache: true
-          go-version-file: go.mod
-      - name: Install dependencies
-        run: make deps-dev
-      - name: Install binary as 'gh-aw'
-        run: make build
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Start MCP server
-        run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Wait a moment for server to start\nsleep 2\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"MCP server failed to start\"\n  exit 1\nfi\n\necho \"MCP server started successfully with PID $MCP_PID\"\n"
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install Drain3 dependencies
+      - name: Install Python code interpreter dependencies
         run: |
-          pip install fastmcp drain3
-      - name: Copy Drain3 MCP server script
+          pip install fastmcp pandas numpy scipy matplotlib seaborn plotly
+      - name: Copy Python code interpreter MCP server script
         run: |
-          mkdir -p /tmp/gh-aw/mcp-servers/drain3/
-          cp .github/workflows/shared/mcp/drain3_server.py /tmp/gh-aw/mcp-servers/drain3/
-          chmod +x /tmp/gh-aw/mcp-servers/drain3/drain3_server.py
+          mkdir -p /tmp/gh-aw/mcp-servers/python-code-interpreter/
+          cp .github/workflows/shared/mcp/python-code-interpreter_server.py /tmp/gh-aw/mcp-servers/python-code-interpreter/
+          chmod +x /tmp/gh-aw/mcp-servers/python-code-interpreter/python-code-interpreter_server.py
       - env:
-          HOST: 0.0.0.0
-          PORT: "8766"
-          STATE_DIR: /tmp/gh-aw/cache-memory
-        name: Start Drain3 MCP server
-        run: "set -e\nmkdir -p /tmp/gh-aw/mcp-logs/drain3/\npython /tmp/gh-aw/mcp-servers/drain3/drain3_server.py > /tmp/gh-aw/mcp-logs/drain3/server.log 2>&1 &\nMCP_PID=$!\n\n# Wait for server to start\nsleep 3\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"Drain3 MCP server failed to start\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/server.log || true\n  exit 1\nfi\n\n# Check if server is listening on port 8766\nif ! netstat -tln | grep -q \":8766 \"; then\n  echo \"Drain3 MCP server not listening on port 8766\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/server.log || true\n  exit 1\nfi\n\n# Test HTTP endpoint with curl\necho \"Testing HTTP endpoint with curl...\"\nif curl -v -X GET http://localhost:8766/mcp 2>&1 | tee /tmp/gh-aw/mcp-logs/drain3/curl-test.log; then\n  echo \"✓ HTTP endpoint responded\"\nelse\n  echo \"✗ HTTP endpoint did not respond\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/server.log || true\n  echo \"Curl test logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/curl-test.log || true\n  exit 1\nfi\n\necho \"Drain3 MCP server started successfully with PID $MCP_PID\"\necho \"Server logs (first 50 lines):\"\nhead -n 50 /tmp/gh-aw/mcp-logs/drain3/server.log || true\n"
+          PORT: "9753"
+        name: Start Python code interpreter MCP server
+        run: "set -e\nmkdir -p /tmp/gh-aw/mcp-logs/python-code-interpreter/\npython /tmp/gh-aw/mcp-servers/python-code-interpreter/python-code-interpreter_server.py > /tmp/gh-aw/mcp-logs/python-code-interpreter/server.log 2>&1 &\nMCP_PID=$!\n\n# Wait for server to start\nsleep 3\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"Python code interpreter MCP server failed to start\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/python-code-interpreter/server.log || true\n  exit 1\nfi\n\n# Check if server is listening on port 9753\nif ! netstat -tln | grep -q \":9753 \"; then\n  echo \"Python code interpreter MCP server not listening on port 9753\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/python-code-interpreter/server.log || true\n  exit 1\nfi\n\n# Test HTTP endpoint with curl\necho \"Testing HTTP endpoint with curl...\"\nif curl -v -X GET http://localhost:9753/mcp 2>&1 | tee /tmp/gh-aw/mcp-logs/python-code-interpreter/curl-test.log; then\n  echo \"✓ HTTP endpoint responded\"\nelse\n  echo \"✗ HTTP endpoint did not respond\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/python-code-interpreter/server.log || true\n  echo \"Curl test logs:\"\n  cat /tmp/gh-aw/mcp-logs/python-code-interpreter/curl-test.log || true\n  exit 1\nfi\n\necho \"Python code interpreter MCP server started successfully with PID $MCP_PID\"\necho \"Server logs (first 50 lines):\"\nhead -n 50 /tmp/gh-aw/mcp-logs/python-code-interpreter/server.log || true\n"
 
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: |
-          mkdir -p /tmp/gh-aw/cache-memory
-          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
-          echo "This folder provides persistent file storage across workflow runs"
-          echo "LLMs and agentic tools can freely read and write files in this directory"
-      - name: Cache memory file share data
-        uses: actions/cache@v4
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            memory-${{ github.workflow }}-
-            memory-
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -210,7 +171,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_tool":{},"report-diagnostics-to-pull-request":{"description":"Post MCP diagnostic findings as a comment on the pull request associated with the triggering branch","inputs":{"message":{"description":"The diagnostic message to post as a PR comment","required":true,"type":"string"}},"output":"Diagnostic report posted to pull request successfully!"},"upload_asset":{}}
+          {"create_discussion":{"max":1},"missing_tool":{},"upload_asset":{}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -898,27 +859,6 @@ jobs:
           cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
-              "drain3": {
-                "type": "http",
-                "url": "http://localhost:8766/mcp",
-                "tools": [
-                  "index_file",
-                  "query_file",
-                  "list_templates",
-                  "list_clusters",
-                  "cluster_stats",
-                  "find_anomalies",
-                  "compare_runs",
-                  "search_pattern"
-                ]
-              },
-              "gh-aw": {
-                "type": "http",
-                "url": "http://localhost:8765",
-                "tools": [
-                  "mcp-inspect"
-                ]
-              },
               "github": {
                 "type": "local",
                 "command": "docker",
@@ -992,6 +932,13 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_PERSONAL_ACCESS_TOKEN}"
                 }
               },
+              "python-code-interpreter": {
+                "type": "http",
+                "url": "http://localhost:9753/mcp",
+                "tools": [
+                  "run_python_query"
+                ]
+              },
               "safe_outputs": {
                 "type": "local",
                 "command": "node",
@@ -1022,152 +969,34 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # MCP Server Debugging Assistant
-          
-          You are an expert MCP (Model Context Protocol) server debugger. Your role is to diagnose and troubleshoot MCP server configuration and runtime issues.
-          
-          ## Your Tools
-          
-          **mcp-inspect**: Use this tool to inspect MCP server configurations and diagnose connectivity issues. It can list workflows with MCP servers, inspect specific servers, show available tools and their status, display tool schemas and parameters, and verify HTTP endpoint connectivity.
-          
-          ## MCP Server Logs
-          
-          When debugging, always check MCP server logs located at `/tmp/gh-aw/mcp-logs/<server-name>/`:
-          - `server.log` - Main server startup and runtime logs
-          - `curl-test.log` - HTTP endpoint connectivity tests (for HTTP servers)
-          
-          These logs contain crucial diagnostic information about server startup failures, dependency issues, port binding problems, configuration errors, and runtime exceptions.
-          
-          ## Debugging Workflow
-          
-          When you encounter an MCP server issue, follow this systematic approach:
-          
-          ### 1. Identify the Problem
-          Document what operation failed, which MCP server is affected, what error messages you received, and what you were trying to accomplish.
-          
-          ### 2. Read the Logs
-          Check the server logs to understand what went wrong:
-          ```bash
-          cat /tmp/gh-aw/mcp-logs/<server-name>/server.log
-          cat /tmp/gh-aw/mcp-logs/<server-name>/curl-test.log  # For HTTP servers
-          ```
-          
-          Look for Python/Node.js import errors, port binding errors, configuration validation errors, and stack traces.
-          
-          ### 3. Use mcp-inspect
-          For HTTP-based MCP servers, use the mcp-inspect tool to diagnose connectivity and tool availability:
-          - Inspect all MCP servers: `mcp-inspect` with `workflow_file` parameter
-          - Inspect specific server: `mcp-inspect` with `workflow_file` and `server` parameters
-          - Get tool details: `mcp-inspect` with `workflow_file`, `server`, and `tool` parameters
-          
-          ### 4. Analyze Root Cause
-          Determine:
-          - What specifically failed?
-          - Which tools or operations are affected?
-          - Can you proceed without this server?
-          - What changes are needed to resolve the issue?
-          
-          ## Common Issues and Solutions
-          
-          **Server Failed to Start:**
-          - Check server.log for startup errors
-          - Look for missing dependencies (ModuleNotFoundError, ImportError)
-          - Verify port is not in use: `netstat -tln | grep <port>`
-          - Check Python/Node version compatibility
-          
-          **HTTP Endpoint Not Responding:**
-          - Check if server process is running: `ps aux | grep <server-name>`
-          - Review curl-test.log for connection details
-          - Verify server is listening on the correct port
-          - Check HOST and PORT environment variables
-          
-          **Tools Not Available:**
-          - Use mcp-inspect to list available tools
-          - Compare with workflow's allowed list
-          - Check tool registration in server code
-          - Verify server initialized successfully
-          
-          ## Reporting Your Findings
-          
-          **CRITICAL**: You MUST use the `report_diagnostics_to_pull_request` safe-output to report your diagnostic findings. Do not just describe the issue - create a structured diagnostic report using the safe-output.
-          
-          Your diagnostic report must include:
-          - **Issue Description**: What specifically failed
-          - **Root Cause Analysis**: Why it failed based on log evidence
-          - **Evidence**: Specific error messages and log excerpts
-          - **Impact Assessment**: Which tools/operations are affected
-          - **Recommended Fix**: Detailed steps to resolve the issue
-          - **Workarounds**: Alternative approaches if applicable
-          
-          **Output Format:**
-          Use the `report_diagnostics_to_pull_request` safe-output type with this structure:
-          
-          ```json
-          {
-            "items": [
-              {
-                "type": "report_diagnostics_to_pull_request",
-                "message": "## MCP Diagnostic Report\n\n**Server**: <server-name>\n\n**Issue**: <brief description>\n\n**Root Cause**: <analysis>\n\n**Evidence**:\n```\n<log excerpts>\n```\n\n**Impact**: <affected tools/operations>\n\n**Recommended Fix**:\n1. <step 1>\n2. <step 2>\n\n**Workaround**: <if applicable>"
-              }
-            ]
-          }
-          ```
-          
-          The diagnostic report will be automatically posted as a comment on the pull request associated with the current branch.
-          
-          ## Example Diagnostic Session
-          
-          ```
-          # Server failed to start - investigate
-          Read /tmp/gh-aw/mcp-logs/drain3/server.log
-          
-          # Found error: ModuleNotFoundError: No module named 'fastmcp'
-          
-          # Verify connectivity status
-          Use mcp-inspect with workflow_file="dev" and server="drain3"
-          
-          # Create diagnostic report using safe-output
-          Output report_diagnostics_to_pull_request with:
-          - Issue: Drain3 MCP server failed to start
-          - Root Cause: Missing fastmcp dependency
-          - Evidence: ModuleNotFoundError from server.log
-          - Fix: Add pip install fastmcp to workflow steps
-          ```
-          
-          Remember: Always conclude your debugging session by posting a diagnostic report using the `report_diagnostics_to_pull_request` safe-output. This ensures your findings are documented and actionable.
           
           
+          # Repository File Size Histogram
           
-          # Go Source Code Pattern Analysis
-          
-          You are a code analyst using drain3 to analyze patterns in Go source files.
+          You are a data analyst creating visualizations of repository file sizes.
           
           ## Your Task
           
-          1. **Collect Go Source Files**: Find all `.go` files in the repository ${{ github.repository }}
-          2. **Analyze with Drain3**: 
-             - Use the `index_file` tool to analyze Go source files and extract code patterns
-             - Use the `list_clusters` tool to enumerate all discovered patterns
-             - Use the `find_anomalies` tool to identify rare or unusual code patterns
-             - Use the `search_pattern` tool to search for specific patterns (e.g., error handling, logging statements)
-          3. **Generate Insights**: Analyze the patterns to identify:
-             - Common code structures and idioms used in the codebase
-             - Potential code duplications or repeated patterns
-             - Unusual or anomalous patterns that might need review
-             - Consistent coding patterns vs variations
-          4. **Create Discussion**: Create a GitHub discussion with:
-             - Summary of total Go files analyzed
-             - Top 10 most common code patterns found
-             - Anomalous patterns detected and their significance
-             - Recommendations for code consistency or refactoring
-             - Any interesting insights about the codebase structure
+          1. **Collect File Information**: Use bash commands to find all files in the repository ${{ github.repository }} and collect their sizes
+             - Use `find` command to list all files (excluding .git directory)
+             - Collect file sizes in bytes
+             - Create a data file with file paths and their sizes
+          
+          2. **Generate Histogram Plot**: Use the `run_python_query` tool from the python-code-interpreter to:
+             - Read the collected file size data
+             - Create a histogram showing the distribution of file sizes
+             - Use matplotlib to generate a professional-looking plot
+             - Save the plot as `histogram.png` in the run directory
+             - Include proper labels, title, and formatting
+          
+          3. **Upload Results**: Upload the generated histogram.png as an artifact so it can be viewed
           
           ## Important Notes
           
-          - Focus on analyzing Go source files (`.go` extension)
-          - Use drain3 tools to extract and analyze patterns
-          - Provide actionable insights based on pattern analysis
-          - Include specific examples of patterns found
+          - Focus on meaningful file sizes (exclude empty files if needed)
+          - Use appropriate bin sizes for the histogram
+          - Make the visualization clear and professional
+          - Include axis labels and a descriptive title
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1233,31 +1062,6 @@ jobs:
           
           **Do NOT** attempt to edit files outside these directories as you do not have the necessary permissions.
           
-          EOF
-      - name: Append cache memory instructions to prompt
-        env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
-          
-          ---
-          
-          ## Cache Folder Available
-          
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           EOF
       - name: Append safe outputs instructions to prompt
         env:
@@ -1422,17 +1226,6 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool drain3
-        # --allow-tool drain3(cluster_stats)
-        # --allow-tool drain3(compare_runs)
-        # --allow-tool drain3(find_anomalies)
-        # --allow-tool drain3(index_file)
-        # --allow-tool drain3(list_clusters)
-        # --allow-tool drain3(list_templates)
-        # --allow-tool drain3(query_file)
-        # --allow-tool drain3(search_pattern)
-        # --allow-tool gh-aw
-        # --allow-tool gh-aw(mcp-inspect)
         # --allow-tool github(download_workflow_run_artifact)
         # --allow-tool github(get_code_scanning_alert)
         # --allow-tool github(get_commit)
@@ -1487,13 +1280,15 @@ jobs:
         # --allow-tool github(search_pull_requests)
         # --allow-tool github(search_repositories)
         # --allow-tool github(search_users)
+        # --allow-tool python-code-interpreter
+        # --allow-tool python-code-interpreter(run_python_query)
         # --allow-tool safe_outputs
         # --allow-tool write
         timeout-minutes: 20
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool drain3 --allow-tool 'drain3(cluster_stats)' --allow-tool 'drain3(compare_runs)' --allow-tool 'drain3(find_anomalies)' --allow-tool 'drain3(index_file)' --allow-tool 'drain3(list_clusters)' --allow-tool 'drain3(list_templates)' --allow-tool 'drain3(query_file)' --allow-tool 'drain3(search_pattern)' --allow-tool gh-aw --allow-tool 'gh-aw(mcp-inspect)' --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool python-code-interpreter --allow-tool 'python-code-interpreter(run_python_query)' --allow-tool safe_outputs --allow-tool write --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
@@ -1502,7 +1297,7 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"report-diagnostics-to-pull-request\":{\"description\":\"Post MCP diagnostic findings as a comment on the pull request associated with the triggering branch\",\"inputs\":{\"message\":{\"description\":\"The diagnostic message to post as a PR comment\",\"required\":true,\"type\":\"string\"}},\"output\":\"Diagnostic report posted to pull request successfully!\"},\"upload_asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -1520,7 +1315,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"report-diagnostics-to-pull-request\":{\"description\":\"Post MCP diagnostic findings as a comment on the pull request associated with the triggering branch\",\"inputs\":{\"message\":{\"description\":\"The diagnostic message to post as a PR comment\",\"required\":true,\"type\":\"string\"}},\"output\":\"Diagnostic report posted to pull request successfully!\"},\"upload_asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
         with:
           script: |
             async function main() {
@@ -4179,136 +3974,6 @@ jobs:
               }
             }
             await main();
-
-  report_diagnostics_to_pull_request:
-    needs:
-      - agent
-      - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'report_diagnostics_to_pull_request'))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@v5
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safe-jobs/
-      - name: Setup Safe Job Environment Variables
-        run: |
-          find /tmp/gh-aw/safe-jobs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent_output.json" >> $GITHUB_ENV
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Post diagnostic report to pull request
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const fs = require('fs');
-            const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true';
-            const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-
-            // Read and parse agent output
-            if (!outputContent) {
-              core.info('No GITHUB_AW_AGENT_OUTPUT environment variable found');
-              return;
-            }
-
-            let agentOutputData;
-            try {
-              const fileContent = fs.readFileSync(outputContent, 'utf8');
-              agentOutputData = JSON.parse(fileContent);
-            } catch (error) {
-              core.setFailed(`Error reading or parsing agent output: ${error instanceof Error ? error.message : String(error)}`);
-              return;
-            }
-
-            if (!agentOutputData.items || !Array.isArray(agentOutputData.items)) {
-              core.info('No valid items found in agent output');
-              return;
-            }
-
-            // Filter for report_diagnostics_to_pull_request items
-            const diagnosticItems = agentOutputData.items.filter(item => item.type === 'report_diagnostics_to_pull_request');
-
-            if (diagnosticItems.length === 0) {
-              core.info('No report_diagnostics_to_pull_request items found in agent output');
-              return;
-            }
-
-            core.info(`Found ${diagnosticItems.length} report_diagnostics_to_pull_request item(s)`);
-
-            // Get the current branch
-            const ref = context.ref;
-            const branch = ref.replace('refs/heads/', '');
-            core.info(`Current branch: ${branch}`);
-
-            // Find pull requests associated with this branch
-            let pullRequests;
-            try {
-              const { data } = await github.rest.pulls.list({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                head: `${context.repo.owner}:${branch}`,
-                state: 'open'
-              });
-              pullRequests = data;
-            } catch (error) {
-              core.setFailed(`Failed to list pull requests: ${error instanceof Error ? error.message : String(error)}`);
-              return;
-            }
-
-            if (pullRequests.length === 0) {
-              core.warning(`No open pull requests found for branch: ${branch}`);
-              core.info('Diagnostic report cannot be posted without an associated pull request');
-              return;
-            }
-
-            const pullRequest = pullRequests[0];
-            const prNumber = pullRequest.number;
-            core.info(`Found pull request #${prNumber} for branch ${branch}`);
-
-            // Process each diagnostic item
-            for (let i = 0; i < diagnosticItems.length; i++) {
-              const item = diagnosticItems[i];
-              const message = item.message;
-
-              if (!message) {
-                core.warning(`Item ${i + 1}: Missing message field, skipping`);
-                continue;
-              }
-
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Diagnostic Report Preview\n\n";
-                summaryContent += "The following diagnostic report would be posted to the pull request if staged mode was disabled:\n\n";
-                summaryContent += `**Pull Request:** #${prNumber}\n`;
-                summaryContent += `**Branch:** ${branch}\n\n`;
-                summaryContent += `**Diagnostic Message:**\n\n${message}\n\n`;
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Diagnostic report preview written to step summary");
-                continue;
-              }
-
-              core.info(`Posting diagnostic report ${i + 1}/${diagnosticItems.length} to PR #${prNumber}`);
-
-              try {
-                const { data: comment } = await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: prNumber,
-                  body: message
-                });
-
-                core.info(`✅ Diagnostic report ${i + 1} posted successfully`);
-                core.info(`Comment ID: ${comment.id}`);
-                core.info(`Comment URL: ${comment.html_url}`);
-              } catch (error) {
-                core.setFailed(`Failed to post diagnostic report ${i + 1}: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-            }
 
   upload_assets:
     needs:
