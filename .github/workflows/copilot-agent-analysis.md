@@ -348,11 +348,18 @@ Append to history.json in the cache memory.
 
 If historical data exists (at least 7 days), analyze trends:
 
-**Week-over-Week Comparison** (last 7 days):
+**Week-over-Week Comparison** (last 7 days vs previous 7 days):
 - Success rate trend (improving/declining/stable)
 - Average duration trend (faster/slower/stable)
 - Comment count trend (more engagement/less engagement)
 - Volume trend (more/fewer PRs)
+
+**Monthly Summary** (if 30+ days of data):
+- 30-day average success rate
+- 30-day average duration
+- 30-day average comments
+- Total PRs in last 30 days
+- Weekly breakdown of the month
 
 **Trend Indicators**:
 - 📈 Improving: Metric is better than comparison period
@@ -454,6 +461,38 @@ Create a comprehensive discussion with your findings using the safe-outputs crea
 | [date] | [count] | [count] | [%] | [time] |
 | ... | ... | ... | ... | ... |
 
+### Monthly Summary (Last 30 Days)
+
+[If at least 30 days of historical data available]
+
+**Performance Metrics:**
+- **Total PRs**: [count]
+- **Average Success Rate**: [percentage]%
+- **Average Duration**: [time]
+- **Average Comments per PR**: [number]
+
+**Weekly Trends (4 weeks):**
+| Week | PRs | Success Rate | Avg Duration | Avg Comments |
+|------|-----|--------------|--------------|--------------|
+| Week 1 (most recent) | [count] | [%] | [time] | [number] |
+| Week 2 | [count] | [%] | [time] | [number] |
+| Week 3 | [count] | [%] | [time] | [number] |
+| Week 4 (oldest) | [count] | [%] | [time] | [number] |
+
+**Monthly Trends:**
+- Success Rate Trend: [trend indicator with explanation]
+- Duration Trend: [trend indicator with explanation]
+- Volume Trend: [trend indicator with explanation]
+- Engagement Trend: [trend indicator with explanation]
+
+### Historical Comparison (7-day trend)
+
+[If historical data available but less than 30 days]
+
+- **Success Rate**: [current]% vs [7-day avg]% [trend indicator]
+- **Agent Duration**: [current] vs [7-day avg] [trend indicator]
+- **Human Engagement**: [current comments] vs [7-day avg] [trend indicator]
+
 ## Instruction File Changes
 
 [If any instruction files were modified in the last 7 days]
@@ -539,14 +578,14 @@ _This analysis was generated automatically by the Copilot Agent Analysis workflo
 
 ### Cache Memory Management
 - **Organize data**: Keep historical data well-structured in JSON format
-- **Limit retention**: Keep only last 7 days of daily data (maximum)
+- **Limit retention**: Keep last 1 year (365 days) of daily data (cache can be cleared to delete old data)
 - **Handle errors**: If cache is corrupted, reinitialize gracefully
 - **Backup important data**: Store critical metrics redundantly
 - **Progressive data collection**: If historical data is missing, rebuild incrementally
   - Prioritize most recent days first (they're more relevant for trends)
   - Process one day at a time to avoid overwhelming the context
   - Save progress after each day to ensure data persistence
-  - Aim for 7 days maximum for weekly trends
+  - Aim for at least 7 days for weekly trends, 30 days for monthly trends
 
 ### Trend Analysis
 - **Require sufficient data**: Don't report trends with less than 7 days of data
@@ -584,6 +623,7 @@ A successful analysis:
 - ✅ Rebuilds missing historical data if needed (one day at a time, up to 7 days maximum)
 - ✅ Analyzes trends with available historical data
 - ✅ Provides weekly summary (if 7 days of data available)
+- ✅ Provides monthly summary (if 30+ days of data available)
 - ✅ Checks for instruction file changes
 - ✅ Creates a comprehensive discussion with findings
 - ✅ Provides actionable insights and recommendations
