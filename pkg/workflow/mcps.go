@@ -144,10 +144,15 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	if hasAgenticWorkflows {
+		// Use effective token with precedence: top-level github-token > default
+		effectiveToken := getEffectiveGitHubToken("", workflowData.GitHubToken)
+		
 		yaml.WriteString("      - name: Install gh-aw extension\n")
+		yaml.WriteString("        env:\n")
+		yaml.WriteString(fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          echo \"Installing gh-aw extension...\"\n")
-		yaml.WriteString("          gh extension install githubnext/gh-aw || gh extension upgrade githubnext/gh-aw\n")
+		yaml.WriteString("          gh extension install githubnext/gh-aw\n")
 		yaml.WriteString("          gh aw --version\n")
 	}
 

@@ -466,15 +466,17 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.345
+        run: npm install -g @github/copilot@0.0.346
       - name: Downloading container images
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.18.0
       - name: Install gh-aw extension
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           echo "Installing gh-aw extension..."
-          gh extension install githubnext/gh-aw || gh extension upgrade githubnext/gh-aw
+          gh extension install githubnext/gh-aw
           gh aw --version
       - name: Setup Safe Outputs Collector MCP
         run: |
@@ -3797,7 +3799,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.345
+        run: npm install -g @github/copilot@0.0.346
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
