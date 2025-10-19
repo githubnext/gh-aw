@@ -552,4 +552,3 @@ func NewPermissionsContentsWritePRReadIssuesRead() *Permissions {
 		PermissionIssues:       PermissionRead,
 	})
 }
-
