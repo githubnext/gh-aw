@@ -144,9 +144,9 @@ func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
 		t.Error("Expected 'Install gh-aw extension' step not found in generated YAML")
 	}
 
-	// Verify GH_TOKEN environment variable is set
-	if !strings.Contains(result, "GH_TOKEN: ${{ github.token }}") {
-		t.Errorf("Expected GH_TOKEN environment variable to be set in install step, got:\n%s", result)
+	// Verify GH_TOKEN environment variable is set with the default token expression
+	if !strings.Contains(result, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+		t.Errorf("Expected GH_TOKEN environment variable to be set with default token expression in install step, got:\n%s", result)
 	}
 
 	// Verify the install commands are present
@@ -156,5 +156,41 @@ func TestAgenticWorkflowsInstallStepIncludesGHToken(t *testing.T) {
 
 	if !strings.Contains(result, "gh aw --version") {
 		t.Error("Expected 'gh aw --version' command not found in generated YAML")
+	}
+}
+
+func TestAgenticWorkflowsInstallStepWithCustomToken(t *testing.T) {
+	// Create workflow data with agentic-workflows tool and custom github-token
+	workflowData := &WorkflowData{
+		Tools: map[string]any{
+			"agentic-workflows": nil,
+		},
+		GitHubToken: "${{ secrets.CUSTOM_PAT }}",
+	}
+
+	// Create compiler
+	c := NewCompiler(false, "", "test")
+	c.SetSkipValidation(true)
+
+	// Generate MCP setup
+	var yaml strings.Builder
+	engine := NewCopilotEngine()
+
+	c.generateMCPSetup(&yaml, workflowData.Tools, engine, workflowData)
+	result := yaml.String()
+
+	// Verify the install step is present
+	if !strings.Contains(result, "Install gh-aw extension") {
+		t.Error("Expected 'Install gh-aw extension' step not found in generated YAML")
+	}
+
+	// Verify GH_TOKEN environment variable is set with the custom token
+	if !strings.Contains(result, "GH_TOKEN: ${{ secrets.CUSTOM_PAT }}") {
+		t.Errorf("Expected GH_TOKEN environment variable to use custom token in install step, got:\n%s", result)
+	}
+
+	// Verify it doesn't use the default token when custom is provided
+	if strings.Contains(result, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+		t.Error("Should not use default token when custom token is specified")
 	}
 }

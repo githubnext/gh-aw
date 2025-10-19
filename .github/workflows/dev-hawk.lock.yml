@@ -473,7 +473,7 @@ jobs:
           docker pull ghcr.io/github/github-mcp-server:v0.18.0
       - name: Install gh-aw extension
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           echo "Installing gh-aw extension..."
           gh extension install githubnext/gh-aw
