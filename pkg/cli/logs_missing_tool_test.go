@@ -31,7 +31,7 @@ func TestExtractMissingToolsFromRun(t *testing.T) {
 			safeOutputContent: `{
 				"items": [
 					{
-						"type": "missing-tool",
+						"type": "missing_tool",
 						"tool": "terraform",
 						"reason": "Infrastructure automation needed",
 						"alternatives": "Manual setup",
@@ -50,14 +50,14 @@ func TestExtractMissingToolsFromRun(t *testing.T) {
 			safeOutputContent: `{
 				"items": [
 					{
-						"type": "missing-tool",
+						"type": "missing_tool",
 						"tool": "docker",
 						"reason": "Need containerization",
 						"alternatives": "VM setup",
 						"timestamp": "2024-01-01T10:00:00Z"
 					},
 					{
-						"type": "missing-tool",
+						"type": "missing_tool",
 						"tool": "kubectl",
 						"reason": "K8s management",
 						"timestamp": "2024-01-01T10:01:00Z"
@@ -100,7 +100,7 @@ func TestExtractMissingToolsFromRun(t *testing.T) {
 			safeOutputContent: `{
 				"items": [
 					{
-						"type": "missing-tool"
+						"type": "missing_tool"
 						"tool": "docker"
 					}
 				]

@@ -1865,7 +1865,7 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 			}
 
 			// Check if this is a missing-tool entry
-			if item.Type == "missing-tool" {
+			if item.Type == "missing_tool" {
 				missingTool := MissingToolReport{
 					Tool:         item.Tool,
 					Reason:       item.Reason,
@@ -1877,7 +1877,7 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 				missingTools = append(missingTools, missingTool)
 
 				if verbose {
-					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found missing-tool entry: %s (%s)", item.Tool, item.Reason)))
+					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found missing_tool entry: %s (%s)", item.Tool, item.Reason)))
 				}
 			}
 		}
