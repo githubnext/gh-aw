@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.22.10 - 2025-10-19
+
+### Bug Fixes
+
+#### Add reviewers field to create-pull-request safe output
+
+#### Add schema documentation generator for frontmatter reference
+
+#### Extract duplicate step formatting code from Copilot and Codex engines into shared helper function
+
+#### Fix copilot PR search logic in audit workflows
+
+#### Fixed missing GH_TOKEN in workflow install step causing gh-aw extension installation failures
+
+#### Fix jqschema.sh: ensure /tmp/gh-aw directory exists before writing
+
+#### Fixed logs command missing tool detection functionality
+
+#### Limit copilot activity analysis historical data rebuild to max 1 week and add gh CLI data pre-fetch
+
+#### Reduce bloat in research-planning.md documentation (44% reduction)
+
+#### Reduced bloat in triggers.md documentation (21% reduction)
+
+#### Add strongly typed Permissions struct for GitHub Actions permissions
+
+#### Update GitHub Copilot CLI to v0.0.345
+
+#### Update GitHub Copilot CLI to v0.0.346
+
+
 ## v0.22.9 - 2025-10-18
 
 ### Bug Fixes
