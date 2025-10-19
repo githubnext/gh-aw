@@ -108,7 +108,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		Name:           "create_discussion",
 		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    "permissions:\n      contents: read\n      discussions: write",
+		Permissions:    NewPermissionsContentsReadDiscussionsWrite().RenderToYAML(),
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,

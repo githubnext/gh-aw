@@ -125,7 +125,7 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 		Name:        "update_reaction",
 		If:          condition.Render(),
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions: "permissions:\n      contents: read\n      issues: write\n      pull-requests: write\n      discussions: write",
+		Permissions: NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite().RenderToYAML(),
 		Steps:       steps,
 		Needs:       needs,
 	}

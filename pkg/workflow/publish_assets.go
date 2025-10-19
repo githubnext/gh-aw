@@ -142,14 +142,11 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 	// Build the job condition using expression tree
 	jobCondition := BuildSafeOutputType("upload_asset", data.SafeOutputs.UploadAssets.Min)
 
-	// Set base permissions
-	permissions := "permissions:\n      contents: write  # Required for creating orphaned branch and pushing assets"
-
 	job := &Job{
 		Name:           "upload_assets",
 		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    permissions,
+		Permissions:    NewPermissionsContentsWrite().RenderToYAML(),
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,

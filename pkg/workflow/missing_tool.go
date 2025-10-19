@@ -51,8 +51,8 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 		Name:           "missing_tool",
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		If:             jobCondition,
-		Permissions:    "permissions:\n      contents: read", // Only needs read access for logging
-		TimeoutMinutes: 5,                                    // Short timeout since it's just processing output
+		Permissions:    NewPermissionsContentsRead().RenderToYAML(),
+		TimeoutMinutes: 5, // Short timeout since it's just processing output
 		Steps:          steps,
 		Outputs:        outputs,
 		Needs:          []string{mainJobName}, // Depend on the main workflow job

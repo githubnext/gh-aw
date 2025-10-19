@@ -580,9 +580,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      discussions: write
       issues: write
       pull-requests: write
-      discussions: write
     timeout-minutes: 10
     outputs:
       comment_id: ${{ steps.add_comment.outputs.comment_id }}
@@ -4773,9 +4773,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      discussions: write
       issues: write
       pull-requests: write
-      discussions: write
     steps:
       - name: Debug job inputs
         env:

@@ -87,7 +87,7 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 		Name:           "add_labels",
 		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write",
+		Permissions:    NewPermissionsContentsReadIssuesWritePRWrite().RenderToYAML(),
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,

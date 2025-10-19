@@ -162,14 +162,11 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	jobCondition := BuildSafeOutputType("create_issue", data.SafeOutputs.CreateIssues.Min)
 
-	// Set base permissions
-	permissions := "permissions:\n      contents: read\n      issues: write"
-
 	job := &Job{
 		Name:           "create_issue",
 		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    permissions,
+		Permissions:    NewPermissionsContentsReadIssuesWrite().RenderToYAML(),
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,

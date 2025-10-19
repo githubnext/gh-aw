@@ -425,9 +425,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      discussions: write
       issues: write
       pull-requests: write
-      discussions: write
     timeout-minutes: 10
     outputs:
       comment_id: ${{ steps.add_comment.outputs.comment_id }}
@@ -4842,9 +4842,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      discussions: write
       issues: write
       pull-requests: write
-      discussions: write
     steps:
       - name: Debug job inputs
         env:
@@ -4964,7 +4964,7 @@ jobs:
     if: (always()) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Required for creating orphaned branch and pushing assets
+      contents: write
     timeout-minutes: 10
     outputs:
       branch_name: ${{ steps.upload_assets.outputs.branch_name }}

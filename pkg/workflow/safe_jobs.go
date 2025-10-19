@@ -308,11 +308,12 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 
 		// Set permissions if specified
 		if len(jobConfig.Permissions) > 0 {
-			var perms []string
+			// Build Permissions struct from map
+			perms := NewPermissions()
 			for perm, level := range jobConfig.Permissions {
-				perms = append(perms, fmt.Sprintf("      %s: %s", perm, level))
+				perms.Set(PermissionScope(perm), PermissionLevel(level))
 			}
-			job.Permissions = fmt.Sprintf("permissions:\n%s", strings.Join(perms, "\n"))
+			job.Permissions = perms.RenderToYAML()
 		}
 
 		// Add the job to the job manager
