@@ -656,16 +656,16 @@ func TestPermissionsMerge(t *testing.T) {
 			},
 		},
 		{
-			name:  "merge two maps - multiple scopes with conflicts",
+			name: "merge two maps - multiple scopes with conflicts",
 			base: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
 				PermissionContents:     PermissionRead,
 				PermissionIssues:       PermissionWrite,
 				PermissionPullRequests: PermissionRead,
 			}),
 			merge: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionWrite,
-				PermissionIssues:       PermissionRead,
-				PermissionDiscussions:  PermissionWrite,
+				PermissionContents:    PermissionWrite,
+				PermissionIssues:      PermissionRead,
+				PermissionDiscussions: PermissionWrite,
 			}),
 			want: map[PermissionScope]PermissionLevel{
 				PermissionContents:     PermissionWrite, // write wins
@@ -695,13 +695,13 @@ func TestPermissionsMerge(t *testing.T) {
 		{
 			name: "merge two maps - all permission scopes",
 			base: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-				PermissionActions:        PermissionRead,
-				PermissionChecks:         PermissionRead,
-				PermissionContents:       PermissionRead,
-				PermissionDeployments:    PermissionRead,
-				PermissionDiscussions:    PermissionRead,
-				PermissionIssues:         PermissionRead,
-				PermissionPackages:       PermissionRead,
+				PermissionActions:     PermissionRead,
+				PermissionChecks:      PermissionRead,
+				PermissionContents:    PermissionRead,
+				PermissionDeployments: PermissionRead,
+				PermissionDiscussions: PermissionRead,
+				PermissionIssues:      PermissionRead,
+				PermissionPackages:    PermissionRead,
 			}),
 			merge: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
 				PermissionPages:          PermissionWrite,
