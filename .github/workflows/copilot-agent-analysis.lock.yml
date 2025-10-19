@@ -1145,10 +1145,10 @@ jobs:
           
           2. **List all PRs and filter by author**:
              Use `list_pull_requests` tool to get recent PRs, then filter by checking if:
-             - `user.login == "Copilot"` 
+             - `user.login == "Copilot"`
              - `user.id == 198982749`
              - `user.type == "Bot"`
-             
+          
              This is more reliable but requires processing all recent PRs.
           
           3. **Search by common patterns**:
@@ -1256,7 +1256,7 @@ jobs:
              - Store in the history file
              - Limit to 3 days total to keep reports concise
           
-          4. **Simplified Approach**: 
+          4. **Simplified Approach**:
              - Process one day at a time in chronological order (oldest to newest)
              - Save after each day to preserve progress
              - **Stop at 3 days** - this is sufficient for concise trend analysis
@@ -1359,13 +1359,13 @@ jobs:
           
           ## Summary
           
-          **Analysis Period**: Last 24 hours  
+          **Analysis Period**: Last 24 hours
           **Total PRs**: [count] | **Merged**: [count] ([percentage]%) | **Avg Duration**: [time]
           
           ## Performance Metrics
           
           | Date | PRs | Merged | Success Rate | Avg Duration | Avg Comments |
-          |------|-----|--------|--------------|--------------|--------------| 
+          |------|-----|--------|--------------|--------------|--------------|
           | [today] | [count] | [count] | [%] | [time] | [count] |
           | [today-1] | [count] | [count] | [%] | [time] | [count] |
           | [today-2] | [count] | [count] | [%] | [time] | [count] |

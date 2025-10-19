@@ -53,10 +53,10 @@ steps:
     run: |
       # Create output directory
       mkdir -p /tmp/gh-aw/pr-data
-      
+
       # Calculate date 30 days ago
       DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
-      
+
       # Search for PRs created by Copilot in the last 30 days using gh CLI
       # Output in JSON format for easy processing with jq
       echo "Fetching Copilot PRs from the last 30 days..."
@@ -64,15 +64,15 @@ steps:
         --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository \
         --limit 1000 \
         > /tmp/gh-aw/pr-data/copilot-prs-raw.json
-      
+
       # Filter to only Copilot author (user.login == "Copilot" and user.id == 198982749)
       jq '[.[] | select(.author.login == "Copilot" or .author.id == 198982749)]' \
         /tmp/gh-aw/pr-data/copilot-prs-raw.json \
         > /tmp/gh-aw/pr-data/copilot-prs.json
-      
+
       # Generate schema for reference
       cat /tmp/gh-aw/pr-data/copilot-prs.json | /tmp/gh-aw/jqschema.sh > /tmp/gh-aw/pr-data/copilot-prs-schema.json
-      
+
       echo "PR data saved to /tmp/gh-aw/pr-data/copilot-prs.json"
       echo "Schema saved to /tmp/gh-aw/pr-data/copilot-prs-schema.json"
       echo "Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)"
@@ -133,10 +133,10 @@ Use the GitHub tools with one of these strategies:
 
 2. **List all PRs and filter by author**:
    Use `list_pull_requests` tool to get recent PRs, then filter by checking if:
-   - `user.login == "Copilot"` 
+   - `user.login == "Copilot"`
    - `user.id == 198982749`
    - `user.type == "Bot"`
-   
+
    This is more reliable but requires processing all recent PRs.
 
 3. **Search by common patterns**:
@@ -244,7 +244,7 @@ If the history file doesn't exist or has gaps in the data, rebuild it by queryin
    - Store in the history file
    - Limit to 3 days total to keep reports concise
 
-4. **Simplified Approach**: 
+4. **Simplified Approach**:
    - Process one day at a time in chronological order (oldest to newest)
    - Save after each day to preserve progress
    - **Stop at 3 days** - this is sufficient for concise trend analysis
@@ -347,13 +347,13 @@ Create a **concise** discussion with your findings using the safe-outputs create
 
 ## Summary
 
-**Analysis Period**: Last 24 hours  
+**Analysis Period**: Last 24 hours
 **Total PRs**: [count] | **Merged**: [count] ([percentage]%) | **Avg Duration**: [time]
 
 ## Performance Metrics
 
 | Date | PRs | Merged | Success Rate | Avg Duration | Avg Comments |
-|------|-----|--------|--------------|--------------|--------------| 
+|------|-----|--------|--------------|--------------|--------------|
 | [today] | [count] | [count] | [%] | [time] | [count] |
 | [today-1] | [count] | [count] | [%] | [time] | [count] |
 | [today-2] | [count] | [count] | [%] | [time] | [count] |
