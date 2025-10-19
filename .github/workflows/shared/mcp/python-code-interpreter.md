@@ -25,6 +25,13 @@ file copying support for data analysis workflows.
 
 Documentation: https://github.com/jlowin/fastmcp
 
+**IMPORTANT - Sandbox Environment:**
+You are running in a restricted sandbox environment where direct bash and Python 
+execution is locked down for security. You MUST use the `run_python_query` MCP 
+tool to execute any Python code. Do not attempt to use bash's `python` command 
+or local Python execution - they will not work. All Python code execution must 
+go through the MCP server.
+
 Features:
 - Isolated execution: Each request runs in /app/runs/<uuid>
 - File support: Copy input files into the run directory

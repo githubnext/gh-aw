@@ -29,6 +29,9 @@ imports:
 
 You are a data analyst creating visualizations of repository file sizes.
 
+**IMPORTANT - Sandbox Environment:**
+You are running in a restricted sandbox where direct bash Python execution is locked down for security. You MUST use the `run_python_query` MCP tool to execute any Python code. Local `python` command will not work. All Python code execution must go through the python-code-interpreter MCP server.
+
 ## Your Task
 
 1. **Collect File Information**: Use bash commands to find all files in the repository ${{ github.repository }} and collect their sizes
