@@ -80,7 +80,9 @@ jobs:
         uses: actions/checkout@v5
       - name: Set up jq utilities directory
         run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
-      - name: Fetch Copilot PR data
+      - env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Fetch Copilot PR data
         run: "# Create output directory\nmkdir -p /tmp/gh-aw/pr-data\n\n# Calculate date 30 days ago\nDATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')\n\n# Search for PRs created by Copilot in the last 30 days using gh CLI\n# Output in JSON format for easy processing with jq\necho \"Fetching Copilot PRs from the last 30 days...\"\ngh search prs \\\n  --repo \"${{ github.repository }}\" \\\n  --json number,title,state,createdAt,closedAt,mergedAt,author,comments,additions,deletions,changedFiles,commits,url \\\n  --created \">=$DATE_30_DAYS_AGO\" \\\n  --limit 1000 \\\n  > /tmp/gh-aw/pr-data/copilot-prs-raw.json\n\n# Filter to only Copilot author (user.login == \"Copilot\" and user.id == 198982749)\njq '[.[] | select(.author.login == \"Copilot\" or .author.id == 198982749)]' \\\n  /tmp/gh-aw/pr-data/copilot-prs-raw.json \\\n  > /tmp/gh-aw/pr-data/copilot-prs.json\n\n# Generate schema for reference\ncat /tmp/gh-aw/pr-data/copilot-prs.json | /tmp/gh-aw/jqschema.sh > /tmp/gh-aw/pr-data/copilot-prs-schema.json\n\necho \"PR data saved to /tmp/gh-aw/pr-data/copilot-prs.json\"\necho \"Schema saved to /tmp/gh-aw/pr-data/copilot-prs-schema.json\"\necho \"Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)\"\n"
 
       - name: Create gh-aw temp directory

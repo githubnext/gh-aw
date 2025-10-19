@@ -50,6 +50,8 @@ tools:
 
 steps:
   - name: Fetch Copilot PR data
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       # Create output directory
       mkdir -p /tmp/gh-aw/pr-data
