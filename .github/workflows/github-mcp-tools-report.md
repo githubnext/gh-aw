@@ -178,10 +178,6 @@ Brief description of the toolset.
 
 **All available toolsets**: context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, secret_protection, security_advisories, stargazers, users
 
-## Usage Examples
-
-Provide 1-2 brief examples showing how to use common tools.
-
 ## Recommended Default Toolsets
 
 Based on the analysis of available tools and their usage patterns, the following toolsets are recommended as defaults when no toolset is specified:
@@ -250,7 +246,6 @@ tools:
 
 ### Report Quality
 - **Clear Structure**: Use tables and sections for readability
-- **Practical Examples**: Include real-world usage examples
 - **Complete Coverage**: Don't miss any tools or toolsets
 - **Useful Reference**: Make the report helpful for developers
 
@@ -276,7 +271,6 @@ A successful report:
 - ✅ **Updates default toolsets** in documentation files (github-agentic-workflows.instructions.md and templates/instructions.md)
 - ✅ Organizes tools by their appropriate toolset categories
 - ✅ Provides clear descriptions and usage information
-- ✅ Includes practical examples
 - ✅ Is formatted as a well-structured markdown document
 - ✅ Is published as a GitHub discussion in the "audits" category for easy access and reference
 - ✅ Includes change tracking and diff information when previous data exists
@@ -323,8 +317,7 @@ Your output MUST:
 11. Include the changes summary section if previous data exists
 12. Include ALL discovered tools organized by toolset
 13. Provide accurate tool names, descriptions, and parameters
-14. Include practical usage examples
-15. Be formatted for readability with proper markdown tables
+14. Be formatted for readability with proper markdown tables
 
 **Cache File Format** (`/tmp/gh-aw/cache-memory/github-mcp-tools.json`):
 ```json
@@ -385,7 +378,6 @@ Begin your tool discovery now. Follow these steps:
      - Rationale for each toolset included in defaults
      - Explanation of when to enable other toolsets
    - Best practices for toolset selection
-   - Usage examples for common scenarios
 7. **Update documentation references**: Update the default toolsets list in:
    - `.github/instructions/github-agentic-workflows.instructions.md` (search for "Default toolsets (if not specified)")
    - `pkg/cli/templates/instructions.md` (search for "Default toolsets (if not specified)")
