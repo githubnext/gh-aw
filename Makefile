@@ -203,7 +203,7 @@ release: test
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt fmt-cjs lint build test-all recompile
+agent-finish: deps-dev fmt fmt-cjs lint build test-all recompile generate-schema-docs
 	@echo "Agent finished tasks successfully."
 
 # Help target
