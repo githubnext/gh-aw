@@ -9,6 +9,11 @@ mcp-servers:
       - index_file
       - query_file
       - list_templates
+      - list_clusters
+      - cluster_stats
+      - find_anomalies
+      - compare_runs
+      - search_pattern
 steps:
   - name: Set up Python
     uses: actions/setup-python@v5
@@ -104,6 +109,37 @@ Available tools:
       - path: Path to the indexed log file
       - limit: Maximum number of templates to return (optional)
     Returns: Streaming JSONL events for each template
+
+  - list_clusters: Enumerate all discovered log pattern clusters
+    Parameters:
+      - path: Path to the indexed log file
+      - limit: Maximum number of clusters to return (optional)
+    Returns: Streaming JSONL events for each cluster
+
+  - cluster_stats: Retrieve detailed metrics for a specific cluster
+    Parameters:
+      - path: Path to the indexed log file
+      - cluster_id: ID of the cluster to retrieve stats for
+    Returns: Cluster metrics including count, frequency, template
+
+  - find_anomalies: Detect outlier clusters or rare patterns
+    Parameters:
+      - path: Path to the indexed log file
+      - threshold: Frequency threshold as percentage (default: 0.01)
+    Returns: Streaming JSONL events for anomalous clusters
+
+  - compare_runs: Compare two log files to identify changes
+    Parameters:
+      - path1: Path to the first indexed log file
+      - path2: Path to the second indexed log file
+    Returns: Streaming JSONL events for added, removed, and changed clusters
+
+  - search_pattern: Search logs for specific text or regex patterns
+    Parameters:
+      - path: Path to the indexed log file
+      - pattern: Text or regex pattern to search for
+      - use_regex: Whether to use regex matching (default: false)
+    Returns: Streaming JSONL events for matching clusters
 
 Configuration:
   The server can be configured via environment variables in the workflow:

@@ -23,6 +23,7 @@ safe-outputs:
 
 imports:
   - shared/mcp/jupyter.md
+  - shared/mcp-debug.md
 ---
 
 # File Size Distribution Analysis
