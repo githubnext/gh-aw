@@ -25,10 +25,10 @@ tools:
     - "codex --help"
   edit:
 safe-outputs:
-  create-pull-request:
+  create-issue:
     title-prefix: "[ca] "
     labels: [automation, dependencies]
-    draft: true
+    assignees: copilot
 timeout_minutes: 15
 strict: true
 ---
@@ -79,9 +79,9 @@ For each CLI tool update:
 1. Edit `./pkg/constants/constants.go` with new version(s)
 2. Run `make recompile` to update workflows
 3. Verify changes with `git status`
-4. Create PR via safe-outputs with detailed analysis
+4. Create issue via safe-outputs with detailed analysis
 
-## PR Format
+## Issue Format
 Include for each updated CLI:
 - **Version**: old → new (list intermediate versions if multiple)
 - **Release Timeline**: dates and intervals
