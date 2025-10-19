@@ -155,7 +155,6 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.18.0
-          docker pull python-code-interpreter:latest
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs

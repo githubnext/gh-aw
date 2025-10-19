@@ -77,16 +77,64 @@ func collectDockerImages(tools map[string]any) []string {
 	return images
 }
 
+// detectLocallyBuiltImages scans custom steps for docker build commands
+// and returns a set of locally built image names
+func detectLocallyBuiltImages(customSteps string) map[string]bool {
+	localImages := make(map[string]bool)
+
+	if customSteps == "" {
+		return localImages
+	}
+
+	// Look for docker build commands with -t flag
+	lines := strings.Split(customSteps, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Match lines like: docker build -f Dockerfile -t image-name:tag .
+		// or: docker build -t image-name:tag .
+		if strings.Contains(trimmed, "docker build") && strings.Contains(trimmed, "-t") {
+			// Find the image name after -t flag
+			parts := strings.Fields(trimmed)
+			for i, part := range parts {
+				if part == "-t" && i+1 < len(parts) {
+					imageName := parts[i+1]
+					localImages[imageName] = true
+					break
+				}
+			}
+		}
+	}
+
+	return localImages
+}
+
 // generateDownloadDockerImagesStep generates the step to download Docker images
-func generateDownloadDockerImagesStep(yaml *strings.Builder, dockerImages []string) {
+// Skips images that are built locally in custom steps
+func generateDownloadDockerImagesStep(yaml *strings.Builder, dockerImages []string, customSteps string) {
 	if len(dockerImages) == 0 {
+		return
+	}
+
+	// Detect which images are built locally
+	locallyBuilt := detectLocallyBuiltImages(customSteps)
+
+	// Filter out locally built images
+	var imagesToPull []string
+	for _, image := range dockerImages {
+		if !locallyBuilt[image] {
+			imagesToPull = append(imagesToPull, image)
+		}
+	}
+
+	// Only generate the step if there are images to pull
+	if len(imagesToPull) == 0 {
 		return
 	}
 
 	yaml.WriteString("      - name: Downloading container images\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          set -e\n")
-	for _, image := range dockerImages {
+	for _, image := range imagesToPull {
 		fmt.Fprintf(yaml, "          docker pull %s\n", image)
 	}
 }

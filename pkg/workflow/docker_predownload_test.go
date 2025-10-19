@@ -202,3 +202,64 @@ Test workflow.`
 		t.Errorf("Expected 'Downloading container images' to come before 'Setup MCPs', but found it after")
 	}
 }
+
+func TestDockerImageLocallyBuilt(t *testing.T) {
+	// Test that locally built images are not included in docker pull
+	frontmatter := `---
+on: issues
+engine: claude
+mcp-servers:
+  custom-tool:
+    container: custom-mcp:latest
+    allowed: ["*"]
+steps:
+  - name: Build custom MCP image
+    run: docker build -t custom-mcp:latest .
+---
+
+# Test
+Test workflow with locally built MCP container.`
+
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "docker-locally-built-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Write test workflow file
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test-version")
+	err = compiler.CompileWorkflow(testFile)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read generated lock file
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	yaml, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(yaml)
+
+	// Verify the build step exists
+	if !strings.Contains(yamlStr, "Build custom MCP image") {
+		t.Error("Expected build step not found")
+	}
+
+	// Verify that custom-mcp:latest is NOT pulled (since it's built locally)
+	if strings.Contains(yamlStr, "docker pull custom-mcp:latest") {
+		t.Error("Locally built image 'custom-mcp:latest' should not be pulled")
+	}
+
+	// Verify that GitHub MCP is still pulled (not locally built)
+	if !strings.Contains(yamlStr, "docker pull ghcr.io/github/github-mcp-server:") {
+		t.Error("GitHub MCP server image should still be pulled")
+	}
+}
