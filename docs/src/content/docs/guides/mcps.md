@@ -286,6 +286,36 @@ mcp-servers:
 
 Enforcement uses a [Squid proxy](https://www.squid-cache.org/) configured with `HTTP_PROXY`/`HTTPS_PROXY` and iptables rules to block non-allowed domains. Only applies to containerized stdio servers (not HTTP or non-container stdio).
 
+## Available Shared MCP Configurations
+
+The gh-aw repository includes pre-configured shared MCP server workflows in `.github/workflows/shared/mcp/`:
+
+### Jupyter Notebook Integration
+
+Execute code in Jupyter notebooks and visualize data:
+
+```yaml
+imports:
+  - shared/mcp/jupyter.md
+```
+
+Provides tools for executing cells, managing notebooks, and retrieving outputs. Includes self-hosted JupyterLab service with Docker services support.
+
+### Drain3 Log Analysis
+
+Mine log patterns and extract structured templates from unstructured log files:
+
+```yaml
+imports:
+  - shared/mcp/drain3.md
+```
+
+Provides 8 tools including `index_file`, `list_clusters`, `find_anomalies`, `compare_runs`, and `search_pattern` for log template mining and pattern analysis.
+
+### Other Available Servers
+
+Additional shared MCP configurations include: AST-Grep, Azure, Brave Search, Context7, DataDog, DeepWiki, Fabric RTI, MarkItDown, Microsoft Docs, Notion, Sentry, Serena, Server Memory, Slack, and Tavily. Browse `.github/workflows/shared/mcp/` for complete list with documentation.
+
 ## Debugging and Troubleshooting
 
 Use CLI commands to inspect and debug MCP configurations:
@@ -301,6 +331,15 @@ gh aw mcp list-tools notion my-workflow
 # Launch MCP inspector
 gh aw mcp inspect my-workflow --inspector
 ```
+
+For MCP server troubleshooting, import the mcp-debug shared workflow:
+
+```yaml
+imports:
+  - shared/mcp-debug.md
+```
+
+This provides diagnostic tools and the `report_diagnostics_to_pull_request` custom safe-output for posting diagnostic findings to pull requests.
 
 **Common issues**:
 - **Connection failures**: Verify configuration syntax, environment variables, and network connectivity

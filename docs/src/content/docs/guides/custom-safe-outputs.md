@@ -410,3 +410,42 @@ core.warning('Warning message');
 core.error('Error message');
 core.setFailed('Failure message that stops the job');
 ```
+
+## Example: MCP Diagnostic Reporting
+
+The `mcp-debug` shared workflow demonstrates a custom safe-output that posts diagnostic findings to pull requests:
+
+```yaml
+imports:
+  - shared/mcp-debug.md
+```
+
+This provides the `report_diagnostics_to_pull_request` safe-job that:
+- Accepts a `message` parameter with diagnostic information
+- Automatically finds the pull request associated with the current branch
+- Posts the diagnostic message as a PR comment
+- Handles cases where no PR exists gracefully
+
+**Usage in workflow:**
+```aw wrap
+---
+on:
+  pull_request:
+    types: [opened, synchronize]
+imports:
+  - shared/mcp-debug.md
+---
+
+# MCP Troubleshooting Agent
+
+Debug MCP server issues and report findings.
+Use the report_diagnostics_to_pull_request safe-job to post your diagnostic findings to the pull request.
+```
+
+This pattern enables workflows to report complex diagnostic information directly to pull requests without requiring write permissions in the main agentic job.
+
+## Related Documentation
+
+- [Safe Outputs](/gh-aw/reference/safe-outputs/) - Built-in safe output types
+- [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup
+- [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options
