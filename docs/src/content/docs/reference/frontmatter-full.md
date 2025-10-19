@@ -1232,6 +1232,20 @@ safe-outputs:
     labels: []
       # Array of strings
 
+    # Optional reviewer(s) to assign to the pull request. Accepts either a single
+    # string or an array of usernames. Use 'copilot' to assign to copilot-swe-agent.
+    # (optional)
+    # This field supports multiple formats (oneOf):
+
+    # Option 1: Single reviewer username to assign to the pull request. Use 'copilot'
+    # to assign to copilot-swe-agent.
+    reviewers: "example-value"
+
+    # Option 2: List of reviewer usernames to assign to the pull request. Use
+    # 'copilot' to assign to copilot-swe-agent.
+    reviewers: []
+      # Array items: string
+
     # Whether to create pull request as draft (defaults to true)
     # (optional)
     draft: true
