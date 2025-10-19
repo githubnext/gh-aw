@@ -2360,7 +2360,12 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Set permissions - add reaction permissions if reaction is configured
 	var permissions string
 	if data.AIReaction != "" {
-		permissions = "permissions:\n      discussions: write\n      issues: write\n      pull-requests: write"
+		perms := NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+			PermissionDiscussions:  PermissionWrite,
+			PermissionIssues:       PermissionWrite,
+			PermissionPullRequests: PermissionWrite,
+		})
+		permissions = perms.RenderToYAML()
 	}
 
 	job := &Job{

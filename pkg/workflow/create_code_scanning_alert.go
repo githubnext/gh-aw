@@ -80,8 +80,8 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 		Name:           "create_code_scanning_alert",
 		If:             jobCondition,
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    "permissions:\n      contents: read\n      security-events: write\n      actions: read", // Need security-events:write for SARIF upload
-		TimeoutMinutes: 10,                                                                                      // 10-minute timeout
+		Permissions:    NewPermissionsContentsReadSecurityEventsWriteActionsRead().RenderToYAML(),
+		TimeoutMinutes: 10, // 10-minute timeout
 		Steps:          steps,
 		Outputs:        outputs,
 		Needs:          []string{mainJobName}, // Depend on the main workflow job

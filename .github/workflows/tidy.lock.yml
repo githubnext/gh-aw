@@ -4712,8 +4712,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: read
       issues: read
+      pull-requests: read
     timeout-minutes: 10
     outputs:
       branch_name: ${{ steps.push_to_pull_request_branch.outputs.branch_name }}

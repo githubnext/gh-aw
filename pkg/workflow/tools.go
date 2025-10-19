@@ -119,7 +119,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 
 	if data.Permissions == "" {
 		// Default behavior: use read-all permissions
-		data.Permissions = `permissions: read-all`
+		data.Permissions = NewPermissionsReadAll().RenderToYAML()
 	}
 
 	// Generate concurrency configuration using the dedicated concurrency module
