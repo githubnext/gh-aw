@@ -4187,8 +4187,8 @@ jobs:
     if: (always()) && (contains(needs.agent.outputs.output_types, 'report_diagnostics_to_pull_request'))
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
       contents: read
+      pull-requests: write
     steps:
       - name: Download agent output artifact
         continue-on-error: true
