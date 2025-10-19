@@ -150,6 +150,8 @@ func TestBuildReactionCondition(t *testing.T) {
 		"github.event_name == 'issues'",
 		"github.event_name == 'issue_comment'",
 		"github.event_name == 'pull_request_review_comment'",
+		"github.event_name == 'discussion'",
+		"github.event_name == 'discussion_comment'",
 		"github.event_name == 'pull_request'",
 		"github.event.pull_request.head.repo.full_name == github.repository",
 		"&&",
