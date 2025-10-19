@@ -163,29 +163,9 @@ codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, ful
 	var stepLines []string
 
 	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
-	stepLines = append(stepLines, "        run: |")
 
-	// Split command into lines and indent them properly
-	commandLines := strings.Split(command, "\n")
-	for _, line := range commandLines {
-		stepLines = append(stepLines, "          "+line)
-	}
-
-	// Add environment variables
-	if len(env) > 0 {
-		stepLines = append(stepLines, "        env:")
-		// Sort environment keys for consistent output
-		envKeys := make([]string, 0, len(env))
-		for key := range env {
-			envKeys = append(envKeys, key)
-		}
-		sort.Strings(envKeys)
-
-		for _, key := range envKeys {
-			value := env[key]
-			stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
-		}
-	}
+	// Format step with command and environment variables using shared helper
+	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
 
 	steps = append(steps, GitHubActionStep(stepLines))
 

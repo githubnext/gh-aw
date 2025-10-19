@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -67,4 +68,43 @@ func HandleCustomMCPToolInSwitch(
 		}
 	}
 	return false
+}
+
+// FormatStepWithCommandAndEnv formats a GitHub Actions step with command and environment variables.
+// This shared function extracts the common pattern used by Copilot and Codex engines.
+//
+// Parameters:
+//   - stepLines: Existing step lines to append to (e.g., name, id, comments, timeout)
+//   - command: The command to execute (may contain multiple lines)
+//   - env: Map of environment variables to include in the step
+//
+// Returns:
+//   - []string: Complete step lines including run command and env section
+func FormatStepWithCommandAndEnv(stepLines []string, command string, env map[string]string) []string {
+	// Add the run section
+	stepLines = append(stepLines, "        run: |")
+
+	// Split command into lines and indent them properly
+	commandLines := strings.Split(command, "\n")
+	for _, line := range commandLines {
+		stepLines = append(stepLines, "          "+line)
+	}
+
+	// Add environment variables
+	if len(env) > 0 {
+		stepLines = append(stepLines, "        env:")
+		// Sort environment keys for consistent output
+		envKeys := make([]string, 0, len(env))
+		for key := range env {
+			envKeys = append(envKeys, key)
+		}
+		sort.Strings(envKeys)
+
+		for _, key := range envKeys {
+			value := env[key]
+			stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
+		}
+	}
+
+	return stepLines
 }
