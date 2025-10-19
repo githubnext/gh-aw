@@ -964,21 +964,6 @@ safe-outputs:
 Analyze issues and create follow-up items with Copilot assigned for automated assistance.
 ```
 
-### How It Works
-
-When you use `copilot` in the `assignees` or `reviewers` configuration:
-
-1. **Automatic Mapping**: The workflow automatically handles the special `copilot` value
-2. **Step Name**: The generated workflow step shows "copilot" (e.g., "Assign issue to copilot" or "Add copilot as reviewer")
-3. **Conditional Execution**: Assignment/reviewer steps only run if the issue or pull request was successfully created
-
-### Benefits
-
-- **Automated Review**: Copilot can automatically review pull requests and provide feedback
-- **Issue Analysis**: Copilot can analyze and provide suggestions on assigned issues
-- **Simple Configuration**: Use the friendly `copilot` value for easy setup
-- **Safe Failure**: If assignment fails, the workflow continues (the issue/PR is still created)
-
 ## Custom runner image
 
 You can specify the `runs-on` field in the `safe-outputs:` section to use a custom GitHub Actions runner image for all safe output jobs.
