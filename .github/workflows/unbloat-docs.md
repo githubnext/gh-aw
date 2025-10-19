@@ -63,6 +63,7 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[docs] "
     labels: [documentation, automation]
+    reviewers: copilot
     draft: true
   add-comment:
     max: 1

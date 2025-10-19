@@ -20,6 +20,7 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[mcp-tools] "
     labels: [documentation, automation]
+    reviewers: copilot
     draft: false
 timeout_minutes: 15
 ---

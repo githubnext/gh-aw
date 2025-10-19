@@ -23,6 +23,7 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[security-fix] "
     labels: [security, automated-fix]
+    reviewers: copilot
 timeout_minutes: 20
 ---
 

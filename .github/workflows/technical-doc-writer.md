@@ -22,6 +22,7 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[docs] "
     labels: [documentation]
+    reviewers: copilot
     draft: false
   upload-assets:
 

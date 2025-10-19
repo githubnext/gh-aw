@@ -21,6 +21,7 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[q] "
     labels: [automation, workflow-optimization]
+    reviewers: copilot
     draft: false
 timeout_minutes: 15
 strict: true

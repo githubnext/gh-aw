@@ -78,6 +78,7 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[🎨 POETRY] "
     labels: [poetry, automation, creative-writing]
+    reviewers: copilot
     draft: false
 
   # PR review comments
