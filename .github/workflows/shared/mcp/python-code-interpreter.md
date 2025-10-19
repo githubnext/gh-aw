@@ -5,8 +5,7 @@ mcp-servers:
     args:
       - "-v"
       - "${{ github.workspace }}:/workspace"
-    allowed:
-      - run_python_query
+    allowed: ["*"]
 steps:
   - name: Build Python code interpreter Docker image
     run: |
