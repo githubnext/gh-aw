@@ -58,16 +58,13 @@ steps:
       DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
 
       # Search for PRs created by Copilot in the last 30 days using gh CLI
-      # Output in JSON format for easy processing with jq
+      # Using --author flag for server-side filtering (no jq needed!)
       echo "Fetching Copilot PRs from the last 30 days..."
-      gh search prs repo:${{ github.repository }} created:">=$DATE_30_DAYS_AGO" \
+      gh search prs --repo ${{ github.repository }} \
+        --author "@copilot" \
+        --created ">=$DATE_30_DAYS_AGO" \
         --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository \
         --limit 1000 \
-        > /tmp/gh-aw/pr-data/copilot-prs-raw.json
-
-      # Filter to only Copilot author (user.login == "Copilot" and user.id == 198982749)
-      jq '[.[] | select(.author.login == "Copilot" or .author.id == 198982749)]' \
-        /tmp/gh-aw/pr-data/copilot-prs-raw.json \
         > /tmp/gh-aw/pr-data/copilot-prs.json
 
       # Generate schema for reference
@@ -122,13 +119,28 @@ Search for pull requests created by Copilot in the last 24 hours.
 
 **Important**: The Copilot coding agent creates PRs under the username `Copilot` (user ID 198982749, a Bot account).
 
-**Note on `gh pr list --author`**: The GitHub CLI command `gh pr list --author "Copilot"` (or `--author "@copilot"`) can be used to filter Copilot PRs. This performs client-side filtering after fetching all PRs from the repository, so it's simpler but less efficient than server-side filtering. The current workflow uses `gh search prs` for server-side date filtering, which is more efficient for large repositories.
+**Recommended Approach**: The workflow uses `gh search prs --author "@copilot"` which provides server-side filtering for both date and author, combining efficiency with simplicity.
 
 Use the GitHub tools with one of these strategies:
 
-1. **Use `gh pr list` with author filter (Simple, client-side filtering)**:
+1. **Use `gh search prs --author` (Recommended - used by this workflow)**:
    ```bash
-   # Fetch PRs by Copilot (client-side filtering)
+   # Server-side filtering for both date and author (current workflow approach)
+   DATE=$(date -d '24 hours ago' '+%Y-%m-%d')
+   gh search prs --repo ${{ github.repository }} \
+     --author "@copilot" \
+     --created ">=$DATE" \
+     --limit 1000 \
+     --json number,title,state,createdAt,closedAt,author
+   ```
+   
+   **Pros**: Server-side filtering, up to 1000 results, single command (no jq needed)
+   **Cons**: None for typical use cases
+   **Best for**: Production workflows (this is what the workflow uses)
+
+2. **Use `gh pr list --author` (Alternative for quick queries)**:
+   ```bash
+   # Client-side filtering, simpler but limited
    gh pr list --repo ${{ github.repository }} \
      --author "Copilot" \
      --limit 100 \
@@ -138,21 +150,7 @@ Use the GitHub tools with one of these strategies:
    
    **Pros**: Simple, single command
    **Cons**: Limited to 100 results, client-side filtering (less efficient)
-   **Best for**: Small repositories or when you need only recent PRs
-
-2. **Use `gh search prs` with date filter (Recommended for production)**:
-   ```bash
-   # Server-side filtering with date range (current workflow approach)
-   DATE=$(date -d '24 hours ago' '+%Y-%m-%d')
-   gh search prs "repo:${{ github.repository }} created:>=$DATE" \
-     --limit 1000 \
-     --json number,title,author | \
-   jq '[.[] | select(.author.login == "Copilot")]'
-   ```
-   
-   **Pros**: Can fetch up to 1000 results, server-side date filtering
-   **Cons**: Requires jq for author filtering
-   **Best for**: Large repositories with many PRs
+   **Best for**: Quick ad-hoc queries or small repositories
 
 3. **Search by keywords in title/body**:
    ```
