@@ -1132,18 +1132,48 @@ jobs:
           
           Search for pull requests created by Copilot in the last 24 hours.
           
-          **Important**: The Copilot coding agent creates PRs under the username `Copilot` (user ID 198982749, a Bot account). GitHub's search API doesn't support searching by bot authors using `author:` filter, so we need alternative approaches.
+          **Important**: The Copilot coding agent creates PRs under the username `Copilot` (user ID 198982749, a Bot account).
+          
+          **Note on `gh pr list --author`**: The GitHub CLI command `gh pr list --author "Copilot"` (or `--author "@copilot"`) can be used to filter Copilot PRs. This performs client-side filtering after fetching all PRs from the repository, so it's simpler but less efficient than server-side filtering. The current workflow uses `gh search prs` for server-side date filtering, which is more efficient for large repositories.
           
           Use the GitHub tools with one of these strategies:
           
-          1. **Search by keywords in title/body (Recommended)**:
+          1. **Use `gh pr list` with author filter (Simple, client-side filtering)**:
+             ```bash
+             # Fetch PRs by Copilot (client-side filtering)
+             gh pr list --repo ${{ github.repository }} \
+               --author "Copilot" \
+               --limit 100 \
+               --state all \
+               --json number,title,createdAt,author
+             ```
+             
+             **Pros**: Simple, single command
+             **Cons**: Limited to 100 results, client-side filtering (less efficient)
+             **Best for**: Small repositories or when you need only recent PRs
+          
+          2. **Use `gh search prs` with date filter (Recommended for production)**:
+             ```bash
+             # Server-side filtering with date range (current workflow approach)
+             DATE=$(date -d '24 hours ago' '+%Y-%m-%d')
+             gh search prs "repo:${{ github.repository }} created:>=$DATE" \
+               --limit 1000 \
+               --json number,title,author | \
+             jq '[.[] | select(.author.login == "Copilot")]'
+             ```
+             
+             **Pros**: Can fetch up to 1000 results, server-side date filtering
+             **Cons**: Requires jq for author filtering
+             **Best for**: Large repositories with many PRs
+          
+          3. **Search by keywords in title/body**:
              ```
              repo:${{ github.repository }} is:pr "START COPILOT CODING AGENT" created:>=YYYY-MM-DD
              ```
              This searches for PRs containing the signature text that Copilot adds to PR bodies.
              Replace `YYYY-MM-DD` with yesterday's date (24 hours ago).
           
-          2. **List all PRs and filter by author**:
+          4. **List all PRs and filter by author**:
              Use `list_pull_requests` tool to get recent PRs, then filter by checking if:
              - `user.login == "Copilot"`
              - `user.id == 198982749`
@@ -1151,13 +1181,7 @@ jobs:
           
              This is more reliable but requires processing all recent PRs.
           
-          3. **Search by common patterns**:
-             ```
-             repo:${{ github.repository }} is:pr "Original prompt" created:>=YYYY-MM-DD
-             ```
-             Copilot PRs typically contain "Original prompt" in their body.
-          
-          3. **Get PR Details**: For each found PR, use `pull_request_read` to get:
+          5. **Get PR Details**: For each found PR, use `pull_request_read` to get:
              - PR number
              - Title and description
              - Creation timestamp
@@ -1435,6 +1459,12 @@ jobs:
           If no PRs were created by Copilot in the last 24 hours:
           - Create a minimal discussion: "No Copilot agent activity in the last 24 hours."
           - Update cache memory with zero counts
+          EOF
+      - name: Append prompt (part 2)
+        env:
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GITHUB_AW_PROMPT << 'EOF'
           - Keep it to 2-3 sentences max
           
           ### Bot Username Changes
