@@ -39,11 +39,11 @@ func TestGHPRListAuthorFlag(t *testing.T) {
 			// This test validates that the author value is a valid string
 			// The actual filtering behavior is tested by the GitHub Actions workflow
 			// in .github/workflows/test-copilot-pr-list.yml
-			
+
 			if tt.authorValue == "" {
 				t.Errorf("author value cannot be empty")
 			}
-			
+
 			// Document the expected behavior
 			t.Logf("Testing: %s", tt.description)
 			t.Logf("Author value: %s", tt.authorValue)
@@ -63,7 +63,7 @@ func TestGHPRListVsGHSearchPRs(t *testing.T) {
 		t.Log("Limit: 100 results max")
 		t.Log("Best for: Small repos or recent PRs only")
 	})
-	
+
 	t.Run("gh search prs approach", func(t *testing.T) {
 		// Server-side filtering with jq post-processing
 		// Command: gh search prs "repo:REPO created:>=DATE" --limit 1000 | jq 'select(.author.login == "Copilot")'
