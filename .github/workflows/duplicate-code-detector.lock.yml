@@ -167,7 +167,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.18.0
+          docker pull ghcr.io/github/github-mcp-server:v0.19.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
@@ -885,7 +885,7 @@ jobs:
             "GITHUB_PERSONAL_ACCESS_TOKEN",
             "-e",
             "GITHUB_TOOLSETS=all",
-            "ghcr.io/github/github-mcp-server:v0.18.0"
+            "ghcr.io/github/github-mcp-server:v0.19.0"
           ]
           
           [mcp_servers.github.env]
@@ -3122,7 +3122,7 @@ jobs:
         if: steps.create_issue.outputs.issue_number != ''
         env:
           GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          ASSIGNEE: "copilot-swe-agent"
+          ASSIGNEE: "@copilot"
           ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
         run: |
           gh issue edit "$ISSUE_NUMBER" --add-assignee "$ASSIGNEE"

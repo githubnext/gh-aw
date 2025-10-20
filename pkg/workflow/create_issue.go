@@ -129,7 +129,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		if data.SafeOutputs != nil {
 			safeOutputsToken = data.SafeOutputs.GitHubToken
 		}
-		
+
 		// Check if any assignee is "copilot" to determine token preference
 		hasCopilotAssignee := false
 		for _, assignee := range data.SafeOutputs.CreateIssues.Assignees {
@@ -138,7 +138,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 				break
 			}
 		}
-		
+
 		// Use Copilot token preference if assigning to copilot, otherwise use regular token
 		var effectiveToken string
 		if hasCopilotAssignee {
@@ -148,10 +148,10 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		}
 
 		for i, assignee := range data.SafeOutputs.CreateIssues.Assignees {
-			// Special handling: "copilot" is the username for "copilot-swe-agent"
+			// Special handling: "copilot" should be passed as "@copilot" to gh CLI
 			actualAssignee := assignee
 			if assignee == "copilot" {
-				actualAssignee = "copilot-swe-agent"
+				actualAssignee = "@copilot"
 			}
 
 			steps = append(steps, fmt.Sprintf("      - name: Assign issue to %s\n", assignee))

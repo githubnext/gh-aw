@@ -122,10 +122,11 @@ The YAML frontmatter supports these fields:
     - `read-only:` - Restrict to read-only operations (boolean)
     - `github-token:` - Custom GitHub token
     - `toolset:` - Enable specific GitHub toolset groups (array only)
-      - Available toolsets: `context`, `repos`, `issues`, `pull_requests`, `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `labels`, `notifications`, `orgs`, `projects`, `secret_protection`, `security_advisories`, `stargazers`, `users`
+      - Available toolsets: `default`, `all`, `context`, `repos`, `issues`, `pull_requests`, `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `labels`, `notifications`, `orgs`, `projects`, `secret_protection`, `security_advisories`, `stargazers`, `users`
       - Default toolsets (if not specified): `context`, `repos`, `issues`, `pull_requests`, `users`
+      - Use `[default]` as a shorthand for the default toolsets listed above
       - Use `[all]` to enable all available toolsets
-      - Example: `toolset: [repos, issues, pull_requests]` or `toolset: [all]`
+      - Example: `toolset: [default]`, `toolset: [default, discussions]`, `toolset: [repos, issues, pull_requests]`, or `toolset: [all]`
   - `agentic-workflows:` - GitHub Agentic Workflows MCP server for workflow introspection
     - Provides tools for:
       - `status` - Show status of workflow files in the repository

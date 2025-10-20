@@ -221,7 +221,7 @@ func TestCreatePullRequestJobWithCopilotReviewer(t *testing.T) {
 	// Create a compiler instance
 	c := NewCompiler(false, "", "test")
 
-	// Test with "copilot" as reviewer (should be mapped to "copilot-swe-agent")
+	// Test with "copilot" as reviewer (should use GitHub API with copilot-pull-request-reviewer[bot])
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
@@ -244,14 +244,28 @@ func TestCreatePullRequestJobWithCopilotReviewer(t *testing.T) {
 		t.Error("Expected reviewer step name to show 'copilot'")
 	}
 
-	// Check that the actual reviewer is "copilot-swe-agent"
-	if !strings.Contains(stepsContent, `REVIEWER: "copilot-swe-agent"`) {
-		t.Error("Expected REVIEWER environment variable to be set to 'copilot-swe-agent'")
+	// Check that it uses the GitHub API (not gh pr edit)
+	if !strings.Contains(stepsContent, "gh api --method POST") {
+		t.Error("Expected GitHub API call for copilot reviewer")
 	}
 
-	// Verify that the original "copilot" is NOT used as reviewer
-	if strings.Contains(stepsContent, `REVIEWER: "copilot"`) && !strings.Contains(stepsContent, `REVIEWER: "copilot-swe-agent"`) {
-		t.Error("Expected 'copilot' to be mapped to 'copilot-swe-agent', not used directly")
+	// Check that it uses the correct API endpoint and bot name
+	if !strings.Contains(stepsContent, "/requested_reviewers") {
+		t.Error("Expected /requested_reviewers API endpoint")
+	}
+
+	if !strings.Contains(stepsContent, "copilot-pull-request-reviewer[bot]") {
+		t.Error("Expected copilot-pull-request-reviewer[bot] as the reviewer")
+	}
+
+	// Check that PR_NUMBER environment variable is used (not PR_URL)
+	if !strings.Contains(stepsContent, "PR_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}") {
+		t.Error("Expected PR_NUMBER to be set from create_pull_request step output")
+	}
+
+	// Verify that gh pr edit is NOT used for copilot
+	if strings.Contains(stepsContent, "gh pr edit") && strings.Contains(stepsContent, "copilot") {
+		t.Error("Should not use gh pr edit for copilot reviewer")
 	}
 }
 

@@ -1107,11 +1107,13 @@ safe-outputs:
     # This field supports multiple formats (oneOf):
 
     # Option 1: Single GitHub username to assign the created issue to (e.g., 'user1'
-    # or 'copilot'). Use 'copilot' to assign to copilot-swe-agent.
+    # or 'copilot'). Use 'copilot' to assign to GitHub Copilot using the @copilot
+    # special value.
     assignees: "example-value"
 
     # Option 2: List of GitHub usernames to assign the created issue to (e.g.,
-    # ['user1', 'user2', 'copilot']). Use 'copilot' to assign to copilot-swe-agent.
+    # ['user1', 'user2', 'copilot']). Use 'copilot' to assign to GitHub Copilot using
+    # the @copilot special value.
     assignees: []
       # Array items: string
 
@@ -1135,6 +1137,39 @@ safe-outputs:
 
   # Option 2: Enable issue creation with default configuration
   create-issue: null
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Configuration for creating GitHub Copilot agent tasks from agentic
+  # workflow output using gh agent-task CLI. The main job does not need write
+  # permissions.
+  create-agent-task:
+    # Base branch for the agent task pull request. Defaults to the current branch or
+    # repository default branch.
+    # (optional)
+    base: "example-value"
+
+    # Maximum number of agent tasks to create (default: 1)
+    # (optional)
+    max: 1
+
+    # Minimum number of agent tasks to create (default: 0 - no requirement)
+    # (optional)
+    min: 1
+
+    # Target repository in format 'owner/repo' for cross-repository agent task
+    # creation. Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable agent task creation with default configuration
+  create-agent-task: null
 
   # (optional)
   # This field supports multiple formats (oneOf):
@@ -1233,16 +1268,19 @@ safe-outputs:
       # Array of strings
 
     # Optional reviewer(s) to assign to the pull request. Accepts either a single
-    # string or an array of usernames. Use 'copilot' to assign to copilot-swe-agent.
+    # string or an array of usernames. Use 'copilot' to request a code review from
+    # GitHub Copilot.
     # (optional)
     # This field supports multiple formats (oneOf):
 
     # Option 1: Single reviewer username to assign to the pull request. Use 'copilot'
-    # to assign to copilot-swe-agent.
+    # to request a code review from GitHub Copilot using the
+    # copilot-pull-request-reviewer[bot].
     reviewers: "example-value"
 
     # Option 2: List of reviewer usernames to assign to the pull request. Use
-    # 'copilot' to assign to copilot-swe-agent.
+    # 'copilot' to request a code review from GitHub Copilot using the
+    # copilot-pull-request-reviewer[bot].
     reviewers: []
       # Array items: string
 

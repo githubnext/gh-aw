@@ -1631,6 +1631,7 @@
                     "description": "Toolset name",
                     "enum": [
                       "all",
+                      "default",
                       "context",
                       "repos",
                       "issues",
@@ -2016,11 +2017,11 @@
                   "oneOf": [
                     {
                       "type": "string",
-                      "description": "Single GitHub username to assign the created issue to (e.g., 'user1' or 'copilot'). Use 'copilot' to assign to copilot-swe-agent."
+                      "description": "Single GitHub username to assign the created issue to (e.g., 'user1' or 'copilot'). Use 'copilot' to assign to GitHub Copilot using the @copilot special value."
                     },
                     {
                       "type": "array",
-                      "description": "List of GitHub usernames to assign the created issue to (e.g., ['user1', 'user2', 'copilot']). Use 'copilot' to assign to copilot-swe-agent.",
+                      "description": "List of GitHub usernames to assign the created issue to (e.g., ['user1', 'user2', 'copilot']). Use 'copilot' to assign to GitHub Copilot using the @copilot special value.",
                       "items": {
                         "type": "string"
                       }
@@ -2212,17 +2213,17 @@
                   "oneOf": [
                     {
                       "type": "string",
-                      "description": "Single reviewer username to assign to the pull request. Use 'copilot' to assign to copilot-swe-agent."
+                      "description": "Single reviewer username to assign to the pull request. Use 'copilot' to request a code review from GitHub Copilot using the copilot-pull-request-reviewer[bot]."
                     },
                     {
                       "type": "array",
-                      "description": "List of reviewer usernames to assign to the pull request. Use 'copilot' to assign to copilot-swe-agent.",
+                      "description": "List of reviewer usernames to assign to the pull request. Use 'copilot' to request a code review from GitHub Copilot using the copilot-pull-request-reviewer[bot].",
                       "items": {
                         "type": "string"
                       }
                     }
                   ],
-                  "description": "Optional reviewer(s) to assign to the pull request. Accepts either a single string or an array of usernames. Use 'copilot' to assign to copilot-swe-agent."
+                  "description": "Optional reviewer(s) to assign to the pull request. Accepts either a single string or an array of usernames. Use 'copilot' to request a code review from GitHub Copilot."
                 },
                 "draft": {
                   "type": "boolean",

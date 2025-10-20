@@ -58,16 +58,13 @@ steps:
       DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
 
       # Search for PRs created by Copilot in the last 30 days using gh CLI
-      # Output in JSON format for easy processing with jq
+      # Using --author flag for server-side filtering (no jq needed!)
       echo "Fetching Copilot PRs from the last 30 days..."
-      gh search prs repo:${{ github.repository }} created:">=$DATE_30_DAYS_AGO" \
+      gh search prs --repo ${{ github.repository }} \
+        --author "@copilot" \
+        --created ">=$DATE_30_DAYS_AGO" \
         --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository \
         --limit 1000 \
-        > /tmp/gh-aw/pr-data/copilot-prs-raw.json
-
-      # Filter to only Copilot author (user.login == "Copilot" and user.id == 198982749)
-      jq '[.[] | select(.author.login == "Copilot" or .author.id == 198982749)]' \
-        /tmp/gh-aw/pr-data/copilot-prs-raw.json \
         > /tmp/gh-aw/pr-data/copilot-prs.json
 
       # Generate schema for reference
@@ -120,18 +117,49 @@ jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today) | .number]' /tmp/gh
 
 Search for pull requests created by Copilot in the last 24 hours.
 
-**Important**: The Copilot coding agent creates PRs under the username `Copilot` (user ID 198982749, a Bot account). GitHub's search API doesn't support searching by bot authors using `author:` filter, so we need alternative approaches.
+**Important**: The Copilot coding agent creates PRs under the username `Copilot` (user ID 198982749, a Bot account).
+
+**Recommended Approach**: The workflow uses `gh search prs --author "@copilot"` which provides server-side filtering for both date and author, combining efficiency with simplicity.
 
 Use the GitHub tools with one of these strategies:
 
-1. **Search by keywords in title/body (Recommended)**:
+1. **Use `gh search prs --author` (Recommended - used by this workflow)**:
+   ```bash
+   # Server-side filtering for both date and author (current workflow approach)
+   DATE=$(date -d '24 hours ago' '+%Y-%m-%d')
+   gh search prs --repo ${{ github.repository }} \
+     --author "@copilot" \
+     --created ">=$DATE" \
+     --limit 1000 \
+     --json number,title,state,createdAt,closedAt,author
+   ```
+   
+   **Pros**: Server-side filtering, up to 1000 results, single command (no jq needed)
+   **Cons**: None for typical use cases
+   **Best for**: Production workflows (this is what the workflow uses)
+
+2. **Use `gh pr list --author` (Alternative for quick queries)**:
+   ```bash
+   # Client-side filtering, simpler but limited
+   gh pr list --repo ${{ github.repository }} \
+     --author "Copilot" \
+     --limit 100 \
+     --state all \
+     --json number,title,createdAt,author
+   ```
+   
+   **Pros**: Simple, single command
+   **Cons**: Limited to 100 results, client-side filtering (less efficient)
+   **Best for**: Quick ad-hoc queries or small repositories
+
+3. **Search by keywords in title/body**:
    ```
    repo:${{ github.repository }} is:pr "START COPILOT CODING AGENT" created:>=YYYY-MM-DD
    ```
    This searches for PRs containing the signature text that Copilot adds to PR bodies.
    Replace `YYYY-MM-DD` with yesterday's date (24 hours ago).
 
-2. **List all PRs and filter by author**:
+4. **List all PRs and filter by author**:
    Use `list_pull_requests` tool to get recent PRs, then filter by checking if:
    - `user.login == "Copilot"`
    - `user.id == 198982749`
@@ -139,13 +167,7 @@ Use the GitHub tools with one of these strategies:
 
    This is more reliable but requires processing all recent PRs.
 
-3. **Search by common patterns**:
-   ```
-   repo:${{ github.repository }} is:pr "Original prompt" created:>=YYYY-MM-DD
-   ```
-   Copilot PRs typically contain "Original prompt" in their body.
-
-3. **Get PR Details**: For each found PR, use `pull_request_read` to get:
+5. **Get PR Details**: For each found PR, use `pull_request_read` to get:
    - PR number
    - Title and description
    - Creation timestamp
