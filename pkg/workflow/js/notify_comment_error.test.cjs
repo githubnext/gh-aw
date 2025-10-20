@@ -100,7 +100,7 @@ describe("notify_comment_error.cjs", () => {
 
   afterEach(() => {
     // Restore original environment
-    Object.keys(originalEnv).forEach((key) => {
+    Object.keys(originalEnv).forEach(key => {
       if (originalEnv[key] !== undefined) {
         process.env[key] = originalEnv[key];
       } else {
