@@ -116,7 +116,7 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 			}
 
 			// Build the add comment job
-			job, err := compiler.buildCreateOutputAddCommentJob(workflowData, "main")
+			job, err := compiler.buildCreateOutputAddCommentJob(workflowData, "main", "", "", "")
 			if err != nil {
 				t.Fatalf("Failed to build add comment job: %v", err)
 			}

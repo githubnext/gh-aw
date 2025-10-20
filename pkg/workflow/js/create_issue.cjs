@@ -53,6 +53,10 @@ function generateFooter(
 }
 
 async function main() {
+  // Initialize outputs to empty strings to ensure they're always set
+  core.setOutput("issue_number", "");
+  core.setOutput("issue_url", "");
+
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
   const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!agentOutputFile) {

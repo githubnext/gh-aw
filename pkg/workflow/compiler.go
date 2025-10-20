@@ -1969,6 +1969,12 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	// Track safe output job names to establish dependencies for update_reaction job
 	var safeOutputJobNames []string
 
+	// Track which jobs create_issue, create_discussion, and create_pull_request were created
+	// so that add_comment can depend on them and reference their outputs
+	var createIssueJobName string
+	var createDiscussionJobName string
+	var createPullRequestJobName string
+
 	// Build create_issue job if output.create_issue is configured
 	if data.SafeOutputs.CreateIssues != nil {
 		createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName)
@@ -1983,6 +1989,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 			return fmt.Errorf("failed to add create_issue job: %w", err)
 		}
 		safeOutputJobNames = append(safeOutputJobNames, createIssueJob.Name)
+		createIssueJobName = createIssueJob.Name
 	}
 
 	// Build create_discussion job if output.create_discussion is configured
@@ -1999,11 +2006,30 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 			return fmt.Errorf("failed to add create_discussion job: %w", err)
 		}
 		safeOutputJobNames = append(safeOutputJobNames, createDiscussionJob.Name)
+		createDiscussionJobName = createDiscussionJob.Name
+	}
+
+	// Build create_pull_request job if output.create-pull-request is configured
+	// NOTE: This is built BEFORE add_comment so that add_comment can depend on it
+	if data.SafeOutputs.CreatePullRequests != nil {
+		createPullRequestJob, err := c.buildCreateOutputPullRequestJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build create_pull_request job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			createPullRequestJob.Needs = append(createPullRequestJob.Needs, constants.DetectionJobName)
+		}
+		if err := c.jobManager.AddJob(createPullRequestJob); err != nil {
+			return fmt.Errorf("failed to add create_pull_request job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, createPullRequestJob.Name)
+		createPullRequestJobName = createPullRequestJob.Name
 	}
 
 	// Build add_comment job if output.add-comment is configured
 	if data.SafeOutputs.AddComments != nil {
-		createCommentJob, err := c.buildCreateOutputAddCommentJob(data, jobName)
+		createCommentJob, err := c.buildCreateOutputAddCommentJob(data, jobName, createIssueJobName, createDiscussionJobName, createPullRequestJobName)
 		if err != nil {
 			return fmt.Errorf("failed to build add_comment job: %w", err)
 		}
@@ -2049,22 +2075,6 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 			return fmt.Errorf("failed to add create_code_scanning_alert job: %w", err)
 		}
 		safeOutputJobNames = append(safeOutputJobNames, createCodeScanningAlertJob.Name)
-	}
-
-	// Build create_pull_request job if output.create-pull-request is configured
-	if data.SafeOutputs.CreatePullRequests != nil {
-		createPullRequestJob, err := c.buildCreateOutputPullRequestJob(data, jobName)
-		if err != nil {
-			return fmt.Errorf("failed to build create_pull_request job: %w", err)
-		}
-		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
-		if threatDetectionEnabled {
-			createPullRequestJob.Needs = append(createPullRequestJob.Needs, constants.DetectionJobName)
-		}
-		if err := c.jobManager.AddJob(createPullRequestJob); err != nil {
-			return fmt.Errorf("failed to add create_pull_request job: %w", err)
-		}
-		safeOutputJobNames = append(safeOutputJobNames, createPullRequestJob.Name)
 	}
 
 	// Build add_labels job if output.add-labels is configured (including null/empty)

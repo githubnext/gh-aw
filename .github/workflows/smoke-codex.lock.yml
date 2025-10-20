@@ -2611,6 +2611,8 @@ jobs:
               return footer;
             }
             async function main() {
+              core.setOutput("issue_number", "");
+              core.setOutput("issue_url", "");
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {

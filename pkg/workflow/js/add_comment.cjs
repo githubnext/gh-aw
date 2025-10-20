@@ -184,6 +184,28 @@ async function main() {
     let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
     summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
 
+    // Show created items references if available
+    const createdIssueUrl = process.env.GITHUB_AW_CREATED_ISSUE_URL;
+    const createdIssueNumber = process.env.GITHUB_AW_CREATED_ISSUE_NUMBER;
+    const createdDiscussionUrl = process.env.GITHUB_AW_CREATED_DISCUSSION_URL;
+    const createdDiscussionNumber = process.env.GITHUB_AW_CREATED_DISCUSSION_NUMBER;
+    const createdPullRequestUrl = process.env.GITHUB_AW_CREATED_PULL_REQUEST_URL;
+    const createdPullRequestNumber = process.env.GITHUB_AW_CREATED_PULL_REQUEST_NUMBER;
+
+    if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
+      summaryContent += "**Related Items:**\n";
+      if (createdIssueUrl && createdIssueNumber) {
+        summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+      }
+      if (createdDiscussionUrl && createdDiscussionNumber) {
+        summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+      }
+      if (createdPullRequestUrl && createdPullRequestNumber) {
+        summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+      }
+      summaryContent += "\n";
+    }
+
     for (let i = 0; i < commentItems.length; i++) {
       const item = commentItems[i];
       summaryContent += `### Comment ${i + 1}\n`;
@@ -296,6 +318,36 @@ async function main() {
 
     // Extract body from the JSON item
     let body = commentItem.body.trim();
+
+    // Append references to created issues, discussions, and pull requests if they exist
+    const createdIssueUrl = process.env.GITHUB_AW_CREATED_ISSUE_URL;
+    const createdIssueNumber = process.env.GITHUB_AW_CREATED_ISSUE_NUMBER;
+    const createdDiscussionUrl = process.env.GITHUB_AW_CREATED_DISCUSSION_URL;
+    const createdDiscussionNumber = process.env.GITHUB_AW_CREATED_DISCUSSION_NUMBER;
+    const createdPullRequestUrl = process.env.GITHUB_AW_CREATED_PULL_REQUEST_URL;
+    const createdPullRequestNumber = process.env.GITHUB_AW_CREATED_PULL_REQUEST_NUMBER;
+
+    // Add references section if any URLs are available
+    let hasReferences = false;
+    let referencesSection = "\n\n## Related Items\n\n";
+
+    if (createdIssueUrl && createdIssueNumber) {
+      referencesSection += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
+      hasReferences = true;
+    }
+    if (createdDiscussionUrl && createdDiscussionNumber) {
+      referencesSection += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
+      hasReferences = true;
+    }
+    if (createdPullRequestUrl && createdPullRequestNumber) {
+      referencesSection += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
+      hasReferences = true;
+    }
+
+    if (hasReferences) {
+      body += referencesSection;
+    }
+
     // Add AI disclaimer with workflow name and run url
     const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
     const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";

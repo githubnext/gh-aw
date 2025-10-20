@@ -109,7 +109,7 @@ func TestSafeOutputConditionWithMin(t *testing.T) {
 			} else if safeOutputs.CreateIssues != nil {
 				job, err = compiler.buildCreateOutputIssueJob(workflowData, "agent")
 			} else if safeOutputs.AddComments != nil {
-				job, err = compiler.buildCreateOutputAddCommentJob(workflowData, "agent")
+				job, err = compiler.buildCreateOutputAddCommentJob(workflowData, "agent", "", "", "")
 			}
 
 			if err != nil {
