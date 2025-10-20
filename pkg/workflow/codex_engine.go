@@ -619,7 +619,7 @@ func (e *CodexEngine) GetLogParserScriptId() string {
 func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 	patterns := GetCommonErrorPatterns()
 
-	// Add Codex-specific error patterns
+	// Add Codex-specific error patterns for Rust log format
 	patterns = append(patterns, []ErrorPattern{
 		// Rust format patterns (without brackets, with milliseconds and Z timezone)
 		{
@@ -633,84 +633,6 @@ func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 			LevelGroup:   2, // "WARN" or "WARNING" is in the second capture group
 			MessageGroup: 3, // warning message is in the third capture group
 			Description:  "Codex warning messages with timestamp",
-		},
-		// Specific, contextual permission error patterns - marked as warnings to reduce false positives
-		{
-			Pattern:      `(?i)access denied.*only authorized.*can trigger.*workflow`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Permission denied - workflow access restriction",
-		},
-		{
-			Pattern:      `(?i)access denied.*user.*not authorized`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Permission denied - user not authorized",
-		},
-		{
-			Pattern:      `(?i)repository permission check failed`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Repository permission check failure",
-		},
-		{
-			Pattern:      `(?i)configuration error.*required permissions not specified`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Configuration error - missing permissions",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*permission.*denied`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Permission denied error (requires error context)",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*unauthorized`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Unauthorized error (requires error context)",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*forbidden`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Forbidden error (requires error context)",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*access.*restricted`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Access restricted error (requires error context)",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*insufficient.*permission`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Insufficient permissions error (requires error context)",
-		},
-		{
-			Pattern:      `(?i)failed in.*permission`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Codex tool failed due to permission error",
-		},
-		{
-			Pattern:      `(?i)\berror\b in.*permission`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Codex tool error due to permission issue",
 		},
 	}...)
 
