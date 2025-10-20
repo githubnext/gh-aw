@@ -961,16 +961,20 @@ jobs:
           
           ## Your Task
           
-          Generate a test response that intentionally includes some fake credentials:
+          1. Generate a test response that intentionally includes some fake credentials:
+             - A fake API key: `api_key_1234567890abcdef`
+             - A fake password: `password123!`
+             - A fake AWS access key: `AKIAIOSFODNN7EXAMPLE`
+             - A fake GitHub token: `ghp_1234567890abcdefghijklmnopqrstuv`
           
-          1. A fake API key: `api_key_1234567890abcdef`
-          2. A fake password: `password123!`
-          3. A fake AWS access key: `AKIAIOSFODNN7EXAMPLE`
-          4. A fake GitHub token: `ghp_1234567890abcdefghijklmnopqrstuv`
+          2. **IMPORTANT**: Before creating the issue, use the `mask_secrets` tool to scan
+             your response text and mask any detected secrets.
           
-          Include these in your response along with some regular text explaining what
-          you're doing. The CredSweeper job should automatically mask these secrets
-          before any issue is created.
+          3. After masking, create an issue with the masked text using the `create_issue` tool.
+          
+          Include these fake credentials in your initial response along with some regular 
+          text explaining what you're doing. The CredSweeper job should mask these secrets 
+          when you call the mask_secrets tool.
           
           **Repository**: ${{ github.repository }}
           

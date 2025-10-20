@@ -141,14 +141,19 @@ imports:
   - shared/credsweeper.md
 ```
 
-This will automatically add a `mask-secrets` job that runs after your AI agent
-completes and before any other safe-output jobs (like creating issues or PRs).
+This adds a `mask_secrets` safe-output job that the agent can invoke to scan and
+mask secrets in its output. The agent should call the mask_secrets tool before
+creating issues or PRs to ensure secrets are not exposed.
+
+**Important**: The agent must explicitly call the `mask_secrets` tool for the job
+to run. The job does not automatically process all agent output.
 
 The job will:
 - Install CredSweeper from PyPI
-- Scan the agent's output text for secrets
+- Scan the text content for secrets
 - Mask any detected credentials with "(redacted)"
-- Update the agent output artifact
+- Update the agent output with masked text
+- Other safe-output jobs will then use the masked output
 
 ## Dependencies
 
@@ -187,11 +192,14 @@ safe-outputs:
 # Analyze Issue
 
 Analyze the issue and create a summary.
+
+**Important**: Before creating the issue, use the `mask_secrets` tool to scan
+your response for any potential secrets and mask them.
 ```
 
-In this example, the `mask-secrets` job will run after the agent completes,
-scan the agent's output for secrets, mask them, and then the `create-issue`
-job will use the masked output to create an issue (without exposing secrets).
+In this example, the agent should call the `mask_secrets` tool with its analysis
+text before creating the issue. This ensures that any detected secrets are masked
+before the issue is created.
 
 ## Security Benefits
 
