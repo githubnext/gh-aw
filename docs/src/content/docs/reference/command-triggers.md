@@ -20,10 +20,7 @@ on:
   command: "my-bot"  # Shorthand: string directly specifies command name
 ```
 
-This automatically creates:
-- Issue and PR triggers (`opened`, `edited`, `reopened`)
-- Comment triggers (`created`, `edited`)
-- Conditional execution matching `/command-name` mentions
+This automatically creates issue/PR triggers (`opened`, `edited`, `reopened`), comment triggers (`created`, `edited`), and conditional execution matching `/command-name` mentions.
 
 You can combine `command:` with other events like `workflow_dispatch` or `schedule`:
 
@@ -49,13 +46,7 @@ on:
     events: [issues, issue_comment]  # Only in issue bodies and issue comments
 ```
 
-**Supported event identifiers:**
-- `issues` - Issue bodies (opened, edited, reopened)
-- `issue_comment` - Comments on issues only (excludes PR comments)
-- `pull_request_comment` - Comments on pull requests only (excludes issue comments)
-- `pull_request` - Pull request bodies (opened, edited, reopened)
-- `pull_request_review_comment` - Pull request review comments
-- `*` - All comment-related events (default when omitted)
+**Supported events:** `issues` (issue bodies), `issue_comment` (issue comments only), `pull_request_comment` (PR comments only), `pull_request` (PR bodies), `pull_request_review_comment` (PR review comments), `discussion` (discussion bodies), `discussion_comment` (discussion comments), or `*` (all comment events, default).
 
 ### Example command workflow
 
@@ -83,30 +74,13 @@ The current context text is: "${{ needs.activation.outputs.text }}"
 
 ## Context Text
 
-All workflows have access to a special computed `needs.activation.outputs.text` value that provides **sanitized** context based on the triggering event:
+All workflows access `needs.activation.outputs.text`, which provides **sanitized** context: for issues and PRs, it's `title + "\n\n" + body`; for comments and reviews, it's the body content.
 
 ```aw wrap
 # Analyze this content: "${{ needs.activation.outputs.text }}"
 ```
 
-**How `text` is computed:**
-- **Issues**: `title + "\n\n" + body`
-- **Pull Requests**: `title + "\n\n" + body`  
-- **Issue Comments**: `comment.body`
-- **PR Review Comments**: `comment.body`
-- **PR Reviews**: `review.body`
-- **Other events**: Empty string
-
-**Why use sanitized context text instead of raw `github.event` values?**
-
-The `needs.activation.outputs.text` provides critical security protections that raw context values lack:
-
-- **@mention neutralization**: Prevents unintended notifications by converting `@user` to `` `@user` ``
-- **Bot trigger safety**: Protects against accidental bot commands by converting `fixes #123` to `` `fixes #123` ``
-- **XML injection protection**: Converts XML tags to safe parentheses format
-- **URI security**: Only allows HTTPS URIs from trusted domains; others become "(redacted)"
-- **Content safety**: Limits size (0.5MB max, 65k lines) and removes control characters
-- **ANSI sanitization**: Strips escape sequences that could manipulate terminal output
+**Why sanitized context?** The sanitized text neutralizes @mentions and bot triggers (like `fixes #123`), protects against XML injection, filters URIs to trusted HTTPS domains, limits content size (0.5MB max, 65k lines), and strips ANSI escape sequences.
 
 **Comparison:**
 ```aw wrap
@@ -120,20 +94,16 @@ Body: "${{ github.event.issue.body }}"
 
 ## Reactions
 
-Command workflows **automatically** provide immediate visual feedback by adding the "eyes" (👀) emoji reaction to triggering comments and automatically editing them with workflow run links. This default behavior can be customized by explicitly specifying a different reaction:
+Command workflows automatically add the "eyes" (👀) emoji reaction to triggering comments and edit them with workflow run links, providing immediate feedback. Customize the reaction:
 
 ```yaml
 on:
   command:
     name: my-bot
-  reaction: "rocket"  # Override default "eyes" with custom reaction
+  reaction: "rocket"  # Override default "eyes"
 ```
 
-When someone mentions `/my-bot` in a comment, the workflow will:
-1. Add the emoji reaction (👀 by default, or your custom choice) to the comment
-2. Automatically edit the comment to include a link to the workflow run
-
-This provides users with immediate feedback that their request was received and gives them easy access to monitor the workflow execution. See [Reactions](/gh-aw/reference/frontmatter/) for the complete list of available reactions and detailed behavior.
+See [Reactions](/gh-aw/reference/frontmatter/) for available reactions and detailed behavior.
 
 ## Related Documentation
 
