@@ -22,7 +22,9 @@ on:
 
 This automatically creates issue/PR triggers (`opened`, `edited`, `reopened`), comment triggers (`created`, `edited`), and conditional execution matching `/command-name` mentions.
 
-**Important**: The command must be the **first word** of the comment or body text to trigger the workflow. This prevents accidental triggers when the command is mentioned elsewhere in the content.
+:::caution[Command Position Requirement]
+The command must be the **first word** of the comment or body text to trigger the workflow. This prevents accidental triggers when the command is mentioned elsewhere in the content.
+:::
 
 You can combine `command:` with other events like `workflow_dispatch` or `schedule`:
 
@@ -36,32 +38,6 @@ on:
 ```
 
 **Note**: You cannot combine `command` with `issues`, `issue_comment`, or `pull_request` as they would conflict.
-
-## Command Position Requirement
-
-Command triggers require the command to be the **first word** in the text (after any leading whitespace). This prevents accidental workflow runs when the command is mentioned elsewhere in the content.
-
-:::tip
-The first-word requirement helps prevent infinite loops and accidental triggers. When AI agents generate output containing the command word, it will be automatically neutralized if it appears at the start of the text.
-:::
-
-**Examples:**
-
-✅ **Valid triggers** (command is first word):
-```
-/my-bot analyze this issue
-```
-```
-  /my-bot help needed
-```
-
-❌ **Invalid triggers** (command is not first word):
-```
-Please help with /my-bot this issue
-```
-```
-I need /my-bot to review this
-```
 
 ## Filtering Command Events
 

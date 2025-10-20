@@ -179,7 +179,22 @@ describe("check_command_position.cjs", () => {
     await eval(`(async () => { ${checkCommandPositionScript} })()`);
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true");
-    expect(mockCore.info).toHaveBeenCalledWith("No text content found, skipping command position check");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No command"));
+  });
+
+  it("should pass when text does not contain the command", async () => {
+    process.env.GITHUB_AW_COMMAND = "test-bot";
+    mockContext.eventName = "issues";
+    mockContext.payload = {
+      issue: {
+        body: "This is a regular issue without any command",
+      },
+    };
+
+    await eval(`(async () => { ${checkCommandPositionScript} })()`);
+
+    expect(mockCore.setOutput).toHaveBeenCalledWith("command_position_ok", "true");
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No command"));
   });
 
   it("should handle discussion events", async () => {

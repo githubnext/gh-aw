@@ -34,8 +34,12 @@ async function main() {
       return;
     }
 
-    if (!text) {
-      core.info("No text content found, skipping command position check");
+    // Expected command format: /command
+    const expectedCommand = `/${command}`;
+
+    // If text is empty or doesn't contain the command at all, pass the check
+    if (!text || !text.includes(expectedCommand)) {
+      core.info(`No command '${expectedCommand}' found in text, passing check`);
       core.setOutput("command_position_ok", "true");
       return;
     }
@@ -43,9 +47,6 @@ async function main() {
     // Normalize whitespace and get the first word
     const trimmedText = text.trim();
     const firstWord = trimmedText.split(/\s+/)[0];
-
-    // Expected command format: /command
-    const expectedCommand = `/${command}`;
 
     core.info(`Checking command position for: ${expectedCommand}`);
     core.info(`First word in text: ${firstWord}`);

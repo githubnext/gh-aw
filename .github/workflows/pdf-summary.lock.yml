@@ -4787,14 +4787,14 @@ jobs:
                   core.setOutput("command_position_ok", "true");
                   return;
                 }
-                if (!text) {
-                  core.info("No text content found, skipping command position check");
+                const expectedCommand = `/${command}`;
+                if (!text || !text.includes(expectedCommand)) {
+                  core.info(`No command '${expectedCommand}' found in text, passing check`);
                   core.setOutput("command_position_ok", "true");
                   return;
                 }
                 const trimmedText = text.trim();
                 const firstWord = trimmedText.split(/\s+/)[0];
-                const expectedCommand = `/${command}`;
                 core.info(`Checking command position for: ${expectedCommand}`);
                 core.info(`First word in text: ${firstWord}`);
                 if (firstWord === expectedCommand) {
