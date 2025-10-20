@@ -28,8 +28,14 @@ type GitHubScriptStepConfig struct {
 	// JavaScript script constant to format and include
 	Script string
 
-	// Token configuration (passed to addSafeOutputGitHubTokenForConfig)
+	// Token configuration (passed to addSafeOutputGitHubTokenForConfig or addSafeOutputCopilotGitHubTokenForConfig)
 	Token string
+
+	// UseCopilotToken indicates whether to use the Copilot token preference chain
+	// (GH_AW_COPILOT_TOKEN > GH_AW_GITHUB_TOKEN > GITHUB_TOKEN)
+	// This should be true for Copilot-related operations like creating agent tasks,
+	// assigning copilot to issues, or adding copilot as PR reviewer
+	UseCopilotToken bool
 }
 
 // buildGitHubScriptStep creates a GitHub Script step with common scaffolding
@@ -60,7 +66,11 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 
 	// With section for github-token
 	steps = append(steps, "        with:\n")
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
+	if config.UseCopilotToken {
+		c.addSafeOutputCopilotGitHubTokenForConfig(&steps, data, config.Token)
+	} else {
+		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
+	}
 	steps = append(steps, "          script: |\n")
 
 	// Add the formatted JavaScript script

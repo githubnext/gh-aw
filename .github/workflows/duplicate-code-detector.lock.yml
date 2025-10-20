@@ -3121,7 +3121,7 @@ jobs:
       - name: Assign issue to copilot
         if: steps.create_issue.outputs.issue_number != ''
         env:
-          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           ASSIGNEE: "copilot-swe-agent"
           ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
         run: |

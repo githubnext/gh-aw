@@ -68,6 +68,18 @@ func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *Work
 	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
 }
 
+// addSafeOutputCopilotGitHubTokenForConfig adds github-token to the with section for Copilot-related operations
+// Uses precedence: config token > safe-outputs global github-token > top-level github-token > GH_AW_COPILOT_TOKEN > GH_AW_GITHUB_TOKEN > GITHUB_TOKEN
+func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
+	var safeOutputsToken string
+	if data.SafeOutputs != nil {
+		safeOutputsToken = data.SafeOutputs.GitHubToken
+	}
+	// Get effective token using double precedence: config > safe-outputs, then > top-level > Copilot default
+	effectiveToken := getEffectiveCopilotGitHubToken(configToken, getEffectiveCopilotGitHubToken(safeOutputsToken, data.GitHubToken))
+	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
+}
+
 // filterMapKeys creates a new map excluding the specified keys
 func filterMapKeys(original map[string]any, excludeKeys ...string) map[string]any {
 	excludeSet := make(map[string]bool)

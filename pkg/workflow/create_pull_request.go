@@ -105,7 +105,23 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		if data.SafeOutputs != nil {
 			safeOutputsToken = data.SafeOutputs.GitHubToken
 		}
-		effectiveToken := getEffectiveGitHubToken(data.SafeOutputs.CreatePullRequests.GitHubToken, getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken))
+		
+		// Check if any reviewer is "copilot" to determine token preference
+		hasCopilotReviewer := false
+		for _, reviewer := range data.SafeOutputs.CreatePullRequests.Reviewers {
+			if reviewer == "copilot" {
+				hasCopilotReviewer = true
+				break
+			}
+		}
+		
+		// Use Copilot token preference if adding copilot as reviewer, otherwise use regular token
+		var effectiveToken string
+		if hasCopilotReviewer {
+			effectiveToken = getEffectiveCopilotGitHubToken(data.SafeOutputs.CreatePullRequests.GitHubToken, getEffectiveCopilotGitHubToken(safeOutputsToken, data.GitHubToken))
+		} else {
+			effectiveToken = getEffectiveGitHubToken(data.SafeOutputs.CreatePullRequests.GitHubToken, getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken))
+		}
 
 		for i, reviewer := range data.SafeOutputs.CreatePullRequests.Reviewers {
 			// Special handling: "copilot" is the username for "copilot-swe-agent"

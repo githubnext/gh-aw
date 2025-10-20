@@ -83,12 +83,13 @@ func (c *Compiler) buildCreateOutputAgentTaskJob(data *WorkflowData, mainJobName
 
 	// Build the GitHub Script step using the common helper and append to existing steps
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Create Agent Task",
-		StepID:        "create_agent_task",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        createAgentTaskScript,
-		Token:         token,
+		StepName:        "Create Agent Task",
+		StepID:          "create_agent_task",
+		MainJobName:     mainJobName,
+		CustomEnvVars:   customEnvVars,
+		Script:          createAgentTaskScript,
+		Token:           token,
+		UseCopilotToken: true, // Use Copilot token preference for agent task creation
 	})
 	steps = append(steps, scriptSteps...)
 
