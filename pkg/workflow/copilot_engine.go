@@ -338,14 +338,9 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 			yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
 		}
 
-		// Add GITHUB_TOOLSETS environment variable if toolsets are configured
-		if toolsets != "" {
-			yaml.WriteString("                  \"-e\",\n")
-			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS=%s\",\n", toolsets))
-		} else {
-			yaml.WriteString("                  \"-e\",\n")
-			yaml.WriteString("                  \"GITHUB_TOOLSETS=all\",\n")
-		}
+		// Add GITHUB_TOOLSETS environment variable (always configured, defaults to "default")
+		yaml.WriteString("                  \"-e\",\n")
+		yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS=%s\",\n", toolsets))
 
 		yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 
@@ -638,7 +633,13 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 							args = append(args, "--allow-tool", "github")
 						}
 					}
+				} else {
+					// No allowed field specified - allow entire GitHub MCP server
+					args = append(args, "--allow-tool", "github")
 				}
+			} else {
+				// GitHub tool exists but is not a map (e.g., github: null) - allow entire server
+				args = append(args, "--allow-tool", "github")
 			}
 			continue
 		}

@@ -1594,27 +1594,11 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		}
 	}
 
-	// Determine which default tools list to use based on mode
-	githubMode := getGitHubType(githubTool)
-	var defaultTools []string
-	if githubMode == "remote" {
-		defaultTools = constants.DefaultGitHubToolsRemote
-	} else {
-		defaultTools = constants.DefaultGitHubToolsLocal
+	// Only set allowed tools if explicitly configured
+	// Don't add default tools - let the MCP server use all available tools
+	if len(existingAllowed) > 0 {
+		githubConfig["allowed"] = existingAllowed
 	}
-
-	// Add default GitHub tools that aren't already present
-	newAllowed := make([]any, len(existingAllowed))
-	copy(newAllowed, existingAllowed)
-
-	for _, defaultTool := range defaultTools {
-		if !existingToolsSet[defaultTool] {
-			newAllowed = append(newAllowed, defaultTool)
-		}
-	}
-
-	// Update the github tool configuration
-	githubConfig["allowed"] = newAllowed
 	tools["github"] = githubConfig
 
 	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-pull-request-branch

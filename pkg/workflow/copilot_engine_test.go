@@ -292,14 +292,14 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			tools: map[string]any{
 				"github": map[string]any{},
 			},
-			expected: []string{},
+			expected: []string{"--allow-tool", "github"},
 		},
 		{
 			name: "github tool as nil (no config)",
 			tools: map[string]any{
 				"github": nil,
 			},
-			expected: []string{},
+			expected: []string{"--allow-tool", "github"},
 		},
 		{
 			name: "github tool with multiple allowed tools sorted",

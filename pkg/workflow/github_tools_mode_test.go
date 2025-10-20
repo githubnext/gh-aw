@@ -61,39 +61,49 @@ func TestGitHubToolsModeSeparation(t *testing.T) {
 	}
 }
 
-// TestApplyDefaultToolsUsesCorrectMode verifies that applyDefaultTools uses the correct tool list based on mode
-func TestApplyDefaultToolsUsesCorrectMode(t *testing.T) {
+// TestApplyDefaultToolsNoLongerAddsDefaults verifies that applyDefaultTools no longer adds default tools
+// The MCP server should use ["*"] to allow all tools instead
+func TestApplyDefaultToolsNoLongerAddsDefaults(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	tests := []struct {
-		name         string
-		tools        map[string]any
-		expectedList string // "local" or "remote"
+		name               string
+		tools              map[string]any
+		expectedHasAllowed bool
 	}{
 		{
-			name: "Local mode (default)",
+			name: "Local mode (default) - no allowed field added",
 			tools: map[string]any{
 				"github": map[string]any{},
 			},
-			expectedList: "local",
+			expectedHasAllowed: false,
 		},
 		{
-			name: "Explicit local mode",
+			name: "Explicit local mode - no allowed field added",
 			tools: map[string]any{
 				"github": map[string]any{
 					"mode": "local",
 				},
 			},
-			expectedList: "local",
+			expectedHasAllowed: false,
 		},
 		{
-			name: "Remote mode",
+			name: "Remote mode - no allowed field added",
 			tools: map[string]any{
 				"github": map[string]any{
 					"mode": "remote",
 				},
 			},
-			expectedList: "remote",
+			expectedHasAllowed: false,
+		},
+		{
+			name: "Explicit allowed tools are preserved",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"get_issue", "list_issues"},
+				},
+			},
+			expectedHasAllowed: true,
 		},
 	}
 
@@ -101,27 +111,28 @@ func TestApplyDefaultToolsUsesCorrectMode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := compiler.applyDefaultTools(tt.tools, nil)
 
-			// Get the allowed tools from the github configuration
+			// Get the github configuration
 			githubConfig, ok := result["github"].(map[string]any)
 			if !ok {
 				t.Fatal("Expected github configuration to be a map")
 			}
 
-			allowed, ok := githubConfig["allowed"].([]any)
-			if !ok {
-				t.Fatal("Expected allowed to be a slice")
+			// Check if allowed field exists
+			_, hasAllowed := githubConfig["allowed"]
+			if hasAllowed != tt.expectedHasAllowed {
+				t.Errorf("Expected allowed field presence to be %v, got %v", tt.expectedHasAllowed, hasAllowed)
 			}
 
-			// Verify that the number of tools matches the expected list
-			var expectedCount int
-			if tt.expectedList == "local" {
-				expectedCount = len(constants.DefaultGitHubToolsLocal)
-			} else {
-				expectedCount = len(constants.DefaultGitHubToolsRemote)
-			}
-
-			if len(allowed) != expectedCount {
-				t.Errorf("Expected %d tools for %s mode, got %d", expectedCount, tt.expectedList, len(allowed))
+			// If allowed exists and we expect it, verify the tools are preserved
+			if tt.expectedHasAllowed {
+				allowed, ok := githubConfig["allowed"].([]any)
+				if !ok {
+					t.Fatal("Expected allowed to be a slice")
+				}
+				// Verify the explicitly provided tools are preserved
+				if len(allowed) != 2 {
+					t.Errorf("Expected 2 tools, got %d", len(allowed))
+				}
 			}
 		})
 	}

@@ -977,6 +977,7 @@ jobs:
                 "url": "https://api.githubcopilot.com/mcp/",
                 "headers": {
                   "Authorization": "Bearer ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+                  "X-MCP-Readonly": "true",
                   "X-MCP-Toolsets": "all"
                 }
               },
