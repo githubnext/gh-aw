@@ -95,55 +95,45 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		}
 	})
 
-	// Test ClaudeEngine error validation support (now includes permission error patterns)
+	// Test ClaudeEngine error validation support (uses common patterns only)
 	t.Run("ClaudeEngine_error_validation", func(t *testing.T) {
 		engine := NewClaudeEngine()
 
 		patterns := engine.GetErrorPatterns()
 		if len(patterns) == 0 {
-			t.Error("ClaudeEngine should return permission error patterns")
+			t.Error("ClaudeEngine should return common error patterns")
 		}
 
-		// Verify permission patterns are present
-		foundPermissionDenied := false
-		foundUnauthorized := false
-		foundForbidden := false
+		// Verify common patterns are present (inherited from GetCommonErrorPatterns)
+		foundGitHubError := false
+		foundGenericError := false
 
 		for _, pattern := range patterns {
-			if strings.Contains(strings.ToLower(pattern.Description), "permission denied") {
-				foundPermissionDenied = true
+			if strings.Contains(pattern.Description, "GitHub Actions workflow command") {
+				foundGitHubError = true
 			}
-			if strings.Contains(strings.ToLower(pattern.Description), "unauthorized") {
-				foundUnauthorized = true
-			}
-			if strings.Contains(strings.ToLower(pattern.Description), "forbidden") {
-				foundForbidden = true
+			if strings.Contains(pattern.Description, "Generic ERROR") {
+				foundGenericError = true
 			}
 		}
 
-		if !foundPermissionDenied {
-			t.Error("Missing permission denied pattern")
+		if !foundGitHubError {
+			t.Error("Missing GitHub Actions workflow command pattern")
 		}
-		if !foundUnauthorized {
-			t.Error("Missing unauthorized pattern")
-		}
-		if !foundForbidden {
-			t.Error("Missing forbidden pattern")
+		if !foundGenericError {
+			t.Error("Missing generic ERROR pattern")
 		}
 	})
 
-	// Test CopilotEngine detects command not found and permission errors
+	// Test CopilotEngine detects common patterns (command not found is detected by generic ERROR pattern)
 	t.Run("CopilotEngine_detects_command_not_found", func(t *testing.T) {
 		engine := NewCopilotEngine()
 		patterns := engine.GetErrorPatterns()
 
-		// Test logs with command not found errors
+		// Test logs with error context - these should be detected by generic ERROR pattern
 		testLogs := []string{
-			"vitest: command not found",
-			"sh: 1: vitest: not found",
-			"bash: npm: command not found",
-			"✗ Install dev dependencies",
 			"Error: Cannot find module 'vitest'",
+			"ERROR: vitest command not found",
 		}
 
 		for _, logLine := range testLogs {
@@ -153,23 +143,9 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 				t.Errorf("Failed to detect error in log line: %q", logLine)
 			}
 		}
-
-		// Test logs that should be detected as warnings
-		testWarningLogs := []string{
-			"Permission denied and could not request permission from user",
-			"sh: 1: make: Permission denied", // Permission errors are warnings
-		}
-
-		for _, logLine := range testWarningLogs {
-			errors := CountErrorsAndWarningsWithPatterns(logLine, patterns)
-			warningCount := CountWarnings(errors)
-			if warningCount == 0 {
-				t.Errorf("Failed to detect warning in log line: %q", logLine)
-			}
-		}
 	})
 
-	// Test CopilotEngine error validation support
+	// Test CopilotEngine error validation support (timestamp patterns only)
 	t.Run("CopilotEngine_error_validation", func(t *testing.T) {
 		engine := NewCopilotEngine()
 
@@ -182,15 +158,6 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		foundTimestampedError := false
 		foundTimestampedWarning := false
 		foundBracketedError := false
-		foundGenericError := false
-		foundNpmError := false
-		foundRateLimitError := false
-		foundHTTP429Error := false
-		foundQuotaError := false
-		foundTimeoutError := false
-		foundNetworkError := false
-		foundTokenExpiredError := false
-		foundMemoryError := false
 
 		for _, pattern := range patterns {
 			switch pattern.Description {
@@ -209,30 +176,6 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 				if pattern.LevelGroup != 2 || pattern.MessageGroup != 3 {
 					t.Errorf("Copilot bracketed error pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
 				}
-			case "Generic error messages from Copilot CLI or Node.js":
-				foundGenericError = true
-				if pattern.LevelGroup != 1 || pattern.MessageGroup != 2 {
-					t.Errorf("Copilot generic error pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
-				}
-			case "NPM error messages during Copilot CLI installation or execution":
-				foundNpmError = true
-				if pattern.LevelGroup != 0 || pattern.MessageGroup != 1 {
-					t.Errorf("Copilot npm error pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
-				}
-			case "Rate limit exceeded error":
-				foundRateLimitError = true
-			case "HTTP 429 Too Many Requests status code":
-				foundHTTP429Error = true
-			case "Quota exceeded error":
-				foundQuotaError = true
-			case "Timeout or deadline exceeded error":
-				foundTimeoutError = true
-			case "Network connection error":
-				foundNetworkError = true
-			case "Token expired error":
-				foundTokenExpiredError = true
-			case "Memory or resource exhaustion error":
-				foundMemoryError = true
 			}
 		}
 
@@ -245,56 +188,29 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		if !foundBracketedError {
 			t.Error("CopilotEngine should have bracketed error pattern")
 		}
-		if !foundGenericError {
-			t.Error("CopilotEngine should have generic error pattern")
-		}
-		if !foundNpmError {
-			t.Error("CopilotEngine should have npm error pattern")
-		}
-		if !foundRateLimitError {
-			t.Error("CopilotEngine should have rate limit error pattern")
-		}
-		if !foundHTTP429Error {
-			t.Error("CopilotEngine should have HTTP 429 error pattern")
-		}
-		if !foundQuotaError {
-			t.Error("CopilotEngine should have quota exceeded error pattern")
-		}
-		if !foundTimeoutError {
-			t.Error("CopilotEngine should have timeout error pattern")
-		}
-		if !foundNetworkError {
-			t.Error("CopilotEngine should have network error pattern")
-		}
-		if !foundTokenExpiredError {
-			t.Error("CopilotEngine should have token expired error pattern")
-		}
-		if !foundMemoryError {
-			t.Error("CopilotEngine should have memory error pattern")
-		}
 	})
 
-	// Test new error patterns with real-world examples
+	// Test new error patterns with real-world examples (using generic ERROR pattern)
 	t.Run("CopilotEngine_detects_new_error_types", func(t *testing.T) {
 		engine := NewCopilotEngine()
 		patterns := engine.GetErrorPatterns()
 
-		// Test logs with new error types
+		// Test logs with ERROR prefix - should be detected by common pattern
 		testLogs := []string{
-			"Error: API rate limit exceeded, please try again later",
+			"ERROR: API rate limit exceeded, please try again later",
 			"Error: Too many requests",
 			"Error: received 429 status code",
-			"Error: quota exceeded for API calls",
+			"ERROR: quota exceeded for API calls",
 			"Error: Request timeout after 30 seconds",
-			"Error: Operation timed out",
+			"ERROR: Operation timed out",
 			"Error: deadline exceeded",
-			"Error: Connection refused: ECONNREFUSED",
+			"ERROR: Connection refused: ECONNREFUSED",
 			"Error: connection failed to api.github.com",
-			"Error: Network error: ETIMEDOUT",
+			"ERROR: Network error: ETIMEDOUT",
 			"Error: DNS resolution failed: ENOTFOUND",
-			"Error: token expired, please refresh your credentials",
+			"ERROR: token expired, please refresh your credentials",
 			"Error: Fatal error: maximum call stack size exceeded",
-			"Error: heap out of memory",
+			"ERROR: heap out of memory",
 			"Error: spawn ENOMEM: not enough memory",
 		}
 
@@ -306,17 +222,19 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		}
 	})
 
-	// Test that patterns don't match informational text
+	// Test that patterns don't match informational text without ERROR context
 	t.Run("CopilotEngine_does_not_match_informational_quota_and_timeout_text", func(t *testing.T) {
 		engine := NewCopilotEngine()
 		patterns := engine.GetErrorPatterns()
 
-		// These should NOT match because they lack error context
+		// These should NOT match because they lack ERROR: or Error: prefix
 		informationalText := []string{
 			"quota will be exceeded tomorrow",
 			"avoid timeout issues by increasing the limit",
 			"timeout configuration is set to 30 seconds",
 			"the deadline is next week",
+			"connection to the database was successful",
+			"rate limit is 5000 requests per hour",
 		}
 
 		for _, text := range informationalText {

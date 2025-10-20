@@ -707,7 +707,7 @@ func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any
 func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 	patterns := GetCommonErrorPatterns()
 
-	// Add Copilot-specific error patterns
+	// Add Copilot-specific error patterns for timestamp-based log formats
 	patterns = append(patterns, []ErrorPattern{
 		{
 			Pattern:      `(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[(ERROR)\]\s+(.+)`,
@@ -733,227 +733,31 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			MessageGroup: 3, // warning message is in the third capture group
 			Description:  "Copilot CLI bracketed warning messages with timestamp",
 		},
+		// Copilot CLI-specific error indicators without "ERROR:" prefix
 		{
-			Pattern:      `(Error):\s+(.+)`,
-			LevelGroup:   1, // "Error" is in the first capture group
-			MessageGroup: 2, // error message is in the second capture group
-			Description:  "Generic error messages from Copilot CLI or Node.js",
-		},
-		{
-			Pattern:      `npm ERR!\s+(.+)`,
-			LevelGroup:   0, // No level group, will be inferred as "error"
-			MessageGroup: 1, // error message is in the first capture group
-			Description:  "NPM error messages during Copilot CLI installation or execution",
-		},
-		{
-			Pattern:      `(Warning):\s+(.+)`,
-			LevelGroup:   1, // "Warning" is in the first capture group
-			MessageGroup: 2, // warning message is in the second capture group
-			Description:  "Generic warning messages from Copilot CLI",
-		},
-		{
-			Pattern:      `(Fatal error):\s+(.+)`,
-			LevelGroup:   1, // "Fatal error" is in the first capture group (will be treated as error)
-			MessageGroup: 2, // error message is in the second capture group
-			Description:  "Fatal error messages from Copilot CLI",
-		},
-		{
-			Pattern:      `copilot:\s+(error):\s+(.+)`,
-			LevelGroup:   1, // "error" is in the first capture group
-			MessageGroup: 2, // error message is in the second capture group
-			Description:  "Copilot CLI command-level error messages",
-		},
-		// Specific, contextual permission error patterns - marked as warnings to reduce false positives
-		{
-			Pattern:      `(?i)access denied.*only authorized.*can trigger.*workflow`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Permission denied - workflow access restriction",
-		},
-		{
-			Pattern:      `(?i)access denied.*user.*not authorized`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Permission denied - user not authorized",
-		},
-		{
-			Pattern:      `(?i)repository permission check failed`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Repository permission check failure",
-		},
-		{
-			Pattern:      `(?i)configuration error.*required permissions not specified`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Configuration error - missing permissions",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*permission.*denied`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Permission denied error (requires error context)",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*unauthorized`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Unauthorized error (requires error context)",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*forbidden`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Forbidden error (requires error context)",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*access.*restricted`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Access restricted error (requires error context)",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*insufficient.*permission`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Insufficient permissions error (requires error context)",
-		},
-		{
-			Pattern:      `(?i)authentication failed`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Authentication failure with Copilot CLI",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*token.*invalid`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Invalid token error with Copilot CLI (requires error context)",
-		},
-		{
-			Pattern:      `(?i)not authorized.*copilot`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Not authorized for Copilot CLI access",
-		},
-		// Command execution failures
-		{
-			Pattern:      `(?i)command not found:\s*(.+)`,
-			LevelGroup:   0,
-			MessageGroup: 1,
-			Description:  "Shell command not found error",
-		},
-		{
-			Pattern:      `(?i)(.+):\s*command not found`,
-			LevelGroup:   0,
-			MessageGroup: 1,
-			Description:  "Shell command not found error (alternate format)",
-		},
-		{
-			Pattern:      `(?i)sh:\s*\d+:\s*(.+):\s*not found`,
-			LevelGroup:   0,
-			MessageGroup: 1,
-			Description:  "Shell command not found error (sh format)",
-		},
-		{
-			Pattern:      `(?i)bash:\s*(.+):\s*command not found`,
-			LevelGroup:   0,
-			MessageGroup: 1,
-			Description:  "Bash command not found error",
-		},
-		// Copilot CLI specific errors
-		{
-			Pattern:      `(?i)permission denied and could not request permission from user`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Severity:     "warning",
-			Description:  "Copilot CLI permission denied warning (user interaction required)",
-		},
-		{
-			Pattern:      `(?i)✗\s+(.+)`,
+			Pattern:      `✗\s+(.+)`,
 			LevelGroup:   0,
 			MessageGroup: 1,
 			Description:  "Copilot CLI failed command indicator",
 		},
-		// Node.js and npm test failures
 		{
-			Pattern:      `(?i)Error:\s*Cannot find module\s*'(.+)'`,
+			Pattern:      `(?:command not found|not found):\s*(.+)|(.+):\s*(?:command not found|not found)`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Shell command not found error",
+		},
+		{
+			Pattern:      `Cannot find module\s+['"](.+)['"]`,
 			LevelGroup:   0,
 			MessageGroup: 1,
 			Description:  "Node.js module not found error",
 		},
 		{
-			Pattern:      `(?i)sh:\s*\d+:\s*(.+):\s*Permission denied`,
-			LevelGroup:   0,
-			MessageGroup: 1,
-			Severity:     "warning",
-			Description:  "Shell permission denied error",
-		},
-		// Rate limiting and quota errors
-		{
-			Pattern:      `(?i)(rate limit|too many requests)`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "Rate limit exceeded error",
-		},
-		{
-			Pattern:      `(?i)(429|HTTP.*429)`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "HTTP 429 Too Many Requests status code",
-		},
-		{
-			Pattern:      `(?i)error.*quota.*exceeded`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "Quota exceeded error",
-		},
-		// Timeout and deadline errors
-		{
-			Pattern:      `(?i)error.*(timeout|timed out|deadline exceeded)`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "Timeout or deadline exceeded error",
-		},
-		// Network and connection errors
-		{
-			Pattern:      `(?i)(connection refused|connection failed|ECONNREFUSED)`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "Network connection error",
-		},
-		{
-			Pattern:      `(?i)(ETIMEDOUT|ENOTFOUND)`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "Network timeout or DNS resolution error",
-		},
-		// Token expiration errors
-		{
-			Pattern:      `(?i)error.*token.*expired`,
+			Pattern:      `Permission denied and could not request permission from user`,
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Severity:     "warning",
-			Description:  "Token expired error",
-		},
-		// Memory and resource errors
-		{
-			Pattern:      `(?i)(maximum call stack size exceeded|heap out of memory|spawn ENOMEM)`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "Memory or resource exhaustion error",
+			Description:  "Copilot CLI permission denied warning (user interaction required)",
 		},
 	}...)
 
