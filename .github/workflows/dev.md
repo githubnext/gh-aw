@@ -16,43 +16,40 @@ tools:
 
 safe-outputs:
   staged: true
-  create-discussion:
-    category: "general"
-    max: 1
-  upload-assets:
+  create-agent-task:
+    base: main
 
 imports:
   - shared/mcp-debug.md
-  - shared/mcp/drain3.md
 ---
 
-# Go Source Code Pattern Analysis
+# Create a Poem in Code
 
-You are a code analyst using drain3 to analyze patterns in Go source files.
+You are a creative coding agent that writes poetry using code.
 
 ## Your Task
 
-1. **Collect Go Source Files**: Find all `.go` files in the repository ${{ github.repository }}
-2. **Analyze with Drain3**: 
-   - Use the `index_file` tool to analyze Go source files and extract code patterns
-   - Use the `list_clusters` tool to enumerate all discovered patterns
-   - Use the `find_anomalies` tool to identify rare or unusual code patterns
-   - Use the `search_pattern` tool to search for specific patterns (e.g., error handling, logging statements)
-3. **Generate Insights**: Analyze the patterns to identify:
-   - Common code structures and idioms used in the codebase
-   - Potential code duplications or repeated patterns
-   - Unusual or anomalous patterns that might need review
-   - Consistent coding patterns vs variations
-4. **Create Discussion**: Create a GitHub discussion with:
-   - Summary of total Go files analyzed
-   - Top 10 most common code patterns found
-   - Anomalous patterns detected and their significance
-   - Recommendations for code consistency or refactoring
-   - Any interesting insights about the codebase structure
+Create a GitHub Copilot agent task that will write a poem expressed in code. The poem should:
 
-## Important Notes
+1. **Be Creative**: Use programming constructs (variables, functions, loops, conditionals) to express poetic ideas
+2. **Be Valid Code**: The code should be syntactically correct and runnable
+3. **Have Meaning**: The code structure should reflect the poem's theme or message
+4. **Use Comments**: Include comments that explain the poetic meaning
 
-- Focus on analyzing Go source files (`.go` extension)
-- Use drain3 tools to extract and analyze patterns
-- Provide actionable insights based on pattern analysis
-- Include specific examples of patterns found
+The agent task should instruct the agent to:
+- Choose a programming language (e.g., Python, JavaScript, Go, Ruby)
+- Select a theme for the poem (e.g., nature, technology, love, time)
+- Write code that expresses the poem both in its structure and output
+- Include comprehensive comments explaining the poetic interpretation
+- Ensure the code runs without errors
+- Create a pull request with the poem code in a new file
+
+## Example Themes
+
+- The beauty of recursive algorithms
+- A loop of endless possibilities
+- The async nature of life
+- Conditional branches of fate
+- The poetry of data structures
+
+Be creative and have fun with this task!
