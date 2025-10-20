@@ -1,5 +1,5 @@
 // This script updates an existing comment created by the activation job
-// to notify that the workflow failed or didn't produce a result.
+// to notify about the workflow completion status (success or failure).
 
 async function main() {
   const commentId = process.env.GITHUB_AW_COMMENT_ID;
@@ -30,22 +30,30 @@ async function main() {
 
   core.info(`Updating comment in ${repoOwner}/${repoName}`);
 
-  // Determine the error message based on agent conclusion
+  // Determine the message based on agent conclusion
   let statusEmoji = "❌";
   let statusText = "failed";
+  let message;
 
-  if (agentConclusion === "cancelled") {
+  if (agentConclusion === "success") {
+    statusEmoji = "✅";
+    message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) completed successfully.`;
+  } else if (agentConclusion === "cancelled") {
     statusEmoji = "🚫";
     statusText = "was cancelled";
+    message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
   } else if (agentConclusion === "skipped") {
     statusEmoji = "⏭️";
     statusText = "was skipped";
+    message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
   } else if (agentConclusion === "timed_out") {
     statusEmoji = "⏱️";
     statusText = "timed out";
+    message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+  } else {
+    // Default to failure message
+    message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
   }
-
-  const errorMessage = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
 
   // Check if this is a discussion comment (GraphQL node ID format)
   const isDiscussionComment = commentId.startsWith("DC_");
@@ -63,7 +71,7 @@ async function main() {
             }
           }
         }`,
-        { commentId: commentId, body: errorMessage }
+        { commentId: commentId, body: message }
       );
 
       const comment = result.updateDiscussionComment.comment;
@@ -76,7 +84,7 @@ async function main() {
         owner: repoOwner,
         repo: repoName,
         comment_id: parseInt(commentId, 10),
-        body: errorMessage,
+        body: message,
         headers: {
           Accept: "application/vnd.github+json",
         },

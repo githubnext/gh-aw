@@ -125,8 +125,8 @@ func TestUpdateReactionJob(t *testing.T) {
 
 				// Check that the job has the update reaction step
 				stepsYAML := strings.Join(job.Steps, "")
-				if !strings.Contains(stepsYAML, "Update reaction comment with error notification") {
-					t.Error("Expected 'Update reaction comment with error notification' step in update_reaction job")
+				if !strings.Contains(stepsYAML, "Update reaction comment with completion status") {
+					t.Error("Expected 'Update reaction comment with completion status' step in update_reaction job")
 				}
 				if !strings.Contains(stepsYAML, "GITHUB_AW_COMMENT_ID") {
 					t.Error("Expected GITHUB_AW_COMMENT_ID environment variable in update_reaction job")

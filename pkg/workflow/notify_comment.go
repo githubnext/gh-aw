@@ -6,7 +6,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
-// buildUpdateReactionJob creates a job that updates the activation comment when the agent fails
+// buildUpdateReactionJob creates a job that updates the activation comment with workflow completion status
 // This job runs when:
 // 1. always() - runs even if agent fails
 // 2. A comment was created in activation job (comment_id exists)
@@ -50,7 +50,7 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 
 	// Build the GitHub Script step using the common helper
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Update reaction comment with error notification",
+		StepName:      "Update reaction comment with completion status",
 		StepID:        "update_reaction",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
