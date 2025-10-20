@@ -17,6 +17,9 @@ import starlightGitHubAlerts from 'starlight-github-alerts';
 export default defineConfig({
 	site: 'https://githubnext.github.io/gh-aw/',
 	base: '/gh-aw/',
+	devToolbar: {
+		enabled: false
+	},
 	integrations: [
 		starlight({
 			title: 'GitHub Agentic Workflows',
