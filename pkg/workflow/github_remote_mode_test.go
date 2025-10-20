@@ -117,6 +117,7 @@ engine: codex
 tools:
   github:
     mode: remote
+    read-only: false
     allowed: [list_issues, create_issue]
 ---`,
 			expectedType:  "remote",
@@ -131,6 +132,7 @@ engine: codex
 tools:
   github:
     mode: remote
+    read-only: false
     github-token: "${{ secrets.CUSTOM_PAT }}"
     allowed: [list_issues, create_issue]
 ---`,

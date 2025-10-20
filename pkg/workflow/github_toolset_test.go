@@ -14,7 +14,7 @@ func TestGetGitHubToolsets(t *testing.T) {
 		{
 			name:     "No toolsets configured",
 			input:    map[string]any{},
-			expected: "",
+			expected: "default", // now defaults to "default"
 		},
 		{
 			name: "Toolsets as array of strings",
@@ -54,7 +54,7 @@ func TestGetGitHubToolsets(t *testing.T) {
 		{
 			name:     "Non-map input returns empty",
 			input:    "not a map",
-			expected: "",
+			expected: "default", // now defaults to "default"
 		},
 	}
 
@@ -91,6 +91,7 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 			expectedInYAML: []string{
 				`"GITHUB_PERSONAL_ACCESS_TOKEN"`,
 				"GITHUB_TOOLSETS",
+				"default", // now defaults to "default"
 			},
 			notInYAML: []string{},
 		},
@@ -173,6 +174,7 @@ func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 			expectedInYAML: []string{
 				`GITHUB_PERSONAL_ACCESS_TOKEN`,
 				"GITHUB_TOOLSETS",
+				"default", // now defaults to "default"
 			},
 			notInYAML: []string{},
 		},
@@ -244,6 +246,7 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 			expectedInYAML: []string{
 				`GITHUB_PERSONAL_ACCESS_TOKEN`,
 				"GITHUB_TOOLSETS",
+				"default", // now defaults to "default"
 			},
 			notInYAML: []string{},
 		},

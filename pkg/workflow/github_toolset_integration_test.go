@@ -288,7 +288,7 @@ tools:
 
 Remote mode without toolsets.
 `,
-			expectedHeader: "", // No header should be added
+			expectedHeader: `"X-MCP-Toolsets": "default"`, // Now defaults to "default"
 			engineType:     "claude",
 		},
 		{
