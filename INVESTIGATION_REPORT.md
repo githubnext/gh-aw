@@ -4,15 +4,17 @@
 
 This investigation examined whether `gh pr list --author "@copilot"` can be used to list Copilot PRs, compared to the current workflow approach using `gh search prs` with jq filtering.
 
+**UPDATE:** A follow-up investigation discovered that `gh search prs` also supports the `--author` flag, providing the best solution!
+
 ### Key Findings
 
-✅ **The command IS valid**: `gh pr list --author` accepts author filters including `@copilot`, `copilot`, and `Copilot`
-✅ **It DOES work for bot accounts**: Client-side filtering works with bot users
-⚠️ **BUT has limitations**: Limited to 100 results max, client-side filtering only
+✅ **Both commands are valid**: Both `gh pr list --author` and `gh search prs --author` work
+✅ **Both work for bot accounts**: Client-side and server-side filtering handle bots correctly
+🎉 **NEW DISCOVERY**: `gh search prs --author` provides the best of both worlds!
 
-### Recommendation
+### Updated Recommendation
 
-**Keep the current `gh search prs` approach for production workflows**, but document `gh pr list --author` as a simpler alternative for small-scale use cases.
+**Use `gh search prs --author` for production workflows** - it's simpler than the current jq approach and more efficient than `gh pr list`.
 
 ## Detailed Analysis
 
@@ -37,7 +39,28 @@ jq '[.[] | select(.author.login == "Copilot" or .author.id == 198982749)]' \
 - Efficient for large repositories
 - Requires jq for author filtering (GitHub Search API doesn't support bot author filtering)
 
-### Alternative: `gh pr list --author`
+### Alternative 1: `gh search prs --author` (NEW - RECOMMENDED)
+
+```bash
+gh search prs --repo ${{ github.repository }} \
+  --author "@copilot" \
+  --created ">=$DATE_30_DAYS_AGO" \
+  --limit 1000 \
+  --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees
+```
+
+**How this works:**
+- GitHub CLI performs server-side filtering for both date AND author
+- No need for jq post-processing
+- Returns matching results directly
+
+**Advantages:**
+- ✅ Server-side date filtering (efficient)
+- ✅ Server-side author filtering (no jq needed!)
+- ✅ Up to 1000 results
+- ✅ Single command (simpler)
+
+### Alternative 2: `gh pr list --author`
 
 ```bash
 gh pr list --repo ${{ github.repository }} \
@@ -57,20 +80,21 @@ gh pr list --repo ${{ github.repository }} \
 - No server-side date filtering
 - Less efficient for large repos (fetches all PRs first)
 
-## Comparison Table
+## Updated Comparison Table
 
-| Feature | `gh pr list --author` | `gh search prs` + jq |
-|---------|----------------------|---------------------|
-| **Max Results** | 100 | 1000 |
-| **Server-side Date Filter** | ❌ No | ✅ Yes |
-| **Works with Bot Authors** | ✅ Yes (client-side) | ✅ Yes (via jq) |
-| **Complexity** | ⭐ Simple (1 command) | ⭐⭐ Medium (2 commands) |
-| **Efficiency** | ⚠️ Client-side filtering | ✅ Server-side filtering |
-| **Best For** | Small repos, recent PRs | Large repos, production |
+| Feature | `gh pr list --author` | `gh search prs --author` (NEW) | `gh search prs` + jq (current) |
+|---------|----------------------|--------------------------------|--------------------------------|
+| **Max Results** | 100 | 1000 | 1000 |
+| **Server-side Date Filter** | ❌ No | ✅ Yes | ✅ Yes |
+| **Server-side Author Filter** | ❌ No | ✅ Yes | ❌ No |
+| **Works with Bot Authors** | ✅ Yes (client-side) | ✅ Yes (server-side) | ✅ Yes (via jq) |
+| **Complexity** | ⭐ Simple (1 command) | ⭐ Simple (1 command) | ⭐⭐ Medium (2 commands) |
+| **Efficiency** | ⚠️ Client-side filtering | ✅ Server-side filtering | ⚠️ Manual jq filter |
+| **Best For** | Quick queries | **Production workflows** | Legacy (not needed) |
 
 ## GitHub CLI Documentation
 
-From `gh pr list --help`:
+### `gh pr list --help`
 
 ```
 -A, --author string     Filter by author
@@ -80,10 +104,17 @@ EXAMPLES
   $ gh pr list --author "@me"
 ```
 
+### `gh search prs --help` (NEW DISCOVERY)
+
+```
+--author string           Filter by author
+```
+
 This confirms that:
-1. The `--author` flag exists and accepts string values
-2. Special `@` syntax is supported (e.g., `@me`)
+1. **Both commands** have `--author` flag
+2. Special `@` syntax is supported (e.g., `@me`, `@copilot`)
 3. Both `@copilot` and `Copilot` should work
+4. **`gh search prs --author` provides server-side filtering!**
 
 ## Implementation Details
 
@@ -200,12 +231,25 @@ gh pr list --author "Copilot" --limit 100 --state all
 
 The investigation confirms that:
 
-1. ✅ `gh pr list --author "@copilot"` (or `"Copilot"`) **IS a valid command**
-2. ✅ It **DOES work** for listing Copilot bot PRs
-3. ⚠️ It has **limitations** (100 max, client-side filtering)
-4. 📝 The **current workflow approach is more robust** for production use
+1. ✅ `gh pr list --author "@copilot"` **IS a valid command** (limited to 100 results)
+2. 🎉 `gh search prs --author "@copilot"` **ALSO EXISTS** and is the best solution!
+3. ✅ Both **WORK** for listing Copilot bot PRs
+4. 📝 `gh search prs --author` **SHOULD REPLACE** the current jq approach
 
-**Final Recommendation**: Document both approaches in workflow, keep current implementation for copilot-agent-analysis workflow.
+**Final Recommendation**: 
+
+**Update copilot-agent-analysis workflow to use `gh search prs --author`** instead of the current `gh search prs + jq` approach. This simplifies the code and makes it more efficient by using server-side author filtering.
+
+**New approach:**
+```bash
+gh search prs --repo $REPO --author "@copilot" --created ">=$DATE" --limit 1000
+```
+
+**Old approach (no longer needed):**
+```bash
+gh search prs repo:$REPO created:">=$DATE" --limit 1000 | \
+  jq '[.[] | select(.author.login == "Copilot")]'
+```
 
 ## Files Changed
 

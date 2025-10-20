@@ -1,5 +1,5 @@
 ---
-name: Test gh pr list --author "@copilot"
+name: Test gh pr/search commands with --author "@copilot"
 on:
   workflow_dispatch:
 
@@ -11,13 +11,13 @@ jobs:
   test-author-filter:
     runs-on: ubuntu-latest
     steps:
-      - name: Test gh pr list with different author syntaxes
+      - name: Test gh pr list and gh search prs with different author syntaxes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
           echo "======================================================"
-          echo "Testing different gh pr list author filter syntaxes"
+          echo "Testing gh pr list and gh search prs author filters"
           echo "Repository: $REPO"
           echo "======================================================"
           echo ""
@@ -96,24 +96,58 @@ jobs:
           fi
           echo ""
           
-          # Test 5: gh search prs (current workflow approach)
-          echo "Test 5: gh search prs (current workflow method)"
+          # Test 5: gh search prs with --author flag (NEW DISCOVERY)
+          echo "Test 5: gh search prs --author \"@copilot\" (NEW)"
+          echo "------------------------------------------------------"
+          gh search prs --repo "$REPO" \
+            --author "@copilot" \
+            --limit 10 \
+            --json number,title,author \
+            > /tmp/test5.json 2>&1 || echo "Failed with exit code $?"
+          
+          if [ -f /tmp/test5.json ]; then
+            COUNT5=$(jq 'length' /tmp/test5.json 2>/dev/null || echo "0")
+            echo "Found $COUNT5 PRs with --author \"@copilot\""
+            echo "Sample:"
+            jq '.[0:2] | .[] | {number, title, author: .author.login}' /tmp/test5.json 2>/dev/null || echo "No results"
+          fi
+          echo ""
+          
+          # Test 6: gh search prs with --author "Copilot" (capitalized)
+          echo "Test 6: gh search prs --author \"Copilot\""
+          echo "------------------------------------------------------"
+          gh search prs --repo "$REPO" \
+            --author "Copilot" \
+            --limit 10 \
+            --json number,title,author \
+            > /tmp/test6.json 2>&1 || echo "Failed with exit code $?"
+          
+          if [ -f /tmp/test6.json ]; then
+            COUNT6=$(jq 'length' /tmp/test6.json 2>/dev/null || echo "0")
+            echo "Found $COUNT6 PRs with --author \"Copilot\""
+            echo "Sample:"
+            jq '.[0:2] | .[] | {number, title, author: .author.login}' /tmp/test6.json 2>/dev/null || echo "No results"
+          fi
+          echo ""
+          
+          # Test 7: gh search prs + jq (current workflow approach)
+          echo "Test 7: gh search prs + jq filter (current workflow)"
           echo "------------------------------------------------------"
           DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
           
           gh search prs "repo:$REPO created:>=$DATE_30_DAYS_AGO" \
             --limit 100 \
             --json number,title,author \
-            > /tmp/test5-raw.json 2>&1 || echo "Failed with exit code $?"
+            > /tmp/test7-raw.json 2>&1 || echo "Failed with exit code $?"
           
-          if [ -f /tmp/test5-raw.json ]; then
+          if [ -f /tmp/test7-raw.json ]; then
             jq '[.[] | select(.author.login == "Copilot" or .author.id == 198982749)]' \
-              /tmp/test5-raw.json > /tmp/test5.json 2>/dev/null || echo "jq filter failed"
+              /tmp/test7-raw.json > /tmp/test7.json 2>/dev/null || echo "jq filter failed"
             
-            COUNT5=$(jq 'length' /tmp/test5.json 2>/dev/null || echo "0")
-            echo "Found $COUNT5 PRs in last 30 days with author.login == \"Copilot\""
+            COUNT7=$(jq 'length' /tmp/test7.json 2>/dev/null || echo "0")
+            echo "Found $COUNT7 PRs in last 30 days with author.login == \"Copilot\""
             echo "Sample:"
-            jq '.[0:2] | .[] | {number, title, author: .author.login}' /tmp/test5.json 2>/dev/null || echo "No results"
+            jq '.[0:2] | .[] | {number, title, author: .author.login}' /tmp/test7.json 2>/dev/null || echo "No results"
           fi
           echo ""
           
@@ -121,11 +155,18 @@ jobs:
           echo "======================================================"
           echo "SUMMARY COMPARISON"
           echo "======================================================"
-          echo "Test 1 (--author \"@copilot\"):        $COUNT1 PRs"
-          echo "Test 2 (--author \"copilot\"):         $COUNT2 PRs"
-          echo "Test 3 (--author \"Copilot\"):         $COUNT3 PRs"
-          echo "Test 4 (full list + jq filter):      $COUNT4 PRs"
-          echo "Test 5 (gh search prs + jq filter):  $COUNT5 PRs"
+          echo "gh pr list approaches:"
+          echo "  Test 1 (--author \"@copilot\"):        $COUNT1 PRs"
+          echo "  Test 2 (--author \"copilot\"):         $COUNT2 PRs"
+          echo "  Test 3 (--author \"Copilot\"):         $COUNT3 PRs"
+          echo ""
+          echo "gh search prs approaches:"
+          echo "  Test 5 (--author \"@copilot\"):        $COUNT5 PRs (NEW)"
+          echo "  Test 6 (--author \"Copilot\"):         $COUNT6 PRs (NEW)"
+          echo "  Test 7 (query + jq filter):          $COUNT7 PRs (current)"
+          echo ""
+          echo "Baseline:"
+          echo "  Test 4 (full list + jq filter):      $COUNT4 PRs"
           echo ""
           
           # Compare results
@@ -161,19 +202,27 @@ jobs:
           echo "======================================================"
           echo "RECOMMENDATION"
           echo "======================================================"
+          
+          if [ "$COUNT5" -gt 0 ] || [ "$COUNT6" -gt 0 ]; then
+            echo "🎉 BEST OPTION: gh search prs --author works!"
+            echo ""
+            echo "✅ gh search prs --author \"@copilot\" (or \"Copilot\")"
+            echo "   - Server-side filtering"
+            echo "   - Up to 1000 results"
+            echo "   - No jq needed!"
+            echo ""
+            echo "This is simpler and more efficient than current approach."
+          fi
+          
           if [ "$COUNT1" -gt 0 ] || [ "$COUNT3" -gt 0 ]; then
-            echo "✅ gh pr list --author works for Copilot bot PRs"
             echo ""
-            echo "Recommended syntax:"
-            if [ "$COUNT1" -gt 0 ]; then
-              echo "  gh pr list --author \"@copilot\""
-            fi
-            if [ "$COUNT3" -gt 0 ] && [ "$COUNT3" -ge "$COUNT1" ]; then
-              echo "  gh pr list --author \"Copilot\""
-            fi
-          else
-            echo "❌ gh pr list --author does not work for Copilot bot PRs"
+            echo "✅ gh pr list --author also works (limited to 100 results)"
+            echo "   - Good for quick queries"
+            echo "   - Client-side filtering"
+          fi
+          
+          if [ "$COUNT7" -gt 0 ]; then
             echo ""
-            echo "Stick with current approach:"
-            echo "  gh search prs + jq filtering"
+            echo "⚠️  Current approach (gh search prs + jq) works but is more complex"
+            echo "   - Consider switching to gh search prs --author"
           fi
