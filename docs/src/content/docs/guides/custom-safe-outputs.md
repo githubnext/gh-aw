@@ -252,8 +252,8 @@ safe-outputs:
     steps:
       - name: Deploy application
         run: |
-          if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
-            ENV=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "deploy") | .environment // "staging"')
+          if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
+            ENV=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "deploy") | .environment // "staging"')
             echo "Deploying to $ENV"
           fi
 ```
@@ -295,9 +295,9 @@ safe-outputs:
       steps:
         - name: Process agent output
           run: |
-            if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
+            if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
               # Extract specific data from agent output
-              RESULT=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "analyze") | .result')
+              RESULT=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "analyze") | .result')
               echo "Agent analysis result: $RESULT"
             else
               echo "No agent output available"

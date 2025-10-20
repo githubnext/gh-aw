@@ -16,7 +16,7 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 		expectedTargetRepoValue  string
 	}{
 		{
-			name: "target-repo configuration should set GITHUB_AW_TARGET_REPO_SLUG",
+			name: "target-repo configuration should set GH_AW_TARGET_REPO_SLUG",
 			frontmatter: map[string]any{
 				"name":   "Test Workflow",
 				"engine": "copilot",
@@ -65,7 +65,7 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 			expectedTargetRepoValue: "trial/repo",
 		},
 		{
-			name: "no target-repo and no trial should not set GITHUB_AW_TARGET_REPO_SLUG",
+			name: "no target-repo and no trial should not set GH_AW_TARGET_REPO_SLUG",
 			frontmatter: map[string]any{
 				"name":   "Test Workflow",
 				"engine": "copilot",
@@ -121,18 +121,18 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 				t.Fatalf("Failed to build add comment job: %v", err)
 			}
 
-			// Convert steps to string to check for GITHUB_AW_TARGET_REPO_SLUG
+			// Convert steps to string to check for GH_AW_TARGET_REPO_SLUG
 			jobYAML := strings.Join(job.Steps, "")
 
 			if tt.shouldHaveTargetRepo {
-				expectedEnvVar := "GITHUB_AW_TARGET_REPO_SLUG: \"" + tt.expectedTargetRepoValue + "\""
+				expectedEnvVar := "GH_AW_TARGET_REPO_SLUG: \"" + tt.expectedTargetRepoValue + "\""
 				if !strings.Contains(jobYAML, expectedEnvVar) {
 					t.Errorf("Expected to find %s in job YAML, but didn't.\nActual job YAML:\n%s", expectedEnvVar, jobYAML)
 				}
 			} else {
 				// Check specifically for the environment variable declaration, not the JavaScript reference
-				if strings.Contains(jobYAML, "GITHUB_AW_TARGET_REPO_SLUG: \"") {
-					t.Errorf("Expected not to find GITHUB_AW_TARGET_REPO_SLUG environment variable declaration in job YAML when no target-repo is configured.\nActual job YAML:\n%s", jobYAML)
+				if strings.Contains(jobYAML, "GH_AW_TARGET_REPO_SLUG: \"") {
+					t.Errorf("Expected not to find GH_AW_TARGET_REPO_SLUG environment variable declaration in job YAML when no target-repo is configured.\nActual job YAML:\n%s", jobYAML)
 				}
 			}
 		})

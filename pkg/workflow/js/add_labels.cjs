@@ -13,9 +13,9 @@ function sanitizeLabelContent(content) {
   return sanitized.trim();
 }
 async function main() {
-  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   if (!agentOutputFile) {
-    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    core.info("No GH_AW_AGENT_OUTPUT environment variable found");
     return;
   }
 
@@ -50,7 +50,7 @@ async function main() {
     return;
   }
   core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
-  if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
     let summaryContent = "## 🎭 Staged Mode: Add Labels Preview\n\n";
     summaryContent += "The following labels would be added if staged mode was disabled:\n\n";
     if (labelsItem.item_number) {
@@ -65,7 +65,7 @@ async function main() {
     core.info("📝 Label addition preview written to step summary");
     return;
   }
-  const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED?.trim();
+  const allowedLabelsEnv = process.env.GH_AW_LABELS_ALLOWED?.trim();
   const allowedLabels = allowedLabelsEnv
     ? allowedLabelsEnv
         .split(",")
@@ -77,14 +77,14 @@ async function main() {
   } else {
     core.info("No label restrictions - any labels are allowed");
   }
-  const maxCountEnv = process.env.GITHUB_AW_LABELS_MAX_COUNT;
+  const maxCountEnv = process.env.GH_AW_LABELS_MAX_COUNT;
   const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
   if (isNaN(maxCount) || maxCount < 1) {
     core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
     return;
   }
   core.info(`Max count: ${maxCount}`);
-  const labelsTarget = process.env.GITHUB_AW_LABELS_TARGET || "triggering";
+  const labelsTarget = process.env.GH_AW_LABELS_TARGET || "triggering";
   core.info(`Labels target configuration: ${labelsTarget}`);
   const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
   const isPRContext =

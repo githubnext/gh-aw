@@ -88,7 +88,7 @@ describe("create_pr_review_comment.cjs", () => {
     tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
     const content = typeof data === "string" ? data : JSON.stringify(data);
     fs.writeFileSync(tempFilePath, content);
-    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+    process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
   };
 
   beforeEach(() => {
@@ -100,9 +100,9 @@ describe("create_pr_review_comment.cjs", () => {
     createPRReviewCommentScript = fs.readFileSync(scriptPath, "utf8");
 
     // Reset environment variables
-    delete process.env.GITHUB_AW_AGENT_OUTPUT;
-    delete process.env.GITHUB_AW_PR_REVIEW_COMMENT_SIDE;
-    delete process.env.GITHUB_AW_PR_REVIEW_COMMENT_TARGET;
+    delete process.env.GH_AW_AGENT_OUTPUT;
+    delete process.env.GH_AW_PR_REVIEW_COMMENT_SIDE;
+    delete process.env.GH_AW_PR_REVIEW_COMMENT_TARGET;
 
     // Reset global context to default PR context
     global.context = mockContext;
@@ -263,7 +263,7 @@ describe("create_pr_review_comment.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_PR_REVIEW_COMMENT_SIDE = "LEFT";
+    process.env.GH_AW_PR_REVIEW_COMMENT_SIDE = "LEFT";
 
     // Execute the script
     await eval(`(async () => { ${createPRReviewCommentScript} })()`);
@@ -416,7 +416,7 @@ describe("create_pr_review_comment.cjs", () => {
 
   it("should respect target configuration for specific PR number", async () => {
     // Set target to specific PR number
-    process.env.GITHUB_AW_PR_REVIEW_COMMENT_TARGET = "456";
+    process.env.GH_AW_PR_REVIEW_COMMENT_TARGET = "456";
 
     // Mock the API response for fetching PR details
     mockGithub.rest.pulls.get = vi.fn().mockResolvedValue({
@@ -468,7 +468,7 @@ describe("create_pr_review_comment.cjs", () => {
 
   it('should respect target "*" configuration with pull_request_number in item', async () => {
     // Set target to "*"
-    process.env.GITHUB_AW_PR_REVIEW_COMMENT_TARGET = "*";
+    process.env.GH_AW_PR_REVIEW_COMMENT_TARGET = "*";
 
     // Mock the API response for fetching PR details
     mockGithub.rest.pulls.get = vi.fn().mockResolvedValue({
@@ -521,7 +521,7 @@ describe("create_pr_review_comment.cjs", () => {
 
   it('should skip item when target is "*" but no pull_request_number specified', async () => {
     // Set target to "*"
-    process.env.GITHUB_AW_PR_REVIEW_COMMENT_TARGET = "*";
+    process.env.GH_AW_PR_REVIEW_COMMENT_TARGET = "*";
 
     setAgentOutput({
       items: [
@@ -543,7 +543,7 @@ describe("create_pr_review_comment.cjs", () => {
 
   it("should skip comment creation when target is triggering but not in PR context", async () => {
     // Set target to "triggering" (default)
-    process.env.GITHUB_AW_PR_REVIEW_COMMENT_TARGET = "triggering";
+    process.env.GH_AW_PR_REVIEW_COMMENT_TARGET = "triggering";
 
     // Change context to non-PR event
     global.context = {
@@ -581,7 +581,7 @@ describe("create_pr_review_comment.cjs", () => {
     expect(mockGithub.rest.pulls.createReviewComment).not.toHaveBeenCalled();
   });
 
-  it("should include workflow source in footer when GITHUB_AW_WORKFLOW_SOURCE is provided", async () => {
+  it("should include workflow source in footer when GH_AW_WORKFLOW_SOURCE is provided", async () => {
     setAgentOutput({
       items: [
         {
@@ -592,9 +592,9 @@ describe("create_pr_review_comment.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
-    process.env.GITHUB_AW_WORKFLOW_SOURCE = "githubnext/agentics/workflows/ci-doctor.md@v1.0.0";
-    process.env.GITHUB_AW_WORKFLOW_SOURCE_URL = "https://github.com/githubnext/agentics/tree/v1.0.0/workflows/ci-doctor.md";
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_WORKFLOW_SOURCE = "githubnext/agentics/workflows/ci-doctor.md@v1.0.0";
+    process.env.GH_AW_WORKFLOW_SOURCE_URL = "https://github.com/githubnext/agentics/tree/v1.0.0/workflows/ci-doctor.md";
 
     // Reset context to default PR context
     global.context = {
@@ -640,7 +640,7 @@ describe("create_pr_review_comment.cjs", () => {
     expect(callArgs.body).toContain("usage guide");
   });
 
-  it("should not include workflow source footer when GITHUB_AW_WORKFLOW_SOURCE is not provided", async () => {
+  it("should not include workflow source footer when GH_AW_WORKFLOW_SOURCE is not provided", async () => {
     setAgentOutput({
       items: [
         {
@@ -651,8 +651,8 @@ describe("create_pr_review_comment.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
-    delete process.env.GITHUB_AW_WORKFLOW_SOURCE; // Ensure it's not set
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+    delete process.env.GH_AW_WORKFLOW_SOURCE; // Ensure it's not set
 
     // Reset context to default PR context
     global.context = {
@@ -708,7 +708,7 @@ describe("create_pr_review_comment.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
 
     // Simulate PR context
     global.context.eventName = "pull_request";

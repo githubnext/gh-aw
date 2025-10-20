@@ -18,7 +18,7 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 	// Build custom environment variables specific to missing-tool
 	var customEnvVars []string
 	if data.SafeOutputs.MissingTool.Max > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_MISSING_TOOL_MAX: %d\n", data.SafeOutputs.MissingTool.Max))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_MAX: %d\n", data.SafeOutputs.MissingTool.Max))
 	}
 
 	// Get token from config

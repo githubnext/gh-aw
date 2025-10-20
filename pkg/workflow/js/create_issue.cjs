@@ -57,10 +57,10 @@ async function main() {
   core.setOutput("issue_number", "");
   core.setOutput("issue_url", "");
 
-  const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   if (!agentOutputFile) {
-    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    core.info("No GH_AW_AGENT_OUTPUT environment variable found");
     return;
   }
 
@@ -123,7 +123,7 @@ async function main() {
     context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
   const triggeringDiscussionNumber = context.payload?.discussion?.number;
 
-  const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
+  const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
   let envLabels = labelsEnv
     ? labelsEnv
         .split(",")
@@ -158,7 +158,7 @@ async function main() {
     if (!title) {
       title = createIssueItem.body || "Agent Output";
     }
-    const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
+    const titlePrefix = process.env.GH_AW_ISSUE_TITLE_PREFIX;
     if (titlePrefix && !title.startsWith(titlePrefix)) {
       title = titlePrefix + title;
     }
@@ -166,9 +166,9 @@ async function main() {
       core.info("Detected issue context, parent issue #" + effectiveParentIssueNumber);
       bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
     }
-    const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-    const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
-    const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
+    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+    const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+    const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const runUrl = context.payload.repository

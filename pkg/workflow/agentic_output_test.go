@@ -60,9 +60,9 @@ This workflow tests the agentic output collection functionality.
 
 	lockContent := string(content)
 
-	// Verify GITHUB_AW_SAFE_OUTPUTS is set at job level with fixed path
-	if !strings.Contains(lockContent, "GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl") {
-		t.Error("Expected 'GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl' environment variable in generated workflow")
+	// Verify GH_AW_SAFE_OUTPUTS is set at job level with fixed path
+	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl") {
+		t.Error("Expected 'GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl' environment variable in generated workflow")
 	}
 
 	if !strings.Contains(lockContent, "- name: Ingest agent output") {
@@ -77,14 +77,14 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Expected 'Upload sanitized agent output' step to be in generated workflow")
 	}
 
-	// Verify job output declaration for GITHUB_AW_SAFE_OUTPUTS
+	// Verify job output declaration for GH_AW_SAFE_OUTPUTS
 	if !strings.Contains(lockContent, "outputs:\n      output: ${{ steps.collect_output.outputs.output }}") {
 		t.Error("Expected job output declaration for 'output'")
 	}
 
-	// Verify GITHUB_AW_SAFE_OUTPUTS is passed to Claude
-	if !strings.Contains(lockContent, "GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS environment variable to be passed to engine")
+	// Verify GH_AW_SAFE_OUTPUTS is passed to Claude
+	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS environment variable to be passed to engine")
 	}
 
 	// Verify prompt contains output instructions
@@ -103,10 +103,10 @@ This workflow tests the agentic output collection functionality.
 
 	// Verify that both artifacts are uploaded
 	if !strings.Contains(lockContent, fmt.Sprintf("name: %s", constants.SafeOutputArtifactName)) {
-		t.Errorf("Expected GITHUB_AW_SAFE_OUTPUTS artifact name to be '%s'", constants.SafeOutputArtifactName)
+		t.Errorf("Expected GH_AW_SAFE_OUTPUTS artifact name to be '%s'", constants.SafeOutputArtifactName)
 	}
 
-	t.Log("Claude workflow correctly includes both GITHUB_AW_SAFE_OUTPUTS and engine output collection")
+	t.Log("Claude workflow correctly includes both GH_AW_SAFE_OUTPUTS and engine output collection")
 }
 
 func TestCodexEngineWithOutputSteps(t *testing.T) {
@@ -117,7 +117,7 @@ func TestCodexEngineWithOutputSteps(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with Codex engine (should have GITHUB_AW_SAFE_OUTPUTS but no engine output collection)
+	// Test case with Codex engine (should have GH_AW_SAFE_OUTPUTS but no engine output collection)
 	testContent := `---
 on: push
 permissions:
@@ -134,7 +134,7 @@ safe-outputs:
 
 # Test Codex No Engine Output Collection
 
-This workflow tests that Codex engine gets GITHUB_AW_SAFE_OUTPUTS but not engine output collection.
+This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine output collection.
 `
 
 	testFile := filepath.Join(tmpDir, "test-codex-no-output.md")
@@ -159,34 +159,34 @@ This workflow tests that Codex engine gets GITHUB_AW_SAFE_OUTPUTS but not engine
 
 	lockContent := string(content)
 
-	// Verify that Codex workflow DOES have GITHUB_AW_SAFE_OUTPUTS functionality at job level
-	if !strings.Contains(lockContent, "GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl") {
-		t.Error("Codex workflow should have 'GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl' environment variable (GITHUB_AW_SAFE_OUTPUTS functionality)")
+	// Verify that Codex workflow DOES have GH_AW_SAFE_OUTPUTS functionality at job level
+	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl") {
+		t.Error("Codex workflow should have 'GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl' environment variable (GH_AW_SAFE_OUTPUTS functionality)")
 	}
 
 	if !strings.Contains(lockContent, "- name: Ingest agent output") {
-		t.Error("Codex workflow should have 'Ingest agent output' step (GITHUB_AW_SAFE_OUTPUTS functionality)")
+		t.Error("Codex workflow should have 'Ingest agent output' step (GH_AW_SAFE_OUTPUTS functionality)")
 	}
 
 	if !strings.Contains(lockContent, "- name: Upload Safe Outputs") {
-		t.Error("Codex workflow should have 'Upload Safe Outputs' step (GITHUB_AW_SAFE_OUTPUTS functionality)")
+		t.Error("Codex workflow should have 'Upload Safe Outputs' step (GH_AW_SAFE_OUTPUTS functionality)")
 	}
 
 	if !strings.Contains(lockContent, "- name: Upload sanitized agent output") {
-		t.Error("Codex workflow should have 'Upload sanitized agent output' step (GITHUB_AW_SAFE_OUTPUTS functionality)")
+		t.Error("Codex workflow should have 'Upload sanitized agent output' step (GH_AW_SAFE_OUTPUTS functionality)")
 	}
 
-	if !strings.Contains(lockContent, "GITHUB_AW_SAFE_OUTPUTS") {
-		t.Error("Codex workflow should reference GITHUB_AW_SAFE_OUTPUTS environment variable")
+	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS") {
+		t.Error("Codex workflow should reference GH_AW_SAFE_OUTPUTS environment variable")
 	}
 
 	if !strings.Contains(lockContent, fmt.Sprintf("name: %s", constants.SafeOutputArtifactName)) {
-		t.Errorf("Codex workflow should reference %s artifact (GITHUB_AW_SAFE_OUTPUTS)", constants.SafeOutputArtifactName)
+		t.Errorf("Codex workflow should reference %s artifact (GH_AW_SAFE_OUTPUTS)", constants.SafeOutputArtifactName)
 	}
 
-	// Verify that job outputs section includes output for GITHUB_AW_SAFE_OUTPUTS
+	// Verify that job outputs section includes output for GH_AW_SAFE_OUTPUTS
 	if !strings.Contains(lockContent, "outputs:\n      output: ${{ steps.collect_output.outputs.output }}") {
-		t.Error("Codex workflow should have job output declaration for 'output' (GITHUB_AW_SAFE_OUTPUTS)")
+		t.Error("Codex workflow should have job output declaration for 'output' (GH_AW_SAFE_OUTPUTS)")
 	}
 
 	// Verify that Codex workflow DOES have engine output collection steps
@@ -204,7 +204,7 @@ This workflow tests that Codex engine gets GITHUB_AW_SAFE_OUTPUTS but not engine
 		t.Error("Expected 'Run Codex' step to be in generated workflow")
 	}
 
-	t.Log("Codex workflow correctly includes both GITHUB_AW_SAFE_OUTPUTS functionality and engine output collection")
+	t.Log("Codex workflow correctly includes both GH_AW_SAFE_OUTPUTS functionality and engine output collection")
 }
 
 func TestEngineOutputFileDeclarations(t *testing.T) {

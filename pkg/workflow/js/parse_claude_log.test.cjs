@@ -81,7 +81,7 @@ describe("parse_claude_log.cjs", () => {
 
   afterEach(() => {
     // Clean up environment variables
-    delete process.env.GITHUB_AW_AGENT_OUTPUT;
+    delete process.env.GH_AW_AGENT_OUTPUT;
 
     // Restore originals
     global.console = originalConsole;
@@ -96,7 +96,7 @@ describe("parse_claude_log.cjs", () => {
     // Create a temporary log file
     const tempFile = path.join(process.cwd(), `test_log_${Date.now()}.txt`);
     fs.writeFileSync(tempFile, logContent);
-    process.env.GITHUB_AW_AGENT_OUTPUT = tempFile;
+    process.env.GH_AW_AGENT_OUTPUT = tempFile;
 
     try {
       // Create a new function context to execute the script
@@ -355,7 +355,7 @@ npm warn exec The following package was not found
     });
 
     it("should handle missing log file", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = "/nonexistent/file.log";
+      process.env.GH_AW_AGENT_OUTPUT = "/nonexistent/file.log";
 
       // Extract main function and run it directly
       const scriptWithExport = parseClaudeLogScript.replace("main();", "global.testMain = main;");
@@ -368,7 +368,7 @@ npm warn exec The following package was not found
     });
 
     it("should handle missing environment variable", async () => {
-      delete process.env.GITHUB_AW_AGENT_OUTPUT;
+      delete process.env.GH_AW_AGENT_OUTPUT;
 
       // Extract main function and run it directly
       const scriptWithExport = parseClaudeLogScript.replace("main();", "global.testMain = main;");

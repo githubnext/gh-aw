@@ -59,7 +59,7 @@ Create a new `.sh` file in `pkg/workflow/sh/` with a descriptive name:
 echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
 echo "" >> $GITHUB_STEP_SUMMARY
 echo '```markdown' >> $GITHUB_STEP_SUMMARY
-cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
+cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY
 echo '```' >> $GITHUB_STEP_SUMMARY
 ```
 
@@ -89,7 +89,7 @@ yaml.WriteString("        run: |\n")
 yaml.WriteString("          echo \"## Generated Prompt\" >> $GITHUB_STEP_SUMMARY\n")
 yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
 yaml.WriteString("          echo '```markdown' >> $GITHUB_STEP_SUMMARY\n")
-yaml.WriteString("          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY\n")
+yaml.WriteString("          cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY\n")
 yaml.WriteString("          echo '```' >> $GITHUB_STEP_SUMMARY\n")
 ```
 
@@ -158,7 +158,7 @@ yaml.WriteString("        run: |\n")
 yaml.WriteString("          echo \"## Generated Prompt\" >> $GITHUB_STEP_SUMMARY\n")
 yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
 yaml.WriteString("          echo '``````markdown' >> $GITHUB_STEP_SUMMARY\n")
-yaml.WriteString("          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY\n")
+yaml.WriteString("          cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY\n")
 yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
 ```
 
@@ -168,7 +168,7 @@ yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
 echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
 echo "" >> $GITHUB_STEP_SUMMARY
 echo '```markdown' >> $GITHUB_STEP_SUMMARY
-cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
+cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY
 echo '```' >> $GITHUB_STEP_SUMMARY
 ```
 
@@ -254,7 +254,7 @@ For markdown/text content in heredocs:
 func WritePromptTextToYAML(yaml *strings.Builder, text string, indent string)
 ```
 
-Wraps content in `cat >> $GITHUB_AW_PROMPT << 'EOF'` ... `EOF` heredoc format.
+Wraps content in `cat >> $GH_AW_PROMPT << 'EOF'` ... `EOF` heredoc format.
 
 ## Maintenance
 

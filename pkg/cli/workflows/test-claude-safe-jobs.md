@@ -22,8 +22,8 @@ safe-outputs:
             run: cd /tmp/gh-aw/safe-jobs && ls -lR
           - name: print message
             run: |
-              if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
-                MESSAGE=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "print") | .message')
+              if [ -f "$GH_AW_AGENT_OUTPUT" ]; then
+                MESSAGE=$(cat "$GH_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "print") | .message')
                 echo "print: $MESSAGE"
                 echo "### Print Step Summary" >> "$GITHUB_STEP_SUMMARY"
                 echo "$MESSAGE" >> "$GITHUB_STEP_SUMMARY"    

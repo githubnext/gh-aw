@@ -607,7 +607,7 @@ func TestGenerateErrorValidationWithEngineConfigPatterns(t *testing.T) {
 		t.Error("Should generate error validation step with frontmatter patterns")
 	}
 
-	if !strings.Contains(generated, "GITHUB_AW_ERROR_PATTERNS") {
+	if !strings.Contains(generated, "GH_AW_ERROR_PATTERNS") {
 		t.Error("Should include error patterns environment variable")
 	}
 

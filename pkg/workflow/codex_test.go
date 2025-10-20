@@ -153,7 +153,7 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Print prompt to step summary") {
 					t.Errorf("Expected lock file to contain 'Print prompt to step summary' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY") {
+				if !strings.Contains(lockContent, "cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY") {
 					t.Errorf("Expected lock file to contain prompt printing command but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Ensure it does NOT contain Claude Code
@@ -178,7 +178,7 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Print prompt to step summary") {
 					t.Errorf("Expected lock file to contain 'Print prompt to step summary' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY") {
+				if !strings.Contains(lockContent, "cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY") {
 					t.Errorf("Expected lock file to contain prompt printing command but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that mcp-servers.json is generated (not config.toml)
@@ -212,7 +212,7 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Print prompt to step summary") {
 					t.Errorf("Expected lock file to contain 'Print prompt to step summary' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY") {
+				if !strings.Contains(lockContent, "cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY") {
 					t.Errorf("Expected lock file to contain prompt printing command but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that mcp-config.json is generated (Copilot format)

@@ -54,7 +54,7 @@ describe("redact_secrets.cjs", () => {
     if (mockCore.summary.write) mockCore.summary.write.mockClear();
 
     // Clear environment variables
-    delete process.env.GITHUB_AW_SECRET_NAMES;
+    delete process.env.GH_AW_SECRET_NAMES;
   });
 
   afterEach(() => {
@@ -72,11 +72,11 @@ describe("redact_secrets.cjs", () => {
   });
 
   describe("main function integration", () => {
-    it("should skip redaction when GITHUB_AW_SECRET_NAMES is not set", async () => {
+    it("should skip redaction when GH_AW_SECRET_NAMES is not set", async () => {
       // Execute the script without setting the environment variable
       await eval(`(async () => { ${redactScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith("GITHUB_AW_SECRET_NAMES not set, no redaction performed");
+      expect(mockCore.info).toHaveBeenCalledWith("GH_AW_SECRET_NAMES not set, no redaction performed");
     });
 
     it("should redact secrets from files in /tmp using exact matching", async () => {
@@ -86,7 +86,7 @@ describe("redact_secrets.cjs", () => {
       fs.writeFileSync(testFile, `Secret: ${secretValue} and another ${secretValue}`);
 
       // Set environment variables
-      process.env.GITHUB_AW_SECRET_NAMES = "GITHUB_TOKEN";
+      process.env.GH_AW_SECRET_NAMES = "GITHUB_TOKEN";
       process.env.SECRET_GITHUB_TOKEN = secretValue;
 
       // Mock findFiles to return our test directory
@@ -114,7 +114,7 @@ describe("redact_secrets.cjs", () => {
       fs.writeFileSync(path.join(tempDir, "test2.json"), '{"key": "api-key-456"}');
       fs.writeFileSync(path.join(tempDir, "test3.log"), "Log: api-key-789");
 
-      process.env.GITHUB_AW_SECRET_NAMES = "API_KEY1,API_KEY2,API_KEY3";
+      process.env.GH_AW_SECRET_NAMES = "API_KEY1,API_KEY2,API_KEY3";
       process.env.SECRET_API_KEY1 = "api-key-123";
       process.env.SECRET_API_KEY2 = "api-key-456";
       process.env.SECRET_API_KEY3 = "api-key-789";
@@ -138,7 +138,7 @@ describe("redact_secrets.cjs", () => {
       const secretValue = "sk-1234567890";
       fs.writeFileSync(testFile, `Secret: ${secretValue} and ${secretValue}`);
 
-      process.env.GITHUB_AW_SECRET_NAMES = "API_KEY";
+      process.env.GH_AW_SECRET_NAMES = "API_KEY";
       process.env.SECRET_API_KEY = secretValue;
 
       const modifiedScript = redactScript.replace(
@@ -158,7 +158,7 @@ describe("redact_secrets.cjs", () => {
       const secretValue = "sk-very-secret-key-123";
       fs.writeFileSync(testFile, `Secret: ${secretValue}`);
 
-      process.env.GITHUB_AW_SECRET_NAMES = "SECRET_KEY";
+      process.env.GH_AW_SECRET_NAMES = "SECRET_KEY";
       process.env.SECRET_SECRET_KEY = secretValue;
 
       const modifiedScript = redactScript.replace(
@@ -181,7 +181,7 @@ describe("redact_secrets.cjs", () => {
       const testFile = path.join(tempDir, "test.txt");
       fs.writeFileSync(testFile, "Short: abc123");
 
-      process.env.GITHUB_AW_SECRET_NAMES = "SHORT_SECRET";
+      process.env.GH_AW_SECRET_NAMES = "SHORT_SECRET";
       process.env.SECRET_SHORT_SECRET = "abc"; // Only 3 chars, should be skipped
 
       const modifiedScript = redactScript.replace(
@@ -201,7 +201,7 @@ describe("redact_secrets.cjs", () => {
       const secret2 = "sk-proj-abcdef1234567890";
       fs.writeFileSync(testFile, `Token1: ${secret1}\nToken2: ${secret2}\nToken1 again: ${secret1}`);
 
-      process.env.GITHUB_AW_SECRET_NAMES = "TOKEN1,TOKEN2";
+      process.env.GH_AW_SECRET_NAMES = "TOKEN1,TOKEN2";
       process.env.SECRET_TOKEN1 = secret1;
       process.env.SECRET_TOKEN2 = secret2;
 
@@ -224,7 +224,7 @@ describe("redact_secrets.cjs", () => {
       const testFile = path.join(tempDir, "test.txt");
       fs.writeFileSync(testFile, "No secrets here");
 
-      process.env.GITHUB_AW_SECRET_NAMES = "EMPTY_SECRET";
+      process.env.GH_AW_SECRET_NAMES = "EMPTY_SECRET";
       process.env.SECRET_EMPTY_SECRET = "";
 
       const modifiedScript = redactScript.replace(

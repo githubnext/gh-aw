@@ -5,7 +5,7 @@ async function main() {
     if (!content || typeof content !== "string") {
       return "";
     }
-    const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
+    const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
     const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
     const allowedDomains = allowedDomainsEnv
       ? allowedDomainsEnv
@@ -365,10 +365,10 @@ async function main() {
       }
     }
   }
-  const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
-  const safeOutputsConfig = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+  const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
+  const safeOutputsConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
   if (!outputFile) {
-    core.info("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
+    core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
     core.setOutput("output", "");
     return;
   }
@@ -748,7 +748,7 @@ async function main() {
     fs.mkdirSync("/tmp", { recursive: true });
     fs.writeFileSync(agentOutputFile, validatedOutputJson, "utf8");
     core.info(`Stored validated output to: ${agentOutputFile}`);
-    core.exportVariable("GITHUB_AW_AGENT_OUTPUT", agentOutputFile);
+    core.exportVariable("GH_AW_AGENT_OUTPUT", agentOutputFile);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     core.error(`Failed to write agent output file: ${errorMsg}`);

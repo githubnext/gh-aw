@@ -109,15 +109,15 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Add Issue Comment
         id: add_comment
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
-          GITHUB_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
-          GITHUB_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
-          GITHUB_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
+          GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
+          GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -184,10 +184,10 @@ jobs:
               };
             }
             async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
                 return;
               }
               let outputContent;
@@ -220,7 +220,7 @@ jobs:
               }
               core.info(`Found ${commentItems.length} add-comment item(s)`);
               function getRepositoryUrl() {
-                const targetRepoSlug = process.env.GITHUB_AW_TARGET_REPO_SLUG;
+                const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
                 if (targetRepoSlug) {
                   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                   return `${githubServer}/${targetRepoSlug}`;
@@ -234,7 +234,7 @@ jobs:
               function getTargetNumber(item) {
                 return item.item_number;
               }
-              const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
+              const commentTarget = process.env.GH_AW_COMMENT_TARGET || "triggering";
               core.info(`Comment target configuration: ${commentTarget}`);
               const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
               const isPRContext =
@@ -245,12 +245,12 @@ jobs:
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
                 summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
-                const createdIssueUrl = process.env.GITHUB_AW_CREATED_ISSUE_URL;
-                const createdIssueNumber = process.env.GITHUB_AW_CREATED_ISSUE_NUMBER;
-                const createdDiscussionUrl = process.env.GITHUB_AW_CREATED_DISCUSSION_URL;
-                const createdDiscussionNumber = process.env.GITHUB_AW_CREATED_DISCUSSION_NUMBER;
-                const createdPullRequestUrl = process.env.GITHUB_AW_CREATED_PULL_REQUEST_URL;
-                const createdPullRequestNumber = process.env.GITHUB_AW_CREATED_PULL_REQUEST_NUMBER;
+                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
+                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
+                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
+                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
                 if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
                   summaryContent += "**Related Items:**\n";
                   if (createdIssueUrl && createdIssueNumber) {
@@ -358,12 +358,12 @@ jobs:
                   continue;
                 }
                 let body = commentItem.body.trim();
-                const createdIssueUrl = process.env.GITHUB_AW_CREATED_ISSUE_URL;
-                const createdIssueNumber = process.env.GITHUB_AW_CREATED_ISSUE_NUMBER;
-                const createdDiscussionUrl = process.env.GITHUB_AW_CREATED_DISCUSSION_URL;
-                const createdDiscussionNumber = process.env.GITHUB_AW_CREATED_DISCUSSION_NUMBER;
-                const createdPullRequestUrl = process.env.GITHUB_AW_CREATED_PULL_REQUEST_URL;
-                const createdPullRequestNumber = process.env.GITHUB_AW_CREATED_PULL_REQUEST_NUMBER;
+                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
+                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
+                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
+                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
                 let hasReferences = false;
                 let referencesSection = "\n\n## Related Items\n\n";
                 if (createdIssueUrl && createdIssueNumber) {
@@ -381,9 +381,9 @@ jobs:
                 if (hasReferences) {
                   body += referencesSection;
                 }
-                const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
                 const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                 const runUrl = context.payload.repository
@@ -447,11 +447,11 @@ jobs:
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
     env:
-      GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-      GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-      GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
-      GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{},\"upload_asset\":{}}"
+      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+      GH_AW_ASSETS_MAX_SIZE_KB: 10240
+      GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
+      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{},\"upload_asset\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -697,11 +697,11 @@ jobs:
               normalized = normalized.toLowerCase();
               return normalized;
             }
-            const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+            const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
               const defaultConfigPath = "/tmp/gh-aw/safe-outputs/config.json";
-              debug(`GITHUB_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
+              debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
               try {
                 if (fs.existsSync(defaultConfigPath)) {
                   debug(`Reading config from file: ${defaultConfigPath}`);
@@ -721,21 +721,21 @@ jobs:
                 safeOutputsConfigRaw = {};
               }
             } else {
-              debug(`Using GITHUB_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
+              debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
               debug(`Config environment variable length: ${configEnv.length} characters`);
               try {
                 safeOutputsConfigRaw = JSON.parse(configEnv); 
                 debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
               } catch (error) {
                 debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
-                throw new Error(`Failed to parse GITHUB_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
+                throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
-            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
-            if (!process.env.GITHUB_AW_SAFE_OUTPUTS) {
-              debug(`GITHUB_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
+            const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
+            if (!process.env.GH_AW_SAFE_OUTPUTS) {
+              debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
               const outputDir = path.dirname(outputFile);
               if (!fs.existsSync(outputDir)) {
                 debug(`Creating output directory: ${outputDir}`);
@@ -833,8 +833,8 @@ jobs:
               };
             };
             const uploadAssetHandler = args => {
-              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
-              if (!branchName) throw new Error("GITHUB_AW_ASSETS_BRANCH not set");
+              const branchName = process.env.GH_AW_ASSETS_BRANCH;
+              if (!branchName) throw new Error("GH_AW_ASSETS_BRANCH not set");
               const normalizedBranchName = normalizeBranchName(branchName);
               const { path: filePath } = args;
               const absolutePath = path.resolve(filePath);
@@ -854,13 +854,13 @@ jobs:
               const stats = fs.statSync(filePath);
               const sizeBytes = stats.size;
               const sizeKB = Math.ceil(sizeBytes / 1024);
-              const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10) : 10240; 
+              const maxSizeKB = process.env.GH_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GH_AW_ASSETS_MAX_SIZE_KB, 10) : 10240; 
               if (sizeKB > maxSizeKB) {
                 throw new Error(`File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`);
               }
               const ext = path.extname(filePath).toLowerCase();
-              const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS
-                ? process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
+              const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
+                ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
                 : [
                     ".png",
                     ".jpg",
@@ -959,18 +959,6 @@ jobs:
                       items: { type: "string" },
                       description: "Issue labels",
                     },
-                  },
-                  additionalProperties: false,
-                },
-              },
-              {
-                name: "create_agent_task",
-                description: "Create a new GitHub Copilot agent task",
-                inputSchema: {
-                  type: "object",
-                  required: ["body"],
-                  properties: {
-                    body: { type: "string", description: "Task description/instructions for the agent" },
                   },
                   additionalProperties: false,
                 },
@@ -1314,9 +1302,9 @@ jobs:
                       }
                     }
                     if (tool.name === "upload_asset") {
-                      const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10) : 10240;
-                      const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS
-                        ? process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
+                      const maxSizeKB = process.env.GH_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GH_AW_ASSETS_MAX_SIZE_KB, 10) : 10240;
+                      const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
+                        ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
                         : [".png", ".jpg", ".jpeg"];
                       toolDef.description = `Publish a file as a URL-addressable asset to an orphaned git branch. Maximum file size: ${maxSizeKB} KB. Allowed extensions: ${allowedExts.join(", ")}`;
                     }
@@ -1392,11 +1380,11 @@ jobs:
                 "command": "node",
                 "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
                 "env": {
-                  "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},
-                  "GITHUB_AW_ASSETS_BRANCH": "${{ env.GITHUB_AW_ASSETS_BRANCH }}",
-                  "GITHUB_AW_ASSETS_MAX_SIZE_KB": "${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}",
-                  "GITHUB_AW_ASSETS_ALLOWED_EXTS": "${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}"
+                  "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }},
+                  "GH_AW_ASSETS_BRANCH": "${{ env.GH_AW_ASSETS_BRANCH }}",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}",
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}"
                 }
               }
             }
@@ -1404,11 +1392,11 @@ jobs:
           EOF
       - name: Create prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
         run: |
-          mkdir -p $(dirname "$GITHUB_AW_PROMPT")
-          cat > $GITHUB_AW_PROMPT << 'EOF'
+          mkdir -p $(dirname "$GH_AW_PROMPT")
+          cat > $GH_AW_PROMPT << 'EOF'
           # Technical Documentation Writer for GitHub Actions
           
           You are an AI technical documentation writer that produces developer-focused documentation for a **GitHub Actions library**.  
@@ -1568,9 +1556,9 @@ jobs:
           EOF
       - name: Append XPIA security instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'EOF'
           
           ---
           
@@ -1600,9 +1588,9 @@ jobs:
           EOF
       - name: Append temporary folder instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'EOF'
           
           ---
           
@@ -1613,9 +1601,9 @@ jobs:
           EOF
       - name: Append edit tool accessibility instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'EOF'
           
           
           ---
@@ -1632,9 +1620,9 @@ jobs:
           EOF
       - name: Append cache memory instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'EOF'
           
           ---
           
@@ -1657,9 +1645,9 @@ jobs:
           EOF
       - name: Append safe outputs instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'EOF'
           
           ---
           
@@ -1695,9 +1683,9 @@ jobs:
           EOF
       - name: Append GitHub context to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'EOF'
           
           ---
           
@@ -1730,7 +1718,7 @@ jobs:
       - name: Render template conditionals
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         with:
           script: |
             const fs = require("fs");
@@ -1743,9 +1731,9 @@ jobs:
             }
             function main() {
               try {
-                const promptPath = process.env.GITHUB_AW_PROMPT;
+                const promptPath = process.env.GH_AW_PROMPT;
                 if (!promptPath) {
-                  core.setFailed("GITHUB_AW_PROMPT environment variable is not set");
+                  core.setFailed("GH_AW_PROMPT environment variable is not set");
                   process.exit(1);
                 }
                 const markdown = fs.readFileSync(promptPath, "utf8");
@@ -1764,13 +1752,13 @@ jobs:
             main();
       - name: Print prompt to step summary
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           echo "<details>" >> $GITHUB_STEP_SUMMARY
           echo "<summary>Generated Prompt</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
+          cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY
@@ -1939,16 +1927,16 @@ jobs:
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           MCP_TIMEOUT: "120000"
           MCP_TOOL_TIMEOUT: "60000"
           BASH_DEFAULT_TIMEOUT_MS: "60000"
           BASH_MAX_TIMEOUT_MS: "60000"
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
-          GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GH_AW_ASSETS_MAX_SIZE_KB: 10240
+          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
       - name: Clean up network proxy hook files
         if: always()
         run: |
@@ -1960,14 +1948,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: safe_output.jsonl
-          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          path: ${{ env.GH_AW_SAFE_OUTPUTS }}
           if-no-files-found: warn
       - name: Ingest agent output
         id: collect_output
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{},\"upload_asset\":{}}"
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{},\"upload_asset\":{}}"
         with:
           script: |
             async function main() {
@@ -1977,7 +1965,7 @@ jobs:
                 if (!content || typeof content !== "string") {
                   return "";
                 }
-                const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
+                const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
                 const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
                 const allowedDomains = allowedDomainsEnv
                   ? allowedDomainsEnv
@@ -2044,8 +2032,6 @@ jobs:
                 }
                 switch (itemType) {
                   case "create_issue":
-                    return 1;
-                  case "create_agent_task":
                     return 1;
                   case "add_comment":
                     return 1;
@@ -2333,10 +2319,10 @@ jobs:
                   }
                 }
               }
-              const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
-              const safeOutputsConfig = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+              const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
+              const safeOutputsConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
               if (!outputFile) {
-                core.info("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
+                core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
                 core.setOutput("output", "");
                 return;
               }
@@ -2575,13 +2561,6 @@ jobs:
                       item.title = sanitizeContent(item.title, 128);
                       item.body = sanitizeContent(item.body, maxBodyLength);
                       break;
-                    case "create_agent_task":
-                      if (!item.body || typeof item.body !== "string") {
-                        errors.push(`Line ${i + 1}: create_agent_task requires a 'body' string field`);
-                        continue;
-                      }
-                      item.body = sanitizeContent(item.body, maxBodyLength);
-                      break;
                     case "missing_tool":
                       if (!item.tool || typeof item.tool !== "string") {
                         errors.push(`Line ${i + 1}: missing_tool requires a 'tool' string field`);
@@ -2711,7 +2690,7 @@ jobs:
                 fs.mkdirSync("/tmp", { recursive: true });
                 fs.writeFileSync(agentOutputFile, validatedOutputJson, "utf8");
                 core.info(`Stored validated output to: ${agentOutputFile}`);
-                core.exportVariable("GITHUB_AW_AGENT_OUTPUT", agentOutputFile);
+                core.exportVariable("GH_AW_AGENT_OUTPUT", agentOutputFile);
               } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : String(error);
                 core.error(`Failed to write agent output file: ${errorMsg}`);
@@ -2724,11 +2703,11 @@ jobs:
             }
             await main();
       - name: Upload sanitized agent output
-        if: always() && env.GITHUB_AW_AGENT_OUTPUT
+        if: always() && env.GH_AW_AGENT_OUTPUT
         uses: actions/upload-artifact@v4
         with:
           name: agent_output.json
-          path: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
+          path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Upload MCP logs
         if: always()
@@ -2741,13 +2720,13 @@ jobs:
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
           script: |
             function main() {
               const fs = require("fs");
               try {
-                const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+                const logFile = process.env.GH_AW_AGENT_OUTPUT;
                 if (!logFile) {
                   core.info("No agent log file specified");
                   return;
@@ -3181,8 +3160,8 @@ jobs:
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
-          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"}]"
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
+          GH_AW_ERROR_PATTERNS: "[{\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"}]"
         with:
           script: |
             function main() {
@@ -3191,9 +3170,9 @@ jobs:
               core.info("Starting validate_errors.cjs script");
               const startTime = Date.now();
               try {
-                const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
+                const logPath = process.env.GH_AW_AGENT_OUTPUT;
                 if (!logPath) {
-                  throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
+                  throw new Error("GH_AW_AGENT_OUTPUT environment variable is required");
                 }
                 core.info(`Log path: ${logPath}`);
                 if (!fs.existsSync(logPath)) {
@@ -3203,7 +3182,7 @@ jobs:
                 }
                 const patterns = getErrorPatternsFromEnv();
                 if (patterns.length === 0) {
-                  throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
+                  throw new Error("GH_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
                 }
                 core.info(`Loaded ${patterns.length} error patterns`);
                 core.info(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
@@ -3246,26 +3225,26 @@ jobs:
               }
             }
             function getErrorPatternsFromEnv() {
-              const patternsEnv = process.env.GITHUB_AW_ERROR_PATTERNS;
+              const patternsEnv = process.env.GH_AW_ERROR_PATTERNS;
               if (!patternsEnv) {
-                throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required");
+                throw new Error("GH_AW_ERROR_PATTERNS environment variable is required");
               }
               try {
                 const patterns = JSON.parse(patternsEnv);
                 if (!Array.isArray(patterns)) {
-                  throw new Error("GITHUB_AW_ERROR_PATTERNS must be a JSON array");
+                  throw new Error("GH_AW_ERROR_PATTERNS must be a JSON array");
                 }
                 return patterns;
               } catch (e) {
-                throw new Error(`Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);
+                throw new Error(`Failed to parse GH_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);
               }
             }
             function shouldSkipLine(line) {
               const GITHUB_ACTIONS_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s+/;
-              if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "GITHUB_AW_ERROR_PATTERNS:").test(line)) {
+              if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "GH_AW_ERROR_PATTERNS:").test(line)) {
                 return true;
               }
-              if (/^\s+GITHUB_AW_ERROR_PATTERNS:\s*\[/.test(line)) {
+              if (/^\s+GH_AW_ERROR_PATTERNS:\s*\[/.test(line)) {
                 return true;
               }
               if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "env:").test(line)) {
@@ -3415,7 +3394,7 @@ jobs:
       - name: Generate git patch
         if: always()
         env:
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_SHA: ${{ github.sha }}
         run: |
           # Check current git status
@@ -3423,7 +3402,7 @@ jobs:
           git status
           # Extract branch name from JSONL output
           BRANCH_NAME=""
-          if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
+          if [ -f "$GH_AW_SAFE_OUTPUTS" ]; then
             echo "Checking for branch name in JSONL output..."
             while IFS= read -r line; do
               if [ -n "$line" ]; then
@@ -3449,7 +3428,7 @@ jobs:
                   fi
                 fi
               fi
-            done < "$GITHUB_AW_SAFE_OUTPUTS"
+            done < "$GH_AW_SAFE_OUTPUTS"
           fi
           # If no branch or branch doesn't exist, no patch
           if [ -z "$BRANCH_NAME" ]; then
@@ -3547,20 +3526,20 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Create Pull Request
         id: create_pull_request
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
-          GITHUB_AW_WORKFLOW_ID: "agent"
-          GITHUB_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
-          GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GITHUB_AW_PR_TITLE_PREFIX: "[docs] "
-          GITHUB_AW_PR_LABELS: "documentation"
-          GITHUB_AW_PR_DRAFT: "false"
-          GITHUB_AW_PR_IF_NO_CHANGES: "warn"
-          GITHUB_AW_MAX_PATCH_SIZE: 1024
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_ID: "agent"
+          GH_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
+          GH_AW_BASE_BRANCH: ${{ github.ref_name }}
+          GH_AW_PR_TITLE_PREFIX: "[docs] "
+          GH_AW_PR_LABELS: "documentation"
+          GH_AW_PR_DRAFT: "false"
+          GH_AW_PR_IF_NO_CHANGES: "warn"
+          GH_AW_MAX_PATCH_SIZE: 1024
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -3592,16 +3571,16 @@ jobs:
               core.setOutput("issue_url", "");
               core.setOutput("branch_name", "");
               core.setOutput("fallback_used", "");
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const workflowId = process.env.GH_AW_WORKFLOW_ID;
               if (!workflowId) {
-                throw new Error("GITHUB_AW_WORKFLOW_ID environment variable is required");
+                throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
               }
-              const baseBranch = process.env.GITHUB_AW_BASE_BRANCH;
+              const baseBranch = process.env.GH_AW_BASE_BRANCH;
               if (!baseBranch) {
-                throw new Error("GITHUB_AW_BASE_BRANCH environment variable is required");
+                throw new Error("GH_AW_BASE_BRANCH environment variable is required");
               }
-              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
               let outputContent = "";
               if (agentOutputFile.trim() !== "") {
                 try {
@@ -3614,7 +3593,7 @@ jobs:
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
               }
-              const ifNoChanges = process.env.GITHUB_AW_PR_IF_NO_CHANGES || "warn";
+              const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
               if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
                 const message = "No patch file found - cannot create pull request without changes";
                 if (isStaged) {
@@ -3662,7 +3641,7 @@ jobs:
               }
               const isEmpty = !patchContent || !patchContent.trim();
               if (!isEmpty) {
-                const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
+                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
                 const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
                 const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
                 core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
@@ -3745,11 +3724,11 @@ jobs:
               if (!title) {
                 title = "Agent Output";
               }
-              const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
+              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
               if (titlePrefix && !title.startsWith(titlePrefix)) {
                 title = titlePrefix + title;
               }
-              const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const runUrl = context.payload.repository
@@ -3757,14 +3736,14 @@ jobs:
                 : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
               const body = bodyLines.join("\n").trim();
-              const labelsEnv = process.env.GITHUB_AW_PR_LABELS;
+              const labelsEnv = process.env.GH_AW_PR_LABELS;
               const labels = labelsEnv
                 ? labelsEnv
                     .split(",")
                     .map( label => label.trim())
                     .filter( label => label)
                 : [];
-              const draftEnv = process.env.GITHUB_AW_PR_DRAFT;
+              const draftEnv = process.env.GH_AW_PR_DRAFT;
               const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
               core.info(`Creating pull request with title: ${title}`);
               core.info(`Labels: ${JSON.stringify(labels)}`);
@@ -3976,7 +3955,7 @@ jobs:
       - name: Add copilot as reviewer
         if: steps.create_pull_request.outputs.pull_request_number != ''
         env:
-          GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}
         run: |
           gh api --method POST /repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers \
@@ -4114,7 +4093,7 @@ jobs:
             }
             fs.mkdirSync('/tmp/gh-aw/aw-prompts', { recursive: true });
             fs.writeFileSync('/tmp/gh-aw/aw-prompts/prompt.txt', promptContent);
-            core.exportVariable('GITHUB_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
+            core.exportVariable('GH_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
             await core.summary
               .addRaw('<details>\n<summary>Threat Detection Prompt</summary>\n\n' + '``````markdown\n' + promptContent + '\n' + '``````\n\n</details>\n')
               .write();
@@ -4171,7 +4150,7 @@ jobs:
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           MCP_TIMEOUT: "120000"
           MCP_TOOL_TIMEOUT: "60000"
           BASH_DEFAULT_TIMEOUT_MS: "60000"
@@ -4243,19 +4222,19 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const fs = require("fs");
-              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT || "";
-              const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
+              const maxReports = process.env.GH_AW_MISSING_TOOL_MAX ? parseInt(process.env.GH_AW_MISSING_TOOL_MAX) : null;
               core.info("Processing missing-tool reports...");
               if (maxReports) {
                 core.info(`Maximum reports allowed: ${maxReports}`);
@@ -4361,14 +4340,14 @@ jobs:
         id: check_membership
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
+          GH_AW_REQUIRED_ROLES: admin,maintainer
         with:
           script: |
             async function main() {
               const { eventName } = context;
               const actor = context.actor;
               const { owner, repo } = context.repo;
-              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
+              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
               const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
               // For workflow_dispatch, only skip check if "write" is in the allowed roles
               // since workflow_dispatch can be triggered by users with write access
@@ -4477,26 +4456,26 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Update reaction comment with completion status
         id: update_reaction
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
-          GITHUB_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          GITHUB_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GITHUB_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GITHUB_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
-          GITHUB_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
+          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
-              const commentId = process.env.GITHUB_AW_COMMENT_ID;
-              const commentRepo = process.env.GITHUB_AW_COMMENT_REPO;
-              const runUrl = process.env.GITHUB_AW_RUN_URL;
-              const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-              const agentConclusion = process.env.GITHUB_AW_AGENT_CONCLUSION || "failure";
+              const commentId = process.env.GH_AW_COMMENT_ID;
+              const commentRepo = process.env.GH_AW_COMMENT_REPO;
+              const runUrl = process.env.GH_AW_RUN_URL;
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+              const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
               core.info(`Comment ID: ${commentId}`);
               core.info(`Comment Repo: ${commentRepo}`);
               core.info(`Run URL: ${runUrl}`);
@@ -4618,15 +4597,15 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Upload Assets to Orphaned Branch
         id: upload_assets
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
-          GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
-          GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GH_AW_ASSETS_MAX_SIZE_KB: 10240
+          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4648,17 +4627,17 @@ jobs:
               return normalized;
             }
             async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const branchName = process.env.GH_AW_ASSETS_BRANCH;
               if (!branchName || typeof branchName !== "string") {
-                core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
+                core.setFailed("GH_AW_ASSETS_BRANCH environment variable is required but not set");
                 return;
               }
               const normalizedBranchName = normalizeBranchName(branchName);
               core.info(`Using assets branch: ${normalizedBranchName}`);
-              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
                 core.setOutput("upload_count", "0");
                 core.setOutput("branch_name", normalizedBranchName);
                 return;

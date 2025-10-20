@@ -34,7 +34,7 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				"id: test_step",
 				"uses: actions/github-script@v8",
 				"env:",
-				"GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}",
+				"GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}",
 				"with:",
 				"script: |",
 				"console.log('test');",
@@ -50,8 +50,8 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				StepID:      "create_issue",
 				MainJobName: "agent",
 				CustomEnvVars: []string{
-					"          GITHUB_AW_ISSUE_TITLE_PREFIX: \"[bot] \"\n",
-					"          GITHUB_AW_ISSUE_LABELS: \"automation,ai\"\n",
+					"          GH_AW_ISSUE_TITLE_PREFIX: \"[bot] \"\n",
+					"          GH_AW_ISSUE_LABELS: \"automation,ai\"\n",
 				},
 				Script: "const issue = true;",
 				Token:  "",
@@ -62,9 +62,9 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				"- name: Create Issue",
 				"id: create_issue",
 				"uses: actions/github-script@v8",
-				"GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}",
-				"GITHUB_AW_ISSUE_TITLE_PREFIX: \"[bot] \"",
-				"GITHUB_AW_ISSUE_LABELS: \"automation,ai\"",
+				"GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}",
+				"GH_AW_ISSUE_TITLE_PREFIX: \"[bot] \"",
+				"GH_AW_ISSUE_LABELS: \"automation,ai\"",
 				"const issue = true;",
 			},
 		},
@@ -91,7 +91,7 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				"- name: Setup agent output environment variable",
 				"- name: Process Output",
 				"id: process",
-				"GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}",
+				"GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}",
 				"CUSTOM_VAR_1: value1",
 				"CUSTOM_VAR_2: value2",
 			},
@@ -180,13 +180,13 @@ func TestBuildGitHubScriptStepMaintainsOrder(t *testing.T) {
 	steps := compiler.buildGitHubScriptStep(workflowData, config)
 	stepsStr := strings.Join(steps, "")
 
-	// Verify GITHUB_AW_AGENT_OUTPUT comes first (after env: line)
-	agentOutputIdx := strings.Index(stepsStr, "GITHUB_AW_AGENT_OUTPUT")
+	// Verify GH_AW_AGENT_OUTPUT comes first (after env: line)
+	agentOutputIdx := strings.Index(stepsStr, "GH_AW_AGENT_OUTPUT")
 	customVarIdx := strings.Index(stepsStr, "CUSTOM_VAR")
 	safeOutputVarIdx := strings.Index(stepsStr, "SAFE_OUTPUT_VAR")
 
 	if agentOutputIdx == -1 {
-		t.Error("GITHUB_AW_AGENT_OUTPUT not found in output")
+		t.Error("GH_AW_AGENT_OUTPUT not found in output")
 	}
 	if customVarIdx == -1 {
 		t.Error("CUSTOM_VAR not found in output")
@@ -195,9 +195,9 @@ func TestBuildGitHubScriptStepMaintainsOrder(t *testing.T) {
 		t.Error("SAFE_OUTPUT_VAR not found in output")
 	}
 
-	// Verify order: GITHUB_AW_AGENT_OUTPUT -> custom vars -> safe-outputs.env vars
+	// Verify order: GH_AW_AGENT_OUTPUT -> custom vars -> safe-outputs.env vars
 	if agentOutputIdx > customVarIdx {
-		t.Error("GITHUB_AW_AGENT_OUTPUT should come before custom vars")
+		t.Error("GH_AW_AGENT_OUTPUT should come before custom vars")
 	}
 	if customVarIdx > safeOutputVarIdx {
 		t.Error("Custom vars should come before safe-outputs.env vars")
@@ -224,8 +224,8 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{},
 			},
 			expected: map[string]string{
-				"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-				"GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\"{}\"",
+				"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
+				"GH_AW_SAFE_OUTPUTS_CONFIG": "\"{}\"",
 			},
 		},
 		{
@@ -236,9 +236,9 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 				},
 			},
 			expected: map[string]string{
-				"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-				"GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\"{}\"",
-				"GITHUB_AW_SAFE_OUTPUTS_STAGED": "true",
+				"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
+				"GH_AW_SAFE_OUTPUTS_CONFIG": "\"{}\"",
+				"GH_AW_SAFE_OUTPUTS_STAGED": "true",
 			},
 		},
 		{
@@ -249,10 +249,10 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 				SafeOutputs:      &SafeOutputsConfig{},
 			},
 			expected: map[string]string{
-				"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-				"GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\"{}\"",
-				"GITHUB_AW_SAFE_OUTPUTS_STAGED": "true",
-				"GITHUB_AW_TARGET_REPO_SLUG":    "owner/repo",
+				"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
+				"GH_AW_SAFE_OUTPUTS_CONFIG": "\"{}\"",
+				"GH_AW_SAFE_OUTPUTS_STAGED": "true",
+				"GH_AW_TARGET_REPO_SLUG":    "owner/repo",
 			},
 		},
 		{
@@ -267,11 +267,11 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 				},
 			},
 			expected: map[string]string{
-				"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-				"GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\"{\\\"upload_asset\\\":{}}\"",
-				"GITHUB_AW_ASSETS_BRANCH":       "\"gh-aw-assets\"",
-				"GITHUB_AW_ASSETS_MAX_SIZE_KB":  "10240",
-				"GITHUB_AW_ASSETS_ALLOWED_EXTS": "\".png,.jpg,.jpeg\"",
+				"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
+				"GH_AW_SAFE_OUTPUTS_CONFIG": "\"{\\\"upload_asset\\\":{}}\"",
+				"GH_AW_ASSETS_BRANCH":       "\"gh-aw-assets\"",
+				"GH_AW_ASSETS_MAX_SIZE_KB":  "10240",
+				"GH_AW_ASSETS_ALLOWED_EXTS": "\".png,.jpg,.jpeg\"",
 			},
 		},
 	}
@@ -316,7 +316,7 @@ func TestApplySafeOutputEnvToSlice(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{},
 			},
 			expected: []string{
-				"          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+				"          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}",
 			},
 		},
 		{
@@ -327,8 +327,8 @@ func TestApplySafeOutputEnvToSlice(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-				"          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"",
+				"          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}",
+				"          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"",
 			},
 		},
 		{
@@ -339,9 +339,9 @@ func TestApplySafeOutputEnvToSlice(t *testing.T) {
 				SafeOutputs:      &SafeOutputsConfig{},
 			},
 			expected: []string{
-				"          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-				"          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"",
-				"          GITHUB_AW_TARGET_REPO_SLUG: \"owner/repo\"",
+				"          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}",
+				"          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"",
+				"          GH_AW_TARGET_REPO_SLUG: \"owner/repo\"",
 			},
 		},
 		{
@@ -356,10 +356,10 @@ func TestApplySafeOutputEnvToSlice(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-				"          GITHUB_AW_ASSETS_BRANCH: \"gh-aw-assets\"",
-				"          GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240",
-				"          GITHUB_AW_ASSETS_ALLOWED_EXTS: \".png,.jpg,.jpeg\"",
+				"          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}",
+				"          GH_AW_ASSETS_BRANCH: \"gh-aw-assets\"",
+				"          GH_AW_ASSETS_MAX_SIZE_KB: 10240",
+				"          GH_AW_ASSETS_ALLOWED_EXTS: \".png,.jpg,.jpeg\"",
 			},
 		},
 	}
@@ -404,14 +404,14 @@ func TestBuildSafeOutputJobEnvVars(t *testing.T) {
 			name:   "staged only",
 			staged: true,
 			expected: []string{
-				"          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n",
+				"          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n",
 			},
 		},
 		{
 			name:      "trial mode only",
 			trialMode: true,
 			expected: []string{
-				"          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n",
+				"          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n",
 			},
 		},
 		{
@@ -419,15 +419,15 @@ func TestBuildSafeOutputJobEnvVars(t *testing.T) {
 			trialMode:            true,
 			trialLogicalRepoSlug: "owner/trial-repo",
 			expected: []string{
-				"          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n",
-				"          GITHUB_AW_TARGET_REPO_SLUG: \"owner/trial-repo\"\n",
+				"          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n",
+				"          GH_AW_TARGET_REPO_SLUG: \"owner/trial-repo\"\n",
 			},
 		},
 		{
 			name:           "target repo slug only",
 			targetRepoSlug: "owner/target-repo",
 			expected: []string{
-				"          GITHUB_AW_TARGET_REPO_SLUG: \"owner/target-repo\"\n",
+				"          GH_AW_TARGET_REPO_SLUG: \"owner/target-repo\"\n",
 			},
 		},
 		{
@@ -436,8 +436,8 @@ func TestBuildSafeOutputJobEnvVars(t *testing.T) {
 			trialLogicalRepoSlug: "owner/trial-repo",
 			targetRepoSlug:       "owner/target-repo",
 			expected: []string{
-				"          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n",
-				"          GITHUB_AW_TARGET_REPO_SLUG: \"owner/target-repo\"\n",
+				"          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n",
+				"          GH_AW_TARGET_REPO_SLUG: \"owner/target-repo\"\n",
 			},
 		},
 		{
@@ -447,8 +447,8 @@ func TestBuildSafeOutputJobEnvVars(t *testing.T) {
 			staged:               true,
 			targetRepoSlug:       "owner/target-repo",
 			expected: []string{
-				"          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n",
-				"          GITHUB_AW_TARGET_REPO_SLUG: \"owner/target-repo\"\n",
+				"          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n",
+				"          GH_AW_TARGET_REPO_SLUG: \"owner/target-repo\"\n",
 			},
 		},
 	}
@@ -504,12 +504,12 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 
 	// Verify both approaches produce the same env vars
 	expectedKeys := []string{
-		"GITHUB_AW_SAFE_OUTPUTS",
-		"GITHUB_AW_SAFE_OUTPUTS_STAGED",
-		"GITHUB_AW_TARGET_REPO_SLUG",
-		"GITHUB_AW_ASSETS_BRANCH",
-		"GITHUB_AW_ASSETS_MAX_SIZE_KB",
-		"GITHUB_AW_ASSETS_ALLOWED_EXTS",
+		"GH_AW_SAFE_OUTPUTS",
+		"GH_AW_SAFE_OUTPUTS_STAGED",
+		"GH_AW_TARGET_REPO_SLUG",
+		"GH_AW_ASSETS_BRANCH",
+		"GH_AW_ASSETS_MAX_SIZE_KB",
+		"GH_AW_ASSETS_ALLOWED_EXTS",
 	}
 
 	// Check map
@@ -544,7 +544,7 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		"- name: Setup agent output environment variable",
 		"mkdir -p /tmp/gh-aw/safe-outputs/",
 		"find /tmp/gh-aw/safe-outputs/ -type f -print",
-		"GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json",
+		"GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json",
 	}
 
 	for _, expected := range expectedComponents {

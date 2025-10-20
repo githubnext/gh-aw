@@ -29,14 +29,14 @@ func TestCreatePRReviewCommentUsesHelper(t *testing.T) {
 	// Convert steps to a single string for testing
 	stepsContent := strings.Join(job.Steps, "")
 
-	// Verify that GITHUB_AW_SAFE_OUTPUTS_STAGED is present
-	if !strings.Contains(stepsContent, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED to be set in create-pull-request-review-comment job")
+	// Verify that GH_AW_SAFE_OUTPUTS_STAGED is present
+	if !strings.Contains(stepsContent, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_STAGED to be set in create-pull-request-review-comment job")
 	}
 
-	// Verify that GITHUB_AW_TARGET_REPO_SLUG is present with the correct value
-	if !strings.Contains(stepsContent, "          GITHUB_AW_TARGET_REPO_SLUG: \"owner/target-repo\"\n") {
-		t.Error("Expected GITHUB_AW_TARGET_REPO_SLUG to be set correctly in create-pull-request-review-comment job")
+	// Verify that GH_AW_TARGET_REPO_SLUG is present with the correct value
+	if !strings.Contains(stepsContent, "          GH_AW_TARGET_REPO_SLUG: \"owner/target-repo\"\n") {
+		t.Error("Expected GH_AW_TARGET_REPO_SLUG to be set correctly in create-pull-request-review-comment job")
 	}
 }
 
@@ -65,14 +65,14 @@ func TestCreateDiscussionUsesHelper(t *testing.T) {
 	// Convert steps to a single string for testing
 	stepsContent := strings.Join(job.Steps, "")
 
-	// Verify that GITHUB_AW_SAFE_OUTPUTS_STAGED is present
-	if !strings.Contains(stepsContent, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED to be set in create-discussion job")
+	// Verify that GH_AW_SAFE_OUTPUTS_STAGED is present
+	if !strings.Contains(stepsContent, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_STAGED to be set in create-discussion job")
 	}
 
-	// Verify that GITHUB_AW_TARGET_REPO_SLUG is present with the correct value
-	if !strings.Contains(stepsContent, "          GITHUB_AW_TARGET_REPO_SLUG: \"owner/target-repo\"\n") {
-		t.Error("Expected GITHUB_AW_TARGET_REPO_SLUG to be set correctly in create-discussion job")
+	// Verify that GH_AW_TARGET_REPO_SLUG is present with the correct value
+	if !strings.Contains(stepsContent, "          GH_AW_TARGET_REPO_SLUG: \"owner/target-repo\"\n") {
+		t.Error("Expected GH_AW_TARGET_REPO_SLUG to be set correctly in create-discussion job")
 	}
 }
 
@@ -103,14 +103,14 @@ func TestTrialModeWithoutTargetRepo(t *testing.T) {
 	// Convert steps to a single string for testing
 	stepsContent := strings.Join(job.Steps, "")
 
-	// Verify that GITHUB_AW_SAFE_OUTPUTS_STAGED is present (trial mode sets this)
-	if !strings.Contains(stepsContent, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED to be set in trial mode")
+	// Verify that GH_AW_SAFE_OUTPUTS_STAGED is present (trial mode sets this)
+	if !strings.Contains(stepsContent, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_STAGED to be set in trial mode")
 	}
 
-	// Verify that GITHUB_AW_TARGET_REPO_SLUG uses trial repo slug
-	if !strings.Contains(stepsContent, "          GITHUB_AW_TARGET_REPO_SLUG: \"owner/trial-repo\"\n") {
-		t.Error("Expected GITHUB_AW_TARGET_REPO_SLUG to use trial repo slug in trial mode")
+	// Verify that GH_AW_TARGET_REPO_SLUG uses trial repo slug
+	if !strings.Contains(stepsContent, "          GH_AW_TARGET_REPO_SLUG: \"owner/trial-repo\"\n") {
+		t.Error("Expected GH_AW_TARGET_REPO_SLUG to use trial repo slug in trial mode")
 	}
 }
 
@@ -136,14 +136,14 @@ func TestNoStagedNorTrialMode(t *testing.T) {
 	// Convert steps to a single string for testing
 	stepsContent := strings.Join(job.Steps, "")
 
-	// Verify that GITHUB_AW_SAFE_OUTPUTS_STAGED is NOT present
-	if strings.Contains(stepsContent, "GITHUB_AW_SAFE_OUTPUTS_STAGED:") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED to not be set when staged is false")
+	// Verify that GH_AW_SAFE_OUTPUTS_STAGED is NOT present
+	if strings.Contains(stepsContent, "GH_AW_SAFE_OUTPUTS_STAGED:") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_STAGED to not be set when staged is false")
 	}
 
-	// Verify that GITHUB_AW_TARGET_REPO_SLUG is NOT present
-	if strings.Contains(stepsContent, "GITHUB_AW_TARGET_REPO_SLUG:") {
-		t.Error("Expected GITHUB_AW_TARGET_REPO_SLUG to not be set when not configured")
+	// Verify that GH_AW_TARGET_REPO_SLUG is NOT present
+	if strings.Contains(stepsContent, "GH_AW_TARGET_REPO_SLUG:") {
+		t.Error("Expected GH_AW_TARGET_REPO_SLUG to not be set when not configured")
 	}
 }
 
@@ -172,13 +172,13 @@ func TestTargetRepoOverridesTrialRepo(t *testing.T) {
 	// Convert steps to a single string for testing
 	stepsContent := strings.Join(job.Steps, "")
 
-	// Verify that GITHUB_AW_TARGET_REPO_SLUG uses explicit target, not trial repo
-	if !strings.Contains(stepsContent, "          GITHUB_AW_TARGET_REPO_SLUG: \"owner/explicit-target\"\n") {
-		t.Error("Expected GITHUB_AW_TARGET_REPO_SLUG to use explicit target-repo, not trial repo")
+	// Verify that GH_AW_TARGET_REPO_SLUG uses explicit target, not trial repo
+	if !strings.Contains(stepsContent, "          GH_AW_TARGET_REPO_SLUG: \"owner/explicit-target\"\n") {
+		t.Error("Expected GH_AW_TARGET_REPO_SLUG to use explicit target-repo, not trial repo")
 	}
 
 	// Verify that trial repo slug is NOT used
-	if strings.Contains(stepsContent, "          GITHUB_AW_TARGET_REPO_SLUG: \"owner/trial-repo\"\n") {
+	if strings.Contains(stepsContent, "          GH_AW_TARGET_REPO_SLUG: \"owner/trial-repo\"\n") {
 		t.Error("Expected trial repo slug to be overridden by explicit target-repo")
 	}
 }

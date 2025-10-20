@@ -171,12 +171,12 @@ Create the main implementation file:
 ```javascript
 async function main() {
   // Check if we're in staged mode
-  const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   // Read the validated output content from environment variable
-  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+  const outputContent = process.env.GH_AW_AGENT_OUTPUT;
   if (!outputContent) {
-    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    core.info("No GH_AW_AGENT_OUTPUT environment variable found");
     return;
   }
 

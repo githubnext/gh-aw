@@ -36,10 +36,10 @@ jobs:
       
       - name: Create prompt file
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          mkdir -p $(dirname "$GITHUB_AW_PROMPT")
-          cat > $GITHUB_AW_PROMPT << 'EOF'
+          mkdir -p $(dirname "$GH_AW_PROMPT")
+          cat > $GH_AW_PROMPT << 'EOF'
           # Fetch Last Closed Pull Request
           Fetch the title of the last closed pull request in this repository.
           Then echo the title to the step summary.
@@ -47,12 +47,12 @@ jobs:
       
       - name: Print prompt to step summary
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
+          cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
       
       - name: Execute GitHub Copilot CLI

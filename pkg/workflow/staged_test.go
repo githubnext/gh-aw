@@ -99,9 +99,9 @@ func TestClaudeEngineWithStagedFlag(t *testing.T) {
 	// Convert first step to YAML string for testing
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
-	// Check that GITHUB_AW_SAFE_OUTPUTS_STAGED is included
-	if !strings.Contains(stepContent, "GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable to be set to true")
+	// Check that GH_AW_SAFE_OUTPUTS_STAGED is included
+	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS_STAGED: \"true\"") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_STAGED environment variable to be set to true")
 	}
 
 	// Test with staged flag false
@@ -110,9 +110,9 @@ func TestClaudeEngineWithStagedFlag(t *testing.T) {
 	steps = engine.GetExecutionSteps(workflowData, "test-log")
 	stepContent = strings.Join([]string(steps[0]), "\n")
 
-	// Check that GITHUB_AW_SAFE_OUTPUTS_STAGED is not included when false
-	if strings.Contains(stepContent, "GITHUB_AW_SAFE_OUTPUTS_STAGED") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable not to be set when staged is false")
+	// Check that GH_AW_SAFE_OUTPUTS_STAGED is not included when false
+	if strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS_STAGED") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_STAGED environment variable not to be set when staged is false")
 	}
 
 }
@@ -137,8 +137,8 @@ func TestCodexEngineWithStagedFlag(t *testing.T) {
 	// Convert first step to YAML string for testing
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
-	// Check that GITHUB_AW_SAFE_OUTPUTS_STAGED is included in the env section
-	if !strings.Contains(stepContent, "GITHUB_AW_SAFE_OUTPUTS_STAGED: true") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable to be set to true in Codex engine")
+	// Check that GH_AW_SAFE_OUTPUTS_STAGED is included in the env section
+	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS_STAGED: true") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_STAGED environment variable to be set to true in Codex engine")
 	}
 }

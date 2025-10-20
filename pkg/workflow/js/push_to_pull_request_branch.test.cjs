@@ -69,14 +69,14 @@ describe("push_to_pull_request_branch.cjs", () => {
     tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
     const content = typeof data === "string" ? data : JSON.stringify(data);
     fs.writeFileSync(tempFilePath, content);
-    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+    process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
   };
 
   // Helper function to mock patch file content while preserving agent output file reading
   const mockPatchContent = patchContent => {
     mockFs.readFileSync.mockImplementation((filepath, encoding) => {
       // If reading the agent output file, always read the actual temp file
-      const agentOutputPath = process.env.GITHUB_AW_AGENT_OUTPUT;
+      const agentOutputPath = process.env.GH_AW_AGENT_OUTPUT;
       if (agentOutputPath && filepath === agentOutputPath) {
         return fs.readFileSync(filepath, encoding || "utf8");
       }
@@ -102,18 +102,18 @@ describe("push_to_pull_request_branch.cjs", () => {
     vi.clearAllMocks();
 
     // Clear environment variables
-    delete process.env.GITHUB_AW_PUSH_TARGET;
-    delete process.env.GITHUB_AW_AGENT_OUTPUT;
-    delete process.env.GITHUB_AW_PUSH_IF_NO_CHANGES;
-    delete process.env.GITHUB_AW_PR_TITLE_PREFIX;
-    delete process.env.GITHUB_AW_PR_LABELS;
+    delete process.env.GH_AW_PUSH_TARGET;
+    delete process.env.GH_AW_AGENT_OUTPUT;
+    delete process.env.GH_AW_PUSH_IF_NO_CHANGES;
+    delete process.env.GH_AW_PR_TITLE_PREFIX;
+    delete process.env.GH_AW_PR_LABELS;
 
     // Create fresh mock objects for each test
     mockFs = {
       existsSync: vi.fn(),
       readFileSync: vi.fn().mockImplementation((filepath, encoding) => {
         // If reading the agent output file, always read the actual temp file
-        const agentOutputPath = process.env.GITHUB_AW_AGENT_OUTPUT;
+        const agentOutputPath = process.env.GH_AW_AGENT_OUTPUT;
         if (agentOutputPath && filepath === agentOutputPath) {
           return fs.readFileSync(filepath, encoding || "utf8");
         }
@@ -199,7 +199,7 @@ const exec = global.exec;`
   describe("Script execution", () => {
     it("should skip when no agent output is provided", async () => {
       // Remove the output content environment variable
-      delete process.env.GITHUB_AW_AGENT_OUTPUT;
+      delete process.env.GH_AW_AGENT_OUTPUT;
 
       // Execute the script
       await executeScript();
@@ -236,7 +236,7 @@ const exec = global.exec;`
       setAgentOutput({
         items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
-      process.env.GITHUB_AW_PUSH_IF_NO_CHANGES = "error";
+      process.env.GH_AW_PUSH_IF_NO_CHANGES = "error";
 
       mockFs.existsSync.mockReturnValue(false);
 
@@ -250,7 +250,7 @@ const exec = global.exec;`
       setAgentOutput({
         items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
-      process.env.GITHUB_AW_PUSH_IF_NO_CHANGES = "ignore";
+      process.env.GH_AW_PUSH_IF_NO_CHANGES = "ignore";
 
       mockFs.existsSync.mockReturnValue(false);
 
@@ -298,7 +298,7 @@ const exec = global.exec;`
       setAgentOutput({
         items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
-      process.env.GITHUB_AW_PUSH_IF_NO_CHANGES = "error";
+      process.env.GH_AW_PUSH_IF_NO_CHANGES = "error";
 
       mockFs.existsSync.mockReturnValue(true);
       mockPatchContent("   ");
@@ -339,7 +339,7 @@ const exec = global.exec;`
       // Create a temp file with invalid JSON
       const invalidJsonPath = path.join("/tmp", `test_invalid_${Date.now()}.json`);
       fs.writeFileSync(invalidJsonPath, "invalid json content");
-      process.env.GITHUB_AW_AGENT_OUTPUT = invalidJsonPath;
+      process.env.GH_AW_AGENT_OUTPUT = invalidJsonPath;
 
       mockFs.existsSync.mockReturnValue(true);
       mockPatchContent("some patch content");
@@ -374,7 +374,7 @@ const exec = global.exec;`
       setAgentOutput({
         items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
-      process.env.GITHUB_AW_PUSH_TARGET = "custom-target";
+      process.env.GH_AW_PUSH_TARGET = "custom-target";
 
       mockFs.existsSync.mockReturnValue(true);
       mockPatchContent("some patch content");
@@ -419,7 +419,7 @@ const exec = global.exec;`
       };
 
       setAgentOutput(validOutput);
-      process.env.GITHUB_AW_MAX_PATCH_SIZE = "10"; // 10 KB limit
+      process.env.GH_AW_MAX_PATCH_SIZE = "10"; // 10 KB limit
 
       mockFs.existsSync.mockReturnValue(true);
       // Create patch content under 10 KB (approximately 5 KB)
@@ -447,7 +447,7 @@ const exec = global.exec;`
       };
 
       setAgentOutput(validOutput);
-      process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
+      process.env.GH_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
 
       mockFs.existsSync.mockReturnValue(true);
       // Create patch content over 1 KB (approximately 5 KB)
@@ -472,7 +472,7 @@ const exec = global.exec;`
       };
 
       setAgentOutput(validOutput);
-      delete process.env.GITHUB_AW_MAX_PATCH_SIZE; // No limit set
+      delete process.env.GH_AW_MAX_PATCH_SIZE; // No limit set
 
       mockFs.existsSync.mockReturnValue(true);
       const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n";
@@ -499,7 +499,7 @@ const exec = global.exec;`
       };
 
       setAgentOutput(validOutput);
-      process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
+      process.env.GH_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
 
       mockFs.existsSync.mockReturnValue(true);
       mockPatchContent(""); // Empty patch
@@ -525,7 +525,7 @@ const exec = global.exec;`
       };
 
       setAgentOutput(validOutput);
-      process.env.GITHUB_AW_PR_TITLE_PREFIX = "[bot] ";
+      process.env.GH_AW_PR_TITLE_PREFIX = "[bot] ";
 
       mockFs.existsSync.mockReturnValue(true);
       mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
@@ -572,7 +572,7 @@ const exec = global.exec;`
       };
 
       setAgentOutput(validOutput);
-      process.env.GITHUB_AW_PR_TITLE_PREFIX = "[bot] ";
+      process.env.GH_AW_PR_TITLE_PREFIX = "[bot] ";
 
       mockFs.existsSync.mockReturnValue(true);
       mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
@@ -618,7 +618,7 @@ const exec = global.exec;`
       };
 
       setAgentOutput(validOutput);
-      process.env.GITHUB_AW_PR_LABELS = "automation,enhancement";
+      process.env.GH_AW_PR_LABELS = "automation,enhancement";
 
       mockFs.existsSync.mockReturnValue(true);
       mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
@@ -665,7 +665,7 @@ const exec = global.exec;`
       };
 
       setAgentOutput(validOutput);
-      process.env.GITHUB_AW_PR_LABELS = "automation,enhancement";
+      process.env.GH_AW_PR_LABELS = "automation,enhancement";
 
       mockFs.existsSync.mockReturnValue(true);
       mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
@@ -713,8 +713,8 @@ const exec = global.exec;`
       };
 
       setAgentOutput(validOutput);
-      process.env.GITHUB_AW_PR_TITLE_PREFIX = "[automated] ";
-      process.env.GITHUB_AW_PR_LABELS = "bot,feature";
+      process.env.GH_AW_PR_TITLE_PREFIX = "[automated] ";
+      process.env.GH_AW_PR_LABELS = "bot,feature";
 
       mockFs.existsSync.mockReturnValue(true);
       mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");

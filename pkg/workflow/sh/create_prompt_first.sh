@@ -1,1 +1,1 @@
-mkdir -p $(dirname "$GITHUB_AW_PROMPT")
+mkdir -p $(dirname "$GH_AW_PROMPT")

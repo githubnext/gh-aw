@@ -32,7 +32,7 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				"GITHUB_AW_SAFE_OUTPUTS_CONFIG:",
+				"GH_AW_SAFE_OUTPUTS_CONFIG:",
 			},
 			shouldHaveEnv: true,
 		},
@@ -50,7 +50,7 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				"GITHUB_AW_SAFE_OUTPUTS_CONFIG:",
+				"GH_AW_SAFE_OUTPUTS_CONFIG:",
 			},
 			shouldHaveEnv: true,
 		},
@@ -187,7 +187,7 @@ This workflow tests that job-level environment variables are properly set for sa
 
 	// Check for required environment variables
 	expectedEnvVars := []string{
-		"      GITHUB_AW_SAFE_OUTPUTS_CONFIG:",
+		"      GH_AW_SAFE_OUTPUTS_CONFIG:",
 	}
 
 	for _, expectedEnvVar := range expectedEnvVars {

@@ -85,7 +85,7 @@ describe("add_comment.cjs", () => {
     tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
     const content = typeof data === "string" ? data : JSON.stringify(data);
     fs.writeFileSync(tempFilePath, content);
-    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+    process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
   };
 
   beforeEach(() => {
@@ -93,7 +93,7 @@ describe("add_comment.cjs", () => {
     vi.clearAllMocks();
 
     // Reset environment variables
-    delete process.env.GITHUB_AW_AGENT_OUTPUT;
+    delete process.env.GH_AW_AGENT_OUTPUT;
 
     // Reset context to default state
     global.context.eventName = "issues";
@@ -114,12 +114,12 @@ describe("add_comment.cjs", () => {
 
   it("should skip when no agent output is provided", async () => {
     // Remove the output content environment variable
-    delete process.env.GITHUB_AW_AGENT_OUTPUT;
+    delete process.env.GH_AW_AGENT_OUTPUT;
 
     // Execute the script
     await eval(`(async () => { ${createCommentScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
@@ -255,7 +255,7 @@ describe("add_comment.cjs", () => {
     expect(callArgs.body).toContain("https://github.com/testowner/testrepo/actions/runs/12345");
   });
 
-  it("should include workflow source in footer when GITHUB_AW_WORKFLOW_SOURCE is provided", async () => {
+  it("should include workflow source in footer when GH_AW_WORKFLOW_SOURCE is provided", async () => {
     setAgentOutput({
       items: [
         {
@@ -264,9 +264,9 @@ describe("add_comment.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
-    process.env.GITHUB_AW_WORKFLOW_SOURCE = "githubnext/agentics/workflows/ci-doctor.md@v1.0.0";
-    process.env.GITHUB_AW_WORKFLOW_SOURCE_URL = "https://github.com/githubnext/agentics/tree/v1.0.0/workflows/ci-doctor.md";
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_WORKFLOW_SOURCE = "githubnext/agentics/workflows/ci-doctor.md@v1.0.0";
+    process.env.GH_AW_WORKFLOW_SOURCE_URL = "https://github.com/githubnext/agentics/tree/v1.0.0/workflows/ci-doctor.md";
     global.context.eventName = "issues";
     global.context.payload.issue = { number: 123 };
 
@@ -293,7 +293,7 @@ describe("add_comment.cjs", () => {
     expect(callArgs.body).toContain("usage guide");
   });
 
-  it("should not include workflow source footer when GITHUB_AW_WORKFLOW_SOURCE is not provided", async () => {
+  it("should not include workflow source footer when GH_AW_WORKFLOW_SOURCE is not provided", async () => {
     setAgentOutput({
       items: [
         {
@@ -302,8 +302,8 @@ describe("add_comment.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
-    delete process.env.GITHUB_AW_WORKFLOW_SOURCE; // Ensure it's not set
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+    delete process.env.GH_AW_WORKFLOW_SOURCE; // Ensure it's not set
     global.context.eventName = "issues";
     global.context.payload.issue = { number: 123 };
 
@@ -412,7 +412,7 @@ describe("add_comment.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
 
     // Simulate issue context
     global.context.eventName = "issues";
@@ -445,7 +445,7 @@ describe("add_comment.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
 
     // Simulate PR context
     global.context.eventName = "pull_request";

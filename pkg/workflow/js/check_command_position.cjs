@@ -3,10 +3,10 @@
  * This prevents accidental command triggers from words appearing later in content
  */
 async function main() {
-  const command = process.env.GITHUB_AW_COMMAND;
+  const command = process.env.GH_AW_COMMAND;
 
   if (!command) {
-    core.setFailed("Configuration error: GITHUB_AW_COMMAND not specified.");
+    core.setFailed("Configuration error: GH_AW_COMMAND not specified.");
     return;
   }
 

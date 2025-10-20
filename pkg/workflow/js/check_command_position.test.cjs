@@ -69,7 +69,7 @@ describe("check_command_position.cjs", () => {
 
     // Store original environment
     originalEnv = {
-      GITHUB_AW_COMMAND: process.env.GITHUB_AW_COMMAND,
+      GH_AW_COMMAND: process.env.GH_AW_COMMAND,
     };
 
     // Load the script
@@ -83,23 +83,23 @@ describe("check_command_position.cjs", () => {
 
   afterEach(() => {
     // Restore original environment
-    if (originalEnv.GITHUB_AW_COMMAND !== undefined) {
-      process.env.GITHUB_AW_COMMAND = originalEnv.GITHUB_AW_COMMAND;
+    if (originalEnv.GH_AW_COMMAND !== undefined) {
+      process.env.GH_AW_COMMAND = originalEnv.GH_AW_COMMAND;
     } else {
-      delete process.env.GITHUB_AW_COMMAND;
+      delete process.env.GH_AW_COMMAND;
     }
   });
 
-  it("should fail when GITHUB_AW_COMMAND is not set", async () => {
-    delete process.env.GITHUB_AW_COMMAND;
+  it("should fail when GH_AW_COMMAND is not set", async () => {
+    delete process.env.GH_AW_COMMAND;
 
     await eval(`(async () => { ${checkCommandPositionScript} })()`);
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith("Configuration error: GITHUB_AW_COMMAND not specified.");
+    expect(mockCore.setFailed).toHaveBeenCalledWith("Configuration error: GH_AW_COMMAND not specified.");
   });
 
   it("should pass when command is the first word in issue body", async () => {
-    process.env.GITHUB_AW_COMMAND = "test-bot";
+    process.env.GH_AW_COMMAND = "test-bot";
     mockContext.eventName = "issues";
     mockContext.payload = {
       issue: {
@@ -114,7 +114,7 @@ describe("check_command_position.cjs", () => {
   });
 
   it("should fail when command is not the first word in issue body", async () => {
-    process.env.GITHUB_AW_COMMAND = "test-bot";
+    process.env.GH_AW_COMMAND = "test-bot";
     mockContext.eventName = "issues";
     mockContext.payload = {
       issue: {
@@ -129,7 +129,7 @@ describe("check_command_position.cjs", () => {
   });
 
   it("should pass when command is first word after whitespace", async () => {
-    process.env.GITHUB_AW_COMMAND = "helper";
+    process.env.GH_AW_COMMAND = "helper";
     mockContext.eventName = "issue_comment";
     mockContext.payload = {
       comment: {
@@ -143,7 +143,7 @@ describe("check_command_position.cjs", () => {
   });
 
   it("should pass for non-comment events", async () => {
-    process.env.GITHUB_AW_COMMAND = "test-bot";
+    process.env.GH_AW_COMMAND = "test-bot";
     mockContext.eventName = "workflow_dispatch";
     mockContext.payload = {};
 
@@ -154,7 +154,7 @@ describe("check_command_position.cjs", () => {
   });
 
   it("should handle pull_request event with command at start", async () => {
-    process.env.GITHUB_AW_COMMAND = "review-bot";
+    process.env.GH_AW_COMMAND = "review-bot";
     mockContext.eventName = "pull_request";
     mockContext.payload = {
       pull_request: {
@@ -168,7 +168,7 @@ describe("check_command_position.cjs", () => {
   });
 
   it("should pass when text is empty", async () => {
-    process.env.GITHUB_AW_COMMAND = "test-bot";
+    process.env.GH_AW_COMMAND = "test-bot";
     mockContext.eventName = "issues";
     mockContext.payload = {
       issue: {
@@ -183,7 +183,7 @@ describe("check_command_position.cjs", () => {
   });
 
   it("should pass when text does not contain the command", async () => {
-    process.env.GITHUB_AW_COMMAND = "test-bot";
+    process.env.GH_AW_COMMAND = "test-bot";
     mockContext.eventName = "issues";
     mockContext.payload = {
       issue: {
@@ -198,7 +198,7 @@ describe("check_command_position.cjs", () => {
   });
 
   it("should handle discussion events", async () => {
-    process.env.GITHUB_AW_COMMAND = "discuss-bot";
+    process.env.GH_AW_COMMAND = "discuss-bot";
     mockContext.eventName = "discussion";
     mockContext.payload = {
       discussion: {
@@ -212,7 +212,7 @@ describe("check_command_position.cjs", () => {
   });
 
   it("should handle discussion_comment events", async () => {
-    process.env.GITHUB_AW_COMMAND = "discuss-bot";
+    process.env.GH_AW_COMMAND = "discuss-bot";
     mockContext.eventName = "discussion_comment";
     mockContext.payload = {
       comment: {

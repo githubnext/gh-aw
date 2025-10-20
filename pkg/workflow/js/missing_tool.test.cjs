@@ -13,7 +13,7 @@ describe("missing_tool.cjs", () => {
     tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
     const content = typeof data === "string" ? data : JSON.stringify(data);
     fs.writeFileSync(tempFilePath, content);
-    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+    process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
   };
 
   beforeEach(() => {
@@ -94,8 +94,8 @@ describe("missing_tool.cjs", () => {
     }
 
     // Clean up environment variables
-    delete process.env.GITHUB_AW_AGENT_OUTPUT;
-    delete process.env.GITHUB_AW_MISSING_TOOL_MAX;
+    delete process.env.GH_AW_AGENT_OUTPUT;
+    delete process.env.GH_AW_MISSING_TOOL_MAX;
 
     // Restore original console
     global.console = originalConsole;
@@ -244,7 +244,7 @@ describe("missing_tool.cjs", () => {
       };
 
       setAgentOutput(testData);
-      process.env.GITHUB_AW_MISSING_TOOL_MAX = "2";
+      process.env.GH_AW_MISSING_TOOL_MAX = "2";
 
       await runScript();
 
@@ -269,7 +269,7 @@ describe("missing_tool.cjs", () => {
       };
 
       setAgentOutput(testData);
-      // No GITHUB_AW_MISSING_TOOL_MAX set
+      // No GH_AW_MISSING_TOOL_MAX set
 
       await runScript();
 

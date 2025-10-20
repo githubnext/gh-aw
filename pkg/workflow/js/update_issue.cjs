@@ -1,11 +1,11 @@
 async function main() {
   // Check if we're in staged mode
-  const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   // Read the validated output content from environment variable
-  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   if (!agentOutputFile) {
-    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    core.info("No GH_AW_AGENT_OUTPUT environment variable found");
     return;
   }
 
@@ -81,10 +81,10 @@ async function main() {
   }
 
   // Get the configuration from environment variables
-  const updateTarget = process.env.GITHUB_AW_UPDATE_TARGET || "triggering";
-  const canUpdateStatus = process.env.GITHUB_AW_UPDATE_STATUS === "true";
-  const canUpdateTitle = process.env.GITHUB_AW_UPDATE_TITLE === "true";
-  const canUpdateBody = process.env.GITHUB_AW_UPDATE_BODY === "true";
+  const updateTarget = process.env.GH_AW_UPDATE_TARGET || "triggering";
+  const canUpdateStatus = process.env.GH_AW_UPDATE_STATUS === "true";
+  const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
+  const canUpdateBody = process.env.GH_AW_UPDATE_BODY === "true";
 
   core.info(`Update target configuration: ${updateTarget}`);
   core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`);

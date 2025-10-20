@@ -91,7 +91,7 @@ safe-outputs:
 # Test Workflow
 
 This is a test workflow that should create an issue with subissue functionality.
-Write output to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}.`
+Write output to ${{ env.GH_AW_SAFE_OUTPUTS }}.`
 
 	testFile := filepath.Join(tmpDir, "test-subissue.md")
 	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {

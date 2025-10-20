@@ -48,24 +48,24 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			// Prepare environment variables to merge
 			envVars := make(map[string]string)
 
-			// Always add GITHUB_AW_PROMPT for agentic workflows
-			envVars["GITHUB_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
+			// Always add GH_AW_PROMPT for agentic workflows
+			envVars["GH_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
 
-			// Add GITHUB_AW_MCP_CONFIG for MCP server configuration
-			envVars["GITHUB_AW_MCP_CONFIG"] = "/tmp/gh-aw/mcp-config/mcp-servers.json"
+			// Add GH_AW_MCP_CONFIG for MCP server configuration
+			envVars["GH_AW_MCP_CONFIG"] = "/tmp/gh-aw/mcp-config/mcp-servers.json"
 
-			// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
+			// Add GH_AW_SAFE_OUTPUTS if safe-outputs feature is used
 			applySafeOutputEnvToMap(envVars, workflowData)
 
-			// Add GITHUB_AW_MAX_TURNS if max-turns is configured
+			// Add GH_AW_MAX_TURNS if max-turns is configured
 			if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-				envVars["GITHUB_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+				envVars["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
 			}
 
-			// Add GITHUB_AW_ARGS if args are configured
+			// Add GH_AW_ARGS if args are configured
 			if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
 				// Join args with space separator for environment variable
-				envVars["GITHUB_AW_ARGS"] = strings.Join(workflowData.EngineConfig.Args, " ")
+				envVars["GH_AW_ARGS"] = strings.Join(workflowData.EngineConfig.Args, " ")
 			}
 
 			// Add custom environment variables from engine config

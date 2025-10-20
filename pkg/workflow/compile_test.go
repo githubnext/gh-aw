@@ -271,11 +271,11 @@ This workflow tests the create-issue job generation.
 	}
 
 	// Verify JavaScript content includes environment variables for configuration
-	if !strings.Contains(lockContent, "GITHUB_AW_ISSUE_TITLE_PREFIX: \"[genai] \"") {
+	if !strings.Contains(lockContent, "GH_AW_ISSUE_TITLE_PREFIX: \"[genai] \"") {
 		t.Error("Expected title prefix to be set as environment variable")
 	}
 
-	if !strings.Contains(lockContent, "GITHUB_AW_ISSUE_LABELS: \"copilot\"") {
+	if !strings.Contains(lockContent, "GH_AW_ISSUE_LABELS: \"copilot\"") {
 		t.Error("Expected copilot label to be set as environment variable")
 	}
 
@@ -597,7 +597,7 @@ This workflow tests the add_comment job generation.
 	}
 
 	// Verify JavaScript content includes environment variable for agent output
-	if !strings.Contains(lockContent, "GITHUB_AW_AGENT_OUTPUT:") {
+	if !strings.Contains(lockContent, "GH_AW_AGENT_OUTPUT:") {
 		t.Error("Expected agent output content to be passed as environment variable")
 	}
 
@@ -836,16 +836,16 @@ This workflow tests the create_pull_request job generation.
 	}
 
 	// Verify JavaScript content includes environment variables for configuration
-	if !strings.Contains(lockContentStr, "GITHUB_AW_PR_TITLE_PREFIX: \"[agent] \"") {
+	if !strings.Contains(lockContentStr, "GH_AW_PR_TITLE_PREFIX: \"[agent] \"") {
 		t.Error("Expected title prefix to be set as environment variable")
 	}
 
-	if !strings.Contains(lockContentStr, "GITHUB_AW_PR_LABELS: \"automation\"") {
+	if !strings.Contains(lockContentStr, "GH_AW_PR_LABELS: \"automation\"") {
 		t.Error("Expected automation label to be set as environment variable")
 	}
 
 	// Verify draft setting defaults to true
-	if !strings.Contains(lockContentStr, "GITHUB_AW_PR_DRAFT: \"true\"") {
+	if !strings.Contains(lockContentStr, "GH_AW_PR_DRAFT: \"true\"") {
 		t.Error("Expected draft to default to true when not specified")
 	}
 
@@ -916,16 +916,16 @@ This workflow tests the create_pull_request job generation with draft: false.
 	}
 
 	// Verify draft setting is false
-	if !strings.Contains(lockContentStr, "GITHUB_AW_PR_DRAFT: \"false\"") {
+	if !strings.Contains(lockContentStr, "GH_AW_PR_DRAFT: \"false\"") {
 		t.Error("Expected draft to be set to false when explicitly specified")
 	}
 
 	// Verify other expected environment variables are still present
-	if !strings.Contains(lockContentStr, "GITHUB_AW_PR_TITLE_PREFIX: \"[agent] \"") {
+	if !strings.Contains(lockContentStr, "GH_AW_PR_TITLE_PREFIX: \"[agent] \"") {
 		t.Error("Expected title prefix to be set as environment variable")
 	}
 
-	if !strings.Contains(lockContentStr, "GITHUB_AW_PR_LABELS: \"automation\"") {
+	if !strings.Contains(lockContentStr, "GH_AW_PR_LABELS: \"automation\"") {
 		t.Error("Expected automation label to be set as environment variable")
 	}
 
@@ -991,16 +991,16 @@ This workflow tests the create_pull_request job generation with draft: true.
 	}
 
 	// Verify draft setting is true
-	if !strings.Contains(lockContentStr, "GITHUB_AW_PR_DRAFT: \"true\"") {
+	if !strings.Contains(lockContentStr, "GH_AW_PR_DRAFT: \"true\"") {
 		t.Error("Expected draft to be set to true when explicitly specified")
 	}
 
 	// Verify other expected environment variables are still present
-	if !strings.Contains(lockContentStr, "GITHUB_AW_PR_TITLE_PREFIX: \"[agent] \"") {
+	if !strings.Contains(lockContentStr, "GH_AW_PR_TITLE_PREFIX: \"[agent] \"") {
 		t.Error("Expected title prefix to be set as environment variable")
 	}
 
-	if !strings.Contains(lockContentStr, "GITHUB_AW_PR_LABELS: \"automation\"") {
+	if !strings.Contains(lockContentStr, "GH_AW_PR_LABELS: \"automation\"") {
 		t.Error("Expected automation label to be set as environment variable")
 	}
 
@@ -1164,11 +1164,11 @@ This workflow tests the add_labels job generation.
 	}
 
 	// Verify JavaScript content includes environment variables for configuration
-	if !strings.Contains(lockContent, "GITHUB_AW_AGENT_OUTPUT:") {
+	if !strings.Contains(lockContent, "GH_AW_AGENT_OUTPUT:") {
 		t.Error("Expected agent output content to be passed as environment variable")
 	}
 
-	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_ALLOWED: \"triage,bug,enhancement\"") {
+	if !strings.Contains(lockContent, "GH_AW_LABELS_ALLOWED: \"triage,bug,enhancement\"") {
 		t.Error("Expected allowed labels to be set as environment variable")
 	}
 
@@ -1205,7 +1205,7 @@ safe-outputs:
 # Test Output Label No Allowed Labels
 
 This workflow tests label addition with no allowed labels restriction.
-Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
+Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 `
 
 	testFile := filepath.Join(tmpDir, "test-label-no-allowed.md")
@@ -1248,17 +1248,17 @@ Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
 	}
 
 	// Verify JavaScript content includes environment variables for configuration
-	if !strings.Contains(lockContent, "GITHUB_AW_AGENT_OUTPUT:") {
+	if !strings.Contains(lockContent, "GH_AW_AGENT_OUTPUT:") {
 		t.Error("Expected agent output content to be passed as environment variable")
 	}
 
 	// Verify empty allowed labels environment variable is set
-	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_ALLOWED: \"\"") {
+	if !strings.Contains(lockContent, "GH_AW_LABELS_ALLOWED: \"\"") {
 		t.Error("Expected empty allowed labels to be set as environment variable")
 	}
 
 	// Verify max is set correctly
-	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_MAX_COUNT: 5") {
+	if !strings.Contains(lockContent, "GH_AW_LABELS_MAX_COUNT: 5") {
 		t.Error("Expected max to be set correctly")
 	}
 
@@ -1289,7 +1289,7 @@ safe-outputs:
 # Test Output Label Null Config
 
 This workflow tests label addition with null configuration (any labels allowed).
-Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
+Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 `
 
 	testFile := filepath.Join(tmpDir, "test-label-null-config.md")
@@ -1337,17 +1337,17 @@ Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
 	}
 
 	// Verify JavaScript content includes environment variables for configuration
-	if !strings.Contains(lockContent, "GITHUB_AW_AGENT_OUTPUT:") {
+	if !strings.Contains(lockContent, "GH_AW_AGENT_OUTPUT:") {
 		t.Error("Expected agent output content to be passed as environment variable")
 	}
 
 	// Verify empty allowed labels environment variable is set
-	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_ALLOWED: \"\"") {
+	if !strings.Contains(lockContent, "GH_AW_LABELS_ALLOWED: \"\"") {
 		t.Error("Expected empty allowed labels to be set as environment variable")
 	}
 
 	// Verify default max is set correctly
-	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_MAX_COUNT: 3") {
+	if !strings.Contains(lockContent, "GH_AW_LABELS_MAX_COUNT: 3") {
 		t.Error("Expected default max to be set correctly")
 	}
 
@@ -1591,12 +1591,12 @@ This workflow tests the add_labels job generation with max.
 	}
 
 	// Verify JavaScript content includes environment variables for configuration
-	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_ALLOWED: \"triage,bug,enhancement\"") {
+	if !strings.Contains(lockContent, "GH_AW_LABELS_ALLOWED: \"triage,bug,enhancement\"") {
 		t.Error("Expected allowed labels to be set as environment variable")
 	}
 
 	// Verify max environment variable is set
-	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_MAX_COUNT: 2") {
+	if !strings.Contains(lockContent, "GH_AW_LABELS_MAX_COUNT: 2") {
 		t.Error("Expected max to be set as environment variable")
 	}
 
@@ -1662,7 +1662,7 @@ This workflow tests the add_labels job generation with default max.
 	}
 
 	// Verify max environment variable is set to default value of 3
-	if !strings.Contains(lockContent, "GITHUB_AW_LABELS_MAX_COUNT: 3") {
+	if !strings.Contains(lockContent, "GH_AW_LABELS_MAX_COUNT: 3") {
 		t.Error("Expected max to be set to default value of 3 as environment variable")
 	}
 
@@ -1861,7 +1861,7 @@ This workflow tests the default if-no-changes behavior.
 
 	// Verify the if-no-changes configuration is passed to the environment
 	lockContentStr := string(lockContent)
-	if !strings.Contains(lockContentStr, "GITHUB_AW_PR_IF_NO_CHANGES: \"error\"") {
-		t.Error("Expected GITHUB_AW_PR_IF_NO_CHANGES environment variable to be set in generated workflow")
+	if !strings.Contains(lockContentStr, "GH_AW_PR_IF_NO_CHANGES: \"error\"") {
+		t.Error("Expected GH_AW_PR_IF_NO_CHANGES environment variable to be set in generated workflow")
 	}
 }

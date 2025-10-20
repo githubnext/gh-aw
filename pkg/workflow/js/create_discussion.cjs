@@ -3,9 +3,9 @@ async function main() {
   core.setOutput("discussion_number", "");
   core.setOutput("discussion_url", "");
 
-  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   if (!agentOutputFile) {
-    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    core.info("No GH_AW_AGENT_OUTPUT environment variable found");
     return;
   }
 
@@ -40,7 +40,7 @@ async function main() {
     return;
   }
   core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
-  if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
     let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
     summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
     for (let i = 0; i < createDiscussionItems.length; i++) {
@@ -99,7 +99,7 @@ async function main() {
     core.error(`Failed to get discussion categories: ${errorMessage}`);
     throw error;
   }
-  let categoryId = process.env.GITHUB_AW_DISCUSSION_CATEGORY;
+  let categoryId = process.env.GH_AW_DISCUSSION_CATEGORY;
   if (categoryId) {
     // Try to match against category IDs first
     const categoryById = discussionCategories.find(cat => cat.id === categoryId);
@@ -154,11 +154,11 @@ async function main() {
     if (!title) {
       title = createDiscussionItem.body || "Agent Output";
     }
-    const titlePrefix = process.env.GITHUB_AW_DISCUSSION_TITLE_PREFIX;
+    const titlePrefix = process.env.GH_AW_DISCUSSION_TITLE_PREFIX;
     if (titlePrefix && !title.startsWith(titlePrefix)) {
       title = titlePrefix + title;
     }
-    const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const runUrl = context.payload.repository

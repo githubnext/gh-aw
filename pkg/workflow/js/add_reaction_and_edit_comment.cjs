@@ -1,7 +1,7 @@
 async function main() {
   // Read inputs from environment variables
-  const reaction = process.env.GITHUB_AW_REACTION || "eyes";
-  const command = process.env.GITHUB_AW_COMMAND; // Only present for command workflows
+  const reaction = process.env.GH_AW_REACTION || "eyes";
+  const command = process.env.GH_AW_COMMAND; // Only present for command workflows
   const runId = context.runId;
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
   const runUrl = context.payload.repository
@@ -289,7 +289,7 @@ async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) 
 async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
   try {
     // Get workflow name from environment variable
-    const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
 
     // Handle discussion events specially
     if (eventName === "discussion") {

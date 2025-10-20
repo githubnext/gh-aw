@@ -121,7 +121,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	}
 
 	command := fmt.Sprintf(`set -o pipefail
-INSTRUCTION=$(cat $GITHUB_AW_PROMPT)
+INSTRUCTION=$(cat $GH_AW_PROMPT)
 mkdir -p $CODEX_HOME/logs
 codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
 
@@ -129,16 +129,16 @@ codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, ful
 	effectiveGitHubToken := getEffectiveGitHubToken("", workflowData.GitHubToken)
 
 	env := map[string]string{
-		"CODEX_API_KEY":        "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
-		"GITHUB_STEP_SUMMARY":  "${{ env.GITHUB_STEP_SUMMARY }}",
-		"GITHUB_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
-		"GITHUB_AW_MCP_CONFIG": "/tmp/gh-aw/mcp-config/config.toml",
-		"CODEX_HOME":           "/tmp/gh-aw/mcp-config",
-		"RUST_LOG":             "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
-		"GH_AW_GITHUB_TOKEN":   effectiveGitHubToken,
+		"CODEX_API_KEY":       "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
+		"GITHUB_STEP_SUMMARY": "${{ env.GITHUB_STEP_SUMMARY }}",
+		"GH_AW_PROMPT":        "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GH_AW_MCP_CONFIG":    "/tmp/gh-aw/mcp-config/config.toml",
+		"CODEX_HOME":          "/tmp/gh-aw/mcp-config",
+		"RUST_LOG":            "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
+		"GH_AW_GITHUB_TOKEN":  effectiveGitHubToken,
 	}
 
-	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
+	// Add GH_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
 
 	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified

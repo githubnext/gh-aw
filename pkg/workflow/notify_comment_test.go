@@ -128,11 +128,11 @@ func TestUpdateReactionJob(t *testing.T) {
 				if !strings.Contains(stepsYAML, "Update reaction comment with completion status") {
 					t.Error("Expected 'Update reaction comment with completion status' step in update_reaction job")
 				}
-				if !strings.Contains(stepsYAML, "GITHUB_AW_COMMENT_ID") {
-					t.Error("Expected GITHUB_AW_COMMENT_ID environment variable in update_reaction job")
+				if !strings.Contains(stepsYAML, "GH_AW_COMMENT_ID") {
+					t.Error("Expected GH_AW_COMMENT_ID environment variable in update_reaction job")
 				}
-				if !strings.Contains(stepsYAML, "GITHUB_AW_AGENT_CONCLUSION") {
-					t.Error("Expected GITHUB_AW_AGENT_CONCLUSION environment variable in update_reaction job")
+				if !strings.Contains(stepsYAML, "GH_AW_AGENT_CONCLUSION") {
+					t.Error("Expected GH_AW_AGENT_CONCLUSION environment variable in update_reaction job")
 				}
 			} else {
 				if job != nil {
@@ -179,15 +179,15 @@ func TestUpdateReactionJobIntegration(t *testing.T) {
 
 	// Check that environment variables reference activation outputs
 	if !strings.Contains(jobYAML, "needs.activation.outputs.comment_id") {
-		t.Error("Expected GITHUB_AW_COMMENT_ID to reference activation.outputs.comment_id")
+		t.Error("Expected GH_AW_COMMENT_ID to reference activation.outputs.comment_id")
 	}
 	if !strings.Contains(jobYAML, "needs.activation.outputs.comment_repo") {
-		t.Error("Expected GITHUB_AW_COMMENT_REPO to reference activation.outputs.comment_repo")
+		t.Error("Expected GH_AW_COMMENT_REPO to reference activation.outputs.comment_repo")
 	}
 
 	// Check that agent result is referenced
 	if !strings.Contains(jobYAML, "needs.agent.result") {
-		t.Error("Expected GITHUB_AW_AGENT_CONCLUSION to reference needs.agent.result")
+		t.Error("Expected GH_AW_AGENT_CONCLUSION to reference needs.agent.result")
 	}
 
 	// Check all six conditions are present

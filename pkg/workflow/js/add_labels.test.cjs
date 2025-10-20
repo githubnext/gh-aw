@@ -81,7 +81,7 @@ describe("add_labels.cjs", () => {
     tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
     const content = typeof data === "string" ? data : JSON.stringify(data);
     fs.writeFileSync(tempFilePath, content);
-    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+    process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
   };
 
   beforeEach(() => {
@@ -89,9 +89,9 @@ describe("add_labels.cjs", () => {
     vi.clearAllMocks();
 
     // Reset environment variables
-    delete process.env.GITHUB_AW_AGENT_OUTPUT;
-    delete process.env.GITHUB_AW_LABELS_ALLOWED;
-    delete process.env.GITHUB_AW_LABELS_MAX_COUNT;
+    delete process.env.GH_AW_AGENT_OUTPUT;
+    delete process.env.GH_AW_LABELS_ALLOWED;
+    delete process.env.GH_AW_LABELS_MAX_COUNT;
 
     // Reset context to default state
     global.context.eventName = "issues";
@@ -113,19 +113,19 @@ describe("add_labels.cjs", () => {
 
   describe("Environment variable validation", () => {
     it("should skip when no agent output is provided", async () => {
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
-      delete process.env.GITHUB_AW_AGENT_OUTPUT;
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
+      delete process.env.GH_AW_AGENT_OUTPUT;
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+      expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
 
     it("should skip when agent output is empty", async () => {
       setAgentOutput("");
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -143,7 +143,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      delete process.env.GITHUB_AW_LABELS_ALLOWED;
+      delete process.env.GH_AW_LABELS_ALLOWED;
 
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
 
@@ -168,7 +168,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "   ";
+      process.env.GH_AW_LABELS_ALLOWED = "   ";
 
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
 
@@ -193,7 +193,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
 
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
 
@@ -218,8 +218,8 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
-      process.env.GITHUB_AW_LABELS_MAX_COUNT = "invalid";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_MAX_COUNT = "invalid";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -237,8 +237,8 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
-      process.env.GITHUB_AW_LABELS_MAX_COUNT = "0";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_MAX_COUNT = "0";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -256,8 +256,8 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement,feature,documentation";
-      delete process.env.GITHUB_AW_LABELS_MAX_COUNT;
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement,feature,documentation";
+      delete process.env.GH_AW_LABELS_MAX_COUNT;
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -282,7 +282,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
       global.context.eventName = "push";
 
       // Execute the script
@@ -303,7 +303,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
       global.context.eventName = "issue_comment";
 
       // Execute the script
@@ -321,7 +321,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
       global.context.eventName = "pull_request";
       global.context.payload.pull_request = { number: 456 };
       delete global.context.payload.issue;
@@ -346,7 +346,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
       global.context.eventName = "pull_request_review";
       global.context.payload.pull_request = { number: 789 };
       delete global.context.payload.issue;
@@ -371,7 +371,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
       global.context.eventName = "issues";
       delete global.context.payload.issue;
 
@@ -391,7 +391,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
       global.context.eventName = "pull_request";
       delete global.context.payload.issue;
       delete global.context.payload.pull_request;
@@ -414,7 +414,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement,feature";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement,feature";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -440,7 +440,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -462,7 +462,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -480,7 +480,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -502,8 +502,8 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement,feature,documentation,question";
-      process.env.GITHUB_AW_LABELS_MAX_COUNT = "2";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement,feature,documentation,question";
+      process.env.GH_AW_LABELS_MAX_COUNT = "2";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -526,7 +526,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -548,7 +548,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement,feature";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement,feature";
 
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
 
@@ -580,7 +580,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
       global.context.eventName = "pull_request";
       global.context.payload.pull_request = { number: 456 };
       delete global.context.payload.issue;
@@ -607,7 +607,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
 
       const apiError = new Error("Label does not exist");
       mockGithub.rest.issues.addLabels.mockRejectedValue(apiError);
@@ -630,7 +630,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
 
       const stringError = "Something went wrong";
       mockGithub.rest.issues.addLabels.mockRejectedValue(stringError);
@@ -655,7 +655,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -672,8 +672,8 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement,feature";
-      process.env.GITHUB_AW_LABELS_MAX_COUNT = "5";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement,feature";
+      process.env.GH_AW_LABELS_MAX_COUNT = "5";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -691,7 +691,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -708,7 +708,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -727,7 +727,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = " bug , enhancement , feature ";
+      process.env.GH_AW_LABELS_ALLOWED = " bug , enhancement , feature ";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -750,7 +750,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,,enhancement,";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,,enhancement,";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -767,7 +767,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
+      process.env.GH_AW_LABELS_ALLOWED = "bug,enhancement";
 
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
 
@@ -816,7 +816,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_MAX_COUNT = "5"; // Allow more than 4 labels
+      process.env.GH_AW_LABELS_MAX_COUNT = "5"; // Allow more than 4 labels
 
       mockGithub.rest.issues.addLabels.mockResolvedValue({});
 
@@ -881,7 +881,7 @@ describe("add_labels.cjs", () => {
   describe("Target configuration", () => {
     beforeEach(() => {
       // Reset environment variables
-      delete process.env.GITHUB_AW_LABELS_TARGET;
+      delete process.env.GH_AW_LABELS_TARGET;
     });
 
     it("should use triggering issue when target is not specified (default behavior)", async () => {
@@ -920,7 +920,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_TARGET = "triggering";
+      process.env.GH_AW_LABELS_TARGET = "triggering";
 
       global.context.eventName = "issues";
       global.context.payload.issue = { number: 789 };
@@ -948,7 +948,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_TARGET = "triggering";
+      process.env.GH_AW_LABELS_TARGET = "triggering";
 
       // Set context to something other than issues or PR
       global.context.eventName = "push";
@@ -973,7 +973,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_TARGET = "999";
+      process.env.GH_AW_LABELS_TARGET = "999";
 
       // Context doesn't matter when explicit issue number is provided
       global.context.eventName = "push";
@@ -1003,7 +1003,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_TARGET = "*";
+      process.env.GH_AW_LABELS_TARGET = "*";
 
       // Context doesn't matter when issue_number is provided in the item
       global.context.eventName = "push";
@@ -1032,7 +1032,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_TARGET = "*";
+      process.env.GH_AW_LABELS_TARGET = "*";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -1050,7 +1050,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_TARGET = "invalid";
+      process.env.GH_AW_LABELS_TARGET = "invalid";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
@@ -1069,7 +1069,7 @@ describe("add_labels.cjs", () => {
           },
         ],
       });
-      process.env.GITHUB_AW_LABELS_TARGET = "*";
+      process.env.GH_AW_LABELS_TARGET = "*";
 
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);

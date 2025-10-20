@@ -1,14 +1,14 @@
 async function main() {
-  const stopTime = process.env.GITHUB_AW_STOP_TIME;
-  const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME;
+  const stopTime = process.env.GH_AW_STOP_TIME;
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME;
 
   if (!stopTime) {
-    core.setFailed("Configuration error: GITHUB_AW_STOP_TIME not specified.");
+    core.setFailed("Configuration error: GH_AW_STOP_TIME not specified.");
     return;
   }
 
   if (!workflowName) {
-    core.setFailed("Configuration error: GITHUB_AW_WORKFLOW_NAME not specified.");
+    core.setFailed("Configuration error: GH_AW_WORKFLOW_NAME not specified.");
     return;
   }
 

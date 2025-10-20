@@ -121,13 +121,13 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected ANTHROPIC_API_KEY environment variable in step: %s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
-		t.Errorf("Expected GITHUB_AW_PROMPT environment variable in step: %s", stepContent)
+	if !strings.Contains(stepContent, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
+		t.Errorf("Expected GH_AW_PROMPT environment variable in step: %s", stepContent)
 	}
 
-	// When no tools/MCP servers are configured, GITHUB_AW_MCP_CONFIG should NOT be present
-	if strings.Contains(stepContent, "GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
-		t.Errorf("Did not expect GITHUB_AW_MCP_CONFIG environment variable in step (no MCP servers): %s", stepContent)
+	// When no tools/MCP servers are configured, GH_AW_MCP_CONFIG should NOT be present
+	if strings.Contains(stepContent, "GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
+		t.Errorf("Did not expect GH_AW_MCP_CONFIG environment variable in step (no MCP servers): %s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "MCP_TIMEOUT: \"120000\"") {
@@ -166,9 +166,9 @@ func TestClaudeEngineWithOutput(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// Should include GITHUB_AW_SAFE_OUTPUTS when hasOutput=true in environment section
-	if !strings.Contains(stepContent, "GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}") {
-		t.Errorf("Expected GITHUB_AW_SAFE_OUTPUTS in env section when hasOutput=true in step content:\n%s", stepContent)
+	// Should include GH_AW_SAFE_OUTPUTS when hasOutput=true in environment section
+	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}") {
+		t.Errorf("Expected GH_AW_SAFE_OUTPUTS in env section when hasOutput=true in step content:\n%s", stepContent)
 	}
 }
 
@@ -409,9 +409,9 @@ func TestClaudeEngineWithMCPServers(t *testing.T) {
 		t.Errorf("Expected --mcp-config in CLI args when MCP servers are configured: %s", stepContent)
 	}
 
-	// When MCP servers are configured, GITHUB_AW_MCP_CONFIG SHOULD be present
-	if !strings.Contains(stepContent, "GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
-		t.Errorf("Expected GITHUB_AW_MCP_CONFIG environment variable when MCP servers are configured: %s", stepContent)
+	// When MCP servers are configured, GH_AW_MCP_CONFIG SHOULD be present
+	if !strings.Contains(stepContent, "GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
+		t.Errorf("Expected GH_AW_MCP_CONFIG environment variable when MCP servers are configured: %s", stepContent)
 	}
 }
 
@@ -443,8 +443,8 @@ func TestClaudeEngineWithSafeOutputs(t *testing.T) {
 		t.Errorf("Expected --mcp-config in CLI args when safe-outputs are configured: %s", stepContent)
 	}
 
-	// When safe-outputs is configured, GITHUB_AW_MCP_CONFIG SHOULD be present
-	if !strings.Contains(stepContent, "GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
-		t.Errorf("Expected GITHUB_AW_MCP_CONFIG environment variable when safe-outputs are configured: %s", stepContent)
+	// When safe-outputs is configured, GH_AW_MCP_CONFIG SHOULD be present
+	if !strings.Contains(stepContent, "GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
+		t.Errorf("Expected GH_AW_MCP_CONFIG environment variable when safe-outputs are configured: %s", stepContent)
 	}
 }

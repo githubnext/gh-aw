@@ -55,14 +55,14 @@ function normalizeBranchName(branchName) {
   return normalized;
 }
 
-// Handle GITHUB_AW_SAFE_OUTPUTS_CONFIG with default fallback
-const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+// Handle GH_AW_SAFE_OUTPUTS_CONFIG with default fallback
+const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
 let safeOutputsConfigRaw;
 
 if (!configEnv) {
   // Default config file path
   const defaultConfigPath = "/tmp/gh-aw/safe-outputs/config.json";
-  debug(`GITHUB_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
+  debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
 
   try {
     if (fs.existsSync(defaultConfigPath)) {
@@ -84,24 +84,24 @@ if (!configEnv) {
     safeOutputsConfigRaw = {};
   }
 } else {
-  debug(`Using GITHUB_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
+  debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
   debug(`Config environment variable length: ${configEnv.length} characters`);
   try {
     safeOutputsConfigRaw = JSON.parse(configEnv); // uses dashes for keys
     debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
   } catch (error) {
     debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
-    throw new Error(`Failed to parse GITHUB_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
 const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
 debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
 
-// Handle GITHUB_AW_SAFE_OUTPUTS with default fallback
-const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
-if (!process.env.GITHUB_AW_SAFE_OUTPUTS) {
-  debug(`GITHUB_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
+// Handle GH_AW_SAFE_OUTPUTS with default fallback
+const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
+if (!process.env.GH_AW_SAFE_OUTPUTS) {
+  debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
   // Ensure the directory exists
   const outputDir = path.dirname(outputFile);
   if (!fs.existsSync(outputDir)) {
@@ -216,8 +216,8 @@ const defaultHandler = type => args => {
 };
 
 const uploadAssetHandler = args => {
-  const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
-  if (!branchName) throw new Error("GITHUB_AW_ASSETS_BRANCH not set");
+  const branchName = process.env.GH_AW_ASSETS_BRANCH;
+  if (!branchName) throw new Error("GH_AW_ASSETS_BRANCH not set");
 
   // Normalize the branch name to ensure it's a valid git branch name
   const normalizedBranchName = normalizeBranchName(branchName);
@@ -250,15 +250,15 @@ const uploadAssetHandler = args => {
   const sizeKB = Math.ceil(sizeBytes / 1024);
 
   // Check file size - read from environment variable if available
-  const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10) : 10240; // Default 10MB
+  const maxSizeKB = process.env.GH_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GH_AW_ASSETS_MAX_SIZE_KB, 10) : 10240; // Default 10MB
   if (sizeKB > maxSizeKB) {
     throw new Error(`File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`);
   }
 
   // Check file extension - read from environment variable if available
   const ext = path.extname(filePath).toLowerCase();
-  const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS
-    ? process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
+  const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
+    ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
     : [
         // Default set as specified in problem statement
         ".png",
@@ -793,9 +793,9 @@ function handleMessage(req) {
 
         // Patch upload_asset tool description with constraints from environment
         if (tool.name === "upload_asset") {
-          const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10) : 10240;
-          const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS
-            ? process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
+          const maxSizeKB = process.env.GH_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GH_AW_ASSETS_MAX_SIZE_KB, 10) : 10240;
+          const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
+            ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
             : [".png", ".jpg", ".jpeg"];
 
           toolDef.description = `Publish a file as a URL-addressable asset to an orphaned git branch. Maximum file size: ${maxSizeKB} KB. Allowed extensions: ${allowedExts.join(", ")}`;

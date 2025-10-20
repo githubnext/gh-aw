@@ -36,15 +36,15 @@ describe("create_pull_request.cjs", () => {
     tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
     const content = typeof data === "string" ? data : JSON.stringify(data);
     fs.writeFileSync(tempFilePath, content);
-    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+    process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
   };
 
   // Helper to mock patch file content while preserving agent output reading
   const mockPatchContent = (mockDeps, patchContent) => {
     mockDeps.fs.readFileSync.mockImplementation(filepath => {
       // If reading the agent output file, return the JSON content from env var
-      if (filepath === mockDeps.process.env.GITHUB_AW_AGENT_OUTPUT) {
-        return mockDeps.process.env.GITHUB_AW_AGENT_OUTPUT;
+      if (filepath === mockDeps.process.env.GH_AW_AGENT_OUTPUT) {
+        return mockDeps.process.env.GH_AW_AGENT_OUTPUT;
       }
       // Otherwise return the patch content
       return patchContent;
@@ -74,8 +74,8 @@ describe("create_pull_request.cjs", () => {
         readFileSync: vi.fn().mockImplementation(filepath => {
           // If reading the agent output file, return the JSON content from the env var
           // (in this test setup, the env var contains JSON directly, not a file path)
-          if (filepath === mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT) {
-            return mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT;
+          if (filepath === mockDependencies.process.env.GH_AW_AGENT_OUTPUT) {
+            return mockDependencies.process.env.GH_AW_AGENT_OUTPUT;
           }
           // Otherwise return the patch content
           return "diff --git a/file.txt b/file.txt\n+new content";
@@ -176,23 +176,23 @@ describe("create_pull_request.cjs", () => {
     }
   });
 
-  it("should throw error when GITHUB_AW_WORKFLOW_ID is missing", async () => {
+  it("should throw error when GH_AW_WORKFLOW_ID is missing", async () => {
     const mainFunction = createMainFunction(mockDependencies);
 
-    await expect(mainFunction()).rejects.toThrow("GITHUB_AW_WORKFLOW_ID environment variable is required");
+    await expect(mainFunction()).rejects.toThrow("GH_AW_WORKFLOW_ID environment variable is required");
   });
 
-  it("should throw error when GITHUB_AW_BASE_BRANCH is missing", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+  it("should throw error when GH_AW_BASE_BRANCH is missing", async () => {
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
 
     const mainFunction = createMainFunction(mockDependencies);
 
-    await expect(mainFunction()).rejects.toThrow("GITHUB_AW_BASE_BRANCH environment variable is required");
+    await expect(mainFunction()).rejects.toThrow("GH_AW_BASE_BRANCH environment variable is required");
   });
 
   it("should handle missing patch file with default warn behavior", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
     mockDependencies.fs.existsSync.mockReturnValue(false);
 
     const mainFunction = createMainFunction(mockDependencies);
@@ -204,8 +204,8 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should handle empty patch with default warn behavior when patch file is empty", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
     mockPatchContent(mockDependencies, "   ");
 
     const mainFunction = createMainFunction(mockDependencies);
@@ -217,9 +217,9 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should create pull request successfully with valid input", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
           type: "create_pull_request",
@@ -281,9 +281,9 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should handle labels correctly", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
           type: "create_pull_request",
@@ -292,7 +292,7 @@ describe("create_pull_request.cjs", () => {
         },
       ],
     });
-    mockDependencies.process.env.GITHUB_AW_PR_LABELS = "enhancement, automated, needs-review";
+    mockDependencies.process.env.GH_AW_PR_LABELS = "enhancement, automated, needs-review";
 
     // Mock execSync to simulate git behavior with changes
     mockDependencies.execSync.mockImplementation(command => {
@@ -329,9 +329,9 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should respect draft setting from environment", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
           type: "create_pull_request",
@@ -340,7 +340,7 @@ describe("create_pull_request.cjs", () => {
         },
       ],
     });
-    mockDependencies.process.env.GITHUB_AW_PR_DRAFT = "false";
+    mockDependencies.process.env.GH_AW_PR_DRAFT = "false";
 
     // Mock execSync to simulate git behavior with changes
     mockDependencies.execSync.mockImplementation(command => {
@@ -371,9 +371,9 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should include run information in PR body", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
           type: "create_pull_request",
@@ -415,9 +415,9 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should apply title prefix when provided", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
           type: "create_pull_request",
@@ -426,7 +426,7 @@ describe("create_pull_request.cjs", () => {
         },
       ],
     });
-    mockDependencies.process.env.GITHUB_AW_PR_TITLE_PREFIX = "[BOT] ";
+    mockDependencies.process.env.GH_AW_PR_TITLE_PREFIX = "[BOT] ";
 
     // Mock execSync to simulate git behavior with changes
     mockDependencies.execSync.mockImplementation(command => {
@@ -457,9 +457,9 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should not duplicate title prefix when already present", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
           type: "create_pull_request",
@@ -468,7 +468,7 @@ describe("create_pull_request.cjs", () => {
         },
       ],
     });
-    mockDependencies.process.env.GITHUB_AW_PR_TITLE_PREFIX = "[BOT] ";
+    mockDependencies.process.env.GH_AW_PR_TITLE_PREFIX = "[BOT] ";
 
     // Mock execSync to simulate git behavior with changes
     mockDependencies.execSync.mockImplementation(command => {
@@ -499,9 +499,9 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should fallback to creating issue when PR creation fails", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
           type: "create_pull_request",
@@ -510,7 +510,7 @@ describe("create_pull_request.cjs", () => {
         },
       ],
     });
-    mockDependencies.process.env.GITHUB_AW_PR_LABELS = "enhancement, automated";
+    mockDependencies.process.env.GH_AW_PR_LABELS = "enhancement, automated";
 
     // Mock execSync to simulate git behavior with changes
     mockDependencies.execSync.mockImplementation(command => {
@@ -582,9 +582,9 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should include patch preview in fallback issue when PR creation fails", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
           type: "create_pull_request",
@@ -635,9 +635,9 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should truncate patch by character limit when it exceeds 2000 chars", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
           type: "create_pull_request",
@@ -691,9 +691,9 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should include full patch when under 500 lines in fallback issue", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
           type: "create_pull_request",
@@ -736,9 +736,9 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should fail when both PR and fallback issue creation fail", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
           type: "create_pull_request",
@@ -782,9 +782,9 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should fallback to creating issue when git push fails", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
           type: "create_pull_request",
@@ -793,7 +793,7 @@ describe("create_pull_request.cjs", () => {
         },
       ],
     });
-    mockDependencies.process.env.GITHUB_AW_PR_LABELS = "automation";
+    mockDependencies.process.env.GH_AW_PR_LABELS = "automation";
 
     // Mock execSync to simulate git behavior with changes
     mockDependencies.execSync.mockImplementation(command => {
@@ -869,9 +869,9 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should include patch preview in fallback issue when git push fails", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
           type: "create_pull_request",
@@ -925,9 +925,9 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should fail when both git push and fallback issue creation fail", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
           type: "create_pull_request",
@@ -983,9 +983,9 @@ describe("create_pull_request.cjs", () => {
   });
 
   it("should handle remote branch collision by appending random suffix", async () => {
-    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
           type: "create_pull_request",
@@ -1071,9 +1071,9 @@ describe("create_pull_request.cjs", () => {
 
   describe("if-no-changes configuration", () => {
     beforeEach(() => {
-      mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-      mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-      mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
             type: "create_pull_request",
@@ -1086,7 +1086,7 @@ describe("create_pull_request.cjs", () => {
 
     it("should handle empty patch with warn (default) behavior", async () => {
       mockPatchContent(mockDependencies, "");
-      mockDependencies.process.env.GITHUB_AW_PR_IF_NO_CHANGES = "warn";
+      mockDependencies.process.env.GH_AW_PR_IF_NO_CHANGES = "warn";
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -1098,7 +1098,7 @@ describe("create_pull_request.cjs", () => {
 
     it("should handle empty patch with ignore behavior", async () => {
       mockPatchContent(mockDependencies, "");
-      mockDependencies.process.env.GITHUB_AW_PR_IF_NO_CHANGES = "ignore";
+      mockDependencies.process.env.GH_AW_PR_IF_NO_CHANGES = "ignore";
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -1110,7 +1110,7 @@ describe("create_pull_request.cjs", () => {
 
     it("should handle empty patch with error behavior", async () => {
       mockPatchContent(mockDependencies, "");
-      mockDependencies.process.env.GITHUB_AW_PR_IF_NO_CHANGES = "error";
+      mockDependencies.process.env.GH_AW_PR_IF_NO_CHANGES = "error";
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -1120,7 +1120,7 @@ describe("create_pull_request.cjs", () => {
 
     it("should handle missing patch file with warn behavior", async () => {
       mockDependencies.fs.existsSync.mockReturnValue(false);
-      mockDependencies.process.env.GITHUB_AW_PR_IF_NO_CHANGES = "warn";
+      mockDependencies.process.env.GH_AW_PR_IF_NO_CHANGES = "warn";
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -1132,7 +1132,7 @@ describe("create_pull_request.cjs", () => {
 
     it("should handle missing patch file with ignore behavior", async () => {
       mockDependencies.fs.existsSync.mockReturnValue(false);
-      mockDependencies.process.env.GITHUB_AW_PR_IF_NO_CHANGES = "ignore";
+      mockDependencies.process.env.GH_AW_PR_IF_NO_CHANGES = "ignore";
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -1144,7 +1144,7 @@ describe("create_pull_request.cjs", () => {
 
     it("should handle missing patch file with error behavior", async () => {
       mockDependencies.fs.existsSync.mockReturnValue(false);
-      mockDependencies.process.env.GITHUB_AW_PR_IF_NO_CHANGES = "error";
+      mockDependencies.process.env.GH_AW_PR_IF_NO_CHANGES = "error";
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -1154,7 +1154,7 @@ describe("create_pull_request.cjs", () => {
 
     it("should handle patch with error message with warn behavior", async () => {
       mockPatchContent(mockDependencies, "Failed to generate patch: some error");
-      mockDependencies.process.env.GITHUB_AW_PR_IF_NO_CHANGES = "warn";
+      mockDependencies.process.env.GH_AW_PR_IF_NO_CHANGES = "warn";
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -1168,7 +1168,7 @@ describe("create_pull_request.cjs", () => {
 
     it("should default to warn when if-no-changes is not specified", async () => {
       mockPatchContent(mockDependencies, "");
-      // Don't set GITHUB_AW_PR_IF_NO_CHANGES env var
+      // Don't set GH_AW_PR_IF_NO_CHANGES env var
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -1181,9 +1181,9 @@ describe("create_pull_request.cjs", () => {
 
   describe("staged mode functionality", () => {
     beforeEach(() => {
-      mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
-      mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-      mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
             type: "create_pull_request",
@@ -1196,7 +1196,7 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should write step summary instead of creating PR when in staged mode", async () => {
-      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
+      mockDependencies.process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -1217,7 +1217,7 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should include patch information in staged mode summary", async () => {
-      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
+      mockDependencies.process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
       mockPatchContent(mockDependencies, "diff --git a/test.txt b/test.txt\n+added line\n-removed line");
 
       const mainFunction = createMainFunction(mockDependencies);
@@ -1236,7 +1236,7 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should handle empty patch in staged mode", async () => {
-      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
+      mockDependencies.process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
       mockPatchContent(mockDependencies, "");
 
       const mainFunction = createMainFunction(mockDependencies);
@@ -1251,8 +1251,8 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should use auto-generated branch when no branch specified in staged mode", async () => {
-      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
-      mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      mockDependencies.process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
             type: "create_pull_request",
@@ -1271,7 +1271,7 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should not execute git operations in staged mode", async () => {
-      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
+      mockDependencies.process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -1284,7 +1284,7 @@ describe("create_pull_request.cjs", () => {
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
       expect(mockDependencies.github.rest.issues.addLabels).not.toHaveBeenCalled();
 
-      // Verify empty outputs were set
+      // Verify outputs were initialized to empty strings
       expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("pull_request_number", "");
       expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("pull_request_url", "");
       expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("issue_number", "");
@@ -1294,7 +1294,7 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should handle missing patch file in staged mode", async () => {
-      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
+      mockDependencies.process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
       mockDependencies.fs.existsSync.mockReturnValue(false);
 
       const mainFunction = createMainFunction(mockDependencies);
@@ -1312,7 +1312,7 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should handle patch error in staged mode", async () => {
-      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
+      mockDependencies.process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
       mockPatchContent(mockDependencies, "Failed to generate patch: some error occurred");
 
       const mainFunction = createMainFunction(mockDependencies);
@@ -1330,7 +1330,7 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should validate patch size within limit", async () => {
-      mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
             type: "create_pull_request",
@@ -1340,7 +1340,7 @@ describe("create_pull_request.cjs", () => {
           },
         ],
       });
-      mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE = "10"; // 10 KB limit
+      mockDependencies.process.env.GH_AW_MAX_PATCH_SIZE = "10"; // 10 KB limit
 
       mockDependencies.fs.existsSync.mockReturnValue(true);
       // Create patch content under 10 KB (approximately 5 KB)
@@ -1365,7 +1365,7 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should fail when patch size exceeds limit", async () => {
-      mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
             type: "create_pull_request",
@@ -1375,7 +1375,7 @@ describe("create_pull_request.cjs", () => {
           },
         ],
       });
-      mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
+      mockDependencies.process.env.GH_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
 
       mockDependencies.fs.existsSync.mockReturnValue(true);
       // Create patch content over 1 KB (approximately 5 KB)
@@ -1390,8 +1390,8 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should show staged preview when patch size exceeds limit in staged mode", async () => {
-      mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
-      mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      mockDependencies.process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
             type: "create_pull_request",
@@ -1401,7 +1401,7 @@ describe("create_pull_request.cjs", () => {
           },
         ],
       });
-      mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
+      mockDependencies.process.env.GH_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
 
       mockDependencies.fs.existsSync.mockReturnValue(true);
       // Create patch content over 1 KB (approximately 5 KB)
@@ -1424,7 +1424,7 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should use default 1024 KB limit when env var not set", async () => {
-      mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
             type: "create_pull_request",
@@ -1434,7 +1434,7 @@ describe("create_pull_request.cjs", () => {
           },
         ],
       });
-      delete mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE; // No limit set
+      delete mockDependencies.process.env.GH_AW_MAX_PATCH_SIZE; // No limit set
 
       mockDependencies.fs.existsSync.mockReturnValue(true);
       const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n";
@@ -1457,7 +1457,7 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should skip patch size validation for empty patches", async () => {
-      mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
             type: "create_pull_request",
@@ -1467,7 +1467,7 @@ describe("create_pull_request.cjs", () => {
           },
         ],
       });
-      mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
+      mockDependencies.process.env.GH_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
 
       mockDependencies.fs.existsSync.mockReturnValue(true);
       mockPatchContent(mockDependencies, ""); // Empty patch

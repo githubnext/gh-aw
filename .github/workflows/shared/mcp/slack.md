@@ -23,8 +23,8 @@ safe-outputs:
               const fs = require('fs');
               const slackBotToken = process.env.SLACK_BOT_TOKEN;
               const slackChannelId = process.env.SLACK_CHANNEL_ID;
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true';
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true';
+              const outputContent = process.env.GH_AW_AGENT_OUTPUT;
               
               // Validate required environment variables
               if (!slackBotToken) {
@@ -39,7 +39,7 @@ safe-outputs:
               
               // Read and parse agent output
               if (!outputContent) {
-                core.info('No GITHUB_AW_AGENT_OUTPUT environment variable found');
+                core.info('No GH_AW_AGENT_OUTPUT environment variable found');
                 return;
               }
               
