@@ -57,6 +57,9 @@ function sanitizeContent(content) {
   // Neutralize common bot trigger phrases
   sanitized = neutralizeBotTriggers(sanitized);
 
+  // Neutralize command triggers at the start of text to prevent cycles
+  sanitized = neutralizeCommandAtStart(sanitized);
+
   // Trim excessive whitespace
   return sanitized.trim();
 
@@ -159,6 +162,31 @@ function sanitizeContent(content) {
   function neutralizeBotTriggers(s) {
     // Neutralize common bot trigger phrases like "fixes #123", "closes #asdfs", etc.
     return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
+  }
+
+  /**
+   * Neutralizes command triggers at the start of text to prevent cycles
+   * @param {string} s - The string to process
+   * @returns {string} The string with neutralized command at start
+   */
+  function neutralizeCommandAtStart(s) {
+    // Read command from environment variable
+    const command = process.env.GITHUB_AW_COMMAND;
+    if (!command) {
+      return s; // No command configured, nothing to neutralize
+    }
+
+    // Check if text starts with /command
+    const trimmedText = s.trim();
+    const commandPattern = `/${command}`;
+    
+    if (trimmedText.startsWith(commandPattern)) {
+      // Neutralize the command at the start by wrapping it in backticks
+      // This prevents the output from triggering another workflow run
+      return s.replace(new RegExp(`^(\\s*)(${commandPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`), (match, whitespace, cmd) => `${whitespace}\`${cmd}\``);
+    }
+    
+    return s;
   }
 }
 

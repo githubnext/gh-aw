@@ -365,6 +365,8 @@ on:
 
 This automatically creates conditions to match `/my-bot` mentions in issue bodies and comments.
 
+**Important**: The command must be the **first word** of the comment or body text (after any leading whitespace) to trigger the workflow. This prevents accidental triggers and infinite loops. During safe output processing, any generated text starting with a command word is automatically neutralized.
+
 You can restrict where commands are active using the `events:` field:
 
 ```yaml
