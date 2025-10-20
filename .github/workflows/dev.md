@@ -21,32 +21,20 @@ Test each GitHub MCP tool with sensible arguments to verify they are configured 
 
 ## Instructions
 
-Go through the following GitHub MCP tools and invoke each one with sensible arguments based on the repository context (${{ github.repository }}):
+**Discover and test all available GitHub MCP tools:**
 
-### Context Tools
-1. `get_me` - Get information about the authenticated user
+1. First, explore and identify all tools available from the GitHub MCP server
+2. For each discovered tool, invoke it with sensible arguments based on the repository context (${{ github.repository }})
+3. Use appropriate parameters for each tool (e.g., repository name, issue numbers, PR numbers, etc.)
 
-### Repository Tools  
-2. `get_file_contents` - Get contents of README.md or another file from the repo
-3. `list_branches` - List branches in the repository
-4. `list_commits` - List recent commits on the main branch
-5. `list_tags` - List tags in the repository
-6. `search_repositories` - Search for repositories related to "github actions"
-
-### Issues Tools
-7. `list_issues` - List recent issues in the repository (state: all, per_page: 5)
-8. `search_issues` - Search for issues with a keyword
-
-### Pull Request Tools
-9. `list_pull_requests` - List recent pull requests (state: all, per_page: 5)
-10. `search_pull_requests` - Search for pull requests
-
-### Actions Tools
-11. `list_workflows` - List GitHub Actions workflows in the repository
-12. `list_workflow_runs` - List recent workflow runs (per_page: 5)
-
-### Release Tools
-13. `list_releases` - List releases in the repository (per_page: 5)
+Example tools you should discover and test may include (but are not limited to):
+- Context tools: `get_me`, etc.
+- Repository tools: `get_file_contents`, `list_branches`, `list_commits`, `search_repositories`, etc.
+- Issues tools: `list_issues`, `search_issues`, `get_issue`, etc.
+- Pull Request tools: `list_pull_requests`, `get_pull_request`, `search_pull_requests`, etc.
+- Actions tools: `list_workflows`, `list_workflow_runs`, etc.
+- Release tools: `list_releases`, etc.
+- And any other tools you discover from the GitHub MCP server
 
 ## Expected Behavior
 
