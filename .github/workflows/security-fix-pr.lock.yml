@@ -1226,7 +1226,7 @@ jobs:
           
           ---
           
-          ## Creating a Pull RequestReporting Missing Tools or Functionality
+          ## Creating a Pull Request, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
