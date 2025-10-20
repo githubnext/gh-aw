@@ -2586,6 +2586,7 @@ jobs:
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create_issue\":{\"max\":2},\"create_pull_request\":{},\"create_pull_request_review_comment\":{\"max\":2},\"missing_tool\":{},\"push_to_pull_request_branch\":{},\"update_issue\":{\"max\":2},\"upload_asset\":{}}"
+          GITHUB_AW_COMMAND: poem-bot
         with:
           script: |
             async function main() {
@@ -6094,7 +6095,7 @@ jobs:
       (!(github.event_name == 'issues'))
     runs-on: ubuntu-latest
     outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+      activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
     steps:
       - name: Check team membership for command workflow
         id: check_membership
@@ -6173,6 +6174,61 @@ jobs:
                 core.setOutput("result", "api_error");
                 core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
                 return;
+              }
+            }
+            await main();
+      - name: Check command position
+        id: check_command_position
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_COMMAND: poem-bot
+        with:
+          script: |
+            async function main() {
+              const command = process.env.GITHUB_AW_COMMAND;
+              if (!command) {
+                core.setFailed("Configuration error: GITHUB_AW_COMMAND not specified.");
+                return;
+              }
+              let text = "";
+              const eventName = context.eventName;
+              try {
+                if (eventName === "issues") {
+                  text = context.payload.issue?.body || "";
+                } else if (eventName === "pull_request") {
+                  text = context.payload.pull_request?.body || "";
+                } else if (eventName === "issue_comment") {
+                  text = context.payload.comment?.body || "";
+                } else if (eventName === "pull_request_review_comment") {
+                  text = context.payload.comment?.body || "";
+                } else if (eventName === "discussion") {
+                  text = context.payload.discussion?.body || "";
+                } else if (eventName === "discussion_comment") {
+                  text = context.payload.comment?.body || "";
+                } else {
+                  core.info(`Event ${eventName} does not require command position check`);
+                  core.setOutput("command_position_ok", "true");
+                  return;
+                }
+                const expectedCommand = `/${command}`;
+                if (!text || !text.includes(expectedCommand)) {
+                  core.info(`No command '${expectedCommand}' found in text, passing check`);
+                  core.setOutput("command_position_ok", "true");
+                  return;
+                }
+                const trimmedText = text.trim();
+                const firstWord = trimmedText.split(/\s+/)[0];
+                core.info(`Checking command position for: ${expectedCommand}`);
+                core.info(`First word in text: ${firstWord}`);
+                if (firstWord === expectedCommand) {
+                  core.info(`✓ Command '${expectedCommand}' is at the start of the text`);
+                  core.setOutput("command_position_ok", "true");
+                } else {
+                  core.warning(`⚠️ Command '${expectedCommand}' is not the first word (found: '${firstWord}'). Workflow will be skipped.`);
+                  core.setOutput("command_position_ok", "false");
+                }
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
             await main();

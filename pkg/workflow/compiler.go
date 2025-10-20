@@ -1888,9 +1888,10 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
 	hasStopTime := data.StopTime != ""
 
-	// Build pre-activation job if needed (combines membership checks and stop-time validation)
+	// Build pre-activation job if needed (combines membership checks, stop-time validation, and command position check)
 	var preActivationJobCreated bool
-	if needsPermissionCheck || hasStopTime {
+	hasCommandTrigger := data.Command != ""
+	if needsPermissionCheck || hasStopTime || hasCommandTrigger {
 		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
 		if err != nil {
 			return fmt.Errorf("failed to build %s job: %w", constants.PreActivationJobName, err)
@@ -2204,6 +2205,21 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, formattedScript...)
 	}
 
+	// Add command position check if this is a command workflow
+	if data.Command != "" {
+		steps = append(steps, "      - name: Check command position\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckCommandPositionStepID))
+		steps = append(steps, "        uses: actions/github-script@v8\n")
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_COMMAND: %s\n", data.Command))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Add the JavaScript script with proper indentation
+		formattedScript := FormatJavaScriptForYAML(checkCommandPositionScript)
+		steps = append(steps, formattedScript...)
+	}
+
 	// Generate the activated output expression using expression builders
 	var activatedNode ConditionNode
 
@@ -2228,6 +2244,16 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 			BuildStringLiteral("true"),
 		)
 		conditions = append(conditions, stopTimeCheck)
+	}
+
+	if data.Command != "" {
+		// Add command position check condition
+		commandPositionCheck := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckCommandPositionStepID, constants.CommandPositionOkOutput)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, commandPositionCheck)
 	}
 
 	// Build the final expression
@@ -3253,6 +3279,11 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
 		domainsStr := strings.Join(data.SafeOutputs.AllowedDomains, ",")
 		fmt.Fprintf(yaml, "          GITHUB_AW_ALLOWED_DOMAINS: %q\n", domainsStr)
+	}
+
+	// Add command name for command trigger prevention in safe outputs
+	if data.Command != "" {
+		fmt.Fprintf(yaml, "          GITHUB_AW_COMMAND: %s\n", data.Command)
 	}
 
 	yaml.WriteString("        with:\n")

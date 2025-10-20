@@ -137,10 +137,12 @@ const AgentOutputArtifactName = "agent_output.json"
 // Step IDs for pre-activation job
 const CheckMembershipStepID = "check_membership"
 const CheckStopTimeStepID = "check_stop_time"
+const CheckCommandPositionStepID = "check_command_position"
 
 // Output names for pre-activation job steps
 const IsTeamMemberOutput = "is_team_member"
 const StopTimeOkOutput = "stop_time_ok"
+const CommandPositionOkOutput = "command_position_ok"
 const ActivatedOutput = "activated"
 
 var AgenticEngines = []string{"claude", "codex", "copilot"}

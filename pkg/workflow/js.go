@@ -51,6 +51,9 @@ var checkMembershipScript string
 //go:embed js/check_stop_time.cjs
 var checkStopTimeScript string
 
+//go:embed js/check_command_position.cjs
+var checkCommandPositionScript string
+
 //go:embed js/parse_claude_log.cjs
 var parseClaudeLogScript string
 
