@@ -5,61 +5,27 @@ sidebar:
   order: 1400
 ---
 
-GitHub Agentic Workflows provides concurrency control to manage how many AI-powered agentic workflow runs can run simultaneously. This helps prevent resource exhaustion, control costs, and ensure predictable workflow execution.
-
-Concurrency control uses a dual-level approach:
-- **Per-workflow concurrency**: Limit based on workflow name and type (name, issue, PR, branch, etc.)
-- **Per-engine concurrency**: Limit based on AI engine via the `engine.concurrency` field
-
-This provides both fine-grained control per workflow and flexible resource management for AI execution.
+GitHub Agentic Workflows uses dual-level concurrency control to prevent resource exhaustion and ensure predictable execution:
+- **Per-workflow**: Limits based on workflow name and trigger context (issue, PR, branch)
+- **Per-engine**: Limits AI execution across all workflows via `engine.concurrency`
 
 ## Per-Workflow Concurrency
 
-By default, the workflow-level concurrency uses context-specific keys based on workflow name and the trigger type:
+Workflow-level concurrency groups include the workflow name plus context-specific identifiers:
 
-**For issue workflows:**
-```yaml
-concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
-```
+| Trigger Type | Concurrency Group | Cancel In Progress |
+|--------------|-------------------|-------------------|
+| Issues | `gh-aw-${{ github.workflow }}-${{ issue.number }}` | No |
+| Pull Requests | `gh-aw-${{ github.workflow }}-${{ pr.number \|\| ref }}` | Yes (new commits cancel outdated runs) |
+| Push | `gh-aw-${{ github.workflow }}-${{ github.ref }}` | No |
+| Schedule/Other | `gh-aw-${{ github.workflow }}` | No |
 
-**For pull request workflows:**
-```yaml
-concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
-  cancel-in-progress: true
-```
+This ensures workflows on different issues, PRs, or branches run concurrently without interference.
 
-**For push workflows:**
-```yaml
-concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
-```
+## Per-Engine Concurrency
 
-**For schedule/other workflows:**
-```yaml
-concurrency:
-  group: "gh-aw-${{ github.workflow }}"
-```
+The default per-engine pattern `gh-aw-{engine-id}` ensures only one agent job runs per engine across all workflows, preventing AI resource exhaustion. The group includes only the engine ID (`copilot`, `claude`, `codex`) and `gh-aw-` prefix—workflow name, issue/PR numbers, and branches are excluded.
 
-This ensures workflows operating on different issues, PRs, or branches can run concurrently without interfering with each other. The **workflow-level** concurrency includes context-specific information:
-- ✅ Workflow name
-- ✅ Issue/PR/discussion number (when applicable)
-- ✅ Branch ref (for push workflows)
-- ✅ `gh-aw-` prefix
-
-Concurrency cancellation varies by workflow trigger type:
-
-| Trigger Type | `cancel-in-progress:` | Reason |
-|--------------|-------------------|--------|
-| `pull_request` | ✅ Enabled | New commits should cancel outdated PR runs |
-| All other triggers | ❌ Disabled | Issue/discussion workflows should run to completion |
-
-### Per-engine Concurrency
-
-The AI engine concurrency is configured via `engine.concurrency` and uses the specified pattern:
-
-**Default pattern (single job per engine):**
 ```yaml
 jobs:
   agent:
@@ -67,59 +33,25 @@ jobs:
       group: "gh-aw-{engine-id}"
 ```
 
-**Custom pattern example:**
-```yaml
-jobs:
-  agent:
-    concurrency:
-      group: "custom-${{ github.workflow }}"
-      cancel-in-progress: true
-```
-
-This controls concurrent execution of agentic workflow runs across all workflows, preventing resource exhaustion from too many concurrent AI executions.
-
-### What's Included in Default Per-engine Concurrency
-- ✅ Engine ID (`copilot`, `claude`, `codex`)
-- ✅ `gh-aw-` prefix
-
-### What's NOT Included in Default Per-engine Concurrency
-- ❌ Workflow name
-- ❌ Issue number
-- ❌ Pull request number
-- ❌ Branch/ref name
-- ❌ Event type
-
-The default pattern `gh-aw-{engine-id}` ensures only one agent job runs per engine across **all workflows and refs**.
-
 ## Custom Concurrency
 
-You can override per-engine concurrency by specifying a different `engine.concurrency` pattern:
-```yaml
-engine:
-  id: claude
-  concurrency:
-    group: "gh-aw-claude-${{ github.workflow }}"  # Per-workflow concurrency
-```
-
-You can also override per-workflow concurrency by specifying your own `concurrency` section in the frontmatter (for workflow-level concurrency):
+Override either level independently:
 
 ```yaml
 ---
 on: push
-concurrency:
+concurrency:  # Workflow-level
   group: custom-group-${{ github.ref }}
   cancel-in-progress: true
 engine:
   id: claude
-  concurrency:  # Agent job concurrency (separate from workflow concurrency)
-    group: "custom-agent-${{ github.workflow }}"
+  concurrency:  # Engine-level
+    group: "gh-aw-claude-${{ github.workflow }}"
 tools:
   github:
     allowed: [list_issues]
 ---
 ```
-
-**Note**: Workflow-level concurrency and agent job concurrency are independent and can be configured separately.
 
 ## Related Documentation
 
