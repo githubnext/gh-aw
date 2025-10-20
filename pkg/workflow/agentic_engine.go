@@ -430,5 +430,18 @@ func GetCommonErrorPatterns() []ErrorPattern {
 			MessageGroup: 2, // message is in the second capture group
 			Description:  "GitHub Actions workflow command - notice",
 		},
+		// Generic error/warning patterns - common log formats
+		{
+			Pattern:      `(ERROR|Error):\s+(.+)`,
+			LevelGroup:   1, // "ERROR" or "Error" is in the first capture group
+			MessageGroup: 2, // error message is in the second capture group
+			Description:  "Generic ERROR messages",
+		},
+		{
+			Pattern:      `(WARNING|Warning):\s+(.+)`,
+			LevelGroup:   1, // "WARNING" or "Warning" is in the first capture group
+			MessageGroup: 2, // warning message is in the second capture group
+			Description:  "Generic WARNING messages",
+		},
 	}
 }

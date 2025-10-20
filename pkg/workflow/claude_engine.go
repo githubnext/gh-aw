@@ -1357,68 +1357,8 @@ func (e *ClaudeEngine) GetLogParserScriptId() string {
 }
 
 // GetErrorPatterns returns regex patterns for extracting error messages from Claude logs
-// including permission-related errors that should be captured as missing tools
 func (e *ClaudeEngine) GetErrorPatterns() []ErrorPattern {
-	patterns := GetCommonErrorPatterns()
-
-	// Add Claude-specific error patterns
-	patterns = append(patterns, []ErrorPattern{
-		// Specific, contextual error patterns - these are precise and unlikely to match informational text
-		{
-			Pattern:      `(?i)access denied.*only authorized.*can trigger.*workflow`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "Permission denied - workflow access restriction",
-		},
-		{
-			Pattern:      `(?i)access denied.*user.*not authorized`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "Permission denied - user not authorized",
-		},
-		{
-			Pattern:      `(?i)repository permission check failed`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "Repository permission check failure",
-		},
-		{
-			Pattern:      `(?i)configuration error.*required permissions not specified`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "Configuration error - missing permissions",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*permission.*denied`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "Permission denied error (requires error context)",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*unauthorized`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "Unauthorized error (requires error context)",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*forbidden`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "Forbidden error (requires error context)",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*access.*restricted`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "Access restricted error (requires error context)",
-		},
-		{
-			Pattern:      `(?i)\berror\b.*insufficient.*permission`,
-			LevelGroup:   0,
-			MessageGroup: 0,
-			Description:  "Insufficient permissions error (requires error context)",
-		},
-	}...)
-
-	return patterns
+	// Claude uses common GitHub Actions workflow commands for error reporting
+	// No engine-specific log formats to parse
+	return GetCommonErrorPatterns()
 }
