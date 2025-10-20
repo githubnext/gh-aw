@@ -7,7 +7,7 @@ func (c *Compiler) generateGitPatchStep(yaml *strings.Builder) {
 	yaml.WriteString("      - name: Generate git patch\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 	yaml.WriteString("          GITHUB_SHA: ${{ github.sha }}\n")
 	yaml.WriteString("        run: |\n")
 	WriteShellScriptToYAML(yaml, generateGitPatchScript, "          ")

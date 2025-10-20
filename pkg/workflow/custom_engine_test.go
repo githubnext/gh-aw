@@ -164,11 +164,11 @@ func TestCustomEngineGetExecutionStepsWithIdAndContinueOnError(t *testing.T) {
 		if !strings.Contains(firstStepContent, "continue-on-error: true") {
 			t.Errorf("Expected first step to contain 'continue-on-error: true', got:\n%s", firstStepContent)
 		}
-		if !strings.Contains(firstStepContent, "GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
-			t.Errorf("Expected first step to contain 'GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt', got:\n%s", firstStepContent)
+		if !strings.Contains(firstStepContent, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
+			t.Errorf("Expected first step to contain 'GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt', got:\n%s", firstStepContent)
 		}
-		if !strings.Contains(firstStepContent, "GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
-			t.Errorf("Expected first step to contain 'GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json', got:\n%s", firstStepContent)
+		if !strings.Contains(firstStepContent, "GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
+			t.Errorf("Expected first step to contain 'GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json', got:\n%s", firstStepContent)
 		}
 	}
 
@@ -181,11 +181,11 @@ func TestCustomEngineGetExecutionStepsWithIdAndContinueOnError(t *testing.T) {
 		if !strings.Contains(secondStepContent, "continue-on-error: \"false\"") {
 			t.Errorf("Expected second step to contain 'continue-on-error: \"false\"', got:\n%s", secondStepContent)
 		}
-		if !strings.Contains(secondStepContent, "GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
-			t.Errorf("Expected second step to contain 'GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt', got:\n%s", secondStepContent)
+		if !strings.Contains(secondStepContent, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
+			t.Errorf("Expected second step to contain 'GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt', got:\n%s", secondStepContent)
 		}
-		if !strings.Contains(secondStepContent, "GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
-			t.Errorf("Expected second step to contain 'GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json', got:\n%s", secondStepContent)
+		if !strings.Contains(secondStepContent, "GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
+			t.Errorf("Expected second step to contain 'GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json', got:\n%s", secondStepContent)
 		}
 	}
 }
@@ -234,7 +234,7 @@ func TestCustomEngineGetExecutionStepsWithSteps(t *testing.T) {
 		}
 	}
 
-	// Check the second step content includes GITHUB_AW_PROMPT
+	// Check the second step content includes GH_AW_PROMPT
 	if len(config) > 1 {
 		secondStepContent := strings.Join([]string(config[1]), "\n")
 		if !strings.Contains(secondStepContent, "name: Run tests") {
@@ -243,11 +243,11 @@ func TestCustomEngineGetExecutionStepsWithSteps(t *testing.T) {
 		if !strings.Contains(secondStepContent, "run:") && !strings.Contains(secondStepContent, "npm test") {
 			t.Errorf("Expected second step to contain run command 'npm test', got:\n%s", secondStepContent)
 		}
-		if !strings.Contains(secondStepContent, "GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
-			t.Errorf("Expected second step to contain 'GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt', got:\n%s", secondStepContent)
+		if !strings.Contains(secondStepContent, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
+			t.Errorf("Expected second step to contain 'GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt', got:\n%s", secondStepContent)
 		}
-		if !strings.Contains(secondStepContent, "GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
-			t.Errorf("Expected second step to contain 'GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json', got:\n%s", secondStepContent)
+		if !strings.Contains(secondStepContent, "GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
+			t.Errorf("Expected second step to contain 'GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json', got:\n%s", secondStepContent)
 		}
 	}
 }

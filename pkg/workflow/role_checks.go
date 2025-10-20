@@ -19,7 +19,7 @@ func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) [
 
 	// Add environment variables for permission check
 	steps = append(steps, "        env:\n")
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_REQUIRED_ROLES: %s\n", strings.Join(data.Roles, ",")))
+	steps = append(steps, fmt.Sprintf("          GH_AW_REQUIRED_ROLES: %s\n", strings.Join(data.Roles, ",")))
 
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
@@ -46,7 +46,7 @@ console.log("Permission check skipped - 'roles: all' specified");`
 	}
 
 	// Use the embedded check_membership.cjs script
-	// The GITHUB_AW_REQUIRED_ROLES environment variable is set via the env field
+	// The GH_AW_REQUIRED_ROLES environment variable is set via the env field
 	return checkMembershipScript
 }
 

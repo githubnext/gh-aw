@@ -81,7 +81,7 @@ describe("compute_text.cjs", () => {
     mockContext.payload = {};
 
     // Reset environment variables
-    delete process.env.GITHUB_AW_ALLOWED_DOMAINS;
+    delete process.env.GH_AW_ALLOWED_DOMAINS;
 
     // Read the script content
     const scriptPath = path.join(process.cwd(), "compute_text.cjs");
@@ -198,7 +198,7 @@ describe("compute_text.cjs", () => {
     });
 
     it("should respect custom allowed domains", () => {
-      process.env.GITHUB_AW_ALLOWED_DOMAINS = "example.com,trusted.org";
+      process.env.GH_AW_ALLOWED_DOMAINS = "example.com,trusted.org";
       const input = "Visit https://example.com and https://trusted.org and https://evil.com";
       const result = sanitizeContentFunction(input);
       expect(result).toContain("https://example.com");

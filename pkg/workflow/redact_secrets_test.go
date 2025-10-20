@@ -124,8 +124,8 @@ Test workflow for secret redaction.
 	}
 
 	// Verify the environment variable is set
-	if !strings.Contains(lockStr, "GITHUB_AW_SECRET_NAMES") {
-		t.Error("Expected GITHUB_AW_SECRET_NAMES environment variable")
+	if !strings.Contains(lockStr, "GH_AW_SECRET_NAMES") {
+		t.Error("Expected GH_AW_SECRET_NAMES environment variable")
 	}
 
 	// Verify secret environment variables are passed

@@ -36,11 +36,11 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 
 	// Build environment variables for the script
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_COMMENT_ID: ${{ needs.%s.outputs.comment_id }}\n", constants.ActivationJobName))
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_COMMENT_REPO: ${{ needs.%s.outputs.comment_repo }}\n", constants.ActivationJobName))
-	customEnvVars = append(customEnvVars, "          GITHUB_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_ID: ${{ needs.%s.outputs.comment_id }}\n", constants.ActivationJobName))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_REPO: ${{ needs.%s.outputs.comment_repo }}\n", constants.ActivationJobName))
+	customEnvVars = append(customEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 
 	// Get token from config
 	var token string

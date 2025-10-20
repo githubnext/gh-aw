@@ -4,7 +4,7 @@ git status
 
 # Extract branch name from JSONL output
 BRANCH_NAME=""
-if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
+if [ -f "$GH_AW_SAFE_OUTPUTS" ]; then
   echo "Checking for branch name in JSONL output..."
   while IFS= read -r line; do
     if [ -n "$line" ]; then
@@ -30,7 +30,7 @@ if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
         fi
       fi
     fi
-  done < "$GITHUB_AW_SAFE_OUTPUTS"
+  done < "$GH_AW_SAFE_OUTPUTS"
 fi
 
 # If no branch or branch doesn't exist, no patch

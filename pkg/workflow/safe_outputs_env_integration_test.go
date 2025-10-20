@@ -240,11 +240,11 @@ Create an issue with test results.
 	}
 
 	// Verify issue configuration is present
-	if !strings.Contains(jobYAML, "GITHUB_AW_ISSUE_TITLE_PREFIX: \"[env-test] \"") {
+	if !strings.Contains(jobYAML, "GH_AW_ISSUE_TITLE_PREFIX: \"[env-test] \"") {
 		t.Error("Expected issue title prefix not found in job YAML")
 	}
 
-	if !strings.Contains(jobYAML, "GITHUB_AW_ISSUE_LABELS: \"automated,env-test\"") {
+	if !strings.Contains(jobYAML, "GH_AW_ISSUE_LABELS: \"automated,env-test\"") {
 		t.Error("Expected issue labels not found in job YAML")
 	}
 }
@@ -290,7 +290,7 @@ This workflow tests that custom environment variables work with staged mode.
 	assertEnvVarsInSteps(t, job.Steps, expectedEnvVars)
 
 	// Verify staged mode is enabled
-	if !strings.Contains(jobYAML, "GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"") {
+	if !strings.Contains(jobYAML, "GH_AW_SAFE_OUTPUTS_STAGED: \"true\"") {
 		t.Error("Expected staged mode flag not found in job YAML")
 	}
 }

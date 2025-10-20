@@ -3,10 +3,10 @@ const fs = require("fs");
 
 async function main() {
   // Check if we're in staged mode
-  const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   // Environment validation - fail early if required variables are missing
-  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
   if (agentOutputFile.trim() === "") {
     core.info("Agent output content is empty");
     return;
@@ -26,8 +26,8 @@ async function main() {
     return;
   }
 
-  const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
-  const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
+  const target = process.env.GH_AW_PUSH_TARGET || "triggering";
+  const ifNoChanges = process.env.GH_AW_PUSH_IF_NO_CHANGES || "warn";
 
   // Check if patch file exists and has valid content
   if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
@@ -71,7 +71,7 @@ async function main() {
   const isEmpty = !patchContent || !patchContent.trim();
   if (!isEmpty) {
     // Get maximum patch size from environment (default: 1MB = 1024 KB)
-    const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
+    const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
     const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
     const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 
@@ -222,14 +222,14 @@ async function main() {
   core.info(`PR labels: ${prLabels.join(", ")}`);
 
   // Validate title prefix if specified
-  const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
+  const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
   if (titlePrefix && !prTitle.startsWith(titlePrefix)) {
     core.setFailed(`Pull request title "${prTitle}" does not start with required prefix "${titlePrefix}"`);
     return;
   }
 
   // Validate labels if specified
-  const requiredLabelsStr = process.env.GITHUB_AW_PR_LABELS;
+  const requiredLabelsStr = process.env.GH_AW_PR_LABELS;
   if (requiredLabelsStr) {
     const requiredLabels = requiredLabelsStr.split(",").map(label => label.trim());
     const missingLabels = requiredLabels.filter(label => !prLabels.includes(label));

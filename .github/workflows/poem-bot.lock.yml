@@ -119,7 +119,7 @@ jobs:
               if (!content || typeof content !== "string") {
                 return "";
               }
-              const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
+              const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
               const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
               const allowedDomains = allowedDomainsEnv
                 ? allowedDomainsEnv
@@ -277,14 +277,14 @@ jobs:
         if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_REACTION: eyes
-          GITHUB_AW_COMMAND: poem-bot
-          GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
+          GH_AW_REACTION: eyes
+          GH_AW_COMMAND: poem-bot
+          GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
         with:
           script: |
             async function main() {
-              const reaction = process.env.GITHUB_AW_REACTION || "eyes";
-              const command = process.env.GITHUB_AW_COMMAND; 
+              const reaction = process.env.GH_AW_REACTION || "eyes";
+              const command = process.env.GH_AW_COMMAND; 
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const runUrl = context.payload.repository
@@ -489,7 +489,7 @@ jobs:
             }
             async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
               try {
-                const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
                 if (eventName === "discussion") {
                   const discussionNumber = parseInt(endpoint.split(":")[1], 10);
                   const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion.`;
@@ -638,19 +638,19 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Add Issue Comment
         id: add_comment
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
-          GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
-          GITHUB_AW_COMMENT_TARGET: "*"
-          GITHUB_AW_CREATED_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
-          GITHUB_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
-          GITHUB_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
-          GITHUB_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
+          GH_AW_COMMENT_TARGET: "*"
+          GH_AW_CREATED_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
+          GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
+          GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
+          GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -717,10 +717,10 @@ jobs:
               };
             }
             async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
                 return;
               }
               let outputContent;
@@ -753,7 +753,7 @@ jobs:
               }
               core.info(`Found ${commentItems.length} add-comment item(s)`);
               function getRepositoryUrl() {
-                const targetRepoSlug = process.env.GITHUB_AW_TARGET_REPO_SLUG;
+                const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
                 if (targetRepoSlug) {
                   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                   return `${githubServer}/${targetRepoSlug}`;
@@ -767,7 +767,7 @@ jobs:
               function getTargetNumber(item) {
                 return item.item_number;
               }
-              const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
+              const commentTarget = process.env.GH_AW_COMMENT_TARGET || "triggering";
               core.info(`Comment target configuration: ${commentTarget}`);
               const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
               const isPRContext =
@@ -778,12 +778,12 @@ jobs:
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
                 summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
-                const createdIssueUrl = process.env.GITHUB_AW_CREATED_ISSUE_URL;
-                const createdIssueNumber = process.env.GITHUB_AW_CREATED_ISSUE_NUMBER;
-                const createdDiscussionUrl = process.env.GITHUB_AW_CREATED_DISCUSSION_URL;
-                const createdDiscussionNumber = process.env.GITHUB_AW_CREATED_DISCUSSION_NUMBER;
-                const createdPullRequestUrl = process.env.GITHUB_AW_CREATED_PULL_REQUEST_URL;
-                const createdPullRequestNumber = process.env.GITHUB_AW_CREATED_PULL_REQUEST_NUMBER;
+                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
+                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
+                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
+                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
                 if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
                   summaryContent += "**Related Items:**\n";
                   if (createdIssueUrl && createdIssueNumber) {
@@ -891,12 +891,12 @@ jobs:
                   continue;
                 }
                 let body = commentItem.body.trim();
-                const createdIssueUrl = process.env.GITHUB_AW_CREATED_ISSUE_URL;
-                const createdIssueNumber = process.env.GITHUB_AW_CREATED_ISSUE_NUMBER;
-                const createdDiscussionUrl = process.env.GITHUB_AW_CREATED_DISCUSSION_URL;
-                const createdDiscussionNumber = process.env.GITHUB_AW_CREATED_DISCUSSION_NUMBER;
-                const createdPullRequestUrl = process.env.GITHUB_AW_CREATED_PULL_REQUEST_URL;
-                const createdPullRequestNumber = process.env.GITHUB_AW_CREATED_PULL_REQUEST_NUMBER;
+                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
+                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
+                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
+                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
                 let hasReferences = false;
                 let referencesSection = "\n\n## Related Items\n\n";
                 if (createdIssueUrl && createdIssueNumber) {
@@ -914,9 +914,9 @@ jobs:
                 if (hasReferences) {
                   body += referencesSection;
                 }
-                const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
                 const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                 const runUrl = context.payload.repository
@@ -999,15 +999,15 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Add Labels
         id: add_labels
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
-          GITHUB_AW_LABELS_ALLOWED: "poetry,creative,automation,ai-generated,epic,haiku,sonnet,limerick"
-          GITHUB_AW_LABELS_MAX_COUNT: 5
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_LABELS_ALLOWED: "poetry,creative,automation,ai-generated,epic,haiku,sonnet,limerick"
+          GH_AW_LABELS_MAX_COUNT: 5
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1026,9 +1026,9 @@ jobs:
               return sanitized.trim();
             }
             async function main() {
-              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
                 return;
               }
               let outputContent;
@@ -1060,7 +1060,7 @@ jobs:
                 return;
               }
               core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
-              if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
                 let summaryContent = "## 🎭 Staged Mode: Add Labels Preview\n\n";
                 summaryContent += "The following labels would be added if staged mode was disabled:\n\n";
                 if (labelsItem.item_number) {
@@ -1075,7 +1075,7 @@ jobs:
                 core.info("📝 Label addition preview written to step summary");
                 return;
               }
-              const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED?.trim();
+              const allowedLabelsEnv = process.env.GH_AW_LABELS_ALLOWED?.trim();
               const allowedLabels = allowedLabelsEnv
                 ? allowedLabelsEnv
                     .split(",")
@@ -1087,14 +1087,14 @@ jobs:
               } else {
                 core.info("No label restrictions - any labels are allowed");
               }
-              const maxCountEnv = process.env.GITHUB_AW_LABELS_MAX_COUNT;
+              const maxCountEnv = process.env.GH_AW_LABELS_MAX_COUNT;
               const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
               if (isNaN(maxCount) || maxCount < 1) {
                 core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
                 return;
               }
               core.info(`Max count: ${maxCount}`);
-              const labelsTarget = process.env.GITHUB_AW_LABELS_TARGET || "triggering";
+              const labelsTarget = process.env.GH_AW_LABELS_TARGET || "triggering";
               core.info(`Labels target configuration: ${labelsTarget}`);
               const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
               const isPRContext =
@@ -1223,11 +1223,11 @@ jobs:
       actions: read
       contents: read
     env:
-      GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-      GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-      GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
-      GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create_issue\":{\"max\":2},\"create_pull_request\":{},\"create_pull_request_review_comment\":{\"max\":2},\"missing_tool\":{},\"push_to_pull_request_branch\":{},\"update_issue\":{\"max\":2},\"upload_asset\":{}}"
+      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+      GH_AW_ASSETS_MAX_SIZE_KB: 10240
+      GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
+      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create_issue\":{\"max\":2},\"create_pull_request\":{},\"create_pull_request_review_comment\":{\"max\":2},\"missing_tool\":{},\"push_to_pull_request_branch\":{},\"update_issue\":{\"max\":2},\"upload_asset\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -1352,11 +1352,11 @@ jobs:
               normalized = normalized.toLowerCase();
               return normalized;
             }
-            const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+            const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
               const defaultConfigPath = "/tmp/gh-aw/safe-outputs/config.json";
-              debug(`GITHUB_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
+              debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
               try {
                 if (fs.existsSync(defaultConfigPath)) {
                   debug(`Reading config from file: ${defaultConfigPath}`);
@@ -1376,21 +1376,21 @@ jobs:
                 safeOutputsConfigRaw = {};
               }
             } else {
-              debug(`Using GITHUB_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
+              debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
               debug(`Config environment variable length: ${configEnv.length} characters`);
               try {
                 safeOutputsConfigRaw = JSON.parse(configEnv); 
                 debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
               } catch (error) {
                 debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
-                throw new Error(`Failed to parse GITHUB_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
+                throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
-            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
-            if (!process.env.GITHUB_AW_SAFE_OUTPUTS) {
-              debug(`GITHUB_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
+            const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
+            if (!process.env.GH_AW_SAFE_OUTPUTS) {
+              debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
               const outputDir = path.dirname(outputFile);
               if (!fs.existsSync(outputDir)) {
                 debug(`Creating output directory: ${outputDir}`);
@@ -1488,8 +1488,8 @@ jobs:
               };
             };
             const uploadAssetHandler = args => {
-              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
-              if (!branchName) throw new Error("GITHUB_AW_ASSETS_BRANCH not set");
+              const branchName = process.env.GH_AW_ASSETS_BRANCH;
+              if (!branchName) throw new Error("GH_AW_ASSETS_BRANCH not set");
               const normalizedBranchName = normalizeBranchName(branchName);
               const { path: filePath } = args;
               const absolutePath = path.resolve(filePath);
@@ -1509,13 +1509,13 @@ jobs:
               const stats = fs.statSync(filePath);
               const sizeBytes = stats.size;
               const sizeKB = Math.ceil(sizeBytes / 1024);
-              const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10) : 10240; 
+              const maxSizeKB = process.env.GH_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GH_AW_ASSETS_MAX_SIZE_KB, 10) : 10240; 
               if (sizeKB > maxSizeKB) {
                 throw new Error(`File size ${sizeKB} KB exceeds maximum allowed size ${maxSizeKB} KB`);
               }
               const ext = path.extname(filePath).toLowerCase();
-              const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS
-                ? process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
+              const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
+                ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
                 : [
                     ".png",
                     ".jpg",
@@ -1957,9 +1957,9 @@ jobs:
                       }
                     }
                     if (tool.name === "upload_asset") {
-                      const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10) : 10240;
-                      const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS
-                        ? process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
+                      const maxSizeKB = process.env.GH_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GH_AW_ASSETS_MAX_SIZE_KB, 10) : 10240;
+                      const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
+                        ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
                         : [".png", ".jpg", ".jpeg"];
                       toolDef.description = `Publish a file as a URL-addressable asset to an orphaned git branch. Maximum file size: ${maxSizeKB} KB. Allowed extensions: ${allowedExts.join(", ")}`;
                     }
@@ -2096,11 +2096,11 @@ jobs:
                 "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
                 "tools": ["*"],
                 "env": {
-                  "GITHUB_AW_SAFE_OUTPUTS": "\${GITHUB_AW_SAFE_OUTPUTS}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\${GITHUB_AW_SAFE_OUTPUTS_CONFIG}",
-                  "GITHUB_AW_ASSETS_BRANCH": "\${GITHUB_AW_ASSETS_BRANCH}",
-                  "GITHUB_AW_ASSETS_MAX_SIZE_KB": "\${GITHUB_AW_ASSETS_MAX_SIZE_KB}",
-                  "GITHUB_AW_ASSETS_ALLOWED_EXTS": "\${GITHUB_AW_ASSETS_ALLOWED_EXTS}"
+                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\${GH_AW_SAFE_OUTPUTS_CONFIG}",
+                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}"
                 }
               }
             }
@@ -2115,11 +2115,11 @@ jobs:
           echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Create prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
         run: |
-          mkdir -p $(dirname "$GITHUB_AW_PROMPT")
-          cat > $GITHUB_AW_PROMPT << 'EOF'
+          mkdir -p $(dirname "$GH_AW_PROMPT")
+          cat > $GH_AW_PROMPT << 'EOF'
           # Poem Bot - A Creative Agentic Workflow
           
           You are the **Poem Bot**, a creative AI agent that creates original poetry about the text in context.
@@ -2169,9 +2169,9 @@ jobs:
           EOF
       - name: Append XPIA security instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'EOF'
           
           ---
           
@@ -2201,9 +2201,9 @@ jobs:
           EOF
       - name: Append temporary folder instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'EOF'
           
           ---
           
@@ -2214,9 +2214,9 @@ jobs:
           EOF
       - name: Append edit tool accessibility instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'EOF'
           
           
           ---
@@ -2233,9 +2233,9 @@ jobs:
           EOF
       - name: Append cache memory instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'EOF'
           
           ---
           
@@ -2258,9 +2258,9 @@ jobs:
           EOF
       - name: Append safe outputs instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'EOF'
           
           ---
           
@@ -2319,9 +2319,9 @@ jobs:
           EOF
       - name: Append GitHub context to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'EOF'
           
           ---
           
@@ -2355,9 +2355,9 @@ jobs:
         if: |
           (github.event_name == 'issue_comment') && (github.event.issue.pull_request != null) || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review'
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'EOF'
           
           ---
           
@@ -2376,7 +2376,7 @@ jobs:
       - name: Render template conditionals
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         with:
           script: |
             const fs = require("fs");
@@ -2389,9 +2389,9 @@ jobs:
             }
             function main() {
               try {
-                const promptPath = process.env.GITHUB_AW_PROMPT;
+                const promptPath = process.env.GH_AW_PROMPT;
                 if (!promptPath) {
-                  core.setFailed("GITHUB_AW_PROMPT environment variable is not set");
+                  core.setFailed("GH_AW_PROMPT environment variable is not set");
                   process.exit(1);
                 }
                 const markdown = fs.readFileSync(promptPath, "utf8");
@@ -2410,13 +2410,13 @@ jobs:
             main();
       - name: Print prompt to step summary
         env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           echo "<details>" >> $GITHUB_STEP_SUMMARY
           echo "<summary>Generated Prompt</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
+          cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY
@@ -2561,14 +2561,14 @@ jobs:
           copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --model gpt-5 --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_repository)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
-          GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create_issue\":{\"max\":2},\"create_pull_request\":{},\"create_pull_request_review_comment\":{\"max\":2},\"missing_tool\":{},\"push_to_pull_request_branch\":{},\"update_issue\":{\"max\":2},\"upload_asset\":{}}"
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: true
+          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GH_AW_ASSETS_MAX_SIZE_KB: 10240
+          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create_issue\":{\"max\":2},\"create_pull_request\":{},\"create_pull_request_review_comment\":{\"max\":2},\"missing_tool\":{},\"push_to_pull_request_branch\":{},\"update_issue\":{\"max\":2},\"upload_asset\":{}}"
+          GH_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
@@ -2578,15 +2578,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: safe_output.jsonl
-          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          path: ${{ env.GH_AW_SAFE_OUTPUTS }}
           if-no-files-found: warn
       - name: Ingest agent output
         id: collect_output
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create_issue\":{\"max\":2},\"create_pull_request\":{},\"create_pull_request_review_comment\":{\"max\":2},\"missing_tool\":{},\"push_to_pull_request_branch\":{},\"update_issue\":{\"max\":2},\"upload_asset\":{}}"
-          GITHUB_AW_COMMAND: poem-bot
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create_issue\":{\"max\":2},\"create_pull_request\":{},\"create_pull_request_review_comment\":{\"max\":2},\"missing_tool\":{},\"push_to_pull_request_branch\":{},\"update_issue\":{\"max\":2},\"upload_asset\":{}}"
+          GH_AW_COMMAND: poem-bot
         with:
           script: |
             async function main() {
@@ -2596,7 +2596,7 @@ jobs:
                 if (!content || typeof content !== "string") {
                   return "";
                 }
-                const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
+                const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
                 const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
                 const allowedDomains = allowedDomainsEnv
                   ? allowedDomainsEnv
@@ -2950,10 +2950,10 @@ jobs:
                   }
                 }
               }
-              const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
-              const safeOutputsConfig = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+              const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
+              const safeOutputsConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
               if (!outputFile) {
-                core.info("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
+                core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
                 core.setOutput("output", "");
                 return;
               }
@@ -3321,7 +3321,7 @@ jobs:
                 fs.mkdirSync("/tmp", { recursive: true });
                 fs.writeFileSync(agentOutputFile, validatedOutputJson, "utf8");
                 core.info(`Stored validated output to: ${agentOutputFile}`);
-                core.exportVariable("GITHUB_AW_AGENT_OUTPUT", agentOutputFile);
+                core.exportVariable("GH_AW_AGENT_OUTPUT", agentOutputFile);
               } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : String(error);
                 core.error(`Failed to write agent output file: ${errorMsg}`);
@@ -3334,11 +3334,11 @@ jobs:
             }
             await main();
       - name: Upload sanitized agent output
-        if: always() && env.GITHUB_AW_AGENT_OUTPUT
+        if: always() && env.GH_AW_AGENT_OUTPUT
         uses: actions/upload-artifact@v4
         with:
           name: agent_output.json
-          path: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
+          path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Redact secrets in logs
         if: always()
@@ -3444,9 +3444,9 @@ jobs:
              */
             async function main() {
               // Get the list of secret names from environment variable
-              const secretNames = process.env.GITHUB_AW_SECRET_NAMES;
+              const secretNames = process.env.GH_AW_SECRET_NAMES;
               if (!secretNames) {
-                core.info("GITHUB_AW_SECRET_NAMES not set, no redaction performed");
+                core.info("GH_AW_SECRET_NAMES not set, no redaction performed");
                 return;
               }
               core.info("Starting secret redaction in /tmp/gh-aw directory");
@@ -3495,7 +3495,7 @@ jobs:
             await main();
 
         env:
-          GITHUB_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          GH_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -3517,14 +3517,14 @@ jobs:
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
         with:
           script: |
             function main() {
               const fs = require("fs");
               const path = require("path");
               try {
-                const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
+                const logPath = process.env.GH_AW_AGENT_OUTPUT;
                 if (!logPath) {
                   core.info("No agent log file specified");
                   return;
@@ -4325,8 +4325,8 @@ jobs:
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
-          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"pattern\":\"(Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic error messages from Copilot CLI or Node.js\"},{\"pattern\":\"npm ERR!\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"NPM error messages during Copilot CLI installation or execution\"},{\"pattern\":\"(Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic warning messages from Copilot CLI\"},{\"pattern\":\"(Fatal error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Fatal error messages from Copilot CLI\"},{\"pattern\":\"copilot:\\\\s+(error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Copilot CLI command-level error messages\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"},{\"pattern\":\"authentication failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Authentication failure with Copilot CLI\"},{\"pattern\":\"\\\\berror\\\\b.*token.*invalid\",\"level_group\":0,\"message_group\":0,\"description\":\"Invalid token error with Copilot CLI (requires error context)\"},{\"pattern\":\"not authorized.*copilot\",\"level_group\":0,\"message_group\":0,\"description\":\"Not authorized for Copilot CLI access\"},{\"pattern\":\"command not found:\\\\s*(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error\"},{\"pattern\":\"(.+):\\\\s*command not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error (alternate format)\"},{\"pattern\":\"sh:\\\\s*\\\\d+:\\\\s*(.+):\\\\s*not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error (sh format)\"},{\"pattern\":\"bash:\\\\s*(.+):\\\\s*command not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Bash command not found error\"},{\"pattern\":\"permission denied and could not request permission from user\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied warning (user interaction required)\"},{\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"pattern\":\"Error:\\\\s*Cannot find module\\\\s*'(.+)'\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"pattern\":\"sh:\\\\s*\\\\d+:\\\\s*(.+):\\\\s*Permission denied\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell permission denied error\"},{\"pattern\":\"(rate limit|too many requests)\",\"level_group\":0,\"message_group\":0,\"description\":\"Rate limit exceeded error\"},{\"pattern\":\"(429|HTTP.*429)\",\"level_group\":0,\"message_group\":0,\"description\":\"HTTP 429 Too Many Requests status code\"},{\"pattern\":\"error.*quota.*exceeded\",\"level_group\":0,\"message_group\":0,\"description\":\"Quota exceeded error\"},{\"pattern\":\"error.*(timeout|timed out|deadline exceeded)\",\"level_group\":0,\"message_group\":0,\"description\":\"Timeout or deadline exceeded error\"},{\"pattern\":\"(connection refused|connection failed|ECONNREFUSED)\",\"level_group\":0,\"message_group\":0,\"description\":\"Network connection error\"},{\"pattern\":\"(ETIMEDOUT|ENOTFOUND)\",\"level_group\":0,\"message_group\":0,\"description\":\"Network timeout or DNS resolution error\"},{\"pattern\":\"error.*token.*expired\",\"level_group\":0,\"message_group\":0,\"description\":\"Token expired error\"},{\"pattern\":\"(maximum call stack size exceeded|heap out of memory|spawn ENOMEM)\",\"level_group\":0,\"message_group\":0,\"description\":\"Memory or resource exhaustion error\"}]"
+          GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
+          GH_AW_ERROR_PATTERNS: "[{\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"pattern\":\"(Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic error messages from Copilot CLI or Node.js\"},{\"pattern\":\"npm ERR!\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"NPM error messages during Copilot CLI installation or execution\"},{\"pattern\":\"(Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic warning messages from Copilot CLI\"},{\"pattern\":\"(Fatal error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Fatal error messages from Copilot CLI\"},{\"pattern\":\"copilot:\\\\s+(error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Copilot CLI command-level error messages\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"},{\"pattern\":\"authentication failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Authentication failure with Copilot CLI\"},{\"pattern\":\"\\\\berror\\\\b.*token.*invalid\",\"level_group\":0,\"message_group\":0,\"description\":\"Invalid token error with Copilot CLI (requires error context)\"},{\"pattern\":\"not authorized.*copilot\",\"level_group\":0,\"message_group\":0,\"description\":\"Not authorized for Copilot CLI access\"},{\"pattern\":\"command not found:\\\\s*(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error\"},{\"pattern\":\"(.+):\\\\s*command not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error (alternate format)\"},{\"pattern\":\"sh:\\\\s*\\\\d+:\\\\s*(.+):\\\\s*not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error (sh format)\"},{\"pattern\":\"bash:\\\\s*(.+):\\\\s*command not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Bash command not found error\"},{\"pattern\":\"permission denied and could not request permission from user\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied warning (user interaction required)\"},{\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"pattern\":\"Error:\\\\s*Cannot find module\\\\s*'(.+)'\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"pattern\":\"sh:\\\\s*\\\\d+:\\\\s*(.+):\\\\s*Permission denied\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell permission denied error\"},{\"pattern\":\"(rate limit|too many requests)\",\"level_group\":0,\"message_group\":0,\"description\":\"Rate limit exceeded error\"},{\"pattern\":\"(429|HTTP.*429)\",\"level_group\":0,\"message_group\":0,\"description\":\"HTTP 429 Too Many Requests status code\"},{\"pattern\":\"error.*quota.*exceeded\",\"level_group\":0,\"message_group\":0,\"description\":\"Quota exceeded error\"},{\"pattern\":\"error.*(timeout|timed out|deadline exceeded)\",\"level_group\":0,\"message_group\":0,\"description\":\"Timeout or deadline exceeded error\"},{\"pattern\":\"(connection refused|connection failed|ECONNREFUSED)\",\"level_group\":0,\"message_group\":0,\"description\":\"Network connection error\"},{\"pattern\":\"(ETIMEDOUT|ENOTFOUND)\",\"level_group\":0,\"message_group\":0,\"description\":\"Network timeout or DNS resolution error\"},{\"pattern\":\"error.*token.*expired\",\"level_group\":0,\"message_group\":0,\"description\":\"Token expired error\"},{\"pattern\":\"(maximum call stack size exceeded|heap out of memory|spawn ENOMEM)\",\"level_group\":0,\"message_group\":0,\"description\":\"Memory or resource exhaustion error\"}]"
         with:
           script: |
             function main() {
@@ -4335,9 +4335,9 @@ jobs:
               core.info("Starting validate_errors.cjs script");
               const startTime = Date.now();
               try {
-                const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
+                const logPath = process.env.GH_AW_AGENT_OUTPUT;
                 if (!logPath) {
-                  throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
+                  throw new Error("GH_AW_AGENT_OUTPUT environment variable is required");
                 }
                 core.info(`Log path: ${logPath}`);
                 if (!fs.existsSync(logPath)) {
@@ -4347,7 +4347,7 @@ jobs:
                 }
                 const patterns = getErrorPatternsFromEnv();
                 if (patterns.length === 0) {
-                  throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
+                  throw new Error("GH_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
                 }
                 core.info(`Loaded ${patterns.length} error patterns`);
                 core.info(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
@@ -4390,26 +4390,26 @@ jobs:
               }
             }
             function getErrorPatternsFromEnv() {
-              const patternsEnv = process.env.GITHUB_AW_ERROR_PATTERNS;
+              const patternsEnv = process.env.GH_AW_ERROR_PATTERNS;
               if (!patternsEnv) {
-                throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required");
+                throw new Error("GH_AW_ERROR_PATTERNS environment variable is required");
               }
               try {
                 const patterns = JSON.parse(patternsEnv);
                 if (!Array.isArray(patterns)) {
-                  throw new Error("GITHUB_AW_ERROR_PATTERNS must be a JSON array");
+                  throw new Error("GH_AW_ERROR_PATTERNS must be a JSON array");
                 }
                 return patterns;
               } catch (e) {
-                throw new Error(`Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);
+                throw new Error(`Failed to parse GH_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);
               }
             }
             function shouldSkipLine(line) {
               const GITHUB_ACTIONS_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s+/;
-              if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "GITHUB_AW_ERROR_PATTERNS:").test(line)) {
+              if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "GH_AW_ERROR_PATTERNS:").test(line)) {
                 return true;
               }
-              if (/^\s+GITHUB_AW_ERROR_PATTERNS:\s*\[/.test(line)) {
+              if (/^\s+GH_AW_ERROR_PATTERNS:\s*\[/.test(line)) {
                 return true;
               }
               if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "env:").test(line)) {
@@ -4559,7 +4559,7 @@ jobs:
       - name: Generate git patch
         if: always()
         env:
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_SHA: ${{ github.sha }}
         run: |
           # Check current git status
@@ -4567,7 +4567,7 @@ jobs:
           git status
           # Extract branch name from JSONL output
           BRANCH_NAME=""
-          if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
+          if [ -f "$GH_AW_SAFE_OUTPUTS" ]; then
             echo "Checking for branch name in JSONL output..."
             while IFS= read -r line; do
               if [ -n "$line" ]; then
@@ -4593,7 +4593,7 @@ jobs:
                   fi
                 fi
               fi
-            done < "$GITHUB_AW_SAFE_OUTPUTS"
+            done < "$GH_AW_SAFE_OUTPUTS"
           fi
           # If no branch or branch doesn't exist, no patch
           if [ -z "$BRANCH_NAME" ]; then
@@ -4671,16 +4671,16 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Create Output Issue
         id: create_issue
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
-          GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
-          GITHUB_AW_ISSUE_TITLE_PREFIX: "[🎭 POEM-BOT] "
-          GITHUB_AW_ISSUE_LABELS: "poetry,automation,ai-generated"
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
+          GH_AW_ISSUE_TITLE_PREFIX: "[🎭 POEM-BOT] "
+          GH_AW_ISSUE_LABELS: "poetry,automation,ai-generated"
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4724,10 +4724,10 @@ jobs:
             async function main() {
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
                 return;
               }
               let outputContent;
@@ -4784,7 +4784,7 @@ jobs:
               const triggeringPRNumber =
                 context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
               const triggeringDiscussionNumber = context.payload?.discussion?.number;
-              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
+              const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
               let envLabels = labelsEnv
                 ? labelsEnv
                     .split(",")
@@ -4818,7 +4818,7 @@ jobs:
                 if (!title) {
                   title = createIssueItem.body || "Agent Output";
                 }
-                const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
+                const titlePrefix = process.env.GH_AW_ISSUE_TITLE_PREFIX;
                 if (titlePrefix && !title.startsWith(titlePrefix)) {
                   title = titlePrefix + title;
                 }
@@ -4826,9 +4826,9 @@ jobs:
                   core.info("Detected issue context, parent issue #" + effectiveParentIssueNumber);
                   bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
                 }
-                const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
                 const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                 const runUrl = context.payload.repository
@@ -4974,15 +4974,15 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Create PR Review Comment
         id: create_pr_review_comment
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
-          GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
-          GITHUB_AW_PR_REVIEW_COMMENT_SIDE: "RIGHT"
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
+          GH_AW_PR_REVIEW_COMMENT_SIDE: "RIGHT"
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5010,9 +5010,9 @@ jobs:
               return footer;
             }
             async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
               function getRepositoryUrl() {
-                const targetRepoSlug = process.env.GITHUB_AW_TARGET_REPO_SLUG;
+                const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
                 if (targetRepoSlug) {
                   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                   return `${githubServer}/${targetRepoSlug}`;
@@ -5023,9 +5023,9 @@ jobs:
                   return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
                 }
               }
-              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
                 return;
               }
               let outputContent;
@@ -5085,9 +5085,9 @@ jobs:
                 core.info("📝 PR review comment creation preview written to step summary");
                 return;
               }
-              const defaultSide = process.env.GITHUB_AW_PR_REVIEW_COMMENT_SIDE || "RIGHT";
+              const defaultSide = process.env.GH_AW_PR_REVIEW_COMMENT_SIDE || "RIGHT";
               core.info(`Default comment side configuration: ${defaultSide}`);
-              const commentTarget = process.env.GITHUB_AW_PR_REVIEW_COMMENT_TARGET || "triggering";
+              const commentTarget = process.env.GH_AW_PR_REVIEW_COMMENT_TARGET || "triggering";
               core.info(`PR review comment target configuration: ${commentTarget}`);
               const isPRContext =
                 context.eventName === "pull_request" ||
@@ -5195,9 +5195,9 @@ jobs:
                   continue;
                 }
                 let body = commentItem.body.trim();
-                const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
                 const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                 const runUrl = context.payload.repository
@@ -5299,21 +5299,21 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Create Pull Request
         id: create_pull_request
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
-          GITHUB_AW_WORKFLOW_ID: "agent"
-          GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
-          GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GITHUB_AW_PR_TITLE_PREFIX: "[🎨 POETRY] "
-          GITHUB_AW_PR_LABELS: "poetry,automation,creative-writing"
-          GITHUB_AW_PR_DRAFT: "false"
-          GITHUB_AW_PR_IF_NO_CHANGES: "warn"
-          GITHUB_AW_MAX_PATCH_SIZE: 1024
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_ID: "agent"
+          GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
+          GH_AW_BASE_BRANCH: ${{ github.ref_name }}
+          GH_AW_PR_TITLE_PREFIX: "[🎨 POETRY] "
+          GH_AW_PR_LABELS: "poetry,automation,creative-writing"
+          GH_AW_PR_DRAFT: "false"
+          GH_AW_PR_IF_NO_CHANGES: "warn"
+          GH_AW_MAX_PATCH_SIZE: 1024
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5345,16 +5345,16 @@ jobs:
               core.setOutput("issue_url", "");
               core.setOutput("branch_name", "");
               core.setOutput("fallback_used", "");
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const workflowId = process.env.GH_AW_WORKFLOW_ID;
               if (!workflowId) {
-                throw new Error("GITHUB_AW_WORKFLOW_ID environment variable is required");
+                throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
               }
-              const baseBranch = process.env.GITHUB_AW_BASE_BRANCH;
+              const baseBranch = process.env.GH_AW_BASE_BRANCH;
               if (!baseBranch) {
-                throw new Error("GITHUB_AW_BASE_BRANCH environment variable is required");
+                throw new Error("GH_AW_BASE_BRANCH environment variable is required");
               }
-              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
               let outputContent = "";
               if (agentOutputFile.trim() !== "") {
                 try {
@@ -5367,7 +5367,7 @@ jobs:
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
               }
-              const ifNoChanges = process.env.GITHUB_AW_PR_IF_NO_CHANGES || "warn";
+              const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
               if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
                 const message = "No patch file found - cannot create pull request without changes";
                 if (isStaged) {
@@ -5415,7 +5415,7 @@ jobs:
               }
               const isEmpty = !patchContent || !patchContent.trim();
               if (!isEmpty) {
-                const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
+                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
                 const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
                 const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
                 core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
@@ -5498,11 +5498,11 @@ jobs:
               if (!title) {
                 title = "Agent Output";
               }
-              const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
+              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
               if (titlePrefix && !title.startsWith(titlePrefix)) {
                 title = titlePrefix + title;
               }
-              const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const runUrl = context.payload.repository
@@ -5510,14 +5510,14 @@ jobs:
                 : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
               const body = bodyLines.join("\n").trim();
-              const labelsEnv = process.env.GITHUB_AW_PR_LABELS;
+              const labelsEnv = process.env.GH_AW_PR_LABELS;
               const labels = labelsEnv
                 ? labelsEnv
                     .split(",")
                     .map( label => label.trim())
                     .filter( label => label)
                 : [];
-              const draftEnv = process.env.GITHUB_AW_PR_DRAFT;
+              const draftEnv = process.env.GH_AW_PR_DRAFT;
               const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
               core.info(`Creating pull request with title: ${title}`);
               core.info(`Labels: ${JSON.stringify(labels)}`);
@@ -5865,7 +5865,7 @@ jobs:
             }
             fs.mkdirSync('/tmp/gh-aw/aw-prompts', { recursive: true });
             fs.writeFileSync('/tmp/gh-aw/aw-prompts/prompt.txt', promptContent);
-            core.exportVariable('GITHUB_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
+            core.exportVariable('GH_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
             await core.summary
               .addRaw('<details>\n<summary>Threat Detection Prompt</summary>\n\n' + '``````markdown\n' + promptContent + '\n' + '``````\n\n</details>\n')
               .write();
@@ -5909,7 +5909,7 @@ jobs:
           copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --model gpt-5 --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
           XDG_CONFIG_HOME: /home/runner
@@ -5980,19 +5980,19 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const fs = require("fs");
-              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT || "";
-              const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
+              const maxReports = process.env.GH_AW_MISSING_TOOL_MAX ? parseInt(process.env.GH_AW_MISSING_TOOL_MAX) : null;
               core.info("Processing missing-tool reports...");
               if (maxReports) {
                 core.info(`Maximum reports allowed: ${maxReports}`);
@@ -6101,14 +6101,14 @@ jobs:
         id: check_membership
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
+          GH_AW_REQUIRED_ROLES: admin,maintainer
         with:
           script: |
             async function main() {
               const { eventName } = context;
               const actor = context.actor;
               const { owner, repo } = context.repo;
-              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
+              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
               const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
               // For workflow_dispatch, only skip check if "write" is in the allowed roles
               // since workflow_dispatch can be triggered by users with write access
@@ -6181,13 +6181,13 @@ jobs:
         id: check_command_position
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_COMMAND: poem-bot
+          GH_AW_COMMAND: poem-bot
         with:
           script: |
             async function main() {
-              const command = process.env.GITHUB_AW_COMMAND;
+              const command = process.env.GH_AW_COMMAND;
               if (!command) {
-                core.setFailed("Configuration error: GITHUB_AW_COMMAND not specified.");
+                core.setFailed("Configuration error: GH_AW_COMMAND not specified.");
                 return;
               }
               let text = "";
@@ -6277,22 +6277,22 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Push to Branch
         id: push_to_pull_request_branch
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_TOKEN: ${{ github.token }}
-          GITHUB_AW_PUSH_IF_NO_CHANGES: "warn"
-          GITHUB_AW_MAX_PATCH_SIZE: 1024
+          GH_AW_PUSH_IF_NO_CHANGES: "warn"
+          GH_AW_MAX_PATCH_SIZE: 1024
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
               if (agentOutputFile.trim() === "") {
                 core.info("Agent output content is empty");
                 return;
@@ -6308,8 +6308,8 @@ jobs:
                 core.info("Agent output content is empty");
                 return;
               }
-              const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
-              const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
+              const target = process.env.GH_AW_PUSH_TARGET || "triggering";
+              const ifNoChanges = process.env.GH_AW_PUSH_IF_NO_CHANGES || "warn";
               if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
                 const message = "No patch file found - cannot push without changes";
                 switch (ifNoChanges) {
@@ -6341,7 +6341,7 @@ jobs:
               }
               const isEmpty = !patchContent || !patchContent.trim();
               if (!isEmpty) {
-                const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
+                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
                 const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
                 const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
                 core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
@@ -6458,12 +6458,12 @@ jobs:
               core.info(`Target branch: ${branchName}`);
               core.info(`PR title: ${prTitle}`);
               core.info(`PR labels: ${prLabels.join(", ")}`);
-              const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
+              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
               if (titlePrefix && !prTitle.startsWith(titlePrefix)) {
                 core.setFailed(`Pull request title "${prTitle}" does not start with required prefix "${titlePrefix}"`);
                 return;
               }
-              const requiredLabelsStr = process.env.GITHUB_AW_PR_LABELS;
+              const requiredLabelsStr = process.env.GH_AW_PR_LABELS;
               if (requiredLabelsStr) {
                 const requiredLabels = requiredLabelsStr.split(",").map(label => label.trim());
                 const missingLabels = requiredLabels.filter(label => !prLabels.includes(label));
@@ -6575,25 +6575,25 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Update Issue
         id: update_issue
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
-          GITHUB_AW_UPDATE_STATUS: true
-          GITHUB_AW_UPDATE_TITLE: true
-          GITHUB_AW_UPDATE_BODY: true
-          GITHUB_AW_UPDATE_TARGET: "*"
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_UPDATE_STATUS: true
+          GH_AW_UPDATE_TITLE: true
+          GH_AW_UPDATE_BODY: true
+          GH_AW_UPDATE_TARGET: "*"
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
                 return;
               }
               let outputContent;
@@ -6651,10 +6651,10 @@ jobs:
                 core.info("📝 Issue update preview written to step summary");
                 return;
               }
-              const updateTarget = process.env.GITHUB_AW_UPDATE_TARGET || "triggering";
-              const canUpdateStatus = process.env.GITHUB_AW_UPDATE_STATUS === "true";
-              const canUpdateTitle = process.env.GITHUB_AW_UPDATE_TITLE === "true";
-              const canUpdateBody = process.env.GITHUB_AW_UPDATE_BODY === "true";
+              const updateTarget = process.env.GH_AW_UPDATE_TARGET || "triggering";
+              const canUpdateStatus = process.env.GH_AW_UPDATE_STATUS === "true";
+              const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
+              const canUpdateBody = process.env.GH_AW_UPDATE_BODY === "true";
               core.info(`Update target configuration: ${updateTarget}`);
               core.info(`Can update status: ${canUpdateStatus}, title: ${canUpdateTitle}, body: ${canUpdateBody}`);
               const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
@@ -6809,26 +6809,26 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Update reaction comment with completion status
         id: update_reaction
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
-          GITHUB_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          GITHUB_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GITHUB_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
-          GITHUB_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
+          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
-              const commentId = process.env.GITHUB_AW_COMMENT_ID;
-              const commentRepo = process.env.GITHUB_AW_COMMENT_REPO;
-              const runUrl = process.env.GITHUB_AW_RUN_URL;
-              const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-              const agentConclusion = process.env.GITHUB_AW_AGENT_CONCLUSION || "failure";
+              const commentId = process.env.GH_AW_COMMENT_ID;
+              const commentRepo = process.env.GH_AW_COMMENT_REPO;
+              const runUrl = process.env.GH_AW_RUN_URL;
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+              const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
               core.info(`Comment ID: ${commentId}`);
               core.info(`Comment Repo: ${commentRepo}`);
               core.info(`Run URL: ${runUrl}`);
@@ -6950,16 +6950,16 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Upload Assets to Orphaned Branch
         id: upload_assets
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
-          GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
-          GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GH_AW_ASSETS_MAX_SIZE_KB: 10240
+          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -6981,17 +6981,17 @@ jobs:
               return normalized;
             }
             async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const branchName = process.env.GH_AW_ASSETS_BRANCH;
               if (!branchName || typeof branchName !== "string") {
-                core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
+                core.setFailed("GH_AW_ASSETS_BRANCH environment variable is required but not set");
                 return;
               }
               const normalizedBranchName = normalizeBranchName(branchName);
               core.info(`Using assets branch: ${normalizedBranchName}`);
-              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
                 core.setOutput("upload_count", "0");
                 core.setOutput("branch_name", normalizedBranchName);
                 return;

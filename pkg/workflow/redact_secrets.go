@@ -81,7 +81,7 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 	for i, ref := range secretReferences {
 		escapedRefs[i] = escapeSingleQuote(ref)
 	}
-	yaml.WriteString(fmt.Sprintf("          GITHUB_AW_SECRET_NAMES: '%s'\n", strings.Join(escapedRefs, ",")))
+	yaml.WriteString(fmt.Sprintf("          GH_AW_SECRET_NAMES: '%s'\n", strings.Join(escapedRefs, ",")))
 
 	// Pass the actual secret values as environment variables so they can be redacted
 	// Each secret will be available as an environment variable

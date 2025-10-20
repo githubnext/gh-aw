@@ -275,8 +275,8 @@ describe("main function behavior", () => {
     const originalProcessEnv = process.env;
 
     // Mock environment variables
-    process.env.GITHUB_AW_AGENT_OUTPUT = "/tmp/gh-aw/test.log";
-    process.env.GITHUB_AW_ERROR_PATTERNS = JSON.stringify([
+    process.env.GH_AW_AGENT_OUTPUT = "/tmp/gh-aw/test.log";
+    process.env.GH_AW_ERROR_PATTERNS = JSON.stringify([
       {
         pattern: "ERROR:\\s+(.+)",
         level_group: 0,
@@ -556,12 +556,12 @@ describe("infinite loop detection", () => {
 describe("shouldSkipLine", () => {
   test("should skip GitHub Actions environment variable declarations with timestamp", () => {
     const line =
-      '2025-10-11T21:23:50.7459810Z   GITHUB_AW_ERROR_PATTERNS: [{"pattern":"access denied.*only authorized.*can trigger.*workflow"}]';
+      '2025-10-11T21:23:50.7459810Z   GH_AW_ERROR_PATTERNS: [{"pattern":"access denied.*only authorized.*can trigger.*workflow"}]';
     expect(shouldSkipLine(line)).toBe(true);
   });
 
   test("should skip GitHub Actions environment variable declarations without timestamp", () => {
-    const line = '   GITHUB_AW_ERROR_PATTERNS: [{"pattern":"error.*permission.*denied"}]';
+    const line = '   GH_AW_ERROR_PATTERNS: [{"pattern":"error.*permission.*denied"}]';
     expect(shouldSkipLine(line)).toBe(true);
   });
 
@@ -585,9 +585,9 @@ describe("shouldSkipLine", () => {
     expect(shouldSkipLine(line)).toBe(false);
   });
 
-  test("should not skip lines with GITHUB_AW_ERROR_PATTERNS in regular content", () => {
+  test("should not skip lines with GH_AW_ERROR_PATTERNS in regular content", () => {
     // This line mentions the env var but is not the actual env var declaration
-    const line = "The GITHUB_AW_ERROR_PATTERNS variable was set correctly";
+    const line = "The GH_AW_ERROR_PATTERNS variable was set correctly";
     expect(shouldSkipLine(line)).toBe(false);
   });
 });
@@ -597,13 +597,13 @@ describe("validateErrors with environment variable filtering", () => {
     vi.clearAllMocks();
   });
 
-  test("should not match error patterns in GITHUB_AW_ERROR_PATTERNS environment variable output", () => {
+  test("should not match error patterns in GH_AW_ERROR_PATTERNS environment variable output", () => {
     // Simulate actual GitHub Actions log output that includes the env var
     const logContent = `2025-10-11T21:23:50.7452613Z   debug: false
 2025-10-11T21:23:50.7453024Z   user-agent: actions/github-script
 2025-10-11T21:23:50.7454107Z env:
-2025-10-11T21:23:50.7454400Z   GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-2025-10-11T21:23:50.7459810Z   GITHUB_AW_ERROR_PATTERNS: [{"pattern":"access denied.*only authorized.*can trigger.*workflow","level_group":0,"message_group":0,"description":"Permission denied - workflow access restriction"},{"pattern":"error.*permission.*denied","level_group":0,"message_group":0,"description":"Permission denied error"}]
+2025-10-11T21:23:50.7454400Z   GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
+2025-10-11T21:23:50.7459810Z   GH_AW_ERROR_PATTERNS: [{"pattern":"access denied.*only authorized.*can trigger.*workflow","level_group":0,"message_group":0,"description":"Permission denied - workflow access restriction"},{"pattern":"error.*permission.*denied","level_group":0,"message_group":0,"description":"Permission denied error"}]
 2025-10-11T21:23:50.7464005Z ##[endgroup]
 Regular log content here
 ERROR: actual error that should be caught`;
@@ -640,12 +640,12 @@ ERROR: actual error that should be caught`;
     expect(relevantErrors.length).toBeGreaterThan(0);
 
     // Should NOT have errors for the env var lines
-    const envVarErrors = errorCalls.filter(call => call[0].includes("GITHUB_AW_ERROR_PATTERNS"));
+    const envVarErrors = errorCalls.filter(call => call[0].includes("GH_AW_ERROR_PATTERNS"));
     expect(envVarErrors.length).toBe(0);
   });
 
   test("should still catch real errors that match the patterns", () => {
-    const logContent = `2025-10-11T21:23:50.7459810Z   GITHUB_AW_ERROR_PATTERNS: [{"pattern":"error.*permission.*denied"}]
+    const logContent = `2025-10-11T21:23:50.7459810Z   GH_AW_ERROR_PATTERNS: [{"pattern":"error.*permission.*denied"}]
 Normal log line
 error: permission was denied to the user
 More logs`;

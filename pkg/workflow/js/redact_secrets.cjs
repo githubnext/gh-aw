@@ -97,9 +97,9 @@ function processFile(filePath, secretValues) {
  */
 async function main() {
   // Get the list of secret names from environment variable
-  const secretNames = process.env.GITHUB_AW_SECRET_NAMES;
+  const secretNames = process.env.GH_AW_SECRET_NAMES;
   if (!secretNames) {
-    core.info("GITHUB_AW_SECRET_NAMES not set, no redaction performed");
+    core.info("GH_AW_SECRET_NAMES not set, no redaction performed");
     return;
   }
   core.info("Starting secret redaction in /tmp/gh-aw directory");

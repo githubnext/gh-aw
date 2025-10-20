@@ -194,18 +194,18 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 				SafeOutputs: config,
 			}
 
-			// Use the compiler's generateOutputCollectionStep to test the GITHUB_AW_SAFE_OUTPUTS_CONFIG generation
+			// Use the compiler's generateOutputCollectionStep to test the GH_AW_SAFE_OUTPUTS_CONFIG generation
 			var yamlBuilder strings.Builder
 			compiler.generateOutputCollectionStep(&yamlBuilder, workflowData)
 			generatedYAML := yamlBuilder.String()
 
-			// Look specifically for the GITHUB_AW_SAFE_OUTPUTS_CONFIG environment variable line
-			configLinePresent := strings.Contains(generatedYAML, "GITHUB_AW_SAFE_OUTPUTS_CONFIG:")
+			// Look specifically for the GH_AW_SAFE_OUTPUTS_CONFIG environment variable line
+			configLinePresent := strings.Contains(generatedYAML, "GH_AW_SAFE_OUTPUTS_CONFIG:")
 
 			if len(tt.expectedInConfig) > 0 {
 				// If we expect items in config, the config line should be present
 				if !configLinePresent {
-					t.Errorf("Expected GITHUB_AW_SAFE_OUTPUTS_CONFIG environment variable to be present, but it was not found")
+					t.Errorf("Expected GH_AW_SAFE_OUTPUTS_CONFIG environment variable to be present, but it was not found")
 					return
 				}
 
@@ -213,7 +213,7 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 				configLine := ""
 				lines := strings.Split(generatedYAML, "\n")
 				for _, line := range lines {
-					if strings.Contains(line, "GITHUB_AW_SAFE_OUTPUTS_CONFIG:") {
+					if strings.Contains(line, "GH_AW_SAFE_OUTPUTS_CONFIG:") {
 						configLine = line
 						break
 					}
@@ -222,14 +222,14 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 				// Check expected items are present in the config line
 				for _, expected := range tt.expectedInConfig {
 					if !strings.Contains(configLine, expected) {
-						t.Errorf("Expected %q to be in GITHUB_AW_SAFE_OUTPUTS_CONFIG, but it was not found in config line: %s", expected, configLine)
+						t.Errorf("Expected %q to be in GH_AW_SAFE_OUTPUTS_CONFIG, but it was not found in config line: %s", expected, configLine)
 					}
 				}
 
 				// Check unexpected items are not present in the config line
 				for _, unexpected := range tt.unexpectedInConfig {
 					if strings.Contains(configLine, unexpected) {
-						t.Errorf("Did not expect %q to be in GITHUB_AW_SAFE_OUTPUTS_CONFIG, but it was found in config line: %s", unexpected, configLine)
+						t.Errorf("Did not expect %q to be in GH_AW_SAFE_OUTPUTS_CONFIG, but it was found in config line: %s", unexpected, configLine)
 					}
 				}
 			}

@@ -21,8 +21,8 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
     // Set up environment
     process.env = {
       ...originalEnv,
-      GITHUB_AW_SAFE_OUTPUTS: tempOutputFile,
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
+      GH_AW_SAFE_OUTPUTS: tempOutputFile,
+      GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
         create_issue: { enabled: true, max: 5 },
         create_discussion: { enabled: true },
         add_comment: { enabled: true, max: 3 },
@@ -79,8 +79,8 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
         command: "node",
         args: [serverPath],
         env: {
-          GITHUB_AW_SAFE_OUTPUTS: tempOutputFile,
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
+          GH_AW_SAFE_OUTPUTS: tempOutputFile,
+          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
             create_issue: { enabled: true },
             missing_tool: { enabled: true },
           }),
@@ -145,8 +145,8 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GITHUB_AW_SAFE_OUTPUTS: tempOutputFile,
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
+          GH_AW_SAFE_OUTPUTS: tempOutputFile,
+          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
             create_issue: { enabled: true },
           }),
         },

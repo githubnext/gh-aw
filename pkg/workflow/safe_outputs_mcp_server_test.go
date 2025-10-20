@@ -28,12 +28,12 @@ func NewMCPTestClient(t *testing.T, outputFile string, config map[string]any) *M
 
 	// Set up environment
 	env := os.Environ()
-	env = append(env, fmt.Sprintf("GITHUB_AW_SAFE_OUTPUTS=%s", outputFile))
+	env = append(env, fmt.Sprintf("GH_AW_SAFE_OUTPUTS=%s", outputFile))
 
 	// Add required environment variables for upload_asset tool
-	env = append(env, "GITHUB_AW_ASSETS_BRANCH=test-assets")
-	env = append(env, "GITHUB_AW_ASSETS_MAX_SIZE_KB=10240")
-	env = append(env, "GITHUB_AW_ASSETS_ALLOWED_EXTS=.png,.jpg,.jpeg")
+	env = append(env, "GH_AW_ASSETS_BRANCH=test-assets")
+	env = append(env, "GH_AW_ASSETS_MAX_SIZE_KB=10240")
+	env = append(env, "GH_AW_ASSETS_ALLOWED_EXTS=.png,.jpg,.jpeg")
 	env = append(env, "GITHUB_SERVER_URL=https://github.com")
 	env = append(env, "GITHUB_REPOSITORY=test/repo")
 
@@ -42,7 +42,7 @@ func NewMCPTestClient(t *testing.T, outputFile string, config map[string]any) *M
 		if err != nil {
 			t.Fatalf("Failed to marshal config: %v", err)
 		}
-		env = append(env, fmt.Sprintf("GITHUB_AW_SAFE_OUTPUTS_CONFIG=%s", string(configJSON)))
+		env = append(env, fmt.Sprintf("GH_AW_SAFE_OUTPUTS_CONFIG=%s", string(configJSON)))
 	}
 
 	// Create command for the MCP server

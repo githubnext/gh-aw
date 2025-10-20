@@ -83,7 +83,7 @@ describe("create_discussion.cjs", () => {
     tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
     const content = typeof data === "string" ? data : JSON.stringify(data);
     fs.writeFileSync(tempFilePath, content);
-    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+    process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
   };
 
   beforeEach(() => {
@@ -91,9 +91,9 @@ describe("create_discussion.cjs", () => {
     vi.clearAllMocks();
 
     // Reset environment variables
-    delete process.env.GITHUB_AW_AGENT_OUTPUT;
-    delete process.env.GITHUB_AW_DISCUSSION_TITLE_PREFIX;
-    delete process.env.GITHUB_AW_DISCUSSION_CATEGORY;
+    delete process.env.GH_AW_AGENT_OUTPUT;
+    delete process.env.GH_AW_DISCUSSION_TITLE_PREFIX;
+    delete process.env.GH_AW_DISCUSSION_CATEGORY;
 
     // Read the script content
     const scriptPath = path.join(process.cwd(), "create_discussion.cjs");
@@ -109,11 +109,11 @@ describe("create_discussion.cjs", () => {
     }
   });
 
-  it("should handle missing GITHUB_AW_AGENT_OUTPUT environment variable", async () => {
+  it("should handle missing GH_AW_AGENT_OUTPUT environment variable", async () => {
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
   });
 
   it("should handle empty agent output", async () => {
@@ -244,7 +244,7 @@ describe("create_discussion.cjs", () => {
       ],
     };
     setAgentOutput(validOutput);
-    process.env.GITHUB_AW_DISCUSSION_TITLE_PREFIX = "[ai] ";
+    process.env.GH_AW_DISCUSSION_TITLE_PREFIX = "[ai] ";
 
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
@@ -293,7 +293,7 @@ describe("create_discussion.cjs", () => {
       ],
     };
     setAgentOutput(validOutput);
-    process.env.GITHUB_AW_DISCUSSION_CATEGORY = "DIC_custom789";
+    process.env.GH_AW_DISCUSSION_CATEGORY = "DIC_custom789";
 
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
@@ -371,7 +371,7 @@ describe("create_discussion.cjs", () => {
       ],
     };
     setAgentOutput(validOutput);
-    process.env.GITHUB_AW_DISCUSSION_CATEGORY = "Custom"; // Use category name instead of ID
+    process.env.GH_AW_DISCUSSION_CATEGORY = "Custom"; // Use category name instead of ID
 
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
@@ -421,7 +421,7 @@ describe("create_discussion.cjs", () => {
       ],
     };
     setAgentOutput(validOutput);
-    process.env.GITHUB_AW_DISCUSSION_CATEGORY = "custom-category"; // Use category slug instead of ID or name
+    process.env.GH_AW_DISCUSSION_CATEGORY = "custom-category"; // Use category slug instead of ID or name
 
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
@@ -468,7 +468,7 @@ describe("create_discussion.cjs", () => {
       ],
     };
     setAgentOutput(validOutput);
-    process.env.GITHUB_AW_DISCUSSION_CATEGORY = "NonExistent"; // Category that doesn't exist
+    process.env.GH_AW_DISCUSSION_CATEGORY = "NonExistent"; // Category that doesn't exist
 
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);

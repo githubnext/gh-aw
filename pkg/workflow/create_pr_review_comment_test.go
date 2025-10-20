@@ -307,12 +307,12 @@ This workflow tests job generation for PR review comments.
 		}
 
 		// Verify environment variables are passed
-		if !strings.Contains(workflowContent, "GITHUB_AW_AGENT_OUTPUT:") {
-			t.Error("Expected GITHUB_AW_AGENT_OUTPUT environment variable to be passed")
+		if !strings.Contains(workflowContent, "GH_AW_AGENT_OUTPUT:") {
+			t.Error("Expected GH_AW_AGENT_OUTPUT environment variable to be passed")
 		}
 
-		if !strings.Contains(workflowContent, `GITHUB_AW_PR_REVIEW_COMMENT_SIDE: "LEFT"`) {
-			t.Error("Expected GITHUB_AW_PR_REVIEW_COMMENT_SIDE environment variable to be set to LEFT")
+		if !strings.Contains(workflowContent, `GH_AW_PR_REVIEW_COMMENT_SIDE: "LEFT"`) {
+			t.Error("Expected GH_AW_PR_REVIEW_COMMENT_SIDE environment variable to be set to LEFT")
 		}
 
 		// Verify the JavaScript script is embedded
@@ -369,8 +369,8 @@ This workflow tests job generation for PR review comments with target configurat
 		}
 
 		// Verify environment variables are passed
-		if !strings.Contains(workflowContent, `GITHUB_AW_PR_REVIEW_COMMENT_TARGET: "*"`) {
-			t.Error("Expected GITHUB_AW_PR_REVIEW_COMMENT_TARGET environment variable to be set to '*'")
+		if !strings.Contains(workflowContent, `GH_AW_PR_REVIEW_COMMENT_TARGET: "*"`) {
+			t.Error("Expected GH_AW_PR_REVIEW_COMMENT_TARGET environment variable to be set to '*'")
 		}
 
 		// When target is specified, the job condition should not include event context checks

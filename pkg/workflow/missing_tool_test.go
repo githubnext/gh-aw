@@ -150,9 +150,9 @@ func TestGeneratePromptIncludesGitHubAWPrompt(t *testing.T) {
 
 	output := yaml.String()
 
-	// Check that GITHUB_AW_PROMPT environment variable is always included
-	if !strings.Contains(output, "GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
-		t.Error("Expected 'GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt' in prompt generation step")
+	// Check that GH_AW_PROMPT environment variable is always included
+	if !strings.Contains(output, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
+		t.Error("Expected 'GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt' in prompt generation step")
 	}
 
 	// Check that env section is always present now
@@ -182,9 +182,9 @@ func TestMissingToolPromptGeneration(t *testing.T) {
 		t.Error("Expected 'Reporting Missing Tools or Functionality' in prompt header")
 	}
 
-	// Check that GITHUB_AW_SAFE_OUTPUTS environment variable is included when SafeOutputs is configured
-	if !strings.Contains(output, "GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}") {
-		t.Error("Expected 'GITHUB_AW_SAFE_OUTPUTS' environment variable when SafeOutputs is configured")
+	// Check that GH_AW_SAFE_OUTPUTS environment variable is included when SafeOutputs is configured
+	if !strings.Contains(output, "GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}") {
+		t.Error("Expected 'GH_AW_SAFE_OUTPUTS' environment variable when SafeOutputs is configured")
 	}
 
 	// Check that the important note about safe-outputs tools is included
@@ -294,8 +294,8 @@ func TestMissingToolScriptEmbedding(t *testing.T) {
 	// Verify it contains expected JavaScript content
 	expectedContent := []string{
 		"async function main()",
-		"GITHUB_AW_AGENT_OUTPUT",
-		"GITHUB_AW_MISSING_TOOL_MAX",
+		"GH_AW_AGENT_OUTPUT",
+		"GH_AW_MISSING_TOOL_MAX",
 		"missing-tool",
 		"JSON.parse",
 		"core.setOutput",

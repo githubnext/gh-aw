@@ -3,7 +3,7 @@ function main() {
   const path = require("path");
 
   try {
-    const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
+    const logPath = process.env.GH_AW_AGENT_OUTPUT;
     if (!logPath) {
       core.info("No agent log file specified");
       return;

@@ -52,12 +52,12 @@ function normalizeBranchName(branchName) {
 
 async function main() {
   // Check if we're in staged mode
-  const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   // Get the branch name from environment variable (required)
-  const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
+  const branchName = process.env.GH_AW_ASSETS_BRANCH;
   if (!branchName || typeof branchName !== "string") {
-    core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
+    core.setFailed("GH_AW_ASSETS_BRANCH environment variable is required but not set");
     return;
   }
 
@@ -66,9 +66,9 @@ async function main() {
   core.info(`Using assets branch: ${normalizedBranchName}`);
 
   // Read the validated output content from environment variable
-  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   if (!agentOutputFile) {
-    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    core.info("No GH_AW_AGENT_OUTPUT environment variable found");
     core.setOutput("upload_count", "0");
     core.setOutput("branch_name", normalizedBranchName);
     return;

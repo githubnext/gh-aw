@@ -57,8 +57,8 @@ describe("sanitize_output.cjs", () => {
     vi.clearAllMocks();
 
     // Reset environment variables
-    delete process.env.GITHUB_AW_SAFE_OUTPUTS;
-    delete process.env.GITHUB_AW_ALLOWED_DOMAINS;
+    delete process.env.GH_AW_SAFE_OUTPUTS;
+    delete process.env.GH_AW_ALLOWED_DOMAINS;
 
     // Read the script content
     const scriptPath = path.join(process.cwd(), "sanitize_output.cjs");
@@ -193,7 +193,7 @@ describe("sanitize_output.cjs", () => {
     });
 
     it("should respect custom allowed domains from environment", () => {
-      process.env.GITHUB_AW_ALLOWED_DOMAINS = "example.com,trusted.org";
+      process.env.GH_AW_ALLOWED_DOMAINS = "example.com,trusted.org";
 
       // Re-run the script setup to pick up env variable
       const scriptWithExport = sanitizeScript.replace("await main();", "global.testSanitizeContent = sanitizeContent;");
@@ -284,7 +284,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
     });
 
     it("should handle empty environment variable gracefully", () => {
-      process.env.GITHUB_AW_ALLOWED_DOMAINS = "  ,  ,  ";
+      process.env.GH_AW_ALLOWED_DOMAINS = "  ,  ,  ";
 
       const scriptWithExport = sanitizeScript.replace("await main();", "global.testSanitizeContent = sanitizeContent;");
       eval(scriptWithExport);
@@ -523,18 +523,18 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       delete global.fs;
     });
 
-    it("should handle missing GITHUB_AW_SAFE_OUTPUTS environment variable", async () => {
-      delete process.env.GITHUB_AW_SAFE_OUTPUTS;
+    it("should handle missing GH_AW_SAFE_OUTPUTS environment variable", async () => {
+      delete process.env.GH_AW_SAFE_OUTPUTS;
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
+      expect(mockCore.info).toHaveBeenCalledWith("GH_AW_SAFE_OUTPUTS not set, no output to collect");
       expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
     });
 
     it("should handle non-existent output file", async () => {
-      process.env.GITHUB_AW_SAFE_OUTPUTS = "/tmp/gh-aw/non-existent-file.txt";
+      process.env.GH_AW_SAFE_OUTPUTS = "/tmp/gh-aw/non-existent-file.txt";
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
@@ -546,7 +546,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
     it("should handle empty output file", async () => {
       const testFile = "/tmp/gh-aw/test-empty-output.txt";
       fs.writeFileSync(testFile, "   \n  \t  \n  ");
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
@@ -561,7 +561,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const testContent = "Hello @user! This fixes #123. Link: http://bad.com and https://github.com/repo";
       const testFile = "/tmp/gh-aw/test-output.txt";
       fs.writeFileSync(testFile, testContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
@@ -585,7 +585,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const longContent = "x".repeat(250); // More than 200 chars to trigger truncation
       const testFile = "/tmp/gh-aw/test-long-output.txt";
       fs.writeFileSync(testFile, longContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
@@ -611,7 +611,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
         throw new Error("Permission denied");
       });
 
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
       let thrownError = null;
       try {
@@ -636,7 +636,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const binaryData = Buffer.from([0x00, 0x01, 0x02, 0xff, 0xfe, 0xfd]);
       const testFile = "/tmp/gh-aw/test-binary.txt";
       fs.writeFileSync(testFile, binaryData);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
@@ -652,7 +652,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const whitespaceContent = "   \n\n\t\t  \r\n  ";
       const testFile = "/tmp/gh-aw/test-whitespace.txt";
       fs.writeFileSync(testFile, whitespaceContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
@@ -670,7 +670,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
       const testFile = "/tmp/gh-aw/test-large-mixed.txt";
       fs.writeFileSync(testFile, repeatedContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
@@ -694,7 +694,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const shortContent = "Short message with @user";
       const testFile = "/tmp/gh-aw/test-short.txt";
       fs.writeFileSync(testFile, shortContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
@@ -722,11 +722,11 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
     });
 
     it("should neutralize command at the start of text", async () => {
-      process.env.GITHUB_AW_COMMAND = "test-bot";
+      process.env.GH_AW_COMMAND = "test-bot";
       const content = "/test-bot please analyze this code";
       const testFile = "/tmp/gh-aw/test-command-start.txt";
       fs.writeFileSync(testFile, content);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
@@ -740,15 +740,15 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       expect(result).not.toMatch(/^\/test-bot/); // Should not start with plain command
 
       fs.unlinkSync(testFile);
-      delete process.env.GITHUB_AW_COMMAND;
+      delete process.env.GH_AW_COMMAND;
     });
 
     it("should not neutralize command when it appears later in text", async () => {
-      process.env.GITHUB_AW_COMMAND = "helper";
+      process.env.GH_AW_COMMAND = "helper";
       const content = "I need help from /helper please";
       const testFile = "/tmp/gh-aw/test-command-middle.txt";
       fs.writeFileSync(testFile, content);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
@@ -763,15 +763,15 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       expect(result).toContain("I need help from /helper please");
 
       fs.unlinkSync(testFile);
-      delete process.env.GITHUB_AW_COMMAND;
+      delete process.env.GH_AW_COMMAND;
     });
 
     it("should handle command at start with leading whitespace", async () => {
-      process.env.GITHUB_AW_COMMAND = "review-bot";
+      process.env.GH_AW_COMMAND = "review-bot";
       const content = "  \n/review-bot analyze this PR";
       const testFile = "/tmp/gh-aw/test-command-whitespace.txt";
       fs.writeFileSync(testFile, content);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
@@ -784,15 +784,15 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       expect(result).toContain("`/review-bot`");
 
       fs.unlinkSync(testFile);
-      delete process.env.GITHUB_AW_COMMAND;
+      delete process.env.GH_AW_COMMAND;
     });
 
     it("should not modify text when no command is configured", async () => {
-      // No GITHUB_AW_COMMAND set
+      // No GH_AW_COMMAND set
       const content = "/some-bot do something";
       const testFile = "/tmp/gh-aw/test-no-command.txt";
       fs.writeFileSync(testFile, content);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
@@ -808,11 +808,11 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
     });
 
     it("should handle special characters in command name", async () => {
-      process.env.GITHUB_AW_COMMAND = "test-bot_v2";
+      process.env.GH_AW_COMMAND = "test-bot_v2";
       const content = "/test-bot_v2 execute task";
       const testFile = "/tmp/gh-aw/test-special-chars.txt";
       fs.writeFileSync(testFile, content);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
@@ -825,15 +825,15 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       expect(result).toContain("`/test-bot_v2`");
 
       fs.unlinkSync(testFile);
-      delete process.env.GITHUB_AW_COMMAND;
+      delete process.env.GH_AW_COMMAND;
     });
 
     it("should combine command neutralization with other sanitizations", async () => {
-      process.env.GITHUB_AW_COMMAND = "analyze-bot";
+      process.env.GH_AW_COMMAND = "analyze-bot";
       const content = "/analyze-bot check @user for https://evil.com issues";
       const testFile = "/tmp/gh-aw/test-combined.txt";
       fs.writeFileSync(testFile, content);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
@@ -850,7 +850,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       expect(result).toContain("(redacted)");
 
       fs.unlinkSync(testFile);
-      delete process.env.GITHUB_AW_COMMAND;
+      delete process.env.GH_AW_COMMAND;
     });
   });
 });

@@ -2195,8 +2195,8 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckStopTimeStepID))
 		steps = append(steps, "        uses: actions/github-script@v8\n")
 		steps = append(steps, "        env:\n")
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_STOP_TIME: %s\n", data.StopTime))
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", workflowName))
+		steps = append(steps, fmt.Sprintf("          GH_AW_STOP_TIME: %s\n", data.StopTime))
+		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
@@ -2211,7 +2211,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckCommandPositionStepID))
 		steps = append(steps, "        uses: actions/github-script@v8\n")
 		steps = append(steps, "        env:\n")
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_COMMAND: %s\n", data.Command))
+		steps = append(steps, fmt.Sprintf("          GH_AW_COMMAND: %s\n", data.Command))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
@@ -2342,11 +2342,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 		// Add environment variables
 		steps = append(steps, "        env:\n")
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_REACTION: %s\n", data.AIReaction))
+		steps = append(steps, fmt.Sprintf("          GH_AW_REACTION: %s\n", data.AIReaction))
 		if data.Command != "" {
-			steps = append(steps, fmt.Sprintf("          GITHUB_AW_COMMAND: %s\n", data.Command))
+			steps = append(steps, fmt.Sprintf("          GH_AW_COMMAND: %s\n", data.Command))
 		}
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
+		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
 
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
@@ -2444,7 +2444,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		depends = []string{constants.ActivationJobName} // Depend on the activation job only if it exists
 	}
 
-	// Build outputs for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)
+	// Build outputs for all engines (GH_AW_SAFE_OUTPUTS functionality)
 	// Only include output if the workflow actually uses the safe-outputs feature
 	var outputs map[string]string
 	if data.SafeOutputs != nil {
@@ -2459,21 +2459,21 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	if data.SafeOutputs != nil {
 		env = make(map[string]string)
 
-		// Set GITHUB_AW_SAFE_OUTPUTS to fixed path
-		env["GITHUB_AW_SAFE_OUTPUTS"] = "/tmp/gh-aw/safe-outputs/outputs.jsonl"
+		// Set GH_AW_SAFE_OUTPUTS to fixed path
+		env["GH_AW_SAFE_OUTPUTS"] = "/tmp/gh-aw/safe-outputs/outputs.jsonl"
 
-		// Set GITHUB_AW_SAFE_OUTPUTS_CONFIG with the safe outputs configuration
+		// Set GH_AW_SAFE_OUTPUTS_CONFIG with the safe outputs configuration
 		safeOutputConfig := generateSafeOutputsConfig(data)
 		if safeOutputConfig != "" {
 			// The JSON string needs to be properly quoted for YAML
-			env["GITHUB_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
+			env["GH_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
 		}
 
 		// Add asset-related environment variables if upload-assets is configured
 		if data.SafeOutputs.UploadAssets != nil {
-			env["GITHUB_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
-			env["GITHUB_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
-			env["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
+			env["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
+			env["GH_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
+			env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
 		}
 	}
 
@@ -2587,7 +2587,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
-	// GITHUB_AW_SAFE_OUTPUTS is now set at job level, no setup step needed
+	// GH_AW_SAFE_OUTPUTS is now set at job level, no setup step needed
 
 	// Add MCP setup
 	c.generateMCPSetup(yaml, data.Tools, engine, data)
@@ -2616,7 +2616,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add AI execution step using the agentic engine
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
 
-	// Add output collection step only if safe-outputs feature is used (GITHUB_AW_SAFE_OUTPUTS functionality)
+	// Add output collection step only if safe-outputs feature is used (GH_AW_SAFE_OUTPUTS functionality)
 	if data.SafeOutputs != nil {
 		c.generateOutputCollectionStep(yaml, data)
 	}
@@ -2697,7 +2697,7 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/github-script@v8\n")
 	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileForParsing)
+	fmt.Fprintf(yaml, "          GH_AW_AGENT_OUTPUT: %s\n", logFileForParsing)
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
@@ -2768,7 +2768,7 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/github-script@v8\n")
 	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileForValidation)
+	fmt.Fprintf(yaml, "          GH_AW_AGENT_OUTPUT: %s\n", logFileForValidation)
 
 	// Add JavaScript-compatible error patterns as a single JSON array
 	patternsJSON, err := json.Marshal(jsCompatiblePatterns)
@@ -2776,7 +2776,7 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 		// Skip if patterns can't be marshaled
 		return
 	}
-	fmt.Fprintf(yaml, "          GITHUB_AW_ERROR_PATTERNS: %q\n", string(patternsJSON))
+	fmt.Fprintf(yaml, "          GH_AW_ERROR_PATTERNS: %q\n", string(patternsJSON))
 
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
@@ -2925,21 +2925,21 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Create the initial prompt file step
 	yaml.WriteString("      - name: Create prompt\n")
 	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	if data.SafeOutputs != nil {
-		yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 	}
 	yaml.WriteString("        run: |\n")
 	WriteShellScriptToYAML(yaml, createPromptFirstScript, "          ")
 
 	if len(chunks) > 0 {
-		yaml.WriteString("          cat > $GITHUB_AW_PROMPT << 'EOF'\n")
+		yaml.WriteString("          cat > $GH_AW_PROMPT << 'EOF'\n")
 		for _, line := range strings.Split(chunks[0], "\n") {
 			yaml.WriteString("          " + line + "\n")
 		}
 		yaml.WriteString("          EOF\n")
 	} else {
-		yaml.WriteString("          touch $GITHUB_AW_PROMPT\n")
+		yaml.WriteString("          touch $GH_AW_PROMPT\n")
 	}
 
 	// Create additional steps for remaining chunks
@@ -2947,9 +2947,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		stepNum := i + 2
 		yaml.WriteString(fmt.Sprintf("      - name: Append prompt (part %d)\n", stepNum))
 		yaml.WriteString("        env:\n")
-		yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
+		yaml.WriteString("          cat >> $GH_AW_PROMPT << 'EOF'\n")
 		for _, line := range strings.Split(chunk, "\n") {
 			yaml.WriteString("          " + line + "\n")
 		}
@@ -2976,9 +2976,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	if c.trialMode {
 		yaml.WriteString("      - name: Append trial mode note to prompt\n")
 		yaml.WriteString("        env:\n")
-		yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
+		yaml.WriteString("          cat >> $GH_AW_PROMPT << 'EOF'\n")
 		yaml.WriteString("          ## Note\n")
 		yaml.WriteString(fmt.Sprintf("          This workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.\n", c.trialLogicalRepoSlug))
 		yaml.WriteString("          EOF\n")
@@ -3002,7 +3002,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Print prompt to step summary (merged into prompt generation)
 	yaml.WriteString("      - name: Print prompt to step summary\n")
 	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
 	WriteShellScriptToYAML(yaml, printPromptSummaryScript, "          ")
 }
@@ -3258,7 +3258,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", constants.SafeOutputArtifactName)
-	yaml.WriteString("          path: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+	yaml.WriteString("          path: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 
 	yaml.WriteString("      - name: Ingest agent output\n")
@@ -3267,23 +3267,23 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	// Add environment variables for JSONL validation
 	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 
 	// Pass the safe-outputs configuration for validation
 	safeOutputConfig := generateSafeOutputsConfig(data)
 	if safeOutputConfig != "" {
-		fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
+		fmt.Fprintf(yaml, "          GH_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
 	}
 
 	// Add allowed domains configuration for sanitization
 	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
 		domainsStr := strings.Join(data.SafeOutputs.AllowedDomains, ",")
-		fmt.Fprintf(yaml, "          GITHUB_AW_ALLOWED_DOMAINS: %q\n", domainsStr)
+		fmt.Fprintf(yaml, "          GH_AW_ALLOWED_DOMAINS: %q\n", domainsStr)
 	}
 
 	// Add command name for command trigger prevention in safe outputs
 	if data.Command != "" {
-		fmt.Fprintf(yaml, "          GITHUB_AW_COMMAND: %s\n", data.Command)
+		fmt.Fprintf(yaml, "          GH_AW_COMMAND: %s\n", data.Command)
 	}
 
 	yaml.WriteString("        with:\n")
@@ -3293,11 +3293,11 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	WriteJavaScriptToYAML(yaml, collectJSONLOutputScript)
 
 	yaml.WriteString("      - name: Upload sanitized agent output\n")
-	yaml.WriteString("        if: always() && env.GITHUB_AW_AGENT_OUTPUT\n")
+	yaml.WriteString("        if: always() && env.GH_AW_AGENT_OUTPUT\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: agent_output.json\n")
-	yaml.WriteString("          path: ${{ env.GITHUB_AW_AGENT_OUTPUT }}\n")
+	yaml.WriteString("          path: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 
 }

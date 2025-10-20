@@ -85,7 +85,7 @@ func (c *Compiler) generateTemplateRenderingStep(yaml *strings.Builder, data *Wo
 	yaml.WriteString("      - name: Render template conditionals\n")
 	yaml.WriteString("        uses: actions/github-script@v8\n")
 	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	WriteJavaScriptToYAML(yaml, renderTemplateScript)

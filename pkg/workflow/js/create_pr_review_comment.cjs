@@ -39,12 +39,12 @@ function generateFooter(
 
 async function main() {
   // Check if we're in staged mode
-  const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   // Helper function to get the repository URL for different purposes
   function getRepositoryUrl() {
     // For trial mode, use target repository for issue/PR URLs but execution context for action runs
-    const targetRepoSlug = process.env.GITHUB_AW_TARGET_REPO_SLUG;
+    const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
 
     if (targetRepoSlug) {
       // Use target repository for issue/PR URLs in trial mode
@@ -61,9 +61,9 @@ async function main() {
   }
 
   // Read the validated output content from environment variable
-  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   if (!agentOutputFile) {
-    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    core.info("No GH_AW_AGENT_OUTPUT environment variable found");
     return;
   }
 
@@ -140,11 +140,11 @@ async function main() {
   }
 
   // Get the side configuration from environment variable
-  const defaultSide = process.env.GITHUB_AW_PR_REVIEW_COMMENT_SIDE || "RIGHT";
+  const defaultSide = process.env.GH_AW_PR_REVIEW_COMMENT_SIDE || "RIGHT";
   core.info(`Default comment side configuration: ${defaultSide}`);
 
   // Get the target configuration from environment variable
-  const commentTarget = process.env.GITHUB_AW_PR_REVIEW_COMMENT_TARGET || "triggering";
+  const commentTarget = process.env.GH_AW_PR_REVIEW_COMMENT_TARGET || "triggering";
   core.info(`PR review comment target configuration: ${commentTarget}`);
 
   // Check if we're in a pull request context, or an issue comment context on a PR
@@ -286,9 +286,9 @@ async function main() {
     let body = commentItem.body.trim();
 
     // Add AI disclaimer with workflow name and run url
-    const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-    const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
-    const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
+    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+    const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+    const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const runUrl = context.payload.repository

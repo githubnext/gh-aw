@@ -6,9 +6,9 @@ function main() {
   const startTime = Date.now();
 
   try {
-    const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
+    const logPath = process.env.GH_AW_AGENT_OUTPUT;
     if (!logPath) {
-      throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
+      throw new Error("GH_AW_AGENT_OUTPUT environment variable is required");
     }
 
     core.info(`Log path: ${logPath}`);
@@ -22,7 +22,7 @@ function main() {
     // Get error patterns from environment variables
     const patterns = getErrorPatternsFromEnv();
     if (patterns.length === 0) {
-      throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
+      throw new Error("GH_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
     }
 
     core.info(`Loaded ${patterns.length} error patterns`);
@@ -84,19 +84,19 @@ function main() {
 }
 
 function getErrorPatternsFromEnv() {
-  const patternsEnv = process.env.GITHUB_AW_ERROR_PATTERNS;
+  const patternsEnv = process.env.GH_AW_ERROR_PATTERNS;
   if (!patternsEnv) {
-    throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required");
+    throw new Error("GH_AW_ERROR_PATTERNS environment variable is required");
   }
 
   try {
     const patterns = JSON.parse(patternsEnv);
     if (!Array.isArray(patterns)) {
-      throw new Error("GITHUB_AW_ERROR_PATTERNS must be a JSON array");
+      throw new Error("GH_AW_ERROR_PATTERNS must be a JSON array");
     }
     return patterns;
   } catch (e) {
-    throw new Error(`Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`Failed to parse GH_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
@@ -111,14 +111,14 @@ function shouldSkipLine(line) {
   const GITHUB_ACTIONS_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s+/;
 
   // Skip GitHub Actions environment variable declarations
-  // Format: "2025-10-11T21:23:50.7459810Z   GITHUB_AW_ERROR_PATTERNS: [..."
-  if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "GITHUB_AW_ERROR_PATTERNS:").test(line)) {
+  // Format: "2025-10-11T21:23:50.7459810Z   GH_AW_ERROR_PATTERNS: [..."
+  if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "GH_AW_ERROR_PATTERNS:").test(line)) {
     return true;
   }
 
   // Skip lines that are showing environment variables in GitHub Actions format
-  // Format: "   GITHUB_AW_ERROR_PATTERNS: [..."
-  if (/^\s+GITHUB_AW_ERROR_PATTERNS:\s*\[/.test(line)) {
+  // Format: "   GH_AW_ERROR_PATTERNS: [..."
+  if (/^\s+GH_AW_ERROR_PATTERNS:\s*\[/.test(line)) {
     return true;
   }
 

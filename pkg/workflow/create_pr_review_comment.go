@@ -20,22 +20,22 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 
 	// Build custom environment variables specific to create-pull-request-review-comment
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
 	// Pass the workflow source URL for installation instructions
 	if data.Source != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_SOURCE: %q\n", data.Source))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE: %q\n", data.Source))
 		sourceURL := buildSourceURL(data.Source)
 		if sourceURL != "" {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
 		}
 	}
 	// Pass the side configuration
 	if data.SafeOutputs.CreatePullRequestReviewComments.Side != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PR_REVIEW_COMMENT_SIDE: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Side))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_REVIEW_COMMENT_SIDE: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Side))
 	}
 	// Pass the target configuration
 	if data.SafeOutputs.CreatePullRequestReviewComments.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PR_REVIEW_COMMENT_TARGET: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Target))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_REVIEW_COMMENT_TARGET: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Target))
 	}
 
 	// Add common safe output job environment variables (staged/target repo)

@@ -35,32 +35,32 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 
 	// Build custom environment variables specific to add-comment
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
 	// Pass the workflow source URL for installation instructions
 	if data.Source != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_SOURCE: %q\n", data.Source))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE: %q\n", data.Source))
 		sourceURL := buildSourceURL(data.Source)
 		if sourceURL != "" {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
 		}
 	}
 	// Pass the comment target configuration
 	if data.SafeOutputs.AddComments.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_COMMENT_TARGET: %q\n", data.SafeOutputs.AddComments.Target))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_TARGET: %q\n", data.SafeOutputs.AddComments.Target))
 	}
 
 	// Add environment variables for the URLs from other safe output jobs if they exist
 	if createIssueJobName != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_CREATED_ISSUE_URL: ${{ needs.%s.outputs.issue_url }}\n", createIssueJobName))
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_CREATED_ISSUE_NUMBER: ${{ needs.%s.outputs.issue_number }}\n", createIssueJobName))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATED_ISSUE_URL: ${{ needs.%s.outputs.issue_url }}\n", createIssueJobName))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.%s.outputs.issue_number }}\n", createIssueJobName))
 	}
 	if createDiscussionJobName != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_CREATED_DISCUSSION_URL: ${{ needs.%s.outputs.discussion_url }}\n", createDiscussionJobName))
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_CREATED_DISCUSSION_NUMBER: ${{ needs.%s.outputs.discussion_number }}\n", createDiscussionJobName))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATED_DISCUSSION_URL: ${{ needs.%s.outputs.discussion_url }}\n", createDiscussionJobName))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATED_DISCUSSION_NUMBER: ${{ needs.%s.outputs.discussion_number }}\n", createDiscussionJobName))
 	}
 	if createPullRequestJobName != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_CREATED_PULL_REQUEST_URL: ${{ needs.%s.outputs.pull_request_url }}\n", createPullRequestJobName))
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.%s.outputs.pull_request_number }}\n", createPullRequestJobName))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.%s.outputs.pull_request_url }}\n", createPullRequestJobName))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.%s.outputs.pull_request_number }}\n", createPullRequestJobName))
 	}
 
 	// Add common safe output job environment variables (staged/target repo)

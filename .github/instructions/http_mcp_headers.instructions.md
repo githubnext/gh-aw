@@ -78,7 +78,7 @@ env:
   DD_API_KEY: ${{ secrets.DD_API_KEY }}
   DD_APPLICATION_KEY: ${{ secrets.DD_APPLICATION_KEY }}
   DD_SITE: ${{ secrets.DD_SITE || 'datadoghq.com' }}
-  GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
+  GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
   GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
   # ... other env vars
 ```

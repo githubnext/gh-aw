@@ -2,11 +2,11 @@
 // to notify about the workflow completion status (success or failure).
 
 async function main() {
-  const commentId = process.env.GITHUB_AW_COMMENT_ID;
-  const commentRepo = process.env.GITHUB_AW_COMMENT_REPO;
-  const runUrl = process.env.GITHUB_AW_RUN_URL;
-  const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-  const agentConclusion = process.env.GITHUB_AW_AGENT_CONCLUSION || "failure";
+  const commentId = process.env.GH_AW_COMMENT_ID;
+  const commentRepo = process.env.GH_AW_COMMENT_REPO;
+  const runUrl = process.env.GH_AW_RUN_URL;
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+  const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
 
   core.info(`Comment ID: ${commentId}`);
   core.info(`Comment Repo: ${commentRepo}`);

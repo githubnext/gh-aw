@@ -187,7 +187,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add the command with proper indentation and tee output (preserves exit code with pipefail)
 	stepLines = append(stepLines, fmt.Sprintf("          %s 2>&1 | tee %s", command, logFile))
 
-	// Add environment section - always include environment section for GITHUB_AW_PROMPT
+	// Add environment section - always include environment section for GH_AW_PROMPT
 	stepLines = append(stepLines, "        env:")
 
 	// Add Anthropic API key
@@ -198,12 +198,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "          DISABLE_ERROR_REPORTING: \"1\"")
 	stepLines = append(stepLines, "          DISABLE_BUG_COMMAND: \"1\"")
 
-	// Always add GITHUB_AW_PROMPT for agentic workflows
-	stepLines = append(stepLines, "          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt")
+	// Always add GH_AW_PROMPT for agentic workflows
+	stepLines = append(stepLines, "          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt")
 
-	// Add GITHUB_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
+	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
-		stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json")
+		stepLines = append(stepLines, "          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json")
 	}
 
 	// Set timeout environment variables for Claude Code
@@ -244,7 +244,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-		stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_MAX_TURNS: %s", workflowData.EngineConfig.MaxTurns))
+		stepLines = append(stepLines, fmt.Sprintf("          GH_AW_MAX_TURNS: %s", workflowData.EngineConfig.MaxTurns))
 	}
 
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
@@ -588,12 +588,12 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 		hasGeneralWrite := slices.Contains(allowedTools, "Write")
 
 		// If no general Write permission and SafeOutputs is configured,
-		// add specific write permission for GITHUB_AW_SAFE_OUTPUTS
+		// add specific write permission for GH_AW_SAFE_OUTPUTS
 		if !hasGeneralWrite {
 			allowedTools = append(allowedTools, "Write")
 			// Ideally we would only give permission to the exact file, but that doesn't seem
 			// to be working with Claude. See https://github.com/githubnext/gh-aw/issues/244#issuecomment-3240319103
-			//allowedTools = append(allowedTools, "Write(${{ env.GITHUB_AW_SAFE_OUTPUTS }})")
+			//allowedTools = append(allowedTools, "Write(${{ env.GH_AW_SAFE_OUTPUTS }})")
 		}
 	}
 

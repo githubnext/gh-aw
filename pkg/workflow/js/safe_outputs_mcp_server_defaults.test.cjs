@@ -31,10 +31,10 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
     }
   });
 
-  it("should use default output file when GITHUB_AW_SAFE_OUTPUTS is not set", async () => {
+  it("should use default output file when GH_AW_SAFE_OUTPUTS is not set", async () => {
     // Remove environment variables
-    delete process.env.GITHUB_AW_SAFE_OUTPUTS;
-    delete process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+    delete process.env.GH_AW_SAFE_OUTPUTS;
+    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
 
     // Create default directories
     const defaultOutputDir = "/tmp/gh-aw/safe-outputs";
@@ -92,9 +92,9 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
         clearTimeout(timeout);
 
         // Check that default paths are mentioned in debug output
-        expect(stderr).toContain("GITHUB_AW_SAFE_OUTPUTS not set, using default: /tmp/gh-aw/safe-outputs/outputs.jsonl");
+        expect(stderr).toContain("GH_AW_SAFE_OUTPUTS not set, using default: /tmp/gh-aw/safe-outputs/outputs.jsonl");
         expect(stderr).toContain(
-          "GITHUB_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: /tmp/gh-aw/safe-outputs/config.json"
+          "GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: /tmp/gh-aw/safe-outputs/config.json"
         );
 
         resolve();
@@ -104,8 +104,8 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
 
   it("should read config from default file when config file exists", async () => {
     // Remove environment variables
-    delete process.env.GITHUB_AW_SAFE_OUTPUTS;
-    delete process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+    delete process.env.GH_AW_SAFE_OUTPUTS;
+    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
 
     // Create default config file
     const defaultConfigDir = "/tmp/gh-aw/safe-outputs";
@@ -184,8 +184,8 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
 
   it("should use empty config when default file does not exist", async () => {
     // Remove environment variables
-    delete process.env.GITHUB_AW_SAFE_OUTPUTS;
-    delete process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+    delete process.env.GH_AW_SAFE_OUTPUTS;
+    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
 
     // Ensure default config file does not exist
     const defaultConfigFile = "/tmp/gh-aw/safe-outputs/config.json";
@@ -270,8 +270,8 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
+          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 
@@ -375,8 +375,8 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
+          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 
@@ -483,8 +483,8 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
+          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 
@@ -585,8 +585,8 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
+          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 
@@ -683,8 +683,8 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
+          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 
@@ -782,10 +782,10 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
-          GITHUB_AW_ASSETS_MAX_SIZE_KB: "5120",
-          GITHUB_AW_ASSETS_ALLOWED_EXTS: ".pdf,.txt,.md",
+          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
+          GH_AW_ASSETS_MAX_SIZE_KB: "5120",
+          GH_AW_ASSETS_ALLOWED_EXTS: ".pdf,.txt,.md",
         },
       });
 
@@ -882,15 +882,15 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
 
       // Remove environment variables
       const envWithoutAssetVars = { ...process.env };
-      delete envWithoutAssetVars.GITHUB_AW_ASSETS_MAX_SIZE_KB;
-      delete envWithoutAssetVars.GITHUB_AW_ASSETS_ALLOWED_EXTS;
+      delete envWithoutAssetVars.GH_AW_ASSETS_MAX_SIZE_KB;
+      delete envWithoutAssetVars.GH_AW_ASSETS_ALLOWED_EXTS;
 
       const child = spawn("node", [serverPath], {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...envWithoutAssetVars,
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
+          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 
@@ -992,8 +992,8 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
+          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 
@@ -1093,8 +1093,8 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
+          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 
@@ -1197,8 +1197,8 @@ describe("safe_outputs_mcp_server.cjs tool call response format", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-iserror.jsonl",
+          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-iserror.jsonl",
         },
       });
 
@@ -1298,8 +1298,8 @@ describe("safe_outputs_mcp_server.cjs tool call response format", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-json-response.jsonl",
+          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-json-response.jsonl",
         },
       });
 

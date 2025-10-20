@@ -122,8 +122,8 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 				`"args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"]`,
 				`"tools": ["*"]`,
 				`"env": {`,
-				`"GITHUB_AW_SAFE_OUTPUTS": "\${GITHUB_AW_SAFE_OUTPUTS}"`,
-				`"GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\${GITHUB_AW_SAFE_OUTPUTS_CONFIG}"`,
+				`"GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}"`,
+				`"GH_AW_SAFE_OUTPUTS_CONFIG": "\${GH_AW_SAFE_OUTPUTS_CONFIG}"`,
 				`              }`,
 			},
 			unexpectedContent: []string{
@@ -138,8 +138,8 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 				`"safe_outputs": {`,
 				`"command": "node"`,
 				`"args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"]`,
-				`"GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"`,
-				`${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}`,
+				`"GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}"`,
+				`${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}`,
 				`              },`,
 			},
 			unexpectedContent: []string{
@@ -313,8 +313,8 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 		`args = [`,
 		`"/tmp/gh-aw/safe-outputs/mcp-server.cjs"`,
 		`env = {`,
-		`"GITHUB_AW_SAFE_OUTPUTS" = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"`,
-		`${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}`,
+		`"GH_AW_SAFE_OUTPUTS" = "${{ env.GH_AW_SAFE_OUTPUTS }}"`,
+		`${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}`,
 	}
 
 	for _, expected := range expectedContent {

@@ -42,25 +42,25 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	customEnvVars = append(customEnvVars, "          GH_TOKEN: ${{ github.token }}\n")
 	// Pass the target configuration
 	if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PUSH_TARGET: %q\n", data.SafeOutputs.PushToPullRequestBranch.Target))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PUSH_TARGET: %q\n", data.SafeOutputs.PushToPullRequestBranch.Target))
 	}
 	// Pass the if-no-changes configuration
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PUSH_IF_NO_CHANGES: %q\n", data.SafeOutputs.PushToPullRequestBranch.IfNoChanges))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PUSH_IF_NO_CHANGES: %q\n", data.SafeOutputs.PushToPullRequestBranch.IfNoChanges))
 	// Pass the title prefix configuration
 	if data.SafeOutputs.PushToPullRequestBranch.TitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PR_TITLE_PREFIX: %q\n", data.SafeOutputs.PushToPullRequestBranch.TitlePrefix))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_TITLE_PREFIX: %q\n", data.SafeOutputs.PushToPullRequestBranch.TitlePrefix))
 	}
 	// Pass the labels configuration
 	if len(data.SafeOutputs.PushToPullRequestBranch.Labels) > 0 {
 		labelsStr := strings.Join(data.SafeOutputs.PushToPullRequestBranch.Labels, ",")
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PR_LABELS: %q\n", labelsStr))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_LABELS: %q\n", labelsStr))
 	}
 	// Pass the maximum patch size configuration
 	maxPatchSize := 1024 // Default value
 	if data.SafeOutputs != nil && data.SafeOutputs.MaximumPatchSize > 0 {
 		maxPatchSize = data.SafeOutputs.MaximumPatchSize
 	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
 
 	// Get token from config
 	var token string
