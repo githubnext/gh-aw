@@ -202,9 +202,10 @@ type SafeOutputsConfig struct {
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
-	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`     // Optional for reporting missing functionality
-	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"` // Threat detection configuration
-	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`             // Safe-jobs configuration (moved from top-level)
+	CreateAgentTasks                *CreateAgentTaskConfig                 `yaml:"create-agent-task,omitempty"` // Create GitHub Copilot agent tasks
+	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`      // Optional for reporting missing functionality
+	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`  // Threat detection configuration
+	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`              // Safe-jobs configuration (moved from top-level)
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          bool                                   `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs
@@ -2156,6 +2157,22 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 			return fmt.Errorf("failed to add upload_assets job: %w", err)
 		}
 		safeOutputJobNames = append(safeOutputJobNames, uploadAssetsJob.Name)
+	}
+
+	// Build create_agent_task job if output.create-agent-task is configured
+	if data.SafeOutputs.CreateAgentTasks != nil {
+		createAgentTaskJob, err := c.buildCreateOutputAgentTaskJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build create_agent_task job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			createAgentTaskJob.Needs = append(createAgentTaskJob.Needs, constants.DetectionJobName)
+		}
+		if err := c.jobManager.AddJob(createAgentTaskJob); err != nil {
+			return fmt.Errorf("failed to add create_agent_task job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, createAgentTaskJob.Name)
 	}
 
 	// Build update_reaction job if add-comment is configured

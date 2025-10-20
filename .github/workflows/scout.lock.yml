@@ -1635,6 +1635,18 @@ jobs:
                 },
               },
               {
+                name: "create_agent_task",
+                description: "Create a new GitHub Copilot agent task",
+                inputSchema: {
+                  type: "object",
+                  required: ["body"],
+                  properties: {
+                    body: { type: "string", description: "Task description/instructions for the agent" },
+                  },
+                  additionalProperties: false,
+                },
+              },
+              {
                 name: "create_discussion",
                 description: "Create a new GitHub discussion",
                 inputSchema: {
@@ -2915,6 +2927,8 @@ jobs:
                 switch (itemType) {
                   case "create_issue":
                     return 1;
+                  case "create_agent_task":
+                    return 1;
                   case "add_comment":
                     return 1;
                   case "create_pull_request":
@@ -3441,6 +3455,13 @@ jobs:
                         item.category = sanitizeContent(item.category, 128);
                       }
                       item.title = sanitizeContent(item.title, 128);
+                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      break;
+                    case "create_agent_task":
+                      if (!item.body || typeof item.body !== "string") {
+                        errors.push(`Line ${i + 1}: create_agent_task requires a 'body' string field`);
+                        continue;
+                      }
                       item.body = sanitizeContent(item.body, maxBodyLength);
                       break;
                     case "missing_tool":
