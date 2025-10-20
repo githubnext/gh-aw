@@ -38,6 +38,20 @@ func TestGetGitHubToolsets(t *testing.T) {
 			expected: "all",
 		},
 		{
+			name: "Special 'default' toolset as array",
+			input: map[string]any{
+				"toolset": []string{"default"},
+			},
+			expected: "default",
+		},
+		{
+			name: "Default with additional toolsets",
+			input: map[string]any{
+				"toolset": []string{"default", "discussions"},
+			},
+			expected: "default,discussions",
+		},
+		{
 			name:     "Non-map input returns empty",
 			input:    "not a map",
 			expected: "",
@@ -87,6 +101,26 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 			},
 			expectedInYAML: []string{
 				`"GITHUB_TOOLSETS=all"`,
+			},
+			notInYAML: []string{},
+		},
+		{
+			name: "Default toolset as array",
+			githubTool: map[string]any{
+				"toolset": []string{"default"},
+			},
+			expectedInYAML: []string{
+				`"GITHUB_TOOLSETS=default"`,
+			},
+			notInYAML: []string{},
+		},
+		{
+			name: "Default with additional toolsets",
+			githubTool: map[string]any{
+				"toolset": []string{"default", "discussions"},
+			},
+			expectedInYAML: []string{
+				`"GITHUB_TOOLSETS=default,discussions"`,
 			},
 			notInYAML: []string{},
 		},
@@ -142,6 +176,26 @@ func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 			},
 			notInYAML: []string{},
 		},
+		{
+			name: "Default toolset as array",
+			githubTool: map[string]any{
+				"toolset": []string{"default"},
+			},
+			expectedInYAML: []string{
+				`"GITHUB_TOOLSETS=default"`,
+			},
+			notInYAML: []string{},
+		},
+		{
+			name: "Default with additional toolsets",
+			githubTool: map[string]any{
+				"toolset": []string{"default", "actions"},
+			},
+			expectedInYAML: []string{
+				`"GITHUB_TOOLSETS=default,actions"`,
+			},
+			notInYAML: []string{},
+		},
 	}
 
 	for _, tt := range tests {
@@ -190,6 +244,26 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 			expectedInYAML: []string{
 				`GITHUB_PERSONAL_ACCESS_TOKEN`,
 				"GITHUB_TOOLSETS",
+			},
+			notInYAML: []string{},
+		},
+		{
+			name: "Default toolset as array",
+			githubTool: map[string]any{
+				"toolset": []string{"default"},
+			},
+			expectedInYAML: []string{
+				`"GITHUB_TOOLSETS=default"`,
+			},
+			notInYAML: []string{},
+		},
+		{
+			name: "Default with additional toolsets",
+			githubTool: map[string]any{
+				"toolset": []string{"default", "discussions"},
+			},
+			expectedInYAML: []string{
+				`"GITHUB_TOOLSETS=default,discussions"`,
 			},
 			notInYAML: []string{},
 		},
