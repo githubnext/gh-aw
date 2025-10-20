@@ -100,7 +100,7 @@ describe("notify_comment_error.cjs", () => {
 
   afterEach(() => {
     // Restore original environment
-    Object.keys(originalEnv).forEach((key) => {
+    Object.keys(originalEnv).forEach(key => {
       if (originalEnv[key] !== undefined) {
         process.env[key] = originalEnv[key];
       } else {
@@ -154,8 +154,7 @@ describe("notify_comment_error.cjs", () => {
           owner: "testowner",
           repo: "testrepo",
           comment_id: 123456,
-          body: expect.stringContaining("✅"),
-          body: expect.stringContaining("completed successfully"),
+          body: expect.stringMatching(/✅.*completed successfully/s),
         })
       );
       expect(mockCore.info).toHaveBeenCalledWith("Successfully updated comment");
@@ -175,9 +174,7 @@ describe("notify_comment_error.cjs", () => {
           owner: "testowner",
           repo: "testrepo",
           comment_id: 123456,
-          body: expect.stringContaining("❌"),
-          body: expect.stringContaining("failed"),
-          body: expect.stringContaining("wasn't able to produce a result"),
+          body: expect.stringMatching(/❌.*failed.*wasn't able to produce a result/s),
         })
       );
       expect(mockCore.info).toHaveBeenCalledWith("Successfully updated comment");
@@ -194,8 +191,7 @@ describe("notify_comment_error.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
         expect.objectContaining({
-          body: expect.stringContaining("🚫"),
-          body: expect.stringContaining("was cancelled"),
+          body: expect.stringMatching(/🚫.*was cancelled/s),
         })
       );
     });
@@ -211,8 +207,7 @@ describe("notify_comment_error.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
         expect.objectContaining({
-          body: expect.stringContaining("⏱️"),
-          body: expect.stringContaining("timed out"),
+          body: expect.stringMatching(/⏱️.*timed out/s),
         })
       );
     });
@@ -228,8 +223,7 @@ describe("notify_comment_error.cjs", () => {
       expect(mockGithub.request).toHaveBeenCalledWith(
         "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
         expect.objectContaining({
-          body: expect.stringContaining("⏭️"),
-          body: expect.stringContaining("was skipped"),
+          body: expect.stringMatching(/⏭️.*was skipped/s),
         })
       );
     });
@@ -266,8 +260,7 @@ describe("notify_comment_error.cjs", () => {
         expect.stringContaining("updateDiscussionComment"),
         expect.objectContaining({
           commentId: "DC_kwDOABCDEF4ABCDEF",
-          body: expect.stringContaining("✅"),
-          body: expect.stringContaining("completed successfully"),
+          body: expect.stringMatching(/✅.*completed successfully/s),
         })
       );
       expect(mockCore.info).toHaveBeenCalledWith("Successfully updated discussion comment");
@@ -285,8 +278,7 @@ describe("notify_comment_error.cjs", () => {
         expect.stringContaining("updateDiscussionComment"),
         expect.objectContaining({
           commentId: "DC_kwDOABCDEF4ABCDEF",
-          body: expect.stringContaining("❌"),
-          body: expect.stringContaining("failed"),
+          body: expect.stringMatching(/❌.*failed/s),
         })
       );
     });
