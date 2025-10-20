@@ -110,6 +110,10 @@ safe-outputs:
 
 The agentic part of your workflow should describe the comment(s) it wants posted.
 
+### Automatic Cross-Referencing Between Safe Outputs
+
+When `add-comment` is used together with `create-issue`, `create-discussion`, or `create-pull-request` in the same workflow, the comment automatically includes a "Related Items" section with links to the created items.
+
 **Example natural language to generate the output:**
 
 ```aw wrap
