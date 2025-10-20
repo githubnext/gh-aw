@@ -4477,7 +4477,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
           echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
-      - name: Update reaction comment with error notification
+      - name: Update reaction comment with completion status
         id: update_reaction
         uses: actions/github-script@v8
         env:
@@ -4514,17 +4514,25 @@ jobs:
               core.info(`Updating comment in ${repoOwner}/${repoName}`);
               let statusEmoji = "❌";
               let statusText = "failed";
-              if (agentConclusion === "cancelled") {
+              let message;
+              if (agentConclusion === "success") {
+                statusEmoji = "✅";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) completed successfully.`;
+              } else if (agentConclusion === "cancelled") {
                 statusEmoji = "🚫";
                 statusText = "was cancelled";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
               } else if (agentConclusion === "skipped") {
                 statusEmoji = "⏭️";
                 statusText = "was skipped";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
               } else if (agentConclusion === "timed_out") {
                 statusEmoji = "⏱️";
                 statusText = "timed out";
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              } else {
+                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
               }
-              const errorMessage = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
               const isDiscussionComment = commentId.startsWith("DC_");
               try {
                 if (isDiscussionComment) {
@@ -4538,7 +4546,7 @@ jobs:
                         }
                       }
                     }`,
-                    { commentId: commentId, body: errorMessage }
+                    { commentId: commentId, body: message }
                   );
                   const comment = result.updateDiscussionComment.comment;
                   core.info(`Successfully updated discussion comment`);
@@ -4549,7 +4557,7 @@ jobs:
                     owner: repoOwner,
                     repo: repoName,
                     comment_id: parseInt(commentId, 10),
-                    body: errorMessage,
+                    body: message,
                     headers: {
                       Accept: "application/vnd.github+json",
                     },
