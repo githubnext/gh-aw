@@ -543,13 +543,9 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 			yaml.WriteString("            \"GITHUB_READ_ONLY=1\",\n")
 		}
 
-		// Add GITHUB_TOOLSETS environment variable with value directly in docker args
+		// Add GITHUB_TOOLSETS environment variable (always configured, defaults to "default")
 		yaml.WriteString("            \"-e\",\n")
-		if toolsets != "" {
-			yaml.WriteString("            \"GITHUB_TOOLSETS=" + toolsets + "\",\n")
-		} else {
-			yaml.WriteString("            \"GITHUB_TOOLSETS=all\",\n")
-		}
+		yaml.WriteString("            \"GITHUB_TOOLSETS=" + toolsets + "\",\n")
 
 		yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 

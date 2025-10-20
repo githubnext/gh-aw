@@ -25,7 +25,7 @@ func TestGetGitHubReadOnly(t *testing.T) {
 		{
 			name:       "no read-only field",
 			githubTool: map[string]any{},
-			expected:   false,
+			expected:   true, // now defaults to true
 		},
 		{
 			name: "read-only with other fields",
@@ -39,12 +39,12 @@ func TestGetGitHubReadOnly(t *testing.T) {
 		{
 			name:       "nil tool",
 			githubTool: nil,
-			expected:   false,
+			expected:   true, // now defaults to true
 		},
 		{
 			name:       "string tool (not map)",
 			githubTool: "github",
-			expected:   false,
+			expected:   true, // now defaults to true
 		},
 	}
 

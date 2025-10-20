@@ -718,13 +718,9 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 			yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
 		}
 
-		// Add GITHUB_TOOLSETS environment variable with value directly in docker args
+		// Add GITHUB_TOOLSETS environment variable (always configured, defaults to "default")
 		yaml.WriteString("                  \"-e\",\n")
-		if toolsets != "" {
-			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS=%s\",\n", toolsets))
-		} else {
-			yaml.WriteString("                  \"GITHUB_TOOLSETS=all\",\n")
-		}
+		yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS=%s\",\n", toolsets))
 
 		yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 

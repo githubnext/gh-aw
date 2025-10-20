@@ -1241,6 +1241,8 @@ jobs:
                   "-e",
                   "GITHUB_PERSONAL_ACCESS_TOKEN",
                   "-e",
+                  "GITHUB_READ_ONLY=1",
+                  "-e",
                   "GITHUB_TOOLSETS=pull_requests,actions,repos",
                   "ghcr.io/github/github-mcp-server:v0.19.0"
                 ],

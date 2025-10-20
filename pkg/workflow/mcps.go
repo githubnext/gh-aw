@@ -230,6 +230,7 @@ func getGitHubToken(githubTool any) string {
 }
 
 // getGitHubReadOnly checks if read-only mode is enabled for GitHub tool
+// Defaults to true for security
 func getGitHubReadOnly(githubTool any) bool {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if readOnlySetting, exists := toolConfig["read-only"]; exists {
@@ -238,10 +239,11 @@ func getGitHubReadOnly(githubTool any) bool {
 			}
 		}
 	}
-	return false
+	return true // default to read-only for security
 }
 
 // getGitHubToolsets extracts the toolsets configuration from GitHub tool
+// Defaults to "default" for recommended toolset
 func getGitHubToolsets(githubTool any) string {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if toolsetsSetting, exists := toolConfig["toolset"]; exists {
@@ -261,7 +263,7 @@ func getGitHubToolsets(githubTool any) string {
 			}
 		}
 	}
-	return ""
+	return "default" // default to recommended toolset
 }
 
 // getGitHubAllowedTools extracts the allowed tools list from GitHub tool configuration
