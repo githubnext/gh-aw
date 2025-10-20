@@ -70,16 +70,13 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_DISCUSSION_CATEGORY: %q\n", data.SafeOutputs.CreateDiscussions.Category))
 	}
 
-	// Pass the staged flag if it's set to true
-	if c.trialMode || data.SafeOutputs.Staged {
-		customEnvVars = append(customEnvVars, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-	}
-	// Set GITHUB_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
-	if data.SafeOutputs.CreateDiscussions.TargetRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.CreateDiscussions.TargetRepoSlug))
-	} else if c.trialMode && c.trialLogicalRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialLogicalRepoSlug))
-	}
+	// Add common safe output job environment variables (staged/target repo)
+	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
+		c.trialMode,
+		c.trialLogicalRepoSlug,
+		data.SafeOutputs.Staged,
+		data.SafeOutputs.CreateDiscussions.TargetRepoSlug,
+	)...)
 
 	// Get token from config
 	var token string

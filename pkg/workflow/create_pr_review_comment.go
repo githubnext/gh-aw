@@ -37,15 +37,14 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	if data.SafeOutputs.CreatePullRequestReviewComments.Target != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PR_REVIEW_COMMENT_TARGET: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Target))
 	}
-	if c.trialMode || data.SafeOutputs.Staged {
-		customEnvVars = append(customEnvVars, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-	}
-	// Set GITHUB_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
-	if data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug))
-	} else if c.trialMode && c.trialLogicalRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialLogicalRepoSlug))
-	}
+
+	// Add common safe output job environment variables (staged/target repo)
+	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
+		c.trialMode,
+		c.trialLogicalRepoSlug,
+		data.SafeOutputs.Staged,
+		data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug,
+	)...)
 
 	// Get token from config
 	var token string
