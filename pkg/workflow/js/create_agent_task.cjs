@@ -66,6 +66,7 @@ async function main() {
       summaryContent += "---\n\n";
     }
 
+    core.info(summaryContent);
     core.summary.addRaw(summaryContent);
     await core.summary.write();
     return;
@@ -75,73 +76,89 @@ async function main() {
   const baseBranch = process.env.GITHUB_AW_AGENT_TASK_BASE || process.env.GITHUB_REF_NAME || "main";
   const targetRepo = process.env.GITHUB_AW_TARGET_REPO;
 
-  // Process the first agent task item (max is 1)
-  const taskItem = createAgentTaskItems[0];
-  const taskDescription = taskItem.body;
+  // Process all agent task items
+  const createdTasks = [];
+  let summaryContent = "## ✅ Agent Tasks Created\n\n";
 
-  if (!taskDescription || taskDescription.trim() === "") {
-    core.setFailed("Agent task description is empty");
+  for (const [index, taskItem] of createAgentTaskItems.entries()) {
+    const taskDescription = taskItem.body;
+
+    if (!taskDescription || taskDescription.trim() === "") {
+      core.warning(`Task ${index + 1}: Agent task description is empty, skipping`);
+      continue;
+    }
+
+    try {
+      // Write task description to a temporary file
+      const tmpDir = "/tmp/gh-aw";
+      if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+      }
+
+      const taskFile = path.join(tmpDir, `agent-task-description-${index + 1}.md`);
+      fs.writeFileSync(taskFile, taskDescription, "utf8");
+      core.info(`Task ${index + 1}: Task description written to ${taskFile}`);
+
+      // Build gh agent-task create command
+      const ghArgs = ["agent-task", "create", "--from-file", taskFile, "--base", baseBranch];
+
+      if (targetRepo) {
+        ghArgs.push("--repo", targetRepo);
+      }
+
+      core.info(`Task ${index + 1}: Creating agent task with command: gh ${ghArgs.join(" ")}`);
+
+      // Execute gh agent-task create command
+      let taskOutput;
+      try {
+        taskOutput = await exec.getExecOutput("gh", ghArgs, {
+          silent: false,
+          ignoreReturnCode: false,
+        });
+      } catch (execError) {
+        core.error(`Task ${index + 1}: Failed to create agent task: ${execError instanceof Error ? execError.message : String(execError)}`);
+        continue;
+      }
+
+      // Parse the output to extract task number and URL
+      // Expected output format from gh agent-task create is typically:
+      // https://github.com/owner/repo/issues/123
+      const output = taskOutput.stdout.trim();
+      core.info(`Task ${index + 1}: Agent task created: ${output}`);
+
+      // Extract task number from URL
+      const urlMatch = output.match(/github\.com\/[^/]+\/[^/]+\/issues\/(\d+)/);
+      if (urlMatch) {
+        const taskNumber = urlMatch[1];
+        createdTasks.push({ number: taskNumber, url: output });
+
+        summaryContent += `### Task ${index + 1}\n\n`;
+        summaryContent += `**Task:** [#${taskNumber}](${output})\n\n`;
+        summaryContent += `**Base Branch:** ${baseBranch}\n\n`;
+
+        core.info(`✅ Successfully created agent task #${taskNumber}`);
+      } else {
+        core.warning(`Task ${index + 1}: Could not parse task number from output: ${output}`);
+        createdTasks.push({ number: "", url: output });
+      }
+    } catch (error) {
+      core.error(`Task ${index + 1}: Error creating agent task: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Set outputs for the first created task (for backward compatibility)
+  if (createdTasks.length > 0) {
+    core.setOutput("task_number", createdTasks[0].number);
+    core.setOutput("task_url", createdTasks[0].url);
+  } else {
+    core.setFailed("No agent tasks were created");
     return;
   }
 
-  try {
-    // Write task description to a temporary file
-    const tmpDir = "/tmp/gh-aw";
-    if (!fs.existsSync(tmpDir)) {
-      fs.mkdirSync(tmpDir, { recursive: true });
-    }
-
-    const taskFile = path.join(tmpDir, "agent-task-description.md");
-    fs.writeFileSync(taskFile, taskDescription, "utf8");
-    core.info(`Task description written to ${taskFile}`);
-
-    // Build gh agent-task create command
-    const ghArgs = ["agent-task", "create", "--from-file", taskFile, "--base", baseBranch];
-
-    if (targetRepo) {
-      ghArgs.push("--repo", targetRepo);
-    }
-
-    core.info(`Creating agent task with command: gh ${ghArgs.join(" ")}`);
-
-    // Execute gh agent-task create command
-    let taskOutput;
-    try {
-      taskOutput = await exec.getExecOutput("gh", ghArgs, {
-        silent: false,
-        ignoreReturnCode: false,
-      });
-    } catch (execError) {
-      core.setFailed(`Failed to create agent task: ${execError instanceof Error ? execError.message : String(execError)}`);
-      return;
-    }
-
-    // Parse the output to extract task number and URL
-    // Expected output format from gh agent-task create is typically:
-    // https://github.com/owner/repo/issues/123
-    const output = taskOutput.stdout.trim();
-    core.info(`Agent task created: ${output}`);
-
-    // Extract task number from URL
-    const urlMatch = output.match(/github\.com\/[^/]+\/[^/]+\/issues\/(\d+)/);
-    if (urlMatch) {
-      const taskNumber = urlMatch[1];
-      core.setOutput("task_number", taskNumber);
-      core.setOutput("task_url", output);
-
-      core.summary.addRaw(`## ✅ Agent Task Created\n\n`);
-      core.summary.addRaw(`**Task:** [#${taskNumber}](${output})\n\n`);
-      core.summary.addRaw(`**Base Branch:** ${baseBranch}\n\n`);
-      await core.summary.write();
-
-      core.info(`✅ Successfully created agent task #${taskNumber}`);
-    } else {
-      core.warning(`Could not parse task number from output: ${output}`);
-      core.setOutput("task_url", output);
-    }
-  } catch (error) {
-    core.setFailed(`Error creating agent task: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  // Write summary
+  core.info(summaryContent);
+  core.summary.addRaw(summaryContent);
+  await core.summary.write();
 }
 
 main().catch(error => {

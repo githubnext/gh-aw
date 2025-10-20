@@ -11,7 +11,6 @@ permissions:
   actions: read
 
 safe-outputs:
-  staged: true
   create-agent-task:
     base: main
 ---

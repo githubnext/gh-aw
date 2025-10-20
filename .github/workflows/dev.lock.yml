@@ -1179,7 +1179,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: true,
+              staged: false,
               created_at: new Date().toISOString()
             };
             
@@ -1278,7 +1278,6 @@ jobs:
           BASH_DEFAULT_TIMEOUT_MS: "60000"
           BASH_MAX_TIMEOUT_MS: "60000"
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
       - name: Clean up network proxy hook files
         if: always()
         run: |
@@ -2771,7 +2770,6 @@ jobs:
           GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           GITHUB_AW_WORKFLOW_NAME: "Dev"
           GITHUB_AW_AGENT_TASK_BASE: "main"
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -2827,60 +2825,72 @@ jobs:
                   summaryContent += `**Target Repository:** ${targetRepo}\n\n`;
                   summaryContent += "---\n\n";
                 }
+                core.info(summaryContent);
                 core.summary.addRaw(summaryContent);
                 await core.summary.write();
                 return;
               }
               const baseBranch = process.env.GITHUB_AW_AGENT_TASK_BASE || process.env.GITHUB_REF_NAME || "main";
               const targetRepo = process.env.GITHUB_AW_TARGET_REPO;
-              const taskItem = createAgentTaskItems[0];
-              const taskDescription = taskItem.body;
-              if (!taskDescription || taskDescription.trim() === "") {
-                core.setFailed("Agent task description is empty");
+              const createdTasks = [];
+              let summaryContent = "## ✅ Agent Tasks Created\n\n";
+              for (const [index, taskItem] of createAgentTaskItems.entries()) {
+                const taskDescription = taskItem.body;
+                if (!taskDescription || taskDescription.trim() === "") {
+                  core.warning(`Task ${index + 1}: Agent task description is empty, skipping`);
+                  continue;
+                }
+                try {
+                  const tmpDir = "/tmp/gh-aw";
+                  if (!fs.existsSync(tmpDir)) {
+                    fs.mkdirSync(tmpDir, { recursive: true });
+                  }
+                  const taskFile = path.join(tmpDir, `agent-task-description-${index + 1}.md`);
+                  fs.writeFileSync(taskFile, taskDescription, "utf8");
+                  core.info(`Task ${index + 1}: Task description written to ${taskFile}`);
+                  const ghArgs = ["agent-task", "create", "--from-file", taskFile, "--base", baseBranch];
+                  if (targetRepo) {
+                    ghArgs.push("--repo", targetRepo);
+                  }
+                  core.info(`Task ${index + 1}: Creating agent task with command: gh ${ghArgs.join(" ")}`);
+                  let taskOutput;
+                  try {
+                    taskOutput = await exec.getExecOutput("gh", ghArgs, {
+                      silent: false,
+                      ignoreReturnCode: false,
+                    });
+                  } catch (execError) {
+                    core.error(`Task ${index + 1}: Failed to create agent task: ${execError instanceof Error ? execError.message : String(execError)}`);
+                    continue;
+                  }
+                  const output = taskOutput.stdout.trim();
+                  core.info(`Task ${index + 1}: Agent task created: ${output}`);
+                  const urlMatch = output.match(/github\.com\/[^/]+\/[^/]+\/issues\/(\d+)/);
+                  if (urlMatch) {
+                    const taskNumber = urlMatch[1];
+                    createdTasks.push({ number: taskNumber, url: output });
+                    summaryContent += `### Task ${index + 1}\n\n`;
+                    summaryContent += `**Task:** [#${taskNumber}](${output})\n\n`;
+                    summaryContent += `**Base Branch:** ${baseBranch}\n\n`;
+                    core.info(`✅ Successfully created agent task #${taskNumber}`);
+                  } else {
+                    core.warning(`Task ${index + 1}: Could not parse task number from output: ${output}`);
+                    createdTasks.push({ number: "", url: output });
+                  }
+                } catch (error) {
+                  core.error(`Task ${index + 1}: Error creating agent task: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+              if (createdTasks.length > 0) {
+                core.setOutput("task_number", createdTasks[0].number);
+                core.setOutput("task_url", createdTasks[0].url);
+              } else {
+                core.setFailed("No agent tasks were created");
                 return;
               }
-              try {
-                const tmpDir = "/tmp/gh-aw";
-                if (!fs.existsSync(tmpDir)) {
-                  fs.mkdirSync(tmpDir, { recursive: true });
-                }
-                const taskFile = path.join(tmpDir, "agent-task-description.md");
-                fs.writeFileSync(taskFile, taskDescription, "utf8");
-                core.info(`Task description written to ${taskFile}`);
-                const ghArgs = ["agent-task", "create", "--from-file", taskFile, "--base", baseBranch];
-                if (targetRepo) {
-                  ghArgs.push("--repo", targetRepo);
-                }
-                core.info(`Creating agent task with command: gh ${ghArgs.join(" ")}`);
-                let taskOutput;
-                try {
-                  taskOutput = await exec.getExecOutput("gh", ghArgs, {
-                    silent: false,
-                    ignoreReturnCode: false,
-                  });
-                } catch (execError) {
-                  core.setFailed(`Failed to create agent task: ${execError instanceof Error ? execError.message : String(execError)}`);
-                  return;
-                }
-                const output = taskOutput.stdout.trim();
-                core.info(`Agent task created: ${output}`);
-                const urlMatch = output.match(/github\.com\/[^/]+\/[^/]+\/issues\/(\d+)/);
-                if (urlMatch) {
-                  const taskNumber = urlMatch[1];
-                  core.setOutput("task_number", taskNumber);
-                  core.setOutput("task_url", output);
-                  core.summary.addRaw(`## ✅ Agent Task Created\n\n`);
-                  core.summary.addRaw(`**Task:** [#${taskNumber}](${output})\n\n`);
-                  core.summary.addRaw(`**Base Branch:** ${baseBranch}\n\n`);
-                  await core.summary.write();
-                  core.info(`✅ Successfully created agent task #${taskNumber}`);
-                } else {
-                  core.warning(`Could not parse task number from output: ${output}`);
-                  core.setOutput("task_url", output);
-                }
-              } catch (error) {
-                core.setFailed(`Error creating agent task: ${error instanceof Error ? error.message : String(error)}`);
-              }
+              core.info(summaryContent);
+              core.summary.addRaw(summaryContent);
+              await core.summary.write();
             }
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
