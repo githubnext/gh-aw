@@ -102,6 +102,16 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["create_issue"] = issueConfig
 		}
+		if data.SafeOutputs.CreateAgentTasks != nil {
+			agentTaskConfig := map[string]any{}
+			if data.SafeOutputs.CreateAgentTasks.Max > 0 {
+				agentTaskConfig["max"] = data.SafeOutputs.CreateAgentTasks.Max
+			}
+			if data.SafeOutputs.CreateAgentTasks.Min > 0 {
+				agentTaskConfig["min"] = data.SafeOutputs.CreateAgentTasks.Min
+			}
+			safeOutputsConfig["create_agent_task"] = agentTaskConfig
+		}
 		if data.SafeOutputs.AddComments != nil {
 			commentConfig := map[string]any{}
 			if data.SafeOutputs.AddComments.Target != "" {

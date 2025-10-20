@@ -65,7 +65,7 @@ jobs:
       group: "gh-aw-claude-${{ github.workflow }}"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing_tool\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_agent_task\":{\"max\":1},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -253,7 +253,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"missing_tool":{}}
+          {"create_agent_task":{"max":1},"missing_tool":{}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1297,7 +1297,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing_tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_agent_task\":{\"max\":1},\"missing_tool\":{}}"
         with:
           script: |
             async function main() {
