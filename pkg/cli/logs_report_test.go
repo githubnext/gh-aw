@@ -23,6 +23,7 @@ func TestRenderLogsConsoleUnified(t *testing.T) {
 			{
 				DatabaseID:       12345,
 				WorkflowName:     "test-workflow",
+				Agent:            "claude",
 				Status:           "completed",
 				Duration:         "5m30s",
 				TokenUsage:       1000,

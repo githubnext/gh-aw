@@ -41,6 +41,7 @@ type RunData struct {
 	DatabaseID       int64     `json:"database_id" console:"header:Run ID"`
 	Number           int       `json:"number" console:"-"`
 	WorkflowName     string    `json:"workflow_name" console:"header:Workflow"`
+	Agent            string    `json:"agent,omitempty" console:"header:Agent,omitempty"`
 	Status           string    `json:"status" console:"header:Status"`
 	Conclusion       string    `json:"conclusion,omitempty" console:"-"`
 	Duration         string    `json:"duration,omitempty" console:"header:Duration,omitempty"`
@@ -102,10 +103,18 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string) LogsData {
 		totalWarnings += run.WarningCount
 		totalMissingTools += run.MissingToolCount
 
+		// Extract agent/engine ID from aw_info.json
+		agentID := ""
+		awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
+		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
+			agentID = info.EngineID
+		}
+
 		runData := RunData{
 			DatabaseID:       run.DatabaseID,
 			Number:           run.Number,
 			WorkflowName:     run.WorkflowName,
+			Agent:            agentID,
 			Status:           run.Status,
 			Conclusion:       run.Conclusion,
 			TokenUsage:       run.TokenUsage,
