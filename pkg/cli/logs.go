@@ -450,7 +450,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			}
 		}
 
-		runs, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, branch, beforeRunID, afterRunID, verbose)
+		runs, totalFetched, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, branch, beforeRunID, afterRunID, verbose)
 		if err != nil {
 			return err
 		}
@@ -613,7 +613,13 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 		}
 
 		// If we got fewer runs than requested in this batch, we've likely hit the end
-		if len(runs) < batchSize {
+		// IMPORTANT: Use totalFetched (API response size before filtering) not len(runs) (after filtering)
+		// to detect end. When workflowName is empty, runs are filtered to only agentic workflows,
+		// so len(runs) may be much smaller than totalFetched even when more data is available from GitHub.
+		// Example: API returns 250 total runs, but only 5 are agentic workflows after filtering.
+		//   Old buggy logic: len(runs)=5 < batchSize=250, stop iteration (WRONG - misses more agentic workflows!)
+		//   Fixed logic: totalFetched=250 < batchSize=250 is false, continue iteration (CORRECT)
+		if totalFetched < batchSize {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Received fewer runs than requested, likely reached end of available runs"))
 			}
@@ -773,7 +779,13 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 }
 
 // listWorkflowRunsWithPagination fetches workflow runs from GitHub with pagination support
-func listWorkflowRunsWithPagination(workflowName string, count int, startDate, endDate, beforeDate, branch string, beforeRunID, afterRunID int64, verbose bool) ([]WorkflowRun, error) {
+// Returns:
+//   - []WorkflowRun: filtered workflow runs (agentic workflows only when workflowName is empty)
+//   - int: total count of runs fetched from GitHub API before filtering
+//   - error: any error that occurred
+// The totalFetched count is critical for pagination - it indicates whether more data is available
+// from GitHub, whereas the filtered runs count may be much smaller after filtering for agentic workflows.
+func listWorkflowRunsWithPagination(workflowName string, count int, startDate, endDate, beforeDate, branch string, beforeRunID, afterRunID int64, verbose bool) ([]WorkflowRun, int, error) {
 	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	// Add filters
@@ -829,18 +841,21 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 			strings.Contains(combinedMsg, "To use GitHub CLI in a GitHub Actions workflow") ||
 			strings.Contains(combinedMsg, "authentication required") ||
 			strings.Contains(outputMsg, "gh auth login") {
-			return nil, fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
+			return nil, 0, fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
 		if len(output) > 0 {
-			return nil, fmt.Errorf("failed to list workflow runs: %s", string(output))
+			return nil, 0, fmt.Errorf("failed to list workflow runs: %s", string(output))
 		}
-		return nil, fmt.Errorf("failed to list workflow runs: %w", err)
+		return nil, 0, fmt.Errorf("failed to list workflow runs: %w", err)
 	}
 
 	var runs []WorkflowRun
 	if err := json.Unmarshal(output, &runs); err != nil {
-		return nil, fmt.Errorf("failed to parse workflow runs: %w", err)
+		return nil, 0, fmt.Errorf("failed to parse workflow runs: %w", err)
 	}
+
+	// Store the total count fetched from API before filtering
+	totalFetched := len(runs)
 
 	// Filter only agentic workflow runs when no specific workflow is specified
 	// If a workflow name was specified, we already filtered by it in the API call
@@ -850,7 +865,7 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 		// Get the list of agentic workflow names from .lock.yml files
 		agenticWorkflowNames, err := getAgenticWorkflowNames(verbose)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get agentic workflow names: %w", err)
+			return nil, 0, fmt.Errorf("failed to get agentic workflow names: %w", err)
 		}
 
 		for _, run := range runs {
@@ -880,7 +895,7 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 		agenticRuns = filteredRuns
 	}
 
-	return agenticRuns, nil
+	return agenticRuns, totalFetched, nil
 }
 
 // flattenSingleFileArtifacts applies the artifact unfold rule to downloaded artifacts
