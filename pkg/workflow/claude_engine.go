@@ -683,28 +683,22 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 		// Use effective token with precedence: custom > top-level > default
 		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
 
-		// Determine if we need a comma after Authorization (if there are additional headers)
-		needsComma := readOnly || toolsets != ""
-		if needsComma {
-			yaml.WriteString(fmt.Sprintf("                  \"Authorization\": \"Bearer %s\",\n", effectiveToken))
-		} else {
-			yaml.WriteString(fmt.Sprintf("                  \"Authorization\": \"Bearer %s\"\n", effectiveToken))
-		}
+		// Collect headers in a map
+		headers := make(map[string]string)
+		headers["Authorization"] = fmt.Sprintf("Bearer %s", effectiveToken)
 
 		// Add X-MCP-Readonly header if read-only mode is enabled
 		if readOnly {
-			needsComma = toolsets != "" // Check if we need comma after this header
-			if needsComma {
-				yaml.WriteString("                  \"X-MCP-Readonly\": \"true\",\n")
-			} else {
-				yaml.WriteString("                  \"X-MCP-Readonly\": \"true\"\n")
-			}
+			headers["X-MCP-Readonly"] = "true"
 		}
 
 		// Add X-MCP-Toolsets header if toolsets are configured
 		if toolsets != "" {
-			yaml.WriteString(fmt.Sprintf("                  \"X-MCP-Toolsets\": \"%s\"\n", toolsets))
+			headers["X-MCP-Toolsets"] = toolsets
 		}
+
+		// Write headers using helper
+		writeHeadersToYAML(yaml, headers, "                  ")
 
 		yaml.WriteString("                }\n")
 	} else {

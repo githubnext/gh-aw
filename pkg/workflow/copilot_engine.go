@@ -279,28 +279,22 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 		yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp/\",\n")
 		yaml.WriteString("                \"headers\": {\n")
 
-		// Determine if we need a comma after Authorization (if there are additional headers)
-		needsComma := readOnly || toolsets != ""
-		if needsComma {
-			yaml.WriteString("                  \"Authorization\": \"Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}\",\n")
-		} else {
-			yaml.WriteString("                  \"Authorization\": \"Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}\"\n")
-		}
+		// Collect headers in a map
+		headers := make(map[string]string)
+		headers["Authorization"] = "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"
 
 		// Add X-MCP-Readonly header if read-only mode is enabled
 		if readOnly {
-			needsComma = toolsets != "" // Check if we need comma after this header
-			if needsComma {
-				yaml.WriteString("                  \"X-MCP-Readonly\": \"true\",\n")
-			} else {
-				yaml.WriteString("                  \"X-MCP-Readonly\": \"true\"\n")
-			}
+			headers["X-MCP-Readonly"] = "true"
 		}
 
 		// Add X-MCP-Toolsets header if toolsets are configured
 		if toolsets != "" {
-			yaml.WriteString(fmt.Sprintf("                  \"X-MCP-Toolsets\": \"%s\"\n", toolsets))
+			headers["X-MCP-Toolsets"] = toolsets
 		}
+
+		// Write headers using helper
+		writeHeadersToYAML(yaml, headers, "                  ")
 
 		yaml.WriteString("                },\n")
 
