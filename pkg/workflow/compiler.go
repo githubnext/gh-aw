@@ -193,6 +193,7 @@ type BaseSafeOutputConfig struct {
 // SafeOutputsConfig holds configuration for automatic output routes
 type SafeOutputsConfig struct {
 	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issues,omitempty"`
+	CreateAgentTasks                *CreateAgentTaskConfig                 `yaml:"create-agent-tasks,omitempty"`
 	CreateDiscussions               *CreateDiscussionsConfig               `yaml:"create-discussions,omitempty"`
 	AddComments                     *AddCommentsConfig                     `yaml:"add-comments,omitempty"`
 	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-requests,omitempty"`
@@ -1990,6 +1991,22 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		}
 		safeOutputJobNames = append(safeOutputJobNames, createIssueJob.Name)
 		createIssueJobName = createIssueJob.Name
+	}
+
+	// Build create_agent_task job if output.create-agent-task is configured
+	if data.SafeOutputs.CreateAgentTasks != nil {
+		createAgentTaskJob, err := c.buildCreateOutputAgentTaskJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build create_agent_task job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			createAgentTaskJob.Needs = append(createAgentTaskJob.Needs, constants.DetectionJobName)
+		}
+		if err := c.jobManager.AddJob(createAgentTaskJob); err != nil {
+			return fmt.Errorf("failed to add create_agent_task job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, createAgentTaskJob.Name)
 	}
 
 	// Build create_discussion job if output.create_discussion is configured

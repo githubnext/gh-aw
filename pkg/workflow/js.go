@@ -12,6 +12,9 @@ var createPullRequestScript string
 //go:embed js/create_issue.cjs
 var createIssueScript string
 
+//go:embed js/create_agent_task.cjs
+var createAgentTaskScript string
+
 //go:embed js/create_discussion.cjs
 var createDiscussionScript string
 
