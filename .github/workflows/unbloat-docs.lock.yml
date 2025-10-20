@@ -4036,6 +4036,12 @@ jobs:
               return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
             }
             async function main() {
+              core.setOutput("pull_request_number", "");
+              core.setOutput("pull_request_url", "");
+              core.setOutput("issue_number", "");
+              core.setOutput("issue_url", "");
+              core.setOutput("branch_name", "");
+              core.setOutput("fallback_used", "");
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
               if (!workflowId) {

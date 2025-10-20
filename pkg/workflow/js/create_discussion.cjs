@@ -1,4 +1,8 @@
 async function main() {
+  // Initialize outputs to empty strings to ensure they're always set
+  core.setOutput("discussion_number", "");
+  core.setOutput("discussion_url", "");
+
   const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!agentOutputFile) {
     core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");

@@ -36,6 +36,14 @@ function generatePatchPreview(patchContent) {
 }
 
 async function main() {
+  // Initialize outputs to empty strings to ensure they're always set
+  core.setOutput("pull_request_number", "");
+  core.setOutput("pull_request_url", "");
+  core.setOutput("issue_number", "");
+  core.setOutput("issue_url", "");
+  core.setOutput("branch_name", "");
+  core.setOutput("fallback_used", "");
+
   // Check if we're in staged mode
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
 
