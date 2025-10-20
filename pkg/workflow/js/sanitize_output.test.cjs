@@ -710,4 +710,147 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       fs.unlinkSync(testFile);
     });
   });
+
+  describe("Command Neutralization", () => {
+    beforeEach(() => {
+      // Clear all mocks before each test
+      vi.clearAllMocks();
+      // Ensure test directory exists
+      if (!fs.existsSync("/tmp/gh-aw")) {
+        fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+      }
+    });
+
+    it("should neutralize command at the start of text", async () => {
+      process.env.GH_AW_COMMAND = "test-bot";
+      const content = "/test-bot please analyze this code";
+      const testFile = "/tmp/gh-aw/test-command-start.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const result = outputCall[1];
+
+      // Command should be neutralized with backticks
+      expect(result).toContain("`/test-bot`");
+      expect(result).not.toMatch(/^\/test-bot/); // Should not start with plain command
+
+      fs.unlinkSync(testFile);
+      delete process.env.GH_AW_COMMAND;
+    });
+
+    it("should not neutralize command when it appears later in text", async () => {
+      process.env.GH_AW_COMMAND = "helper";
+      const content = "I need help from /helper please";
+      const testFile = "/tmp/gh-aw/test-command-middle.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const result = outputCall[1];
+
+      // Command in the middle should not be neutralized
+      expect(result).toContain("/helper");
+      // The command should remain as is since it's not at the start
+      expect(result).toContain("I need help from /helper please");
+
+      fs.unlinkSync(testFile);
+      delete process.env.GH_AW_COMMAND;
+    });
+
+    it("should handle command at start with leading whitespace", async () => {
+      process.env.GH_AW_COMMAND = "review-bot";
+      const content = "  \n/review-bot analyze this PR";
+      const testFile = "/tmp/gh-aw/test-command-whitespace.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const result = outputCall[1];
+
+      // Command should be neutralized even with leading whitespace
+      expect(result).toContain("`/review-bot`");
+
+      fs.unlinkSync(testFile);
+      delete process.env.GH_AW_COMMAND;
+    });
+
+    it("should not modify text when no command is configured", async () => {
+      // No GH_AW_COMMAND set
+      const content = "/some-bot do something";
+      const testFile = "/tmp/gh-aw/test-no-command.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const result = outputCall[1];
+
+      // Text should remain as is (no command neutralization)
+      expect(result).toContain("/some-bot");
+
+      fs.unlinkSync(testFile);
+    });
+
+    it("should handle special characters in command name", async () => {
+      process.env.GH_AW_COMMAND = "test-bot_v2";
+      const content = "/test-bot_v2 execute task";
+      const testFile = "/tmp/gh-aw/test-special-chars.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const result = outputCall[1];
+
+      // Command with special chars should be neutralized
+      expect(result).toContain("`/test-bot_v2`");
+
+      fs.unlinkSync(testFile);
+      delete process.env.GH_AW_COMMAND;
+    });
+
+    it("should combine command neutralization with other sanitizations", async () => {
+      process.env.GH_AW_COMMAND = "analyze-bot";
+      const content = "/analyze-bot check @user for https://evil.com issues";
+      const testFile = "/tmp/gh-aw/test-combined.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      const outputCall = mockCore.setOutput.mock.calls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+      const result = outputCall[1];
+
+      // Command should be neutralized
+      expect(result).toContain("`/analyze-bot`");
+      // @mention should be neutralized
+      expect(result).toContain("`@user`");
+      // Non-whitelisted domain should be redacted
+      expect(result).toContain("(redacted)");
+
+      fs.unlinkSync(testFile);
+      delete process.env.GH_AW_COMMAND;
+    });
+  });
 });

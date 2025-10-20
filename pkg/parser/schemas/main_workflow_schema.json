@@ -1631,6 +1631,7 @@
                     "description": "Toolset name",
                     "enum": [
                       "all",
+                      "default",
                       "context",
                       "repos",
                       "issues",

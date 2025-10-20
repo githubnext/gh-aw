@@ -24,7 +24,7 @@ const DefaultCopilotVersion = "0.0.346"
 const DefaultCodexVersion = "0.47.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion = "v0.18.0"
+const DefaultGitHubMCPServerVersion = "v0.19.0"
 
 // DefaultNodeVersion is the default version of Node.js for runtime setup
 const DefaultNodeVersion = "24"
@@ -137,10 +137,12 @@ const AgentOutputArtifactName = "agent_output.json"
 // Step IDs for pre-activation job
 const CheckMembershipStepID = "check_membership"
 const CheckStopTimeStepID = "check_stop_time"
+const CheckCommandPositionStepID = "check_command_position"
 
 // Output names for pre-activation job steps
 const IsTeamMemberOutput = "is_team_member"
 const StopTimeOkOutput = "stop_time_ok"
+const CommandPositionOkOutput = "command_position_ok"
 const ActivatedOutput = "activated"
 
 var AgenticEngines = []string{"claude", "codex", "copilot"}

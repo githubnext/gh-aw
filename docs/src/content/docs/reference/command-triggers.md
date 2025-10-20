@@ -22,6 +22,10 @@ on:
 
 This automatically creates issue/PR triggers (`opened`, `edited`, `reopened`), comment triggers (`created`, `edited`), and conditional execution matching `/command-name` mentions.
 
+:::caution[Command Position Requirement]
+The command must be the **first word** of the comment or body text to trigger the workflow. This prevents accidental triggers when the command is mentioned elsewhere in the content.
+:::
+
 You can combine `command:` with other events like `workflow_dispatch` or `schedule`:
 
 ```yaml wrap
