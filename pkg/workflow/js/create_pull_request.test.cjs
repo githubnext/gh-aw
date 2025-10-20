@@ -1284,8 +1284,13 @@ describe("create_pull_request.cjs", () => {
       expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
       expect(mockDependencies.github.rest.issues.addLabels).not.toHaveBeenCalled();
 
-      // Verify no outputs were set
-      expect(mockDependencies.core.setOutput).not.toHaveBeenCalled();
+      // Verify outputs were initialized to empty strings
+      expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("pull_request_number", "");
+      expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("pull_request_url", "");
+      expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("issue_number", "");
+      expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("issue_url", "");
+      expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("branch_name", "");
+      expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("fallback_used", "");
     });
 
     it("should handle missing patch file in staged mode", async () => {

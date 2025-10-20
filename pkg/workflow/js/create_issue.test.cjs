@@ -400,8 +400,9 @@ describe("create_issue.cjs", () => {
     // Should still log successful completion with 0 issues
     expect(mockCore.info).toHaveBeenCalledWith("Successfully created 0 issue(s)");
 
-    // Should not set outputs since no issues were created
-    expect(mockCore.setOutput).not.toHaveBeenCalled();
+    // Should have initialized outputs to empty strings
+    expect(mockCore.setOutput).toHaveBeenCalledWith("issue_number", "");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("issue_url", "");
 
     consoleErrorSpy.mockRestore();
   });
