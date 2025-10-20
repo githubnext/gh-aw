@@ -132,10 +132,10 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		effectiveToken := getEffectiveGitHubToken(token, getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken))
 
 		for i, assignee := range data.SafeOutputs.CreateIssues.Assignees {
-			// Special handling: "copilot" is the username for "copilot-swe-agent"
+			// Special handling: "copilot" should be passed as "@copilot" to gh CLI
 			actualAssignee := assignee
 			if assignee == "copilot" {
-				actualAssignee = "copilot-swe-agent"
+				actualAssignee = "@copilot"
 			}
 
 			steps = append(steps, fmt.Sprintf("      - name: Assign issue to %s\n", assignee))

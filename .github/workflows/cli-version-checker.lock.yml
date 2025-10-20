@@ -3245,7 +3245,7 @@ jobs:
         if: steps.create_issue.outputs.issue_number != ''
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          ASSIGNEE: "copilot-swe-agent"
+          ASSIGNEE: "@copilot"
           ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
         run: |
           gh issue edit "$ISSUE_NUMBER" --add-assignee "$ASSIGNEE"
