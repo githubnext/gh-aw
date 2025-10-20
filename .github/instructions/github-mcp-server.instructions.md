@@ -31,7 +31,7 @@ The GitHub MCP server provides AI agents with programmatic access to GitHub's AP
 tools:
   github:
     mode: "local"
-    toolset: [repos, issues, pull_requests]
+    toolset: [default]  # or [repos, issues, pull_requests]
 ```
 
 **Remote Mode (Hosted)**:
@@ -39,7 +39,7 @@ tools:
 tools:
   github:
     mode: "remote"
-    toolset: [repos, issues, pull_requests]
+    toolset: [default]  # or [repos, issues, pull_requests]
 ```
 
 ### Read-Only Mode
@@ -68,7 +68,7 @@ tools:
 
 ## Available Toolsets
 
-The GitHub MCP server organizes tools into logical toolsets. You can enable specific toolsets or use `[all]` to enable everything.
+The GitHub MCP server organizes tools into logical toolsets. You can enable specific toolsets, use `[default]` for the recommended defaults, or use `[all]` to enable everything.
 
 ### Recommended Default Toolsets
 
