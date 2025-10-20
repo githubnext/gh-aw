@@ -179,13 +179,16 @@ function sanitizeContent(content) {
     // Check if text starts with /command
     const trimmedText = s.trim();
     const commandPattern = `/${command}`;
-    
+
     if (trimmedText.startsWith(commandPattern)) {
       // Neutralize the command at the start by wrapping it in backticks
       // This prevents the output from triggering another workflow run
-      return s.replace(new RegExp(`^(\\s*)(${commandPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`), (match, whitespace, cmd) => `${whitespace}\`${cmd}\``);
+      return s.replace(
+        new RegExp(`^(\\s*)(${commandPattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`),
+        (match, whitespace, cmd) => `${whitespace}\`${cmd}\``
+      );
     }
-    
+
     return s;
   }
 }
