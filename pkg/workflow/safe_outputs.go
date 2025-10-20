@@ -20,6 +20,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		return false
 	}
 	return safeOutputs.CreateIssues != nil ||
+		safeOutputs.CreateAgentTasks != nil ||
 		safeOutputs.CreateDiscussions != nil ||
 		safeOutputs.AddComments != nil ||
 		safeOutputs.CreatePullRequests != nil ||
@@ -55,12 +56,21 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 			yaml.WriteString(", ")
 		}
 		yaml.WriteString("Creating an Issue")
+		written = true
+	}
+	if safeOutputs.CreateAgentTasks != nil {
+		if written {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("Creating an Agent Task")
+		written = true
 	}
 	if safeOutputs.CreatePullRequests != nil {
 		if written {
 			yaml.WriteString(", ")
 		}
 		yaml.WriteString("Creating a Pull Request")
+		written = true
 	}
 
 	if safeOutputs.AddLabels != nil {
@@ -127,6 +137,13 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          **Creating an Issue**\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          To create an issue, use the create-issue tool from the safe-outputs MCP\n")
+		yaml.WriteString("          \n")
+	}
+
+	if safeOutputs.CreateAgentTasks != nil {
+		yaml.WriteString("          **Creating an Agent Task**\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          To create a GitHub Copilot agent task, use the create-agent-task tool from the safe-outputs MCP\n")
 		yaml.WriteString("          \n")
 	}
 
@@ -212,6 +229,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			issuesConfig := c.parseIssuesConfig(outputMap)
 			if issuesConfig != nil {
 				config.CreateIssues = issuesConfig
+			}
+
+			// Handle create-agent-task
+			agentTaskConfig := c.parseAgentTaskConfig(outputMap)
+			if agentTaskConfig != nil {
+				config.CreateAgentTasks = agentTaskConfig
 			}
 
 			// Handle create-discussion

@@ -2057,6 +2057,45 @@
             }
           ]
         },
+        "create-agent-task": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating GitHub Copilot agent tasks from agentic workflow output using gh agent-task CLI. The main job does not need write permissions.",
+              "properties": {
+                "base": {
+                  "type": "string",
+                  "description": "Base branch for the agent task pull request. Defaults to the current branch or repository default branch."
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of agent tasks to create (default: 1)",
+                  "minimum": 1,
+                  "maximum": 1
+                },
+                "min": {
+                  "type": "integer",
+                  "description": "Minimum number of agent tasks to create (default: 0 - no requirement)",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository agent task creation. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable agent task creation with default configuration"
+            }
+          ]
+        },
         "create-discussion": {
           "oneOf": [
             {
