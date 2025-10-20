@@ -74,7 +74,7 @@ describe("create_code_scanning_alert.cjs", () => {
     tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
     const content = typeof data === "string" ? data : JSON.stringify(data);
     fs.writeFileSync(tempFilePath, content);
-    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+    process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
   };
 
   beforeEach(() => {
@@ -85,9 +85,9 @@ describe("create_code_scanning_alert.cjs", () => {
 
     // Set up basic environment
     setAgentOutput("");
-    delete process.env.GITHUB_AW_SECURITY_REPORT_MAX;
-    delete process.env.GITHUB_AW_SECURITY_REPORT_DRIVER;
-    delete process.env.GITHUB_AW_WORKFLOW_FILENAME;
+    delete process.env.GH_AW_SECURITY_REPORT_MAX;
+    delete process.env.GH_AW_SECURITY_REPORT_DRIVER;
+    delete process.env.GH_AW_WORKFLOW_FILENAME;
   });
 
   afterEach(() => {
@@ -110,10 +110,10 @@ describe("create_code_scanning_alert.cjs", () => {
 
   describe("main function", () => {
     it("should handle missing environment variable", async () => {
-      delete process.env.GITHUB_AW_AGENT_OUTPUT;
+      delete process.env.GH_AW_AGENT_OUTPUT;
       await eval(`(async () => { ${securityReportScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+      expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
     });
 
     it("should handle empty agent output", async () => {
@@ -205,7 +205,7 @@ describe("create_code_scanning_alert.cjs", () => {
     });
 
     it("should respect max findings limit", async () => {
-      process.env.GITHUB_AW_SECURITY_REPORT_MAX = "1";
+      process.env.GH_AW_SECURITY_REPORT_MAX = "1";
 
       const securityFindings = {
         items: [
@@ -298,8 +298,8 @@ describe("create_code_scanning_alert.cjs", () => {
     });
 
     it("should use custom driver name when configured", async () => {
-      process.env.GITHUB_AW_SECURITY_REPORT_DRIVER = "Custom Security Scanner";
-      process.env.GITHUB_AW_WORKFLOW_FILENAME = "security-scan";
+      process.env.GH_AW_SECURITY_REPORT_DRIVER = "Custom Security Scanner";
+      process.env.GH_AW_WORKFLOW_FILENAME = "security-scan";
 
       const securityFindings = {
         items: [
@@ -437,7 +437,7 @@ describe("create_code_scanning_alert.cjs", () => {
     });
 
     it("should support optional ruleIdSuffix specification", async () => {
-      process.env.GITHUB_AW_WORKFLOW_FILENAME = "security-scan";
+      process.env.GH_AW_WORKFLOW_FILENAME = "security-scan";
 
       const securityFindings = {
         items: [

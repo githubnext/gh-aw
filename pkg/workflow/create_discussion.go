@@ -62,12 +62,12 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 
 	// Build custom environment variables specific to create-discussion
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
 	if data.SafeOutputs.CreateDiscussions.TitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_DISCUSSION_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateDiscussions.TitlePrefix))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISCUSSION_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateDiscussions.TitlePrefix))
 	}
 	if data.SafeOutputs.CreateDiscussions.Category != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_DISCUSSION_CATEGORY: %q\n", data.SafeOutputs.CreateDiscussions.Category))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISCUSSION_CATEGORY: %q\n", data.SafeOutputs.CreateDiscussions.Category))
 	}
 
 	// Add common safe output job environment variables (staged/target repo)

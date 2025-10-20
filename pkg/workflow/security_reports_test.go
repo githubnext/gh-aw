@@ -152,7 +152,7 @@ func TestBuildCreateOutputCodeScanningAlertJob(t *testing.T) {
 	}
 
 	stepsWithMaxStr := strings.Join(jobWithMax.Steps, "")
-	if !strings.Contains(stepsWithMaxStr, "GITHUB_AW_SECURITY_REPORT_MAX: 25") {
+	if !strings.Contains(stepsWithMaxStr, "GH_AW_SECURITY_REPORT_MAX: 25") {
 		t.Errorf("Expected max configuration in environment variables")
 	}
 
@@ -171,7 +171,7 @@ func TestBuildCreateOutputCodeScanningAlertJob(t *testing.T) {
 	}
 
 	stepsWithDriverStr := strings.Join(jobWithDriver.Steps, "")
-	if !strings.Contains(stepsWithDriverStr, "GITHUB_AW_SECURITY_REPORT_DRIVER: Custom Scanner") {
+	if !strings.Contains(stepsWithDriverStr, "GH_AW_SECURITY_REPORT_DRIVER: Custom Scanner") {
 		t.Errorf("Expected driver configuration in environment variables")
 	}
 
@@ -190,7 +190,7 @@ func TestBuildCreateOutputCodeScanningAlertJob(t *testing.T) {
 	}
 
 	stepsNoDriverStr := strings.Join(jobNoDriver.Steps, "")
-	if !strings.Contains(stepsNoDriverStr, "GITHUB_AW_SECURITY_REPORT_DRIVER: Security Analysis Workflow") {
+	if !strings.Contains(stepsNoDriverStr, "GH_AW_SECURITY_REPORT_DRIVER: Security Analysis Workflow") {
 		t.Errorf("Expected frontmatter name as default driver in environment variables, got: %s", stepsNoDriverStr)
 	}
 
@@ -209,12 +209,12 @@ func TestBuildCreateOutputCodeScanningAlertJob(t *testing.T) {
 	}
 
 	stepsFallbackStr := strings.Join(jobFallback.Steps, "")
-	if !strings.Contains(stepsFallbackStr, "GITHUB_AW_SECURITY_REPORT_DRIVER: Security Analysis") {
+	if !strings.Contains(stepsFallbackStr, "GH_AW_SECURITY_REPORT_DRIVER: Security Analysis") {
 		t.Errorf("Expected H1 name as fallback driver in environment variables, got: %s", stepsFallbackStr)
 	}
 
 	// Check that workflow filename is passed
-	if !strings.Contains(stepsWithDriverStr, "GITHUB_AW_WORKFLOW_FILENAME: my-workflow") {
+	if !strings.Contains(stepsWithDriverStr, "GH_AW_WORKFLOW_FILENAME: my-workflow") {
 		t.Errorf("Expected workflow filename in environment variables")
 	}
 

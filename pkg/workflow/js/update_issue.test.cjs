@@ -81,7 +81,7 @@ describe("update_issue.cjs", () => {
     tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
     const content = typeof data === "string" ? data : JSON.stringify(data);
     fs.writeFileSync(tempFilePath, content);
-    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+    process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
   };
 
   beforeEach(() => {
@@ -89,16 +89,16 @@ describe("update_issue.cjs", () => {
     vi.clearAllMocks();
 
     // Reset environment variables
-    delete process.env.GITHUB_AW_AGENT_OUTPUT;
-    delete process.env.GITHUB_AW_UPDATE_STATUS;
-    delete process.env.GITHUB_AW_UPDATE_TITLE;
-    delete process.env.GITHUB_AW_UPDATE_BODY;
-    delete process.env.GITHUB_AW_UPDATE_TARGET;
+    delete process.env.GH_AW_AGENT_OUTPUT;
+    delete process.env.GH_AW_UPDATE_STATUS;
+    delete process.env.GH_AW_UPDATE_TITLE;
+    delete process.env.GH_AW_UPDATE_BODY;
+    delete process.env.GH_AW_UPDATE_TARGET;
 
     // Set default values
-    process.env.GITHUB_AW_UPDATE_STATUS = "false";
-    process.env.GITHUB_AW_UPDATE_TITLE = "false";
-    process.env.GITHUB_AW_UPDATE_BODY = "false";
+    process.env.GH_AW_UPDATE_STATUS = "false";
+    process.env.GH_AW_UPDATE_TITLE = "false";
+    process.env.GH_AW_UPDATE_BODY = "false";
 
     // Read the script
     const scriptPath = path.join(__dirname, "update_issue.cjs");
@@ -117,7 +117,7 @@ describe("update_issue.cjs", () => {
     // Execute the script
     await eval(`(async () => { ${updateIssueScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
     expect(mockGithub.rest.issues.update).not.toHaveBeenCalled();
   });
 
@@ -140,7 +140,7 @@ describe("update_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_UPDATE_TITLE = "true";
+    process.env.GH_AW_UPDATE_TITLE = "true";
     global.context.eventName = "push"; // Not an issue event
 
     // Execute the script
@@ -159,7 +159,7 @@ describe("update_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_UPDATE_TITLE = "true";
+    process.env.GH_AW_UPDATE_TITLE = "true";
     global.context.eventName = "issues";
 
     const mockIssue = {
@@ -195,7 +195,7 @@ describe("update_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_UPDATE_STATUS = "true";
+    process.env.GH_AW_UPDATE_STATUS = "true";
     global.context.eventName = "issues";
 
     const mockIssue = {
@@ -227,9 +227,9 @@ describe("update_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_UPDATE_TITLE = "true";
-    process.env.GITHUB_AW_UPDATE_BODY = "true";
-    process.env.GITHUB_AW_UPDATE_STATUS = "true";
+    process.env.GH_AW_UPDATE_TITLE = "true";
+    process.env.GH_AW_UPDATE_BODY = "true";
+    process.env.GH_AW_UPDATE_STATUS = "true";
     global.context.eventName = "issues";
 
     const mockIssue = {
@@ -262,8 +262,8 @@ describe("update_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_UPDATE_TITLE = "true";
-    process.env.GITHUB_AW_UPDATE_TARGET = "*";
+    process.env.GH_AW_UPDATE_TITLE = "true";
+    process.env.GH_AW_UPDATE_TARGET = "*";
     global.context.eventName = "push"; // Not an issue event, but should work with explicit target
 
     const mockIssue = {
@@ -294,9 +294,9 @@ describe("update_issue.cjs", () => {
       ],
     });
     // All update flags are false
-    process.env.GITHUB_AW_UPDATE_STATUS = "false";
-    process.env.GITHUB_AW_UPDATE_TITLE = "false";
-    process.env.GITHUB_AW_UPDATE_BODY = "false";
+    process.env.GH_AW_UPDATE_STATUS = "false";
+    process.env.GH_AW_UPDATE_TITLE = "false";
+    process.env.GH_AW_UPDATE_BODY = "false";
     global.context.eventName = "issues";
 
     // Execute the script
@@ -315,7 +315,7 @@ describe("update_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_UPDATE_STATUS = "true";
+    process.env.GH_AW_UPDATE_STATUS = "true";
     global.context.eventName = "issues";
 
     // Execute the script

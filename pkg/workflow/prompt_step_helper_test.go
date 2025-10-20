@@ -22,8 +22,8 @@ func TestGenerateStaticPromptStep(t *testing.T) {
 			wantOutput:    true,
 			wantInOutput: []string{
 				"- name: Append test instructions to prompt",
-				"GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt",
-				"cat >> $GITHUB_AW_PROMPT << 'EOF'",
+				"GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt",
+				"cat >> $GH_AW_PROMPT << 'EOF'",
 				"Test prompt content",
 				"Line 2",
 				"EOF",
@@ -58,7 +58,7 @@ func TestGenerateStaticPromptStep(t *testing.T) {
 			wantOutput:    true,
 			wantInOutput: []string{
 				"- name: Append empty instructions to prompt",
-				"cat >> $GITHUB_AW_PROMPT << 'EOF'",
+				"cat >> $GH_AW_PROMPT << 'EOF'",
 				"EOF",
 			},
 		},

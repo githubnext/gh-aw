@@ -120,7 +120,7 @@ const core = {
 };
 
 // Set up environment
-process.env.GITHUB_AW_AGENT_OUTPUT = '%s';
+process.env.GH_AW_AGENT_OUTPUT = '%s';
 
 // Override require to provide our mock
 const originalRequire = require;

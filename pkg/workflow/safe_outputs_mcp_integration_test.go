@@ -73,8 +73,8 @@ Test safe outputs workflow with MCP server integration.
 	}
 
 	// Check that safe outputs config is properly set
-	if !strings.Contains(yamlStr, "GITHUB_AW_SAFE_OUTPUTS_CONFIG") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_CONFIG environment variable to be set")
+	if !strings.Contains(yamlStr, "GH_AW_SAFE_OUTPUTS_CONFIG") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_CONFIG environment variable to be set")
 	}
 
 	t.Log("Safe outputs MCP server integration test passed")

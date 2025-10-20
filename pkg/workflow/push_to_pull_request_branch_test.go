@@ -56,7 +56,7 @@ Please make changes and push them to the feature branch.
 	}
 
 	// Verify that the target configuration is passed correctly
-	if !strings.Contains(lockContentStr, "GITHUB_AW_PUSH_TARGET: \"triggering\"") {
+	if !strings.Contains(lockContentStr, "GH_AW_PUSH_TARGET: \"triggering\"") {
 		t.Errorf("Generated workflow should contain target configuration")
 	}
 
@@ -133,7 +133,7 @@ This workflow allows pushing to any pull request.
 	lockContentStr := string(lockContent)
 
 	// Verify that the target configuration is passed correctly
-	if !strings.Contains(lockContentStr, "GITHUB_AW_PUSH_TARGET: \"*\"") {
+	if !strings.Contains(lockContentStr, "GH_AW_PUSH_TARGET: \"*\"") {
 		t.Errorf("Generated workflow should contain target configuration with asterisk")
 	}
 
@@ -240,7 +240,7 @@ This workflow uses null configuration which should default to "triggering".
 	}
 
 	// Check that no target is set (should use default)
-	if strings.Contains(lockContent, "GITHUB_AW_PUSH_TARGET:") {
+	if strings.Contains(lockContent, "GH_AW_PUSH_TARGET:") {
 		t.Errorf("Expected no target to be set when using null config, %s", lockContent)
 	}
 }
@@ -291,7 +291,7 @@ This workflow has minimal push-to-pull-request-branch configuration.
 	}
 
 	// Verify that target defaults to triggering behavior (no explicit target env var)
-	if strings.Contains(lockContentStr, "GITHUB_AW_PUSH_TARGET:") {
+	if strings.Contains(lockContentStr, "GH_AW_PUSH_TARGET:") {
 		t.Errorf("Generated workflow should not contain target configuration when not specified")
 	}
 
@@ -358,7 +358,7 @@ This workflow fails when there are no changes.
 	lockContentStr := string(lockContent)
 
 	// Verify that if-no-changes configuration is passed correctly
-	if !strings.Contains(lockContentStr, "GITHUB_AW_PUSH_IF_NO_CHANGES: \"error\"") {
+	if !strings.Contains(lockContentStr, "GH_AW_PUSH_IF_NO_CHANGES: \"error\"") {
 		t.Errorf("Generated workflow should contain if-no-changes configuration")
 	}
 }
@@ -405,7 +405,7 @@ This workflow ignores when there are no changes.
 	lockContentStr := string(lockContent)
 
 	// Verify that if-no-changes configuration is passed correctly
-	if !strings.Contains(lockContentStr, "GITHUB_AW_PUSH_IF_NO_CHANGES: \"ignore\"") {
+	if !strings.Contains(lockContentStr, "GH_AW_PUSH_IF_NO_CHANGES: \"ignore\"") {
 		t.Errorf("Generated workflow should contain if-no-changes ignore configuration")
 	}
 }
@@ -451,7 +451,7 @@ This workflow uses default if-no-changes behavior.
 	lockContentStr := string(lockContent)
 
 	// Verify that default if-no-changes configuration ("warn") is passed correctly
-	if !strings.Contains(lockContentStr, "GITHUB_AW_PUSH_IF_NO_CHANGES: \"warn\"") {
+	if !strings.Contains(lockContentStr, "GH_AW_PUSH_IF_NO_CHANGES: \"warn\"") {
 		t.Errorf("Generated workflow should contain default if-no-changes configuration (warn)")
 	}
 }
@@ -503,7 +503,7 @@ This workflow explicitly sets branch to "triggering".
 	}
 
 	// Verify that target configuration is included
-	if !strings.Contains(lockContentStr, `GITHUB_AW_PUSH_TARGET: "triggering"`) {
+	if !strings.Contains(lockContentStr, `GH_AW_PUSH_TARGET: "triggering"`) {
 		t.Errorf("Generated workflow should contain target configuration")
 	}
 }
@@ -551,7 +551,7 @@ This workflow validates PR title prefix.
 	lockContentStr := string(lockContent)
 
 	// Verify that title prefix configuration is passed correctly
-	if !strings.Contains(lockContentStr, `GITHUB_AW_PR_TITLE_PREFIX: "[bot] "`) {
+	if !strings.Contains(lockContentStr, `GH_AW_PR_TITLE_PREFIX: "[bot] "`) {
 		t.Errorf("Generated workflow should contain title prefix configuration")
 	}
 }
@@ -599,7 +599,7 @@ This workflow validates PR labels.
 	lockContentStr := string(lockContent)
 
 	// Verify that labels configuration is passed correctly
-	if !strings.Contains(lockContentStr, `GITHUB_AW_PR_LABELS: "automated,enhancement"`) {
+	if !strings.Contains(lockContentStr, `GH_AW_PR_LABELS: "automated,enhancement"`) {
 		t.Errorf("Generated workflow should contain labels configuration")
 	}
 }
@@ -648,10 +648,10 @@ This workflow validates both PR title prefix and labels.
 	lockContentStr := string(lockContent)
 
 	// Verify that both title prefix and labels configurations are passed correctly
-	if !strings.Contains(lockContentStr, `GITHUB_AW_PR_TITLE_PREFIX: "[automated] "`) {
+	if !strings.Contains(lockContentStr, `GH_AW_PR_TITLE_PREFIX: "[automated] "`) {
 		t.Errorf("Generated workflow should contain title prefix configuration")
 	}
-	if !strings.Contains(lockContentStr, `GITHUB_AW_PR_LABELS: "bot,feature,enhancement"`) {
+	if !strings.Contains(lockContentStr, `GH_AW_PR_LABELS: "bot,feature,enhancement"`) {
 		t.Errorf("Generated workflow should contain labels configuration")
 	}
 }

@@ -83,7 +83,7 @@ describe("create_issue.cjs", () => {
     tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
     const content = typeof data === "string" ? data : JSON.stringify(data);
     fs.writeFileSync(tempFilePath, content);
-    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+    process.env.GH_AW_AGENT_OUTPUT = tempFilePath;
   };
 
   beforeEach(() => {
@@ -91,9 +91,9 @@ describe("create_issue.cjs", () => {
     vi.clearAllMocks();
 
     // Reset environment variables
-    delete process.env.GITHUB_AW_AGENT_OUTPUT;
-    delete process.env.GITHUB_AW_ISSUE_LABELS;
-    delete process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
+    delete process.env.GH_AW_AGENT_OUTPUT;
+    delete process.env.GH_AW_ISSUE_LABELS;
+    delete process.env.GH_AW_ISSUE_TITLE_PREFIX;
 
     // Reset context
     delete global.context.payload.issue;
@@ -113,12 +113,12 @@ describe("create_issue.cjs", () => {
   });
 
   it("should skip when no agent output is provided", async () => {
-    delete process.env.GITHUB_AW_AGENT_OUTPUT;
+    delete process.env.GH_AW_AGENT_OUTPUT;
 
     // Execute the script
     await eval(`(async () => { ${createIssueScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
     expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
   });
 
@@ -201,7 +201,7 @@ describe("create_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_ISSUE_LABELS = "bug, enhancement, high-priority";
+    process.env.GH_AW_ISSUE_LABELS = "bug, enhancement, high-priority";
 
     const mockIssue = {
       number: 101,
@@ -227,7 +227,7 @@ describe("create_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_ISSUE_TITLE_PREFIX = "[AUTO] ";
+    process.env.GH_AW_ISSUE_TITLE_PREFIX = "[AUTO] ";
 
     const mockIssue = {
       number: 202,
@@ -253,7 +253,7 @@ describe("create_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_ISSUE_TITLE_PREFIX = "[AUTO] ";
+    process.env.GH_AW_ISSUE_TITLE_PREFIX = "[AUTO] ";
 
     const mockIssue = {
       number: 203,
@@ -326,7 +326,7 @@ describe("create_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_ISSUE_LABELS = "  , , ";
+    process.env.GH_AW_ISSUE_LABELS = "  , , ";
 
     const mockIssue = {
       number: 303,
@@ -452,7 +452,7 @@ describe("create_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_ISSUE_LABELS = "bug,enhancement,automation"; // Duplicates environment labels
+    process.env.GH_AW_ISSUE_LABELS = "bug,enhancement,automation"; // Duplicates environment labels
 
     const mockIssue = {
       number: 606,
@@ -554,7 +554,7 @@ describe("create_issue.cjs", () => {
     expect(callArgs.labels).toEqual(["bug", "enhancement"]);
   });
 
-  it("should include workflow source in footer when GITHUB_AW_WORKFLOW_SOURCE is provided", async () => {
+  it("should include workflow source in footer when GH_AW_WORKFLOW_SOURCE is provided", async () => {
     setAgentOutput({
       items: [
         {
@@ -564,9 +564,9 @@ describe("create_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
-    process.env.GITHUB_AW_WORKFLOW_SOURCE = "githubnext/agentics/workflows/ci-doctor.md@v1.0.0";
-    process.env.GITHUB_AW_WORKFLOW_SOURCE_URL = "https://github.com/githubnext/agentics/tree/v1.0.0/workflows/ci-doctor.md";
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_WORKFLOW_SOURCE = "githubnext/agentics/workflows/ci-doctor.md@v1.0.0";
+    process.env.GH_AW_WORKFLOW_SOURCE_URL = "https://github.com/githubnext/agentics/tree/v1.0.0/workflows/ci-doctor.md";
 
     const mockIssue = {
       number: 101,
@@ -589,7 +589,7 @@ describe("create_issue.cjs", () => {
     expect(callArgs.body).toContain("usage guide");
   });
 
-  it("should not include workflow source footer when GITHUB_AW_WORKFLOW_SOURCE is not provided", async () => {
+  it("should not include workflow source footer when GH_AW_WORKFLOW_SOURCE is not provided", async () => {
     setAgentOutput({
       items: [
         {
@@ -599,8 +599,8 @@ describe("create_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
-    delete process.env.GITHUB_AW_WORKFLOW_SOURCE; // Ensure it's not set
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+    delete process.env.GH_AW_WORKFLOW_SOURCE; // Ensure it's not set
 
     const mockIssue = {
       number: 102,
@@ -632,7 +632,7 @@ describe("create_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
 
     // Simulate issue context
     global.context.payload.issue = { number: 42 };
@@ -670,7 +670,7 @@ describe("create_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
 
     // Simulate PR context (issue with pull_request object)
     delete global.context.payload.issue;
@@ -706,7 +706,7 @@ describe("create_issue.cjs", () => {
         },
       ],
     });
-    process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
+    process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
 
     // Ensure no context
     delete global.context.payload.issue;

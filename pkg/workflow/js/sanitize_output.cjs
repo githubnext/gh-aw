@@ -9,7 +9,7 @@ function sanitizeContent(content) {
   }
 
   // Read allowed domains from environment variable
-  const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
+  const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
   const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
 
   const allowedDomains = allowedDomainsEnv
@@ -164,9 +164,9 @@ function sanitizeContent(content) {
 
 async function main() {
   const fs = require("fs");
-  const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
+  const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
   if (!outputFile) {
-    core.info("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
+    core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
     core.setOutput("output", "");
     return;
   }

@@ -22,12 +22,12 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 
 	// Build custom environment variables specific to update-issue
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_UPDATE_STATUS: %t\n", data.SafeOutputs.UpdateIssues.Status != nil))
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_UPDATE_TITLE: %t\n", data.SafeOutputs.UpdateIssues.Title != nil))
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_UPDATE_BODY: %t\n", data.SafeOutputs.UpdateIssues.Body != nil))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_UPDATE_STATUS: %t\n", data.SafeOutputs.UpdateIssues.Status != nil))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_UPDATE_TITLE: %t\n", data.SafeOutputs.UpdateIssues.Title != nil))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_UPDATE_BODY: %t\n", data.SafeOutputs.UpdateIssues.Body != nil))
 
 	if data.SafeOutputs.UpdateIssues.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_UPDATE_TARGET: %q\n", data.SafeOutputs.UpdateIssues.Target))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_UPDATE_TARGET: %q\n", data.SafeOutputs.UpdateIssues.Target))
 	}
 
 	// Add common safe output job environment variables (staged/target repo)

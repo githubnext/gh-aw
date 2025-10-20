@@ -99,17 +99,17 @@ describe("collect_ndjson_output.cjs", () => {
     }
   });
 
-  it("should handle missing GITHUB_AW_SAFE_OUTPUTS environment variable", async () => {
-    delete process.env.GITHUB_AW_SAFE_OUTPUTS;
+  it("should handle missing GH_AW_SAFE_OUTPUTS environment variable", async () => {
+    delete process.env.GH_AW_SAFE_OUTPUTS;
 
     await eval(`(async () => { ${collectScript} })()`);
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
-    expect(mockCore.info).toHaveBeenCalledWith("GITHUB_AW_SAFE_OUTPUTS not set, no output to collect");
+    expect(mockCore.info).toHaveBeenCalledWith("GH_AW_SAFE_OUTPUTS not set, no output to collect");
   });
 
   it("should handle missing output file", async () => {
-    process.env.GITHUB_AW_SAFE_OUTPUTS = "/tmp/gh-aw/nonexistent-file.txt";
+    process.env.GH_AW_SAFE_OUTPUTS = "/tmp/gh-aw/nonexistent-file.txt";
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -120,7 +120,7 @@ describe("collect_ndjson_output.cjs", () => {
   it("should handle empty output file", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     fs.writeFileSync(testFile, "");
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -134,8 +134,8 @@ describe("collect_ndjson_output.cjs", () => {
 {"type": "add_comment", "body": "Test comment"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, "add_comment": true}';
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, "add_comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -156,8 +156,8 @@ describe("collect_ndjson_output.cjs", () => {
 {"type": "unexpected-type", "data": "some data"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -178,8 +178,8 @@ describe("collect_ndjson_output.cjs", () => {
 {"type": "create_issue", "body": "Test body"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -202,8 +202,8 @@ describe("collect_ndjson_output.cjs", () => {
 {"type": "add_labels", "labels": [1, 2, 3]}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -225,8 +225,8 @@ describe("collect_ndjson_output.cjs", () => {
 {"type": "create_pull_request", "title": "Complete PR", "body": "Test body", "branch": "feature-branch"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_pull_request": true}';
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_pull_request": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -252,8 +252,8 @@ describe("collect_ndjson_output.cjs", () => {
 {"type": "add_comment", "body": "Test comment"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, "add_comment": true}';
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, "add_comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -272,8 +272,8 @@ describe("collect_ndjson_output.cjs", () => {
     const ndjsonContent = `{"type": "create_issue", "title": "First Issue", "body": "First body"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -294,9 +294,9 @@ describe("collect_ndjson_output.cjs", () => {
 {"type": "create_issue", "title": "Third Issue", "body": "Third body"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
     // Set max to 2 for create_issue
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"max": 2}}';
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"max": 2}}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -319,8 +319,8 @@ describe("collect_ndjson_output.cjs", () => {
 {"type": "create_discussion", "title": "Valid Discussion", "body": "Valid body"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_discussion": true}';
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_discussion": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -345,8 +345,8 @@ describe("collect_ndjson_output.cjs", () => {
 `;
 
     fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, "add_comment": true}';
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, "add_comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -368,8 +368,8 @@ describe("collect_ndjson_output.cjs", () => {
 {"type": "create_pull_request_review_comment", "path": "src/file.js", "line": 20, "start_line": 25, "body": "Invalid range"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_pull_request_review_comment": {"max": 10}}';
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_pull_request_review_comment": {"max": 10}}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -395,8 +395,8 @@ describe("collect_ndjson_output.cjs", () => {
 {"type": "create_pull_request_review_comment", "path": "src/file.js", "line": 25, "side": "INVALID", "body": "Invalid side"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_pull_request_review_comment": {"max": 10}}';
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_pull_request_review_comment": {"max": 10}}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -421,9 +421,9 @@ describe("collect_ndjson_output.cjs", () => {
     const ndjsonContent = items.join("\n");
 
     fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
     // Set max to 5 for create-pull-request-review-comment
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_pull_request_review_comment": {"max": 5}}';
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_pull_request_review_comment": {"max": 5}}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -445,8 +445,8 @@ describe("collect_ndjson_output.cjs", () => {
       const ndjsonContent = `{"type": "create_issue", "title": "Issue with "quotes" inside", "body": "Test body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -465,8 +465,8 @@ describe("collect_ndjson_output.cjs", () => {
       const ndjsonContent = `{type: "create_issue", title: "Test Issue", body: "Test body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -485,8 +485,8 @@ describe("collect_ndjson_output.cjs", () => {
       const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body",}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -505,8 +505,8 @@ describe("collect_ndjson_output.cjs", () => {
       const ndjsonContent = `{'type': 'create_issue', 'title': 'Test Issue', 'body': 'Test body'}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -525,8 +525,8 @@ describe("collect_ndjson_output.cjs", () => {
       const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body"`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -545,8 +545,8 @@ describe("collect_ndjson_output.cjs", () => {
       const ndjsonContent = `"type": "create_issue", "title": "Test Issue", "body": "Test body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -566,8 +566,8 @@ describe("collect_ndjson_output.cjs", () => {
       const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Line 1\\nLine 2\\nLine 3"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -586,8 +586,8 @@ describe("collect_ndjson_output.cjs", () => {
       const ndjsonContent = `{"type": "create_issue", "title": "Test	Issue", "body": "Test\tbody"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -606,8 +606,8 @@ describe("collect_ndjson_output.cjs", () => {
       const ndjsonContent = `{"type": "add_labels", "labels": ["bug", "enhancement",}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -627,8 +627,8 @@ describe("collect_ndjson_output.cjs", () => {
       const ndjsonContent = `{type: 'create_issue', title: 'Issue with "quotes" and trailing,', body: 'Multi\\nline\\ntext',`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -653,8 +653,8 @@ Line 3"}
 {"type": "add_comment", "body": "This is a valid line"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, "add_comment": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, "add_comment": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -675,8 +675,8 @@ Line 3"}
       const ndjsonContent = `{completely broken json with no hope: of repair [[[}}}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -696,8 +696,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Perfect JSON", "body": "This should not be modified"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -717,8 +717,8 @@ Line 3"}
       const ndjsonContent = `{"type": 'create_issue', "title": 'Mixed quotes', 'body': "Test body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -738,8 +738,8 @@ Line 3"}
       const ndjsonContent = `{"type": "add_labels", "labels": ["bug", "feature", "enhancement"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -758,8 +758,8 @@ Line 3"}
       const ndjsonContent = `{"type": "add_labels", "labels": ["bug", "feature"`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -786,8 +786,8 @@ Line 3"}
       const ndjsonContent = `{type: 'create_issue', title: 'Nested test', body: 'Body text', labels: ['bug', 'priority',}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -807,8 +807,8 @@ Line 3"}
       const ndjsonContent = `{type: 'create_issue', title: 'Unicode test \u00e9\u00f1', body: 'Body with \\u0040 symbols',`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -829,8 +829,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Test\x00Issue", "body": "Body\x08with\x0Ccontrol\x07chars"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -853,8 +853,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Device\x11Control\x14Test", "body": "Text\x15here"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -878,8 +878,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Valid\\tTab", "body": "Line1\\nLine2\\rCarriage"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -902,8 +902,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Mixed\x00test\\nwith text", "body": "Body\x02with\\ttab\x03end"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -926,8 +926,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Test\x7FDel", "body": "Body\x1Fwith\x01control"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -950,8 +950,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Control test\x00\x01\x02\\t\\n", "body": "End of test"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -977,8 +977,8 @@ Line 3"}
       const ndjsonContent = `{type: "create_issue", title: 'Test\x00with\x08control\x0Cchars', body: 'Body\x01text',}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1002,8 +1002,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Control\x00\x07\x1A", "body": "Test\x08\x1Fend"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1025,8 +1025,8 @@ Line 3"}
       const ndjsonContent = `{type: 'create_issue', title: 'Complex types test', body: 'Body text', priority: 5, urgent: true, assignee: null,}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1048,8 +1048,8 @@ Line 3"}
       const ndjsonContent = `{,type: 'create_issue',, title: 'Extra commas', body: 'Test',, labels: ['bug',,],}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1071,8 +1071,8 @@ Line 3"}
       const ndjsonContent = `{type: 'create_issue', title: 'Long string test', body: '${longBody}',}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1092,8 +1092,8 @@ Line 3"}
       const ndjsonContent = `{type: 'create_issue', title: 'Nested test', body: 'Body', metadata: {project: 'test', tags: ['important', 'urgent',}, version: 1.0,}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1115,8 +1115,8 @@ Line 3"}
       const ndjsonContent = `{type: 'create_issue', title: 'Escape test with "quotes" and \\\\backslashes', body: 'Test body',}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1144,8 +1144,8 @@ Line 3"}
       const ndjsonContent = `{type: 'create_issue', title: 'Special chars', body: 'Text with\\rcarriage\\fform feed',}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1164,8 +1164,8 @@ Line 3"}
       const ndjsonContent = `{{{[[[type]]]}}} === "broken" &&& title ??? 'impossible to repair' @@@ body`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1185,8 +1185,8 @@ Line 3"}
       const ndjsonContent = `{type 'create_issue', title 'Missing colons', body 'Test body'}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1206,8 +1206,8 @@ Line 3"}
       const ndjsonContent = `{type: 'add-labels', labels: ['priority', 'bug', 'urgent'}, extra: ['data', 'here'}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1227,8 +1227,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Test", "body": "Test body",,,}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1255,8 +1255,8 @@ Line 3"}
       const ndjsonContent = `{"type": "add_labels", "labels": ["bug", "feature"]}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1276,8 +1276,8 @@ Line 3"}
       const ndjsonContent = `{type: "create_issue", title: "Combined issues", body: "Test body", priority: 1,}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1294,14 +1294,14 @@ Line 3"}
     });
   });
 
-  it("should store validated output in agent_output.json file and set GITHUB_AW_AGENT_OUTPUT environment variable", async () => {
+  it("should store validated output in agent_output.json file and set GH_AW_AGENT_OUTPUT environment variable", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body"}
 {"type": "add_comment", "body": "Test comment"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, "add_comment": true}';
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, "add_comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -1317,8 +1317,8 @@ Line 3"}
     expect(agentOutputJson.items[1].type).toBe("add_comment");
     expect(agentOutputJson.errors).toHaveLength(0);
 
-    // Verify GITHUB_AW_AGENT_OUTPUT environment variable was set
-    expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_AGENT_OUTPUT", "/tmp/gh-aw/agent_output.json");
+    // Verify GH_AW_AGENT_OUTPUT environment variable was set
+    expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AGENT_OUTPUT", "/tmp/gh-aw/agent_output.json");
 
     // Verify existing functionality still works (core.setOutput calls)
     const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -1335,8 +1335,8 @@ Line 3"}
     const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
-    process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
     // Mock fs.writeFileSync to throw an error for the agent_output.json file
     const originalWriteFileSync = fs.writeFileSync;
@@ -1376,8 +1376,8 @@ Line 3"}
 {"type": "create_code_scanning_alert", "file": "src/complete.js", "line": "30", "severity": "NOTE", "message": "Complete example", "column": "5", "ruleIdSuffix": "complete-rule"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1429,8 +1429,8 @@ Line 3"}
 {"type": "create_code_scanning_alert", "file": "src/missing3.js", "line": 10, "severity": "error"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1456,8 +1456,8 @@ Line 3"}
 {"type": "create_code_scanning_alert", "file": "src/test.js", "line": 10, "severity": "error", "message": 123}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1481,8 +1481,8 @@ Line 3"}
 {"type": "create_code_scanning_alert", "file": "src/test2.js", "line": 15, "severity": "critical", "message": "Unsupported severity"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1504,8 +1504,8 @@ Line 3"}
 {"type": "create_code_scanning_alert", "file": "src/test3.js", "line": 20, "severity": "error", "message": "Test", "ruleIdSuffix": "bad rule!@#"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1531,8 +1531,8 @@ Line 3"}
 {"type": "create_code_scanning_alert", "file": "src/valid2.js", "line": 20, "severity": "warning", "message": "Another valid entry", "column": 5}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1558,8 +1558,8 @@ Line 3"}
 {"type": "create_code_scanning_alert", "file": "src/test5.js", "line": 10, "column": 0, "severity": "error", "message": "Zero column number"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1585,8 +1585,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Test issue", "body": "Use z3 -v:10 and z3 -memory:high for performance monitoring"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1604,8 +1604,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "CLI Flags Test", "body": "Various flags: gcc -std:c++20, clang -target:x86_64, rustc -C:opt-level=3, javac -cp:lib/*, python -W:ignore, node --max-old-space-size:8192"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1622,8 +1622,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Protocol Test", "body": "Use https://github.com/repo for code, avoid ftp://example.com/file and git://example.com/repo, but z3 -v:10 should work"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1640,8 +1640,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Complex Test", "body": "Install from https://github.com/z3prover/z3, then run: z3 -v:10 -memory:high -timeout:30000. Avoid ssh://git.example.com/repo.git or file://localhost/path"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1658,8 +1658,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Domain Test", "body": "GitHub URLs: https://github.com/repo, https://api.github.com/users, https://githubusercontent.com/file. External: https://example.com/page"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1676,8 +1676,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "@mention Test", "body": "Hey @username and @org/team, check this out! But preserve email@domain.com"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1692,8 +1692,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Bot Trigger Test", "body": "This fixes #123 and closes #456, also resolves #789"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1714,8 +1714,8 @@ Line 3"}
       });
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1727,14 +1727,14 @@ Line 3"}
 
     it("should handle custom allowed domains from environment", async () => {
       // Set custom allowed domains
-      process.env.GITHUB_AW_ALLOWED_DOMAINS = "example.com,test.org";
+      process.env.GH_AW_ALLOWED_DOMAINS = "example.com,test.org";
 
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create_issue", "title": "Custom Domains", "body": "Allowed: https://example.com/page, https://sub.example.com/file, https://test.org/doc. Blocked: https://github.com/repo, https://blocked.com/page"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1746,7 +1746,7 @@ Line 3"}
       );
 
       // Clean up
-      delete process.env.GITHUB_AW_ALLOWED_DOMAINS;
+      delete process.env.GH_AW_ALLOWED_DOMAINS;
     });
 
     it("should handle edge cases with colons in different contexts", async () => {
@@ -1754,8 +1754,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Colon Edge Cases", "body": "Time 12:30 PM, ratio 3:1, IPv6 ::1, URL path/file:with:colons, command -flag:value, namespace::function"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1774,8 +1774,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Long Content Test", "body": "${longBody}"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1796,8 +1796,8 @@ Line 3"}
       });
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1815,8 +1815,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Code Test", "body": "Use \`z3 -v:10\` in terminal. Code block:\\n\`\`\`\\nz3 -memory:high input.smt2\\nftp://should-not-be-redacted-in-code\\n\`\`\`"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1833,8 +1833,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_pull_request", "title": "PR with z3 -v:10 flag", "body": "Testing https://github.com/repo and ftp://example.com", "branch": "feature/z3-timeout:5000", "labels": ["bug", "z3:solver"]}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_pull_request": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_pull_request": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1852,8 +1852,8 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "XML Comment Test", "body": "This is visible <!-- This is hidden content --> more visible text <!--- This is also hidden ---> and more text <!--- malformed comment --!> final text"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1872,9 +1872,9 @@ Line 3"}
 {"type": "create_issue", "title": "Third Issue", "body": "Third body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
       // Set min to 2 for create_issue
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 2, "max": 5}}';
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 2, "max": 5}}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1892,9 +1892,9 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Only Issue", "body": "Only body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
       // Set min to 3 for create_issue, but we only have 1 item
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 3, "max": 5}}';
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 3, "max": 5}}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1915,9 +1915,9 @@ Line 3"}
 {"type": "add_comment", "body": "Comment 1"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
       // Set min to 1 for create_issue (satisfied) and min to 2 for add-comment (not satisfied)
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 1, "max": 5}, "add_comment": {"min": 2, "max": 5}}';
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 1, "max": 5}, "add_comment": {"min": 2, "max": 5}}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1936,9 +1936,9 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Issue", "body": "Body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
       // Set min to 0 for create_issue (should be ignored)
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 0, "max": 5}}';
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 0, "max": 5}}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1956,9 +1956,9 @@ Line 3"}
       const ndjsonContent = `{"type": "create_issue", "title": "Issue", "body": "Body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
       // No min specified, should default to 0
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"max": 5}}';
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"max": 5}}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1976,9 +1976,9 @@ Line 3"}
       const ndjsonContent = ``; // Empty file
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
       // Set min to 1 for create_issue, but no items present
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 1, "max": 5}}';
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 1, "max": 5}}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1999,9 +1999,9 @@ Line 3"}
 {"type": "create_discussion", "title": "Discussion 2", "body": "Discussion body 2"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
-      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
       // Set min requirements for different types
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add_comment": {"min": 2, "max": 5}, "create_discussion": {"min": 1, "max": 5}}';
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG = '{"add_comment": {"min": 2, "max": 5}, "create_discussion": {"min": 1, "max": 5}}';
 
       await eval(`(async () => { ${collectScript} })()`);
 

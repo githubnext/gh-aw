@@ -86,9 +86,9 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected GITHUB_TOKEN environment variable in step content:\n%s", stepContent)
 	}
 
-	// Test that GITHUB_AW_SAFE_OUTPUTS is not present when SafeOutputs is nil
-	if strings.Contains(stepContent, "GITHUB_AW_SAFE_OUTPUTS") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS to not be present when SafeOutputs is nil")
+	// Test that GH_AW_SAFE_OUTPUTS is not present when SafeOutputs is nil
+	if strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS to not be present when SafeOutputs is nil")
 	}
 
 	// Test that --disable-builtin-mcps flag is present
@@ -112,9 +112,9 @@ func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	// Check the execution step (first step)
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
-	// Test that GITHUB_AW_SAFE_OUTPUTS is present when SafeOutputs is not nil
-	if !strings.Contains(stepContent, "GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}") {
-		t.Errorf("Expected GITHUB_AW_SAFE_OUTPUTS environment variable when SafeOutputs is not nil in step content:\n%s", stepContent)
+	// Test that GH_AW_SAFE_OUTPUTS is present when SafeOutputs is not nil
+	if !strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}") {
+		t.Errorf("Expected GH_AW_SAFE_OUTPUTS environment variable when SafeOutputs is not nil in step content:\n%s", stepContent)
 	}
 }
 
@@ -863,13 +863,13 @@ This workflow tests that Copilot log parsing uses the correct log file path.
 	lockStr := string(lockContent)
 
 	// Verify that the log parsing step uses /tmp/gh-aw/.copilot/logs/ instead of agent-stdio.log
-	if !strings.Contains(lockStr, "GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/") {
-		t.Error("Expected GITHUB_AW_AGENT_OUTPUT to be set to '/tmp/gh-aw/.copilot/logs/' for Copilot engine")
+	if !strings.Contains(lockStr, "GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/") {
+		t.Error("Expected GH_AW_AGENT_OUTPUT to be set to '/tmp/gh-aw/.copilot/logs/' for Copilot engine")
 	}
 
 	// Verify that it's NOT using the agent-stdio.log path for parsing
-	if strings.Contains(lockStr, "GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log") {
-		t.Error("Expected GITHUB_AW_AGENT_OUTPUT to NOT use '/tmp/gh-aw/agent-stdio.log' for Copilot engine")
+	if strings.Contains(lockStr, "GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log") {
+		t.Error("Expected GH_AW_AGENT_OUTPUT to NOT use '/tmp/gh-aw/agent-stdio.log' for Copilot engine")
 	}
 
 	t.Log("Successfully verified that Copilot log parsing uses /tmp/gh-aw/.copilot/logs/")

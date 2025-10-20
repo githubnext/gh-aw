@@ -28,9 +28,9 @@ function renderMarkdownTemplate(markdown) {
  */
 function main() {
   try {
-    const promptPath = process.env.GITHUB_AW_PROMPT;
+    const promptPath = process.env.GH_AW_PROMPT;
     if (!promptPath) {
-      core.setFailed("GITHUB_AW_PROMPT environment variable is not set");
+      core.setFailed("GH_AW_PROMPT environment variable is not set");
       process.exit(1);
     }
 

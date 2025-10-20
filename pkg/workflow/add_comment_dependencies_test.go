@@ -35,8 +35,8 @@ func TestAddCommentJobDependencies(t *testing.T) {
 			createPullRequestJobName: "",
 			expectedNeeds:            []string{"main", "create_issue"},
 			expectedEnvVars: []string{
-				"GITHUB_AW_CREATED_ISSUE_URL",
-				"GITHUB_AW_CREATED_ISSUE_NUMBER",
+				"GH_AW_CREATED_ISSUE_URL",
+				"GH_AW_CREATED_ISSUE_NUMBER",
 			},
 			expectIssueEnvVars:       true,
 			expectDiscussionEnvVars:  false,
@@ -49,8 +49,8 @@ func TestAddCommentJobDependencies(t *testing.T) {
 			createPullRequestJobName: "",
 			expectedNeeds:            []string{"main", "create_discussion"},
 			expectedEnvVars: []string{
-				"GITHUB_AW_CREATED_DISCUSSION_URL",
-				"GITHUB_AW_CREATED_DISCUSSION_NUMBER",
+				"GH_AW_CREATED_DISCUSSION_URL",
+				"GH_AW_CREATED_DISCUSSION_NUMBER",
 			},
 			expectIssueEnvVars:       false,
 			expectDiscussionEnvVars:  true,
@@ -63,8 +63,8 @@ func TestAddCommentJobDependencies(t *testing.T) {
 			createPullRequestJobName: "create_pull_request",
 			expectedNeeds:            []string{"main", "create_pull_request"},
 			expectedEnvVars: []string{
-				"GITHUB_AW_CREATED_PULL_REQUEST_URL",
-				"GITHUB_AW_CREATED_PULL_REQUEST_NUMBER",
+				"GH_AW_CREATED_PULL_REQUEST_URL",
+				"GH_AW_CREATED_PULL_REQUEST_NUMBER",
 			},
 			expectIssueEnvVars:       false,
 			expectDiscussionEnvVars:  false,
@@ -77,12 +77,12 @@ func TestAddCommentJobDependencies(t *testing.T) {
 			createPullRequestJobName: "create_pull_request",
 			expectedNeeds:            []string{"main", "create_issue", "create_discussion", "create_pull_request"},
 			expectedEnvVars: []string{
-				"GITHUB_AW_CREATED_ISSUE_URL",
-				"GITHUB_AW_CREATED_ISSUE_NUMBER",
-				"GITHUB_AW_CREATED_DISCUSSION_URL",
-				"GITHUB_AW_CREATED_DISCUSSION_NUMBER",
-				"GITHUB_AW_CREATED_PULL_REQUEST_URL",
-				"GITHUB_AW_CREATED_PULL_REQUEST_NUMBER",
+				"GH_AW_CREATED_ISSUE_URL",
+				"GH_AW_CREATED_ISSUE_NUMBER",
+				"GH_AW_CREATED_DISCUSSION_URL",
+				"GH_AW_CREATED_DISCUSSION_NUMBER",
+				"GH_AW_CREATED_PULL_REQUEST_URL",
+				"GH_AW_CREATED_PULL_REQUEST_NUMBER",
 			},
 			expectIssueEnvVars:       true,
 			expectDiscussionEnvVars:  true,
@@ -144,43 +144,43 @@ func TestAddCommentJobDependencies(t *testing.T) {
 
 			// Check for issue-specific environment variables
 			if tt.expectIssueEnvVars {
-				if !strings.Contains(stepsStr, "GITHUB_AW_CREATED_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}") {
+				if !strings.Contains(stepsStr, "GH_AW_CREATED_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}") {
 					t.Error("Expected issue_url environment variable declaration not found in job steps")
 				}
-				if !strings.Contains(stepsStr, "GITHUB_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}") {
+				if !strings.Contains(stepsStr, "GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}") {
 					t.Error("Expected issue_number environment variable declaration not found in job steps")
 				}
 			} else {
-				if strings.Contains(stepsStr, "GITHUB_AW_CREATED_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}") {
-					t.Error("Unexpected GITHUB_AW_CREATED_ISSUE_URL environment variable declaration found in job steps")
+				if strings.Contains(stepsStr, "GH_AW_CREATED_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}") {
+					t.Error("Unexpected GH_AW_CREATED_ISSUE_URL environment variable declaration found in job steps")
 				}
 			}
 
 			// Check for discussion-specific environment variables
 			if tt.expectDiscussionEnvVars {
-				if !strings.Contains(stepsStr, "GITHUB_AW_CREATED_DISCUSSION_URL: ${{ needs.create_discussion.outputs.discussion_url }}") {
+				if !strings.Contains(stepsStr, "GH_AW_CREATED_DISCUSSION_URL: ${{ needs.create_discussion.outputs.discussion_url }}") {
 					t.Error("Expected discussion_url environment variable declaration not found in job steps")
 				}
-				if !strings.Contains(stepsStr, "GITHUB_AW_CREATED_DISCUSSION_NUMBER: ${{ needs.create_discussion.outputs.discussion_number }}") {
+				if !strings.Contains(stepsStr, "GH_AW_CREATED_DISCUSSION_NUMBER: ${{ needs.create_discussion.outputs.discussion_number }}") {
 					t.Error("Expected discussion_number environment variable declaration not found in job steps")
 				}
 			} else {
-				if strings.Contains(stepsStr, "GITHUB_AW_CREATED_DISCUSSION_URL: ${{ needs.create_discussion.outputs.discussion_url }}") {
-					t.Error("Unexpected GITHUB_AW_CREATED_DISCUSSION_URL environment variable declaration found in job steps")
+				if strings.Contains(stepsStr, "GH_AW_CREATED_DISCUSSION_URL: ${{ needs.create_discussion.outputs.discussion_url }}") {
+					t.Error("Unexpected GH_AW_CREATED_DISCUSSION_URL environment variable declaration found in job steps")
 				}
 			}
 
 			// Check for pull request-specific environment variables
 			if tt.expectPullRequestEnvVars {
-				if !strings.Contains(stepsStr, "GITHUB_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}") {
+				if !strings.Contains(stepsStr, "GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}") {
 					t.Error("Expected pull_request_url environment variable declaration not found in job steps")
 				}
-				if !strings.Contains(stepsStr, "GITHUB_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}") {
+				if !strings.Contains(stepsStr, "GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}") {
 					t.Error("Expected pull_request_number environment variable declaration not found in job steps")
 				}
 			} else {
-				if strings.Contains(stepsStr, "GITHUB_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}") {
-					t.Error("Unexpected GITHUB_AW_CREATED_PULL_REQUEST_URL environment variable declaration found in job steps")
+				if strings.Contains(stepsStr, "GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}") {
+					t.Error("Unexpected GH_AW_CREATED_PULL_REQUEST_URL environment variable declaration found in job steps")
 				}
 			}
 		})

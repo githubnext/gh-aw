@@ -35,7 +35,7 @@ func TestWritePromptTextToYAML_IntegrationWithCompiler(t *testing.T) {
 	result := yaml.String()
 
 	// Verify multiple heredoc blocks were created
-	heredocCount := strings.Count(result, "cat >> $GITHUB_AW_PROMPT << 'EOF'")
+	heredocCount := strings.Count(result, "cat >> $GH_AW_PROMPT << 'EOF'")
 	if heredocCount < 2 {
 		t.Errorf("Expected multiple heredoc blocks for large text (%d bytes), got %d", totalSize, heredocCount)
 	}
@@ -62,7 +62,7 @@ func TestWritePromptTextToYAML_IntegrationWithCompiler(t *testing.T) {
 	}
 
 	// Verify the YAML structure is valid (basic check)
-	if !strings.Contains(result, "cat >> $GITHUB_AW_PROMPT << 'EOF'") {
+	if !strings.Contains(result, "cat >> $GH_AW_PROMPT << 'EOF'") {
 		t.Error("Expected proper heredoc syntax in output")
 	}
 
@@ -160,7 +160,7 @@ func TestWritePromptTextToYAML_RealWorldSizeSimulation(t *testing.T) {
 			WritePromptTextToYAML(&yaml, text, indent)
 
 			result := yaml.String()
-			heredocCount := strings.Count(result, "cat >> $GITHUB_AW_PROMPT << 'EOF'")
+			heredocCount := strings.Count(result, "cat >> $GH_AW_PROMPT << 'EOF'")
 
 			if heredocCount < tt.expectedChunks {
 				t.Errorf("Expected at least %d chunks for %s, got %d", tt.expectedChunks, tt.name, heredocCount)
@@ -196,7 +196,7 @@ func extractLinesFromYAML(yamlOutput string, indent string) []string {
 
 	for _, line := range strings.Split(yamlOutput, "\n") {
 		// Check if we're starting a heredoc block
-		if strings.Contains(line, "cat >> $GITHUB_AW_PROMPT << 'EOF'") {
+		if strings.Contains(line, "cat >> $GH_AW_PROMPT << 'EOF'") {
 			inHeredoc = true
 			continue
 		}
@@ -332,7 +332,7 @@ func TestWritePromptTextToYAML_ChunkIntegrity(t *testing.T) {
 	result := yaml.String()
 
 	// Count heredoc blocks
-	heredocCount := strings.Count(result, "cat >> $GITHUB_AW_PROMPT << 'EOF'")
+	heredocCount := strings.Count(result, "cat >> $GH_AW_PROMPT << 'EOF'")
 
 	t.Logf("Created %d heredoc blocks for %d lines (%d bytes)", heredocCount, len(lines), len(text))
 

@@ -288,7 +288,7 @@ if (customPrompt) {
 // Write prompt file
 fs.mkdirSync('/tmp/gh-aw/aw-prompts', { recursive: true });
 fs.writeFileSync('/tmp/gh-aw/aw-prompts/prompt.txt', promptContent);
-core.exportVariable('GITHUB_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
+core.exportVariable('GH_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
 
 // Note: creation of /tmp/gh-aw/threat-detection and detection.log is handled by a separate shell step
 

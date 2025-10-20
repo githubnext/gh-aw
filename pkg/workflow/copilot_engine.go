@@ -118,12 +118,12 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 		"GITHUB_STEP_SUMMARY":       "${{ env.GITHUB_STEP_SUMMARY }}",
 	}
 
-	// Always add GITHUB_AW_PROMPT for agentic workflows
-	env["GITHUB_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
+	// Always add GH_AW_PROMPT for agentic workflows
+	env["GH_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
 
-	// Add GITHUB_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
+	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
-		env["GITHUB_AW_MCP_CONFIG"] = "/home/runner/.copilot/mcp-config.json"
+		env["GH_AW_MCP_CONFIG"] = "/home/runner/.copilot/mcp-config.json"
 	}
 
 	if hasGitHubTool(workflowData.Tools) {
@@ -134,7 +134,7 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 		env["GITHUB_PERSONAL_ACCESS_TOKEN"] = effectiveToken
 	}
 
-	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
+	// Add GH_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
 
 	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
@@ -148,7 +148,7 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 	}
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-		env["GITHUB_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+		env["GH_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
 	}
 
 	// Add custom environment variables from engine config

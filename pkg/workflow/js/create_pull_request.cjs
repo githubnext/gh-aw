@@ -45,20 +45,20 @@ async function main() {
   core.setOutput("fallback_used", "");
 
   // Check if we're in staged mode
-  const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   // Environment validation - fail early if required variables are missing
-  const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
+  const workflowId = process.env.GH_AW_WORKFLOW_ID;
   if (!workflowId) {
-    throw new Error("GITHUB_AW_WORKFLOW_ID environment variable is required");
+    throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
   }
 
-  const baseBranch = process.env.GITHUB_AW_BASE_BRANCH;
+  const baseBranch = process.env.GH_AW_BASE_BRANCH;
   if (!baseBranch) {
-    throw new Error("GITHUB_AW_BASE_BRANCH environment variable is required");
+    throw new Error("GH_AW_BASE_BRANCH environment variable is required");
   }
 
-  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
 
   // Read agent output from file
   let outputContent = "";
@@ -75,7 +75,7 @@ async function main() {
     core.info("Agent output content is empty");
   }
 
-  const ifNoChanges = process.env.GITHUB_AW_PR_IF_NO_CHANGES || "warn";
+  const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
 
   // Check if patch file exists and has valid content
   if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
@@ -143,7 +143,7 @@ async function main() {
   const isEmpty = !patchContent || !patchContent.trim();
   if (!isEmpty) {
     // Get maximum patch size from environment (default: 1MB = 1024 KB)
-    const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
+    const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
     const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
     const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 
@@ -256,13 +256,13 @@ async function main() {
   }
 
   // Apply title prefix if provided via environment variable
-  const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
+  const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
   if (titlePrefix && !title.startsWith(titlePrefix)) {
     title = titlePrefix + title;
   }
 
   // Add AI disclaimer with workflow name and run url
-  const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const runId = context.runId;
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
   const runUrl = context.payload.repository
@@ -274,7 +274,7 @@ async function main() {
   const body = bodyLines.join("\n").trim();
 
   // Parse labels from environment variable (comma-separated string)
-  const labelsEnv = process.env.GITHUB_AW_PR_LABELS;
+  const labelsEnv = process.env.GH_AW_PR_LABELS;
   const labels = labelsEnv
     ? labelsEnv
         .split(",")
@@ -283,7 +283,7 @@ async function main() {
     : [];
 
   // Parse draft setting from environment variable (defaults to true)
-  const draftEnv = process.env.GITHUB_AW_PR_DRAFT;
+  const draftEnv = process.env.GH_AW_PR_DRAFT;
   const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
 
   core.info(`Creating pull request with title: ${title}`);

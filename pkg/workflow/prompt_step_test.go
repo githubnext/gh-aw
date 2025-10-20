@@ -19,9 +19,9 @@ func TestAppendPromptStep(t *testing.T) {
 			wantSteps: []string{
 				"- name: Append test instructions to prompt",
 				"env:",
-				"GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt",
+				"GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt",
 				"run: |",
-				"cat >> $GITHUB_AW_PROMPT << 'EOF'",
+				"cat >> $GH_AW_PROMPT << 'EOF'",
 				"Test prompt content",
 				"EOF",
 			},
@@ -34,9 +34,9 @@ func TestAppendPromptStep(t *testing.T) {
 				"- name: Append conditional instructions to prompt",
 				"if: github.event.issue != null",
 				"env:",
-				"GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt",
+				"GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt",
 				"run: |",
-				"cat >> $GITHUB_AW_PROMPT << 'EOF'",
+				"cat >> $GH_AW_PROMPT << 'EOF'",
 				"Conditional prompt content",
 				"EOF",
 			},
@@ -85,9 +85,9 @@ func TestAppendPromptStepWithHeredoc(t *testing.T) {
 			wantSteps: []string{
 				"- name: Append structured data to prompt",
 				"env:",
-				"GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt",
+				"GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt",
 				"run: |",
-				"cat >> $GITHUB_AW_PROMPT << 'EOF'",
+				"cat >> $GH_AW_PROMPT << 'EOF'",
 				"Structured content line 1",
 				"Structured content line 2",
 				"EOF",
@@ -130,10 +130,10 @@ func TestPromptStepRefactoringConsistency(t *testing.T) {
 		if !strings.Contains(result, "Append temporary folder instructions to prompt") {
 			t.Error("Expected step name for temp folder not found")
 		}
-		if !strings.Contains(result, "GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
-			t.Error("Expected GITHUB_AW_PROMPT env variable not found")
+		if !strings.Contains(result, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
+			t.Error("Expected GH_AW_PROMPT env variable not found")
 		}
-		if !strings.Contains(result, "cat >> $GITHUB_AW_PROMPT << 'EOF'") {
+		if !strings.Contains(result, "cat >> $GH_AW_PROMPT << 'EOF'") {
 			t.Error("Expected heredoc start not found")
 		}
 	})
@@ -152,8 +152,8 @@ func TestPromptStepRefactoringConsistency(t *testing.T) {
 		if !strings.Contains(result, "Append XPIA security instructions to prompt") {
 			t.Error("Expected step name for XPIA not found")
 		}
-		if !strings.Contains(result, "GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
-			t.Error("Expected GITHUB_AW_PROMPT env variable not found")
+		if !strings.Contains(result, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
+			t.Error("Expected GH_AW_PROMPT env variable not found")
 		}
 	})
 

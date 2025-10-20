@@ -2,8 +2,8 @@ async function main() {
   const fs = require("fs");
 
   // Get environment variables
-  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT || "";
-  const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
+  const maxReports = process.env.GH_AW_MISSING_TOOL_MAX ? parseInt(process.env.GH_AW_MISSING_TOOL_MAX) : null;
 
   core.info("Processing missing-tool reports...");
   if (maxReports) {

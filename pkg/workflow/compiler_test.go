@@ -2492,7 +2492,7 @@ Test workflow with reaction.
 
 	// Check for reaction-specific content in generated YAML
 	expectedStrings := []string{
-		"GITHUB_AW_REACTION: eyes",
+		"GH_AW_REACTION: eyes",
 		"uses: actions/github-script@v8",
 	}
 
@@ -2574,7 +2574,7 @@ Test workflow without explicit reaction (should not create reaction action).
 
 	// Check that reaction-specific content is NOT in generated YAML
 	unexpectedStrings := []string{
-		"GITHUB_AW_REACTION:",
+		"GH_AW_REACTION:",
 		"Add eyes reaction to the triggering item",
 	}
 
@@ -2646,7 +2646,7 @@ Test workflow with reaction and comment creation.
 
 	// Check for enhanced reaction functionality in generated YAML
 	expectedStrings := []string{
-		"GITHUB_AW_REACTION: eyes",
+		"GH_AW_REACTION: eyes",
 		"uses: actions/github-script@v8",
 		"addCommentWithWorkflowLink", // This should be in the new script
 		"runUrl =",                   // This should be in the new script for workflow run URL
@@ -2739,8 +2739,8 @@ Test command workflow with reaction and comment editing.
 
 	// Check for both environment variables in the generated YAML
 	expectedEnvVars := []string{
-		"GITHUB_AW_REACTION: eyes",
-		"GITHUB_AW_COMMAND: test-bot",
+		"GH_AW_REACTION: eyes",
+		"GH_AW_COMMAND: test-bot",
 	}
 
 	for _, expected := range expectedEnvVars {
@@ -2813,12 +2813,12 @@ Test command workflow that should automatically get "eyes" reaction.
 	}
 
 	// Check for reaction environment variable in the generated YAML
-	if !strings.Contains(yamlContent, "GITHUB_AW_REACTION: eyes") {
+	if !strings.Contains(yamlContent, "GH_AW_REACTION: eyes") {
 		t.Error("Generated YAML should contain default 'eyes' reaction for command workflow")
 	}
 
 	// Check for command environment variable
-	if !strings.Contains(yamlContent, "GITHUB_AW_COMMAND: auto-bot") {
+	if !strings.Contains(yamlContent, "GH_AW_COMMAND: auto-bot") {
 		t.Error("Generated YAML should contain command environment variable")
 	}
 
@@ -2893,12 +2893,12 @@ Test command workflow with custom reaction override.
 	}
 
 	// Check for custom reaction in the generated YAML
-	if !strings.Contains(yamlContent, "GITHUB_AW_REACTION: rocket") {
+	if !strings.Contains(yamlContent, "GH_AW_REACTION: rocket") {
 		t.Error("Generated YAML should contain custom 'rocket' reaction")
 	}
 
 	// Verify it doesn't contain default "eyes"
-	if strings.Contains(yamlContent, "GITHUB_AW_REACTION: eyes") {
+	if strings.Contains(yamlContent, "GH_AW_REACTION: eyes") {
 		t.Error("Generated YAML should not contain default 'eyes' when custom reaction is specified")
 	}
 }

@@ -26,9 +26,9 @@ func TestCreatePullRequestJobWithStagedFlag(t *testing.T) {
 	// Convert steps to a single string for testing
 	stepsContent := strings.Join(job.Steps, "")
 
-	// Check that GITHUB_AW_SAFE_OUTPUTS_STAGED is included in the env section
-	if !strings.Contains(stepsContent, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable to be set to true in create-pull-request job")
+	// Check that GH_AW_SAFE_OUTPUTS_STAGED is included in the env section
+	if !strings.Contains(stepsContent, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_STAGED environment variable to be set to true in create-pull-request job")
 	}
 
 	// Test with staged: false
@@ -41,10 +41,10 @@ func TestCreatePullRequestJobWithStagedFlag(t *testing.T) {
 
 	stepsContent = strings.Join(job.Steps, "")
 
-	// Check that GITHUB_AW_SAFE_OUTPUTS_STAGED is not included in the env section when false
+	// Check that GH_AW_SAFE_OUTPUTS_STAGED is not included in the env section when false
 	// We need to be specific to avoid matching the JavaScript code that references the variable
-	if strings.Contains(stepsContent, "          GITHUB_AW_SAFE_OUTPUTS_STAGED:") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable not to be set when staged is false")
+	if strings.Contains(stepsContent, "          GH_AW_SAFE_OUTPUTS_STAGED:") {
+		t.Error("Expected GH_AW_SAFE_OUTPUTS_STAGED environment variable not to be set when staged is false")
 	}
 
 }

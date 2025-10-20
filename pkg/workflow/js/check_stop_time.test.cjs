@@ -78,8 +78,8 @@ describe("check_stop_time.cjs", () => {
 
     // Store original environment
     originalEnv = {
-      GITHUB_AW_STOP_TIME: process.env.GITHUB_AW_STOP_TIME,
-      GITHUB_AW_WORKFLOW_NAME: process.env.GITHUB_AW_WORKFLOW_NAME,
+      GH_AW_STOP_TIME: process.env.GH_AW_STOP_TIME,
+      GH_AW_WORKFLOW_NAME: process.env.GH_AW_WORKFLOW_NAME,
     };
 
     // Read the script content
@@ -89,44 +89,44 @@ describe("check_stop_time.cjs", () => {
 
   afterEach(() => {
     // Restore original environment
-    if (originalEnv.GITHUB_AW_STOP_TIME !== undefined) {
-      process.env.GITHUB_AW_STOP_TIME = originalEnv.GITHUB_AW_STOP_TIME;
+    if (originalEnv.GH_AW_STOP_TIME !== undefined) {
+      process.env.GH_AW_STOP_TIME = originalEnv.GH_AW_STOP_TIME;
     } else {
-      delete process.env.GITHUB_AW_STOP_TIME;
+      delete process.env.GH_AW_STOP_TIME;
     }
-    if (originalEnv.GITHUB_AW_WORKFLOW_NAME !== undefined) {
-      process.env.GITHUB_AW_WORKFLOW_NAME = originalEnv.GITHUB_AW_WORKFLOW_NAME;
+    if (originalEnv.GH_AW_WORKFLOW_NAME !== undefined) {
+      process.env.GH_AW_WORKFLOW_NAME = originalEnv.GH_AW_WORKFLOW_NAME;
     } else {
-      delete process.env.GITHUB_AW_WORKFLOW_NAME;
+      delete process.env.GH_AW_WORKFLOW_NAME;
     }
   });
 
   describe("when stop time is not configured", () => {
-    it("should fail if GITHUB_AW_STOP_TIME is not set", async () => {
-      delete process.env.GITHUB_AW_STOP_TIME;
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
+    it("should fail if GH_AW_STOP_TIME is not set", async () => {
+      delete process.env.GH_AW_STOP_TIME;
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
 
       await eval(`(async () => { ${checkStopTimeScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GITHUB_AW_STOP_TIME not specified"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_STOP_TIME not specified"));
       expect(mockCore.setOutput).not.toHaveBeenCalled();
     });
 
-    it("should fail if GITHUB_AW_WORKFLOW_NAME is not set", async () => {
-      process.env.GITHUB_AW_STOP_TIME = "2025-12-31 23:59:59";
-      delete process.env.GITHUB_AW_WORKFLOW_NAME;
+    it("should fail if GH_AW_WORKFLOW_NAME is not set", async () => {
+      process.env.GH_AW_STOP_TIME = "2025-12-31 23:59:59";
+      delete process.env.GH_AW_WORKFLOW_NAME;
 
       await eval(`(async () => { ${checkStopTimeScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GITHUB_AW_WORKFLOW_NAME not specified"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_WORKFLOW_NAME not specified"));
       expect(mockCore.setOutput).not.toHaveBeenCalled();
     });
   });
 
   describe("when stop time format is invalid", () => {
     it("should fail with error for invalid format", async () => {
-      process.env.GITHUB_AW_STOP_TIME = "invalid-date";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_STOP_TIME = "invalid-date";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
 
       await eval(`(async () => { ${checkStopTimeScript} })()`);
 
@@ -142,8 +142,8 @@ describe("check_stop_time.cjs", () => {
       futureDate.setFullYear(futureDate.getFullYear() + 1);
       const stopTime = futureDate.toISOString().replace("T", " ").substring(0, 19);
 
-      process.env.GITHUB_AW_STOP_TIME = stopTime;
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_STOP_TIME = stopTime;
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
 
       await eval(`(async () => { ${checkStopTimeScript} })()`);
 
@@ -159,8 +159,8 @@ describe("check_stop_time.cjs", () => {
       pastDate.setFullYear(pastDate.getFullYear() - 1);
       const stopTime = pastDate.toISOString().replace("T", " ").substring(0, 19);
 
-      process.env.GITHUB_AW_STOP_TIME = stopTime;
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_STOP_TIME = stopTime;
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
 
       await eval(`(async () => { ${checkStopTimeScript} })()`);
 

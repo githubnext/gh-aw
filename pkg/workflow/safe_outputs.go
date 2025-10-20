@@ -40,7 +40,7 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		return
 	}
 
-	// Add output instructions for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)
+	// Add output instructions for all engines (GH_AW_SAFE_OUTPUTS functionality)
 	yaml.WriteString("          \n")
 	yaml.WriteString("          ---\n")
 	yaml.WriteString("          \n")

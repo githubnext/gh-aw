@@ -73,7 +73,7 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
-#### Fixed GITHUB_AW_AGENT_OUTPUT file path handling in safe output scripts
+#### Fixed GH_AW_AGENT_OUTPUT file path handling in safe output scripts
 
 
 ## v0.22.6 - 2025-10-17
@@ -86,7 +86,7 @@ All notable changes to this project will be documented in this file.
 
 #### Fixed post-steps indentation in generated YAML workflows to match GitHub Actions schema requirements
 
-#### Fixed empty GITHUB_AW_AGENT_OUTPUT in safe output jobs by downloading agent_output.json artifact instead of relying on job outputs
+#### Fixed empty GH_AW_AGENT_OUTPUT in safe output jobs by downloading agent_output.json artifact instead of relying on job outputs
 
 #### Fix Windows path separator issue in workflow resolution
 
@@ -122,7 +122,7 @@ All notable changes to this project will be documented in this file.
 
 #### Add GH_AW_GITHUB_TOKEN secret check for GitHub remote mode in mcp inspect
 
-#### Add GITHUB_AW_ASSETS_BRANCH normalization for upload-assets safe output
+#### Add GH_AW_ASSETS_BRANCH normalization for upload-assets safe output
 
 #### Reduced bloat in cache-memory documentation (56% reduction)
 
@@ -648,7 +648,7 @@ Updated the Codex engine's remote GitHub MCP server configuration to use the new
 - Add test coverage for shorthand write permissions in strict mode
 - Add verbose logging for artifact download and metric extraction
 - Add workflow installation instructions to safe output footers with enterprise support
-- Add GITHUB_AW_WORKFLOW_NAME environment variable to add_reaction job
+- Add GH_AW_WORKFLOW_NAME environment variable to add_reaction job
 - Add cache-memory support to included workflow schema
 - Configure Copilot log parsing to use debug logs from /tmp/gh-aw/.copilot/logs/
 - Update duplicate finder workflow to ignore test files

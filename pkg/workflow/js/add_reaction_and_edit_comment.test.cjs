@@ -85,9 +85,9 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     vi.clearAllMocks();
 
     // Reset environment variables
-    delete process.env.GITHUB_AW_REACTION;
-    delete process.env.GITHUB_AW_COMMAND;
-    delete process.env.GITHUB_AW_WORKFLOW_NAME;
+    delete process.env.GH_AW_REACTION;
+    delete process.env.GH_AW_COMMAND;
+    delete process.env.GH_AW_WORKFLOW_NAME;
 
     // Reset context to default state
     global.context.eventName = "issues";
@@ -103,7 +103,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
 
   describe("Issue reactions", () => {
     it("should add reaction to issue successfully", async () => {
-      process.env.GITHUB_AW_REACTION = "eyes";
+      process.env.GH_AW_REACTION = "eyes";
       global.context.eventName = "issues";
       global.context.payload.issue = { number: 123 };
 
@@ -126,7 +126,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     });
 
     it("should reject invalid reaction type", async () => {
-      process.env.GITHUB_AW_REACTION = "invalid";
+      process.env.GH_AW_REACTION = "invalid";
       global.context.eventName = "issues";
       global.context.payload.issue = { number: 123 };
 
@@ -140,9 +140,9 @@ describe("add_reaction_and_edit_comment.cjs", () => {
 
   describe("Pull request reactions", () => {
     it("should add reaction to pull request and create comment", async () => {
-      process.env.GITHUB_AW_REACTION = "heart";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
-      // NO GITHUB_AW_COMMAND set - this is NOT a command workflow
+      process.env.GH_AW_REACTION = "heart";
+      process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+      // NO GH_AW_COMMAND set - this is NOT a command workflow
       global.context.eventName = "pull_request";
       global.context.payload = {
         pull_request: { number: 456 },
@@ -187,7 +187,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
 
   describe("Discussion reactions", () => {
     it("should add reaction to discussion using GraphQL", async () => {
-      process.env.GITHUB_AW_REACTION = "rocket";
+      process.env.GH_AW_REACTION = "rocket";
       global.context.eventName = "discussion";
       global.context.payload = {
         discussion: { number: 10 },
@@ -253,7 +253,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
 
       for (const test of reactionTests) {
         vi.clearAllMocks();
-        process.env.GITHUB_AW_REACTION = test.input;
+        process.env.GH_AW_REACTION = test.input;
         global.context.eventName = "discussion";
         global.context.payload = {
           discussion: { number: 10 },
@@ -292,7 +292,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
 
   describe("Discussion comment reactions", () => {
     it("should add reaction to discussion comment using GraphQL", async () => {
-      process.env.GITHUB_AW_REACTION = "heart";
+      process.env.GH_AW_REACTION = "heart";
       global.context.eventName = "discussion_comment";
       global.context.payload = {
         discussion: { number: 10 },
@@ -330,7 +330,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     });
 
     it("should fail when discussion comment node_id is missing", async () => {
-      process.env.GITHUB_AW_REACTION = "eyes";
+      process.env.GH_AW_REACTION = "eyes";
       global.context.eventName = "discussion_comment";
       global.context.payload = {
         discussion: { number: 10 },
@@ -351,9 +351,9 @@ describe("add_reaction_and_edit_comment.cjs", () => {
 
   describe("Comment creation (always creates new comments)", () => {
     it("should create comment for issue event", async () => {
-      process.env.GITHUB_AW_REACTION = "eyes";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
-      // NO GITHUB_AW_COMMAND set - this is NOT a command workflow
+      process.env.GH_AW_REACTION = "eyes";
+      process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+      // NO GH_AW_COMMAND set - this is NOT a command workflow
       global.context.eventName = "issues";
       global.context.payload = {
         issue: { number: 123 },
@@ -396,9 +396,9 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     });
 
     it("should create new comment for issue_comment event (not edit)", async () => {
-      process.env.GITHUB_AW_REACTION = "eyes";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
-      // NO GITHUB_AW_COMMAND needed - all workflows with reactions create comments
+      process.env.GH_AW_REACTION = "eyes";
+      process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+      // NO GH_AW_COMMAND needed - all workflows with reactions create comments
       global.context.eventName = "issue_comment";
       global.context.payload = {
         issue: { number: 123 },
@@ -438,9 +438,9 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     });
 
     it("should create new comment for pull_request_review_comment event (not edit)", async () => {
-      process.env.GITHUB_AW_REACTION = "rocket";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "PR Review Bot";
-      // NO GITHUB_AW_COMMAND needed - all workflows with reactions create comments
+      process.env.GH_AW_REACTION = "rocket";
+      process.env.GH_AW_WORKFLOW_NAME = "PR Review Bot";
+      // NO GH_AW_COMMAND needed - all workflows with reactions create comments
       global.context.eventName = "pull_request_review_comment";
       global.context.payload = {
         pull_request: { number: 456 },
@@ -480,9 +480,9 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     });
 
     it("should create comment on discussion", async () => {
-      process.env.GITHUB_AW_REACTION = "eyes";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
-      // NO GITHUB_AW_COMMAND set - this is NOT a command workflow
+      process.env.GH_AW_REACTION = "eyes";
+      process.env.GH_AW_WORKFLOW_NAME = "Test Workflow";
+      // NO GH_AW_COMMAND set - this is NOT a command workflow
       global.context.eventName = "discussion";
       global.context.payload = {
         discussion: { number: 10 },
@@ -552,9 +552,9 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     });
 
     it("should create new comment for discussion_comment events", async () => {
-      process.env.GITHUB_AW_REACTION = "eyes";
-      // NO GITHUB_AW_COMMAND needed - all workflows with reactions create comments
-      process.env.GITHUB_AW_WORKFLOW_NAME = "Discussion Bot";
+      process.env.GH_AW_REACTION = "eyes";
+      // NO GH_AW_COMMAND needed - all workflows with reactions create comments
+      process.env.GH_AW_WORKFLOW_NAME = "Discussion Bot";
       global.context.eventName = "discussion_comment";
       global.context.payload = {
         discussion: { number: 10 },
@@ -616,7 +616,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
 
   describe("Error handling", () => {
     it("should handle missing discussion number", async () => {
-      process.env.GITHUB_AW_REACTION = "eyes";
+      process.env.GH_AW_REACTION = "eyes";
       global.context.eventName = "discussion";
       global.context.payload = {
         // discussion number is missing
@@ -630,7 +630,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     });
 
     it("should handle missing discussion or comment info for discussion_comment", async () => {
-      process.env.GITHUB_AW_REACTION = "eyes";
+      process.env.GH_AW_REACTION = "eyes";
       global.context.eventName = "discussion_comment";
       global.context.payload = {
         discussion: { number: 10 },
@@ -645,7 +645,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     });
 
     it("should handle unsupported event types", async () => {
-      process.env.GITHUB_AW_REACTION = "eyes";
+      process.env.GH_AW_REACTION = "eyes";
       global.context.eventName = "push";
       global.context.payload = {
         repository: { html_url: "https://github.com/testowner/testrepo" },

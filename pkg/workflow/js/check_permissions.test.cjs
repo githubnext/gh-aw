@@ -78,7 +78,7 @@ describe("check_permissions.cjs", () => {
     vi.clearAllMocks();
 
     // Store original environment
-    originalEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
+    originalEnv = process.env.GH_AW_REQUIRED_ROLES;
 
     // Reset context to default state
     global.context.eventName = "issues";
@@ -96,14 +96,14 @@ describe("check_permissions.cjs", () => {
   afterEach(() => {
     // Restore original environment
     if (originalEnv !== undefined) {
-      process.env.GITHUB_AW_REQUIRED_ROLES = originalEnv;
+      process.env.GH_AW_REQUIRED_ROLES = originalEnv;
     } else {
-      delete process.env.GITHUB_AW_REQUIRED_ROLES;
+      delete process.env.GH_AW_REQUIRED_ROLES;
     }
   });
 
   it("should fail job when no permissions specified", async () => {
-    delete process.env.GITHUB_AW_REQUIRED_ROLES;
+    delete process.env.GH_AW_REQUIRED_ROLES;
 
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
@@ -115,7 +115,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should fail job when permissions are empty", async () => {
-    process.env.GITHUB_AW_REQUIRED_ROLES = "";
+    process.env.GH_AW_REQUIRED_ROLES = "";
 
     // Execute the script
     await eval(`(async () => { ${checkPermissionsScript} })()`);
@@ -127,7 +127,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should skip validation for safe events", async () => {
-    process.env.GITHUB_AW_REQUIRED_ROLES = "admin";
+    process.env.GH_AW_REQUIRED_ROLES = "admin";
     global.context.eventName = "workflow_dispatch";
 
     // Execute the script
@@ -139,7 +139,7 @@ describe("check_permissions.cjs", () => {
     expect(mockCore.warning).not.toHaveBeenCalled();
   });
   it("should pass validation for admin permission", async () => {
-    process.env.GITHUB_AW_REQUIRED_ROLES = "admin,maintainer,write";
+    process.env.GH_AW_REQUIRED_ROLES = "admin,maintainer,write";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "admin" },
@@ -165,7 +165,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should pass validation for maintain permission when maintainer is required", async () => {
-    process.env.GITHUB_AW_REQUIRED_ROLES = "admin,maintainer";
+    process.env.GH_AW_REQUIRED_ROLES = "admin,maintainer";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "maintain" },
@@ -182,7 +182,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should pass validation for write permission when write is required", async () => {
-    process.env.GITHUB_AW_REQUIRED_ROLES = "admin,write,triage";
+    process.env.GH_AW_REQUIRED_ROLES = "admin,write,triage";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "write" },
@@ -199,7 +199,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should fail the job for insufficient permission", async () => {
-    process.env.GITHUB_AW_REQUIRED_ROLES = "admin,maintainer";
+    process.env.GH_AW_REQUIRED_ROLES = "admin,maintainer";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "write" },
@@ -216,7 +216,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should fail the job for read permission", async () => {
-    process.env.GITHUB_AW_REQUIRED_ROLES = "admin,write";
+    process.env.GH_AW_REQUIRED_ROLES = "admin,write";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "read" },
@@ -233,7 +233,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should fail the job on API errors", async () => {
-    process.env.GITHUB_AW_REQUIRED_ROLES = "admin";
+    process.env.GH_AW_REQUIRED_ROLES = "admin";
 
     const apiError = new Error("API Error: Not Found");
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(apiError);
@@ -245,7 +245,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should handle different actor names correctly", async () => {
-    process.env.GITHUB_AW_REQUIRED_ROLES = "admin";
+    process.env.GH_AW_REQUIRED_ROLES = "admin";
     global.context.actor = "different-user";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
@@ -269,7 +269,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should handle triage permission correctly", async () => {
-    process.env.GITHUB_AW_REQUIRED_ROLES = "admin,write,triage";
+    process.env.GH_AW_REQUIRED_ROLES = "admin,write,triage";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "triage" },
@@ -286,7 +286,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should handle single permission requirement", async () => {
-    process.env.GITHUB_AW_REQUIRED_ROLES = "write";
+    process.env.GH_AW_REQUIRED_ROLES = "write";
 
     mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({
       data: { permission: "write" },
@@ -304,7 +304,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should skip validation for workflow_run events", async () => {
-    process.env.GITHUB_AW_REQUIRED_ROLES = "admin";
+    process.env.GH_AW_REQUIRED_ROLES = "admin";
     global.context.eventName = "workflow_run";
 
     // Execute the script
@@ -315,7 +315,7 @@ describe("check_permissions.cjs", () => {
   });
 
   it("should skip validation for schedule events", async () => {
-    process.env.GITHUB_AW_REQUIRED_ROLES = "admin";
+    process.env.GH_AW_REQUIRED_ROLES = "admin";
     global.context.eventName = "schedule";
 
     // Execute the script

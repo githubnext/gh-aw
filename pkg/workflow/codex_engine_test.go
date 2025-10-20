@@ -202,25 +202,25 @@ func TestCodexEngineExecutionIncludesGitHubAWPrompt(t *testing.T) {
 		return
 	}
 
-	// Check that GITHUB_AW_PROMPT environment variable is included
+	// Check that GH_AW_PROMPT environment variable is included
 	foundPromptEnv := false
 	foundMCPConfigEnv := false
 	for _, step := range steps {
 		stepContent := strings.Join([]string(step), "\n")
-		if strings.Contains(stepContent, "GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
+		if strings.Contains(stepContent, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
 			foundPromptEnv = true
 		}
-		if strings.Contains(stepContent, "GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml") {
+		if strings.Contains(stepContent, "GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml") {
 			foundMCPConfigEnv = true
 		}
 	}
 
 	if !foundPromptEnv {
-		t.Error("Expected GITHUB_AW_PROMPT environment variable in codex execution steps")
+		t.Error("Expected GH_AW_PROMPT environment variable in codex execution steps")
 	}
 
 	if !foundMCPConfigEnv {
-		t.Error("Expected GITHUB_AW_MCP_CONFIG environment variable in codex execution steps")
+		t.Error("Expected GH_AW_MCP_CONFIG environment variable in codex execution steps")
 	}
 }
 

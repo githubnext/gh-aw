@@ -86,11 +86,11 @@ describe("notify_comment_error.cjs", () => {
 
     // Store original environment
     originalEnv = {
-      GITHUB_AW_COMMENT_ID: process.env.GITHUB_AW_COMMENT_ID,
-      GITHUB_AW_COMMENT_REPO: process.env.GITHUB_AW_COMMENT_REPO,
-      GITHUB_AW_RUN_URL: process.env.GITHUB_AW_RUN_URL,
-      GITHUB_AW_WORKFLOW_NAME: process.env.GITHUB_AW_WORKFLOW_NAME,
-      GITHUB_AW_AGENT_CONCLUSION: process.env.GITHUB_AW_AGENT_CONCLUSION,
+      GH_AW_COMMENT_ID: process.env.GH_AW_COMMENT_ID,
+      GH_AW_COMMENT_REPO: process.env.GH_AW_COMMENT_REPO,
+      GH_AW_RUN_URL: process.env.GH_AW_RUN_URL,
+      GH_AW_WORKFLOW_NAME: process.env.GH_AW_WORKFLOW_NAME,
+      GH_AW_AGENT_CONCLUSION: process.env.GH_AW_AGENT_CONCLUSION,
     };
 
     // Read the script content
@@ -111,10 +111,10 @@ describe("notify_comment_error.cjs", () => {
 
   describe("when comment ID is not provided", () => {
     it("should skip comment update", async () => {
-      delete process.env.GITHUB_AW_COMMENT_ID;
-      process.env.GITHUB_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
-      process.env.GITHUB_AW_AGENT_CONCLUSION = "failure";
+      delete process.env.GH_AW_COMMENT_ID;
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
 
       await eval(`(async () => { ${notifyCommentScript} })()`);
 
@@ -126,10 +126,10 @@ describe("notify_comment_error.cjs", () => {
 
   describe("when run URL is not provided", () => {
     it("should fail with error", async () => {
-      process.env.GITHUB_AW_COMMENT_ID = "123456";
-      delete process.env.GITHUB_AW_RUN_URL;
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
-      process.env.GITHUB_AW_AGENT_CONCLUSION = "failure";
+      process.env.GH_AW_COMMENT_ID = "123456";
+      delete process.env.GH_AW_RUN_URL;
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
 
       await eval(`(async () => { ${notifyCommentScript} })()`);
 
@@ -141,10 +141,10 @@ describe("notify_comment_error.cjs", () => {
 
   describe("when updating an issue/PR comment", () => {
     it("should update with success message when agent succeeds", async () => {
-      process.env.GITHUB_AW_COMMENT_ID = "123456";
-      process.env.GITHUB_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
-      process.env.GITHUB_AW_AGENT_CONCLUSION = "success";
+      process.env.GH_AW_COMMENT_ID = "123456";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "success";
 
       await eval(`(async () => { ${notifyCommentScript} })()`);
 
@@ -162,10 +162,10 @@ describe("notify_comment_error.cjs", () => {
     });
 
     it("should update with failure message when agent fails", async () => {
-      process.env.GITHUB_AW_COMMENT_ID = "123456";
-      process.env.GITHUB_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
-      process.env.GITHUB_AW_AGENT_CONCLUSION = "failure";
+      process.env.GH_AW_COMMENT_ID = "123456";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
 
       await eval(`(async () => { ${notifyCommentScript} })()`);
 
@@ -184,10 +184,10 @@ describe("notify_comment_error.cjs", () => {
     });
 
     it("should update with cancelled message when agent is cancelled", async () => {
-      process.env.GITHUB_AW_COMMENT_ID = "123456";
-      process.env.GITHUB_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
-      process.env.GITHUB_AW_AGENT_CONCLUSION = "cancelled";
+      process.env.GH_AW_COMMENT_ID = "123456";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "cancelled";
 
       await eval(`(async () => { ${notifyCommentScript} })()`);
 
@@ -201,10 +201,10 @@ describe("notify_comment_error.cjs", () => {
     });
 
     it("should update with timeout message when agent times out", async () => {
-      process.env.GITHUB_AW_COMMENT_ID = "123456";
-      process.env.GITHUB_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
-      process.env.GITHUB_AW_AGENT_CONCLUSION = "timed_out";
+      process.env.GH_AW_COMMENT_ID = "123456";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "timed_out";
 
       await eval(`(async () => { ${notifyCommentScript} })()`);
 
@@ -218,10 +218,10 @@ describe("notify_comment_error.cjs", () => {
     });
 
     it("should update with skipped message when agent is skipped", async () => {
-      process.env.GITHUB_AW_COMMENT_ID = "123456";
-      process.env.GITHUB_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
-      process.env.GITHUB_AW_AGENT_CONCLUSION = "skipped";
+      process.env.GH_AW_COMMENT_ID = "123456";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "skipped";
 
       await eval(`(async () => { ${notifyCommentScript} })()`);
 
@@ -235,11 +235,11 @@ describe("notify_comment_error.cjs", () => {
     });
 
     it("should use custom comment repo when provided", async () => {
-      process.env.GITHUB_AW_COMMENT_ID = "123456";
-      process.env.GITHUB_AW_COMMENT_REPO = "customowner/customrepo";
-      process.env.GITHUB_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
-      process.env.GITHUB_AW_AGENT_CONCLUSION = "success";
+      process.env.GH_AW_COMMENT_ID = "123456";
+      process.env.GH_AW_COMMENT_REPO = "customowner/customrepo";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "success";
 
       await eval(`(async () => { ${notifyCommentScript} })()`);
 
@@ -255,10 +255,10 @@ describe("notify_comment_error.cjs", () => {
 
   describe("when updating a discussion comment", () => {
     it("should use GraphQL API for discussion comments on success", async () => {
-      process.env.GITHUB_AW_COMMENT_ID = "DC_kwDOABCDEF4ABCDEF";
-      process.env.GITHUB_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
-      process.env.GITHUB_AW_AGENT_CONCLUSION = "success";
+      process.env.GH_AW_COMMENT_ID = "DC_kwDOABCDEF4ABCDEF";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "success";
 
       await eval(`(async () => { ${notifyCommentScript} })()`);
 
@@ -274,10 +274,10 @@ describe("notify_comment_error.cjs", () => {
     });
 
     it("should use GraphQL API for discussion comments on failure", async () => {
-      process.env.GITHUB_AW_COMMENT_ID = "DC_kwDOABCDEF4ABCDEF";
-      process.env.GITHUB_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
-      process.env.GITHUB_AW_AGENT_CONCLUSION = "failure";
+      process.env.GH_AW_COMMENT_ID = "DC_kwDOABCDEF4ABCDEF";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
 
       await eval(`(async () => { ${notifyCommentScript} })()`);
 
@@ -294,10 +294,10 @@ describe("notify_comment_error.cjs", () => {
 
   describe("error handling", () => {
     it("should warn but not fail when comment update fails", async () => {
-      process.env.GITHUB_AW_COMMENT_ID = "123456";
-      process.env.GITHUB_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
-      process.env.GITHUB_AW_AGENT_CONCLUSION = "success";
+      process.env.GH_AW_COMMENT_ID = "123456";
+      process.env.GH_AW_RUN_URL = "https://github.com/owner/repo/actions/runs/123";
+      process.env.GH_AW_WORKFLOW_NAME = "test-workflow";
+      process.env.GH_AW_AGENT_CONCLUSION = "success";
 
       mockGithub.request.mockRejectedValueOnce(new Error("API error"));
 

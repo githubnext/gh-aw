@@ -85,20 +85,20 @@ The YAML frontmatter supports these fields:
     
     Custom engine steps have access to the following environment variables:
     
-    - **`$GITHUB_AW_PROMPT`**: Path to the generated prompt file (`/tmp/gh-aw/aw-prompts/prompt.txt`) containing the markdown content from the workflow. This file contains the natural language instructions that would normally be sent to an AI processor. Custom engines can read this file to access the workflow's markdown content programmatically.
-    - **`$GITHUB_AW_SAFE_OUTPUTS`**: Path to the safe outputs file (when safe-outputs are configured). Used for writing structured output that gets processed automatically.
-    - **`$GITHUB_AW_MAX_TURNS`**: Maximum number of turns/iterations (when max-turns is configured in engine config).
+    - **`$GH_AW_PROMPT`**: Path to the generated prompt file (`/tmp/gh-aw/aw-prompts/prompt.txt`) containing the markdown content from the workflow. This file contains the natural language instructions that would normally be sent to an AI processor. Custom engines can read this file to access the workflow's markdown content programmatically.
+    - **`$GH_AW_SAFE_OUTPUTS`**: Path to the safe outputs file (when safe-outputs are configured). Used for writing structured output that gets processed automatically.
+    - **`$GH_AW_MAX_TURNS`**: Maximum number of turns/iterations (when max-turns is configured in engine config).
     
     Example of accessing the prompt content:
     ```bash
     # Read the workflow prompt content
-    cat $GITHUB_AW_PROMPT
+    cat $GH_AW_PROMPT
     
     # Process the prompt content in a custom step
     - name: Process workflow instructions
       run: |
         echo "Workflow instructions:"
-        cat $GITHUB_AW_PROMPT
+        cat $GH_AW_PROMPT
         # Add your custom processing logic here
     ```
 

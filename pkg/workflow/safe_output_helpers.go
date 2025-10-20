@@ -22,7 +22,7 @@ type GitHubScriptStepConfig struct {
 	MainJobName string
 
 	// Environment variables specific to this safe output type
-	// These are added after GITHUB_AW_AGENT_OUTPUT
+	// These are added after GH_AW_AGENT_OUTPUT
 	CustomEnvVars []string
 
 	// JavaScript script constant to format and include
@@ -48,9 +48,9 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 	// Environment variables section
 	steps = append(steps, "        env:\n")
 
-	// Read GITHUB_AW_AGENT_OUTPUT from environment (set by artifact download step)
+	// Read GH_AW_AGENT_OUTPUT from environment (set by artifact download step)
 	// instead of directly from job outputs which may be masked by GitHub Actions
-	steps = append(steps, "          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}\n")
+	steps = append(steps, "          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
 
 	// Add custom environment variables specific to this safe output type
 	steps = append(steps, config.CustomEnvVars...)
@@ -71,13 +71,13 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 }
 
 // buildAgentOutputDownloadSteps creates steps to download the agent output artifact
-// and set the GITHUB_AW_AGENT_OUTPUT environment variable for safe-output jobs
+// and set the GH_AW_AGENT_OUTPUT environment variable for safe-output jobs
 func buildAgentOutputDownloadSteps() []string {
 	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName: "agent_output.json", // Use constant value directly to avoid import cycle
 		DownloadPath: "/tmp/gh-aw/safe-outputs/",
 		SetupEnvStep: true,
-		EnvVarName:   "GITHUB_AW_AGENT_OUTPUT",
+		EnvVarName:   "GH_AW_AGENT_OUTPUT",
 		StepName:     "Download agent output artifact",
 	})
 }
@@ -262,24 +262,24 @@ func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
 		return
 	}
 
-	env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+	env["GH_AW_SAFE_OUTPUTS"] = "${{ env.GH_AW_SAFE_OUTPUTS }}"
 
 	safeOutputConfig := generateSafeOutputsConfig(data)
-	env["GITHUB_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
+	env["GH_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
 
 	// Add staged flag if specified
 	if data.TrialMode || data.SafeOutputs.Staged {
-		env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
+		env["GH_AW_SAFE_OUTPUTS_STAGED"] = "true"
 	}
 	if data.TrialMode && data.TrialLogicalRepo != "" {
-		env["GITHUB_AW_TARGET_REPO_SLUG"] = data.TrialLogicalRepo
+		env["GH_AW_TARGET_REPO_SLUG"] = data.TrialLogicalRepo
 	}
 
 	// Add branch name if upload assets is configured
 	if data.SafeOutputs.UploadAssets != nil {
-		env["GITHUB_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
-		env["GITHUB_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
-		env["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
+		env["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
+		env["GH_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
+		env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
 	}
 }
 
@@ -290,21 +290,21 @@ func applySafeOutputEnvToSlice(stepLines *[]string, workflowData *WorkflowData) 
 		return
 	}
 
-	*stepLines = append(*stepLines, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}")
+	*stepLines = append(*stepLines, "          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}")
 
 	// Add staged flag if specified
 	if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
-		*stepLines = append(*stepLines, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"")
+		*stepLines = append(*stepLines, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"")
 	}
 	if workflowData.TrialMode && workflowData.TrialLogicalRepo != "" {
-		*stepLines = append(*stepLines, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q", workflowData.TrialLogicalRepo))
+		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q", workflowData.TrialLogicalRepo))
 	}
 
 	// Add branch name if upload assets is configured
 	if workflowData.SafeOutputs.UploadAssets != nil {
-		*stepLines = append(*stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q", workflowData.SafeOutputs.UploadAssets.BranchName))
-		*stepLines = append(*stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_MAX_SIZE_KB: %d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB))
-		*stepLines = append(*stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_ALLOWED_EXTS: %q", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")))
+		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_ASSETS_BRANCH: %q", workflowData.SafeOutputs.UploadAssets.BranchName))
+		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_ASSETS_MAX_SIZE_KB: %d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB))
+		*stepLines = append(*stepLines, fmt.Sprintf("          GH_AW_ASSETS_ALLOWED_EXTS: %q", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")))
 	}
 }
 
@@ -315,14 +315,14 @@ func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, stag
 
 	// Pass the staged flag if it's set to true
 	if trialMode || staged {
-		customEnvVars = append(customEnvVars, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+		customEnvVars = append(customEnvVars, "          GH_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
 
-	// Set GITHUB_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
+	// Set GH_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
 	if targetRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", targetRepoSlug))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", targetRepoSlug))
 	} else if trialMode && trialLogicalRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", trialLogicalRepoSlug))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", trialLogicalRepoSlug))
 	}
 
 	return customEnvVars

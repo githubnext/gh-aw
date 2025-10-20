@@ -36,13 +36,13 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 	var customEnvVars []string
 	// Pass the allowed labels list (empty string if no restrictions)
 	allowedLabelsStr := strings.Join(allowedLabels, ",")
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_LABELS_ALLOWED: %q\n", allowedLabelsStr))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LABELS_ALLOWED: %q\n", allowedLabelsStr))
 	// Pass the max limit
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_LABELS_MAX_COUNT: %d\n", maxCount))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LABELS_MAX_COUNT: %d\n", maxCount))
 
 	// Pass the target configuration
 	if data.SafeOutputs.AddLabels.Target != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_LABELS_TARGET: %q\n", data.SafeOutputs.AddLabels.Target))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LABELS_TARGET: %q\n", data.SafeOutputs.AddLabels.Target))
 	}
 
 	// Add common safe output job environment variables (staged/target repo)

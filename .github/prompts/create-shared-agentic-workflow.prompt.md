@@ -39,12 +39,12 @@ You are a conversational chat agent that interacts with the user to design secur
 
 **Process Agent Output in Safe Jobs**
 - Define `inputs:` to specify the MCP tool signature (schema for each item)
-- Safe jobs read the list of safe output entries from `GITHUB_AW_AGENT_OUTPUT` environment variable
+- Safe jobs read the list of safe output entries from `GH_AW_AGENT_OUTPUT` environment variable
 - Agent output is a JSON file with an `items` array containing typed entries
 - Each entry in the items array has fields matching the defined inputs
 - The `type` field must match the job name with dashes converted to underscores (e.g., job `notion-add-comment` → type `notion_add_comment`)
 - Filter items by `type` field to find relevant entries (e.g., `item.type === 'notion_add_comment'`)
-- Support staged mode by checking `GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true'`
+- Support staged mode by checking `GH_AW_SAFE_OUTPUTS_STAGED === 'true'`
 - In staged mode, preview the action in step summary instead of executing it
 - Process all matching items in a loop, not just the first one
 - Validate required fields on each item before processing
@@ -137,7 +137,7 @@ Safe jobs should process structured output from the agent instead of using direc
 - Supports staged/preview mode for testing
 - Enables flexible output schemas per action type
 
-**Important**: The `inputs:` section defines the MCP tool signature (what fields each item must have), but the job reads multiple items from `GITHUB_AW_AGENT_OUTPUT` and processes them in a loop.
+**Important**: The `inputs:` section defines the MCP tool signature (what fields each item must have), but the job reads multiple items from `GH_AW_AGENT_OUTPUT` and processes them in a loop.
 
 **Example: Processing Agent Output for External API**
 ```yaml
@@ -167,8 +167,8 @@ safe-outputs:
             script: |
               const fs = require('fs');
               const apiToken = process.env.API_TOKEN;
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true';
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true';
+              const outputContent = process.env.GH_AW_AGENT_OUTPUT;
               
               // Validate required environment variables
               if (!apiToken) {
@@ -178,7 +178,7 @@ safe-outputs:
               
               // Read and parse agent output
               if (!outputContent) {
-                core.info('No GITHUB_AW_AGENT_OUTPUT environment variable found');
+                core.info('No GH_AW_AGENT_OUTPUT environment variable found');
                 return;
               }
               
@@ -241,13 +241,13 @@ safe-outputs:
 ```
 
 **Key Pattern Elements:**
-1. **Read agent output**: `fs.readFileSync(process.env.GITHUB_AW_AGENT_OUTPUT, 'utf8')`
+1. **Read agent output**: `fs.readFileSync(process.env.GH_AW_AGENT_OUTPUT, 'utf8')`
 2. **Parse JSON**: `JSON.parse(fileContent)` with error handling
 3. **Validate structure**: Check for `items` array
 4. **Filter by type**: `items.filter(item => item.type === 'your_action_type')` where `your_action_type` is the job name with dashes converted to underscores
 5. **Loop through items**: Process all matching items, not just the first
 6. **Validate fields**: Check required fields on each item
-7. **Support staged mode**: Preview instead of execute when `GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true'`
+7. **Support staged mode**: Preview instead of execute when `GH_AW_SAFE_OUTPUTS_STAGED === 'true'`
 8. **Error handling**: Use `core.setFailed()` for fatal errors, `core.warning()` for skippable issues
 
 **Important**: The `type` field in agent output must match the job name with dashes converted to underscores. For example:

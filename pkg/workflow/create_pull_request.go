@@ -41,38 +41,38 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	// Build custom environment variables specific to create-pull-request
 	var customEnvVars []string
 	// Pass the workflow ID for branch naming
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_ID: %q\n", mainJobName))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", mainJobName))
 	// Pass the workflow name for footer generation
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
 	// Pass the base branch from GitHub context
-	customEnvVars = append(customEnvVars, "          GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
+	customEnvVars = append(customEnvVars, "          GH_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
 	if data.SafeOutputs.CreatePullRequests.TitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PR_TITLE_PREFIX: %q\n", data.SafeOutputs.CreatePullRequests.TitlePrefix))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_TITLE_PREFIX: %q\n", data.SafeOutputs.CreatePullRequests.TitlePrefix))
 	}
 	if len(data.SafeOutputs.CreatePullRequests.Labels) > 0 {
 		labelsStr := strings.Join(data.SafeOutputs.CreatePullRequests.Labels, ",")
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PR_LABELS: %q\n", labelsStr))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_LABELS: %q\n", labelsStr))
 	}
 	// Pass draft setting - default to true for backwards compatibility
 	draftValue := true // Default value
 	if data.SafeOutputs.CreatePullRequests.Draft != nil {
 		draftValue = *data.SafeOutputs.CreatePullRequests.Draft
 	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PR_DRAFT: %q\n", fmt.Sprintf("%t", draftValue)))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_DRAFT: %q\n", fmt.Sprintf("%t", draftValue)))
 
 	// Pass the if-no-changes configuration
 	ifNoChanges := data.SafeOutputs.CreatePullRequests.IfNoChanges
 	if ifNoChanges == "" {
 		ifNoChanges = "warn" // Default value
 	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PR_IF_NO_CHANGES: %q\n", ifNoChanges))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_IF_NO_CHANGES: %q\n", ifNoChanges))
 
 	// Pass the maximum patch size configuration
 	maxPatchSize := 1024 // Default value
 	if data.SafeOutputs != nil && data.SafeOutputs.MaximumPatchSize > 0 {
 		maxPatchSize = data.SafeOutputs.MaximumPatchSize
 	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
 
 	// Add common safe output job environment variables (staged/target repo)
 	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(

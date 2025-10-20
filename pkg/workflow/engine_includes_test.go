@@ -386,7 +386,7 @@ engine:
     - name: Run AI Inference
       uses: actions/ai-inference@v1
       with:
-        prompt-file: ${{ env.GITHUB_AW_PROMPT }}
+        prompt-file: ${{ env.GH_AW_PROMPT }}
         model: gpt-4o-mini
 ---
 

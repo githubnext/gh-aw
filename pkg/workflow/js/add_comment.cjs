@@ -95,12 +95,12 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
 
 async function main() {
   // Check if we're in staged mode
-  const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
   // Read the validated output content from environment variable
-  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   if (!agentOutputFile) {
-    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+    core.info("No GH_AW_AGENT_OUTPUT environment variable found");
     return;
   }
 
@@ -146,7 +146,7 @@ async function main() {
   // Helper function to get the repository URL for different purposes
   function getRepositoryUrl() {
     // For trial mode, use target repository for issue/PR URLs but execution context for action runs
-    const targetRepoSlug = process.env.GITHUB_AW_TARGET_REPO_SLUG;
+    const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
 
     if (targetRepoSlug) {
       // Use target repository for issue/PR URLs in trial mode
@@ -168,7 +168,7 @@ async function main() {
   }
 
   // Get the target configuration from environment variable
-  const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
+  const commentTarget = process.env.GH_AW_COMMENT_TARGET || "triggering";
   core.info(`Comment target configuration: ${commentTarget}`);
 
   // Check if we're in an issue, pull request, or discussion context
@@ -185,12 +185,12 @@ async function main() {
     summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
 
     // Show created items references if available
-    const createdIssueUrl = process.env.GITHUB_AW_CREATED_ISSUE_URL;
-    const createdIssueNumber = process.env.GITHUB_AW_CREATED_ISSUE_NUMBER;
-    const createdDiscussionUrl = process.env.GITHUB_AW_CREATED_DISCUSSION_URL;
-    const createdDiscussionNumber = process.env.GITHUB_AW_CREATED_DISCUSSION_NUMBER;
-    const createdPullRequestUrl = process.env.GITHUB_AW_CREATED_PULL_REQUEST_URL;
-    const createdPullRequestNumber = process.env.GITHUB_AW_CREATED_PULL_REQUEST_NUMBER;
+    const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
+    const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
+    const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
+    const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+    const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+    const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
 
     if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
       summaryContent += "**Related Items:**\n";
@@ -320,12 +320,12 @@ async function main() {
     let body = commentItem.body.trim();
 
     // Append references to created issues, discussions, and pull requests if they exist
-    const createdIssueUrl = process.env.GITHUB_AW_CREATED_ISSUE_URL;
-    const createdIssueNumber = process.env.GITHUB_AW_CREATED_ISSUE_NUMBER;
-    const createdDiscussionUrl = process.env.GITHUB_AW_CREATED_DISCUSSION_URL;
-    const createdDiscussionNumber = process.env.GITHUB_AW_CREATED_DISCUSSION_NUMBER;
-    const createdPullRequestUrl = process.env.GITHUB_AW_CREATED_PULL_REQUEST_URL;
-    const createdPullRequestNumber = process.env.GITHUB_AW_CREATED_PULL_REQUEST_NUMBER;
+    const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
+    const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
+    const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
+    const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+    const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+    const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
 
     // Add references section if any URLs are available
     let hasReferences = false;
@@ -349,9 +349,9 @@ async function main() {
     }
 
     // Add AI disclaimer with workflow name and run url
-    const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-    const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
-    const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
+    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+    const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+    const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const runUrl = context.payload.repository

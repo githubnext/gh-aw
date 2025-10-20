@@ -152,8 +152,8 @@ func TestUploadAssetsJobUsesFileInput(t *testing.T) {
 	}
 
 	// Verify the correct environment variable is used (file path, not JSON payload)
-	if !strings.Contains(stepsStr, "GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}") {
-		t.Error("Expected GITHUB_AW_AGENT_OUTPUT to use env.GITHUB_AW_AGENT_OUTPUT (file path)")
+	if !strings.Contains(stepsStr, "GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}") {
+		t.Error("Expected GH_AW_AGENT_OUTPUT to use env.GH_AW_AGENT_OUTPUT (file path)")
 	}
 
 	// Verify it does NOT use the old pattern (JSON payload)
@@ -162,15 +162,15 @@ func TestUploadAssetsJobUsesFileInput(t *testing.T) {
 	}
 
 	// Verify custom environment variables are present
-	if !strings.Contains(stepsStr, "GITHUB_AW_ASSETS_BRANCH") {
-		t.Error("Expected GITHUB_AW_ASSETS_BRANCH environment variable")
+	if !strings.Contains(stepsStr, "GH_AW_ASSETS_BRANCH") {
+		t.Error("Expected GH_AW_ASSETS_BRANCH environment variable")
 	}
 
-	if !strings.Contains(stepsStr, "GITHUB_AW_ASSETS_MAX_SIZE_KB") {
-		t.Error("Expected GITHUB_AW_ASSETS_MAX_SIZE_KB environment variable")
+	if !strings.Contains(stepsStr, "GH_AW_ASSETS_MAX_SIZE_KB") {
+		t.Error("Expected GH_AW_ASSETS_MAX_SIZE_KB environment variable")
 	}
 
-	if !strings.Contains(stepsStr, "GITHUB_AW_ASSETS_ALLOWED_EXTS") {
-		t.Error("Expected GITHUB_AW_ASSETS_ALLOWED_EXTS environment variable")
+	if !strings.Contains(stepsStr, "GH_AW_ASSETS_ALLOWED_EXTS") {
+		t.Error("Expected GH_AW_ASSETS_ALLOWED_EXTS environment variable")
 	}
 }

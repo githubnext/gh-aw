@@ -2,7 +2,7 @@ async function main() {
   const { eventName } = context;
   const actor = context.actor;
   const { owner, repo } = context.repo;
-  const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
+  const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
   const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
 
   // For workflow_dispatch, only skip check if "write" is in the allowed roles

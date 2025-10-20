@@ -27,12 +27,12 @@ safe-outputs:
           with:
             script: |
               const fs = require('fs');
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true';
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true';
+              const outputContent = process.env.GH_AW_AGENT_OUTPUT;
               
               // Read and parse agent output
               if (!outputContent) {
-                core.info('No GITHUB_AW_AGENT_OUTPUT environment variable found');
+                core.info('No GH_AW_AGENT_OUTPUT environment variable found');
                 return;
               }
               

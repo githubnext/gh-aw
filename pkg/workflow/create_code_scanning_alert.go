@@ -19,7 +19,7 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 	// Build custom environment variables specific to create-code-scanning-alert
 	var customEnvVars []string
 	if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_SECURITY_REPORT_MAX: %d\n", data.SafeOutputs.CreateCodeScanningAlerts.Max))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SECURITY_REPORT_MAX: %d\n", data.SafeOutputs.CreateCodeScanningAlerts.Max))
 	}
 	// Pass the driver configuration, defaulting to frontmatter name
 	driverName := data.SafeOutputs.CreateCodeScanningAlerts.Driver
@@ -30,9 +30,9 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 			driverName = data.Name // fallback to H1 header name
 		}
 	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_SECURITY_REPORT_DRIVER: %s\n", driverName))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_SECURITY_REPORT_DRIVER: %s\n", driverName))
 	// Pass the workflow filename for rule ID prefix
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_FILENAME: %s\n", workflowFilename))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_FILENAME: %s\n", workflowFilename))
 
 	// Get token from config
 	var token string

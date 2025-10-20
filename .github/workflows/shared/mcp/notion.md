@@ -33,8 +33,8 @@ safe-outputs:
               const fs = require('fs');
               const notionToken = process.env.NOTION_API_TOKEN;
               const pageId = process.env.NOTION_PAGE_ID;
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true';
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === 'true';
+              const outputContent = process.env.GH_AW_AGENT_OUTPUT;
               
               if (!notionToken) {
                 core.setFailed('NOTION_API_TOKEN secret is not configured');
@@ -47,7 +47,7 @@ safe-outputs:
               
               // Read and parse agent output
               if (!outputContent) {
-                core.info('No GITHUB_AW_AGENT_OUTPUT environment variable found');
+                core.info('No GH_AW_AGENT_OUTPUT environment variable found');
                 return;
               }
               

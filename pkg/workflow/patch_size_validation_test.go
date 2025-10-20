@@ -33,7 +33,7 @@ safe-outputs:
 # Test Workflow
 
 This workflow tests default patch size configuration.`,
-			expectedEnvValue:     "GITHUB_AW_MAX_PATCH_SIZE: 1024",
+			expectedEnvValue:     "GH_AW_MAX_PATCH_SIZE: 1024",
 			shouldContainPushJob: true,
 			shouldContainPRJob:   true,
 		},
@@ -49,7 +49,7 @@ safe-outputs:
 # Test Workflow
 
 This workflow tests custom 512KB patch size configuration.`,
-			expectedEnvValue:     "GITHUB_AW_MAX_PATCH_SIZE: 512",
+			expectedEnvValue:     "GH_AW_MAX_PATCH_SIZE: 512",
 			shouldContainPushJob: true,
 			shouldContainPRJob:   true,
 		},
@@ -64,7 +64,7 @@ safe-outputs:
 # Test Workflow
 
 This workflow tests custom 2MB patch size configuration.`,
-			expectedEnvValue:     "GITHUB_AW_MAX_PATCH_SIZE: 2048",
+			expectedEnvValue:     "GH_AW_MAX_PATCH_SIZE: 2048",
 			shouldContainPushJob: false,
 			shouldContainPRJob:   true,
 		},
@@ -148,7 +148,7 @@ safe-outputs:
 # Test Workflow
 
 This workflow tests very small patch size configuration.`,
-			expectedEnvValue: "GITHUB_AW_MAX_PATCH_SIZE: 1",
+			expectedEnvValue: "GH_AW_MAX_PATCH_SIZE: 1",
 		},
 		{
 			name: "large valid patch size should work",
@@ -161,7 +161,7 @@ safe-outputs:
 # Test Workflow
 
 This workflow tests large valid patch size configuration.`,
-			expectedEnvValue: "GITHUB_AW_MAX_PATCH_SIZE: 10240",
+			expectedEnvValue: "GH_AW_MAX_PATCH_SIZE: 10240",
 		},
 	}
 

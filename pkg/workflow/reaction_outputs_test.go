@@ -91,7 +91,7 @@ This workflow should generate add_reaction job with comment outputs.
 	}
 }
 
-// TestReactionJobWorkflowName tests that the add_reaction job includes GITHUB_AW_WORKFLOW_NAME environment variable
+// TestReactionJobWorkflowName tests that the add_reaction job includes GH_AW_WORKFLOW_NAME environment variable
 func TestReactionJobWorkflowName(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "reaction-workflow-name-test")
@@ -115,7 +115,7 @@ permissions:
 
 # Test Workflow
 
-This workflow should generate add_reaction job with GITHUB_AW_WORKFLOW_NAME environment variable.
+This workflow should generate add_reaction job with GH_AW_WORKFLOW_NAME environment variable.
 `
 
 	testFile := filepath.Join(tmpDir, "test-reaction-workflow-name.md")
@@ -137,13 +137,13 @@ This workflow should generate add_reaction job with GITHUB_AW_WORKFLOW_NAME envi
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
 
-	// Check that GITHUB_AW_WORKFLOW_NAME is set
-	if !strings.Contains(yamlContent, "GITHUB_AW_WORKFLOW_NAME:") {
-		t.Error("Generated YAML should contain GITHUB_AW_WORKFLOW_NAME environment variable")
+	// Check that GH_AW_WORKFLOW_NAME is set
+	if !strings.Contains(yamlContent, "GH_AW_WORKFLOW_NAME:") {
+		t.Error("Generated YAML should contain GH_AW_WORKFLOW_NAME environment variable")
 	}
 
 	// Verify the workflow name is correctly set
-	if !strings.Contains(yamlContent, `GITHUB_AW_WORKFLOW_NAME: "Test Workflow Name"`) {
+	if !strings.Contains(yamlContent, `GH_AW_WORKFLOW_NAME: "Test Workflow Name"`) {
 		t.Error("Generated YAML should contain the correct workflow name value")
 	}
 
@@ -173,9 +173,9 @@ This workflow should generate add_reaction job with GITHUB_AW_WORKFLOW_NAME envi
 
 	activationJobSection := yamlContent[activationJobStart:nextJobStart]
 
-	// Verify GITHUB_AW_WORKFLOW_NAME is in the activation job section
-	if !strings.Contains(activationJobSection, "GITHUB_AW_WORKFLOW_NAME:") {
-		t.Errorf("GITHUB_AW_WORKFLOW_NAME should be in the activation job section\n%s", activationJobSection)
+	// Verify GH_AW_WORKFLOW_NAME is in the activation job section
+	if !strings.Contains(activationJobSection, "GH_AW_WORKFLOW_NAME:") {
+		t.Errorf("GH_AW_WORKFLOW_NAME should be in the activation job section\n%s", activationJobSection)
 	}
 
 	// Verify no separate add_reaction job exists

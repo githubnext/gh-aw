@@ -114,10 +114,10 @@ This workflow tests max-turns with timeout.`,
 					t.Errorf("Expected max_turns to be included in generated workflow. Expected: %s\nActual content:\n%s", tt.expectedMaxTurns, lockContentStr)
 				}
 
-				// Verify GITHUB_AW_MAX_TURNS environment variable is set
-				expectedEnvVar := "GITHUB_AW_MAX_TURNS: " + strings.TrimPrefix(tt.expectedMaxTurns, "--max-turns ")
+				// Verify GH_AW_MAX_TURNS environment variable is set
+				expectedEnvVar := "GH_AW_MAX_TURNS: " + strings.TrimPrefix(tt.expectedMaxTurns, "--max-turns ")
 				if !strings.Contains(lockContentStr, expectedEnvVar) {
-					t.Errorf("Expected GITHUB_AW_MAX_TURNS environment variable to be set. Expected: %s\nActual content:\n%s", expectedEnvVar, lockContentStr)
+					t.Errorf("Expected GH_AW_MAX_TURNS environment variable to be set. Expected: %s\nActual content:\n%s", expectedEnvVar, lockContentStr)
 				}
 
 				// Verify it's in the correct context (under the Claude CLI execution)
@@ -154,9 +154,9 @@ This workflow tests max-turns with timeout.`,
 					t.Error("Expected max_turns NOT to be included when not specified in frontmatter")
 				}
 
-				// Verify GITHUB_AW_MAX_TURNS is NOT included when not specified
-				if strings.Contains(lockContentStr, "GITHUB_AW_MAX_TURNS:") {
-					t.Error("Expected GITHUB_AW_MAX_TURNS NOT to be included when max-turns not specified in frontmatter")
+				// Verify GH_AW_MAX_TURNS is NOT included when not specified
+				if strings.Contains(lockContentStr, "GH_AW_MAX_TURNS:") {
+					t.Error("Expected GH_AW_MAX_TURNS NOT to be included when max-turns not specified in frontmatter")
 				}
 			}
 		})
@@ -290,10 +290,10 @@ This tests max-turns feature with custom engine.`
 
 	lockContentStr := string(lockContent)
 
-	// Verify GITHUB_AW_MAX_TURNS environment variable is set
-	expectedEnvVar := "GITHUB_AW_MAX_TURNS: \"5\""
+	// Verify GH_AW_MAX_TURNS environment variable is set
+	expectedEnvVar := "GH_AW_MAX_TURNS: \"5\""
 	if !strings.Contains(lockContentStr, expectedEnvVar) {
-		t.Errorf("Expected GITHUB_AW_MAX_TURNS environment variable to be set. Expected: %s\nActual content:\n%s", expectedEnvVar, lockContentStr)
+		t.Errorf("Expected GH_AW_MAX_TURNS environment variable to be set. Expected: %s\nActual content:\n%s", expectedEnvVar, lockContentStr)
 	}
 
 	// Verify MCP config is generated for custom engine

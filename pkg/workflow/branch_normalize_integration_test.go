@@ -41,7 +41,7 @@ func TestBranchNormalizationInlinedInMainJob(t *testing.T) {
 	stepsContent := strings.Join(job.Steps, "\n")
 
 	// Verify that the separate normalization step is NOT present
-	if strings.Contains(stepsContent, "Normalize GITHUB_AW_ASSETS_BRANCH") {
+	if strings.Contains(stepsContent, "Normalize GH_AW_ASSETS_BRANCH") {
 		t.Error("Expected separate normalization step to NOT be present (should be inlined)")
 	}
 }
@@ -78,7 +78,7 @@ func TestBranchNormalizationStepNotAddedWhenNoUploadAssets(t *testing.T) {
 	stepsContent := strings.Join(job.Steps, "\n")
 
 	// Verify that the normalization step is NOT present
-	if strings.Contains(stepsContent, "Normalize GITHUB_AW_ASSETS_BRANCH") {
+	if strings.Contains(stepsContent, "Normalize GH_AW_ASSETS_BRANCH") {
 		t.Error("Expected normalization step to NOT be present when upload-assets is not configured")
 	}
 }
@@ -119,7 +119,7 @@ func TestUploadAssetsJobHasInlinedNormalization(t *testing.T) {
 	stepsContent := strings.Join(job.Steps, "\n")
 
 	// Verify that the separate normalization step is NOT present (it's now inlined in the script)
-	if strings.Contains(stepsContent, "- name: Normalize GITHUB_AW_ASSETS_BRANCH") {
+	if strings.Contains(stepsContent, "- name: Normalize GH_AW_ASSETS_BRANCH") {
 		t.Error("Expected separate normalization step to NOT be present (should be inlined in upload_assets.cjs)")
 	}
 
