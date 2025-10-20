@@ -18,4 +18,4 @@ safe-outputs:
 
 # Generate a Poem
 
-Generate a poem of exactly 3 words.
+Generate a poem of exactly 3 words and create an agent task with it.

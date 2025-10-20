@@ -991,7 +991,7 @@ jobs:
           cat > $GITHUB_AW_PROMPT << 'EOF'
           # Generate a Poem
           
-          Generate a poem of exactly 3 words.
+          Generate a poem of exactly 3 words and create an agent task with it.
           
           EOF
       - name: Append XPIA security instructions to prompt
