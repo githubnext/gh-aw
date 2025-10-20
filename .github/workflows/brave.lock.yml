@@ -1017,7 +1017,7 @@ jobs:
         run: |
           set -e
           docker pull docker.io/mcp/brave-search
-          docker pull ghcr.io/github/github-mcp-server:v0.18.0
+          docker pull ghcr.io/github/github-mcp-server:v0.19.0
           docker pull ubuntu/squid:latest
       - name: Setup Proxy Configuration for MCP Network Restrictions
         run: |
@@ -1870,7 +1870,7 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN",
                   "-e",
                   "GITHUB_TOOLSETS=all",
-                  "ghcr.io/github/github-mcp-server:v0.18.0"
+                  "ghcr.io/github/github-mcp-server:v0.19.0"
                 ],
                 "tools": [
                   "download_workflow_run_artifact",
