@@ -278,13 +278,23 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 		yaml.WriteString("                \"type\": \"http\",\n")
 		yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp/\",\n")
 		yaml.WriteString("                \"headers\": {\n")
-		yaml.WriteString("                  \"Authorization\": \"Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}\"\n")
+
+		// Collect headers in a map
+		headers := make(map[string]string)
+		headers["Authorization"] = "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"
 
 		// Add X-MCP-Readonly header if read-only mode is enabled
 		if readOnly {
-			yaml.WriteString(",\n")
-			yaml.WriteString("                  \"X-MCP-Readonly\": \"true\"\n")
+			headers["X-MCP-Readonly"] = "true"
 		}
+
+		// Add X-MCP-Toolsets header if toolsets are configured
+		if toolsets != "" {
+			headers["X-MCP-Toolsets"] = toolsets
+		}
+
+		// Write headers using helper
+		writeHeadersToYAML(yaml, headers, "                  ")
 
 		yaml.WriteString("                },\n")
 

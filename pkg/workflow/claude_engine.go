@@ -682,15 +682,23 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 
 		// Use effective token with precedence: custom > top-level > default
 		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
-		yaml.WriteString(fmt.Sprintf("                  \"Authorization\": \"Bearer %s\"", effectiveToken))
+
+		// Collect headers in a map
+		headers := make(map[string]string)
+		headers["Authorization"] = fmt.Sprintf("Bearer %s", effectiveToken)
 
 		// Add X-MCP-Readonly header if read-only mode is enabled
 		if readOnly {
-			yaml.WriteString(",\n")
-			yaml.WriteString("                  \"X-MCP-Readonly\": \"true\"\n")
-		} else {
-			yaml.WriteString("\n")
+			headers["X-MCP-Readonly"] = "true"
 		}
+
+		// Add X-MCP-Toolsets header if toolsets are configured
+		if toolsets != "" {
+			headers["X-MCP-Toolsets"] = toolsets
+		}
+
+		// Write headers using helper
+		writeHeadersToYAML(yaml, headers, "                  ")
 
 		yaml.WriteString("                }\n")
 	} else {
