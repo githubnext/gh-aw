@@ -633,7 +633,13 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 							args = append(args, "--allow-tool", "github")
 						}
 					}
+				} else {
+					// No allowed field specified - allow entire GitHub MCP server
+					args = append(args, "--allow-tool", "github")
 				}
+			} else {
+				// GitHub tool exists but is not a map (e.g., github: null) - allow entire server
+				args = append(args, "--allow-tool", "github")
 			}
 			continue
 		}
