@@ -783,6 +783,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 //   - []WorkflowRun: filtered workflow runs (agentic workflows only when workflowName is empty)
 //   - int: total count of runs fetched from GitHub API before filtering
 //   - error: any error that occurred
+//
 // The totalFetched count is critical for pagination - it indicates whether more data is available
 // from GitHub, whereas the filtered runs count may be much smaller after filtering for agentic workflows.
 func listWorkflowRunsWithPagination(workflowName string, count int, startDate, endDate, beforeDate, branch string, beforeRunID, afterRunID int64, verbose bool) ([]WorkflowRun, int, error) {
