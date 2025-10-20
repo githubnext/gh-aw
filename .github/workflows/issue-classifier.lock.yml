@@ -1164,6 +1164,18 @@ jobs:
                 },
               },
               {
+                name: "create_agent_task",
+                description: "Create a new GitHub Copilot agent task",
+                inputSchema: {
+                  type: "object",
+                  required: ["body"],
+                  properties: {
+                    body: { type: "string", description: "Task description/instructions for the agent" },
+                  },
+                  additionalProperties: false,
+                },
+              },
+              {
                 name: "create_discussion",
                 description: "Create a new GitHub discussion",
                 inputSchema: {
