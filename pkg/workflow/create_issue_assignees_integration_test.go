@@ -193,7 +193,7 @@ This workflow should compile successfully without assignees configuration.
 	}
 }
 
-// TestCreateIssueWorkflowWithCopilotAssignee tests that "copilot" is mapped to "copilot-swe-agent"
+// TestCreateIssueWorkflowWithCopilotAssignee tests that "copilot" is mapped to "@copilot"
 func TestCreateIssueWorkflowWithCopilotAssignee(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "copilot-assignee-test")
@@ -245,13 +245,13 @@ Create an issue and assign to copilot.
 		t.Error("Expected assignee step name to show 'copilot'")
 	}
 
-	// Verify that actual assignee is "copilot-swe-agent"
-	if !strings.Contains(compiledStr, `ASSIGNEE: "copilot-swe-agent"`) {
-		t.Error("Expected ASSIGNEE to be mapped to 'copilot-swe-agent'")
+	// Verify that actual assignee is "@copilot" (gh CLI special value)
+	if !strings.Contains(compiledStr, `ASSIGNEE: "@copilot"`) {
+		t.Error("Expected ASSIGNEE to be mapped to '@copilot'")
 	}
 
-	// Verify that "copilot" is NOT used as the actual assignee value
-	if strings.Contains(compiledStr, `ASSIGNEE: "copilot"`) {
+	// Verify that "copilot" without @ is NOT used as the actual assignee value
+	if strings.Contains(compiledStr, `ASSIGNEE: "copilot"`) && !strings.Contains(compiledStr, `ASSIGNEE: "@copilot"`) {
 		t.Error("Did not expect 'copilot' to be used directly as assignee value")
 	}
 }

@@ -221,7 +221,7 @@ func TestCreateIssueJobWithCopilotAssignee(t *testing.T) {
 	// Create a compiler instance
 	c := NewCompiler(false, "", "test")
 
-	// Test with "copilot" as assignee (should be mapped to "copilot-swe-agent")
+	// Test with "copilot" as assignee (should be mapped to "@copilot")
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
@@ -244,14 +244,14 @@ func TestCreateIssueJobWithCopilotAssignee(t *testing.T) {
 		t.Error("Expected assignee step name to show 'copilot'")
 	}
 
-	// Check that the actual assignee is "copilot-swe-agent"
-	if !strings.Contains(stepsContent, `ASSIGNEE: "copilot-swe-agent"`) {
-		t.Error("Expected ASSIGNEE environment variable to be set to 'copilot-swe-agent'")
+	// Check that the actual assignee is "@copilot" (gh CLI special value)
+	if !strings.Contains(stepsContent, `ASSIGNEE: "@copilot"`) {
+		t.Error("Expected ASSIGNEE environment variable to be set to '@copilot'")
 	}
 
-	// Verify that the original "copilot" is NOT used as assignee
-	if strings.Contains(stepsContent, `ASSIGNEE: "copilot"`) && !strings.Contains(stepsContent, `ASSIGNEE: "copilot-swe-agent"`) {
-		t.Error("Expected 'copilot' to be mapped to 'copilot-swe-agent', not used directly")
+	// Verify that the original "copilot" without @ is NOT used as assignee
+	if strings.Contains(stepsContent, `ASSIGNEE: "copilot"`) && !strings.Contains(stepsContent, `ASSIGNEE: "@copilot"`) {
+		t.Error("Expected 'copilot' to be mapped to '@copilot', not used directly")
 	}
 }
 

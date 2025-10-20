@@ -67,17 +67,22 @@ Create a pull request with reviewers.
 		t.Error("Expected reviewer step for copilot in compiled workflow")
 	}
 
-	// Verify copilot mapping
-	if !strings.Contains(compiledContent, `REVIEWER: "copilot-swe-agent"`) {
-		t.Error("Expected copilot to be mapped to copilot-swe-agent")
+	// Verify copilot uses GitHub API with copilot-pull-request-reviewer[bot]
+	if !strings.Contains(compiledContent, "copilot-pull-request-reviewer[bot]") {
+		t.Error("Expected copilot to use copilot-pull-request-reviewer[bot] via GitHub API")
 	}
 
-	// Verify gh pr edit command
+	// Verify gh api command for copilot
+	if !strings.Contains(compiledContent, "gh api --method POST") {
+		t.Error("Expected GitHub API call for copilot reviewer")
+	}
+
+	// Verify gh pr edit command is used for regular users
 	if !strings.Contains(compiledContent, "gh pr edit") {
-		t.Error("Expected gh pr edit command in compiled workflow")
+		t.Error("Expected gh pr edit command for regular user reviewers")
 	}
 	if !strings.Contains(compiledContent, "--add-reviewer") {
-		t.Error("Expected --add-reviewer flag in gh pr edit command")
+		t.Error("Expected --add-reviewer flag in gh pr edit command for regular users")
 	}
 
 	// Verify checkout step

@@ -108,20 +108,27 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		effectiveToken := getEffectiveGitHubToken(data.SafeOutputs.CreatePullRequests.GitHubToken, getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken))
 
 		for i, reviewer := range data.SafeOutputs.CreatePullRequests.Reviewers {
-			// Special handling: "copilot" is the username for "copilot-swe-agent"
-			actualReviewer := reviewer
+			// Special handling: "copilot" uses the GitHub API with "copilot-pull-request-reviewer[bot]"
+			// because gh pr edit --add-reviewer does not support @copilot
 			if reviewer == "copilot" {
-				actualReviewer = "copilot-swe-agent"
+				steps = append(steps, fmt.Sprintf("      - name: Add %s as reviewer\n", reviewer))
+				steps = append(steps, "        if: steps.create_pull_request.outputs.pull_request_number != ''\n")
+				steps = append(steps, "        env:\n")
+				steps = append(steps, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
+				steps = append(steps, "          PR_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}\n")
+				steps = append(steps, "        run: |\n")
+				steps = append(steps, "          gh api --method POST /repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers \\\n")
+				steps = append(steps, "            -f 'reviewers[]=copilot-pull-request-reviewer[bot]'\n")
+			} else {
+				steps = append(steps, fmt.Sprintf("      - name: Add %s as reviewer\n", reviewer))
+				steps = append(steps, "        if: steps.create_pull_request.outputs.pull_request_url != ''\n")
+				steps = append(steps, "        env:\n")
+				steps = append(steps, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
+				steps = append(steps, fmt.Sprintf("          REVIEWER: %q\n", reviewer))
+				steps = append(steps, "          PR_URL: ${{ steps.create_pull_request.outputs.pull_request_url }}\n")
+				steps = append(steps, "        run: |\n")
+				steps = append(steps, "          gh pr edit \"$PR_URL\" --add-reviewer \"$REVIEWER\"\n")
 			}
-
-			steps = append(steps, fmt.Sprintf("      - name: Add %s as reviewer\n", reviewer))
-			steps = append(steps, "        if: steps.create_pull_request.outputs.pull_request_url != ''\n")
-			steps = append(steps, "        env:\n")
-			steps = append(steps, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
-			steps = append(steps, fmt.Sprintf("          REVIEWER: %q\n", actualReviewer))
-			steps = append(steps, "          PR_URL: ${{ steps.create_pull_request.outputs.pull_request_url }}\n")
-			steps = append(steps, "        run: |\n")
-			steps = append(steps, "          gh pr edit \"$PR_URL\" --add-reviewer \"$REVIEWER\"\n")
 
 			// Add a comment after each reviewer step except the last
 			if i < len(data.SafeOutputs.CreatePullRequests.Reviewers)-1 {
