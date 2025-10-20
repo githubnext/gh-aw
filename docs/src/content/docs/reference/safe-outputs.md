@@ -110,6 +110,51 @@ safe-outputs:
 
 The agentic part of your workflow should describe the comment(s) it wants posted.
 
+### Automatic Cross-Referencing Between Safe Outputs
+
+When `add-comment` is used together with `create-issue`, `create-discussion`, or `create-pull-request` in the same workflow, the comment automatically includes a "Related Items" section with links to the created items.
+
+**How It Works:**
+
+1. The `add_comment` job automatically depends on other safe output jobs when they exist
+2. Output URLs from created items are passed as environment variables to the comment job
+3. A "Related Items" section is appended to the comment with markdown links
+
+**Example Configuration:**
+```yaml
+safe-outputs:
+  create-issue:
+  create-discussion:
+  create-pull-request:
+  add-comment:
+```
+
+**Generated Comment Format:**
+When all three safe outputs are used together, the comment will automatically include:
+
+```markdown
+[Your comment content]
+
+## Related Items
+
+- Issue: [#123](https://github.com/owner/repo/issues/123)
+- Discussion: [#456](https://github.com/owner/repo/discussions/456)
+- Pull Request: [#789](https://github.com/owner/repo/pull/789)
+```
+
+**Available Environment Variables:**
+
+The following environment variables are automatically available in the `add_comment` job when corresponding safe outputs are configured:
+
+- `GITHUB_AW_CREATED_ISSUE_URL` - URL of the created issue
+- `GITHUB_AW_CREATED_ISSUE_NUMBER` - Number of the created issue
+- `GITHUB_AW_CREATED_DISCUSSION_URL` - URL of the created discussion
+- `GITHUB_AW_CREATED_DISCUSSION_NUMBER` - Number of the created discussion
+- `GITHUB_AW_CREATED_PULL_REQUEST_URL` - URL of the created pull request
+- `GITHUB_AW_CREATED_PULL_REQUEST_NUMBER` - Number of the created pull request
+
+This feature enables workflows to create comprehensive tracking where comments automatically reference related issues, discussions, and pull requests created by the same workflow run.
+
 **Example natural language to generate the output:**
 
 ```aw wrap
