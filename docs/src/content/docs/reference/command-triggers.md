@@ -46,7 +46,7 @@ on:
     events: [issues, issue_comment]  # Only in issue bodies and issue comments
 ```
 
-**Supported events:** `issues` (issue bodies), `issue_comment` (issue comments only), `pull_request_comment` (PR comments only), `pull_request` (PR bodies), `pull_request_review_comment` (PR review comments), or `*` (all comment events, default).
+**Supported events:** `issues` (issue bodies), `issue_comment` (issue comments only), `pull_request_comment` (PR comments only), `pull_request` (PR bodies), `pull_request_review_comment` (PR review comments), `discussion` (discussion bodies), `discussion_comment` (discussion comments), or `*` (all comment events, default).
 
 ### Example command workflow
 
