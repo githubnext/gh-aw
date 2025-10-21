@@ -1883,10 +1883,12 @@ jobs:
           
           ### 3. Find Documentation Files
           
-          Scan the `docs/` directory for markdown files:
+          Scan the `docs/` directory for markdown files, excluding code-generated files:
           ```bash
-          find docs -name '*.md' -type f
+          find docs -name '*.md' -type f ! -name 'frontmatter-full.md'
           ```
+          
+          **IMPORTANT**: Exclude `frontmatter-full.md` as it is automatically generated from the JSON schema by `scripts/generate-schema-docs.js` and should not be manually edited.
           
           Focus on files that were recently modified or are in the `docs/src/content/docs/samples/` directory.
           
@@ -1904,12 +1906,16 @@ jobs:
           
           **IMPORTANT**: Work on only **ONE file at a time** to keep changes small and reviewable.
           
+          **NEVER select these code-generated files**:
+          - `docs/src/content/docs/reference/frontmatter-full.md` - Auto-generated from JSON schema
+          
           Choose the file most in need of improvement based on:
           - Recent modification date
           - File size (larger files may have more bloat)
           - Number of bullet points or repetitive patterns
           - **Files NOT in the cleaned-files.txt cache** (avoid duplicating recent work)
           - **Files NOT currently in open PRs** (avoid conflicts)
+          - **Files NOT in the exclusion list above** (avoid editing generated files)
           
           ### 5. Analyze the File
           
