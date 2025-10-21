@@ -2,6 +2,58 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.23.0 - 2025-10-21
+
+### Features
+
+#### Fix add_comment to auto-detect discussion context and use GraphQL API
+
+**Breaking Change**: Removed the `discussion: true` configuration option. The add_comment safe-output now automatically detects discussion contexts from event types (`discussion` or `discussion_comment`) and uses the appropriate API without requiring explicit configuration.
+
+
+### Bug Fixes
+
+#### Add agent column to logs output and update table header style
+
+#### Add --add-dir /tmp/gh-aw/agent/ to copilot engine default arguments
+
+#### Add environment variables for comment referencing created items
+
+#### Add continuation field to logs JSON output when timeout is reached
+
+#### Add create-agent-task safe output for GitHub Copilot agent tasks
+
+#### Add run summary caching to logs command for faster reprocessing
+
+#### Add X-MCP-Toolsets header support for remote GitHub MCP configuration
+
+#### Add --parse option to audit command
+
+#### Add success handling to update_reaction job
+
+#### Add command position validation for command triggers to prevent accidental execution
+
+#### Fix copilot assignment for issue assignees and PR reviewers
+
+#### Fix Copilot log parser: accumulate token usage and improve JSON block detection
+
+#### Fix reaction condition to include discussion and discussion_comment events
+
+#### Fixed logs command not returning the requested number of workflow runs when no workflow name is specified
+
+#### Fix logs command parameter naming confusion in pagination function
+
+#### Add automatic file writing for large MCP tool outputs exceeding 16,000 tokens with compact schema descriptions
+
+#### Add progress indicator to workflow runs fetching spinner
+
+#### Reduce error patterns from 68 to 25 (63% reduction)
+
+#### Refactor: Eliminate duplicate safe output env logic in workflow helpers
+
+#### Update GitHub MCP Server to v0.19.0 and add "default" toolset support
+
+
 ## v0.22.10 - 2025-10-19
 
 ### Bug Fixes
