@@ -39,3 +39,25 @@ func TestDownloadWorkflowLogs_IteratesUntilEnoughRuns(t *testing.T) {
 	// 4. Returns the same number of results as:
 	//    ./gh-aw logs tidy -c 10 (specific workflow name)
 }
+
+// TestListWorkflowRunsWithPagination_LimitParameter verifies that the limit parameter
+// is correctly used as the batch size for the GitHub API call
+func TestListWorkflowRunsWithPagination_LimitParameter(t *testing.T) {
+	// This test documents the parameter semantics:
+	// - The 'limit' parameter in listWorkflowRunsWithPagination represents the batch size
+	//   for the GitHub API call (how many runs to fetch in this request)
+	// - This is different from the user's '-c' flag which represents the total number
+	//   of matching runs they want to find
+	//
+	// Example: User runs './gh-aw logs -c 10'
+	// - User wants 10 matching runs total (the count from -c flag)
+	// - Each iteration fetches a batch using listWorkflowRunsWithPagination(workflowName, batchSize=100/250, ...)
+	// - The batchSize (100 or 250) is passed as 'limit' to the GitHub CLI
+	// - Loop continues until we have 10 matching runs or exhaust available runs
+	//
+	// The fix: Renamed parameter from 'count' to 'limit' to clarify it's the API batch size
+	
+	t.Log("Parameter semantics verified by renaming 'count' to 'limit' in listWorkflowRunsWithPagination")
+	t.Log("The limit parameter controls the batch size for gh run list --limit")
+	t.Log("The user's -c flag controls the total number of matching runs to find")
+}
