@@ -3,6 +3,10 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/credsweeper.md
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -169,45 +173,26 @@ jobs:
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'EOF'
-          # Test GitHub MCP Tools
           
-          Test each GitHub MCP tool with sensible arguments to verify they are configured properly.
           
-          **Goal**: Invoke each tool from the GitHub MCP server with reasonable arguments. Some tools may fail due to missing data or invalid arguments, but they should at least be callable. Fail if there are permission issues indicating the tools aren't properly configured.
+          # Generate 3 Emoji Poem
           
-          ## Instructions
+          Generate a creative 3-line poem using only emojis. Each line should tell part of a story or convey an emotion.
           
-          **Discover and test all available GitHub MCP tools:**
+          **Requirements:**
+          - Exactly 3 lines
+          - Only emojis (no text or words)
+          - Each line should have 3-5 emojis
+          - The poem should have a coherent theme or tell a simple story
           
-          1. First, explore and identify all tools available from the GitHub MCP server
-          2. For each discovered tool, invoke it with sensible arguments based on the repository context (${{ github.repository }})
-          3. Use appropriate parameters for each tool (e.g., repository name, issue numbers, PR numbers, etc.)
+          **Examples of good emoji poems:**
+          ```
+          🌅 ☕ 😊
+          🚶‍♂️ 🌳 🦋
+          🌙 ✨ 😴
+          ```
           
-          Example tools you should discover and test may include (but are not limited to):
-          - Context tools: `get_me`, etc.
-          - Repository tools: `get_file_contents`, `list_branches`, `list_commits`, `search_repositories`, etc.
-          - Issues tools: `list_issues`, `search_issues`, `get_issue`, etc.
-          - Pull Request tools: `list_pull_requests`, `get_pull_request`, `search_pull_requests`, etc.
-          - Actions tools: `list_workflows`, `list_workflow_runs`, etc.
-          - Release tools: `list_releases`, etc.
-          - And any other tools you discover from the GitHub MCP server
-          
-          ## Expected Behavior
-          
-          - Each tool should be invoked successfully, even if it returns empty results or errors due to data not existing
-          - If a tool cannot be called due to **permission issues** (e.g., "tool not allowed", "permission denied", "unauthorized"), the task should **FAIL** 
-          - If a tool fails due to invalid arguments or missing data (e.g., "resource not found", "invalid parameters"), that's acceptable - continue to the next tool
-          - Log the results of each tool invocation (success or failure reason)
-          
-          ## Summary
-          
-          After testing all tools, provide a summary:
-          - Total tools tested: [count]
-          - Successfully invoked: [count]
-          - Failed due to missing data/invalid args: [count]  
-          - Failed due to permission issues: [count] - **FAIL if > 0**
-          
-          If any permission issues were encountered, clearly state which tools had permission problems and fail the workflow.
+          After creating your poem, explain briefly what story or theme it represents.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1644,6 +1629,20 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
+      - id: install-credsweeper
+        name: Install CredSweeper
+        run: |
+          pip install credsweeper
+          credsweeper --version
+      - id: run-credsweeper
+        name: Run CredSweeper
+        run: "# Create output directory\nmkdir -p /tmp/gh-aw/credsweeper\n\n# Run CredSweeper on /tmp/gh-aw/ directory\necho \"🔍 Scanning /tmp/gh-aw/ for credentials...\"\npython -m credsweeper --path /tmp/gh-aw/ --save-json /tmp/gh-aw/credsweeper/output.json || true\n\n# Display results if file exists\nif [ -f /tmp/gh-aw/credsweeper/output.json ]; then\n  echo \"📄 CredSweeper scan complete. Results saved to /tmp/gh-aw/credsweeper/output.json\"\n  \n  # Show summary\n  CREDENTIAL_COUNT=$(jq 'length' /tmp/gh-aw/credsweeper/output.json 2>/dev/null || echo \"0\")\n  echo \"Found $CREDENTIAL_COUNT potential credential(s)\"\n  \n  if [ \"$CREDENTIAL_COUNT\" != \"0\" ]; then\n    echo \"⚠️  WARNING: Credentials detected in temporary files!\"\n    echo \"These will be masked in the next step to prevent exposure.\"\n  fi\nelse\n  echo \"✅ No credentials detected\"\n  echo \"[]\" > /tmp/gh-aw/credsweeper/output.json\nfi\n"
+      - if: always()
+        name: Mask CredSweeper Findings
+        uses: actions/github-script@v8
+        with:
+          script: "const fs = require('fs');\nconst path = require('path');\n\n/**\n * Process CredSweeper output and mask all detected credentials\n */\nasync function maskCredentials() {\n  const outputPath = '/tmp/gh-aw/credsweeper/output.json';\n  \n  // Check if output file exists\n  if (!fs.existsSync(outputPath)) {\n    core.info('No CredSweeper output file found, skipping masking');\n    return;\n  }\n  \n  // Read and parse CredSweeper output\n  let credentials;\n  try {\n    const content = fs.readFileSync(outputPath, 'utf8');\n    credentials = JSON.parse(content);\n  } catch (error) {\n    core.warning(`Failed to parse CredSweeper output: ${error instanceof Error ? error.message : String(error)}`);\n    return;\n  }\n  \n  if (!Array.isArray(credentials) || credentials.length === 0) {\n    core.info('✅ No credentials detected by CredSweeper');\n    return;\n  }\n  \n  core.info(`🔒 Processing ${credentials.length} potential credential(s) for masking`);\n  \n  let maskedCount = 0;\n  \n  // Process each credential finding\n  for (const credential of credentials) {\n    // Skip if no line_data_list\n    if (!credential.line_data_list || !Array.isArray(credential.line_data_list)) {\n      continue;\n    }\n    \n    // Process each line data entry\n    for (const lineData of credential.line_data_list) {\n      // Get the credential value\n      const value = lineData.value;\n      \n      // Skip empty or very short values (likely false positives)\n      if (!value || value.length < 8) {\n        continue;\n      }\n      \n      // Mask the credential using GitHub Actions secret masking\n      core.setSecret(value);\n      maskedCount++;\n      \n      // Log details (the value itself will be masked in logs)\n      const rule = credential.rule || 'Unknown';\n      const filePath = lineData.path || 'Unknown';\n      const lineNum = lineData.line_num || 'N/A';\n      \n      core.warning(\n        `Masked credential: ${rule} in ${filePath}:${lineNum} ` +\n        `(confidence: ${credential.confidence || 'N/A'}, severity: ${credential.severity || 'N/A'})`\n      );\n    }\n  }\n  \n  if (maskedCount > 0) {\n    core.warning(`⚠️  Masked ${maskedCount} credential value(s) to prevent exposure in logs`);\n    core.summary.addHeading('CredSweeper Security Scan', 2);\n    core.summary.addRaw(`⚠️  Detected and masked ${maskedCount} potential credential(s)\\n\\n`);\n    core.summary.addRaw('These credentials have been automatically masked using GitHub Actions secret masking to prevent exposure in workflow logs and artifacts.\\n\\n');\n    core.summary.addRaw(`Total findings: ${credentials.length}\\n`);\n    await core.summary.write();\n  } else {\n    core.info('✅ No credentials required masking');\n  }\n}\n\nawait maskCredentials();"
+
 
   pre_activation:
     runs-on: ubuntu-latest

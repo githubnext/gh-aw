@@ -19,7 +19,6 @@ post-steps:
   - name: Install CredSweeper
     id: install-credsweeper
     run: |
-      python -m pip install --upgrade pip
       pip install credsweeper
       credsweeper --version
   
@@ -137,6 +136,7 @@ post-steps:
         await maskCredentials();
 ---
 
+<!--
 # CredSweeper Security Scanner
 
 CredSweeper is installed and will automatically scan the `/tmp/gh-aw/` directory after your workflow completes.
@@ -197,3 +197,4 @@ imports:
 ```
 
 The post-steps will automatically run after your AI agent completes, regardless of whether the agent succeeds or fails.
+-->

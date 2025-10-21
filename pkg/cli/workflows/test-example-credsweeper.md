@@ -13,7 +13,7 @@ engine: copilot
 
 # Simply import the shared CredSweeper configuration to enable automatic credential scanning
 imports:
-  - shared/credsweeper.md
+  - ../../../.github/workflows/shared/credsweeper.md
 
 tools:
   bash:
