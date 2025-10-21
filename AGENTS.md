@@ -192,3 +192,4 @@ make minor-release  # Automated via GitHub Actions
 - Repository: `githubnext/gh-aw`
 - Include issue numbers in PR titles when fixing issues
 - Read issue comments for context before making changes
+- do NOT commit explanation markdown files about the fixes
