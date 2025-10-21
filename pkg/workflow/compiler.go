@@ -155,6 +155,7 @@ type WorkflowData struct {
 	TimeoutMinutes      string
 	CustomSteps         string
 	PostSteps           string // steps to run after AI execution
+	SecretMaskingSteps  string // steps to run after secret redaction before artifacts
 	RunsOn              string
 	Environment         string // environment setting for the main job
 	Container           string // container setting for the main job
@@ -916,6 +917,42 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 				postStepsYAML, err := yaml.Marshal(postStepsWrapper)
 				if err == nil {
 					workflowData.PostSteps = string(postStepsYAML)
+				}
+			}
+		}
+	}
+
+	workflowData.SecretMaskingSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "secret-masking-steps")
+
+	// Merge imported secret-masking-steps if any
+	if importsResult.MergedSecretMaskingSteps != "" {
+		// Parse imported secret-masking-steps from YAML array
+		var importedSecretMaskingSteps []any
+		if err := yaml.Unmarshal([]byte(importsResult.MergedSecretMaskingSteps), &importedSecretMaskingSteps); err == nil {
+			// If there are main workflow secret-masking-steps, parse and merge them
+			if workflowData.SecretMaskingSteps != "" {
+				// Parse main workflow secret-masking-steps (format: "secret-masking-steps:\n  - ...")
+				var mainSecretMaskingStepsWrapper map[string]any
+				if err := yaml.Unmarshal([]byte(workflowData.SecretMaskingSteps), &mainSecretMaskingStepsWrapper); err == nil {
+					if mainSecretMaskingStepsVal, hasSecretMaskingSteps := mainSecretMaskingStepsWrapper["secret-masking-steps"]; hasSecretMaskingSteps {
+						if mainSecretMaskingSteps, ok := mainSecretMaskingStepsVal.([]any); ok {
+							// Append main secret-masking-steps to imported secret-masking-steps (imported run first)
+							allSecretMaskingSteps := append(importedSecretMaskingSteps, mainSecretMaskingSteps...)
+							// Convert back to YAML with "secret-masking-steps:" wrapper
+							secretMaskingStepsWrapper := map[string]any{"secret-masking-steps": allSecretMaskingSteps}
+							secretMaskingStepsYAML, err := yaml.Marshal(secretMaskingStepsWrapper)
+							if err == nil {
+								workflowData.SecretMaskingSteps = string(secretMaskingStepsYAML)
+							}
+						}
+					}
+				}
+			} else {
+				// Only imported secret-masking-steps exist, wrap in "secret-masking-steps:" format
+				secretMaskingStepsWrapper := map[string]any{"secret-masking-steps": importedSecretMaskingSteps}
+				secretMaskingStepsYAML, err := yaml.Marshal(secretMaskingStepsWrapper)
+				if err == nil {
+					workflowData.SecretMaskingSteps = string(secretMaskingStepsYAML)
 				}
 			}
 		}
@@ -2659,7 +2696,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add engine-declared output files collection (if any)
 	if len(engine.GetDeclaredOutputFiles()) > 0 {
-		c.generateEngineOutputCollection(yaml, engine)
+		c.generateEngineOutputCollection(yaml, engine, data)
 	}
 
 	// Extract and upload squid access logs (if any proxy tools were used)
@@ -3067,6 +3104,32 @@ func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutp
 		func(y *strings.Builder) {
 			generateSafeOutputsPromptSection(y, safeOutputs)
 		})
+}
+
+// generateSecretMaskingSteps generates the secret-masking-steps section that runs after secret redaction before artifacts
+func (c *Compiler) generateSecretMaskingSteps(yaml *strings.Builder, data *WorkflowData) {
+	if data.SecretMaskingSteps != "" {
+		// Remove "secret-masking-steps:" line and adjust indentation, similar to PostSteps processing
+		lines := strings.Split(data.SecretMaskingSteps, "\n")
+		if len(lines) > 1 {
+			for _, line := range lines[1:] {
+				// Trim trailing whitespace
+				trimmed := strings.TrimRight(line, " ")
+				// Skip empty lines
+				if strings.TrimSpace(trimmed) == "" {
+					yaml.WriteString("\n")
+					continue
+				}
+				// Steps need 6-space indentation (      - name:)
+				// Nested properties need 8-space indentation (        run:)
+				if strings.HasPrefix(line, "  ") {
+					yaml.WriteString("        " + line[2:] + "\n")
+				} else {
+					yaml.WriteString("      " + line + "\n")
+				}
+			}
+		}
+	}
 }
 
 // generatePostSteps generates the post-steps section that runs after AI execution

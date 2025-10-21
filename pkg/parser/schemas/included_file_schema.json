@@ -70,6 +70,29 @@
         }
       ]
     },
+    "secret-masking-steps": {
+      "description": "Custom workflow steps to run after secret redaction before artifact uploads, to be merged with main workflow",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
+          }
+        }
+      ]
+    },
     "tools": {
       "type": "object",
       "description": "Tools configuration for the included file",

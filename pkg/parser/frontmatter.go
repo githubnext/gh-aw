@@ -87,16 +87,17 @@ type FrontmatterResult struct {
 
 // ImportsResult holds the result of processing imports from frontmatter
 type ImportsResult struct {
-	MergedTools       string   // Merged tools configuration from all imports
-	MergedMCPServers  string   // Merged mcp-servers configuration from all imports
-	MergedEngines     []string // Merged engine configurations from all imports
-	MergedSafeOutputs []string // Merged safe-outputs configurations from all imports
-	MergedMarkdown    string   // Merged markdown content from all imports
-	MergedSteps       string   // Merged steps configuration from all imports
-	MergedPostSteps   string   // Merged post-steps configuration from all imports
-	MergedRuntimes    string   // Merged runtimes configuration from all imports
-	MergedServices    string   // Merged services configuration from all imports
-	ImportedFiles     []string // List of imported file paths (for manifest)
+	MergedTools              string   // Merged tools configuration from all imports
+	MergedMCPServers         string   // Merged mcp-servers configuration from all imports
+	MergedEngines            []string // Merged engine configurations from all imports
+	MergedSafeOutputs        []string // Merged safe-outputs configurations from all imports
+	MergedMarkdown           string   // Merged markdown content from all imports
+	MergedSteps              string   // Merged steps configuration from all imports
+	MergedPostSteps          string   // Merged post-steps configuration from all imports
+	MergedSecretMaskingSteps string   // Merged secret-masking-steps configuration from all imports
+	MergedRuntimes           string   // Merged runtimes configuration from all imports
+	MergedServices           string   // Merged services configuration from all imports
+	ImportedFiles            []string // List of imported file paths (for manifest)
 }
 
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
@@ -397,6 +398,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var markdownBuilder strings.Builder
 	var stepsBuilder strings.Builder
 	var postStepsBuilder strings.Builder
+	var secretMaskingStepsBuilder strings.Builder
 	var runtimesBuilder strings.Builder
 	var servicesBuilder strings.Builder
 	var engines []string
@@ -488,6 +490,12 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 			postStepsBuilder.WriteString(postStepsContent + "\n")
 		}
 
+		// Extract secret-masking-steps from imported file
+		secretMaskingStepsContent, err := extractSecretMaskingStepsFromContent(string(content))
+		if err == nil && secretMaskingStepsContent != "" {
+			secretMaskingStepsBuilder.WriteString(secretMaskingStepsContent + "\n")
+		}
+
 		// Extract runtimes from imported file
 		runtimesContent, err := extractRuntimesFromContent(string(content))
 		if err == nil && runtimesContent != "" && runtimesContent != "{}" {
@@ -502,16 +510,17 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	}
 
 	return &ImportsResult{
-		MergedTools:       toolsBuilder.String(),
-		MergedMCPServers:  mcpServersBuilder.String(),
-		MergedEngines:     engines,
-		MergedSafeOutputs: safeOutputs,
-		MergedMarkdown:    markdownBuilder.String(),
-		MergedSteps:       stepsBuilder.String(),
-		MergedPostSteps:   postStepsBuilder.String(),
-		MergedRuntimes:    runtimesBuilder.String(),
-		MergedServices:    servicesBuilder.String(),
-		ImportedFiles:     processedFiles,
+		MergedTools:              toolsBuilder.String(),
+		MergedMCPServers:         mcpServersBuilder.String(),
+		MergedEngines:            engines,
+		MergedSafeOutputs:        safeOutputs,
+		MergedMarkdown:           markdownBuilder.String(),
+		MergedSteps:              stepsBuilder.String(),
+		MergedPostSteps:          postStepsBuilder.String(),
+		MergedSecretMaskingSteps: secretMaskingStepsBuilder.String(),
+		MergedRuntimes:           runtimesBuilder.String(),
+		MergedServices:           servicesBuilder.String(),
+		ImportedFiles:            processedFiles,
 	}, nil
 }
 
@@ -946,6 +955,28 @@ func extractPostStepsFromContent(content string) (string, error) {
 	}
 
 	return strings.TrimSpace(string(postStepsYAML)), nil
+}
+
+// extractSecretMaskingStepsFromContent extracts secret-masking-steps section from frontmatter as YAML string
+func extractSecretMaskingStepsFromContent(content string) (string, error) {
+	result, err := ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return "", nil // Return empty string on error
+	}
+
+	// Extract secret-masking-steps section
+	secretMaskingSteps, exists := result.Frontmatter["secret-masking-steps"]
+	if !exists {
+		return "", nil
+	}
+
+	// Convert to YAML string (similar to how steps are handled in compiler)
+	secretMaskingStepsYAML, err := yaml.Marshal(secretMaskingSteps)
+	if err != nil {
+		return "", nil
+	}
+
+	return strings.TrimSpace(string(secretMaskingStepsYAML)), nil
 }
 
 // extractEngineFromContent extracts engine section from frontmatter as JSON string

@@ -153,6 +153,11 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		detectFromCustomSteps(workflowData.PostSteps, requirements)
 	}
 
+	// Detect from secret-masking-steps
+	if workflowData.SecretMaskingSteps != "" {
+		detectFromCustomSteps(workflowData.SecretMaskingSteps, requirements)
+	}
+
 	// Detect from MCP server configurations
 	if workflowData.Tools != nil {
 		detectFromMCPConfigs(workflowData.Tools, requirements)
@@ -178,12 +183,15 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		}
 	}
 
-	// Filter out runtimes that already have setup actions in custom steps, post-steps or engine steps
+	// Filter out runtimes that already have setup actions in custom steps, post-steps, secret-masking-steps or engine steps
 	if workflowData.CustomSteps != "" {
 		filterExistingSetupActions(workflowData.CustomSteps, requirements)
 	}
 	if workflowData.PostSteps != "" {
 		filterExistingSetupActions(workflowData.PostSteps, requirements)
+	}
+	if workflowData.SecretMaskingSteps != "" {
+		filterExistingSetupActions(workflowData.SecretMaskingSteps, requirements)
 	}
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
 		for _, step := range workflowData.EngineConfig.Steps {

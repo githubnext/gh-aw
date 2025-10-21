@@ -795,6 +795,18 @@ post-steps:
 post-steps: []
   # Array items: undefined
 
+# Custom workflow steps to run after secret redaction before artifact uploads
+# (optional)
+# This field supports multiple formats (oneOf):
+
+# Option 1: object
+secret-masking-steps:
+  {}
+
+# Option 2: array
+secret-masking-steps: []
+  # Array items: undefined
+
 # AI engine configuration that specifies which AI processor interprets and
 # executes the markdown content of the workflow. Defaults to 'claude'.
 # (optional)

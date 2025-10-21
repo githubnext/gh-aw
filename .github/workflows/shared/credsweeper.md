@@ -7,15 +7,15 @@
 #     - shared/credsweeper.md
 #
 # This import provides:
-# - Automatic CredSweeper installation via post-steps
+# - Automatic CredSweeper installation via secret-masking-steps
 # - Scanning of /tmp/gh-aw/ directory for credentials
 # - Masking of detected credentials using GitHub Actions secret masking
 #
-# Note: CredSweeper scans all files in /tmp/gh-aw/ after the AI agent completes.
+# Note: CredSweeper scans all files in /tmp/gh-aw/ after secret redaction and before artifacts are uploaded.
 # Any detected credentials are automatically masked using core.setSecret() to prevent
 # exposure in logs or artifacts.
 
-post-steps:
+secret-masking-steps:
   - name: Install CredSweeper
     id: install-credsweeper
     run: |
@@ -196,5 +196,5 @@ imports:
 ---
 ```
 
-The post-steps will automatically run after your AI agent completes, regardless of whether the agent succeeds or fails.
+The secret-masking-steps will automatically run after secret redaction and before any artifacts are uploaded.
 -->
