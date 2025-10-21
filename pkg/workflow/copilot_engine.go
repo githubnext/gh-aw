@@ -203,60 +203,41 @@ func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error
 }
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+	// Create the directory first
 	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
-	yaml.WriteString("          cat > /home/runner/.copilot/mcp-config.json << EOF\n")
-	yaml.WriteString("          {\n")
-	yaml.WriteString("            \"mcpServers\": {\n")
 
-	// Filter out tools that don't need MCP configuration
-	var actualMCPTools []string
-	for _, toolName := range mcpTools {
-		switch toolName {
-		case "cache-memory":
+	// Use shared JSON MCP config renderer with Copilot-specific options
+	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
+		ConfigPath: "/home/runner/.copilot/mcp-config.json",
+		Renderers: MCPToolRenderers{
+			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+				e.renderGitHubCopilotMCPConfig(yaml, githubTool, isLast)
+			},
+			RenderPlaywright: e.renderPlaywrightCopilotMCPConfig,
+			RenderCacheMemory: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
+				// Cache-memory is not used for Copilot (filtered out)
+			},
+			RenderAgenticWorkflows: e.renderAgenticWorkflowsCopilotMCPConfig,
+			RenderSafeOutputs:      e.renderSafeOutputsCopilotMCPConfig,
+			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
+				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
+			},
+			RenderCustomMCPConfig: e.renderCopilotMCPConfig,
+		},
+		FilterTool: func(toolName string) bool {
+			// Filter out cache-memory for Copilot
 			// Cache-memory is handled as a simple file share, not an MCP server
-			// Skip adding it to the MCP configuration since no server is needed
-			continue
-		default:
-			// Include all other tools (github, playwright, safe-outputs, and custom MCP tools)
-			actualMCPTools = append(actualMCPTools, toolName)
-		}
-	}
-
-	// Generate configuration for each MCP tool
-	totalServers := len(actualMCPTools)
-	serverCount := 0
-
-	for _, toolName := range actualMCPTools {
-		serverCount++
-		isLast := serverCount == totalServers
-
-		switch toolName {
-		case "github":
-			githubTool := tools["github"]
-			e.renderGitHubCopilotMCPConfig(yaml, githubTool, isLast)
-		case "playwright":
-			playwrightTool := tools["playwright"]
-			e.renderPlaywrightCopilotMCPConfig(yaml, playwrightTool, isLast)
-		case "agentic-workflows":
-			e.renderAgenticWorkflowsCopilotMCPConfig(yaml, isLast)
-		case "safe-outputs":
-			e.renderSafeOutputsCopilotMCPConfig(yaml, isLast)
-		case "web-fetch":
-			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
-		default:
-			// Handle custom MCP tools using shared helper
-			HandleCustomMCPToolInSwitch(yaml, toolName, tools, isLast, e.renderCopilotMCPConfig)
-		}
-	}
-
-	yaml.WriteString("            }\n")
-	yaml.WriteString("          }\n")
-	yaml.WriteString("          EOF\n")
-	yaml.WriteString("          echo \"-------START MCP CONFIG-----------\"\n")
-	yaml.WriteString("          cat /home/runner/.copilot/mcp-config.json\n")
-	yaml.WriteString("          echo \"-------END MCP CONFIG-----------\"\n")
-	yaml.WriteString("          echo \"-------/home/runner/.copilot-----------\"\n")
-	yaml.WriteString("          find /home/runner/.copilot\n")
+			return toolName != "cache-memory"
+		},
+		PostEOFCommands: func(yaml *strings.Builder) {
+			// Add debug output
+			yaml.WriteString("          echo \"-------START MCP CONFIG-----------\"\n")
+			yaml.WriteString("          cat /home/runner/.copilot/mcp-config.json\n")
+			yaml.WriteString("          echo \"-------END MCP CONFIG-----------\"\n")
+			yaml.WriteString("          echo \"-------/home/runner/.copilot-----------\"\n")
+			yaml.WriteString("          find /home/runner/.copilot\n")
+		},
+	})
 	//GITHUB_COPILOT_CLI_MODE
 	yaml.WriteString("          echo \"HOME: $HOME\"\n")
 	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")
