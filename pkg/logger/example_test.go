@@ -29,10 +29,10 @@ func ExampleLogger_Printf() {
 	defer os.Unsetenv("DEBUG")
 
 	log := logger.New("app:feature")
-	
+
 	// Printf uses standard fmt.Printf formatting
 	log.Printf("Processing %d items", 42)
-	
+
 	// Output to stderr: app:feature Processing 42 items
 }
 
@@ -41,34 +41,34 @@ func ExampleLogger_LazyPrintf() {
 	defer os.Unsetenv("DEBUG")
 
 	log := logger.New("app:expensive")
-	
+
 	// The lazy function is only called if the logger is enabled
 	log.LazyPrintf(func() string {
 		// This expensive operation only runs when logging is enabled
 		result := "computed result"
 		return fmt.Sprintf("Expensive computation: %s", result)
 	})
-	
+
 	// Output to stderr: app:expensive Expensive computation: computed result
 }
 
 func ExampleNew_patterns() {
 	// Example patterns for DEBUG environment variable
-	
+
 	// Enable all loggers
 	os.Setenv("DEBUG", "*")
-	
+
 	// Enable all loggers in workflow namespace
 	os.Setenv("DEBUG", "workflow:*")
-	
+
 	// Enable multiple namespaces
 	os.Setenv("DEBUG", "workflow:*,cli:*")
-	
+
 	// Enable all except specific patterns
 	os.Setenv("DEBUG", "*,-workflow:test")
-	
+
 	// Enable namespace but exclude specific loggers
 	os.Setenv("DEBUG", "workflow:*,-workflow:cache")
-	
+
 	defer os.Unsetenv("DEBUG")
 }
