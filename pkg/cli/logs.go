@@ -25,6 +25,8 @@ import (
 const (
 	// defaultAgentStdioLogPath is the default log file path for agent stdout/stderr
 	defaultAgentStdioLogPath = "/tmp/gh-aw/agent-stdio.log"
+	// runSummaryFileName is the name of the summary file created in each run folder
+	runSummaryFileName = "run_summary.json"
 )
 
 // WorkflowRun represents a GitHub Actions workflow run with metrics
@@ -97,6 +99,32 @@ type MissingToolSummary struct {
 
 // ErrNoArtifacts indicates that a workflow run has no artifacts
 var ErrNoArtifacts = errors.New("no artifacts found for this run")
+
+// RunSummary represents a complete summary of a workflow run's artifacts and metrics.
+// This file is written to each run folder as "run_summary.json" to cache processing results
+// and avoid re-downloading and re-processing already analyzed runs.
+//
+// Key features:
+// - Acts as a marker that a run has been fully processed
+// - Stores all extracted metrics and analysis results
+// - Includes CLI version for cache invalidation when the tool is updated
+// - Enables fast reloading of run data without re-parsing logs
+//
+// Cache invalidation:
+// - If the CLI version in the summary doesn't match the current version, the run is reprocessed
+// - This ensures that bug fixes and improvements in log parsing are automatically applied
+type RunSummary struct {
+	CLIVersion     string                `json:"cli_version"`     // CLI version used to process this run
+	RunID          int64                 `json:"run_id"`          // Workflow run database ID
+	ProcessedAt    time.Time             `json:"processed_at"`    // When this summary was created
+	Run            WorkflowRun           `json:"run"`             // Full workflow run metadata
+	Metrics        LogMetrics            `json:"metrics"`         // Extracted log metrics
+	AccessAnalysis *DomainAnalysis       `json:"access_analysis"` // Network access analysis
+	MissingTools   []MissingToolReport   `json:"missing_tools"`   // Missing tool reports
+	MCPFailures    []MCPFailureReport    `json:"mcp_failures"`    // MCP server failures
+	ArtifactsList  []string              `json:"artifacts_list"`  // List of downloaded artifact files
+	JobDetails     []JobInfoWithDuration `json:"job_details"`     // Job execution details
+}
 
 // fetchJobStatuses gets job information for a workflow run and counts failed jobs
 func fetchJobStatuses(runID int64, verbose bool) (int, error) {
@@ -756,6 +784,22 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 
 			// Download artifacts and logs for this run
 			runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", run.DatabaseID))
+
+			// Try to load cached summary first
+			if summary, ok := loadRunSummary(runOutputDir, verbose); ok {
+				// Valid cached summary exists, use it directly
+				result := DownloadResult{
+					Run:            summary.Run,
+					Metrics:        summary.Metrics,
+					AccessAnalysis: summary.AccessAnalysis,
+					MissingTools:   summary.MissingTools,
+					MCPFailures:    summary.MCPFailures,
+					LogsPath:       runOutputDir,
+				}
+				return result
+			}
+
+			// No cached summary or version mismatch - download and process
 			err := downloadRunArtifacts(run.DatabaseID, runOutputDir, verbose)
 
 			result := DownloadResult{
@@ -809,6 +853,42 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 					}
 				}
 				result.MCPFailures = mcpFailures
+
+				// Fetch job details for the summary
+				jobDetails, jobErr := fetchJobDetails(run.DatabaseID, verbose)
+				if jobErr != nil {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details for run %d: %v", run.DatabaseID, jobErr)))
+					}
+				}
+
+				// List all artifacts
+				artifacts, listErr := listArtifacts(runOutputDir)
+				if listErr != nil {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list artifacts for run %d: %v", run.DatabaseID, listErr)))
+					}
+				}
+
+				// Create and save run summary
+				summary := &RunSummary{
+					CLIVersion:     GetVersion(),
+					RunID:          run.DatabaseID,
+					ProcessedAt:    time.Now(),
+					Run:            run,
+					Metrics:        metrics,
+					AccessAnalysis: accessAnalysis,
+					MissingTools:   missingTools,
+					MCPFailures:    mcpFailures,
+					ArtifactsList:  artifacts,
+					JobDetails:     jobDetails,
+				}
+
+				if saveErr := saveRunSummary(runOutputDir, summary, verbose); saveErr != nil {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save run summary for run %d: %v", run.DatabaseID, saveErr)))
+					}
+				}
 			}
 
 			return result
@@ -1140,14 +1220,119 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) error {
 	return nil
 }
 
+// loadRunSummary attempts to load a run summary from disk
+// Returns the summary and a boolean indicating if it was successfully loaded and is valid
+func loadRunSummary(outputDir string, verbose bool) (*RunSummary, bool) {
+	summaryPath := filepath.Join(outputDir, runSummaryFileName)
+
+	// Check if summary file exists
+	if _, err := os.Stat(summaryPath); os.IsNotExist(err) {
+		return nil, false
+	}
+
+	// Read the summary file
+	data, err := os.ReadFile(summaryPath)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read run summary: %v", err)))
+		}
+		return nil, false
+	}
+
+	// Parse the JSON
+	var summary RunSummary
+	if err := json.Unmarshal(data, &summary); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse run summary: %v", err)))
+		}
+		return nil, false
+	}
+
+	// Validate CLI version matches
+	currentVersion := GetVersion()
+	if summary.CLIVersion != currentVersion {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run summary version mismatch (cached: %s, current: %s), will reprocess", summary.CLIVersion, currentVersion)))
+		}
+		return nil, false
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Loaded cached run summary for run %d (processed at %s)", summary.RunID, summary.ProcessedAt.Format(time.RFC3339))))
+	}
+
+	return &summary, true
+}
+
+// saveRunSummary saves a run summary to disk
+func saveRunSummary(outputDir string, summary *RunSummary, verbose bool) error {
+	summaryPath := filepath.Join(outputDir, runSummaryFileName)
+
+	// Marshal to JSON with indentation for readability
+	data, err := json.MarshalIndent(summary, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal run summary: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(summaryPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write run summary: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Saved run summary to %s", summaryPath)))
+	}
+
+	return nil
+}
+
+// listArtifacts creates a list of all artifact files in the output directory
+func listArtifacts(outputDir string) ([]string, error) {
+	var artifacts []string
+
+	err := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip directories and the summary file itself
+		if info.IsDir() || filepath.Base(path) == runSummaryFileName {
+			return nil
+		}
+
+		// Get relative path from outputDir
+		relPath, err := filepath.Rel(outputDir, path)
+		if err != nil {
+			return err
+		}
+
+		artifacts = append(artifacts, relPath)
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return artifacts, nil
+}
+
 // downloadRunArtifacts downloads artifacts for a specific workflow run
 func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 	// Check if artifacts already exist on disk (since they're immutable)
 	if dirExists(outputDir) && !isDirEmpty(outputDir) {
-		if verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Artifacts for run %d already exist at %s, skipping download", runID, outputDir)))
+		// Try to load cached summary
+		if summary, ok := loadRunSummary(outputDir, verbose); ok {
+			// Valid cached summary exists, skip download
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using cached artifacts for run %d at %s (from %s)", runID, outputDir, summary.ProcessedAt.Format(time.RFC3339))))
+			}
+			return nil
 		}
-		return nil
+		// Summary doesn't exist or version mismatch - will reprocess below
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run folder exists but no valid summary, will reprocess run %d", runID)))
+		}
 	}
 
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
