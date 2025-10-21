@@ -119,24 +119,25 @@ func TestNewStepsFormat_PostAgentField(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test new post-agent field (instead of post-steps)
+	// Test post-agent steps within steps object
 	testContent := `---
 on: push
 permissions:
   contents: read
 tools:
   edit:
-post-agent:
-  - name: Post Agent Step
-    run: echo "runs after agent"
-  - name: Another Post Agent Step
-    run: echo "also runs after agent"
+steps:
+  post-agent:
+    - name: Post Agent Step
+      run: echo "runs after agent"
+    - name: Another Post Agent Step
+      run: echo "also runs after agent"
 engine: claude
 ---
 
-# Test Post-Agent Field
+# Test Post-Agent Steps
 
-This tests the new post-agent field.
+This tests the post-agent steps within the steps object.
 `
 
 	testFile := filepath.Join(tmpDir, "test-post-agent.md")
@@ -192,7 +193,7 @@ func TestLegacyStepsFormat_BackwardCompatibility(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test legacy array format still works
+	// Test legacy array format still works for pre-agent steps
 	testContent := `---
 on: push
 permissions:
@@ -200,19 +201,20 @@ permissions:
 tools:
   edit:
 steps:
-  - name: Legacy Step 1
-    run: echo "legacy step 1"
-  - name: Legacy Step 2
-    run: echo "legacy step 2"
-post-steps:
-  - name: Legacy Post Step
-    run: echo "legacy post step"
+  pre-agent:
+    - name: Legacy Step 1
+      run: echo "legacy step 1"
+    - name: Legacy Step 2
+      run: echo "legacy step 2"
+  post-agent:
+    - name: Legacy Post Agent Step
+      run: echo "legacy post-agent step"
 engine: claude
 ---
 
 # Test Legacy Format
 
-This tests backward compatibility with the legacy array format.
+This tests backward compatibility with the legacy array format converted to object format.
 `
 
 	testFile := filepath.Join(tmpDir, "test-legacy.md")
@@ -244,8 +246,8 @@ This tests backward compatibility with the legacy array format.
 	if !strings.Contains(lockContent, "- name: Legacy Step 2") {
 		t.Error("Expected 'Legacy Step 2' to be in generated workflow")
 	}
-	if !strings.Contains(lockContent, "- name: Legacy Post Step") {
-		t.Error("Expected 'Legacy Post Step' to be in generated workflow")
+	if !strings.Contains(lockContent, "- name: Legacy Post Agent Step") {
+		t.Error("Expected 'Legacy Post Agent Step' to be in generated workflow")
 	}
 
 	t.Log("Legacy format backward compatibility verified")

@@ -1551,37 +1551,6 @@
         }
       ]
     },
-    "post-agent": {
-      "description": "Steps to run immediately after AI execution. Preferred over post-steps.",
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": true
-      }
-    },
-    "post-steps": {
-      "description": "DEPRECATED: Use 'post-agent' instead. Custom workflow steps to run after AI execution",
-      "oneOf": [
-        {
-          "type": "object",
-          "additionalProperties": true
-        },
-        {
-          "type": "array",
-          "items": {
-            "oneOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "additionalProperties": true
-              }
-            ]
-          }
-        }
-      ]
-    },
     "engine": {
       "description": "AI engine configuration that specifies which AI processor interprets and executes the markdown content of the workflow. Defaults to 'claude'.",
       "$ref": "#/$defs/engine_config"

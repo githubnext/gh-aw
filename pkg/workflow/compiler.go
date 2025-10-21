@@ -868,43 +868,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("error parsing steps: %w", err)
 	}
 
-	// Also parse post-agent field (new preferred field)
-	postAgentData, hasPostAgent := result.Frontmatter["post-agent"]
-	if hasPostAgent {
-		postAgentSteps, err := ParseStepsFromFrontmatter(postAgentData)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing post-agent: %w", err)
-		}
-		if postAgentSteps != nil {
-			// Merge post-agent into the appropriate position
-			if parsedSteps == nil {
-				parsedSteps = &WorkflowSteps{}
-			}
-			// post-agent field maps directly to PostAgent position
-			// If it's an array, it will be in PreAgent, but we want it in PostAgent
-			parsedSteps.PostAgent = append(parsedSteps.PostAgent, postAgentSteps.PreAgent...)
-			parsedSteps.PostAgent = append(parsedSteps.PostAgent, postAgentSteps.PostAgent...)
-		}
-	}
-
-	// Also parse post-steps from frontmatter (legacy support - goes to PostAgent position)
-	postStepsData, hasPostSteps := result.Frontmatter["post-steps"]
-	if hasPostSteps {
-		postSteps, err := ParseStepsFromFrontmatter(postStepsData)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing post-steps: %w", err)
-		}
-		if postSteps != nil {
-			// Merge post-steps into the appropriate position
-			if parsedSteps == nil {
-				parsedSteps = &WorkflowSteps{}
-			}
-			// Legacy post-steps go to PostAgent position
-			parsedSteps.PostAgent = append(parsedSteps.PostAgent, postSteps.PreAgent...)
-			parsedSteps.PostAgent = append(parsedSteps.PostAgent, postSteps.PostAgent...)
-		}
-	}
-
 	// Merge imported steps if any
 	var importedSteps *WorkflowSteps
 	if importsResult.MergedSteps != "" {
@@ -923,7 +886,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Keep legacy string fields for backward compatibility during transition
 	workflowData.CustomSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "steps")
-	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 
 	// Apply the legacy merging logic to CustomSteps if needed for compatibility
 	if importsResult.MergedSteps != "" {
@@ -2616,22 +2578,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add "pre-agent" steps (these run before agent execution, where legacy "steps" go)
 	if data.ParsedSteps != nil && len(data.ParsedSteps.PreAgent) > 0 {
 		renderStepsAtPosition(yaml, data.ParsedSteps.PreAgent)
-	} else if data.CustomSteps != "" {
-		// Fallback to legacy CustomSteps for backward compatibility
-		// Remove "steps:" line and adjust indentation
-		lines := strings.Split(data.CustomSteps, "\n")
-		if len(lines) > 1 {
-			for _, line := range lines[1:] {
-				// Skip empty lines
-				if strings.TrimSpace(line) == "" {
-					yaml.WriteString("\n")
-					continue
-				}
-
-				// Simply add 6 spaces for job context indentation
-				yaml.WriteString("      " + line + "\n")
-			}
-		}
 	}
 
 	// Create /tmp/gh-aw/ base directory for all temporary files
@@ -3123,28 +3069,6 @@ func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) 
 	// Add "post-agent" steps (these run immediately after agent execution)
 	if data.ParsedSteps != nil && len(data.ParsedSteps.PostAgent) > 0 {
 		renderStepsAtPosition(yaml, data.ParsedSteps.PostAgent)
-	} else if data.PostSteps != "" {
-		// Fallback to legacy PostSteps for backward compatibility
-		// Remove "post-steps:" line and adjust indentation, similar to CustomSteps processing
-		lines := strings.Split(data.PostSteps, "\n")
-		if len(lines) > 1 {
-			for _, line := range lines[1:] {
-				// Trim trailing whitespace
-				trimmed := strings.TrimRight(line, " ")
-				// Skip empty lines
-				if strings.TrimSpace(trimmed) == "" {
-					yaml.WriteString("\n")
-					continue
-				}
-				// Steps need 6-space indentation (      - name:)
-				// Nested properties need 8-space indentation (        run:)
-				if strings.HasPrefix(line, "  ") {
-					yaml.WriteString("        " + line[2:] + "\n")
-				} else {
-					yaml.WriteString("      " + line + "\n")
-				}
-			}
-		}
 	}
 }
 

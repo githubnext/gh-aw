@@ -13,7 +13,7 @@
 #   activation --> agent
 # ```
 
-name: "Test Post-Steps Workflow"
+name: "Test Post-Agent Steps Workflow"
 "on":
   workflow_dispatch: null
 
@@ -22,7 +22,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Test Post-Steps Workflow"
+run-name: "Test Post-Agent Steps Workflow"
 
 jobs:
   activation:
@@ -170,9 +170,9 @@ jobs:
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'EOF'
-          # Test Post-Steps Workflow
+          # Test Post-Agent Steps Workflow
           
-          This is a test workflow to validate that post-steps compile correctly with proper YAML indentation.
+          This is a test workflow to validate that post-agent steps compile correctly with proper YAML indentation.
           
           ## Your Task
           
@@ -333,7 +333,7 @@ jobs:
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Test Post-Steps Workflow",
+              workflow_name: "Test Post-Agent Steps Workflow",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1571,9 +1571,9 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
-      - name: Verify Post-Steps Execution
+      - name: Verify Post-Agent Steps Execution
         run: |
-          echo "✅ Post-steps are executing correctly"
+          echo "✅ Post-agent steps are executing correctly"
           echo "This step runs after the AI agent completes"
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
@@ -1584,7 +1584,7 @@ jobs:
           retention-days: 1
         if: always()
       - name: Final Summary
-        run: "echo \"## Post-Steps Test Summary\" >> $GITHUB_STEP_SUMMARY\necho \"✅ All post-steps executed successfully\" >> $GITHUB_STEP_SUMMARY\necho \"This validates the post-steps indentation fix\" >> $GITHUB_STEP_SUMMARY\n"
+        run: "echo \"## Post-Agent Steps Test Summary\" >> $GITHUB_STEP_SUMMARY\necho \"✅ All post-agent steps executed successfully\" >> $GITHUB_STEP_SUMMARY\necho \"This validates the post-agent steps indentation fix\" >> $GITHUB_STEP_SUMMARY\n"
 
   pre_activation:
     runs-on: ubuntu-latest

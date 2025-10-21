@@ -3858,7 +3858,7 @@ func TestPostStepsGeneration(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with both steps and post-steps
+	// Test case with both pre-agent and post-agent steps
 	testContent := `---
 on: push
 permissions:
@@ -3868,22 +3868,23 @@ tools:
   github:
     allowed: [list_issues]
 steps:
-  - name: Pre AI Step
-    run: echo "This runs before AI"
-post-steps:
-  - name: Post AI Step
-    run: echo "This runs after AI"
-  - name: Another Post Step
-    uses: actions/upload-artifact@v4
-    with:
-      name: test-artifact
-      path: test-file.txt
+  pre-agent:
+    - name: Pre AI Step
+      run: echo "This runs before AI"
+  post-agent:
+    - name: Post AI Step
+      run: echo "This runs after AI"
+    - name: Another Post Step
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-artifact
+        path: test-file.txt
 engine: claude
 ---
 
-# Test Post Steps Workflow
+# Test Post-Agent Steps Workflow
 
-This workflow tests the post-steps functionality.
+This workflow tests the post-agent steps functionality.
 `
 
 	testFile := filepath.Join(tmpDir, "test-post-steps.md")
@@ -3951,7 +3952,7 @@ func TestPostStepsOnly(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with only post-steps (no pre-steps)
+	// Test case with only post-agent steps (no pre-agent steps)
 	testContent := `---
 on: issues
 permissions:
@@ -3960,15 +3961,16 @@ permissions:
 tools:
   github:
     allowed: [list_issues]
-post-steps:
-  - name: Only Post Step
-    run: echo "This runs after AI only"
+steps:
+  post-agent:
+    - name: Only Post Step
+      run: echo "This runs after AI only"
 engine: claude
 ---
 
-# Test Post Steps Only Workflow
+# Test Post-Agent Steps Only Workflow
 
-This workflow tests post-steps without pre-steps.
+This workflow tests post-agent steps without pre-agent steps.
 `
 
 	testFile := filepath.Join(tmpDir, "test-post-steps-only.md")
@@ -3981,7 +3983,7 @@ This workflow tests post-steps without pre-steps.
 	// Compile the workflow
 	err = compiler.CompileWorkflow(testFile)
 	if err != nil {
-		t.Fatalf("Unexpected error compiling workflow with post-steps only: %v", err)
+		t.Fatalf("Unexpected error compiling workflow with post-agent steps only: %v", err)
 	}
 
 	// Read the generated lock file
@@ -5683,7 +5685,7 @@ func TestPostStepsIndentationFix(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with various post-steps configurations
+	// Test case with various post-agent steps configurations
 	testContent := `---
 on: push
 permissions:
@@ -5691,26 +5693,27 @@ permissions:
 tools:
   github:
     allowed: [list_issues]
-post-steps:
-  - name: First Post Step
-    run: echo "first"
-  - name: Second Post Step
-    uses: actions/upload-artifact@v4
-    with:
-      name: test-artifact
-      path: test-file.txt
-      retention-days: 7
-  - name: Third Post Step
-    if: success()
-    run: |
-      echo "multiline"
-      echo "script"
+steps:
+  post-agent:
+    - name: First Post Step
+      run: echo "first"
+    - name: Second Post Step
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-artifact
+        path: test-file.txt
+        retention-days: 7
+    - name: Third Post Step
+      if: success()
+      run: |
+        echo "multiline"
+        echo "script"
 engine: claude
 ---
 
-# Test Post Steps Indentation
+# Test Post-Agent Steps Indentation
 
-Test post-steps indentation fix.
+Test post-agent steps indentation fix.
 `
 
 	testFile := filepath.Join(tmpDir, "test-post-steps-indentation.md")
@@ -5735,16 +5738,16 @@ Test post-steps indentation fix.
 
 	lockContent := string(content)
 
-	// Verify all post-steps are present
+	// Verify all post-agent steps are present
 	if !strings.Contains(lockContent, "- name: First Post Step") {
-		t.Error("Expected post-step 'First Post Step' to be in generated workflow")
+		t.Error("Expected post-agent step 'First Post Step' to be in generated workflow")
 	}
 	if !strings.Contains(lockContent, "- name: Second Post Step") {
-		t.Error("Expected post-step 'Second Post Step' to be in generated workflow")
+		t.Error("Expected post-agent step 'Second Post Step' to be in generated workflow")
 	}
 	// Note: "Third Post Step" has an 'if' condition, so it appears as "name: Third Post Step" not "- name:"
 	if !strings.Contains(lockContent, "name: Third Post Step") {
-		t.Error("Expected post-step 'Third Post Step' to be in generated workflow")
+		t.Error("Expected post-agent step 'Third Post Step' to be in generated workflow")
 	}
 
 	// Verify indentation is correct (6 spaces for list items, 8 for properties)

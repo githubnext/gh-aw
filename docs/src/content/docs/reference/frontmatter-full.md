@@ -798,24 +798,6 @@ steps:
 steps: []
   # Array items: undefined
 
-# Steps to run immediately after AI execution. Preferred over post-steps.
-# (optional)
-post-agent: []
-  # Array items:
-
-# DEPRECATED: Use 'post-agent' instead. Custom workflow steps to run after AI
-# execution
-# (optional)
-# This field supports multiple formats (oneOf):
-
-# Option 1: object
-post-steps:
-  {}
-
-# Option 2: array
-post-steps: []
-  # Array items: undefined
-
 # AI engine configuration that specifies which AI processor interprets and
 # executes the markdown content of the workflow. Defaults to 'claude'.
 # (optional)
