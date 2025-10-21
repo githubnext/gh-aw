@@ -3113,27 +3113,35 @@ func (c *Compiler) generateSteps(yamlBuilder *strings.Builder, steps []any) {
 		return
 	}
 	
-	// Convert steps array to YAML and generate
-	for _, step := range steps {
-		stepYAML, err := yaml.Marshal(step)
-		if err != nil {
+	// Marshal the entire steps array to get proper YAML formatting
+	stepsYAML, err := yaml.Marshal(steps)
+	if err != nil {
+		return
+	}
+	
+	// Parse the YAML and adjust indentation
+	// The marshaled YAML starts at column 0 with "- name:" for each step
+	// We need to indent to column 6 for "      - name:"
+	lines := strings.Split(string(stepsYAML), "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimRight(line, " ")
+		if strings.TrimSpace(trimmed) == "" {
 			continue
 		}
 		
-		// Parse the step YAML and write with proper indentation
-		lines := strings.Split(string(stepYAML), "\n")
-		for _, line := range lines {
-			trimmed := strings.TrimRight(line, " ")
-			if strings.TrimSpace(trimmed) == "" {
-				continue
-			}
-			// Steps need 6-space indentation (      - name:)
-			// Nested properties need 8-space indentation (        run:)
-			if strings.HasPrefix(line, "  ") {
-				yamlBuilder.WriteString("        " + line[2:] + "\n")
-			} else {
-				yamlBuilder.WriteString("      " + line + "\n")
-			}
+		// All lines from marshal start at column 0
+		// Steps starting with "- " need 6-space indentation: "      - name:"
+		// Nested properties starting with "  " need 8-space indentation: "        run:"
+		// Further nested (4+ spaces) keep their relative indentation
+		if strings.HasPrefix(line, "- ") {
+			// Step list item
+			yamlBuilder.WriteString("      " + line + "\n")
+		} else if strings.HasPrefix(line, "  ") {
+			// Nested property - add 6 spaces (to make 8 total from original 2)
+			yamlBuilder.WriteString("      " + line + "\n")
+		} else {
+			// Shouldn't happen, but handle it
+			yamlBuilder.WriteString("      " + line + "\n")
 		}
 	}
 }
