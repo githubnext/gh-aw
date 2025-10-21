@@ -190,6 +190,79 @@ function replyError(id, code, message) {
   writeMessage(res);
 }
 
+/**
+ * Estimates token count from text using 4 chars per token estimate
+ * @param {string} text - The text to estimate tokens for
+ * @returns {number} Approximate token count
+ */
+function estimateTokens(text) {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Determines file extension based on content type
+ * @param {string} content - The content to analyze
+ * @returns {string} File extension (e.g., '.json', '.txt', '.md')
+ */
+function getFileExtension(content) {
+  if (!content) return ".txt";
+
+  const trimmed = content.trim();
+
+  // Check if it's JSON
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    try {
+      JSON.parse(trimmed);
+      return ".json";
+    } catch {
+      // Not valid JSON
+    }
+  }
+
+  // Check if it's markdown (contains markdown syntax)
+  if (trimmed.includes("# ") || trimmed.includes("## ") || trimmed.includes("```")) {
+    return ".md";
+  }
+
+  // Default to text
+  return ".txt";
+}
+
+/**
+ * Writes large content to a file and returns metadata
+ * @param {string} content - The content to write
+ * @returns {Object} Object with filename and description
+ */
+function writeLargeContentToFile(content) {
+  const logsDir = "/tmp/gh-aw/safe-outputs";
+
+  // Ensure directory exists
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+
+  // Generate SHA256 hash of content
+  const hash = crypto.createHash("sha256").update(content).digest("hex");
+
+  // Determine file extension
+  const ext = getFileExtension(content);
+
+  // Create filename
+  const filename = `${hash}${ext}`;
+  const filepath = path.join(logsDir, filename);
+
+  // Write content to file
+  fs.writeFileSync(filepath, content, "utf8");
+
+  debug(`Wrote large content (${content.length} chars) to ${filepath}`);
+
+  return {
+    filename: filename,
+    description: "generated content large!",
+  };
+}
+
 function appendSafeOutput(entry) {
   if (!outputFile) throw new Error("No output file configured");
   // Normalize type to use underscores (convert any dashes to underscores)
@@ -204,6 +277,46 @@ function appendSafeOutput(entry) {
 
 const defaultHandler = type => args => {
   const entry = { ...(args || {}), type };
+
+  // Check if any field in the entry has content exceeding 16000 tokens
+  let largeContent = null;
+  let largeFieldName = null;
+  const TOKEN_THRESHOLD = 16000;
+
+  for (const [key, value] of Object.entries(entry)) {
+    if (typeof value === "string") {
+      const tokens = estimateTokens(value);
+      if (tokens > TOKEN_THRESHOLD) {
+        largeContent = value;
+        largeFieldName = key;
+        debug(`Field '${key}' has ${tokens} tokens (exceeds ${TOKEN_THRESHOLD})`);
+        break;
+      }
+    }
+  }
+
+  if (largeContent && largeFieldName) {
+    // Write large content to file
+    const fileInfo = writeLargeContentToFile(largeContent);
+
+    // Replace large field with file reference
+    entry[largeFieldName] = `[Content too large, saved to file: ${fileInfo.filename}]`;
+
+    // Append modified entry to safe outputs
+    appendSafeOutput(entry);
+
+    // Return file info to the agent
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(fileInfo),
+        },
+      ],
+    };
+  }
+
+  // Normal case - no large content
   appendSafeOutput(entry);
   return {
     content: [

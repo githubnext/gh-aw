@@ -282,6 +282,41 @@ jobs:
               };
               writeMessage(res);
             }
+            function estimateTokens(text) {
+              if (!text) return 0;
+              return Math.ceil(text.length / 4);
+            }
+            function getFileExtension(content) {
+              if (!content) return ".txt";
+              const trimmed = content.trim();
+              if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+                try {
+                  JSON.parse(trimmed);
+                  return ".json";
+                } catch {
+                }
+              }
+              if (trimmed.includes("# ") || trimmed.includes("## ") || trimmed.includes("```")) {
+                return ".md";
+              }
+              return ".txt";
+            }
+            function writeLargeContentToFile(content) {
+              const logsDir = "/tmp/gh-aw/safe-outputs";
+              if (!fs.existsSync(logsDir)) {
+                fs.mkdirSync(logsDir, { recursive: true });
+              }
+              const hash = crypto.createHash("sha256").update(content).digest("hex");
+              const ext = getFileExtension(content);
+              const filename = `${hash}${ext}`;
+              const filepath = path.join(logsDir, filename);
+              fs.writeFileSync(filepath, content, "utf8");
+              debug(`Wrote large content (${content.length} chars) to ${filepath}`);
+              return {
+                filename: filename,
+                description: "generated content large!"
+              };
+            }
             function appendSafeOutput(entry) {
               if (!outputFile) throw new Error("No output file configured");
               entry.type = entry.type.replace(/-/g, "_");
@@ -294,6 +329,33 @@ jobs:
             }
             const defaultHandler = type => args => {
               const entry = { ...(args || {}), type };
+              let largeContent = null;
+              let largeFieldName = null;
+              const TOKEN_THRESHOLD = 16000;
+              for (const [key, value] of Object.entries(entry)) {
+                if (typeof value === "string") {
+                  const tokens = estimateTokens(value);
+                  if (tokens > TOKEN_THRESHOLD) {
+                    largeContent = value;
+                    largeFieldName = key;
+                    debug(`Field '${key}' has ${tokens} tokens (exceeds ${TOKEN_THRESHOLD})`);
+                    break;
+                  }
+                }
+              }
+              if (largeContent && largeFieldName) {
+                const fileInfo = writeLargeContentToFile(largeContent);
+                entry[largeFieldName] = `[Content too large, saved to file: ${fileInfo.filename}]`;
+                appendSafeOutput(entry);
+                return {
+                  content: [
+                    {
+                      type: "text",
+                      text: JSON.stringify(fileInfo),
+                    },
+                  ],
+                };
+              }
               appendSafeOutput(entry);
               return {
                 content: [
