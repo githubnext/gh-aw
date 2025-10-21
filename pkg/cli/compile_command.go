@@ -12,9 +12,12 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/goccy/go-yaml"
 )
+
+var compileLog = logger.New("cli:compile_command")
 
 // CompileWorkflowWithValidation compiles a workflow with always-on YAML validation for CLI usage
 func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string, verbose bool) error {
@@ -95,6 +98,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	// Validate and set default for workflow directory
 	if workflowDir == "" {
 		workflowDir = ".github/workflows"
+		compileLog.Printf("Using default workflow directory: %s", workflowDir)
 	} else {
 		// Ensure the path is relative
 		if filepath.IsAbs(workflowDir) {
@@ -102,6 +106,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 		// Clean the path to avoid issues with ".." or other problematic elements
 		workflowDir = filepath.Clean(workflowDir)
+		compileLog.Printf("Using custom workflow directory: %s", workflowDir)
 	}
 
 	// Create compiler with verbose flag and AI engine override
@@ -152,6 +157,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		for _, markdownFile := range markdownFiles {
 			stats.Total++
 			// Resolve workflow ID or file path to actual file path
+			compileLog.Printf("Resolving workflow file: %s", markdownFile)
 			resolvedFile, err := resolveWorkflowFile(markdownFile, verbose)
 			if err != nil {
 				errMsg := fmt.Sprintf("failed to resolve workflow '%s': %v", markdownFile, err)
@@ -162,8 +168,10 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				stats.FailedWorkflows = append(stats.FailedWorkflows, markdownFile)
 				continue
 			}
+			compileLog.Printf("Resolved to: %s", resolvedFile)
 
 			// Parse workflow file to get data
+			compileLog.Printf("Parsing workflow file: %s", resolvedFile)
 			workflowData, err := compiler.ParseWorkflowFile(resolvedFile)
 			if err != nil {
 				errMsg := fmt.Sprintf("failed to parse workflow file %s: %v", resolvedFile, err)
@@ -179,6 +187,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Compiling %s", resolvedFile)))
 			}
+			compileLog.Printf("Starting compilation of %s", resolvedFile)
 			if err := CompileWorkflowWithValidation(compiler, resolvedFile, verbose); err != nil {
 				// Always put error on a new line and don't wrap with "failed to compile workflow"
 				fmt.Fprintln(os.Stderr, err.Error())
@@ -199,12 +208,17 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 
 		// Ensure .gitattributes marks .lock.yml files as generated
+		compileLog.Printf("Updating .gitattributes")
 		if err := ensureGitAttributes(); err != nil {
+			compileLog.Printf("Failed to update .gitattributes: %v", err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 			}
-		} else if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
+		} else {
+			compileLog.Printf("Successfully updated .gitattributes")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
+			}
 		}
 
 		// Note: Instructions are only written by the init command
@@ -230,6 +244,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("compile without arguments requires being in a git repository: %w", err)
 	}
+	compileLog.Printf("Found git root: %s", gitRoot)
 
 	// Compile all markdown files in the specified workflow directory relative to git root
 	workflowsDir := filepath.Join(gitRoot, workflowDir)
@@ -237,6 +252,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		return nil, fmt.Errorf("the %s directory does not exist in git root (%s)", workflowDir, gitRoot)
 	}
 
+	compileLog.Printf("Scanning for markdown files in %s", workflowsDir)
 	if verbose {
 		fmt.Printf("Scanning for markdown files in %s\n", workflowsDir)
 	}
@@ -251,6 +267,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		return nil, fmt.Errorf("no markdown files found in %s", workflowsDir)
 	}
 
+	compileLog.Printf("Found %d markdown files to compile", len(mdFiles))
 	if verbose {
 		fmt.Printf("Found %d markdown files to compile\n", len(mdFiles))
 	}
@@ -408,17 +425,15 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		if info.IsDir() && path != workflowsDir {
 			// Add subdirectories to the watcher
 			if err := watcher.Add(path); err != nil {
-				if verbose {
-					fmt.Printf("Warning: Failed to watch subdirectory %s: %v\n", path, err)
-				}
-			} else if verbose {
-				fmt.Printf("Watching subdirectory: %s\n", path)
+				compileLog.Printf("Failed to watch subdirectory %s: %v", path, err)
+			} else {
+				compileLog.Printf("Watching subdirectory: %s", path)
 			}
 		}
 		return nil
 	})
-	if err != nil && verbose {
-		fmt.Printf("Warning: Failed to walk subdirectories: %v\n", err)
+	if err != nil {
+		compileLog.Printf("Failed to walk subdirectories: %v", err)
 	}
 
 	// Always emit the begin pattern for task integration
@@ -496,6 +511,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 				continue
 			}
 
+			compileLog.Printf("Detected change: %s (%s)", event.Name, event.Op.String())
 			if verbose {
 				fmt.Printf("📝 Detected change: %s (%s)\n", event.Name, event.Op.String())
 			}
@@ -530,6 +546,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 			if !ok {
 				return fmt.Errorf("watcher error channel closed")
 			}
+			compileLog.Printf("Watcher error: %v", err)
 			if verbose {
 				fmt.Printf("⚠️  Watcher error: %v\n", err)
 			}
@@ -571,6 +588,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 	for _, file := range mdFiles {
 		stats.Total++
 
+		compileLog.Printf("Compiling: %s", file)
 		if verbose {
 			fmt.Printf("🔨 Compiling: %s\n", file)
 		}
@@ -579,8 +597,8 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 			fmt.Fprintln(os.Stderr, err.Error())
 			stats.Errors++
 			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
-		} else if verbose {
-			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Compiled %s", file)))
+		} else {
+			compileLog.Printf("Successfully compiled: %s", file)
 		}
 	}
 
@@ -620,14 +638,13 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 	for _, file := range files {
 		// Check if file still exists (might have been deleted between detection and compilation)
 		if _, err := os.Stat(file); os.IsNotExist(err) {
-			if verbose {
-				fmt.Printf("📝 File %s was deleted, skipping compilation\n", file)
-			}
+			compileLog.Printf("File %s was deleted, skipping compilation", file)
 			continue
 		}
 
 		stats.Total++
 
+		compileLog.Printf("Compiling: %s", file)
 		if verbose {
 			fmt.Fprintf(os.Stderr, "🔨 Compiling: %s\n", file)
 		}
@@ -637,8 +654,8 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 			fmt.Fprintln(os.Stderr, err.Error())
 			stats.Errors++
 			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
-		} else if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Compiled %s", file)))
+		} else {
+			compileLog.Printf("Successfully compiled: %s", file)
 		}
 	}
 

@@ -41,6 +41,41 @@ gh aw pr transfer https://github.com/owner/repo/pull/123  # Transfer PR between 
 - **`--verbose` / `-v`**: Enable verbose output with debugging details
 - **`--help` / `-h`**: Show help information
 
+## Debug Logging
+
+Enable detailed debug logs using the `DEBUG` environment variable with pattern matching:
+
+```bash
+# Enable all debug logs
+DEBUG=* gh aw compile
+
+# Enable specific package logs (e.g., CLI operations)
+DEBUG=cli:* gh aw compile
+
+# Enable compiler logs
+DEBUG=workflow:* gh aw compile
+
+# Enable multiple packages
+DEBUG=cli:*,workflow:* gh aw compile
+
+# Exclude specific patterns
+DEBUG=*,-workflow:test gh aw compile
+
+# Disable colors (auto-disabled when piping)
+DEBUG_COLORS=0 DEBUG=* gh aw compile
+```
+
+Debug logs show:
+- **Namespace**: Category of the log (e.g., `cli:compile_command`, `workflow:compiler`)
+- **Message**: Debug information
+- **Time diff**: Elapsed time since last log (e.g., `+50ms`, `+2.5s`)
+- **Colors**: Automatic color coding for each namespace (when in terminal)
+
+**When to use:**
+- Use `DEBUG` for internal diagnostic information and performance insights
+- Use `--verbose` for user-facing operational details
+- Debug logs are zero-overhead when disabled (no performance impact)
+
 ## 📝 Workflow Creation and Management  
 
 The `add` and `new` commands help you create and manage agentic workflows, from templates and samples to completely custom workflows.

@@ -12,11 +12,14 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 	"github.com/goccy/go-yaml"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
+
+var log = logger.New("workflow:compiler")
 
 const (
 	// MaxLockFileSize is the maximum allowed size for generated lock workflow files (1MB)
@@ -220,12 +223,14 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	// replace the .md extension by .lock.yml
 	lockFile := strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
 
+	log.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Starting compilation of: %s", console.ToRelativePath(markdownPath))))
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Output file: %s", console.ToRelativePath(lockFile))))
 	}
 
 	// Parse the markdown file
+	log.Printf("Parsing workflow file")
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage("Parsing workflow file..."))
 	}
@@ -250,6 +255,7 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	}
 
 	// Validate expression safety - check that all GitHub Actions expressions are in the allowed list
+	log.Printf("Validating expression safety")
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage("Validating expression safety..."))
 	}
@@ -268,6 +274,7 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 
 	// Note: Markdown content size is now handled by splitting into multiple steps in generatePrompt
 
+	log.Printf("Workflow: %s, Tools: %d", workflowData.Name, len(workflowData.Tools))
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Workflow name: %s", workflowData.Name)))
 		if len(workflowData.Tools) > 0 {
@@ -487,6 +494,7 @@ func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 
 // ParseWorkflowFile parses a markdown workflow file and extracts all necessary data
 func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
+	log.Printf("Reading file: %s", markdownPath)
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Reading file: %s", console.ToRelativePath(markdownPath))))
 	}
@@ -497,6 +505,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
+	log.Printf("File size: %d bytes", len(content))
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("File size: %d bytes", len(content))))
 	}
@@ -530,6 +539,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
+	log.Printf("Frontmatter: %d chars, Markdown: %d chars", len(result.Frontmatter), len(result.Markdown))
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Frontmatter: %d characters, Markdown content length: %d characters",
 			len(result.Frontmatter), len(result.Markdown))))

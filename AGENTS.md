@@ -102,6 +102,67 @@ fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 - Use console formatting helpers with `os.Stderr` for consistent styling
 - For simple messages without console formatting: `fmt.Fprintf(os.Stderr, "message\n")`
 
+## Debug Logging
+
+**ALWAYS use the logger package for debug logging:**
+
+```go
+import "github.com/githubnext/gh-aw/pkg/logger"
+
+// Create a logger with namespace following pkg:filename convention
+var log = logger.New("pkg:filename")
+
+// Log debug messages (only shown when DEBUG environment variable matches)
+log.Printf("Processing %d items", count)
+log.Print("Simple debug message")
+
+// Check if logging is enabled before expensive operations
+if log.Enabled() {
+    log.Printf("Expensive debug info: %+v", expensiveOperation())
+}
+```
+
+**Category Naming Convention:**
+- Follow the pattern: `pkg:filename` (e.g., `cli:compile_command`, `workflow:compiler`)
+- Use colon (`:`) as separator between package and file/component name
+- Be consistent with existing loggers in the codebase
+
+**Debug Output Control:**
+```bash
+# Enable all debug logs
+DEBUG=* gh aw compile
+
+# Enable specific package
+DEBUG=cli:* gh aw compile
+
+# Enable multiple packages
+DEBUG=cli:*,workflow:* gh aw compile
+
+# Exclude specific loggers
+DEBUG=*,-workflow:test gh aw compile
+
+# Disable colors (auto-disabled when piping)
+DEBUG_COLORS=0 DEBUG=* gh aw compile
+```
+
+**Key Features:**
+- **Zero overhead**: Logs only computed when DEBUG matches the logger's namespace
+- **Time diff**: Shows elapsed time between log calls (e.g., `+50ms`, `+2.5s`)
+- **Auto-colors**: Each namespace gets a consistent color in terminals
+- **Pattern matching**: Supports wildcards (`*`) and exclusions (`-pattern`)
+
+**When to Use:**
+- Non-essential diagnostic information
+- Performance insights and timing data
+- Internal state tracking during development
+- Detailed operation flow for debugging
+
+**When NOT to Use:**
+- Essential user-facing messages (use console formatting instead)
+- Error messages (use `console.FormatErrorMessage`)
+- Success/warning messages (use console formatting)
+- Final output or results (use stdout/console formatting)
+
 ## Development Guidelines
 
 ### Code Organization
