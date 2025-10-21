@@ -86,16 +86,26 @@ type FrontmatterResult struct {
 }
 
 // ImportsResult holds the result of processing imports from frontmatter
+// StepsConfig represents the merged steps configuration from imports
+// It can be either an array format (maps to pre steps) or an object format with phases
+type StepsConfig struct {
+	IsArray bool     // True if steps are in array format
+	Array   []any    // Steps array (when IsArray is true)
+	Pre     []any    // Pre-execution steps (when IsArray is false)
+	PostRedaction []any // Post-redaction steps (when IsArray is false)
+	Post    []any    // Post-execution steps (when IsArray is false)
+}
+
 type ImportsResult struct {
-	MergedTools       string   // Merged tools configuration from all imports
-	MergedMCPServers  string   // Merged mcp-servers configuration from all imports
-	MergedEngines     []string // Merged engine configurations from all imports
-	MergedSafeOutputs []string // Merged safe-outputs configurations from all imports
-	MergedMarkdown    string   // Merged markdown content from all imports
-	MergedSteps       any      // Merged steps configuration (array or object with pre/post-redaction/post)
-	MergedRuntimes    string   // Merged runtimes configuration from all imports
-	MergedServices    string   // Merged services configuration from all imports
-	ImportedFiles     []string // List of imported file paths (for manifest)
+	MergedTools       string       // Merged tools configuration from all imports
+	MergedMCPServers  string       // Merged mcp-servers configuration from all imports
+	MergedEngines     []string     // Merged engine configurations from all imports
+	MergedSafeOutputs []string     // Merged safe-outputs configurations from all imports
+	MergedMarkdown    string       // Merged markdown content from all imports
+	MergedSteps       *StepsConfig // Merged steps configuration (array or object with pre/post-redaction/post)
+	MergedRuntimes    string       // Merged runtimes configuration from all imports
+	MergedServices    string       // Merged services configuration from all imports
+	ImportedFiles     []string     // List of imported file paths (for manifest)
 }
 
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
@@ -394,7 +404,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var toolsBuilder strings.Builder
 	var mcpServersBuilder strings.Builder
 	var markdownBuilder strings.Builder
-	var mergedSteps any  // Steps from imports (can be array or object)
+	var mergedSteps *StepsConfig  // Steps from imports (can be array or object)
 	var runtimesBuilder strings.Builder
 	var servicesBuilder strings.Builder
 	var engines []string
@@ -481,12 +491,8 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 			var currentSteps any
 			if err := yaml.Unmarshal([]byte(stepsContent), &currentSteps); err == nil {
 				// Merge with existing merged steps
-				if mergedSteps == nil {
-					mergedSteps = currentSteps
-				} else {
-					// Use the same merging logic as compiler
-					mergedSteps = mergeImportedSteps(mergedSteps, currentSteps)
-				}
+				// mergeImportedSteps handles conversion from any to *StepsConfig
+				mergedSteps = mergeImportedSteps(mergedSteps, currentSteps)
 			}
 		}
 
@@ -530,60 +536,102 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 
 // mergeImportedSteps merges two step structures (array or object format)
 // This mirrors the logic in compiler.go's mergeSteps function
-func mergeImportedSteps(existing, new any) any {
+func mergeImportedSteps(existing *StepsConfig, newSteps any) *StepsConfig {
+	// Convert newSteps to StepsConfig
+	var newConfig *StepsConfig
+	if newArray, ok := newSteps.([]any); ok {
+		newConfig = &StepsConfig{
+			IsArray: true,
+			Array:   newArray,
+		}
+	} else if newObj, ok := newSteps.(map[string]any); ok {
+		newConfig = &StepsConfig{
+			IsArray:       false,
+			Pre:           getStepArray(newObj["pre"]),
+			PostRedaction: getStepArray(newObj["post-redaction"]),
+			Post:          getStepArray(newObj["post"]),
+		}
+	} else {
+		// Invalid type, return existing
+		return existing
+	}
+
+	// If existing is nil, return new
+	if existing == nil {
+		return newConfig
+	}
+
+	// Merge based on formats
+	result := &StepsConfig{}
+	
 	// If both are arrays, concatenate
-	if existingArray, ok := existing.([]any); ok {
-		if newArray, ok := new.([]any); ok {
-			return append(existingArray, newArray...)
-		}
-		// If existing is array and new is object, convert array to object first
-		if newObj, ok := new.(map[string]any); ok {
-			result := make(map[string]any)
-			// Array format maps to pre steps
-			result["pre"] = mergeImportedStepArrays(existingArray, newObj["pre"])
-			result["post-redaction"] = mergeImportedStepArrays(nil, newObj["post-redaction"])
-			result["post"] = mergeImportedStepArrays(nil, newObj["post"])
-			return result
-		}
+	if existing.IsArray && newConfig.IsArray {
+		result.IsArray = true
+		result.Array = append(existing.Array, newConfig.Array...)
+		return result
 	}
 
-	// If both are objects, merge fields
-	if existingObj, ok := existing.(map[string]any); ok {
-		if newObj, ok := new.(map[string]any); ok {
-			result := make(map[string]any)
-
-			// Merge pre
-			result["pre"] = mergeImportedStepArrays(existingObj["pre"], newObj["pre"])
-			// Merge post-redaction
-			result["post-redaction"] = mergeImportedStepArrays(existingObj["post-redaction"], newObj["post-redaction"])
-			// Merge post
-			result["post"] = mergeImportedStepArrays(existingObj["post"], newObj["post"])
-
-			return result
-		}
-		// If existing is object and new is array, add array to pre steps
-		if newArray, ok := new.([]any); ok {
-			result := make(map[string]any)
-			result["pre"] = mergeImportedStepArrays(existingObj["pre"], newArray)
-			result["post-redaction"] = mergeImportedStepArrays(existingObj["post-redaction"], nil)
-			result["post"] = mergeImportedStepArrays(existingObj["post"], nil)
-			return result
-		}
+	// Convert to object format and merge
+	result.IsArray = false
+	
+	// Get pre steps from both
+	var existingPre, newPre []any
+	if existing.IsArray {
+		existingPre = existing.Array
+	} else {
+		existingPre = existing.Pre
 	}
+	if newConfig.IsArray {
+		newPre = newConfig.Array
+	} else {
+		newPre = newConfig.Pre
+	}
+	result.Pre = mergeImportedStepArrays(existingPre, newPre)
 
-	// If types don't match, prefer new over existing (last import wins)
-	return new
+	// Get post-redaction steps
+	var existingPostRedaction, newPostRedaction []any
+	if !existing.IsArray {
+		existingPostRedaction = existing.PostRedaction
+	}
+	if !newConfig.IsArray {
+		newPostRedaction = newConfig.PostRedaction
+	}
+	result.PostRedaction = mergeImportedStepArrays(existingPostRedaction, newPostRedaction)
+
+	// Get post steps
+	var existingPost, newPost []any
+	if !existing.IsArray {
+		existingPost = existing.Post
+	}
+	if !newConfig.IsArray {
+		newPost = newConfig.Post
+	}
+	result.Post = mergeImportedStepArrays(existingPost, newPost)
+
+	return result
+}
+
+// getStepArray converts any type to []any or returns nil
+func getStepArray(v any) []any {
+	if v == nil {
+		return nil
+	}
+	if arr, ok := v.([]any); ok {
+		return arr
+	}
+	return nil
 }
 
 // mergeImportedStepArrays merges two step arrays (existing first, then new)
-func mergeImportedStepArrays(existing, new any) []any {
+// mergeImportedStepArrays merges two step arrays (existing first, then new)
+func mergeImportedStepArrays(existing, new []any) []any {
 	var result []any
 
-	if existingArray, ok := existing.([]any); ok {
-		result = append(result, existingArray...)
+	if existing != nil {
+		result = append(result, existing...)
 	}
-	if newArray, ok := new.([]any); ok {
-		result = append(result, newArray...)
+	if new != nil {
+		result = append(result, new...)
 	}
 
 	return result

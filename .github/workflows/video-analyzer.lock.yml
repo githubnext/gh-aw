@@ -80,13 +80,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      - id: setup-ffmpeg
-        name: Setup FFmpeg
-        run: |-
-          sudo apt-get update && sudo apt-get install -y ffmpeg
-          version=$(ffmpeg -version | head -n1)
-          echo "version=$version" >> $GITHUB_OUTPUT
-          mkdir -p /tmp/gh-aw/ffmpeg
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent

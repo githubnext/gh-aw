@@ -1283,66 +1283,122 @@ return steps
 }
 
 // mergeSteps merges imported steps with main workflow steps
-func mergeSteps(imported, main any) any {
-// If imported is an array and main is an array, concatenate
-if importedArray, ok := imported.([]any); ok {
-if mainArray, ok := main.([]any); ok {
-return append(importedArray, mainArray...)
-}
-// If imported is array and main is object, convert array to object first
-if mainObj, ok := main.(map[string]any); ok {
-result := make(map[string]any)
-// Array format maps to pre steps
-result["pre"] = mergeStepArrays(importedArray, mainObj["pre"])
-result["post-redaction"] = mergeStepArrays(nil, mainObj["post-redaction"])
-result["post"] = mergeStepArrays(nil, mainObj["post"])
-return result
-}
+func mergeSteps(imported *parser.StepsConfig, main any) any {
+	// Convert main to StepsConfig-like format
+	var mainConfig *parser.StepsConfig
+	if mainArray, ok := main.([]any); ok {
+		mainConfig = &parser.StepsConfig{
+			IsArray: true,
+			Array:   mainArray,
+		}
+	} else if mainObj, ok := main.(map[string]any); ok {
+		mainConfig = &parser.StepsConfig{
+			IsArray:       false,
+			Pre:           getStepArrayFromAny(mainObj["pre"]),
+			PostRedaction: getStepArrayFromAny(mainObj["post-redaction"]),
+			Post:          getStepArrayFromAny(mainObj["post"]),
+		}
+	}
+
+	if mainConfig == nil {
+		// Just return imported as any
+		return stepsConfigToAny(imported)
+	}
+
+	// Merge based on formats
+	result := &parser.StepsConfig{}
+	
+	// If both are arrays, concatenate
+	if imported.IsArray && mainConfig.IsArray {
+		result.IsArray = true
+		result.Array = append(imported.Array, mainConfig.Array...)
+		return stepsConfigToAny(result)
+	}
+
+	// Convert to object format and merge
+	result.IsArray = false
+	
+	// Get pre steps from both
+	var importedPre, mainPre []any
+	if imported.IsArray {
+		importedPre = imported.Array
+	} else {
+		importedPre = imported.Pre
+	}
+	if mainConfig.IsArray {
+		mainPre = mainConfig.Array
+	} else {
+		mainPre = mainConfig.Pre
+	}
+	result.Pre = mergeStepArrays(importedPre, mainPre)
+
+	// Get post-redaction steps
+	var importedPostRedaction, mainPostRedaction []any
+	if !imported.IsArray {
+		importedPostRedaction = imported.PostRedaction
+	}
+	if !mainConfig.IsArray {
+		mainPostRedaction = mainConfig.PostRedaction
+	}
+	result.PostRedaction = mergeStepArrays(importedPostRedaction, mainPostRedaction)
+
+	// Get post steps
+	var importedPost, mainPost []any
+	if !imported.IsArray {
+		importedPost = imported.Post
+	}
+	if !mainConfig.IsArray {
+		mainPost = mainConfig.Post
+	}
+	result.Post = mergeStepArrays(importedPost, mainPost)
+
+	return stepsConfigToAny(result)
 }
 
-// If imported is an object and main is an object, merge fields
-if importedObj, ok := imported.(map[string]any); ok {
-if mainObj, ok := main.(map[string]any); ok {
-result := make(map[string]any)
-
-// Merge pre
-result["pre"] = mergeStepArrays(importedObj["pre"], mainObj["pre"])
-// Merge post-redaction  
-result["post-redaction"] = mergeStepArrays(importedObj["post-redaction"], mainObj["post-redaction"])
-// Merge post
-result["post"] = mergeStepArrays(importedObj["post"], mainObj["post"])
-
-return result
-}
-// If imported is object and main is array, add array to pre steps
-if mainArray, ok := main.([]any); ok {
-result := make(map[string]any)
-result["pre"] = mergeStepArrays(importedObj["pre"], mainArray)
-result["post-redaction"] = mergeStepArrays(importedObj["post-redaction"], nil)
-result["post"] = mergeStepArrays(importedObj["post"], nil)
-return result
-}
+// stepsConfigToAny converts StepsConfig to any type for backward compatibility
+func stepsConfigToAny(config *parser.StepsConfig) any {
+	if config == nil {
+		return nil
+	}
+	if config.IsArray {
+		return config.Array
+	}
+	result := make(map[string]any)
+	if config.Pre != nil {
+		result["pre"] = config.Pre
+	}
+	if config.PostRedaction != nil {
+		result["post-redaction"] = config.PostRedaction
+	}
+	if config.Post != nil {
+		result["post"] = config.Post
+	}
+	return result
 }
 
-// If types don't match or one is nil, prefer main over imported
-if main != nil {
-return main
-}
-return imported
+// getStepArrayFromAny converts any type to []any or returns nil
+func getStepArrayFromAny(v any) []any {
+	if v == nil {
+		return nil
+	}
+	if arr, ok := v.([]any); ok {
+		return arr
+	}
+	return nil
 }
 
 // mergeStepArrays merges two step arrays (imported first, then main)
-func mergeStepArrays(imported, main any) []any {
-var result []any
+func mergeStepArrays(imported, main []any) []any {
+	var result []any
 
-if importedArray, ok := imported.([]any); ok {
-result = append(result, importedArray...)
-}
-if mainArray, ok := main.([]any); ok {
-result = append(result, mainArray...)
-}
+	if imported != nil {
+		result = append(result, imported...)
+	}
+	if main != nil {
+		result = append(result, main...)
+	}
 
-return result
+	return result
 }
 
 // commentOutProcessedFieldsInOnSection comments out draft, fork, forks, and names fields in pull_request/issues sections within the YAML string

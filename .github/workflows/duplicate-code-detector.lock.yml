@@ -77,23 +77,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Setup uv
         uses: astral-sh/setup-uv@v5
-      - name: Verify uv
-        run: uv --version
-      - name: Install Go language service
-        run: go install golang.org/x/tools/gopls@latest
-      - name: Check gopls version
-        run: gopls version
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent

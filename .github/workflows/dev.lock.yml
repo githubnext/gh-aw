@@ -62,10 +62,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -555,19 +551,6 @@ jobs:
           SECRET_COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - id: install-credsweeper
-        name: Install CredSweeper
-        run: |
-          pip install credsweeper
-          credsweeper --version
-      - id: run-credsweeper
-        name: Run CredSweeper
-        run: "# Create output directory\nmkdir -p /tmp/gh-aw/credsweeper\n\n# Run CredSweeper on /tmp/gh-aw/ directory\necho \"🔍 Scanning /tmp/gh-aw/ for credentials...\"\npython -m credsweeper --path /tmp/gh-aw/ --save-json /tmp/gh-aw/credsweeper/output.json || true\n\n# Display results if file exists\nif [ -f /tmp/gh-aw/credsweeper/output.json ]; then\n  echo \"📄 CredSweeper scan complete. Results saved to /tmp/gh-aw/credsweeper/output.json\"\n  \n  # Show summary\n  CREDENTIAL_COUNT=$(jq 'length' /tmp/gh-aw/credsweeper/output.json 2>/dev/null || echo \"0\")\n  echo \"Found $CREDENTIAL_COUNT potential credential(s)\"\n  \n  if [ \"$CREDENTIAL_COUNT\" != \"0\" ]; then\n    echo \"⚠️  WARNING: Credentials detected in temporary files!\"\n    echo \"These will be masked in the next step to prevent exposure.\"\n  fi\nelse\n  echo \"✅ No credentials detected\"\n  echo \"[]\" > /tmp/gh-aw/credsweeper/output.json\nfi\n"
-      - if: always()
-        name: Mask CredSweeper Findings
-        uses: actions/github-script@v8
-        with:
-          script: "const fs = require('fs');\nconst path = require('path');\n\n/**\n * Process CredSweeper output and mask all detected credentials\n */\nasync function maskCredentials() {\n  const outputPath = '/tmp/gh-aw/credsweeper/output.json';\n  \n  // Check if output file exists\n  if (!fs.existsSync(outputPath)) {\n    core.info('No CredSweeper output file found, skipping masking');\n    return;\n  }\n  \n  // Read and parse CredSweeper output\n  let credentials;\n  try {\n    const content = fs.readFileSync(outputPath, 'utf8');\n    credentials = JSON.parse(content);\n  } catch (error) {\n    core.warning(`Failed to parse CredSweeper output: ${error instanceof Error ? error.message : String(error)}`);\n    return;\n  }\n  \n  if (!Array.isArray(credentials) || credentials.length === 0) {\n    core.info('✅ No credentials detected by CredSweeper');\n    return;\n  }\n  \n  core.info(`🔒 Processing ${credentials.length} potential credential(s) for masking`);\n  \n  let maskedCount = 0;\n  \n  // Process each credential finding\n  for (const credential of credentials) {\n    // Skip if no line_data_list\n    if (!credential.line_data_list || !Array.isArray(credential.line_data_list)) {\n      continue;\n    }\n    \n    // Process each line data entry\n    for (const lineData of credential.line_data_list) {\n      // Get the credential value\n      const value = lineData.value;\n      \n      // Skip empty or very short values (likely false positives)\n      if (!value || value.length < 8) {\n        continue;\n      }\n      \n      // Mask the credential using GitHub Actions secret masking\n      core.setSecret(value);\n      maskedCount++;\n      \n      // Log details (the value itself will be masked in logs)\n      const rule = credential.rule || 'Unknown';\n      const filePath = lineData.path || 'Unknown';\n      const lineNum = lineData.line_num || 'N/A';\n      \n      core.warning(\n        `Masked credential: ${rule} in ${filePath}:${lineNum} ` +\n        `(confidence: ${credential.confidence || 'N/A'}, severity: ${credential.severity || 'N/A'})`\n      );\n    }\n  }\n  \n  if (maskedCount > 0) {\n    core.warning(`⚠️  Masked ${maskedCount} credential value(s) to prevent exposure in logs`);\n    core.summary.addHeading('CredSweeper Security Scan', 2);\n    core.summary.addRaw(`⚠️  Detected and masked ${maskedCount} potential credential(s)\\n\\n`);\n    core.summary.addRaw('These credentials have been automatically masked using GitHub Actions secret masking to prevent exposure in workflow logs and artifacts.\\n\\n');\n    core.summary.addRaw(`Total findings: ${credentials.length}\\n`);\n    await core.summary.write();\n  } else {\n    core.info('✅ No credentials required masking');\n  }\n}\n\nawait maskCredentials();"
       - name: Upload engine output files
         uses: actions/upload-artifact@v4
         with:
