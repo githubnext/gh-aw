@@ -156,8 +156,9 @@ type WorkflowData struct {
 	Env                 string
 	If                  string
 	TimeoutMinutes      string
-	CustomSteps         string
-	PostSteps           string // steps to run after AI execution
+	CustomSteps         string          // DEPRECATED: Legacy string-based steps (use ParsedSteps instead)
+	PostSteps           string          // DEPRECATED: Legacy string-based post-steps (use ParsedSteps instead)
+	ParsedSteps         *WorkflowSteps  // Structured steps configuration parsed from frontmatter
 	RunsOn              string
 	Environment         string // environment setting for the main job
 	Container           string // container setting for the main job
@@ -859,13 +860,76 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Env = c.extractTopLevelYAMLSection(result.Frontmatter, "env")
 	workflowData.If = c.extractIfCondition(result.Frontmatter)
 	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout_minutes")
-	workflowData.CustomSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "steps")
+
+	// Parse steps using new structured approach
+	stepsData, _ := result.Frontmatter["steps"]
+	parsedSteps, err := ParseStepsFromFrontmatter(stepsData)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing steps: %w", err)
+	}
+
+	// Also parse post-agent field (new preferred field)
+	postAgentData, hasPostAgent := result.Frontmatter["post-agent"]
+	if hasPostAgent {
+		postAgentSteps, err := ParseStepsFromFrontmatter(postAgentData)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing post-agent: %w", err)
+		}
+		if postAgentSteps != nil {
+			// Merge post-agent into the appropriate position
+			if parsedSteps == nil {
+				parsedSteps = &WorkflowSteps{}
+			}
+			// post-agent field maps directly to PostAgent position
+			// If it's an array, it will be in PreAgent, but we want it in PostAgent
+			parsedSteps.PostAgent = append(parsedSteps.PostAgent, postAgentSteps.PreAgent...)
+			parsedSteps.PostAgent = append(parsedSteps.PostAgent, postAgentSteps.PostAgent...)
+		}
+	}
+
+	// Also parse post-steps from frontmatter (legacy support - goes to PostAgent position)
+	postStepsData, hasPostSteps := result.Frontmatter["post-steps"]
+	if hasPostSteps {
+		postSteps, err := ParseStepsFromFrontmatter(postStepsData)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing post-steps: %w", err)
+		}
+		if postSteps != nil {
+			// Merge post-steps into the appropriate position
+			if parsedSteps == nil {
+				parsedSteps = &WorkflowSteps{}
+			}
+			// Legacy post-steps go to PostAgent position
+			parsedSteps.PostAgent = append(parsedSteps.PostAgent, postSteps.PreAgent...)
+			parsedSteps.PostAgent = append(parsedSteps.PostAgent, postSteps.PostAgent...)
+		}
+	}
 
 	// Merge imported steps if any
+	var importedSteps *WorkflowSteps
+	if importsResult.MergedSteps != "" {
+		// Parse imported steps from YAML
+		var importedStepsData any
+		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &importedStepsData); err == nil {
+			importedSteps, err = ParseStepsFromFrontmatter(importedStepsData)
+			if err != nil {
+				return nil, fmt.Errorf("error parsing imported steps: %w", err)
+			}
+		}
+	}
+
+	// Merge imported and main workflow steps
+	workflowData.ParsedSteps = MergeSteps(parsedSteps, importedSteps)
+
+	// Keep legacy string fields for backward compatibility during transition
+	workflowData.CustomSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "steps")
+	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
+	
+	// Apply the legacy merging logic to CustomSteps if needed for compatibility
 	if importsResult.MergedSteps != "" {
 		// Parse imported steps from YAML array
-		var importedSteps []any
-		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &importedSteps); err == nil {
+		var importedStepsLegacy []any
+		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &importedStepsLegacy); err == nil {
 			// If there are main workflow steps, parse and merge them
 			if workflowData.CustomSteps != "" {
 				// Parse main workflow steps (format: "steps:\n  - ...")
@@ -874,7 +938,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 					if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
 						if mainSteps, ok := mainStepsVal.([]any); ok {
 							// Prepend imported steps to main steps
-							allSteps := append(importedSteps, mainSteps...)
+							allSteps := append(importedStepsLegacy, mainSteps...)
 							// Convert back to YAML with "steps:" wrapper
 							stepsWrapper := map[string]any{"steps": allSteps}
 							stepsYAML, err := yaml.Marshal(stepsWrapper)
@@ -886,7 +950,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 				}
 			} else {
 				// Only imported steps exist, wrap in "steps:" format
-				stepsWrapper := map[string]any{"steps": importedSteps}
+				stepsWrapper := map[string]any{"steps": importedStepsLegacy}
 				stepsYAML, err := yaml.Marshal(stepsWrapper)
 				if err == nil {
 					workflowData.CustomSteps = string(stepsYAML)
@@ -895,7 +959,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
-	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Environment = c.extractTopLevelYAMLSection(result.Frontmatter, "environment")
 	workflowData.Container = c.extractTopLevelYAMLSection(result.Frontmatter, "container")
@@ -2511,10 +2574,15 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 // generateMainJobSteps generates the steps section for the main job
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
+	// Add "pre" steps first (before checkout and runtime setup)
+	if data.ParsedSteps != nil && len(data.ParsedSteps.Pre) > 0 {
+		renderStepsAtPosition(yaml, data.ParsedSteps.Pre)
+	}
+
 	// Determine if we need to add a checkout step
 	needsCheckout := c.shouldAddCheckoutStep(data)
 
-	// Add checkout step first if needed
+	// Add checkout step if needed
 	if needsCheckout {
 		yaml.WriteString("      - name: Checkout repository\n")
 		yaml.WriteString("        uses: actions/checkout@v5\n")
@@ -2545,8 +2613,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
-	// Add custom steps if present
-	if data.CustomSteps != "" {
+	// Add "pre-agent" steps (these run before agent execution, where legacy "steps" go)
+	if data.ParsedSteps != nil && len(data.ParsedSteps.PreAgent) > 0 {
+		renderStepsAtPosition(yaml, data.ParsedSteps.PreAgent)
+	} else if data.CustomSteps != "" {
+		// Fallback to legacy CustomSteps for backward compatibility
 		// Remove "steps:" line and adjust indentation
 		lines := strings.Split(data.CustomSteps, "\n")
 		if len(lines) > 1 {
@@ -2664,8 +2735,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		c.generateGitPatchStep(yaml)
 	}
 
-	// Add post-steps (if any) after AI execution
+	// Add post-agent steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
+
+	// Add final post steps (if any) at the very end
+	c.generateFinalSteps(yaml, data)
 }
 
 func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFileFull string) {
@@ -3044,9 +3118,13 @@ func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutp
 		})
 }
 
-// generatePostSteps generates the post-steps section that runs after AI execution
+// generatePostSteps generates the post-agent and post steps that run after AI execution
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {
-	if data.PostSteps != "" {
+	// Add "post-agent" steps (these run immediately after agent execution)
+	if data.ParsedSteps != nil && len(data.ParsedSteps.PostAgent) > 0 {
+		renderStepsAtPosition(yaml, data.ParsedSteps.PostAgent)
+	} else if data.PostSteps != "" {
+		// Fallback to legacy PostSteps for backward compatibility
 		// Remove "post-steps:" line and adjust indentation, similar to CustomSteps processing
 		lines := strings.Split(data.PostSteps, "\n")
 		if len(lines) > 1 {
@@ -3069,6 +3147,15 @@ func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) 
 		}
 	}
 }
+
+// generateFinalSteps generates the "post" steps that run after all other steps
+func (c *Compiler) generateFinalSteps(yaml *strings.Builder, data *WorkflowData) {
+	// Add "post" steps (these run after everything else)
+	if data.ParsedSteps != nil && len(data.ParsedSteps.Post) > 0 {
+		renderStepsAtPosition(yaml, data.ParsedSteps.Post)
+	}
+}
+
 
 // extractJobsFromFrontmatter extracts job configuration from frontmatter
 func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[string]any {

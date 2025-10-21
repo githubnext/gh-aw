@@ -87,7 +87,6 @@ jobs:
           version=$(ffmpeg -version | head -n1)
           echo "version=$version" >> $GITHUB_OUTPUT
           mkdir -p /tmp/gh-aw/ffmpeg
-
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent

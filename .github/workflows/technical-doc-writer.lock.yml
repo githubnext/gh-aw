@@ -467,10 +467,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
         working-directory: ./docs
-      - env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Build documentation
+      - name: Build documentation
         run: npm run build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: ./docs
       - name: Create gh-aw temp directory
         run: |

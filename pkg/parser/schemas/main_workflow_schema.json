@@ -1465,30 +1465,102 @@
       "description": "Conditional execution expression"
     },
     "steps": {
-      "description": "Custom workflow steps",
+      "description": "Custom workflow steps. Can be an array (legacy format, goes to pre-agent position) or an object with named positions (pre, pre-agent, post-agent, post)",
       "oneOf": [
         {
           "type": "object",
-          "additionalProperties": true
+          "description": "Object format with named step positions",
+          "properties": {
+            "pre": {
+              "description": "Steps to run before checkout and runtime setup",
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "pre-agent": {
+              "description": "Steps to run after setup but before agent execution",
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "post-agent": {
+              "description": "Steps to run immediately after agent execution",
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "post": {
+              "description": "Steps to run after all other steps are complete",
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            }
+          },
+          "additionalProperties": false
         },
         {
           "type": "array",
+          "description": "Legacy array format (steps go to pre-agent position)",
           "items": {
             "oneOf": [
               {
-                "type": "string"
-              },
-              {
                 "type": "object",
                 "additionalProperties": true
+              },
+              {
+                "type": "string"
               }
             ]
           }
         }
       ]
     },
+    "post-agent": {
+      "description": "Steps to run immediately after AI execution. Preferred over post-steps.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
     "post-steps": {
-      "description": "Custom workflow steps to run after AI execution",
+      "description": "DEPRECATED: Use 'post-agent' instead. Custom workflow steps to run after AI execution",
       "oneOf": [
         {
           "type": "object",
