@@ -687,8 +687,28 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 		processedRuns[i].Run.MissingToolCount = len(processedRuns[i].MissingTools)
 	}
 
+	// Build continuation data if timeout was reached and there are processed runs
+	var continuation *ContinuationData
+	if timeoutReached && len(processedRuns) > 0 {
+		// Get the oldest run ID from processed runs to use as before_run_id for continuation
+		oldestRunID := processedRuns[len(processedRuns)-1].Run.DatabaseID
+
+		continuation = &ContinuationData{
+			Message:      "Timeout reached. Use these parameters to continue fetching more logs.",
+			WorkflowName: workflowName,
+			Count:        count,
+			StartDate:    startDate,
+			EndDate:      endDate,
+			Engine:       engine,
+			Branch:       branch,
+			AfterRunID:   afterRunID,
+			BeforeRunID:  oldestRunID, // Continue from where we left off
+			Timeout:      timeout,
+		}
+	}
+
 	// Build structured logs data
-	logsData := buildLogsData(processedRuns, outputDir)
+	logsData := buildLogsData(processedRuns, outputDir, continuation)
 
 	// Render output based on format preference
 	if jsonOutput {

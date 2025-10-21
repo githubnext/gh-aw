@@ -21,7 +21,22 @@ type LogsData struct {
 	MissingTools []MissingToolSummary `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
 	MCPFailures  []MCPFailureSummary  `json:"mcp_failures,omitempty" console:"title:⚠️  MCP Server Failures,omitempty"`
 	AccessLog    *AccessLogSummary    `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
+	Continuation *ContinuationData    `json:"continuation,omitempty" console:"-"`
 	LogsLocation string               `json:"logs_location" console:"-"`
+}
+
+// ContinuationData provides parameters to continue querying when timeout is reached
+type ContinuationData struct {
+	Message       string `json:"message"`
+	WorkflowName  string `json:"workflow_name,omitempty"`
+	Count         int    `json:"count,omitempty"`
+	StartDate     string `json:"start_date,omitempty"`
+	EndDate       string `json:"end_date,omitempty"`
+	Engine        string `json:"engine,omitempty"`
+	Branch        string `json:"branch,omitempty"`
+	AfterRunID    int64  `json:"after_run_id,omitempty"`
+	BeforeRunID   int64  `json:"before_run_id,omitempty"`
+	Timeout       int    `json:"timeout,omitempty"`
 }
 
 // LogsSummary contains aggregate metrics across all runs
@@ -78,7 +93,7 @@ type AccessLogSummary struct {
 }
 
 // buildLogsData creates structured logs data from processed runs
-func buildLogsData(processedRuns []ProcessedRun, outputDir string) LogsData {
+func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData) LogsData {
 	// Build summary
 	var totalDuration time.Duration
 	var totalTokens int
@@ -167,6 +182,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string) LogsData {
 		MissingTools: missingTools,
 		MCPFailures:  mcpFailures,
 		AccessLog:    accessLog,
+		Continuation: continuation,
 		LogsLocation: absOutputDir,
 	}
 }
