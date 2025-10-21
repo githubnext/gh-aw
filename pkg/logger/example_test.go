@@ -36,20 +36,17 @@ func ExampleLogger_Printf() {
 	// Output to stderr: app:feature Processing 42 items
 }
 
-func ExampleLogger_LazyPrintf() {
-	os.Setenv("DEBUG", "app:*")
+func ExampleLogger_Print() {
+	// Enable all loggers
+	os.Setenv("DEBUG", "*")
 	defer os.Unsetenv("DEBUG")
 
-	log := logger.New("app:expensive")
+	log := logger.New("app:feature")
 
-	// The lazy function is only called if the logger is enabled
-	log.LazyPrintf(func() string {
-		// This expensive operation only runs when logging is enabled
-		result := "computed result"
-		return fmt.Sprintf("Expensive computation: %s", result)
-	})
+	// Print concatenates arguments like fmt.Sprint
+	log.Print("Processing", " ", "items")
 
-	// Output to stderr: app:expensive Expensive computation: computed result
+	// Output to stderr: app:feature Processing items +0ns
 }
 
 func ExampleNew_patterns() {

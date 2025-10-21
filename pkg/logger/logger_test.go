@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 // captureStderr captures stderr output during test execution
@@ -148,11 +149,8 @@ func TestNew(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Reset cache and set environment for this test
-			patternCacheLock.Lock()
-			patternCache = make(map[string]bool)
+			// Set environment for this test
 			debugEnv = tt.debugEnv
-			patternCacheLock.Unlock()
 
 			logger := New(tt.namespace)
 			if logger.Enabled() != tt.enabled {
@@ -192,11 +190,8 @@ func TestLogger_Printf(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Reset cache and set environment
-			patternCacheLock.Lock()
-			patternCache = make(map[string]bool)
+			// Set environment
 			debugEnv = tt.debugEnv
-			patternCacheLock.Unlock()
 
 			logger := New(tt.namespace)
 
@@ -225,11 +220,8 @@ func TestLogger_Printf(t *testing.T) {
 }
 
 func TestLogger_Print(t *testing.T) {
-	// Reset cache and set environment
-	patternCacheLock.Lock()
-	patternCache = make(map[string]bool)
+	// Set environment
 	debugEnv = "*"
-	patternCacheLock.Unlock()
 
 	logger := New("test:print")
 
@@ -243,110 +235,67 @@ func TestLogger_Print(t *testing.T) {
 	if !strings.Contains(output, "hello world") {
 		t.Errorf("Print() output should contain message, got %q", output)
 	}
+	// Check that time diff is included
+	if !strings.Contains(output, "+") {
+		t.Errorf("Print() output should contain time diff, got %q", output)
+	}
 }
 
-func TestLogger_Println(t *testing.T) {
-	// Reset cache and set environment
-	patternCacheLock.Lock()
-	patternCache = make(map[string]bool)
+func TestLogger_TimeDiff(t *testing.T) {
+	// Set environment
 	debugEnv = "*"
-	patternCacheLock.Unlock()
 
-	logger := New("test:println")
+	logger := New("test:timediff")
 
-	output := captureStderr(func() {
-		logger.Println("hello world")
+	// First log
+	output1 := captureStderr(func() {
+		logger.Printf("first message")
 	})
 
-	if !strings.Contains(output, "test:println") {
-		t.Errorf("Println() output should contain namespace, got %q", output)
+	// Small delay
+	time.Sleep(10 * time.Millisecond)
+
+	// Second log
+	output2 := captureStderr(func() {
+		logger.Printf("second message")
+	})
+
+	// Both should have time diff
+	if !strings.Contains(output1, "+") {
+		t.Errorf("First log should contain time diff, got %q", output1)
 	}
-	if !strings.Contains(output, "hello world") {
-		t.Errorf("Println() output should contain message, got %q", output)
+	if !strings.Contains(output2, "+") {
+		t.Errorf("Second log should contain time diff, got %q", output2)
+	}
+
+	// Second log should show at least 10ms diff
+	if !strings.Contains(output2, "ms") && !strings.Contains(output2, "µs") {
+		t.Errorf("Second log should show millisecond or microsecond time diff, got %q", output2)
 	}
 }
 
-func TestLogger_LazyPrintf(t *testing.T) {
+func TestFormatDuration(t *testing.T) {
 	tests := []struct {
-		name         string
-		debugEnv     string
-		namespace    string
-		shouldInvoke bool
+		name     string
+		duration time.Duration
+		want     string
 	}{
-		{
-			name:         "enabled logger invokes lazy function",
-			debugEnv:     "*",
-			namespace:    "test:lazy",
-			shouldInvoke: true,
-		},
-		{
-			name:         "disabled logger does not invoke lazy function",
-			debugEnv:     "",
-			namespace:    "test:lazy",
-			shouldInvoke: false,
-		},
+		{"nanoseconds", 500 * time.Nanosecond, "500ns"},
+		{"microseconds", 500 * time.Microsecond, "500µs"},
+		{"milliseconds", 500 * time.Millisecond, "500ms"},
+		{"seconds", 2500 * time.Millisecond, "2.5s"},
+		{"minutes", 90 * time.Second, "1.5m"},
+		{"hours", 90 * time.Minute, "1.5h"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Reset cache and set environment
-			patternCacheLock.Lock()
-			patternCache = make(map[string]bool)
-			debugEnv = tt.debugEnv
-			patternCacheLock.Unlock()
-
-			logger := New(tt.namespace)
-
-			invoked := false
-			output := captureStderr(func() {
-				logger.LazyPrintf(func() string {
-					invoked = true
-					return "lazy message"
-				})
-			})
-
-			if invoked != tt.shouldInvoke {
-				t.Errorf("LazyPrintf() lazy function invoked = %v, want %v", invoked, tt.shouldInvoke)
-			}
-
-			if tt.shouldInvoke {
-				if !strings.Contains(output, "lazy message") {
-					t.Errorf("LazyPrintf() output should contain lazy message, got %q", output)
-				}
-			} else {
-				if output != "" {
-					t.Errorf("LazyPrintf() should not have logged but got %q", output)
-				}
+			got := formatDuration(tt.duration)
+			if got != tt.want {
+				t.Errorf("formatDuration(%v) = %q, want %q", tt.duration, got, tt.want)
 			}
 		})
 	}
-}
-
-func TestLogger_EnabledCaching(t *testing.T) {
-	// Reset cache and set environment
-	patternCacheLock.Lock()
-	patternCache = make(map[string]bool)
-	debugEnv = "test:*"
-	patternCacheLock.Unlock()
-
-	// Create first logger
-	logger1 := New("test:cache")
-	if !logger1.Enabled() {
-		t.Error("First logger should be enabled")
-	}
-
-	// Create second logger with same namespace - should use cache
-	logger2 := New("test:cache")
-	if !logger2.Enabled() {
-		t.Error("Second logger should be enabled (from cache)")
-	}
-
-	// Verify cache was used by checking cache size
-	patternCacheLock.RLock()
-	if len(patternCache) != 1 {
-		t.Errorf("Cache should have 1 entry, got %d", len(patternCache))
-	}
-	patternCacheLock.RUnlock()
 }
 
 func TestMatchPattern(t *testing.T) {

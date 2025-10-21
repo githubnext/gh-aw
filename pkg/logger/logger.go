@@ -5,19 +5,18 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Logger represents a debug logger for a specific namespace
 type Logger struct {
 	namespace string
 	enabled   bool
+	lastLog   time.Time
+	mu        sync.Mutex
 }
 
 var (
-	// Cache for compiled pattern checks to avoid recompiling on every logger creation
-	patternCache     = make(map[string]bool)
-	patternCacheLock sync.RWMutex
-
 	// DEBUG environment variable value, read once at initialization
 	debugEnv = os.Getenv("DEBUG")
 )
@@ -31,10 +30,11 @@ var (
 //	DEBUG=ns1,ns2        - enables specific namespaces
 //	DEBUG=ns:*,-ns:skip  - enables namespace but excludes specific patterns
 func New(namespace string) *Logger {
-	enabled := isEnabled(namespace)
+	enabled := computeEnabled(namespace)
 	return &Logger{
 		namespace: namespace,
 		enabled:   enabled,
+		lastLog:   time.Now(),
 	}
 }
 
@@ -43,65 +43,58 @@ func (l *Logger) Enabled() bool {
 	return l.enabled
 }
 
-// Printf prints a formatted message if the logger is enabled
+// Printf prints a formatted message if the logger is enabled.
+// A newline is always added at the end.
+// Time diff since last log is displayed like the debug npm package.
 func (l *Logger) Printf(format string, args ...interface{}) {
 	if !l.enabled {
 		return
 	}
+	l.mu.Lock()
+	now := time.Now()
+	diff := now.Sub(l.lastLog)
+	l.lastLog = now
+	l.mu.Unlock()
+
 	message := fmt.Sprintf(format, args...)
-	fmt.Fprintf(os.Stderr, "%s %s\n", l.namespace, message)
+	fmt.Fprintf(os.Stderr, "%s %s +%s\n", l.namespace, message, formatDuration(diff))
 }
 
-// Print prints a message if the logger is enabled
+// Print prints a message if the logger is enabled.
+// A newline is always added at the end.
+// Time diff since last log is displayed like the debug npm package.
 func (l *Logger) Print(args ...interface{}) {
 	if !l.enabled {
 		return
 	}
+	l.mu.Lock()
+	now := time.Now()
+	diff := now.Sub(l.lastLog)
+	l.lastLog = now
+	l.mu.Unlock()
+
 	message := fmt.Sprint(args...)
-	fmt.Fprintf(os.Stderr, "%s %s\n", l.namespace, message)
+	fmt.Fprintf(os.Stderr, "%s %s +%s\n", l.namespace, message, formatDuration(diff))
 }
 
-// Println prints a message with a newline if the logger is enabled
-func (l *Logger) Println(args ...interface{}) {
-	if !l.enabled {
-		return
+// formatDuration formats a duration for display like the debug npm package
+func formatDuration(d time.Duration) string {
+	if d < time.Microsecond {
+		return fmt.Sprintf("%dns", d.Nanoseconds())
 	}
-	message := fmt.Sprint(args...)
-	fmt.Fprintf(os.Stderr, "%s %s\n", l.namespace, message)
-}
-
-// LazyPrintf evaluates the lazy function only if the logger is enabled,
-// then prints the result. This is useful for expensive string operations.
-func (l *Logger) LazyPrintf(lazy func() string) {
-	if !l.enabled {
-		return
+	if d < time.Millisecond {
+		return fmt.Sprintf("%dµs", d.Microseconds())
 	}
-	message := lazy()
-	fmt.Fprintf(os.Stderr, "%s %s\n", l.namespace, message)
-}
-
-// isEnabled determines if a namespace should be enabled based on DEBUG environment variable
-func isEnabled(namespace string) bool {
-	if debugEnv == "" {
-		return false
+	if d < time.Second {
+		return fmt.Sprintf("%dms", d.Milliseconds())
 	}
-
-	// Check cache first
-	patternCacheLock.RLock()
-	if enabled, found := patternCache[namespace]; found {
-		patternCacheLock.RUnlock()
-		return enabled
+	if d < time.Minute {
+		return fmt.Sprintf("%.1fs", d.Seconds())
 	}
-	patternCacheLock.RUnlock()
-
-	// Compute and cache the result
-	enabled := computeEnabled(namespace)
-
-	patternCacheLock.Lock()
-	patternCache[namespace] = enabled
-	patternCacheLock.Unlock()
-
-	return enabled
+	if d < time.Hour {
+		return fmt.Sprintf("%.1fm", d.Minutes())
+	}
+	return fmt.Sprintf("%.1fh", d.Hours())
 }
 
 // computeEnabled computes whether a namespace matches the DEBUG patterns
