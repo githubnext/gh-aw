@@ -786,15 +786,18 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 //
 // The totalFetched count is critical for pagination - it indicates whether more data is available
 // from GitHub, whereas the filtered runs count may be much smaller after filtering for agentic workflows.
-func listWorkflowRunsWithPagination(workflowName string, count int, startDate, endDate, beforeDate, branch string, beforeRunID, afterRunID int64, verbose bool) ([]WorkflowRun, int, error) {
+//
+// The limit parameter specifies the batch size for the GitHub API call (how many runs to fetch in this request),
+// not the total number of matching runs the user wants to find.
+func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, endDate, beforeDate, branch string, beforeRunID, afterRunID int64, verbose bool) ([]WorkflowRun, int, error) {
 	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	// Add filters
 	if workflowName != "" {
 		args = append(args, "--workflow", workflowName)
 	}
-	if count > 0 {
-		args = append(args, "--limit", strconv.Itoa(count))
+	if limit > 0 {
+		args = append(args, "--limit", strconv.Itoa(limit))
 	}
 	if startDate != "" {
 		args = append(args, "--created", ">="+startDate)
