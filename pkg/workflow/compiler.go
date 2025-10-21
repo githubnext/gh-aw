@@ -2678,13 +2678,6 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 // generateMainJobSteps generates the steps section for the main job
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
-	// Add custom pre steps FIRST (before checkout)
-	// This allows workflows to set up tools/dependencies needed by later steps
-	// For example, gh-aw.md sets up Go and builds the binary before checkout
-	if data.Steps != nil && data.Steps.Pre != nil && len(data.Steps.Pre) > 0 {
-		c.generateSteps(yaml, data.Steps.Pre)
-	}
-
 	// Determine if we need to add a checkout step
 	needsCheckout := c.shouldAddCheckoutStep(data)
 
@@ -2705,6 +2698,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			effectiveToken := getEffectiveGitHubToken("", data.GitHubToken)
 			yaml.WriteString(fmt.Sprintf("          token: %s\n", effectiveToken))
 		}
+	}
+
+	// Add custom pre steps after checkout
+	// This allows pre steps to work with the checked-out repository files
+	if data.Steps != nil && data.Steps.Pre != nil && len(data.Steps.Pre) > 0 {
+		c.generateSteps(yaml, data.Steps.Pre)
 	}
 
 	// Add automatic runtime setup steps if needed
