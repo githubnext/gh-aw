@@ -156,9 +156,9 @@ func collectPackagesFromWorkflow(
 	var packages []string
 	seen := make(map[string]bool)
 
-	// Extract from custom steps
-	if workflowData.CustomSteps != "" {
-		pkgs := extractor(workflowData.CustomSteps)
+	// Extract from steps
+	if workflowData.Steps != nil {
+		pkgs := extractPackagesFromSteps(workflowData.Steps, extractor)
 		for _, pkg := range pkgs {
 			if !seen[pkg] {
 				packages = append(packages, pkg)
@@ -206,4 +206,42 @@ func collectPackagesFromWorkflow(
 	}
 
 	return packages
+}
+
+// extractPackagesFromSteps extracts packages from all step arrays using the provided extractor
+func extractPackagesFromSteps(steps *Steps, extractor func(string) []string) []string {
+var packages []string
+
+if steps.Pre != nil {
+pkgs := extractPackagesFromStepArray(steps.Pre, extractor)
+packages = append(packages, pkgs...)
+}
+if steps.PostRedaction != nil {
+pkgs := extractPackagesFromStepArray(steps.PostRedaction, extractor)
+packages = append(packages, pkgs...)
+}
+if steps.Post != nil {
+pkgs := extractPackagesFromStepArray(steps.Post, extractor)
+packages = append(packages, pkgs...)
+}
+
+return packages
+}
+
+// extractPackagesFromStepArray extracts packages from a step array
+func extractPackagesFromStepArray(stepsArray []any, extractor func(string) []string) []string {
+var packages []string
+
+for _, step := range stepsArray {
+if stepMap, ok := step.(map[string]any); ok {
+if run, hasRun := stepMap["run"]; hasRun {
+if runStr, ok := run.(string); ok {
+pkgs := extractor(runStr)
+packages = append(packages, pkgs...)
+}
+}
+}
+}
+
+return packages
 }

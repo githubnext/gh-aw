@@ -855,113 +855,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Env = c.extractTopLevelYAMLSection(result.Frontmatter, "env")
 	workflowData.If = c.extractIfCondition(result.Frontmatter)
 	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout_minutes")
-	workflowData.CustomSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "steps")
+	
+	// Parse steps field (supports array or object format)
+	workflowData.Steps = c.parseSteps(result.Frontmatter, *importsResult)
 
-	// Merge imported steps if any
-	if importsResult.MergedSteps != "" {
-		// Parse imported steps from YAML array
-		var importedSteps []any
-		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &importedSteps); err == nil {
-			// If there are main workflow steps, parse and merge them
-			if workflowData.CustomSteps != "" {
-				// Parse main workflow steps (format: "steps:\n  - ...")
-				var mainStepsWrapper map[string]any
-				if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err == nil {
-					if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
-						if mainSteps, ok := mainStepsVal.([]any); ok {
-							// Prepend imported steps to main steps
-							allSteps := append(importedSteps, mainSteps...)
-							// Convert back to YAML with "steps:" wrapper
-							stepsWrapper := map[string]any{"steps": allSteps}
-							stepsYAML, err := yaml.Marshal(stepsWrapper)
-							if err == nil {
-								workflowData.CustomSteps = string(stepsYAML)
-							}
-						}
-					}
-				}
-			} else {
-				// Only imported steps exist, wrap in "steps:" format
-				stepsWrapper := map[string]any{"steps": importedSteps}
-				stepsYAML, err := yaml.Marshal(stepsWrapper)
-				if err == nil {
-					workflowData.CustomSteps = string(stepsYAML)
-				}
-			}
-		}
-	}
-
-	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
-
-	// Merge imported post-steps if any
-	if importsResult.MergedPostSteps != "" {
-		// Parse imported post-steps from YAML array
-		var importedPostSteps []any
-		if err := yaml.Unmarshal([]byte(importsResult.MergedPostSteps), &importedPostSteps); err == nil {
-			// If there are main workflow post-steps, parse and merge them
-			if workflowData.PostSteps != "" {
-				// Parse main workflow post-steps (format: "post-steps:\n  - ...")
-				var mainPostStepsWrapper map[string]any
-				if err := yaml.Unmarshal([]byte(workflowData.PostSteps), &mainPostStepsWrapper); err == nil {
-					if mainPostStepsVal, hasPostSteps := mainPostStepsWrapper["post-steps"]; hasPostSteps {
-						if mainPostSteps, ok := mainPostStepsVal.([]any); ok {
-							// Append main post-steps to imported post-steps (imported run first)
-							allPostSteps := append(importedPostSteps, mainPostSteps...)
-							// Convert back to YAML with "post-steps:" wrapper
-							postStepsWrapper := map[string]any{"post-steps": allPostSteps}
-							postStepsYAML, err := yaml.Marshal(postStepsWrapper)
-							if err == nil {
-								workflowData.PostSteps = string(postStepsYAML)
-							}
-						}
-					}
-				}
-			} else {
-				// Only imported post-steps exist, wrap in "post-steps:" format
-				postStepsWrapper := map[string]any{"post-steps": importedPostSteps}
-				postStepsYAML, err := yaml.Marshal(postStepsWrapper)
-				if err == nil {
-					workflowData.PostSteps = string(postStepsYAML)
-				}
-			}
-		}
-	}
-
-	workflowData.SecretMaskingSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "secret-masking-steps")
-
-	// Merge imported secret-masking-steps if any
-	if importsResult.MergedSecretMaskingSteps != "" {
-		// Parse imported secret-masking-steps from YAML array
-		var importedSecretMaskingSteps []any
-		if err := yaml.Unmarshal([]byte(importsResult.MergedSecretMaskingSteps), &importedSecretMaskingSteps); err == nil {
-			// If there are main workflow secret-masking-steps, parse and merge them
-			if workflowData.SecretMaskingSteps != "" {
-				// Parse main workflow secret-masking-steps (format: "secret-masking-steps:\n  - ...")
-				var mainSecretMaskingStepsWrapper map[string]any
-				if err := yaml.Unmarshal([]byte(workflowData.SecretMaskingSteps), &mainSecretMaskingStepsWrapper); err == nil {
-					if mainSecretMaskingStepsVal, hasSecretMaskingSteps := mainSecretMaskingStepsWrapper["secret-masking-steps"]; hasSecretMaskingSteps {
-						if mainSecretMaskingSteps, ok := mainSecretMaskingStepsVal.([]any); ok {
-							// Append main secret-masking-steps to imported secret-masking-steps (imported run first)
-							allSecretMaskingSteps := append(importedSecretMaskingSteps, mainSecretMaskingSteps...)
-							// Convert back to YAML with "secret-masking-steps:" wrapper
-							secretMaskingStepsWrapper := map[string]any{"secret-masking-steps": allSecretMaskingSteps}
-							secretMaskingStepsYAML, err := yaml.Marshal(secretMaskingStepsWrapper)
-							if err == nil {
-								workflowData.SecretMaskingSteps = string(secretMaskingStepsYAML)
-							}
-						}
-					}
-				}
-			} else {
-				// Only imported secret-masking-steps exist, wrap in "secret-masking-steps:" format
-				secretMaskingStepsWrapper := map[string]any{"secret-masking-steps": importedSecretMaskingSteps}
-				secretMaskingStepsYAML, err := yaml.Marshal(secretMaskingStepsWrapper)
-				if err == nil {
-					workflowData.SecretMaskingSteps = string(secretMaskingStepsYAML)
-				}
-			}
-		}
-	}
 
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Environment = c.extractTopLevelYAMLSection(result.Frontmatter, "environment")
@@ -1299,6 +1196,118 @@ func (c *Compiler) extractExpressionFromIfString(ifString string) string {
 
 	// Return the string as-is (it's just the expression)
 	return ifString
+}
+
+// parseSteps parses the steps field from frontmatter, supporting both array and object formats
+// Array format: steps: [...]
+// Object format: steps: { pre: [...], post-redaction: [...], post: [...] }
+func (c *Compiler) parseSteps(frontmatter map[string]any, importsResult parser.ImportsResult) *Steps {
+steps := &Steps{}
+
+// Extract steps from frontmatter
+stepsYAML := c.extractTopLevelYAMLSection(frontmatter, "steps")
+if stepsYAML == "" && importsResult.MergedSteps == nil {
+return steps
+}
+
+// Parse main workflow steps
+var mainSteps any
+if stepsYAML != "" {
+var wrapper map[string]any
+if err := yaml.Unmarshal([]byte(stepsYAML), &wrapper); err == nil {
+if stepsVal, hasSteps := wrapper["steps"]; hasSteps {
+mainSteps = stepsVal
+}
+}
+}
+
+// Merge with imported steps
+var mergedSteps any
+if importsResult.MergedSteps != nil {
+if mainSteps != nil {
+// Merge imported and main steps
+mergedSteps = mergeSteps(importsResult.MergedSteps, mainSteps)
+} else {
+mergedSteps = importsResult.MergedSteps
+}
+} else {
+mergedSteps = mainSteps
+}
+
+if mergedSteps == nil {
+return steps
+}
+
+// Check if it's array format or object format
+if stepsArray, ok := mergedSteps.([]any); ok {
+// Array format - all steps go to Pre
+steps.Pre = stepsArray
+} else if stepsObj, ok := mergedSteps.(map[string]any); ok {
+// Object format with pre/post-redaction/post
+if pre, hasPre := stepsObj["pre"]; hasPre {
+if preArray, ok := pre.([]any); ok {
+steps.Pre = preArray
+}
+}
+if postRedaction, hasPostRedaction := stepsObj["post-redaction"]; hasPostRedaction {
+if postRedactionArray, ok := postRedaction.([]any); ok {
+steps.PostRedaction = postRedactionArray
+}
+}
+if post, hasPost := stepsObj["post"]; hasPost {
+if postArray, ok := post.([]any); ok {
+steps.Post = postArray
+}
+}
+}
+
+return steps
+}
+
+// mergeSteps merges imported steps with main workflow steps
+func mergeSteps(imported, main any) any {
+// If imported is an array and main is an array, concatenate
+if importedArray, ok := imported.([]any); ok {
+if mainArray, ok := main.([]any); ok {
+return append(importedArray, mainArray...)
+}
+}
+
+// If imported is an object and main is an object, merge fields
+if importedObj, ok := imported.(map[string]any); ok {
+if mainObj, ok := main.(map[string]any); ok {
+result := make(map[string]any)
+
+// Merge pre
+result["pre"] = mergeStepArrays(importedObj["pre"], mainObj["pre"])
+// Merge post-redaction  
+result["post-redaction"] = mergeStepArrays(importedObj["post-redaction"], mainObj["post-redaction"])
+// Merge post
+result["post"] = mergeStepArrays(importedObj["post"], mainObj["post"])
+
+return result
+}
+}
+
+// If types don't match or one is nil, prefer main over imported
+if main != nil {
+return main
+}
+return imported
+}
+
+// mergeStepArrays merges two step arrays (imported first, then main)
+func mergeStepArrays(imported, main any) []any {
+var result []any
+
+if importedArray, ok := imported.([]any); ok {
+result = append(result, importedArray...)
+}
+if mainArray, ok := main.([]any); ok {
+result = append(result, mainArray...)
+}
+
+return result
 }
 
 // commentOutProcessedFieldsInOnSection comments out draft, fork, forks, and names fields in pull_request/issues sections within the YAML string
@@ -2613,7 +2622,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Add custom steps if present
-	c.generateSteps(yaml, data.CustomSteps)
+	if data.Steps != nil {
+		c.generateSteps(yaml, data.Steps.Pre)
+	}
 
 	// Create /tmp/gh-aw/ base directory for all temporary files
 	yaml.WriteString("      - name: Create gh-aw temp directory\n")
@@ -3096,43 +3107,49 @@ func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutp
 		})
 }
 
-// generateSteps is a unified function for generating workflow steps (steps, post-steps, secret-masking-steps)
-// It handles the common logic of parsing YAML, adjusting indentation, and writing to the output
-func (c *Compiler) generateSteps(yaml *strings.Builder, stepsYAML string) {
-	if stepsYAML == "" {
+// generateSteps generates workflow steps from an array of step objects
+func (c *Compiler) generateSteps(yamlBuilder *strings.Builder, steps []any) {
+	if len(steps) == 0 {
 		return
 	}
-
-	// Remove the field name line (e.g., "steps:", "post-steps:", "secret-masking-steps:") and adjust indentation
-	lines := strings.Split(stepsYAML, "\n")
-	if len(lines) > 1 {
-		for _, line := range lines[1:] {
-			// Trim trailing whitespace
+	
+	// Convert steps array to YAML and generate
+	for _, step := range steps {
+		stepYAML, err := yaml.Marshal(step)
+		if err != nil {
+			continue
+		}
+		
+		// Parse the step YAML and write with proper indentation
+		lines := strings.Split(string(stepYAML), "\n")
+		for _, line := range lines {
 			trimmed := strings.TrimRight(line, " ")
-			// Skip empty lines
 			if strings.TrimSpace(trimmed) == "" {
-				yaml.WriteString("\n")
 				continue
 			}
 			// Steps need 6-space indentation (      - name:)
 			// Nested properties need 8-space indentation (        run:)
 			if strings.HasPrefix(line, "  ") {
-				yaml.WriteString("        " + line[2:] + "\n")
+				yamlBuilder.WriteString("        " + line[2:] + "\n")
 			} else {
-				yaml.WriteString("      " + line + "\n")
+				yamlBuilder.WriteString("      " + line + "\n")
 			}
 		}
 	}
 }
 
 // generateSecretMaskingSteps generates the secret-masking-steps section that runs after secret redaction before artifacts
-func (c *Compiler) generateSecretMaskingSteps(yaml *strings.Builder, data *WorkflowData) {
-	c.generateSteps(yaml, data.SecretMaskingSteps)
+func (c *Compiler) generateSecretMaskingSteps(yamlBuilder *strings.Builder, data *WorkflowData) {
+	if data.Steps != nil {
+		c.generateSteps(yamlBuilder, data.Steps.PostRedaction)
+	}
 }
 
 // generatePostSteps generates the post-steps section that runs after AI execution
-func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {
-	c.generateSteps(yaml, data.PostSteps)
+func (c *Compiler) generatePostSteps(yamlBuilder *strings.Builder, data *WorkflowData) {
+	if data.Steps != nil {
+		c.generateSteps(yamlBuilder, data.Steps.Post)
+	}
 }
 
 // extractJobsFromFrontmatter extracts job configuration from frontmatter
@@ -3206,9 +3223,9 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 
 // shouldAddCheckoutStep determines if the checkout step should be added based on permissions and custom steps
 func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData) bool {
-	// Check condition 1: If custom steps already contain checkout, don't add another one
-	if data.CustomSteps != "" && ContainsCheckout(data.CustomSteps) {
-		return false // Custom steps already have checkout
+	// Check condition 1: If steps already contain checkout, don't add another one
+	if data.Steps != nil && stepsContainCheckout(data.Steps) {
+		return false // Steps already have checkout
 	}
 
 	// Check condition 2: If permissions don't grant contents access, don't add checkout

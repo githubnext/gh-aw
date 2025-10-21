@@ -552,3 +552,43 @@ func NewPermissionsContentsWritePRReadIssuesRead() *Permissions {
 		PermissionIssues:       PermissionRead,
 	})
 }
+
+// stepsContainCheckout returns true if any step array contains an actions/checkout step
+func stepsContainCheckout(steps *Steps) bool {
+if steps == nil {
+return false
+}
+
+// Check pre steps
+if containsCheckoutInArray(steps.Pre) {
+return true
+}
+
+// Check post-redaction steps
+if containsCheckoutInArray(steps.PostRedaction) {
+return true
+}
+
+// Check post steps
+if containsCheckoutInArray(steps.Post) {
+return true
+}
+
+return false
+}
+
+// containsCheckoutInArray checks if a step array contains checkout
+func containsCheckoutInArray(stepsArray []any) bool {
+for _, step := range stepsArray {
+if stepMap, ok := step.(map[string]any); ok {
+if uses, hasUses := stepMap["uses"]; hasUses {
+if usesStr, ok := uses.(string); ok {
+if strings.Contains(usesStr, "actions/checkout") {
+return true
+}
+}
+}
+}
+}
+return false
+}

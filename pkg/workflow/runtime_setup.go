@@ -143,19 +143,9 @@ func init() {
 func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement {
 	requirements := make(map[string]*RuntimeRequirement) // map of runtime ID -> requirement
 
-	// Detect from custom steps
-	if workflowData.CustomSteps != "" {
-		detectFromCustomSteps(workflowData.CustomSteps, requirements)
-	}
-
-	// Detect from post-steps
-	if workflowData.PostSteps != "" {
-		detectFromCustomSteps(workflowData.PostSteps, requirements)
-	}
-
-	// Detect from secret-masking-steps
-	if workflowData.SecretMaskingSteps != "" {
-		detectFromCustomSteps(workflowData.SecretMaskingSteps, requirements)
+	// Detect from steps (pre, post-redaction, post)
+	if workflowData.Steps != nil {
+		detectFromSteps(workflowData.Steps, requirements)
 	}
 
 	// Detect from MCP server configurations
@@ -183,15 +173,9 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		}
 	}
 
-	// Filter out runtimes that already have setup actions in custom steps, post-steps, secret-masking-steps or engine steps
-	if workflowData.CustomSteps != "" {
-		filterExistingSetupActions(workflowData.CustomSteps, requirements)
-	}
-	if workflowData.PostSteps != "" {
-		filterExistingSetupActions(workflowData.PostSteps, requirements)
-	}
-	if workflowData.SecretMaskingSteps != "" {
-		filterExistingSetupActions(workflowData.SecretMaskingSteps, requirements)
+	// Filter out runtimes that already have setup actions in steps or engine steps
+	if workflowData.Steps != nil {
+		filterExistingSetupActionsFromSteps(workflowData.Steps, requirements)
 	}
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
 		for _, step := range workflowData.EngineConfig.Steps {
@@ -517,4 +501,57 @@ func findRuntimeByID(id string) *Runtime {
 		}
 	}
 	return nil
+}
+
+// detectFromSteps scans all step arrays for runtime requirements
+func detectFromSteps(steps *Steps, requirements map[string]*RuntimeRequirement) {
+if steps.Pre != nil {
+detectFromStepArray(steps.Pre, requirements)
+}
+if steps.PostRedaction != nil {
+detectFromStepArray(steps.PostRedaction, requirements)
+}
+if steps.Post != nil {
+detectFromStepArray(steps.Post, requirements)
+}
+}
+
+// detectFromStepArray scans a step array for runtime requirements
+func detectFromStepArray(stepsArray []any, requirements map[string]*RuntimeRequirement) {
+for _, step := range stepsArray {
+if stepMap, ok := step.(map[string]any); ok {
+// Check run commands
+if run, hasRun := stepMap["run"]; hasRun {
+if runStr, ok := run.(string); ok {
+detectRuntimeFromCommand(runStr, requirements)
+}
+}
+}
+}
+}
+
+// filterExistingSetupActionsFromSteps removes runtime requirements that are already set up
+func filterExistingSetupActionsFromSteps(steps *Steps, requirements map[string]*RuntimeRequirement) {
+if steps.Pre != nil {
+filterExistingSetupActionsFromArray(steps.Pre, requirements)
+}
+if steps.PostRedaction != nil {
+filterExistingSetupActionsFromArray(steps.PostRedaction, requirements)
+}
+if steps.Post != nil {
+filterExistingSetupActionsFromArray(steps.Post, requirements)
+}
+}
+
+// filterExistingSetupActionsFromArray scans a step array and removes matching runtimes from requirements
+func filterExistingSetupActionsFromArray(stepsArray []any, requirements map[string]*RuntimeRequirement) {
+for _, step := range stepsArray {
+if stepMap, ok := step.(map[string]any); ok {
+if uses, hasUses := stepMap["uses"]; hasUses {
+if usesStr, ok := uses.(string); ok {
+filterExistingSetupAction(usesStr, requirements)
+}
+}
+}
+}
 }

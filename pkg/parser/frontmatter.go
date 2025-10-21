@@ -87,17 +87,15 @@ type FrontmatterResult struct {
 
 // ImportsResult holds the result of processing imports from frontmatter
 type ImportsResult struct {
-	MergedTools              string   // Merged tools configuration from all imports
-	MergedMCPServers         string   // Merged mcp-servers configuration from all imports
-	MergedEngines            []string // Merged engine configurations from all imports
-	MergedSafeOutputs        []string // Merged safe-outputs configurations from all imports
-	MergedMarkdown           string   // Merged markdown content from all imports
-	MergedSteps              string   // Merged steps configuration from all imports
-	MergedPostSteps          string   // Merged post-steps configuration from all imports
-	MergedSecretMaskingSteps string   // Merged secret-masking-steps configuration from all imports
-	MergedRuntimes           string   // Merged runtimes configuration from all imports
-	MergedServices           string   // Merged services configuration from all imports
-	ImportedFiles            []string // List of imported file paths (for manifest)
+	MergedTools       string   // Merged tools configuration from all imports
+	MergedMCPServers  string   // Merged mcp-servers configuration from all imports
+	MergedEngines     []string // Merged engine configurations from all imports
+	MergedSafeOutputs []string // Merged safe-outputs configurations from all imports
+	MergedMarkdown    string   // Merged markdown content from all imports
+	MergedSteps       any      // Merged steps configuration (array or object with pre/post-redaction/post)
+	MergedRuntimes    string   // Merged runtimes configuration from all imports
+	MergedServices    string   // Merged services configuration from all imports
+	ImportedFiles     []string // List of imported file paths (for manifest)
 }
 
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
@@ -396,9 +394,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var toolsBuilder strings.Builder
 	var mcpServersBuilder strings.Builder
 	var markdownBuilder strings.Builder
-	var stepsBuilder strings.Builder
-	var postStepsBuilder strings.Builder
-	var secretMaskingStepsBuilder strings.Builder
+	var mergedSteps []any  // Array of steps from imports
 	var runtimesBuilder strings.Builder
 	var servicesBuilder strings.Builder
 	var engines []string
@@ -478,22 +474,30 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 			safeOutputs = append(safeOutputs, safeOutputsContent)
 		}
 
-		// Extract steps from imported file
+		// Extract steps from imported file (all three types merged into single array)
 		stepsContent, err := extractStepsFromContent(string(content))
 		if err == nil && stepsContent != "" {
-			stepsBuilder.WriteString(stepsContent + "\n")
+			// Parse as array
+			var wrapper map[string]any
+			if err := yaml.Unmarshal([]byte(stepsContent), &wrapper); err == nil {
+				if steps, hasSteps := wrapper["steps"]; hasSteps {
+					if arr, ok := steps.([]any); ok {
+						mergedSteps = append(mergedSteps, arr...)
+					}
+				}
+			}
 		}
 
-		// Extract post-steps from imported file
+		// Extract post-steps from imported file (legacy support during migration)
 		postStepsContent, err := extractPostStepsFromContent(string(content))
 		if err == nil && postStepsContent != "" {
-			postStepsBuilder.WriteString(postStepsContent + "\n")
+			// This will be removed after all workflows migrated
 		}
 
-		// Extract secret-masking-steps from imported file
+		// Extract secret-masking-steps from imported file (legacy support during migration)
 		secretMaskingStepsContent, err := extractSecretMaskingStepsFromContent(string(content))
 		if err == nil && secretMaskingStepsContent != "" {
-			secretMaskingStepsBuilder.WriteString(secretMaskingStepsContent + "\n")
+			// This will be removed after all workflows migrated
 		}
 
 		// Extract runtimes from imported file
@@ -509,18 +513,22 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		}
 	}
 
+	// Convert merged steps to interface{} - nil if no steps
+	var finalMergedSteps any
+	if len(mergedSteps) > 0 {
+		finalMergedSteps = mergedSteps
+	}
+
 	return &ImportsResult{
-		MergedTools:              toolsBuilder.String(),
-		MergedMCPServers:         mcpServersBuilder.String(),
-		MergedEngines:            engines,
-		MergedSafeOutputs:        safeOutputs,
-		MergedMarkdown:           markdownBuilder.String(),
-		MergedSteps:              stepsBuilder.String(),
-		MergedPostSteps:          postStepsBuilder.String(),
-		MergedSecretMaskingSteps: secretMaskingStepsBuilder.String(),
-		MergedRuntimes:           runtimesBuilder.String(),
-		MergedServices:           servicesBuilder.String(),
-		ImportedFiles:            processedFiles,
+		MergedTools:       toolsBuilder.String(),
+		MergedMCPServers:  mcpServersBuilder.String(),
+		MergedEngines:     engines,
+		MergedSafeOutputs: safeOutputs,
+		MergedMarkdown:    markdownBuilder.String(),
+		MergedSteps:       finalMergedSteps,
+		MergedRuntimes:    runtimesBuilder.String(),
+		MergedServices:    servicesBuilder.String(),
+		ImportedFiles:     processedFiles,
 	}, nil
 }
 
