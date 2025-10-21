@@ -231,6 +231,7 @@ Note: Output can be filtered using the jq parameter.`,
 		Branch       string `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
 		AfterRunID   int64  `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
 		BeforeRunID  int64  `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
+		Timeout      int    `json:"timeout,omitempty" jsonschema:"Maximum time in seconds to spend downloading logs (default: 50 for MCP server)"`
 		JqFilter     string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
@@ -264,6 +265,13 @@ Note: Output can be filtered using the jq parameter.`,
 		if args.BeforeRunID > 0 {
 			cmdArgs = append(cmdArgs, "--before-run-id", strconv.FormatInt(args.BeforeRunID, 10))
 		}
+
+		// Set timeout to 50 seconds for MCP server if not explicitly specified
+		timeoutValue := args.Timeout
+		if timeoutValue == 0 {
+			timeoutValue = 50
+		}
+		cmdArgs = append(cmdArgs, "--timeout", strconv.Itoa(timeoutValue))
 
 		// Always use --json mode in MCP server
 		cmdArgs = append(cmdArgs, "--json")
