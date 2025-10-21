@@ -648,6 +648,51 @@ jobs:
               };
               writeMessage(res);
             }
+            function estimateTokens(text) {
+              if (!text) return 0;
+              return Math.ceil(text.length / 4);
+            }
+            function generateCompactSchema(content) {
+              try {
+                const parsed = JSON.parse(content);
+                if (Array.isArray(parsed)) {
+                  if (parsed.length === 0) {
+                    return "[]";
+                  }
+                  const firstItem = parsed[0];
+                  if (typeof firstItem === "object" && firstItem !== null) {
+                    const keys = Object.keys(firstItem);
+                    return `[{${keys.join(", ")}}] (${parsed.length} items)`;
+                  }
+                  return `[${typeof firstItem}] (${parsed.length} items)`;
+                } else if (typeof parsed === "object" && parsed !== null) {
+                  const keys = Object.keys(parsed);
+                  if (keys.length > 10) {
+                    return `{${keys.slice(0, 10).join(", ")}, ...} (${keys.length} keys)`;
+                  }
+                  return `{${keys.join(", ")}}`;
+                }
+                return `${typeof parsed}`;
+              } catch {
+                return "text content";
+              }
+            }
+            function writeLargeContentToFile(content) {
+              const logsDir = "/tmp/gh-aw/safe-outputs";
+              if (!fs.existsSync(logsDir)) {
+                fs.mkdirSync(logsDir, { recursive: true });
+              }
+              const hash = crypto.createHash("sha256").update(content).digest("hex");
+              const filename = `${hash}.json`;
+              const filepath = path.join(logsDir, filename);
+              fs.writeFileSync(filepath, content, "utf8");
+              debug(`Wrote large content (${content.length} chars) to ${filepath}`);
+              const description = generateCompactSchema(content);
+              return {
+                filename: filename,
+                description: description,
+              };
+            }
             function appendSafeOutput(entry) {
               if (!outputFile) throw new Error("No output file configured");
               entry.type = entry.type.replace(/-/g, "_");
@@ -660,6 +705,33 @@ jobs:
             }
             const defaultHandler = type => args => {
               const entry = { ...(args || {}), type };
+              let largeContent = null;
+              let largeFieldName = null;
+              const TOKEN_THRESHOLD = 16000;
+              for (const [key, value] of Object.entries(entry)) {
+                if (typeof value === "string") {
+                  const tokens = estimateTokens(value);
+                  if (tokens > TOKEN_THRESHOLD) {
+                    largeContent = value;
+                    largeFieldName = key;
+                    debug(`Field '${key}' has ${tokens} tokens (exceeds ${TOKEN_THRESHOLD})`);
+                    break;
+                  }
+                }
+              }
+              if (largeContent && largeFieldName) {
+                const fileInfo = writeLargeContentToFile(largeContent);
+                entry[largeFieldName] = `[Content too large, saved to file: ${fileInfo.filename}]`;
+                appendSafeOutput(entry);
+                return {
+                  content: [
+                    {
+                      type: "text",
+                      text: JSON.stringify(fileInfo),
+                    },
+                  ],
+                };
+              }
               appendSafeOutput(entry);
               return {
                 content: [
@@ -2952,96 +3024,96 @@ jobs:
                         try {
                           const jsonStr = currentJsonLines.join("\n");
                           const jsonData = JSON.parse(jsonStr);
-                        if (jsonData.model) {
-                          model = jsonData.model;
-                        }
-                        if (jsonData.choices && Array.isArray(jsonData.choices)) {
-                          for (const choice of jsonData.choices) {
-                            if (choice.message) {
-                              const message = choice.message;
-                              const content = [];
-                              const toolResults = []; 
-                              if (message.content && message.content.trim()) {
-                                content.push({
-                                  type: "text",
-                                  text: message.content,
-                                });
-                              }
-                              if (message.tool_calls && Array.isArray(message.tool_calls)) {
-                                for (const toolCall of message.tool_calls) {
-                                  if (toolCall.function) {
-                                    let toolName = toolCall.function.name;
-                                    let args = {};
-                                    if (toolName.startsWith("github-")) {
-                                      toolName = "mcp__github__" + toolName.substring(7);
-                                    } else if (toolName === "bash") {
-                                      toolName = "Bash";
+                          if (jsonData.model) {
+                            model = jsonData.model;
+                          }
+                          if (jsonData.choices && Array.isArray(jsonData.choices)) {
+                            for (const choice of jsonData.choices) {
+                              if (choice.message) {
+                                const message = choice.message;
+                                const content = [];
+                                const toolResults = []; 
+                                if (message.content && message.content.trim()) {
+                                  content.push({
+                                    type: "text",
+                                    text: message.content,
+                                  });
+                                }
+                                if (message.tool_calls && Array.isArray(message.tool_calls)) {
+                                  for (const toolCall of message.tool_calls) {
+                                    if (toolCall.function) {
+                                      let toolName = toolCall.function.name;
+                                      let args = {};
+                                      if (toolName.startsWith("github-")) {
+                                        toolName = "mcp__github__" + toolName.substring(7);
+                                      } else if (toolName === "bash") {
+                                        toolName = "Bash";
+                                      }
+                                      try {
+                                        args = JSON.parse(toolCall.function.arguments);
+                                      } catch (e) {
+                                        args = {};
+                                      }
+                                      const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
+                                      content.push({
+                                        type: "tool_use",
+                                        id: toolId,
+                                        name: toolName,
+                                        input: args,
+                                      });
+                                      toolResults.push({
+                                        type: "tool_result",
+                                        tool_use_id: toolId,
+                                        content: "", 
+                                        is_error: false, 
+                                      });
                                     }
-                                    try {
-                                      args = JSON.parse(toolCall.function.arguments);
-                                    } catch (e) {
-                                      args = {};
-                                    }
-                                    const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
-                                    content.push({
-                                      type: "tool_use",
-                                      id: toolId,
-                                      name: toolName,
-                                      input: args,
-                                    });
-                                    toolResults.push({
-                                      type: "tool_result",
-                                      tool_use_id: toolId,
-                                      content: "", 
-                                      is_error: false, 
+                                  }
+                                }
+                                if (content.length > 0) {
+                                  entries.push({
+                                    type: "assistant",
+                                    message: { content },
+                                  });
+                                  turnCount++;
+                                  if (toolResults.length > 0) {
+                                    entries.push({
+                                      type: "user",
+                                      message: { content: toolResults },
                                     });
                                   }
                                 }
                               }
-                              if (content.length > 0) {
-                                entries.push({
-                                  type: "assistant",
-                                  message: { content },
-                                });
-                                turnCount++;
-                                if (toolResults.length > 0) {
-                                  entries.push({
-                                    type: "user",
-                                    message: { content: toolResults },
-                                  });
-                                }
-                              }
                             }
-                          }
-                          if (jsonData.usage) {
-                            if (!entries._accumulatedUsage) {
-                              entries._accumulatedUsage = {
-                                input_tokens: 0,
-                                output_tokens: 0,
+                            if (jsonData.usage) {
+                              if (!entries._accumulatedUsage) {
+                                entries._accumulatedUsage = {
+                                  input_tokens: 0,
+                                  output_tokens: 0,
+                                };
+                              }
+                              if (jsonData.usage.prompt_tokens) {
+                                entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
+                              }
+                              if (jsonData.usage.completion_tokens) {
+                                entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
+                              }
+                              entries._lastResult = {
+                                type: "result",
+                                num_turns: turnCount,
+                                usage: entries._accumulatedUsage,
                               };
                             }
-                            if (jsonData.usage.prompt_tokens) {
-                              entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
-                            }
-                            if (jsonData.usage.completion_tokens) {
-                              entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
-                            }
-                            entries._lastResult = {
-                              type: "result",
-                              num_turns: turnCount,
-                              usage: entries._accumulatedUsage,
-                            };
                           }
+                        } catch (e) {
                         }
-                      } catch (e) {
                       }
+                      inDataBlock = false;
+                      currentJsonLines = [];
+                      continue; 
+                    } else if (hasTimestamp && isJsonContent) {
+                      currentJsonLines.push(cleanLine);
                     }
-                    inDataBlock = false;
-                    currentJsonLines = [];
-                    continue; 
-                  } else if (hasTimestamp && isJsonContent) {
-                    currentJsonLines.push(cleanLine);
-                  }
                   } else {
                     const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
                     currentJsonLines.push(cleanLine);

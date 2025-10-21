@@ -190,6 +190,87 @@ function replyError(id, code, message) {
   writeMessage(res);
 }
 
+/**
+ * Estimates token count from text using 4 chars per token estimate
+ * @param {string} text - The text to estimate tokens for
+ * @returns {number} Approximate token count
+ */
+function estimateTokens(text) {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Generates a compact schema description from JSON content
+ * @param {string} content - The JSON content to analyze
+ * @returns {string} Compact schema description for jq/agent
+ */
+function generateCompactSchema(content) {
+  try {
+    const parsed = JSON.parse(content);
+
+    // Generate a compact schema based on the structure
+    if (Array.isArray(parsed)) {
+      if (parsed.length === 0) {
+        return "[]";
+      }
+      // For arrays, describe the first element's structure
+      const firstItem = parsed[0];
+      if (typeof firstItem === "object" && firstItem !== null) {
+        const keys = Object.keys(firstItem);
+        return `[{${keys.join(", ")}}] (${parsed.length} items)`;
+      }
+      return `[${typeof firstItem}] (${parsed.length} items)`;
+    } else if (typeof parsed === "object" && parsed !== null) {
+      // For objects, list top-level keys
+      const keys = Object.keys(parsed);
+      if (keys.length > 10) {
+        return `{${keys.slice(0, 10).join(", ")}, ...} (${keys.length} keys)`;
+      }
+      return `{${keys.join(", ")}}`;
+    }
+
+    return `${typeof parsed}`;
+  } catch {
+    // If not valid JSON, return generic description
+    return "text content";
+  }
+}
+
+/**
+ * Writes large content to a file and returns metadata
+ * @param {string} content - The content to write
+ * @returns {Object} Object with filename and description
+ */
+function writeLargeContentToFile(content) {
+  const logsDir = "/tmp/gh-aw/safe-outputs";
+
+  // Ensure directory exists
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+
+  // Generate SHA256 hash of content
+  const hash = crypto.createHash("sha256").update(content).digest("hex");
+
+  // MCP tools return JSON, so always use .json extension
+  const filename = `${hash}.json`;
+  const filepath = path.join(logsDir, filename);
+
+  // Write content to file
+  fs.writeFileSync(filepath, content, "utf8");
+
+  debug(`Wrote large content (${content.length} chars) to ${filepath}`);
+
+  // Generate compact schema description for jq/agent
+  const description = generateCompactSchema(content);
+
+  return {
+    filename: filename,
+    description: description,
+  };
+}
+
 function appendSafeOutput(entry) {
   if (!outputFile) throw new Error("No output file configured");
   // Normalize type to use underscores (convert any dashes to underscores)
@@ -204,6 +285,46 @@ function appendSafeOutput(entry) {
 
 const defaultHandler = type => args => {
   const entry = { ...(args || {}), type };
+
+  // Check if any field in the entry has content exceeding 16000 tokens
+  let largeContent = null;
+  let largeFieldName = null;
+  const TOKEN_THRESHOLD = 16000;
+
+  for (const [key, value] of Object.entries(entry)) {
+    if (typeof value === "string") {
+      const tokens = estimateTokens(value);
+      if (tokens > TOKEN_THRESHOLD) {
+        largeContent = value;
+        largeFieldName = key;
+        debug(`Field '${key}' has ${tokens} tokens (exceeds ${TOKEN_THRESHOLD})`);
+        break;
+      }
+    }
+  }
+
+  if (largeContent && largeFieldName) {
+    // Write large content to file
+    const fileInfo = writeLargeContentToFile(largeContent);
+
+    // Replace large field with file reference
+    entry[largeFieldName] = `[Content too large, saved to file: ${fileInfo.filename}]`;
+
+    // Append modified entry to safe outputs
+    appendSafeOutput(entry);
+
+    // Return file info to the agent
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(fileInfo),
+        },
+      ],
+    };
+  }
+
+  // Normal case - no large content
   appendSafeOutput(entry);
   return {
     content: [

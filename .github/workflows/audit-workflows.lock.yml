@@ -432,6 +432,51 @@ jobs:
               };
               writeMessage(res);
             }
+            function estimateTokens(text) {
+              if (!text) return 0;
+              return Math.ceil(text.length / 4);
+            }
+            function generateCompactSchema(content) {
+              try {
+                const parsed = JSON.parse(content);
+                if (Array.isArray(parsed)) {
+                  if (parsed.length === 0) {
+                    return "[]";
+                  }
+                  const firstItem = parsed[0];
+                  if (typeof firstItem === "object" && firstItem !== null) {
+                    const keys = Object.keys(firstItem);
+                    return `[{${keys.join(", ")}}] (${parsed.length} items)`;
+                  }
+                  return `[${typeof firstItem}] (${parsed.length} items)`;
+                } else if (typeof parsed === "object" && parsed !== null) {
+                  const keys = Object.keys(parsed);
+                  if (keys.length > 10) {
+                    return `{${keys.slice(0, 10).join(", ")}, ...} (${keys.length} keys)`;
+                  }
+                  return `{${keys.join(", ")}}`;
+                }
+                return `${typeof parsed}`;
+              } catch {
+                return "text content";
+              }
+            }
+            function writeLargeContentToFile(content) {
+              const logsDir = "/tmp/gh-aw/safe-outputs";
+              if (!fs.existsSync(logsDir)) {
+                fs.mkdirSync(logsDir, { recursive: true });
+              }
+              const hash = crypto.createHash("sha256").update(content).digest("hex");
+              const filename = `${hash}.json`;
+              const filepath = path.join(logsDir, filename);
+              fs.writeFileSync(filepath, content, "utf8");
+              debug(`Wrote large content (${content.length} chars) to ${filepath}`);
+              const description = generateCompactSchema(content);
+              return {
+                filename: filename,
+                description: description,
+              };
+            }
             function appendSafeOutput(entry) {
               if (!outputFile) throw new Error("No output file configured");
               entry.type = entry.type.replace(/-/g, "_");
@@ -444,6 +489,33 @@ jobs:
             }
             const defaultHandler = type => args => {
               const entry = { ...(args || {}), type };
+              let largeContent = null;
+              let largeFieldName = null;
+              const TOKEN_THRESHOLD = 16000;
+              for (const [key, value] of Object.entries(entry)) {
+                if (typeof value === "string") {
+                  const tokens = estimateTokens(value);
+                  if (tokens > TOKEN_THRESHOLD) {
+                    largeContent = value;
+                    largeFieldName = key;
+                    debug(`Field '${key}' has ${tokens} tokens (exceeds ${TOKEN_THRESHOLD})`);
+                    break;
+                  }
+                }
+              }
+              if (largeContent && largeFieldName) {
+                const fileInfo = writeLargeContentToFile(largeContent);
+                entry[largeFieldName] = `[Content too large, saved to file: ${fileInfo.filename}]`;
+                appendSafeOutput(entry);
+                return {
+                  content: [
+                    {
+                      type: "text",
+                      text: JSON.stringify(fileInfo),
+                    },
+                  ],
+                };
+              }
               appendSafeOutput(entry);
               return {
                 content: [
