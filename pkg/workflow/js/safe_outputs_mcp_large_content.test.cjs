@@ -134,7 +134,9 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
 
           // Check response format
           expect(responseObj.filename).toBeDefined();
-          expect(responseObj.description).toBe("generated content large!");
+          expect(responseObj.description).toBeDefined();
+          // Description should be a schema description, not the old static text
+          expect(responseObj.description).not.toBe("generated content large!");
 
           // Verify file was created
           const expectedFilePath = path.join("/tmp/gh-aw/safe-outputs", responseObj.filename);
@@ -144,9 +146,9 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
           const fileContent = fs.readFileSync(expectedFilePath, "utf8");
           expect(fileContent).toBe(largeBody);
 
-          // Verify filename is SHA256 hash + extension
+          // Verify filename is SHA256 hash + .json extension (always JSON now)
           const hash = crypto.createHash("sha256").update(largeBody).digest("hex");
-          expect(responseObj.filename).toMatch(new RegExp(`^${hash}\\.(txt|json|md)$`));
+          expect(responseObj.filename).toBe(`${hash}.json`);
 
           // Verify safe output was written with file reference
           const outputLines = fs.readFileSync(tempOutputFile, "utf8").trim().split("\n");
@@ -371,8 +373,13 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
           const responseText = parsed.result.content[0].text;
           const responseObj = JSON.parse(responseText);
 
-          // Check that filename has .json extension
+          // Check that filename has .json extension (always JSON now)
           expect(responseObj.filename).toMatch(/\.json$/);
+
+          // Verify description contains schema info for array
+          expect(responseObj.description).toBeDefined();
+          expect(responseObj.description).toContain("items"); // Should mention number of items
+          expect(responseObj.description).toContain("id, name, data"); // Should list keys
 
           // Verify file was created with JSON extension
           const expectedFilePath = path.join("/tmp/gh-aw/safe-outputs", responseObj.filename);
@@ -393,7 +400,7 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
     });
   });
 
-  it("should detect Markdown content and use .md extension", async () => {
+  it("should always use .json extension even for non-JSON content", async () => {
     // Set up environment
     process.env.GH_AW_SAFE_OUTPUTS = tempOutputFile;
     process.env.GH_AW_SAFE_OUTPUTS_CONFIG = fs.readFileSync(tempConfigFile, "utf8");
@@ -444,7 +451,7 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
 
       // Wait for initialization, then send Markdown content
       setTimeout(() => {
-        // Create large Markdown content (> 16000 tokens)
+        // Create large Markdown content (> 16000 tokens) - not valid JSON
         let largeBody = "# Large Markdown Document\n\n";
         for (let i = 0; i < 1000; i++) {
           largeBody += `## Section ${i}\n\n`;
@@ -494,14 +501,17 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
           const responseText = parsed.result.content[0].text;
           const responseObj = JSON.parse(responseText);
 
-          // Check that filename has .md extension
-          expect(responseObj.filename).toMatch(/\.md$/);
+          // Check that filename has .json extension (always .json now)
+          expect(responseObj.filename).toMatch(/\.json$/);
 
-          // Verify file was created with Markdown extension
+          // For non-JSON content, description should be "text content"
+          expect(responseObj.description).toBe("text content");
+
+          // Verify file was created with .json extension
           const expectedFilePath = path.join("/tmp/gh-aw/safe-outputs", responseObj.filename);
           expect(fs.existsSync(expectedFilePath)).toBe(true);
 
-          // Verify content contains markdown
+          // Verify content is preserved
           const fileContent = fs.readFileSync(expectedFilePath, "utf8");
           expect(fileContent).toContain("# Large Markdown Document");
           expect(fileContent).toContain("```javascript");

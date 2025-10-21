@@ -686,20 +686,30 @@ jobs:
               if (!text) return 0;
               return Math.ceil(text.length / 4);
             }
-            function getFileExtension(content) {
-              if (!content) return ".txt";
-              const trimmed = content.trim();
-              if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-                try {
-                  JSON.parse(trimmed);
-                  return ".json";
-                } catch {
+            function generateCompactSchema(content) {
+              try {
+                const parsed = JSON.parse(content);
+                if (Array.isArray(parsed)) {
+                  if (parsed.length === 0) {
+                    return "[]";
+                  }
+                  const firstItem = parsed[0];
+                  if (typeof firstItem === "object" && firstItem !== null) {
+                    const keys = Object.keys(firstItem);
+                    return `[{${keys.join(", ")}}] (${parsed.length} items)`;
+                  }
+                  return `[${typeof firstItem}] (${parsed.length} items)`;
+                } else if (typeof parsed === "object" && parsed !== null) {
+                  const keys = Object.keys(parsed);
+                  if (keys.length > 10) {
+                    return `{${keys.slice(0, 10).join(", ")}, ...} (${keys.length} keys)`;
+                  }
+                  return `{${keys.join(", ")}}`;
                 }
+                return `${typeof parsed}`;
+              } catch {
+                return "text content";
               }
-              if (trimmed.includes("# ") || trimmed.includes("## ") || trimmed.includes("```")) {
-                return ".md";
-              }
-              return ".txt";
             }
             function writeLargeContentToFile(content) {
               const logsDir = "/tmp/gh-aw/safe-outputs";
@@ -707,14 +717,14 @@ jobs:
                 fs.mkdirSync(logsDir, { recursive: true });
               }
               const hash = crypto.createHash("sha256").update(content).digest("hex");
-              const ext = getFileExtension(content);
-              const filename = `${hash}${ext}`;
+              const filename = `${hash}.json`;
               const filepath = path.join(logsDir, filename);
               fs.writeFileSync(filepath, content, "utf8");
               debug(`Wrote large content (${content.length} chars) to ${filepath}`);
+              const description = generateCompactSchema(content);
               return {
                 filename: filename,
-                description: "generated content large!",
+                description: description,
               };
             }
             function appendSafeOutput(entry) {
