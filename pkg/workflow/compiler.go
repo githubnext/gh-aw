@@ -886,6 +886,41 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
+
+	// Merge imported post-steps if any
+	if importsResult.MergedPostSteps != "" {
+		// Parse imported post-steps from YAML array
+		var importedPostSteps []any
+		if err := yaml.Unmarshal([]byte(importsResult.MergedPostSteps), &importedPostSteps); err == nil {
+			// If there are main workflow post-steps, parse and merge them
+			if workflowData.PostSteps != "" {
+				// Parse main workflow post-steps (format: "post-steps:\n  - ...")
+				var mainPostStepsWrapper map[string]any
+				if err := yaml.Unmarshal([]byte(workflowData.PostSteps), &mainPostStepsWrapper); err == nil {
+					if mainPostStepsVal, hasPostSteps := mainPostStepsWrapper["post-steps"]; hasPostSteps {
+						if mainPostSteps, ok := mainPostStepsVal.([]any); ok {
+							// Append main post-steps to imported post-steps (imported run first)
+							allPostSteps := append(importedPostSteps, mainPostSteps...)
+							// Convert back to YAML with "post-steps:" wrapper
+							postStepsWrapper := map[string]any{"post-steps": allPostSteps}
+							postStepsYAML, err := yaml.Marshal(postStepsWrapper)
+							if err == nil {
+								workflowData.PostSteps = string(postStepsYAML)
+							}
+						}
+					}
+				}
+			} else {
+				// Only imported post-steps exist, wrap in "post-steps:" format
+				postStepsWrapper := map[string]any{"post-steps": importedPostSteps}
+				postStepsYAML, err := yaml.Marshal(postStepsWrapper)
+				if err == nil {
+					workflowData.PostSteps = string(postStepsYAML)
+				}
+			}
+		}
+	}
+
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Environment = c.extractTopLevelYAMLSection(result.Frontmatter, "environment")
 	workflowData.Container = c.extractTopLevelYAMLSection(result.Frontmatter, "container")

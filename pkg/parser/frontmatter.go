@@ -93,6 +93,7 @@ type ImportsResult struct {
 	MergedSafeOutputs []string // Merged safe-outputs configurations from all imports
 	MergedMarkdown    string   // Merged markdown content from all imports
 	MergedSteps       string   // Merged steps configuration from all imports
+	MergedPostSteps   string   // Merged post-steps configuration from all imports
 	MergedRuntimes    string   // Merged runtimes configuration from all imports
 	MergedServices    string   // Merged services configuration from all imports
 	ImportedFiles     []string // List of imported file paths (for manifest)
@@ -395,6 +396,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var mcpServersBuilder strings.Builder
 	var markdownBuilder strings.Builder
 	var stepsBuilder strings.Builder
+	var postStepsBuilder strings.Builder
 	var runtimesBuilder strings.Builder
 	var servicesBuilder strings.Builder
 	var engines []string
@@ -480,6 +482,12 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 			stepsBuilder.WriteString(stepsContent + "\n")
 		}
 
+		// Extract post-steps from imported file
+		postStepsContent, err := extractPostStepsFromContent(string(content))
+		if err == nil && postStepsContent != "" {
+			postStepsBuilder.WriteString(postStepsContent + "\n")
+		}
+
 		// Extract runtimes from imported file
 		runtimesContent, err := extractRuntimesFromContent(string(content))
 		if err == nil && runtimesContent != "" && runtimesContent != "{}" {
@@ -500,6 +508,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		MergedSafeOutputs: safeOutputs,
 		MergedMarkdown:    markdownBuilder.String(),
 		MergedSteps:       stepsBuilder.String(),
+		MergedPostSteps:   postStepsBuilder.String(),
 		MergedRuntimes:    runtimesBuilder.String(),
 		MergedServices:    servicesBuilder.String(),
 		ImportedFiles:     processedFiles,
@@ -915,6 +924,28 @@ func extractStepsFromContent(content string) (string, error) {
 	}
 
 	return strings.TrimSpace(string(stepsYAML)), nil
+}
+
+// extractPostStepsFromContent extracts post-steps section from frontmatter as YAML string
+func extractPostStepsFromContent(content string) (string, error) {
+	result, err := ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return "", nil // Return empty string on error
+	}
+
+	// Extract post-steps section
+	postSteps, exists := result.Frontmatter["post-steps"]
+	if !exists {
+		return "", nil
+	}
+
+	// Convert to YAML string (similar to how steps are handled in compiler)
+	postStepsYAML, err := yaml.Marshal(postSteps)
+	if err != nil {
+		return "", nil
+	}
+
+	return strings.TrimSpace(string(postStepsYAML)), nil
 }
 
 // extractEngineFromContent extracts engine section from frontmatter as JSON string
