@@ -52,10 +52,10 @@ func TestTimeoutFlagParsing(t *testing.T) {
 // TestTimeoutLogic tests the timeout logic without making network calls
 func TestTimeoutLogic(t *testing.T) {
 	tests := []struct {
-		name           string
-		timeout        int
-		elapsed        time.Duration
-		shouldTimeout  bool
+		name          string
+		timeout       int
+		elapsed       time.Duration
+		shouldTimeout bool
 	}{
 		{
 			name:          "no timeout set",
