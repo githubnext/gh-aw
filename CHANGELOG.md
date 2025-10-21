@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.23.1 - 2025-10-21
+
+### Bug Fixes
+
+#### Fix tidy workflow: Add search_pull_requests permission to GitHub MCP tools
+
+#### Update CLI versions: Claude Code 2.0.24, GitHub Copilot CLI 0.0.347
+
+
 ## v0.23.0 - 2025-10-21
 
 ### Features
