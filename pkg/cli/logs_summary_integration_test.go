@@ -33,7 +33,7 @@ func TestRunSummaryCachingBehavior(t *testing.T) {
 			"version": "1.0.0",
 			"workflow_name": "Test Workflow"
 		}`,
-		"agent-stdio.log": "Test log content\nSome agent output\n",
+		"agent-stdio.log":   "Test log content\nSome agent output\n",
 		"safe_output.jsonl": `{"type":"output","content":"test"}`,
 	}
 
