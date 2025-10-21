@@ -1968,6 +1968,9 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
+            // @ts-check
+            /// <reference types="@actions/github-script" />
+
             /**
              * Redacts secrets from files in /tmp/gh-aw directory before uploading artifacts
              * This script processes all .txt, .json, .log files under /tmp/gh-aw and redacts
@@ -3868,6 +3871,8 @@ jobs:
           GH_AW_REQUIRED_ROLES: admin,maintainer
         with:
           script: |
+            // @ts-check
+            /// <reference types="@actions/github-script" />
             async function main() {
               const { eventName } = context;
               const actor = context.actor;
