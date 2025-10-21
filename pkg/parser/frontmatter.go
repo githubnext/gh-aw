@@ -394,7 +394,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var toolsBuilder strings.Builder
 	var mcpServersBuilder strings.Builder
 	var markdownBuilder strings.Builder
-	var mergedSteps []any  // Array of steps from imports
+	var mergedSteps any  // Steps from imports (can be array or object)
 	var runtimesBuilder strings.Builder
 	var servicesBuilder strings.Builder
 	var engines []string
@@ -474,16 +474,18 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 			safeOutputs = append(safeOutputs, safeOutputsContent)
 		}
 
-		// Extract steps from imported file (all three types merged into single array)
+		// Extract steps from imported file (supports both array and object formats)
 		stepsContent, err := extractStepsFromContent(string(content))
 		if err == nil && stepsContent != "" {
-			// Parse as array
-			var wrapper map[string]any
-			if err := yaml.Unmarshal([]byte(stepsContent), &wrapper); err == nil {
-				if steps, hasSteps := wrapper["steps"]; hasSteps {
-					if arr, ok := steps.([]any); ok {
-						mergedSteps = append(mergedSteps, arr...)
-					}
+			// Parse the steps - can be array or object with pre/post-redaction/post fields
+			var currentSteps any
+			if err := yaml.Unmarshal([]byte(stepsContent), &currentSteps); err == nil {
+				// Merge with existing merged steps
+				if mergedSteps == nil {
+					mergedSteps = currentSteps
+				} else {
+					// Use the same merging logic as compiler
+					mergedSteps = mergeImportedSteps(mergedSteps, currentSteps)
 				}
 			}
 		}
@@ -513,23 +515,61 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		}
 	}
 
-	// Convert merged steps to interface{} - nil if no steps
-	var finalMergedSteps any
-	if len(mergedSteps) > 0 {
-		finalMergedSteps = mergedSteps
-	}
-
 	return &ImportsResult{
 		MergedTools:       toolsBuilder.String(),
 		MergedMCPServers:  mcpServersBuilder.String(),
 		MergedEngines:     engines,
 		MergedSafeOutputs: safeOutputs,
 		MergedMarkdown:    markdownBuilder.String(),
-		MergedSteps:       finalMergedSteps,
+		MergedSteps:       mergedSteps,  // Can be nil, array, or object
 		MergedRuntimes:    runtimesBuilder.String(),
 		MergedServices:    servicesBuilder.String(),
 		ImportedFiles:     processedFiles,
 	}, nil
+}
+
+// mergeImportedSteps merges two step structures (array or object format)
+// This mirrors the logic in compiler.go's mergeSteps function
+func mergeImportedSteps(existing, new any) any {
+	// If both are arrays, concatenate
+	if existingArray, ok := existing.([]any); ok {
+		if newArray, ok := new.([]any); ok {
+			return append(existingArray, newArray...)
+		}
+	}
+
+	// If both are objects, merge fields
+	if existingObj, ok := existing.(map[string]any); ok {
+		if newObj, ok := new.(map[string]any); ok {
+			result := make(map[string]any)
+
+			// Merge pre
+			result["pre"] = mergeImportedStepArrays(existingObj["pre"], newObj["pre"])
+			// Merge post-redaction
+			result["post-redaction"] = mergeImportedStepArrays(existingObj["post-redaction"], newObj["post-redaction"])
+			// Merge post
+			result["post"] = mergeImportedStepArrays(existingObj["post"], newObj["post"])
+
+			return result
+		}
+	}
+
+	// If types don't match, prefer new over existing (last import wins)
+	return new
+}
+
+// mergeImportedStepArrays merges two step arrays (existing first, then new)
+func mergeImportedStepArrays(existing, new any) []any {
+	var result []any
+
+	if existingArray, ok := existing.([]any); ok {
+		result = append(result, existingArray...)
+	}
+	if newArray, ok := new.([]any); ok {
+		result = append(result, newArray...)
+	}
+
+	return result
 }
 
 // ProcessIncludes processes @include, @import (deprecated), and {{#import: directives in markdown content

@@ -161,6 +161,7 @@ type WorkflowData struct {
 	If                  string
 	TimeoutMinutes      string
 	Steps               *Steps // parsed steps configuration (array or object format)
+	CustomSteps         string // DEPRECATED: legacy field for tests, automatically converted to Steps.Pre
 	RunsOn              string
 	Environment         string // environment setting for the main job
 	Container           string // container setting for the main job
@@ -858,6 +859,23 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	
 	// Parse steps field (supports array or object format)
 	workflowData.Steps = c.parseSteps(result.Frontmatter, *importsResult)
+
+	// DEPRECATED: Support for CustomSteps field (legacy tests)
+	// If CustomSteps is set but Steps is empty, convert CustomSteps to Steps.Pre
+	if workflowData.CustomSteps != "" && (workflowData.Steps == nil || (len(workflowData.Steps.Pre) == 0 && len(workflowData.Steps.PostRedaction) == 0 && len(workflowData.Steps.Post) == 0)) {
+		// Parse CustomSteps YAML and extract steps array
+		var wrapper map[string]any
+		if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &wrapper); err == nil {
+			if stepsVal, hasSteps := wrapper["steps"]; hasSteps {
+				if stepsArray, ok := stepsVal.([]any); ok {
+					if workflowData.Steps == nil {
+						workflowData.Steps = &Steps{}
+					}
+					workflowData.Steps.Pre = stepsArray
+				}
+			}
+		}
+	}
 
 
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
