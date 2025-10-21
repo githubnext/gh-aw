@@ -75,8 +75,19 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
+      - name: Verify uv
+        run: uv --version
+      - name: Install Go language service
+        run: go install golang.org/x/tools/gopls@latest
+      - name: Check gopls version
+        run: gopls version
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
       - name: Setup Python
         uses: actions/setup-python@v5
         with:

@@ -424,8 +424,6 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
@@ -439,6 +437,8 @@ jobs:
           go-version-file: go.mod
       - name: Dev dependencies
         run: make deps-dev
+      - name: Checkout repository
+        uses: actions/checkout@v5
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent

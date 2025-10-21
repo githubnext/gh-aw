@@ -985,6 +985,25 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          cache: true
+          go-version-file: go.mod
+      - name: Install dependencies
+        run: make deps-dev
+      - name: Install binary as 'gh-aw'
+        run: make build
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Start MCP server
+        run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Wait a moment for server to start\nsleep 2\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"MCP server failed to start\"\n  exit 1\nfi\n\necho \"MCP server started successfully with PID $MCP_PID\"\n"
+      - name: Verify uv
+        run: uv --version
+      - name: Install Go language service
+        run: go install golang.org/x/tools/gopls@latest
+      - name: Check gopls version
+        run: gopls version
       - name: Checkout repository
         uses: actions/checkout@v5
       - name: Setup Python

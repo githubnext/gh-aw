@@ -78,6 +78,13 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
+      - id: setup-ffmpeg
+        name: Setup FFmpeg
+        run: |-
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          version=$(ffmpeg -version | head -n1)
+          echo "version=$version" >> $GITHUB_OUTPUT
+          mkdir -p /tmp/gh-aw/ffmpeg
       - name: Checkout repository
         uses: actions/checkout@v5
       - name: Create gh-aw temp directory

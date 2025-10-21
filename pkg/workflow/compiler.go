@@ -1246,7 +1246,7 @@ if mainSteps != nil {
 // Merge imported and main steps
 mergedSteps = mergeSteps(importsResult.MergedSteps, mainSteps)
 } else {
-mergedSteps = importsResult.MergedSteps
+mergedSteps = stepsConfigToAny(importsResult.MergedSteps)
 }
 } else {
 mergedSteps = mainSteps
@@ -2678,10 +2678,17 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 // generateMainJobSteps generates the steps section for the main job
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
+	// Add custom pre steps FIRST (before checkout)
+	// This allows workflows to set up tools/dependencies needed by later steps
+	// For example, gh-aw.md sets up Go and builds the binary before checkout
+	if data.Steps != nil && data.Steps.Pre != nil && len(data.Steps.Pre) > 0 {
+		c.generateSteps(yaml, data.Steps.Pre)
+	}
+
 	// Determine if we need to add a checkout step
 	needsCheckout := c.shouldAddCheckoutStep(data)
 
-	// Add checkout step first if needed
+	// Add checkout step if needed
 	if needsCheckout {
 		yaml.WriteString("      - name: Checkout repository\n")
 		yaml.WriteString("        uses: actions/checkout@v5\n")
@@ -2702,7 +2709,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add automatic runtime setup steps if needed
 	// This detects runtimes from custom steps and MCP configs
-	// Must be added BEFORE custom steps so the runtimes are available
+	// Must be added AFTER checkout so the runtime detection can read go.mod, package.json, etc.
 	// Runtime detection now smartly filters out runtimes that already have setup actions
 	runtimeRequirements := DetectRuntimeRequirements(data)
 	runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements)
@@ -2710,11 +2717,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		for _, line := range step {
 			yaml.WriteString(line + "\n")
 		}
-	}
-
-	// Add custom steps if present
-	if data.Steps != nil {
-		c.generateSteps(yaml, data.Steps.Pre)
 	}
 
 	// Create /tmp/gh-aw/ base directory for all temporary files
