@@ -297,17 +297,17 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 	// This creates a log.md file in the run directory for a rich, human-readable agent session summary.
 	// We intentionally do not fail the audit on parse errors; they are reported as warnings.
 	if parse {
-    awInfoPath := filepath.Join(runOutputDir, "aw_info.json")
-    if engine := extractEngineFromAwInfo(awInfoPath, verbose); engine != nil { // reuse existing helper in same package
-      if err := parseAgentLog(runOutputDir, engine, verbose); err != nil {
-        if verbose {
-          fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse agent log for run %d: %v", runInfo.RunID, err)))
+		awInfoPath := filepath.Join(runOutputDir, "aw_info.json")
+		if engine := extractEngineFromAwInfo(awInfoPath, verbose); engine != nil { // reuse existing helper in same package
+			if err := parseAgentLog(runOutputDir, engine, verbose); err != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse agent log for run %d: %v", runInfo.RunID, err)))
 				}
 			} else {
 				// Always show success message for parsing, not just in verbose mode
 				logMdPath := filepath.Join(runOutputDir, "log.md")
 				if _, err := os.Stat(logMdPath); err == nil {
-					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", runID, logMdPath)))
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", runInfo.RunID, logMdPath)))
 				}
 			}
 		} else if verbose {
