@@ -7,7 +7,7 @@
 #     - shared/credsweeper.md
 #
 # This import provides:
-# - Automatic CredSweeper installation via secret-masking-steps
+# - Automatic CredSweeper installation via steps.post-redaction
 # - Scanning of /tmp/gh-aw/ directory for credentials
 # - Masking of detected credentials using GitHub Actions secret masking
 #
@@ -15,125 +15,126 @@
 # Any detected credentials are automatically masked using core.setSecret() to prevent
 # exposure in logs or artifacts.
 
-secret-masking-steps:
-  - name: Install CredSweeper
-    id: install-credsweeper
-    run: |
-      pip install credsweeper
-      credsweeper --version
-  
-  - name: Run CredSweeper
-    id: run-credsweeper
-    run: |
-      # Create output directory
-      mkdir -p /tmp/gh-aw/credsweeper
-      
-      # Run CredSweeper on /tmp/gh-aw/ directory
-      echo "🔍 Scanning /tmp/gh-aw/ for credentials..."
-      python -m credsweeper --path /tmp/gh-aw/ --save-json /tmp/gh-aw/credsweeper/output.json || true
-      
-      # Display results if file exists
-      if [ -f /tmp/gh-aw/credsweeper/output.json ]; then
-        echo "📄 CredSweeper scan complete. Results saved to /tmp/gh-aw/credsweeper/output.json"
+steps:
+  post-redaction:
+    - name: Install CredSweeper
+      id: install-credsweeper
+      run: |
+        pip install credsweeper
+        credsweeper --version
+    
+    - name: Run CredSweeper
+      id: run-credsweeper
+      run: |
+        # Create output directory
+        mkdir -p /tmp/gh-aw/credsweeper
         
-        # Show summary
-        CREDENTIAL_COUNT=$(jq 'length' /tmp/gh-aw/credsweeper/output.json 2>/dev/null || echo "0")
-        echo "Found $CREDENTIAL_COUNT potential credential(s)"
+        # Run CredSweeper on /tmp/gh-aw/ directory
+        echo "🔍 Scanning /tmp/gh-aw/ for credentials..."
+        python -m credsweeper --path /tmp/gh-aw/ --save-json /tmp/gh-aw/credsweeper/output.json || true
         
-        if [ "$CREDENTIAL_COUNT" != "0" ]; then
-          echo "⚠️  WARNING: Credentials detected in temporary files!"
-          echo "These will be masked in the next step to prevent exposure."
+        # Display results if file exists
+        if [ -f /tmp/gh-aw/credsweeper/output.json ]; then
+          echo "📄 CredSweeper scan complete. Results saved to /tmp/gh-aw/credsweeper/output.json"
+          
+          # Show summary
+          CREDENTIAL_COUNT=$(jq 'length' /tmp/gh-aw/credsweeper/output.json 2>/dev/null || echo "0")
+          echo "Found $CREDENTIAL_COUNT potential credential(s)"
+          
+          if [ "$CREDENTIAL_COUNT" != "0" ]; then
+            echo "⚠️  WARNING: Credentials detected in temporary files!"
+            echo "These will be masked in the next step to prevent exposure."
+          fi
+        else
+          echo "✅ No credentials detected"
+          echo "[]" > /tmp/gh-aw/credsweeper/output.json
         fi
-      else
-        echo "✅ No credentials detected"
-        echo "[]" > /tmp/gh-aw/credsweeper/output.json
-      fi
-  
-  - name: Mask CredSweeper Findings
-    if: always()
-    uses: actions/github-script@v8
-    with:
-      script: |
-        const fs = require('fs');
-        const path = require('path');
-        
-        /**
-         * Process CredSweeper output and mask all detected credentials
-         */
-        async function maskCredentials() {
-          const outputPath = '/tmp/gh-aw/credsweeper/output.json';
+    
+    - name: Mask CredSweeper Findings
+      if: always()
+      uses: actions/github-script@v8
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
           
-          // Check if output file exists
-          if (!fs.existsSync(outputPath)) {
-            core.info('No CredSweeper output file found, skipping masking');
-            return;
-          }
-          
-          // Read and parse CredSweeper output
-          let credentials;
-          try {
-            const content = fs.readFileSync(outputPath, 'utf8');
-            credentials = JSON.parse(content);
-          } catch (error) {
-            core.warning(`Failed to parse CredSweeper output: ${error instanceof Error ? error.message : String(error)}`);
-            return;
-          }
-          
-          if (!Array.isArray(credentials) || credentials.length === 0) {
-            core.info('✅ No credentials detected by CredSweeper');
-            return;
-          }
-          
-          core.info(`🔒 Processing ${credentials.length} potential credential(s) for masking`);
-          
-          let maskedCount = 0;
-          
-          // Process each credential finding
-          for (const credential of credentials) {
-            // Skip if no line_data_list
-            if (!credential.line_data_list || !Array.isArray(credential.line_data_list)) {
-              continue;
+          /**
+           * Process CredSweeper output and mask all detected credentials
+           */
+          async function maskCredentials() {
+            const outputPath = '/tmp/gh-aw/credsweeper/output.json';
+            
+            // Check if output file exists
+            if (!fs.existsSync(outputPath)) {
+              core.info('No CredSweeper output file found, skipping masking');
+              return;
             }
             
-            // Process each line data entry
-            for (const lineData of credential.line_data_list) {
-              // Get the credential value
-              const value = lineData.value;
-              
-              // Skip empty or very short values (likely false positives)
-              if (!value || value.length < 8) {
+            // Read and parse CredSweeper output
+            let credentials;
+            try {
+              const content = fs.readFileSync(outputPath, 'utf8');
+              credentials = JSON.parse(content);
+            } catch (error) {
+              core.warning(`Failed to parse CredSweeper output: ${error instanceof Error ? error.message : String(error)}`);
+              return;
+            }
+            
+            if (!Array.isArray(credentials) || credentials.length === 0) {
+              core.info('✅ No credentials detected by CredSweeper');
+              return;
+            }
+            
+            core.info(`🔒 Processing ${credentials.length} potential credential(s) for masking`);
+            
+            let maskedCount = 0;
+            
+            // Process each credential finding
+            for (const credential of credentials) {
+              // Skip if no line_data_list
+              if (!credential.line_data_list || !Array.isArray(credential.line_data_list)) {
                 continue;
               }
               
-              // Mask the credential using GitHub Actions secret masking
-              core.setSecret(value);
-              maskedCount++;
-              
-              // Log details (the value itself will be masked in logs)
-              const rule = credential.rule || 'Unknown';
-              const filePath = lineData.path || 'Unknown';
-              const lineNum = lineData.line_num || 'N/A';
-              
-              core.warning(
-                `Masked credential: ${rule} in ${filePath}:${lineNum} ` +
-                `(confidence: ${credential.confidence || 'N/A'}, severity: ${credential.severity || 'N/A'})`
-              );
+              // Process each line data entry
+              for (const lineData of credential.line_data_list) {
+                // Get the credential value
+                const value = lineData.value;
+                
+                // Skip empty or very short values (likely false positives)
+                if (!value || value.length < 8) {
+                  continue;
+                }
+                
+                // Mask the credential using GitHub Actions secret masking
+                core.setSecret(value);
+                maskedCount++;
+                
+                // Log details (the value itself will be masked in logs)
+                const rule = credential.rule || 'Unknown';
+                const filePath = lineData.path || 'Unknown';
+                const lineNum = lineData.line_num || 'N/A';
+                
+                core.warning(
+                  `Masked credential: ${rule} in ${filePath}:${lineNum} ` +
+                  `(confidence: ${credential.confidence || 'N/A'}, severity: ${credential.severity || 'N/A'})`
+                );
+              }
+            }
+            
+            if (maskedCount > 0) {
+              core.warning(`⚠️  Masked ${maskedCount} credential value(s) to prevent exposure in logs`);
+              core.summary.addHeading('CredSweeper Security Scan', 2);
+              core.summary.addRaw(`⚠️  Detected and masked ${maskedCount} potential credential(s)\n\n`);
+              core.summary.addRaw('These credentials have been automatically masked using GitHub Actions secret masking to prevent exposure in workflow logs and artifacts.\n\n');
+              core.summary.addRaw(`Total findings: ${credentials.length}\n`);
+              await core.summary.write();
+            } else {
+              core.info('✅ No credentials required masking');
             }
           }
           
-          if (maskedCount > 0) {
-            core.warning(`⚠️  Masked ${maskedCount} credential value(s) to prevent exposure in logs`);
-            core.summary.addHeading('CredSweeper Security Scan', 2);
-            core.summary.addRaw(`⚠️  Detected and masked ${maskedCount} potential credential(s)\n\n`);
-            core.summary.addRaw('These credentials have been automatically masked using GitHub Actions secret masking to prevent exposure in workflow logs and artifacts.\n\n');
-            core.summary.addRaw(`Total findings: ${credentials.length}\n`);
-            await core.summary.write();
-          } else {
-            core.info('✅ No credentials required masking');
-          }
-        }
-        
-        await maskCredentials();
+          await maskCredentials();
 ---
 
 <!--
@@ -196,5 +197,5 @@ imports:
 ---
 ```
 
-The secret-masking-steps will automatically run after secret redaction and before any artifacts are uploaded.
+The steps will automatically run in the post-redaction phase (after secret redaction and before any artifacts are uploaded).
 -->
