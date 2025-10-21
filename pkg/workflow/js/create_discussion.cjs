@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
   core.setOutput("discussion_number", "");

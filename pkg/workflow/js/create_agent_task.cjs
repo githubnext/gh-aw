@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 const fs = require("fs");
 const path = require("path");
 

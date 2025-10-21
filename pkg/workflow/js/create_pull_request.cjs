@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 /** @type {typeof import("fs")} */
 const fs = require("fs");
 /** @type {typeof import("crypto")} */

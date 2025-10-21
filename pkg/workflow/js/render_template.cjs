@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 // render_template.cjs
 // Single-function Markdown → Markdown postprocessor for GitHub Actions.
 // Processes only {{#if <expr>}} ... {{/if}} blocks after ${{ }} evaluation.

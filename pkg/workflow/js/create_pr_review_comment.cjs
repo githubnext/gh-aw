@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 /**
  * Generate footer with AI attribution and workflow installation instructions
  * @param {string} workflowName - Name of the workflow
