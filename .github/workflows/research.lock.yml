@@ -321,7 +321,7 @@ jobs:
               debug(`Wrote large content (${content.length} chars) to ${filepath}`);
               return {
                 filename: filename,
-                description: "generated content large!"
+                description: "generated content large!",
               };
             }
             function appendSafeOutput(entry) {
