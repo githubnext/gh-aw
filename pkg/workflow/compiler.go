@@ -135,6 +135,13 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 	return c
 }
 
+// Steps represents the parsed steps configuration, supporting both array and object formats
+type Steps struct {
+	Pre           []any // steps to run before AI execution
+	PostRedaction []any // steps to run after secret redaction before artifacts
+	Post          []any // steps to run after AI execution
+}
+
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
 	Name                string
@@ -153,9 +160,7 @@ type WorkflowData struct {
 	Env                 string
 	If                  string
 	TimeoutMinutes      string
-	CustomSteps         string
-	PostSteps           string // steps to run after AI execution
-	SecretMaskingSteps  string // steps to run after secret redaction before artifacts
+	Steps               *Steps // parsed steps configuration (array or object format)
 	RunsOn              string
 	Environment         string // environment setting for the main job
 	Container           string // container setting for the main job
