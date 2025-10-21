@@ -51,6 +51,18 @@ func TestExtractRunID(t *testing.T) {
 			shouldErr: false,
 		},
 		{
+			name:      "Workflow run URL without /actions/",
+			input:     "https://github.com/owner/repo/runs/12345678",
+			expected:  12345678,
+			shouldErr: false,
+		},
+		{
+			name:      "GitHub Enterprise URL",
+			input:     "https://github.example.com/owner/repo/actions/runs/12345678",
+			expected:  12345678,
+			shouldErr: false,
+		},
+		{
 			name:      "Invalid format",
 			input:     "not-a-number",
 			expected:  0,
@@ -84,6 +96,122 @@ func TestExtractRunID(t *testing.T) {
 				}
 				if result != tt.expected {
 					t.Errorf("Expected run ID %d, got %d", tt.expected, result)
+				}
+			}
+		})
+	}
+}
+
+func TestParseRunURL(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		expectedInfo RunURLInfo
+		shouldErr    bool
+	}{
+		{
+			name:  "Numeric run ID",
+			input: "1234567890",
+			expectedInfo: RunURLInfo{
+				RunID:    1234567890,
+				Owner:    "",
+				Repo:     "",
+				Hostname: "",
+			},
+			shouldErr: false,
+		},
+		{
+			name:  "Run URL with /actions/runs/",
+			input: "https://github.com/owner/repo/actions/runs/12345678",
+			expectedInfo: RunURLInfo{
+				RunID:    12345678,
+				Owner:    "owner",
+				Repo:     "repo",
+				Hostname: "github.com",
+			},
+			shouldErr: false,
+		},
+		{
+			name:  "Job URL",
+			input: "https://github.com/owner/repo/actions/runs/12345678/job/98765432",
+			expectedInfo: RunURLInfo{
+				RunID:    12345678,
+				Owner:    "owner",
+				Repo:     "repo",
+				Hostname: "github.com",
+			},
+			shouldErr: false,
+		},
+		{
+			name:  "Workflow run URL without /actions/",
+			input: "https://github.com/owner/repo/runs/12345678",
+			expectedInfo: RunURLInfo{
+				RunID:    12345678,
+				Owner:    "owner",
+				Repo:     "repo",
+				Hostname: "github.com",
+			},
+			shouldErr: false,
+		},
+		{
+			name:  "GitHub Enterprise URL",
+			input: "https://github.example.com/owner/repo/actions/runs/12345678",
+			expectedInfo: RunURLInfo{
+				RunID:    12345678,
+				Owner:    "owner",
+				Repo:     "repo",
+				Hostname: "github.example.com",
+			},
+			shouldErr: false,
+		},
+		{
+			name:  "GitHub Enterprise URL without /actions/",
+			input: "https://ghe.company.com/myorg/myrepo/runs/99999",
+			expectedInfo: RunURLInfo{
+				RunID:    99999,
+				Owner:    "myorg",
+				Repo:     "myrepo",
+				Hostname: "ghe.company.com",
+			},
+			shouldErr: false,
+		},
+		{
+			name:         "Invalid URL format",
+			input:        "https://github.com/owner/repo/actions",
+			expectedInfo: RunURLInfo{},
+			shouldErr:    true,
+		},
+		{
+			name:         "Invalid string",
+			input:        "not-a-number",
+			expectedInfo: RunURLInfo{},
+			shouldErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseRunURL(tt.input)
+
+			if tt.shouldErr {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+				if result.RunID != tt.expectedInfo.RunID {
+					t.Errorf("Expected run ID %d, got %d", tt.expectedInfo.RunID, result.RunID)
+				}
+				if result.Owner != tt.expectedInfo.Owner {
+					t.Errorf("Expected owner '%s', got '%s'", tt.expectedInfo.Owner, result.Owner)
+				}
+				if result.Repo != tt.expectedInfo.Repo {
+					t.Errorf("Expected repo '%s', got '%s'", tt.expectedInfo.Repo, result.Repo)
+				}
+				if result.Hostname != tt.expectedInfo.Hostname {
+					t.Errorf("Expected hostname '%s', got '%s'", tt.expectedInfo.Hostname, result.Hostname)
 				}
 			}
 		})
