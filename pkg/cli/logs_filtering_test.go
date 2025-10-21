@@ -56,7 +56,7 @@ func TestListWorkflowRunsWithPagination_LimitParameter(t *testing.T) {
 	// - Loop continues until we have 10 matching runs or exhaust available runs
 	//
 	// The fix: Renamed parameter from 'count' to 'limit' to clarify it's the API batch size
-	
+
 	t.Log("Parameter semantics verified by renaming 'count' to 'limit' in listWorkflowRunsWithPagination")
 	t.Log("The limit parameter controls the batch size for gh run list --limit")
 	t.Log("The user's -c flag controls the total number of matching runs to find")
