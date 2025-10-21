@@ -12,8 +12,11 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
+
+var log = logger.New("parser:frontmatter")
 
 // IncludeDirectivePattern matches @include, @import (deprecated), or {{#import (new) directives
 // The colon after #import is optional and ignored if present
@@ -368,6 +371,8 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		return &ImportsResult{}, nil
 	}
 
+	log.Print("Processing imports from frontmatter")
+
 	// Convert to array of strings
 	var imports []string
 	switch v := importsField.(type) {
@@ -386,6 +391,8 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	if len(imports) == 0 {
 		return &ImportsResult{}, nil
 	}
+
+	log.Printf("Found %d imports to process", len(imports))
 
 	// Track visited to prevent cycles
 	visited := make(map[string]bool)
@@ -420,9 +427,11 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 
 		// Check for cycles
 		if visited[fullPath] {
+			log.Printf("Skipping already visited import: %s", fullPath)
 			continue
 		}
 		visited[fullPath] = true
+		log.Printf("Processing import: %s", fullPath)
 
 		// Add to list of processed files (use original importPath for manifest)
 		processedFiles = append(processedFiles, importPath)

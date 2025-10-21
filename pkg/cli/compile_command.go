@@ -88,6 +88,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	trialLogicalRepoSlug := config.TrialLogicalRepoSlug
 	strict := config.Strict
 
+	compileLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v", len(markdownFiles), validate, watch, noEmit)
+
 	// Track compilation statistics
 	stats := &CompilationStats{}
 	// Validate purge flag usage
@@ -111,6 +113,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Create compiler with verbose flag and AI engine override
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
+	compileLog.Print("Created compiler instance")
 
 	// Set validation based on the validate flag (false by default for compatibility)
 	compiler.SetSkipValidation(!validate)
@@ -123,6 +126,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Set trial mode if specified
 	if trialMode {
+		compileLog.Printf("Enabling trial mode: repoSlug=%s", trialLogicalRepoSlug)
 		compiler.SetTrialMode(true)
 		if trialLogicalRepoSlug != "" {
 			compiler.SetTrialLogicalRepoSlug(trialLogicalRepoSlug)

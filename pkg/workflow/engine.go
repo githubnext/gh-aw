@@ -3,7 +3,11 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var engineLog = logger.New("workflow:engine")
 
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
@@ -35,13 +39,17 @@ type EngineNetworkConfig struct {
 // ExtractEngineConfig extracts engine configuration from frontmatter, supporting both string and object formats
 func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *EngineConfig) {
 	if engine, exists := frontmatter["engine"]; exists {
+		engineLog.Print("Extracting engine configuration from frontmatter")
+
 		// Handle string format (backwards compatibility)
 		if engineStr, ok := engine.(string); ok {
+			engineLog.Printf("Found engine in string format: %s", engineStr)
 			return engineStr, &EngineConfig{ID: engineStr}
 		}
 
 		// Handle object format
 		if engineObj, ok := engine.(map[string]any); ok {
+			engineLog.Print("Found engine in object format, parsing configuration")
 			config := &EngineConfig{}
 
 			// Extract required 'id' field
@@ -199,11 +207,13 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			}
 
 			// Return the ID as the engineSetting for backwards compatibility
+			engineLog.Printf("Extracted engine configuration: ID=%s", config.ID)
 			return config.ID, config
 		}
 	}
 
 	// No engine specified
+	engineLog.Print("No engine configuration found in frontmatter")
 	return "", nil
 }
 

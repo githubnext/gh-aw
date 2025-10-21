@@ -7,8 +7,11 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
+
+var resolveLog = logger.New("workflow:resolve")
 
 // ResolveWorkflowName converts an agentic workflow ID to the GitHub Actions workflow name.
 // It normalizes the input by removing .md and .lock.yml extensions, then finds the
@@ -26,8 +29,11 @@ func ResolveWorkflowName(workflowInput string) (string, error) {
 		return "", nil
 	}
 
+	resolveLog.Printf("Resolving workflow name for input: %s", workflowInput)
+
 	// Normalize the workflow name by removing extensions
 	normalizedName := normalizeWorkflowName(workflowInput)
+	resolveLog.Printf("Normalized workflow name: %s", normalizedName)
 
 	// Get the workflows directory
 	workflowsDir := constants.GetWorkflowDir()
@@ -35,6 +41,7 @@ func ResolveWorkflowName(workflowInput string) (string, error) {
 	// Check if the agentic workflow markdown file exists
 	mdFile := filepath.Join(workflowsDir, normalizedName+".md")
 	if _, err := os.Stat(mdFile); err != nil {
+		resolveLog.Printf("Markdown file not found: %s", mdFile)
 		return "", fmt.Errorf("agentic workflow '%s' not found (expected file: %s)", normalizedName, mdFile)
 	}
 
@@ -63,9 +70,11 @@ func ResolveWorkflowName(workflowInput string) (string, error) {
 	}
 
 	if workflow.Name == "" {
+		resolveLog.Printf("Workflow name field missing in lock file: %s", lockFile)
 		return "", fmt.Errorf("workflow name not found in lock file '%s'", lockFile)
 	}
 
+	resolveLog.Printf("Successfully resolved workflow name: %s", workflow.Name)
 	return workflow.Name, nil
 }
 
