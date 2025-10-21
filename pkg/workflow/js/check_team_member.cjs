@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 async function main() {
   const actor = context.actor;
   const { owner, repo } = context.repo;

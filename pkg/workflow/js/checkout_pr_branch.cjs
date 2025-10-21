@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 /**
  * Checkout PR branch when PR context is available
  * This script handles both pull_request events and comment events on PRs

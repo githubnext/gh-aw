@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 async function main() {
   const fs = require("fs");
 

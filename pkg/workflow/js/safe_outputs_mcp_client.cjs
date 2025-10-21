@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 const { spawn } = require("child_process");
 const path = require("path");
 const serverPath = path.join("/tmp/gh-aw/safe-outputs/mcp-server.cjs");

@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 /**
  * Check if command is the first word in the triggering text
  * This prevents accidental command triggers from words appearing later in content

@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 async function main() {
   // Read inputs from environment variables
   const reaction = process.env.GH_AW_REACTION || "eyes";

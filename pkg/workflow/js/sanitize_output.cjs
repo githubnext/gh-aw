@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 /**
  * Sanitizes content for safe output in GitHub Actions
  * @param {string} content - The content to sanitize

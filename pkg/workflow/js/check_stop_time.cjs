@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 async function main() {
   const stopTime = process.env.GH_AW_STOP_TIME;
   const workflowName = process.env.GH_AW_WORKFLOW_NAME;

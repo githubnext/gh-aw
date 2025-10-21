@@ -26,12 +26,12 @@ func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) [
 
 	// Generate the JavaScript code for the membership check (output-only version)
 	scriptContent := c.generateMembershipCheckScript(data.Roles)
-	scriptLines := strings.Split(scriptContent, "\n")
-	for _, line := range scriptLines {
-		if strings.TrimSpace(line) != "" {
-			steps = append(steps, fmt.Sprintf("            %s\n", line))
-		}
-	}
+	
+	// Use WriteJavaScriptToYAML to remove comments and format properly
+	var scriptBuilder strings.Builder
+	WriteJavaScriptToYAML(&scriptBuilder, scriptContent)
+	steps = append(steps, scriptBuilder.String())
+	
 	return steps
 }
 

@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 /**
  * Redacts secrets from files in /tmp/gh-aw directory before uploading artifacts
  * This script processes all .txt, .json, .log files under /tmp/gh-aw and redacts

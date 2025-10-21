@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 async function main() {
   // Read the validated output content from environment variable
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;

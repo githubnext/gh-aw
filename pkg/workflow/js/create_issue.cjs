@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 function sanitizeLabelContent(content) {
   if (!content || typeof content !== "string") {
     return "";

@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="@actions/github-script" />
+
 // This script updates an existing comment created by the activation job
 // to notify about the workflow completion status (success or failure).
 
