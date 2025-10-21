@@ -139,46 +139,23 @@ func (e *CustomEngine) convertStepToYAML(stepMap map[string]any) (string, error)
 	return ConvertStepToYAML(stepMap)
 }
 
-// RenderMCPConfig renders MCP configuration using shared logic with Claude engine
+// RenderMCPConfig renders MCP configuration using shared logic
 func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	// Custom engine uses the same MCP configuration generation as Claude
-	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF\n")
-	yaml.WriteString("          {\n")
-	yaml.WriteString("            \"mcpServers\": {\n")
-
-	// Add safe-outputs MCP server if safe-outputs are configured
-	totalServers := len(mcpTools)
-	serverCount := 0
-
-	// Generate configuration for each MCP tool using shared logic
-	for _, toolName := range mcpTools {
-		serverCount++
-		isLast := serverCount == totalServers
-
-		switch toolName {
-		case "github":
-			githubTool := tools["github"]
-			e.renderGitHubMCPConfig(yaml, githubTool, isLast, workflowData)
-		case "playwright":
-			playwrightTool := tools["playwright"]
-			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast)
-		case "cache-memory":
-			e.renderCacheMemoryMCPConfig(yaml, isLast, workflowData)
-		case "agentic-workflows":
-			e.renderAgenticWorkflowsMCPConfig(yaml, isLast)
-		case "safe-outputs":
-			e.renderSafeOutputsMCPConfig(yaml, isLast)
-		case "web-fetch":
-			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
-		default:
-			// Handle custom MCP tools using shared helper
-			HandleCustomMCPToolInSwitch(yaml, toolName, tools, isLast, e.renderCustomMCPConfig)
-		}
-	}
-
-	yaml.WriteString("            }\n")
-	yaml.WriteString("          }\n")
-	yaml.WriteString("          EOF\n")
+	// Use shared JSON MCP config renderer
+	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
+		ConfigPath: "/tmp/gh-aw/mcp-config/mcp-servers.json",
+		Renderers: MCPToolRenderers{
+			RenderGitHub:           e.renderGitHubMCPConfig,
+			RenderPlaywright:       e.renderPlaywrightMCPConfig,
+			RenderCacheMemory:      e.renderCacheMemoryMCPConfig,
+			RenderAgenticWorkflows: e.renderAgenticWorkflowsMCPConfig,
+			RenderSafeOutputs:      e.renderSafeOutputsMCPConfig,
+			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
+				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
+			},
+			RenderCustomMCPConfig: e.renderCustomMCPConfig,
+		},
+	})
 }
 
 // renderGitHubMCPConfig generates the GitHub MCP server configuration using shared logic

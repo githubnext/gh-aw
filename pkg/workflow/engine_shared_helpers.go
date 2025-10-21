@@ -108,3 +108,97 @@ func FormatStepWithCommandAndEnv(stepLines []string, command string, env map[str
 
 	return stepLines
 }
+
+// MCPToolRenderers holds engine-specific rendering functions for each MCP tool type
+type MCPToolRenderers struct {
+	RenderGitHub           func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData)
+	RenderPlaywright       func(yaml *strings.Builder, playwrightTool any, isLast bool)
+	RenderCacheMemory      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData)
+	RenderAgenticWorkflows func(yaml *strings.Builder, isLast bool)
+	RenderSafeOutputs      func(yaml *strings.Builder, isLast bool)
+	RenderWebFetch         func(yaml *strings.Builder, isLast bool)
+	RenderCustomMCPConfig  RenderCustomMCPToolConfigHandler
+}
+
+// JSONMCPConfigOptions defines configuration for JSON-based MCP config rendering
+type JSONMCPConfigOptions struct {
+	// ConfigPath is the file path for the MCP config (e.g., "/tmp/gh-aw/mcp-config/mcp-servers.json")
+	ConfigPath string
+	// Renderers contains engine-specific rendering functions for each tool
+	Renderers MCPToolRenderers
+	// FilterTool is an optional function to filter out tools before processing
+	// Returns true if the tool should be included, false to skip it
+	FilterTool func(toolName string) bool
+	// PostEOFCommands is an optional function to add commands after the EOF (e.g., debug output)
+	PostEOFCommands func(yaml *strings.Builder)
+}
+
+// RenderJSONMCPConfig renders MCP configuration in JSON format with the common mcpServers structure.
+// This shared function extracts the duplicate pattern from Claude, Copilot, and Custom engines.
+//
+// Parameters:
+//   - yaml: The string builder for YAML output
+//   - tools: Map of tool configurations
+//   - mcpTools: Ordered list of MCP tool names to render
+//   - workflowData: Workflow configuration data
+//   - options: JSON MCP config rendering options
+func RenderJSONMCPConfig(
+	yaml *strings.Builder,
+	tools map[string]any,
+	mcpTools []string,
+	workflowData *WorkflowData,
+	options JSONMCPConfigOptions,
+) {
+	// Write config file header
+	yaml.WriteString(fmt.Sprintf("          cat > %s << EOF\n", options.ConfigPath))
+	yaml.WriteString("          {\n")
+	yaml.WriteString("            \"mcpServers\": {\n")
+
+	// Filter tools if needed (e.g., Copilot filters out cache-memory)
+	var filteredTools []string
+	for _, toolName := range mcpTools {
+		if options.FilterTool != nil && !options.FilterTool(toolName) {
+			continue
+		}
+		filteredTools = append(filteredTools, toolName)
+	}
+
+	// Process each MCP tool
+	totalServers := len(filteredTools)
+	serverCount := 0
+
+	for _, toolName := range filteredTools {
+		serverCount++
+		isLast := serverCount == totalServers
+
+		switch toolName {
+		case "github":
+			githubTool := tools["github"]
+			options.Renderers.RenderGitHub(yaml, githubTool, isLast, workflowData)
+		case "playwright":
+			playwrightTool := tools["playwright"]
+			options.Renderers.RenderPlaywright(yaml, playwrightTool, isLast)
+		case "cache-memory":
+			options.Renderers.RenderCacheMemory(yaml, isLast, workflowData)
+		case "agentic-workflows":
+			options.Renderers.RenderAgenticWorkflows(yaml, isLast)
+		case "safe-outputs":
+			options.Renderers.RenderSafeOutputs(yaml, isLast)
+		case "web-fetch":
+			options.Renderers.RenderWebFetch(yaml, isLast)
+		default:
+			// Handle custom MCP tools using shared helper
+			HandleCustomMCPToolInSwitch(yaml, toolName, tools, isLast, options.Renderers.RenderCustomMCPConfig)
+		}
+	}
+
+	// Write config file footer
+	yaml.WriteString("            }\n")
+	yaml.WriteString("          }\n")
+	yaml.WriteString("          EOF\n")
+
+	// Add any post-EOF commands (e.g., debug output for Copilot)
+	if options.PostEOFCommands != nil {
+		options.PostEOFCommands(yaml)
+	}
+}

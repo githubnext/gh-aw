@@ -498,3 +498,234 @@ func TestFormatStepWithCommandAndEnv_Indentation(t *testing.T) {
 		}
 	}
 }
+
+// TestRenderJSONMCPConfig tests the shared JSON MCP config rendering helper
+func TestRenderJSONMCPConfig(t *testing.T) {
+	tests := []struct {
+		name              string
+		tools             map[string]any
+		mcpTools          []string
+		options           JSONMCPConfigOptions
+		expectedContent   []string
+		unexpectedContent []string
+	}{
+		{
+			name: "Basic config with GitHub and playwright",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []string{"get_repo"},
+				},
+				"playwright": map[string]any{
+					"allowed": []string{"navigate"},
+				},
+			},
+			mcpTools: []string{"github", "playwright"},
+			options: JSONMCPConfigOptions{
+				ConfigPath: "/tmp/test-config.json",
+				Renderers: MCPToolRenderers{
+					RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+						yaml.WriteString("              \"github\": { \"test\": true }")
+						if !isLast {
+							yaml.WriteString(",")
+						}
+						yaml.WriteString("\n")
+					},
+					RenderPlaywright: func(yaml *strings.Builder, playwrightTool any, isLast bool) {
+						yaml.WriteString("              \"playwright\": { \"test\": true }")
+						if !isLast {
+							yaml.WriteString(",")
+						}
+						yaml.WriteString("\n")
+					},
+					RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
+					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {},
+					RenderSafeOutputs:      func(yaml *strings.Builder, isLast bool) {},
+					RenderWebFetch:         func(yaml *strings.Builder, isLast bool) {},
+					RenderCustomMCPConfig:  nil,
+				},
+			},
+			expectedContent: []string{
+				"cat > /tmp/test-config.json << EOF",
+				"\"mcpServers\": {",
+				"\"github\": { \"test\": true },",
+				"\"playwright\": { \"test\": true }",
+				"EOF",
+			},
+		},
+		{
+			name: "Config with tool filtering",
+			tools: map[string]any{
+				"github":       map[string]any{},
+				"cache-memory": map[string]any{},
+			},
+			mcpTools: []string{"github", "cache-memory"},
+			options: JSONMCPConfigOptions{
+				ConfigPath: "/tmp/filtered-config.json",
+				Renderers: MCPToolRenderers{
+					RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+						yaml.WriteString("              \"github\": { \"filtered\": true }")
+						if !isLast {
+							yaml.WriteString(",")
+						}
+						yaml.WriteString("\n")
+					},
+					RenderPlaywright:       func(yaml *strings.Builder, playwrightTool any, isLast bool) {},
+					RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
+					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {},
+					RenderSafeOutputs:      func(yaml *strings.Builder, isLast bool) {},
+					RenderWebFetch:         func(yaml *strings.Builder, isLast bool) {},
+					RenderCustomMCPConfig:  nil,
+				},
+				FilterTool: func(toolName string) bool {
+					// Filter out cache-memory
+					return toolName != "cache-memory"
+				},
+			},
+			expectedContent: []string{
+				"cat > /tmp/filtered-config.json << EOF",
+				"\"github\": { \"filtered\": true }",
+			},
+			unexpectedContent: []string{
+				"cache-memory",
+			},
+		},
+		{
+			name: "Config with post-EOF commands",
+			tools: map[string]any{
+				"github": map[string]any{},
+			},
+			mcpTools: []string{"github"},
+			options: JSONMCPConfigOptions{
+				ConfigPath: "/tmp/debug-config.json",
+				Renderers: MCPToolRenderers{
+					RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+						yaml.WriteString("              \"github\": {}\n")
+					},
+					RenderPlaywright:       func(yaml *strings.Builder, playwrightTool any, isLast bool) {},
+					RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
+					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {},
+					RenderSafeOutputs:      func(yaml *strings.Builder, isLast bool) {},
+					RenderWebFetch:         func(yaml *strings.Builder, isLast bool) {},
+					RenderCustomMCPConfig:  nil,
+				},
+				PostEOFCommands: func(yaml *strings.Builder) {
+					yaml.WriteString("          echo \"DEBUG OUTPUT\"\n")
+					yaml.WriteString("          cat /tmp/debug-config.json\n")
+				},
+			},
+			expectedContent: []string{
+				"EOF",
+				"echo \"DEBUG OUTPUT\"",
+				"cat /tmp/debug-config.json",
+			},
+		},
+		{
+			name:     "Config with web-fetch tool",
+			tools:    map[string]any{},
+			mcpTools: []string{"web-fetch"},
+			options: JSONMCPConfigOptions{
+				ConfigPath: "/tmp/web-fetch-config.json",
+				Renderers: MCPToolRenderers{
+					RenderGitHub:           func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {},
+					RenderPlaywright:       func(yaml *strings.Builder, playwrightTool any, isLast bool) {},
+					RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
+					RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {},
+					RenderSafeOutputs:      func(yaml *strings.Builder, isLast bool) {},
+					RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
+						yaml.WriteString("              \"web-fetch\": { \"enabled\": true }\n")
+					},
+					RenderCustomMCPConfig: nil,
+				},
+			},
+			expectedContent: []string{
+				"\"web-fetch\": { \"enabled\": true }",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yaml strings.Builder
+			workflowData := &WorkflowData{}
+
+			RenderJSONMCPConfig(&yaml, tt.tools, tt.mcpTools, workflowData, tt.options)
+
+			result := yaml.String()
+
+			// Verify expected content
+			for _, expected := range tt.expectedContent {
+				if !strings.Contains(result, expected) {
+					t.Errorf("Expected result to contain %q\nGot:\n%s", expected, result)
+				}
+			}
+
+			// Verify unexpected content is not present
+			for _, unexpected := range tt.unexpectedContent {
+				if strings.Contains(result, unexpected) {
+					t.Errorf("Expected result NOT to contain %q\nGot:\n%s", unexpected, result)
+				}
+			}
+		})
+	}
+}
+
+// TestRenderJSONMCPConfig_IsLastHandling tests that isLast is properly set
+func TestRenderJSONMCPConfig_IsLastHandling(t *testing.T) {
+	tools := map[string]any{
+		"github":     map[string]any{},
+		"playwright": map[string]any{},
+		"web-fetch":  map[string]any{},
+	}
+	mcpTools := []string{"github", "playwright", "web-fetch"}
+
+	var callOrder []string
+	var isLastValues []bool
+
+	options := JSONMCPConfigOptions{
+		ConfigPath: "/tmp/test.json",
+		Renderers: MCPToolRenderers{
+			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+				callOrder = append(callOrder, "github")
+				isLastValues = append(isLastValues, isLast)
+			},
+			RenderPlaywright: func(yaml *strings.Builder, playwrightTool any, isLast bool) {
+				callOrder = append(callOrder, "playwright")
+				isLastValues = append(isLastValues, isLast)
+			},
+			RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
+			RenderAgenticWorkflows: func(yaml *strings.Builder, isLast bool) {},
+			RenderSafeOutputs:      func(yaml *strings.Builder, isLast bool) {},
+			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
+				callOrder = append(callOrder, "web-fetch")
+				isLastValues = append(isLastValues, isLast)
+			},
+			RenderCustomMCPConfig: nil,
+		},
+	}
+
+	var yaml strings.Builder
+	workflowData := &WorkflowData{}
+	RenderJSONMCPConfig(&yaml, tools, mcpTools, workflowData, options)
+
+	// Verify call order
+	expectedOrder := []string{"github", "playwright", "web-fetch"}
+	if len(callOrder) != len(expectedOrder) {
+		t.Fatalf("Expected %d calls, got %d", len(expectedOrder), len(callOrder))
+	}
+	for i, expected := range expectedOrder {
+		if callOrder[i] != expected {
+			t.Errorf("Call %d: expected %q, got %q", i, expected, callOrder[i])
+		}
+	}
+
+	// Verify isLast values
+	expectedIsLast := []bool{false, false, true}
+	if len(isLastValues) != len(expectedIsLast) {
+		t.Fatalf("Expected %d isLast values, got %d", len(expectedIsLast), len(isLastValues))
+	}
+	for i, expected := range expectedIsLast {
+		if isLastValues[i] != expected {
+			t.Errorf("Call %d (%s): expected isLast=%v, got %v", i, callOrder[i], expected, isLastValues[i])
+		}
+	}
+}
