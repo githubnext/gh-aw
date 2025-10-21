@@ -862,7 +862,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout_minutes")
 
 	// Parse steps using new structured approach
-	stepsData, _ := result.Frontmatter["steps"]
+	stepsData := result.Frontmatter["steps"]
 	parsedSteps, err := ParseStepsFromFrontmatter(stepsData)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing steps: %w", err)

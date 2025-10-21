@@ -203,17 +203,3 @@ func marshalStep(step Step) (string, error) {
 func (ws *WorkflowSteps) IsEmpty() bool {
 	return ws == nil || (len(ws.Pre) == 0 && len(ws.PreAgent) == 0 && len(ws.PostAgent) == 0 && len(ws.Post) == 0)
 }
-
-// ToYAML converts steps to YAML string for a specific position
-func stepsToYAML(steps []Step) (string, error) {
-	if len(steps) == 0 {
-		return "", nil
-	}
-
-	yamlBytes, err := yaml.Marshal(steps)
-	if err != nil {
-		return "", err
-	}
-
-	return string(yamlBytes), nil
-}

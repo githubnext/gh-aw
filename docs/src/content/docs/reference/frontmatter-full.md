@@ -771,19 +771,40 @@ network:
 # (optional)
 if: "example-value"
 
-# Custom workflow steps
+# Custom workflow steps. Can be an array (legacy format, goes to pre-agent
+# position) or an object with named positions (pre, pre-agent, post-agent, post)
 # (optional)
 # This field supports multiple formats (oneOf):
 
-# Option 1: object
+# Option 1: Object format with named step positions
 steps:
-  {}
+  # Steps to run before checkout and runtime setup
+  # (optional)
+  pre: []
 
-# Option 2: array
+  # Steps to run after setup but before agent execution
+  # (optional)
+  pre-agent: []
+
+  # Steps to run immediately after agent execution
+  # (optional)
+  post-agent: []
+
+  # Steps to run after all other steps are complete
+  # (optional)
+  post: []
+
+# Option 2: Legacy array format (steps go to pre-agent position)
 steps: []
   # Array items: undefined
 
-# Custom workflow steps to run after AI execution
+# Steps to run immediately after AI execution. Preferred over post-steps.
+# (optional)
+post-agent: []
+  # Array items:
+
+# DEPRECATED: Use 'post-agent' instead. Custom workflow steps to run after AI
+# execution
 # (optional)
 # This field supports multiple formats (oneOf):
 
