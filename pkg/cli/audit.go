@@ -43,7 +43,8 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` audit https://github.com/owner/repo/actions/runs/1234567890  # Audit from run URL
   ` + constants.CLIExtensionPrefix + ` audit https://github.com/owner/repo/actions/runs/1234567890/job/9876543210  # Audit from job URL
   ` + constants.CLIExtensionPrefix + ` audit 1234567890 -o ./audit-reports  # Custom output directory
-  ` + constants.CLIExtensionPrefix + ` audit 1234567890 -v  # Verbose output`,
+  ` + constants.CLIExtensionPrefix + ` audit 1234567890 -v  # Verbose output
+  ` + constants.CLIExtensionPrefix + ` audit 1234567890 --parse  # Parse agent logs and generate log.md`,
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			runIDOrURL := args[0]
@@ -58,8 +59,9 @@ Examples:
 			outputDir, _ := cmd.Flags().GetString("output")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
+			parse, _ := cmd.Flags().GetBool("parse")
 
-			if err := AuditWorkflowRun(runID, outputDir, verbose, jsonOutput); err != nil {
+			if err := AuditWorkflowRun(runID, outputDir, verbose, parse, jsonOutput); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -69,6 +71,7 @@ Examples:
 	// Add flags to audit command
 	auditCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
 	auditCmd.Flags().Bool("json", false, "Output audit report as JSON instead of formatted console tables")
+	auditCmd.Flags().Bool("parse", false, "Run JavaScript parser on agent logs and write markdown to log.md")
 
 	return auditCmd
 }
@@ -113,7 +116,7 @@ func isPermissionError(err error) bool {
 }
 
 // AuditWorkflowRun audits a single workflow run and generates a report
-func AuditWorkflowRun(runID int64, outputDir string, verbose bool, jsonOutput bool) error {
+func AuditWorkflowRun(runID int64, outputDir string, verbose bool, parse bool, jsonOutput bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auditing workflow run %d...", runID)))
 	}
@@ -259,20 +262,26 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool, jsonOutput bo
 		renderConsole(auditData, runOutputDir)
 	}
 
-	// Always attempt to render agentic log (similar to `logs --parse`) if engine & logs are available
+	// Conditionally attempt to render agentic log (similar to `logs --parse`) if --parse flag is set
 	// This creates a log.md file in the run directory for a rich, human-readable agent session summary.
 	// We intentionally do not fail the audit on parse errors; they are reported as warnings.
-	awInfoPath := filepath.Join(runOutputDir, "aw_info.json")
-	if engine := extractEngineFromAwInfo(awInfoPath, verbose); engine != nil { // reuse existing helper in same package
-		if err := parseAgentLog(runOutputDir, engine, verbose); err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse agent log for run %d: %v", runID, err)))
+	if parse {
+		awInfoPath := filepath.Join(runOutputDir, "aw_info.json")
+		if engine := extractEngineFromAwInfo(awInfoPath, verbose); engine != nil { // reuse existing helper in same package
+			if err := parseAgentLog(runOutputDir, engine, verbose); err != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse agent log for run %d: %v", runID, err)))
+				}
+			} else {
+				// Always show success message for parsing, not just in verbose mode
+				logMdPath := filepath.Join(runOutputDir, "log.md")
+				if _, err := os.Stat(logMdPath); err == nil {
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", runID, logMdPath)))
+				}
 			}
 		} else if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No agent logs found to parse or no parser available"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No engine detected (aw_info.json missing or invalid); skipping agent log rendering"))
 		}
-	} else if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No engine detected (aw_info.json missing or invalid); skipping agent log rendering"))
 	}
 
 	// Display logs location (only for console output)
