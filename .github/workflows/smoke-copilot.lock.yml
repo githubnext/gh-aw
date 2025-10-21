@@ -2427,96 +2427,96 @@ jobs:
                         try {
                           const jsonStr = currentJsonLines.join("\n");
                           const jsonData = JSON.parse(jsonStr);
-                        if (jsonData.model) {
-                          model = jsonData.model;
-                        }
-                        if (jsonData.choices && Array.isArray(jsonData.choices)) {
-                          for (const choice of jsonData.choices) {
-                            if (choice.message) {
-                              const message = choice.message;
-                              const content = [];
-                              const toolResults = []; 
-                              if (message.content && message.content.trim()) {
-                                content.push({
-                                  type: "text",
-                                  text: message.content,
-                                });
-                              }
-                              if (message.tool_calls && Array.isArray(message.tool_calls)) {
-                                for (const toolCall of message.tool_calls) {
-                                  if (toolCall.function) {
-                                    let toolName = toolCall.function.name;
-                                    let args = {};
-                                    if (toolName.startsWith("github-")) {
-                                      toolName = "mcp__github__" + toolName.substring(7);
-                                    } else if (toolName === "bash") {
-                                      toolName = "Bash";
+                          if (jsonData.model) {
+                            model = jsonData.model;
+                          }
+                          if (jsonData.choices && Array.isArray(jsonData.choices)) {
+                            for (const choice of jsonData.choices) {
+                              if (choice.message) {
+                                const message = choice.message;
+                                const content = [];
+                                const toolResults = []; 
+                                if (message.content && message.content.trim()) {
+                                  content.push({
+                                    type: "text",
+                                    text: message.content,
+                                  });
+                                }
+                                if (message.tool_calls && Array.isArray(message.tool_calls)) {
+                                  for (const toolCall of message.tool_calls) {
+                                    if (toolCall.function) {
+                                      let toolName = toolCall.function.name;
+                                      let args = {};
+                                      if (toolName.startsWith("github-")) {
+                                        toolName = "mcp__github__" + toolName.substring(7);
+                                      } else if (toolName === "bash") {
+                                        toolName = "Bash";
+                                      }
+                                      try {
+                                        args = JSON.parse(toolCall.function.arguments);
+                                      } catch (e) {
+                                        args = {};
+                                      }
+                                      const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
+                                      content.push({
+                                        type: "tool_use",
+                                        id: toolId,
+                                        name: toolName,
+                                        input: args,
+                                      });
+                                      toolResults.push({
+                                        type: "tool_result",
+                                        tool_use_id: toolId,
+                                        content: "", 
+                                        is_error: false, 
+                                      });
                                     }
-                                    try {
-                                      args = JSON.parse(toolCall.function.arguments);
-                                    } catch (e) {
-                                      args = {};
-                                    }
-                                    const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
-                                    content.push({
-                                      type: "tool_use",
-                                      id: toolId,
-                                      name: toolName,
-                                      input: args,
-                                    });
-                                    toolResults.push({
-                                      type: "tool_result",
-                                      tool_use_id: toolId,
-                                      content: "", 
-                                      is_error: false, 
+                                  }
+                                }
+                                if (content.length > 0) {
+                                  entries.push({
+                                    type: "assistant",
+                                    message: { content },
+                                  });
+                                  turnCount++;
+                                  if (toolResults.length > 0) {
+                                    entries.push({
+                                      type: "user",
+                                      message: { content: toolResults },
                                     });
                                   }
                                 }
                               }
-                              if (content.length > 0) {
-                                entries.push({
-                                  type: "assistant",
-                                  message: { content },
-                                });
-                                turnCount++;
-                                if (toolResults.length > 0) {
-                                  entries.push({
-                                    type: "user",
-                                    message: { content: toolResults },
-                                  });
-                                }
-                              }
                             }
-                          }
-                          if (jsonData.usage) {
-                            if (!entries._accumulatedUsage) {
-                              entries._accumulatedUsage = {
-                                input_tokens: 0,
-                                output_tokens: 0,
+                            if (jsonData.usage) {
+                              if (!entries._accumulatedUsage) {
+                                entries._accumulatedUsage = {
+                                  input_tokens: 0,
+                                  output_tokens: 0,
+                                };
+                              }
+                              if (jsonData.usage.prompt_tokens) {
+                                entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
+                              }
+                              if (jsonData.usage.completion_tokens) {
+                                entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
+                              }
+                              entries._lastResult = {
+                                type: "result",
+                                num_turns: turnCount,
+                                usage: entries._accumulatedUsage,
                               };
                             }
-                            if (jsonData.usage.prompt_tokens) {
-                              entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
-                            }
-                            if (jsonData.usage.completion_tokens) {
-                              entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
-                            }
-                            entries._lastResult = {
-                              type: "result",
-                              num_turns: turnCount,
-                              usage: entries._accumulatedUsage,
-                            };
                           }
+                        } catch (e) {
                         }
-                      } catch (e) {
                       }
+                      inDataBlock = false;
+                      currentJsonLines = [];
+                      continue; 
+                    } else if (hasTimestamp && isJsonContent) {
+                      currentJsonLines.push(cleanLine);
                     }
-                    inDataBlock = false;
-                    currentJsonLines = [];
-                    continue; 
-                  } else if (hasTimestamp && isJsonContent) {
-                    currentJsonLines.push(cleanLine);
-                  }
                   } else {
                     const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
                     currentJsonLines.push(cleanLine);
