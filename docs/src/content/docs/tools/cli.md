@@ -170,7 +170,16 @@ gh aw logs --engine claude --branch main
 gh aw logs --after-run-id 1000 --before-run-id 2000
 gh aw logs --no-staged --tool-graph       # Exclude staged runs, generate Mermaid graph
 gh aw logs --parse --verbose --json       # Parse logs to markdown, output JSON
+gh aw logs --timeout 60                   # Limit execution to 60 seconds
 ```
+
+**Timeout Option:**
+
+The `--timeout` flag limits log download execution time (in seconds). When the timeout is reached, the command processes already-downloaded runs and returns partial results. Set to `0` for no timeout (default). The MCP server uses a 50-second default timeout automatically.
+
+**Caching and Performance:**
+
+Downloaded runs are cached with a `run_summary.json` file in each run folder. Subsequent `logs` commands reuse cached data for faster reprocessing (~10-100x faster), unless the CLI version changes.
 
 Metrics include execution duration, token consumption, costs, success/failure rates, and resource usage trends.
 
@@ -185,9 +194,23 @@ Generate concise markdown reports for individual workflow runs with smart permis
 
 ```bash
 gh aw audit 12345678                                            # By run ID
-gh aw audit https://github.com/owner/repo/actions/runs/123      # By URL
+gh aw audit https://github.com/owner/repo/actions/runs/123      # By URL from any repo
+gh aw audit https://github.example.com/org/repo/runs/456        # GitHub Enterprise URL
 gh aw audit 12345678 -o ./audit-reports -v
+gh aw audit 12345678 --parse                                    # Parse logs to markdown
 ```
+
+**URL Support:**
+
+The audit command accepts workflow run URLs from any repository and GitHub instance:
+- Standard URLs: `https://github.com/owner/repo/actions/runs/12345`
+- Workflow run URLs: `https://github.com/owner/repo/runs/12345`
+- Job URLs: `https://github.com/owner/repo/actions/runs/12345/job/98765`
+- GitHub Enterprise: `https://github.example.com/org/repo/actions/runs/99999`
+
+**Options:**
+
+- `--parse`: Generates detailed `log.md` files with tool calls and reasoning extracted by engine-specific parsers
 
 The audit command checks local cache first (`logs/run-{id}`), then attempts download. On permission errors, it provides MCP server instructions for artifact downloads. Reports include overview, metrics, tool usage, MCP failures, and available artifacts.
 

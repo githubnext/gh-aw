@@ -69,9 +69,47 @@ The MCP server provides these tools:
 
 - **status** - List workflows with optional pattern filter
 - **compile** - Compile workflows to GitHub Actions YAML
-- **logs** - Download workflow logs (saved to `/tmp/gh-aw/aw-mcp/logs`)
+- **logs** - Download workflow logs with automatic timeout handling and continuation support
 - **audit** - Generate detailed workflow run report (saved to `/tmp/gh-aw/aw-mcp/logs`)
 - **mcp-inspect** - Inspect MCP servers in workflows and validate secrets
+
+### Logs Tool Features
+
+**Timeout and Continuation:**
+
+The logs tool uses a 50-second default timeout to prevent MCP server timeouts when downloading large workflow runs. When a timeout occurs, the tool returns partial results with a `continuation` field containing parameters to resume fetching:
+
+```json
+{
+  "summary": { "total_runs": 5 },
+  "runs": [ ... ],
+  "continuation": {
+    "message": "Timeout reached. Use these parameters to continue fetching more logs.",
+    "workflow_name": "weekly-research",
+    "count": 100,
+    "before_run_id": 12341,
+    "timeout": 50
+  }
+}
+```
+
+Agents can detect incomplete data by checking for the `continuation` field and make follow-up calls with the provided `before_run_id` to fetch remaining logs.
+
+**Large Output Handling:**
+
+When tool outputs exceed 16,000 tokens (~64KB), the MCP server automatically writes content to `/tmp/gh-aw/safe-outputs/` and returns a JSON response with file location and schema description:
+
+```json
+{
+  "filename": "bb28168fe5604623b804546db0e8c90eaf9e8dcd0f418761787d5159198b4fd8.json",
+  "description": "[{id, name, data}] (2000 items)"
+}
+```
+
+Schema descriptions help agents understand data structure:
+- JSON arrays: `[{key1, key2}] (N items)`
+- JSON objects: `{key1, key2, ...} (N keys)`
+- Text content: `text content`
 
 ## Example Prompt
 
