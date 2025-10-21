@@ -27,16 +27,16 @@ type LogsData struct {
 
 // ContinuationData provides parameters to continue querying when timeout is reached
 type ContinuationData struct {
-	Message       string `json:"message"`
-	WorkflowName  string `json:"workflow_name,omitempty"`
-	Count         int    `json:"count,omitempty"`
-	StartDate     string `json:"start_date,omitempty"`
-	EndDate       string `json:"end_date,omitempty"`
-	Engine        string `json:"engine,omitempty"`
-	Branch        string `json:"branch,omitempty"`
-	AfterRunID    int64  `json:"after_run_id,omitempty"`
-	BeforeRunID   int64  `json:"before_run_id,omitempty"`
-	Timeout       int    `json:"timeout,omitempty"`
+	Message      string `json:"message"`
+	WorkflowName string `json:"workflow_name,omitempty"`
+	Count        int    `json:"count,omitempty"`
+	StartDate    string `json:"start_date,omitempty"`
+	EndDate      string `json:"end_date,omitempty"`
+	Engine       string `json:"engine,omitempty"`
+	Branch       string `json:"branch,omitempty"`
+	AfterRunID   int64  `json:"after_run_id,omitempty"`
+	BeforeRunID  int64  `json:"before_run_id,omitempty"`
+	Timeout      int    `json:"timeout,omitempty"`
 }
 
 // LogsSummary contains aggregate metrics across all runs
