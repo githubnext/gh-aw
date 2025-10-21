@@ -28,7 +28,7 @@ network: {}
 
 tools:
   github:
-    allowed: [list_pull_requests, pull_request_read]
+    allowed: [list_pull_requests, pull_request_read, search_pull_requests]
   edit:
   bash: ["make:*", "git restore:*", "git status"]
 
