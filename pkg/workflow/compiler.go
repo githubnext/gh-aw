@@ -1289,6 +1289,15 @@ if importedArray, ok := imported.([]any); ok {
 if mainArray, ok := main.([]any); ok {
 return append(importedArray, mainArray...)
 }
+// If imported is array and main is object, convert array to object first
+if mainObj, ok := main.(map[string]any); ok {
+result := make(map[string]any)
+// Array format maps to pre steps
+result["pre"] = mergeStepArrays(importedArray, mainObj["pre"])
+result["post-redaction"] = mergeStepArrays(nil, mainObj["post-redaction"])
+result["post"] = mergeStepArrays(nil, mainObj["post"])
+return result
+}
 }
 
 // If imported is an object and main is an object, merge fields
@@ -1303,6 +1312,14 @@ result["post-redaction"] = mergeStepArrays(importedObj["post-redaction"], mainOb
 // Merge post
 result["post"] = mergeStepArrays(importedObj["post"], mainObj["post"])
 
+return result
+}
+// If imported is object and main is array, add array to pre steps
+if mainArray, ok := main.([]any); ok {
+result := make(map[string]any)
+result["pre"] = mergeStepArrays(importedObj["pre"], mainArray)
+result["post-redaction"] = mergeStepArrays(importedObj["post-redaction"], nil)
+result["post"] = mergeStepArrays(importedObj["post"], nil)
 return result
 }
 }
