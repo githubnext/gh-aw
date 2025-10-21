@@ -5,8 +5,11 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
+
+var templateLog = logger.New("workflow:template")
 
 // wrapExpressionsInTemplateConditionals transforms template conditionals by wrapping
 // expressions in ${{ }}. For example:
@@ -15,6 +18,8 @@ func wrapExpressionsInTemplateConditionals(markdown string) string {
 	// Pattern to match {{#if expression}} where expression is not already wrapped in ${{ }}
 	// This regex captures the entire {{#if ...}} block
 	re := regexp.MustCompile(`\{\{#if\s+([^}]+)\}\}`)
+
+	templateLog.Print("Wrapping expressions in template conditionals")
 
 	result := re.ReplaceAllStringFunc(markdown, func(match string) string {
 		// Extract the expression part (everything between "{{#if " and "}}")
@@ -41,11 +46,14 @@ func wrapExpressionsInTemplateConditionals(markdown string) string {
 // validateNoIncludesInTemplateRegions checks that import directives
 // are not used inside template conditional blocks ({{#if...}}{{/if}})
 func validateNoIncludesInTemplateRegions(markdown string) error {
+	templateLog.Print("Validating that imports are not inside template regions")
+
 	// Find all template regions by matching {{#if...}}...{{/if}} blocks
 	// This regex matches template conditional blocks with their content
 	templateRegionPattern := regexp.MustCompile(`(?s)\{\{#if\s+[^}]+\}\}(.*?)\{\{/if\}\}`)
 
 	matches := templateRegionPattern.FindAllStringSubmatch(markdown, -1)
+	templateLog.Printf("Found %d template regions to validate", len(matches))
 
 	for _, match := range matches {
 		if len(match) < 2 {
@@ -81,6 +89,8 @@ func (c *Compiler) generateTemplateRenderingStep(yaml *strings.Builder, data *Wo
 	if !hasTemplatePattern && !hasGitHubContext {
 		return
 	}
+
+	templateLog.Printf("Generating template rendering step: hasPattern=%v, hasGitHubContext=%v", hasTemplatePattern, hasGitHubContext)
 
 	yaml.WriteString("      - name: Render template conditionals\n")
 	yaml.WriteString("        uses: actions/github-script@v8\n")
