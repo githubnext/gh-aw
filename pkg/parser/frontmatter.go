@@ -536,6 +536,15 @@ func mergeImportedSteps(existing, new any) any {
 		if newArray, ok := new.([]any); ok {
 			return append(existingArray, newArray...)
 		}
+		// If existing is array and new is object, convert array to object first
+		if newObj, ok := new.(map[string]any); ok {
+			result := make(map[string]any)
+			// Array format maps to pre steps
+			result["pre"] = mergeImportedStepArrays(existingArray, newObj["pre"])
+			result["post-redaction"] = mergeImportedStepArrays(nil, newObj["post-redaction"])
+			result["post"] = mergeImportedStepArrays(nil, newObj["post"])
+			return result
+		}
 	}
 
 	// If both are objects, merge fields
@@ -550,6 +559,14 @@ func mergeImportedSteps(existing, new any) any {
 			// Merge post
 			result["post"] = mergeImportedStepArrays(existingObj["post"], newObj["post"])
 
+			return result
+		}
+		// If existing is object and new is array, add array to pre steps
+		if newArray, ok := new.([]any); ok {
+			result := make(map[string]any)
+			result["pre"] = mergeImportedStepArrays(existingObj["pre"], newArray)
+			result["post-redaction"] = mergeImportedStepArrays(existingObj["post-redaction"], nil)
+			result["post"] = mergeImportedStepArrays(existingObj["post"], nil)
 			return result
 		}
 	}
