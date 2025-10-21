@@ -9,11 +9,12 @@ permissions:
 engine: claude
 tools:
   cache-memory: true
+  timeout: 300
 safe-outputs:
   create-discussion:
     category: "audits"
     max: 1
-timeout_minutes: 20
+timeout_minutes: 30
 strict: true
 imports:
   - shared/mcp/gh-aw.md
@@ -111,15 +112,11 @@ Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowl
    - Identify new issues vs. recurring problems
    - Track improvement or degradation over time
 
-### Phase 4: Decision Making
+### Phase 4: Create Discussion Report
 
-Based on your analysis, decide the appropriate action:
+**ALWAYS create a comprehensive discussion report** with your audit findings, regardless of whether issues were found or not.
 
-#### Option A: Create a Discussion
-
-**When to choose**: If you find significant issues, errors, or missing tools that need attention.
-
-Create a comprehensive discussion with:
+Create a discussion with:
 - **Summary**: Overview of audit findings
 - **Statistics**: Number of runs analyzed, success/failure rates, error counts
 - **Missing Tools**: List of tools requested but not available
@@ -193,32 +190,6 @@ Create a comprehensive discussion with:
 - [ ] [Action item 2]
 ```
 
-#### Option B: Create a Pull Request with Improvements
-
-**When to choose**: If you can automatically fix issues or improve configurations.
-
-Create a PR that:
-- Fixes missing tool configurations
-- Updates workflow configurations to address issues
-- Adds missing MCP servers
-- Improves error handling
-- Optimizes resource usage
-
-**Include in PR Description**:
-- Summary of issues addressed
-- Changes made to fix them
-- Testing recommendations
-- Expected improvements
-
-#### Option C: No Action Needed
-
-**When to choose**: If all workflows are running smoothly with no significant issues.
-
-In this case:
-- Still update the cache memory with audit data for historical tracking
-- Note successful audit completion in logs
-- Exit gracefully
-
 ## Important Guidelines
 
 ### Security and Safety
@@ -260,13 +231,9 @@ Organize your persistent data in `/tmp/gh-aw/cache-memory/`:
 
 ## Output Requirements
 
-Your output must be well-structured and actionable. Choose ONE of:
+Your output must be well-structured and actionable. **You must create a discussion** for every audit run with the findings.
 
-1. **Issue creation** (if problems found)
-2. **Pull request** (if you can fix issues automatically)
-3. **Silent success** (if everything is working well, just update cache)
-
-Whichever you choose, ensure that cache memory is updated with today's audit data for future reference and trend analysis.
+Update cache memory with today's audit data for future reference and trend analysis.
 
 ## Success Criteria
 
@@ -274,8 +241,8 @@ A successful audit:
 - ✅ Analyzes all workflow runs from the last 24 hours
 - ✅ Identifies and categorizes all issues
 - ✅ Updates cache memory with findings
-- ✅ Takes appropriate action (issue, PR, or silent success)
+- ✅ Creates a comprehensive discussion report with findings
 - ✅ Provides actionable recommendations
 - ✅ Maintains historical context for trend analysis
 
-Begin your audit now. Build the CLI, collect the logs, analyze them thoroughly, and take appropriate action based on your findings.
+Begin your audit now. Build the CLI, collect the logs, analyze them thoroughly, and create a discussion with your findings.
