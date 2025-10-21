@@ -2944,12 +2944,14 @@ jobs:
                 }
                 if (inDataBlock) {
                   const hasTimestamp = line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z /);
-                  const hasDebug = line.includes("[DEBUG]");
-                  if (hasTimestamp && !hasDebug) {
-                    if (currentJsonLines.length > 0) {
-                      try {
-                        const jsonStr = currentJsonLines.join("\n");
-                        const jsonData = JSON.parse(jsonStr);
+                  if (hasTimestamp) {
+                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
+                    const isJsonContent = /^[{\[}\]"]/.test(cleanLine) || cleanLine.trim().startsWith('"');
+                    if (!isJsonContent) {
+                      if (currentJsonLines.length > 0) {
+                        try {
+                          const jsonStr = currentJsonLines.join("\n");
+                          const jsonData = JSON.parse(jsonStr);
                         if (jsonData.model) {
                           model = jsonData.model;
                         }
@@ -3012,12 +3014,23 @@ jobs:
                             }
                           }
                           if (jsonData.usage) {
-                            const resultEntry = {
+                            if (!entries._accumulatedUsage) {
+                              entries._accumulatedUsage = {
+                                input_tokens: 0,
+                                output_tokens: 0,
+                              };
+                            }
+                            if (jsonData.usage.prompt_tokens) {
+                              entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
+                            }
+                            if (jsonData.usage.completion_tokens) {
+                              entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
+                            }
+                            entries._lastResult = {
                               type: "result",
                               num_turns: turnCount,
-                              usage: jsonData.usage,
+                              usage: entries._accumulatedUsage,
                             };
-                            entries._lastResult = resultEntry;
                           }
                         }
                       } catch (e) {
@@ -3025,6 +3038,10 @@ jobs:
                     }
                     inDataBlock = false;
                     currentJsonLines = [];
+                    continue; 
+                  } else if (hasTimestamp && isJsonContent) {
+                    currentJsonLines.push(cleanLine);
+                  }
                   } else {
                     const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
                     currentJsonLines.push(cleanLine);
@@ -3097,12 +3114,23 @@ jobs:
                       }
                     }
                     if (jsonData.usage) {
-                      const resultEntry = {
+                      if (!entries._accumulatedUsage) {
+                        entries._accumulatedUsage = {
+                          input_tokens: 0,
+                          output_tokens: 0,
+                        };
+                      }
+                      if (jsonData.usage.prompt_tokens) {
+                        entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
+                      }
+                      if (jsonData.usage.completion_tokens) {
+                        entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
+                      }
+                      entries._lastResult = {
                         type: "result",
                         num_turns: turnCount,
-                        usage: jsonData.usage,
+                        usage: entries._accumulatedUsage,
                       };
-                      entries._lastResult = resultEntry;
                     }
                   }
                 } catch (e) {
