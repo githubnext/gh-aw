@@ -329,6 +329,7 @@ Examples:
 			noStaged, _ := cmd.Flags().GetBool("no-staged")
 			parse, _ := cmd.Flags().GetBool("parse")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
+			timeout, _ := cmd.Flags().GetInt("timeout")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -368,7 +369,7 @@ Examples:
 				}
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged, parse, jsonOutput); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged, parse, jsonOutput, timeout); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -391,14 +392,25 @@ Examples:
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parser on agent logs and write markdown to log.md")
 	logsCmd.Flags().Bool("json", false, "Output logs data as JSON instead of formatted console tables")
+	logsCmd.Flags().Int("timeout", 0, "Maximum time in seconds to spend downloading logs (0 = no timeout)")
 
 	return logsCmd
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool, parse bool, jsonOutput bool) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool, parse bool, jsonOutput bool, timeout int) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
+	}
+
+	// Start timeout timer if specified
+	var startTime time.Time
+	var timeoutReached bool
+	if timeout > 0 {
+		startTime = time.Now()
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout set to %d seconds", timeout)))
+		}
 	}
 
 	var processedRuns []ProcessedRun
@@ -412,6 +424,18 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 	// Iterative algorithm: keep fetching runs until we have enough or exhaust available runs
 	for iteration < MaxIterations {
+		// Check timeout if specified
+		if timeout > 0 {
+			elapsed := time.Since(startTime).Seconds()
+			if elapsed >= float64(timeout) {
+				timeoutReached = true
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Timeout reached after %.1f seconds, stopping download", elapsed)))
+				}
+				break
+			}
+		}
+
 		// Stop if we've collected enough processed runs
 		if len(processedRuns) >= count {
 			break
@@ -636,8 +660,17 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 		}
 	}
 
+	// Report if timeout was reached
+	if timeoutReached && len(processedRuns) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Timeout reached, returning %d processed runs", len(processedRuns))))
+	}
+
 	if len(processedRuns) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No workflow runs with artifacts found matching the specified criteria"))
+		if timeoutReached {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Timeout reached before any runs could be downloaded"))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No workflow runs with artifacts found matching the specified criteria"))
+		}
 		return nil
 	}
 
