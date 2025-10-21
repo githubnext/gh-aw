@@ -473,16 +473,23 @@ function parseDebugLogFormat(logContent) {
 
     // While in a data block, accumulate lines
     if (inDataBlock) {
-      // Check if this line starts with timestamp AND NOT [DEBUG] (new non-JSON log entry)
+      // Check if this line starts with timestamp
       const hasTimestamp = line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z /);
-      const hasDebug = line.includes("[DEBUG]");
 
-      if (hasTimestamp && !hasDebug) {
-        // This is a new log line (not part of JSON) - end of JSON block, process what we have
-        if (currentJsonLines.length > 0) {
-          try {
-            const jsonStr = currentJsonLines.join("\n");
-            const jsonData = JSON.parse(jsonStr);
+      if (hasTimestamp) {
+        // Strip the timestamp and [DEBUG] prefix to see what remains
+        const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
+        
+        // If after stripping, the line starts with JSON characters, it's part of JSON
+        // Otherwise, it's a new log entry and we should end the block
+        const isJsonContent = /^[{\[}\]"]/.test(cleanLine) || cleanLine.trim().startsWith('"');
+        
+        if (!isJsonContent) {
+          // This is a new log line (not JSON content) - end of JSON block, process what we have
+          if (currentJsonLines.length > 0) {
+            try {
+              const jsonStr = currentJsonLines.join("\n");
+              const jsonData = JSON.parse(jsonStr);
 
             // Extract model info
             if (jsonData.model) {
@@ -563,16 +570,31 @@ function parseDebugLogFormat(logContent) {
                 }
               }
 
-              // Add usage/result entry if this is the last response
+              // Accumulate usage/result entry from each response
               if (jsonData.usage) {
-                const resultEntry = {
+                // Initialize accumulator if needed
+                if (!entries._accumulatedUsage) {
+                  entries._accumulatedUsage = {
+                    input_tokens: 0,
+                    output_tokens: 0,
+                  };
+                }
+                
+                // Accumulate token counts from this response
+                // OpenAI uses prompt_tokens/completion_tokens, normalize to input_tokens/output_tokens
+                if (jsonData.usage.prompt_tokens) {
+                  entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
+                }
+                if (jsonData.usage.completion_tokens) {
+                  entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
+                }
+                
+                // Store result entry with accumulated usage
+                entries._lastResult = {
                   type: "result",
                   num_turns: turnCount,
-                  usage: jsonData.usage,
+                  usage: entries._accumulatedUsage,
                 };
-
-                // Store for later (we'll add it at the end)
-                entries._lastResult = resultEntry;
               }
             }
           } catch (e) {
@@ -582,6 +604,11 @@ function parseDebugLogFormat(logContent) {
 
         inDataBlock = false;
         currentJsonLines = [];
+        continue; // Don't add this line to JSON
+      } else if (hasTimestamp && isJsonContent) {
+        // This line has a timestamp but is JSON content - strip prefix and add
+        currentJsonLines.push(cleanLine);
+      }
       } else {
         // This line is part of the JSON - add it (remove [DEBUG] prefix if present)
         const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
@@ -670,12 +697,29 @@ function parseDebugLogFormat(logContent) {
         }
 
         if (jsonData.usage) {
-          const resultEntry = {
+          // Initialize accumulator if needed
+          if (!entries._accumulatedUsage) {
+            entries._accumulatedUsage = {
+              input_tokens: 0,
+              output_tokens: 0,
+            };
+          }
+          
+          // Accumulate token counts from this response
+          // OpenAI uses prompt_tokens/completion_tokens, normalize to input_tokens/output_tokens
+          if (jsonData.usage.prompt_tokens) {
+            entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
+          }
+          if (jsonData.usage.completion_tokens) {
+            entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
+          }
+          
+          // Store result entry with accumulated usage
+          entries._lastResult = {
             type: "result",
             num_turns: turnCount,
-            usage: jsonData.usage,
+            usage: entries._accumulatedUsage,
           };
-          entries._lastResult = resultEntry;
         }
       }
     } catch (e) {

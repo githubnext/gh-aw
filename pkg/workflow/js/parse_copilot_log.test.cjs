@@ -742,6 +742,57 @@ describe("parse_copilot_log.cjs", () => {
       expect(result).toContain("**Token Usage:**");
     });
 
+    it("should accumulate token usage across multiple API responses in debug logs", () => {
+      // Test token accumulation - using format that matches existing successful tests
+      const debugLogWith2Responses = `2025-10-21T01:00:00.000Z [INFO] Starting Copilot CLI: 0.0.350
+2025-10-21T01:00:01.000Z [DEBUG] response (Request-ID test-1):
+2025-10-21T01:00:01.000Z [DEBUG] data:
+{
+  "id": "chatcmpl-1",
+  "model": "claude-sonnet-4",
+  "choices": [{
+    "message": {
+      "role": "assistant",
+      "content": "I'll help you."
+    },
+    "finish_reason": "stop"
+  }],
+  "usage": {
+    "prompt_tokens": 100,
+    "completion_tokens": 50,
+    "total_tokens": 150
+  }
+}
+2025-10-21T01:00:02.000Z [DEBUG] response (Request-ID test-2):
+2025-10-21T01:00:02.000Z [DEBUG] data:
+{
+  "id": "chatcmpl-2",
+  "model": "claude-sonnet-4",
+  "choices": [{
+    "message": {
+      "role": "assistant",
+      "content": "Done!"
+    },
+    "finish_reason": "stop"
+  }],
+  "usage": {
+    "prompt_tokens": 200,
+    "completion_tokens": 10,
+    "total_tokens": 210
+  }
+}`;
+
+      const result = parseCopilotLog(debugLogWith2Responses);
+
+      // Should show accumulated tokens: 100+200=300 input, 50+10=60 output
+      expect(result).toContain("**Token Usage:**");
+      expect(result).toContain("- Input: 300");
+      expect(result).toContain("- Output: 60");
+      
+      // Should have 2 turns
+      expect(result).toContain("**Turns:** 2");
+    });
+
     it("should extract premium request count from log content using regex", () => {
       // Test that the regex extraction works
       const logWithPremiumInfo =
