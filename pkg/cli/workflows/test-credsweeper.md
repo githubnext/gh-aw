@@ -12,7 +12,7 @@ permissions:
 engine: copilot
 
 imports:
-  - shared/credsweeper.md
+  - ../../../.github/workflows/shared/credsweeper.md
 
 tools:
   bash:
