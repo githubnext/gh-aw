@@ -274,6 +274,64 @@ func TestLogger_TimeDiff(t *testing.T) {
 	}
 }
 
+func TestColorSelection(t *testing.T) {
+	// Test that selectColor returns consistent colors for the same namespace
+	color1 := selectColor("test:namespace")
+	color2 := selectColor("test:namespace")
+	if color1 != color2 {
+		t.Errorf("selectColor should return same color for same namespace")
+	}
+
+	// Test that different namespaces can get different colors
+	// (not guaranteed but likely with our hash function)
+	color3 := selectColor("other:namespace")
+	// Just verify it's a valid color from palette or empty
+	found := color3 == ""
+	for _, c := range colorPalette {
+		if color3 == c {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("selectColor returned invalid color: %q", color3)
+	}
+}
+
+func TestColorDisabling(t *testing.T) {
+	// Save original values
+	origDebugColors := debugColors
+	origIsTTY := isTTY
+	defer func() {
+		debugColors = origDebugColors
+		isTTY = origIsTTY
+	}()
+
+	// Test with colors disabled via DEBUG_COLORS
+	debugColors = false
+	isTTY = true
+	color := selectColor("test:namespace")
+	if color != "" {
+		t.Errorf("selectColor should return empty when debugColors=false, got %q", color)
+	}
+
+	// Test with TTY disabled
+	debugColors = true
+	isTTY = false
+	color = selectColor("test:namespace")
+	if color != "" {
+		t.Errorf("selectColor should return empty when isTTY=false, got %q", color)
+	}
+
+	// Test with both enabled
+	debugColors = true
+	isTTY = true
+	color = selectColor("test:namespace")
+	if color == "" {
+		t.Error("selectColor should return color when both enabled")
+	}
+}
+
 func TestFormatDuration(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -8,6 +8,7 @@ A simple, debug-style logging framework for Go that follows the pattern matching
 - **Pattern matching**: Enable/disable loggers using wildcards and exclusions via the `DEBUG` environment variable
 - **Printf interface**: Standard printf-style formatting
 - **Time diff display**: Shows time elapsed since last log call (like debug npm package)
+- **Automatic color coding**: Each namespace gets a unique color when stderr is a TTY
 - **Zero overhead**: Logger enabled state is computed once at construction time
 - **Thread-safe**: Safe for concurrent use
 
@@ -82,6 +83,24 @@ DEBUG=workflow:*,-workflow:compiler:cache
 DEBUG=workflow:*,cli:*,-workflow:test
 ```
 
+## Color Support
+
+Colors are automatically assigned to each namespace when:
+- Stderr is a TTY (terminal)
+- `DEBUG_COLORS` is not set to `0`
+
+Each namespace gets a consistent color based on a hash of its name. This makes it easy to visually distinguish between different loggers.
+
+### Disabling Colors
+
+```bash
+# Disable colors
+DEBUG_COLORS=0 DEBUG=* gh aw compile workflow.md
+
+# Colors are automatically disabled when piping output
+DEBUG=* gh aw compile workflow.md 2>&1 | tee output.log
+```
+
 ### Pattern Syntax
 
 - `*` - Matches all loggers
@@ -152,3 +171,6 @@ var validateLog = logger.New("validate")
 - Simple pattern matching without regex (prefix, suffix, and middle wildcards only)
 - Exclusion patterns (prefixed with `-`) take precedence over inclusion patterns
 - Time diff formatted like debug npm package (ns, µs, ms, s, m, h)
+- Colors assigned using FNV-1a hash for consistent namespace-to-color mapping
+- Color palette chosen for readability on both light and dark terminals
+- Uses ANSI 256-color codes for better compatibility
