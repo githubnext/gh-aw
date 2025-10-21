@@ -479,11 +479,11 @@ function parseDebugLogFormat(logContent) {
       if (hasTimestamp) {
         // Strip the timestamp and [DEBUG] prefix to see what remains
         const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
-        
+
         // If after stripping, the line starts with JSON characters, it's part of JSON
         // Otherwise, it's a new log entry and we should end the block
         const isJsonContent = /^[{\[}\]"]/.test(cleanLine) || cleanLine.trim().startsWith('"');
-        
+
         if (!isJsonContent) {
           // This is a new log line (not JSON content) - end of JSON block, process what we have
           if (currentJsonLines.length > 0) {
@@ -491,124 +491,124 @@ function parseDebugLogFormat(logContent) {
               const jsonStr = currentJsonLines.join("\n");
               const jsonData = JSON.parse(jsonStr);
 
-            // Extract model info
-            if (jsonData.model) {
-              model = jsonData.model;
-            }
+              // Extract model info
+              if (jsonData.model) {
+                model = jsonData.model;
+              }
 
-            // Process the choices in the response
-            if (jsonData.choices && Array.isArray(jsonData.choices)) {
-              for (const choice of jsonData.choices) {
-                if (choice.message) {
-                  const message = choice.message;
+              // Process the choices in the response
+              if (jsonData.choices && Array.isArray(jsonData.choices)) {
+                for (const choice of jsonData.choices) {
+                  if (choice.message) {
+                    const message = choice.message;
 
-                  // Create an assistant entry
-                  const content = [];
-                  const toolResults = []; // Collect tool calls to create synthetic results (debug logs don't include actual results)
+                    // Create an assistant entry
+                    const content = [];
+                    const toolResults = []; // Collect tool calls to create synthetic results (debug logs don't include actual results)
 
-                  if (message.content && message.content.trim()) {
-                    content.push({
-                      type: "text",
-                      text: message.content,
-                    });
-                  }
+                    if (message.content && message.content.trim()) {
+                      content.push({
+                        type: "text",
+                        text: message.content,
+                      });
+                    }
 
-                  if (message.tool_calls && Array.isArray(message.tool_calls)) {
-                    for (const toolCall of message.tool_calls) {
-                      if (toolCall.function) {
-                        let toolName = toolCall.function.name;
-                        let args = {};
+                    if (message.tool_calls && Array.isArray(message.tool_calls)) {
+                      for (const toolCall of message.tool_calls) {
+                        if (toolCall.function) {
+                          let toolName = toolCall.function.name;
+                          let args = {};
 
-                        // Parse tool name (handle github- prefix and bash)
-                        if (toolName.startsWith("github-")) {
-                          toolName = "mcp__github__" + toolName.substring(7);
-                        } else if (toolName === "bash") {
-                          toolName = "Bash";
+                          // Parse tool name (handle github- prefix and bash)
+                          if (toolName.startsWith("github-")) {
+                            toolName = "mcp__github__" + toolName.substring(7);
+                          } else if (toolName === "bash") {
+                            toolName = "Bash";
+                          }
+
+                          // Parse arguments
+                          try {
+                            args = JSON.parse(toolCall.function.arguments);
+                          } catch (e) {
+                            args = {};
+                          }
+
+                          const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
+                          content.push({
+                            type: "tool_use",
+                            id: toolId,
+                            name: toolName,
+                            input: args,
+                          });
+
+                          // Create a corresponding tool result (assume success since we don't have actual results in debug logs)
+                          toolResults.push({
+                            type: "tool_result",
+                            tool_use_id: toolId,
+                            content: "", // No actual output available in debug logs
+                            is_error: false, // Assume success
+                          });
                         }
+                      }
+                    }
 
-                        // Parse arguments
-                        try {
-                          args = JSON.parse(toolCall.function.arguments);
-                        } catch (e) {
-                          args = {};
-                        }
+                    if (content.length > 0) {
+                      entries.push({
+                        type: "assistant",
+                        message: { content },
+                      });
+                      turnCount++;
 
-                        const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
-                        content.push({
-                          type: "tool_use",
-                          id: toolId,
-                          name: toolName,
-                          input: args,
-                        });
-
-                        // Create a corresponding tool result (assume success since we don't have actual results in debug logs)
-                        toolResults.push({
-                          type: "tool_result",
-                          tool_use_id: toolId,
-                          content: "", // No actual output available in debug logs
-                          is_error: false, // Assume success
+                      // Add tool results as a user message if we have any
+                      if (toolResults.length > 0) {
+                        entries.push({
+                          type: "user",
+                          message: { content: toolResults },
                         });
                       }
                     }
                   }
-
-                  if (content.length > 0) {
-                    entries.push({
-                      type: "assistant",
-                      message: { content },
-                    });
-                    turnCount++;
-
-                    // Add tool results as a user message if we have any
-                    if (toolResults.length > 0) {
-                      entries.push({
-                        type: "user",
-                        message: { content: toolResults },
-                      });
-                    }
-                  }
                 }
-              }
 
-              // Accumulate usage/result entry from each response
-              if (jsonData.usage) {
-                // Initialize accumulator if needed
-                if (!entries._accumulatedUsage) {
-                  entries._accumulatedUsage = {
-                    input_tokens: 0,
-                    output_tokens: 0,
+                // Accumulate usage/result entry from each response
+                if (jsonData.usage) {
+                  // Initialize accumulator if needed
+                  if (!entries._accumulatedUsage) {
+                    entries._accumulatedUsage = {
+                      input_tokens: 0,
+                      output_tokens: 0,
+                    };
+                  }
+
+                  // Accumulate token counts from this response
+                  // OpenAI uses prompt_tokens/completion_tokens, normalize to input_tokens/output_tokens
+                  if (jsonData.usage.prompt_tokens) {
+                    entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
+                  }
+                  if (jsonData.usage.completion_tokens) {
+                    entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
+                  }
+
+                  // Store result entry with accumulated usage
+                  entries._lastResult = {
+                    type: "result",
+                    num_turns: turnCount,
+                    usage: entries._accumulatedUsage,
                   };
                 }
-                
-                // Accumulate token counts from this response
-                // OpenAI uses prompt_tokens/completion_tokens, normalize to input_tokens/output_tokens
-                if (jsonData.usage.prompt_tokens) {
-                  entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
-                }
-                if (jsonData.usage.completion_tokens) {
-                  entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
-                }
-                
-                // Store result entry with accumulated usage
-                entries._lastResult = {
-                  type: "result",
-                  num_turns: turnCount,
-                  usage: entries._accumulatedUsage,
-                };
               }
+            } catch (e) {
+              // Skip invalid JSON blocks
             }
-          } catch (e) {
-            // Skip invalid JSON blocks
           }
-        }
 
-        inDataBlock = false;
-        currentJsonLines = [];
-        continue; // Don't add this line to JSON
-      } else if (hasTimestamp && isJsonContent) {
-        // This line has a timestamp but is JSON content - strip prefix and add
-        currentJsonLines.push(cleanLine);
-      }
+          inDataBlock = false;
+          currentJsonLines = [];
+          continue; // Don't add this line to JSON
+        } else if (hasTimestamp && isJsonContent) {
+          // This line has a timestamp but is JSON content - strip prefix and add
+          currentJsonLines.push(cleanLine);
+        }
       } else {
         // This line is part of the JSON - add it (remove [DEBUG] prefix if present)
         const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
@@ -704,7 +704,7 @@ function parseDebugLogFormat(logContent) {
               output_tokens: 0,
             };
           }
-          
+
           // Accumulate token counts from this response
           // OpenAI uses prompt_tokens/completion_tokens, normalize to input_tokens/output_tokens
           if (jsonData.usage.prompt_tokens) {
@@ -713,7 +713,7 @@ function parseDebugLogFormat(logContent) {
           if (jsonData.usage.completion_tokens) {
             entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
           }
-          
+
           // Store result entry with accumulated usage
           entries._lastResult = {
             type: "result",

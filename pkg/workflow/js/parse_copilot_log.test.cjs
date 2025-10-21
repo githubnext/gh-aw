@@ -788,7 +788,7 @@ describe("parse_copilot_log.cjs", () => {
       expect(result).toContain("**Token Usage:**");
       expect(result).toContain("- Input: 300");
       expect(result).toContain("- Output: 60");
-      
+
       // Should have 2 turns
       expect(result).toContain("**Turns:** 2");
     });
