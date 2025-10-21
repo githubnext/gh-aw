@@ -327,17 +327,18 @@ func fetchWorkflowRunMetadata(runInfo RunURLInfo, verbose bool) (WorkflowRun, er
 		endpoint = fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d", runInfo.RunID)
 	}
 
-	args := []string{
-		"api",
-		endpoint,
-		"--jq",
-		"{databaseId: .id, number: .run_number, url: .html_url, status: .status, conclusion: .conclusion, workflowName: .name, createdAt: .created_at, startedAt: .run_started_at, updatedAt: .updated_at, event: .event, headBranch: .head_branch, headSha: .head_sha, displayTitle: .display_title}",
-	}
+	args := []string{"api"}
 
 	// Add hostname flag if specified (for GitHub Enterprise)
 	if runInfo.Hostname != "" && runInfo.Hostname != "github.com" {
-		args = append([]string{"api", "--hostname", runInfo.Hostname, endpoint, "--jq"}, args[3:]...)
+		args = append(args, "--hostname", runInfo.Hostname)
 	}
+
+	args = append(args,
+		endpoint,
+		"--jq",
+		"{databaseId: .id, number: .run_number, url: .html_url, status: .status, conclusion: .conclusion, workflowName: .name, createdAt: .created_at, startedAt: .run_started_at, updatedAt: .updated_at, event: .event, headBranch: .head_branch, headSha: .head_sha, displayTitle: .display_title}",
+	)
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Executing: gh %s", strings.Join(args, " "))))
