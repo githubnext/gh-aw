@@ -773,39 +773,15 @@ if: "example-value"
 
 # Custom workflow steps
 # (optional)
-# This field supports multiple formats (oneOf):
-
-# Option 1: object
-steps:
-  {}
-
-# Option 2: array
-steps: []
-  # Array items: undefined
+steps: null
 
 # Custom workflow steps to run after AI execution
 # (optional)
-# This field supports multiple formats (oneOf):
-
-# Option 1: object
-post-steps:
-  {}
-
-# Option 2: array
-post-steps: []
-  # Array items: undefined
+post-steps: null
 
 # Custom workflow steps to run after secret redaction before artifact uploads
 # (optional)
-# This field supports multiple formats (oneOf):
-
-# Option 1: object
-secret-masking-steps:
-  {}
-
-# Option 2: array
-secret-masking-steps: []
-  # Array items: undefined
+secret-masking-steps: null
 
 # AI engine configuration that specifies which AI processor interprets and
 # executes the markdown content of the workflow. Defaults to 'claude'.

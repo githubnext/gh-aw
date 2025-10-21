@@ -26,72 +26,15 @@
     },
     "steps": {
       "description": "Custom workflow steps to be merged with main workflow",
-      "oneOf": [
-        {
-          "type": "object",
-          "additionalProperties": true
-        },
-        {
-          "type": "array",
-          "items": {
-            "oneOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "additionalProperties": true
-              }
-            ]
-          }
-        }
-      ]
+      "$ref": "#/$defs/workflow_steps"
     },
     "post-steps": {
       "description": "Custom workflow steps to run after AI execution, to be merged with main workflow",
-      "oneOf": [
-        {
-          "type": "object",
-          "additionalProperties": true
-        },
-        {
-          "type": "array",
-          "items": {
-            "oneOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "additionalProperties": true
-              }
-            ]
-          }
-        }
-      ]
+      "$ref": "#/$defs/workflow_steps"
     },
     "secret-masking-steps": {
       "description": "Custom workflow steps to run after secret redaction before artifact uploads, to be merged with main workflow",
-      "oneOf": [
-        {
-          "type": "object",
-          "additionalProperties": true
-        },
-        {
-          "type": "array",
-          "items": {
-            "oneOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "additionalProperties": true
-              }
-            ]
-          }
-        }
-      ]
+      "$ref": "#/$defs/workflow_steps"
     },
     "tools": {
       "type": "object",
@@ -346,6 +289,29 @@
 },
 "additionalProperties": false,
 "$defs": {
+  "workflow_steps": {
+    "description": "Array of workflow steps in GitHub Actions format",
+    "oneOf": [
+      {
+        "type": "object",
+        "additionalProperties": true
+      },
+      {
+        "type": "array",
+        "items": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": true
+            }
+          ]
+        }
+      }
+    ]
+  },
   "stdio_mcp_tool": {
     "type": "object",
     "description": "Stdio MCP tool configuration",

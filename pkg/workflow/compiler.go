@@ -2608,22 +2608,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Add custom steps if present
-	if data.CustomSteps != "" {
-		// Remove "steps:" line and adjust indentation
-		lines := strings.Split(data.CustomSteps, "\n")
-		if len(lines) > 1 {
-			for _, line := range lines[1:] {
-				// Skip empty lines
-				if strings.TrimSpace(line) == "" {
-					yaml.WriteString("\n")
-					continue
-				}
-
-				// Simply add 6 spaces for job context indentation
-				yaml.WriteString("      " + line + "\n")
-			}
-		}
-	}
+	c.generateSteps(yaml, data.CustomSteps)
 
 	// Create /tmp/gh-aw/ base directory for all temporary files
 	yaml.WriteString("      - name: Create gh-aw temp directory\n")
@@ -3106,56 +3091,43 @@ func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutp
 		})
 }
 
-// generateSecretMaskingSteps generates the secret-masking-steps section that runs after secret redaction before artifacts
-func (c *Compiler) generateSecretMaskingSteps(yaml *strings.Builder, data *WorkflowData) {
-	if data.SecretMaskingSteps != "" {
-		// Remove "secret-masking-steps:" line and adjust indentation, similar to PostSteps processing
-		lines := strings.Split(data.SecretMaskingSteps, "\n")
-		if len(lines) > 1 {
-			for _, line := range lines[1:] {
-				// Trim trailing whitespace
-				trimmed := strings.TrimRight(line, " ")
-				// Skip empty lines
-				if strings.TrimSpace(trimmed) == "" {
-					yaml.WriteString("\n")
-					continue
-				}
-				// Steps need 6-space indentation (      - name:)
-				// Nested properties need 8-space indentation (        run:)
-				if strings.HasPrefix(line, "  ") {
-					yaml.WriteString("        " + line[2:] + "\n")
-				} else {
-					yaml.WriteString("      " + line + "\n")
-				}
+// generateSteps is a unified function for generating workflow steps (steps, post-steps, secret-masking-steps)
+// It handles the common logic of parsing YAML, adjusting indentation, and writing to the output
+func (c *Compiler) generateSteps(yaml *strings.Builder, stepsYAML string) {
+	if stepsYAML == "" {
+		return
+	}
+
+	// Remove the field name line (e.g., "steps:", "post-steps:", "secret-masking-steps:") and adjust indentation
+	lines := strings.Split(stepsYAML, "\n")
+	if len(lines) > 1 {
+		for _, line := range lines[1:] {
+			// Trim trailing whitespace
+			trimmed := strings.TrimRight(line, " ")
+			// Skip empty lines
+			if strings.TrimSpace(trimmed) == "" {
+				yaml.WriteString("\n")
+				continue
+			}
+			// Steps need 6-space indentation (      - name:)
+			// Nested properties need 8-space indentation (        run:)
+			if strings.HasPrefix(line, "  ") {
+				yaml.WriteString("        " + line[2:] + "\n")
+			} else {
+				yaml.WriteString("      " + line + "\n")
 			}
 		}
 	}
 }
 
+// generateSecretMaskingSteps generates the secret-masking-steps section that runs after secret redaction before artifacts
+func (c *Compiler) generateSecretMaskingSteps(yaml *strings.Builder, data *WorkflowData) {
+	c.generateSteps(yaml, data.SecretMaskingSteps)
+}
+
 // generatePostSteps generates the post-steps section that runs after AI execution
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {
-	if data.PostSteps != "" {
-		// Remove "post-steps:" line and adjust indentation, similar to CustomSteps processing
-		lines := strings.Split(data.PostSteps, "\n")
-		if len(lines) > 1 {
-			for _, line := range lines[1:] {
-				// Trim trailing whitespace
-				trimmed := strings.TrimRight(line, " ")
-				// Skip empty lines
-				if strings.TrimSpace(trimmed) == "" {
-					yaml.WriteString("\n")
-					continue
-				}
-				// Steps need 6-space indentation (      - name:)
-				// Nested properties need 8-space indentation (        run:)
-				if strings.HasPrefix(line, "  ") {
-					yaml.WriteString("        " + line[2:] + "\n")
-				} else {
-					yaml.WriteString("      " + line + "\n")
-				}
-			}
-		}
-	}
+	c.generateSteps(yaml, data.PostSteps)
 }
 
 // extractJobsFromFrontmatter extracts job configuration from frontmatter
