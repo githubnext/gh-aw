@@ -235,8 +235,15 @@ Note: Output can be filtered using the jq parameter.`,
 		JqFilter     string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "logs",
-		Description: "Download and analyze workflow logs",
+		Name: "logs",
+		Description: `Download and analyze workflow logs.
+
+Returns JSON with workflow run data and metrics. If the command times out before fetching all available logs, 
+a "continuation" field will be present in the response with updated parameters to continue fetching more data.
+Check for the presence of the continuation field to determine if there are more logs available.
+
+The continuation field includes all necessary parameters (before_run_id, etc.) to resume fetching from where 
+the previous request stopped due to timeout.`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
 		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server

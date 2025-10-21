@@ -70,7 +70,7 @@ func TestBuildLogsData(t *testing.T) {
 	}
 
 	// Build logs data
-	logsData := buildLogsData(processedRuns, tmpDir)
+	logsData := buildLogsData(processedRuns, tmpDir, nil)
 
 	// Verify summary
 	if logsData.Summary.TotalRuns != 2 {
@@ -258,6 +258,136 @@ func TestBuildMissingToolsSummary(t *testing.T) {
 	}
 	if summary[1].Count != 1 {
 		t.Errorf("Expected web_fetch count 1, got %d", summary[1].Count)
+	}
+}
+
+// TestBuildLogsDataWithContinuation tests continuation field in logs data
+func TestBuildLogsDataWithContinuation(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create sample processed runs
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				DatabaseID:   12345,
+				Number:       1,
+				WorkflowName: "Test Workflow",
+				Status:       "completed",
+				Conclusion:   "success",
+				CreatedAt:    time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
+				URL:          "https://github.com/test/repo/actions/runs/12345",
+				LogsPath:     filepath.Join(tmpDir, "run-12345"),
+			},
+		},
+		{
+			Run: WorkflowRun{
+				DatabaseID:   12344,
+				Number:       2,
+				WorkflowName: "Test Workflow",
+				Status:       "completed",
+				Conclusion:   "success",
+				CreatedAt:    time.Date(2024, 1, 2, 12, 0, 0, 0, time.UTC),
+				URL:          "https://github.com/test/repo/actions/runs/12344",
+				LogsPath:     filepath.Join(tmpDir, "run-12344"),
+			},
+		},
+	}
+
+	// Create continuation data (simulating timeout scenario)
+	continuation := &ContinuationData{
+		Message:      "Timeout reached. Use these parameters to continue fetching more logs.",
+		WorkflowName: "Test Workflow",
+		Count:        100,
+		StartDate:    "2024-01-01",
+		EndDate:      "2024-12-31",
+		Engine:       "copilot",
+		Branch:       "main",
+		AfterRunID:   0,
+		BeforeRunID:  12344, // Continue from the oldest run
+		Timeout:      50,
+	}
+
+	// Build logs data with continuation
+	logsData := buildLogsData(processedRuns, tmpDir, continuation)
+
+	// Verify continuation field is present
+	if logsData.Continuation == nil {
+		t.Fatal("Expected continuation field to be present, got nil")
+	}
+
+	// Verify continuation data
+	if logsData.Continuation.Message != "Timeout reached. Use these parameters to continue fetching more logs." {
+		t.Errorf("Expected continuation message, got '%s'", logsData.Continuation.Message)
+	}
+	if logsData.Continuation.WorkflowName != "Test Workflow" {
+		t.Errorf("Expected WorkflowName 'Test Workflow', got '%s'", logsData.Continuation.WorkflowName)
+	}
+	if logsData.Continuation.BeforeRunID != 12344 {
+		t.Errorf("Expected BeforeRunID 12344, got %d", logsData.Continuation.BeforeRunID)
+	}
+	if logsData.Continuation.Count != 100 {
+		t.Errorf("Expected Count 100, got %d", logsData.Continuation.Count)
+	}
+	if logsData.Continuation.Engine != "copilot" {
+		t.Errorf("Expected Engine 'copilot', got '%s'", logsData.Continuation.Engine)
+	}
+
+	// Test JSON serialization of continuation
+	jsonOutput, err := json.MarshalIndent(logsData, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal logs data to JSON: %v", err)
+	}
+
+	// Verify continuation is in JSON
+	var parsedData LogsData
+	if err := json.Unmarshal(jsonOutput, &parsedData); err != nil {
+		t.Fatalf("Failed to unmarshal logs data from JSON: %v", err)
+	}
+
+	if parsedData.Continuation == nil {
+		t.Fatal("Expected continuation field in unmarshaled JSON, got nil")
+	}
+	if parsedData.Continuation.BeforeRunID != 12344 {
+		t.Errorf("Expected BeforeRunID 12344 in unmarshaled JSON, got %d", parsedData.Continuation.BeforeRunID)
+	}
+}
+
+// TestBuildLogsDataWithoutContinuation tests that continuation is omitted when nil
+func TestBuildLogsDataWithoutContinuation(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				DatabaseID:   12345,
+				WorkflowName: "Test Workflow",
+				LogsPath:     filepath.Join(tmpDir, "run-12345"),
+			},
+		},
+	}
+
+	// Build logs data without continuation
+	logsData := buildLogsData(processedRuns, tmpDir, nil)
+
+	// Verify continuation field is nil
+	if logsData.Continuation != nil {
+		t.Errorf("Expected continuation field to be nil, got %+v", logsData.Continuation)
+	}
+
+	// Test JSON serialization
+	jsonOutput, err := json.Marshal(logsData)
+	if err != nil {
+		t.Fatalf("Failed to marshal logs data to JSON: %v", err)
+	}
+
+	// Verify continuation is omitted from JSON (due to omitempty tag)
+	var parsedMap map[string]any
+	if err := json.Unmarshal(jsonOutput, &parsedMap); err != nil {
+		t.Fatalf("Failed to unmarshal logs data to map: %v", err)
+	}
+
+	if _, exists := parsedMap["continuation"]; exists {
+		t.Error("Expected continuation field to be omitted from JSON when nil")
 	}
 }
 
