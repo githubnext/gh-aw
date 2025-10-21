@@ -52,8 +52,9 @@ The YAML frontmatter supports these fields:
 - **`if:`** - Conditional execution expression (string)
 - **`run-name:`** - Custom workflow run name (string)
 - **`name:`** - Workflow name (string)
-- **`steps:`** - Custom workflow steps (object)
-- **`post-steps:`** - Custom workflow steps to run after AI execution (object)
+- **`steps:`** - Custom workflow steps (array or object with named positions)
+- **`post-agent:`** - Steps to run immediately after AI execution (array, preferred over post-steps)
+- **`post-steps:`** - DEPRECATED: Use post-agent instead. Custom workflow steps to run after AI execution (object)
 
 ### Agentic Workflow Specific Fields
 
@@ -310,6 +311,111 @@ When cache-memory is enabled, the agent receives instructions about available ca
 Cache-memory configurations can be imported from shared agentic workflows using the `imports:` field.
 
 The memory MCP server is automatically configured when `cache-memory` is enabled and works with both Claude and Custom engines.
+
+## Custom Workflow Steps
+
+GitHub Agentic Workflows support custom workflow steps that can be placed at different positions relative to the agent execution. This allows you to run setup, configuration, or cleanup tasks at precise points in the workflow lifecycle.
+
+### Step Placement Positions
+
+Steps can be placed in four different positions:
+
+1. **`pre`**: Runs before checkout and runtime setup
+2. **`pre-agent`**: Runs after setup but before agent execution (legacy `steps` field maps here)
+3. **`post-agent`**: Runs immediately after agent execution (legacy `post-steps` field maps here)
+4. **`post`**: Runs after all other steps are complete
+
+### Step Formats
+
+**Legacy Array Format** (maps to pre-agent position):
+```yaml
+steps:
+  - name: Setup Step
+    run: echo "This runs before the agent"
+  - name: Another Step
+    uses: actions/setup-node@v4
+    with:
+      node-version: '20'
+```
+
+**New Object Format** with named positions:
+```yaml
+steps:
+  pre:
+    - name: Pre Step
+      run: echo "Runs before checkout"
+  pre-agent:
+    - name: Pre Agent Step
+      run: echo "Runs after setup, before agent"
+  post-agent:
+    - name: Post Agent Step
+      run: echo "Runs after agent execution"
+  post:
+    - name: Final Step
+      run: echo "Runs at the very end"
+```
+
+**Standalone post-agent field** (preferred over post-steps):
+```yaml
+post-agent:
+  - name: Cleanup Step
+    run: echo "Runs after agent"
+  - name: Upload Results
+    uses: actions/upload-artifact@v4
+    with:
+      name: results
+      path: output/
+```
+
+### Step Execution Order
+
+The complete workflow execution order is:
+
+1. Pre-activation jobs (if any)
+2. **Pre steps** (from `steps.pre`)
+3. Checkout repository
+4. Runtime setup (Node.js, Python, etc.)
+5. **Pre-agent steps** (from `steps.pre-agent` or legacy `steps` array)
+6. Create temp directories
+7. Cache restoration
+8. Git configuration
+9. MCP server setup
+10. Prompt generation
+11. **Agent execution** (Claude, Codex, Copilot, or Custom)
+12. Error validation
+13. Git patch generation (if using safe-outputs with PRs)
+14. **Post-agent steps** (from `steps.post-agent` or legacy `post-steps`)
+15. **Post steps** (from `steps.post`)
+
+### Backward Compatibility
+
+The legacy `steps` and `post-steps` fields continue to work:
+- `steps` (array) → maps to `pre-agent` position
+- `post-steps` (array) → maps to `post-agent` position
+
+However, the new `post-agent` field is preferred over `post-steps` for clarity.
+
+### Step Merging with Imports
+
+When importing workflows that contain steps, imported steps are prepended to the corresponding position:
+
+```yaml
+# imported-workflow.md
+steps:
+  pre-agent:
+    - name: Imported Setup
+      run: echo "from import"
+
+# main-workflow.md
+imports:
+  - shared/imported-workflow.md
+steps:
+  pre-agent:
+    - name: Main Setup
+      run: echo "from main"
+```
+
+Result: Both steps run in order (imported first, then main).
 
 ## Output Processing and Issue Creation
 

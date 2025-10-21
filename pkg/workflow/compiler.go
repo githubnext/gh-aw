@@ -156,9 +156,9 @@ type WorkflowData struct {
 	Env                 string
 	If                  string
 	TimeoutMinutes      string
-	CustomSteps         string          // DEPRECATED: Legacy string-based steps (use ParsedSteps instead)
-	PostSteps           string          // DEPRECATED: Legacy string-based post-steps (use ParsedSteps instead)
-	ParsedSteps         *WorkflowSteps  // Structured steps configuration parsed from frontmatter
+	CustomSteps         string         // DEPRECATED: Legacy string-based steps (use ParsedSteps instead)
+	PostSteps           string         // DEPRECATED: Legacy string-based post-steps (use ParsedSteps instead)
+	ParsedSteps         *WorkflowSteps // Structured steps configuration parsed from frontmatter
 	RunsOn              string
 	Environment         string // environment setting for the main job
 	Container           string // container setting for the main job
@@ -924,7 +924,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Keep legacy string fields for backward compatibility during transition
 	workflowData.CustomSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "steps")
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
-	
+
 	// Apply the legacy merging logic to CustomSteps if needed for compatibility
 	if importsResult.MergedSteps != "" {
 		// Parse imported steps from YAML array
@@ -3155,7 +3155,6 @@ func (c *Compiler) generateFinalSteps(yaml *strings.Builder, data *WorkflowData)
 		renderStepsAtPosition(yaml, data.ParsedSteps.Post)
 	}
 }
-
 
 // extractJobsFromFrontmatter extracts job configuration from frontmatter
 func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[string]any {
