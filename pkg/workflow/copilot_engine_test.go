@@ -74,8 +74,8 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected step name 'Execute GitHub Copilot CLI' in step content:\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "copilot --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir") {
-		t.Errorf("Expected command to contain 'copilot --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir' in step content:\n%s", stepContent)
+	if !strings.Contains(stepContent, "copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir") {
+		t.Errorf("Expected command to contain 'copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir' in step content:\n%s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "/tmp/gh-aw/test.log") {
