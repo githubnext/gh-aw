@@ -30,6 +30,9 @@ tools:
     - "grep -n 'func ' pkg/*.go"
     - "head -n * pkg/**/*.go"
     - "wc -l pkg/**/*.go"
+    - "make build"
+    - "make recompile"
+    - "./gh-aw compile *"
 
 timeout_minutes: 15
 ---
@@ -169,9 +172,33 @@ For each file:
    - Don't over-log - focus on the most useful information
    - Ensure messages are meaningful and helpful for debugging
 
-### 5. Create Pull Request
+### 5. Validate Changes
 
-After modifying the selected files:
+After adding logging to the selected files, **validate your changes** before creating a PR:
+
+1. **Build the project to ensure no compilation errors:**
+   ```bash
+   make build
+   ```
+   This will compile the Go code and catch any syntax errors or import issues.
+
+2. **Test the workflow compilation with debug logging enabled:**
+   ```bash
+   DEBUG=* ./gh-aw compile dev
+   ```
+   This validates that:
+   - The binary was built successfully
+   - The compile command works correctly
+   - Debug logging from your changes appears in the output
+
+3. **If needed, recompile workflows:**
+   ```bash
+   make recompile
+   ```
+
+### 6. Create Pull Request
+
+After validating your changes:
 
 1. The safe-outputs create-pull-request will automatically create a PR
 2. Ensure your changes follow the guidelines above
@@ -242,6 +269,8 @@ Before creating the PR, verify:
 - [ ] Logging messages are meaningful and helpful
 - [ ] No duplicate logging with existing logs
 - [ ] Import statements are properly formatted
+- [ ] Changes validated with `make build` (no compilation errors)
+- [ ] Workflow compilation tested with `DEBUG=* ./gh-aw compile dev`
 
 ## Important Notes
 

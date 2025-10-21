@@ -1199,9 +1199,33 @@ jobs:
              - Don't over-log - focus on the most useful information
              - Ensure messages are meaningful and helpful for debugging
           
-          ### 5. Create Pull Request
+          ### 5. Validate Changes
           
-          After modifying the selected files:
+          After adding logging to the selected files, **validate your changes** before creating a PR:
+          
+          1. **Build the project to ensure no compilation errors:**
+             ```bash
+             make build
+             ```
+             This will compile the Go code and catch any syntax errors or import issues.
+          
+          2. **Test the workflow compilation with debug logging enabled:**
+             ```bash
+             DEBUG=* ./gh-aw compile dev
+             ```
+             This validates that:
+             - The binary was built successfully
+             - The compile command works correctly
+             - Debug logging from your changes appears in the output
+          
+          3. **If needed, recompile workflows:**
+             ```bash
+             make recompile
+             ```
+          
+          ### 6. Create Pull Request
+          
+          After validating your changes:
           
           1. The safe-outputs create-pull-request will automatically create a PR
           2. Ensure your changes follow the guidelines above
@@ -1272,6 +1296,8 @@ jobs:
           - [ ] Logging messages are meaningful and helpful
           - [ ] No duplicate logging with existing logs
           - [ ] Import statements are properly formatted
+          - [ ] Changes validated with `make build` (no compilation errors)
+          - [ ] Workflow compilation tested with `DEBUG=* ./gh-aw compile dev`
           
           ## Important Notes
           
@@ -1512,6 +1538,7 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
+        # - Bash(./gh-aw compile *)
         # - Bash(cat)
         # - Bash(date)
         # - Bash(echo)
@@ -1530,6 +1557,8 @@ jobs:
         # - Bash(head -n * pkg/**/*.go)
         # - Bash(head)
         # - Bash(ls)
+        # - Bash(make build)
+        # - Bash(make recompile)
         # - Bash(pwd)
         # - Bash(sort)
         # - Bash(tail)
@@ -1557,7 +1586,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat),Bash(date),Bash(echo),Bash(find pkg -name '*.go' -type f ! -name '*_test.go'),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep -n 'func ' pkg/*.go),Bash(grep -r 'var log = logger.New' pkg --include='*.go'),Bash(grep),Bash(head -n * pkg/**/*.go),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc -l pkg/**/*.go),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__get_file_contents,mcp__github__search_code" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(./gh-aw compile *),Bash(cat),Bash(date),Bash(echo),Bash(find pkg -name '*.go' -type f ! -name '*_test.go'),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep -n 'func ' pkg/*.go),Bash(grep -r 'var log = logger.New' pkg --include='*.go'),Bash(grep),Bash(head -n * pkg/**/*.go),Bash(head),Bash(ls),Bash(make build),Bash(make recompile),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc -l pkg/**/*.go),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__get_file_contents,mcp__github__search_code" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
