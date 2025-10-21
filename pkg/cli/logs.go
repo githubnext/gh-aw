@@ -450,7 +450,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			}
 		}
 
-		runs, totalFetched, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, branch, beforeRunID, afterRunID, verbose)
+		runs, totalFetched, err := listWorkflowRunsWithPagination(workflowName, batchSize, startDate, endDate, beforeDate, branch, beforeRunID, afterRunID, len(processedRuns), count, verbose)
 		if err != nil {
 			return err
 		}
@@ -789,7 +789,9 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 //
 // The limit parameter specifies the batch size for the GitHub API call (how many runs to fetch in this request),
 // not the total number of matching runs the user wants to find.
-func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, endDate, beforeDate, branch string, beforeRunID, afterRunID int64, verbose bool) ([]WorkflowRun, int, error) {
+//
+// The processedCount and targetCount parameters are used to display progress in the spinner message.
+func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, endDate, beforeDate, branch string, beforeRunID, afterRunID int64, processedCount, targetCount int, verbose bool) ([]WorkflowRun, int, error) {
 	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 
 	// Add filters
@@ -819,7 +821,8 @@ func listWorkflowRunsWithPagination(workflowName string, limit int, startDate, e
 	}
 
 	// Start spinner for network operation
-	spinner := console.NewSpinner("Fetching workflow runs from GitHub...")
+	spinnerMsg := fmt.Sprintf("Fetching workflow runs from GitHub... (%d / %d)", processedCount, targetCount)
+	spinner := console.NewSpinner(spinnerMsg)
 	if !verbose {
 		spinner.Start()
 	}
