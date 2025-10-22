@@ -39,6 +39,26 @@ Workflow instructions here...
 {{#import shared/common-tools.md}}
 ```
 
+## Path Formats
+
+### Local Paths
+- `shared/file.md` - Relative to workflow file
+- `../file.md` - Parent directory
+- `/absolute/path.md` - Absolute path
+
+### Remote (Workflowspec)
+- `owner/repo/path/file.md` - From GitHub repository
+- `owner/repo/path/file.md@v1.0.0` - With version tag
+- `owner/repo/path/file.md@branch` - With branch
+- `owner/repo/path/file.md@sha` - With commit SHA
+
+### Section References
+- `file.md#SectionName` - Extract specific section (H1-H3)
+- `owner/repo/file.md@v1.0.0#Section` - Remote with section
+
+### Optional Imports
+- `{{#import? file.md}}` - Optional (markdown only)
+
 ### Import Path Resolution
 
 - **Relative paths**: Resolved relative to the importing file
