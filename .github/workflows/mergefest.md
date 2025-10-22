@@ -14,7 +14,7 @@ concurrency:
   group: mergefest-${{ github.ref }}
   cancel-in-progress: true
 
-engine: copilot
+engine: claude
 timeout_minutes: 15
 
 network: {}
@@ -26,6 +26,8 @@ tools:
   bash: ["make:*", "git:*"]
 
 safe-outputs:
+  add-comment:
+    max: 3
   push-to-pull-request-branch:
   missing-tool:
 
