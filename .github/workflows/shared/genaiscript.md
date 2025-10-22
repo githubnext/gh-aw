@@ -67,10 +67,12 @@ imports:
 - The original prompt file is converted to GenAI markdown format (prompt.genai.md)
 - GenAIScript is executed with MCP server configuration if available
 - Output is captured in the agent log file
+- **OPENAI_API_KEY secret must be configured** in repository settings when using OpenAI models
 
 **Note**: 
 - This workflow requires internet access to install npm packages
 - The genaiscript version can be customized by setting the `GH_AW_AGENT_VERSION` environment variable (default: `2.5.1`)
 - The AI model can be customized by setting the `GH_AW_AGENT_MODEL_VERSION` environment variable (default: `openai:gpt-4.1`)
 - MCP server configuration is automatically passed if configured in the workflow
+- When using `openai:` models, ensure the `OPENAI_API_KEY` secret is configured in your repository settings
 -->
