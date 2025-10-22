@@ -5,6 +5,23 @@ import (
 	"testing"
 )
 
+// isCommonBashCommand checks if a string is a common bash command or git command
+// This helps detect bash tools in Copilot CLI arguments
+func isCommonBashCommand(tool string) bool {
+	// Check for common bash commands (from bash defaults)
+	bashCommands := []string{"echo", "ls", "pwd", "cat", "head", "tail", "grep", "wc", "sort", "uniq", "date", "yq", "jq", "make", "npm", "node", "python", "go"}
+	for _, cmd := range bashCommands {
+		if tool == cmd || strings.HasPrefix(tool, cmd+":") {
+			return true
+		}
+	}
+	// Check for git commands
+	if strings.HasPrefix(tool, "git ") || strings.HasPrefix(tool, "git:") {
+		return true
+	}
+	return false
+}
+
 // TestBashDefaultsConsistency tests that Claude and Copilot engines handle default bash tools consistently
 func TestBashDefaultsConsistency(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
@@ -135,7 +152,9 @@ func TestBashDefaultsConsistency(t *testing.T) {
 				// Check for specific tool permissions
 				if i+1 < len(copilotResult) && copilotResult[i] == "--allow-tool" {
 					tool := copilotResult[i+1]
-					if tool == "shell" || strings.HasPrefix(tool, "shell(") {
+					// Check for "shell" keyword or any bash command names
+					// (Copilot CLI v0.0.347+ uses command names directly without shell() wrapper)
+					if tool == "shell" || isCommonBashCommand(tool) {
 						copilotHasShell = true
 						if strings.Contains(tool, "git") {
 							copilotHasGit = true

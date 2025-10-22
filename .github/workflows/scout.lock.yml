@@ -2756,45 +2756,45 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
+        # --allow-tool /tmp/gh-aw/jqschema.sh
         # --allow-tool arxiv
         # --allow-tool arxiv(get_paper_details)
         # --allow-tool arxiv(get_paper_pdf)
         # --allow-tool arxiv(search_arxiv)
+        # --allow-tool cat
         # --allow-tool context7
         # --allow-tool context7(get-library-docs)
         # --allow-tool context7(resolve-library-id)
+        # --allow-tool date
         # --allow-tool deepwiki
         # --allow-tool deepwiki(ask_question)
         # --allow-tool deepwiki(read_wiki_contents)
         # --allow-tool deepwiki(read_wiki_structure)
+        # --allow-tool echo
         # --allow-tool github
+        # --allow-tool grep
+        # --allow-tool head
+        # --allow-tool jq *
+        # --allow-tool ls
         # --allow-tool markitdown
         # --allow-tool markitdown(*)
         # --allow-tool microsoftdocs
         # --allow-tool microsoftdocs(*)
+        # --allow-tool pwd
         # --allow-tool safe_outputs
-        # --allow-tool shell(/tmp/gh-aw/jqschema.sh)
-        # --allow-tool shell(cat)
-        # --allow-tool shell(date)
-        # --allow-tool shell(echo)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(jq *)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(pwd)
-        # --allow-tool shell(sort)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(uniq)
-        # --allow-tool shell(wc)
-        # --allow-tool shell(yq)
+        # --allow-tool sort
+        # --allow-tool tail
         # --allow-tool tavily
         # --allow-tool tavily(*)
+        # --allow-tool uniq
+        # --allow-tool wc
         # --allow-tool write
+        # --allow-tool yq
         timeout-minutes: 10
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool arxiv --allow-tool 'arxiv(get_paper_details)' --allow-tool 'arxiv(get_paper_pdf)' --allow-tool 'arxiv(search_arxiv)' --allow-tool context7 --allow-tool 'context7(get-library-docs)' --allow-tool 'context7(resolve-library-id)' --allow-tool deepwiki --allow-tool 'deepwiki(ask_question)' --allow-tool 'deepwiki(read_wiki_contents)' --allow-tool 'deepwiki(read_wiki_structure)' --allow-tool github --allow-tool markitdown --allow-tool 'markitdown(*)' --allow-tool microsoftdocs --allow-tool 'microsoftdocs(*)' --allow-tool safe_outputs --allow-tool 'shell(/tmp/gh-aw/jqschema.sh)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq *)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool /tmp/gh-aw/jqschema.sh --allow-tool arxiv --allow-tool 'arxiv(get_paper_details)' --allow-tool 'arxiv(get_paper_pdf)' --allow-tool 'arxiv(search_arxiv)' --allow-tool cat --allow-tool context7 --allow-tool 'context7(get-library-docs)' --allow-tool 'context7(resolve-library-id)' --allow-tool date --allow-tool deepwiki --allow-tool 'deepwiki(ask_question)' --allow-tool 'deepwiki(read_wiki_contents)' --allow-tool 'deepwiki(read_wiki_structure)' --allow-tool echo --allow-tool github --allow-tool grep --allow-tool head --allow-tool 'jq *' --allow-tool ls --allow-tool markitdown --allow-tool 'markitdown(*)' --allow-tool microsoftdocs --allow-tool 'microsoftdocs(*)' --allow-tool pwd --allow-tool safe_outputs --allow-tool sort --allow-tool tail --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool uniq --allow-tool wc --allow-tool write --allow-tool yq --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
@@ -4961,18 +4961,18 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool shell(cat)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(jq)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(wc)
+        # --allow-tool cat
+        # --allow-tool grep
+        # --allow-tool head
+        # --allow-tool jq
+        # --allow-tool ls
+        # --allow-tool tail
+        # --allow-tool wc
         timeout-minutes: 20
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool cat --allow-tool grep --allow-tool head --allow-tool jq --allow-tool ls --allow-tool tail --allow-tool wc --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt

@@ -156,7 +156,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			tools: map[string]any{
 				"bash": []any{"echo", "ls"},
 			},
-			expected: []string{"--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)"},
+			expected: []string{"--allow-tool", "echo", "--allow-tool", "ls"},
 		},
 		{
 			name: "bash with wildcard",
@@ -193,7 +193,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				"bash": []any{"git status", "npm test"},
 				"edit": nil,
 			},
-			expected: []string{"--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
+			expected: []string{"--allow-tool", "git status", "--allow-tool", "npm test", "--allow-tool", "write"},
 		},
 		{
 			name: "bash with star wildcard",
@@ -211,7 +211,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
-			expected: []string{"--allow-tool", "safe_outputs", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
+			expected: []string{"--allow-tool", "git status", "--allow-tool", "npm test", "--allow-tool", "safe_outputs", "--allow-tool", "write"},
 		},
 		{
 			name:  "safe outputs with safe_outputs config",
@@ -319,7 +319,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				"bash": []any{"echo", "ls"},
 				"edit": nil,
 			},
-			expected: []string{"--allow-tool", "github(get_repository)", "--allow-tool", "github(list_commits)", "--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)", "--allow-tool", "write"},
+			expected: []string{"--allow-tool", "echo", "--allow-tool", "github(get_repository)", "--allow-tool", "github(list_commits)", "--allow-tool", "ls", "--allow-tool", "write"},
 		},
 	}
 
@@ -363,7 +363,7 @@ func TestCopilotEngineGenerateToolArgumentsComment(t *testing.T) {
 				"bash": []any{"echo", "ls"},
 			},
 			indent:   "        ",
-			expected: "        # Copilot CLI tool arguments (sorted):\n        # --allow-tool shell(echo)\n        # --allow-tool shell(ls)\n",
+			expected: "        # Copilot CLI tool arguments (sorted):\n        # --allow-tool echo\n        # --allow-tool ls\n",
 		},
 		{
 			name: "edit tool",
@@ -405,12 +405,12 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
 	// Should contain the tool arguments in the command line
-	if !strings.Contains(stepContent, "--allow-tool shell(echo)") {
-		t.Errorf("Expected step to contain '--allow-tool shell(echo)' in command:\n%s", stepContent)
+	if !strings.Contains(stepContent, "--allow-tool echo") {
+		t.Errorf("Expected step to contain '--allow-tool echo' in command:\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "--allow-tool shell(git status)") {
-		t.Errorf("Expected step to contain '--allow-tool shell(git status)' in command:\n%s", stepContent)
+	if !strings.Contains(stepContent, "--allow-tool git status") {
+		t.Errorf("Expected step to contain '--allow-tool git status' in command:\n%s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "--allow-tool write") {
@@ -422,8 +422,8 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 		t.Errorf("Expected step to contain tool arguments comment:\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "# --allow-tool shell(echo)") {
-		t.Errorf("Expected step to contain comment for shell(echo):\n%s", stepContent)
+	if !strings.Contains(stepContent, "# --allow-tool echo") {
+		t.Errorf("Expected step to contain comment for echo:\n%s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "# --allow-tool write") {
@@ -552,12 +552,12 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 	t.Logf("Generated command: %s", copilotCommand)
 
 	// The command should contain properly escaped arguments with single quotes
-	if !strings.Contains(copilotCommand, "'shell(git add:*)'") {
-		t.Errorf("Expected 'shell(git add:*)' to be single-quoted in command: %s", copilotCommand)
+	if !strings.Contains(copilotCommand, "'git add:*'") {
+		t.Errorf("Expected 'git add:*' to be single-quoted in command: %s", copilotCommand)
 	}
 
-	if !strings.Contains(copilotCommand, "'shell(git commit:*)'") {
-		t.Errorf("Expected 'shell(git commit:*)' to be single-quoted in command: %s", copilotCommand)
+	if !strings.Contains(copilotCommand, "'git commit:*'") {
+		t.Errorf("Expected 'git commit:*' to be single-quoted in command: %s", copilotCommand)
 	}
 }
 

@@ -551,7 +551,8 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 			// Add specific shell commands
 			for _, cmd := range bashCommands {
 				if cmdStr, ok := cmd.(string); ok {
-					args = append(args, "--allow-tool", fmt.Sprintf("shell(%s)", cmdStr))
+					// Use just the command name (Copilot CLI v0.0.347+)
+					args = append(args, "--allow-tool", cmdStr)
 				}
 			}
 		} else {

@@ -31,7 +31,7 @@ This is a test workflow that should automatically get Git commands when create-p
 	}
 
 	// Verify that Git commands are present in the tool arguments
-	expectedGitCommands := []string{"shell(git checkout:*)", "shell(git add:*)", "shell(git commit:*)", "shell(git branch:*)", "shell(git switch:*)", "shell(git rm:*)", "shell(git merge:*)"}
+	expectedGitCommands := []string{"git checkout:*", "git add:*", "git commit:*", "git branch:*", "git switch:*", "git rm:*", "git merge:*"}
 
 	for _, expectedCmd := range expectedGitCommands {
 		found := false
@@ -82,7 +82,7 @@ This workflow should NOT get Git commands since it doesn't use create-pull-reque
 	}
 
 	// Verify allowed tool args do not include Git commands
-	gitCommands := []string{"shell(git checkout:*)", "shell(git add:*)", "shell(git commit:*)", "shell(git branch:*)", "shell(git switch:*)", "shell(git rm:*)", "shell(git merge:*)"}
+	gitCommands := []string{"git checkout:*", "git add:*", "git commit:*", "git branch:*", "git switch:*", "git rm:*", "git merge:*"}
 	for _, gitCmd := range gitCommands {
 		for i := 0; i < len(allowedToolArgs); i += 2 {
 			if i+1 < len(allowedToolArgs) && allowedToolArgs[i] == "--allow-tool" && allowedToolArgs[i+1] == gitCmd {
