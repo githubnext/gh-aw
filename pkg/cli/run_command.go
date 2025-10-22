@@ -26,9 +26,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		return fmt.Errorf("workflow name or ID is required")
 	}
 
-	if verbose {
-		fmt.Printf("Running workflow on GitHub Actions: %s\n", workflowIdOrName)
-	}
+	runLog.Printf("Running workflow on GitHub Actions: %s", workflowIdOrName)
 
 	// Check if gh CLI is available
 	if !isGHCLIAvailable() {
@@ -70,9 +68,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		// Get current workflow status
 		workflow, err := getWorkflowStatus(workflowIdOrName, repoOverride, verbose)
 		if err != nil {
-			if verbose {
-				fmt.Printf("Warning: Could not check workflow status: %v\n", err)
-			}
+			runLog.Printf("Warning: Could not check workflow status: %v", err)
 		}
 
 		// If we successfully got workflow status, check if it needs enabling
@@ -127,9 +123,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 
 	// Recompile workflow if engine override is provided (only for local workflows)
 	if engineOverride != "" && repoOverride == "" {
-		if verbose {
-			fmt.Printf("Recompiling workflow with engine override: %s\n", engineOverride)
-		}
+		runLog.Printf("Recompiling workflow with engine override: %s", engineOverride)
 
 		workflowMarkdownPath := strings.TrimSuffix(lockFilePath, ".lock.yml") + ".md"
 		config := CompileConfig{
@@ -150,18 +144,12 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 			return fmt.Errorf("failed to recompile workflow with engine override: %w", err)
 		}
 
-		if verbose {
-			fmt.Printf("Successfully recompiled workflow with engine: %s\n", engineOverride)
-		}
+		runLog.Printf("Successfully recompiled workflow with engine: %s", engineOverride)
 	} else if engineOverride != "" && repoOverride != "" {
-		if verbose {
-			fmt.Printf("Note: Engine override ignored for remote repository workflows\n")
-		}
+		runLog.Printf("Note: Engine override ignored for remote repository workflows")
 	}
 
-	if verbose {
-		fmt.Printf("Using lock file: %s\n", lockFileName)
-	}
+	runLog.Printf("Using lock file: %s", lockFileName)
 
 	// Build the gh workflow run command with optional repo override
 	args := []string{"workflow", "run", lockFileName}
@@ -175,12 +163,10 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 	// Execute gh workflow run command and capture output
 	cmd := exec.Command("gh", args...)
 
-	if verbose {
-		if repoOverride != "" {
-			fmt.Printf("Executing: gh workflow run %s --repo %s\n", lockFileName, repoOverride)
-		} else {
-			fmt.Printf("Executing: gh workflow run %s\n", lockFileName)
-		}
+	if repoOverride != "" {
+		runLog.Printf("Executing: gh workflow run %s --repo %s", lockFileName, repoOverride)
+	} else {
+		runLog.Printf("Executing: gh workflow run %s", lockFileName)
 	}
 
 	// Capture both stdout and stderr
@@ -214,8 +200,8 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 	if runErr == nil && runInfo.URL != "" {
 		fmt.Printf("\n🔗 View workflow run: %s\n", runInfo.URL)
 		runLog.Printf("Workflow run URL: %s (ID: %d)", runInfo.URL, runInfo.DatabaseID)
-	} else if verbose && runErr != nil {
-		fmt.Printf("Note: Could not get workflow run URL: %v\n", runErr)
+	} else if runErr != nil {
+		runLog.Printf("Note: Could not get workflow run URL: %v", runErr)
 	}
 
 	// Auto-merge PRs if requested and we have a valid run
@@ -376,12 +362,10 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 	const initialDelay = 2 * time.Second
 	const maxDelay = 10 * time.Second
 
-	if verbose {
-		if repo != "" {
-			fmt.Printf("Getting latest run for workflow: %s in repo: %s (with retry logic)\n", lockFileName, repo)
-		} else {
-			fmt.Printf("Getting latest run for workflow: %s (with retry logic)\n", lockFileName)
-		}
+	if repo != "" {
+		runLog.Printf("Getting latest run for workflow: %s in repo: %s (with retry logic)", lockFileName, repo)
+	} else {
+		runLog.Printf("Getting latest run for workflow: %s (with retry logic)", lockFileName)
 	}
 
 	// Capture the current time before we start polling
@@ -397,9 +381,8 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 				delay = maxDelay
 			}
 
-			if verbose {
-				fmt.Printf("Waiting %v before retry attempt %d/%d...\n", delay, attempt+1, maxRetries)
-			} else if attempt == 1 {
+			runLog.Printf("Waiting %v before retry attempt %d/%d...", delay, attempt+1, maxRetries)
+			if attempt == 1 {
 				// Show spinner only starting from second attempt to avoid flickering
 				spinner := console.NewSpinner("Waiting for workflow run to appear...")
 				spinner.Start()
@@ -421,17 +404,13 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		output, err := cmd.Output()
 		if err != nil {
 			lastErr = fmt.Errorf("failed to get workflow runs: %w", err)
-			if verbose {
-				fmt.Printf("Attempt %d/%d failed: %v\n", attempt+1, maxRetries, err)
-			}
+			runLog.Printf("Attempt %d/%d failed: %v", attempt+1, maxRetries, err)
 			continue
 		}
 
 		if len(output) == 0 || string(output) == "[]" {
 			lastErr = fmt.Errorf("no runs found for workflow")
-			if verbose {
-				fmt.Printf("Attempt %d/%d: no runs found yet\n", attempt+1, maxRetries)
-			}
+			runLog.Printf("Attempt %d/%d: no runs found yet", attempt+1, maxRetries)
 			continue
 		}
 
@@ -446,17 +425,13 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 
 		if err := json.Unmarshal(output, &runs); err != nil {
 			lastErr = fmt.Errorf("failed to parse workflow run data: %w", err)
-			if verbose {
-				fmt.Printf("Attempt %d/%d failed to parse JSON: %v\n", attempt+1, maxRetries, err)
-			}
+			runLog.Printf("Attempt %d/%d failed to parse JSON: %v", attempt+1, maxRetries, err)
 			continue
 		}
 
 		if len(runs) == 0 {
 			lastErr = fmt.Errorf("no runs found")
-			if verbose {
-				fmt.Printf("Attempt %d/%d: no runs in parsed JSON\n", attempt+1, maxRetries)
-			}
+			runLog.Printf("Attempt %d/%d: no runs in parsed JSON", attempt+1, maxRetries)
 			continue
 		}
 
@@ -467,8 +442,8 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		if run.CreatedAt != "" {
 			if parsedTime, err := time.Parse(time.RFC3339, run.CreatedAt); err == nil {
 				createdAt = parsedTime
-			} else if verbose {
-				fmt.Printf("Warning: Could not parse creation time '%s': %v\n", run.CreatedAt, err)
+			} else {
+				runLog.Printf("Warning: Could not parse creation time '%s': %v", run.CreatedAt, err)
 			}
 		}
 
@@ -483,20 +458,16 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		// If we found a run and it was created after we started (within 30 seconds tolerance),
 		// it's likely the run we just triggered
 		if !createdAt.IsZero() && createdAt.After(startTime.Add(-30*time.Second)) {
-			if verbose {
-				fmt.Printf("Found recent run (ID: %d) created at %v (started polling at %v)\n",
-					run.DatabaseID, createdAt.Format(time.RFC3339), startTime.Format(time.RFC3339))
-			}
+			runLog.Printf("Found recent run (ID: %d) created at %v (started polling at %v)",
+				run.DatabaseID, createdAt.Format(time.RFC3339), startTime.Format(time.RFC3339))
 			return runInfo, nil
 		}
 
-		if verbose {
-			if createdAt.IsZero() {
-				fmt.Printf("Attempt %d/%d: Found run (ID: %d) but no creation timestamp available\n", attempt+1, maxRetries, run.DatabaseID)
-			} else {
-				fmt.Printf("Attempt %d/%d: Found run (ID: %d) but it was created at %v (too old)\n",
-					attempt+1, maxRetries, run.DatabaseID, createdAt.Format(time.RFC3339))
-			}
+		if createdAt.IsZero() {
+			runLog.Printf("Attempt %d/%d: Found run (ID: %d) but no creation timestamp available", attempt+1, maxRetries, run.DatabaseID)
+		} else {
+			runLog.Printf("Attempt %d/%d: Found run (ID: %d) but it was created at %v (too old)",
+				attempt+1, maxRetries, run.DatabaseID, createdAt.Format(time.RFC3339))
 		}
 
 		// For the first few attempts, if we have a run but it's too old, keep trying
@@ -506,9 +477,7 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		}
 
 		// For later attempts, return what we found even if timing is uncertain
-		if verbose {
-			fmt.Printf("Returning workflow run (ID: %d) after %d attempts (timing uncertain)\n", run.DatabaseID, attempt+1)
-		}
+		runLog.Printf("Returning workflow run (ID: %d) after %d attempts (timing uncertain)", run.DatabaseID, attempt+1)
 		return runInfo, nil
 	}
 
@@ -532,9 +501,7 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 		lockFileName += ".lock.yml"
 	}
 
-	if verbose {
-		fmt.Printf("Checking if workflow '%s' exists in repository '%s'...\n", lockFileName, repoOverride)
-	}
+	runLog.Printf("Checking if workflow '%s' exists in repository '%s'...", lockFileName, repoOverride)
 
 	// Use gh CLI to list workflows in the target repository
 	cmd := exec.Command("gh", "workflow", "list", "--repo", repoOverride, "--json", "name,path,state")
@@ -560,10 +527,8 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 	// Look for the workflow by checking if the lock file path exists
 	for _, workflow := range workflows {
 		if strings.HasSuffix(workflow.Path, lockFileName) {
-			if verbose {
-				fmt.Printf("Found workflow '%s' in repository (path: %s, state: %s)\n",
-					workflow.Name, workflow.Path, workflow.State)
-			}
+			runLog.Printf("Found workflow '%s' in repository (path: %s, state: %s)",
+				workflow.Name, workflow.Path, workflow.State)
 			return nil
 		}
 	}
