@@ -34,24 +34,19 @@ build-darwin:
 build-windows:
 	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_NAME)-windows-amd64.exe ./cmd/gh-aw
 
-# Test the code
+# Test the code (runs both unit and integration tests)
 .PHONY: test
 test:
-	go test -v -timeout=3m ./...
+	go test -v -count=1 -timeout=3m -tags 'integration' ./...
 
 # Test unit tests only (excludes integration tests)
 .PHONY: test-unit
 test-unit:
 	go test -v -timeout=3m -tags '!integration' ./...
 
-# Test integration tests only
-.PHONY: test-integration
-test-integration:
-	go test -v -timeout=3m -tags 'integration' ./...
-
 .PHONY: test-perf
 test-perf:
-	go test -v -timeout=3m ./... | tee /tmp/gh-aw/test-output.log; \
+	go test -v -count=1 -timeout=3m -tags '!integration' ./... | tee /tmp/gh-aw/test-output.log; \
 	EXIT_CODE=$$?; \
 	echo ""; \
 	echo "=== SLOWEST TESTS ==="; \
@@ -79,7 +74,7 @@ test-all: test test-js
 # Run tests with coverage
 .PHONY: test-coverage
 test-coverage:
-	go test -v -timeout=3m -coverprofile=coverage.out ./...
+	go test -v -count=1 -timeout=3m -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 
 # Clean build artifacts
@@ -218,8 +213,7 @@ help:
 	@echo "  build            - Build the binary for current platform"
 	@echo "  build-all        - Build binaries for all platforms"
 	@echo "  test             - Run Go tests (unit + integration)"
-	@echo "  test-unit        - Run Go unit tests only (fast)"
-	@echo "  test-integration - Run Go integration tests only"
+	@echo "  test-unit        - Run Go unit tests only (faster)"
 	@echo "  test-js          - Run JavaScript tests"
 	@echo "  test-all         - Run all tests (Go and JavaScript)"
 	@echo "  test-coverage    - Run tests with coverage report"

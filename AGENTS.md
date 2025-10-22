@@ -43,9 +43,8 @@ make build       # ~1.5s
 ```bash
 make fmt         # Format code (run before linting)
 make lint        # ~5.5s
-make test-unit   # Unit tests only (~2.5s, recommended for development)
-make test        # All tests (~4s)
-make test-integration # Integration tests only (~3.5s)
+make test-unit   # Unit tests only (~25s, recommended for development)
+make test        # All tests including integration tests (~30s)
 make recompile   # Recompile workflows
 make agent-finish # Complete validation
 ```
@@ -232,13 +231,13 @@ tools:
 
 ## Testing Strategy
 - **Unit tests**: All packages have coverage - run with `make test-unit` for fast feedback during development
-- **Integration tests**: Command behavior and binary compilation - run with `make test-integration`
+- **Integration tests**: Command behavior and binary compilation - run all tests with `make test`
 - **Combined testing**: Use `make test` to run all tests (unit + integration) 
 - **Workflow compilation tests**: Markdown to YAML conversion
 - **Manual validation**: Always test after changes
 - **Test agentic workflows**: Should be added to `pkg/cli/workflows` directory
 
-**Recommended workflow**: Run `make test-unit` first for quick validation, then `make test-integration` or `make test` for complete coverage.
+**Recommended workflow**: Run `make test-unit` first for quick validation, then `make test` for complete coverage.
 
 ## Release Process
 ```bash
