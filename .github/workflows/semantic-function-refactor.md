@@ -3,7 +3,7 @@ name: Semantic Function Refactoring
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 9 * * 1"  # Weekly on Monday at 9 AM UTC
+    - cron: "0 8 * * *"  # Daily at 8 AM UTC
 
 permissions:
   contents: read
