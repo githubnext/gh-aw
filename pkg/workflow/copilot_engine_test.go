@@ -42,8 +42,8 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 	// Test with no version
 	workflowData := &WorkflowData{}
 	steps := engine.GetInstallationSteps(workflowData)
-	if len(steps) != 3 {
-		t.Errorf("Expected 3 installation steps (secret validation + Node.js setup + install), got %d", len(steps))
+	if len(steps) != 4 {
+		t.Errorf("Expected 4 installation steps (secret validation + Node.js setup + install + verification), got %d", len(steps))
 	}
 
 	// Test with version
@@ -51,8 +51,8 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 		EngineConfig: &EngineConfig{Version: "1.0.0"},
 	}
 	stepsWithVersion := engine.GetInstallationSteps(workflowDataWithVersion)
-	if len(stepsWithVersion) != 3 {
-		t.Errorf("Expected 3 installation steps with version (secret validation + Node.js setup + install), got %d", len(stepsWithVersion))
+	if len(stepsWithVersion) != 4 {
+		t.Errorf("Expected 4 installation steps with version (secret validation + Node.js setup + install + verification), got %d", len(stepsWithVersion))
 	}
 }
 

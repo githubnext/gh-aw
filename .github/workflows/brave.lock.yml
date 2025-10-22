@@ -1017,6 +1017,15 @@ jobs:
           node-version: '24'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.347
+      - name: Verify Copilot CLI installation
+        run: |
+          echo "Verifying GitHub Copilot CLI installation..."
+          if ! command -v copilot &> /dev/null; then
+            echo "Error: copilot command not found"
+            exit 1
+          fi
+          copilot --version
+          echo "GitHub Copilot CLI is installed and working"
       - name: Downloading container images
         run: |
           set -e
@@ -4492,6 +4501,15 @@ jobs:
           node-version: '24'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.347
+      - name: Verify Copilot CLI installation
+        run: |
+          echo "Verifying GitHub Copilot CLI installation..."
+          if ! command -v copilot &> /dev/null; then
+            echo "Error: copilot command not found"
+            exit 1
+          fi
+          copilot --version
+          echo "GitHub Copilot CLI is installed and working"
       - name: Verify engine installation
         run: |
           echo "Verifying GitHub Copilot CLI installation..."

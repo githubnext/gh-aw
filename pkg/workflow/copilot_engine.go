@@ -50,6 +50,21 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		workflowData,
 	)
 	steps = append(steps, npmSteps...)
+
+	// Add verification step to ensure Copilot CLI is installed and working
+	verificationStep := GitHubActionStep{
+		"      - name: Verify Copilot CLI installation",
+		"        run: |",
+		"          echo \"Verifying GitHub Copilot CLI installation...\"",
+		"          if ! command -v copilot &> /dev/null; then",
+		"            echo \"Error: copilot command not found\"",
+		"            exit 1",
+		"          fi",
+		"          copilot --version",
+		"          echo \"GitHub Copilot CLI is installed and working\"",
+	}
+	steps = append(steps, verificationStep)
+
 	return steps
 }
 
