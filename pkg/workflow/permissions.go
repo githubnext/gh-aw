@@ -272,6 +272,101 @@ func NewPermissionsParserFromValue(permissionsValue any) *PermissionsParser {
 	return parser
 }
 
+// ToPermissions converts a PermissionsParser to a Permissions object
+func (p *PermissionsParser) ToPermissions() *Permissions {
+	if p == nil {
+		return NewPermissions()
+	}
+
+	// Handle shorthand permissions
+	if p.isShorthand {
+		switch p.shorthandValue {
+		case "read-all":
+			return NewPermissionsReadAll()
+		case "write-all":
+			return NewPermissionsWriteAll()
+		case "read":
+			return NewPermissionsRead()
+		case "write":
+			return NewPermissionsWrite()
+		case "none":
+			return NewPermissionsNone()
+		default:
+			return NewPermissions()
+		}
+	}
+
+	// Handle all: read case
+	if p.hasAll && p.allLevel == "read" {
+		perms := NewPermissionsAllRead()
+		
+		// Apply explicit overrides from parsedPerms
+		for key, value := range p.parsedPerms {
+			if key == "all" {
+				continue // Skip the "all" key itself
+			}
+			scope := convertStringToPermissionScope(key)
+			if scope != "" {
+				perms.Set(scope, PermissionLevel(value))
+			}
+		}
+		
+		return perms
+	}
+
+	// Handle explicit permissions map
+	permsMap := make(map[PermissionScope]PermissionLevel)
+	for key, value := range p.parsedPerms {
+		if key == "all" {
+			continue // Skip the "all" key
+		}
+		scope := convertStringToPermissionScope(key)
+		if scope != "" {
+			permsMap[scope] = PermissionLevel(value)
+		}
+	}
+
+	return NewPermissionsFromMap(permsMap)
+}
+
+// convertStringToPermissionScope converts a string key to a PermissionScope
+func convertStringToPermissionScope(key string) PermissionScope {
+	switch key {
+	case "actions":
+		return PermissionActions
+	case "attestations":
+		return PermissionAttestations
+	case "checks":
+		return PermissionChecks
+	case "contents":
+		return PermissionContents
+	case "deployments":
+		return PermissionDeployments
+	case "discussions":
+		return PermissionDiscussions
+	case "id-token":
+		return PermissionIdToken
+	case "issues":
+		return PermissionIssues
+	case "models":
+		return PermissionModels
+	case "packages":
+		return PermissionPackages
+	case "pages":
+		return PermissionPages
+	case "pull-requests":
+		return PermissionPullRequests
+	case "repository-projects":
+		return PermissionRepositoryProj
+	case "security-events":
+		return PermissionSecurityEvents
+	case "statuses":
+		return PermissionStatuses
+	default:
+		return ""
+	}
+}
+
 // ContainsCheckout returns true if the given custom steps contain an actions/checkout step
 func ContainsCheckout(customSteps string) bool {
 	if customSteps == "" {

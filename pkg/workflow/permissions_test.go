@@ -1432,3 +1432,118 @@ func TestPermissions_AllReadRenderToYAML(t *testing.T) {
 		})
 	}
 }
+
+func TestPermissionsParser_ToPermissions(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       any
+		wantYAML    string
+		contains    []string
+		notContains []string
+	}{
+		{
+			name:     "shorthand read-all",
+			input:    "read-all",
+			wantYAML: "permissions: read-all",
+		},
+		{
+			name:     "shorthand write-all",
+			input:    "write-all",
+			wantYAML: "permissions: write-all",
+		},
+		{
+			name: "all: read without overrides",
+			input: map[string]any{
+				"all": "read",
+			},
+			contains: []string{
+				"permissions:",
+				"      actions: read",
+				"      contents: read",
+				"      issues: read",
+			},
+			notContains: []string{
+				"      id-token: read", // id-token doesn't support read
+			},
+		},
+		{
+			name: "all: read with contents: write override",
+			input: map[string]any{
+				"all":      "read",
+				"contents": "write",
+			},
+			contains: []string{
+				"permissions:",
+				"      actions: read",
+				"      contents: write", // Override
+				"      issues: read",
+			},
+			notContains: []string{
+				"      contents: read",
+			},
+		},
+		{
+			name: "all: read with id-token: write override",
+			input: map[string]any{
+				"all":      "read",
+				"id-token": "write",
+			},
+			contains: []string{
+				"permissions:",
+				"      actions: read",
+				"      contents: read",
+				"      id-token: write", // Explicitly set
+			},
+			notContains: []string{
+				"      id-token: read",
+			},
+		},
+		{
+			name: "explicit permissions without all",
+			input: map[string]any{
+				"contents": "read",
+				"issues":   "write",
+			},
+			wantYAML: "permissions:\n      contents: read\n      issues: write",
+		},
+		{
+			name: "all: write is not allowed",
+			input: map[string]any{
+				"all": "write",
+			},
+			wantYAML: "",
+		},
+		{
+			name: "all: read with none is not allowed",
+			input: map[string]any{
+				"all":      "read",
+				"contents": "none",
+			},
+			wantYAML: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parser := NewPermissionsParserFromValue(tt.input)
+			permissions := parser.ToPermissions()
+			yaml := permissions.RenderToYAML()
+
+			if tt.wantYAML != "" && yaml != tt.wantYAML {
+				t.Errorf("ToPermissions().RenderToYAML() = %q, want %q", yaml, tt.wantYAML)
+			}
+
+			for _, expected := range tt.contains {
+				if !strings.Contains(yaml, expected) {
+					t.Errorf("ToPermissions().RenderToYAML() should contain %q, but got:\n%s", expected, yaml)
+				}
+			}
+
+			for _, notExpected := range tt.notContains {
+				if strings.Contains(yaml, notExpected) {
+					t.Errorf("ToPermissions().RenderToYAML() should NOT contain %q, but got:\n%s", notExpected, yaml)
+				}
+			}
+		})
+	}
+}
