@@ -19,6 +19,8 @@ This page shows the current status of all agentic workflows in the repository.
 - [![Copilot Agent PR Analysis](https://github.com/githubnext/gh-aw/actions/workflows/copilot-agent-analysis.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/copilot-agent-analysis.lock.yml)
 - [![Daily Documentation Updater](https://github.com/githubnext/gh-aw/actions/workflows/daily-doc-updater.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-doc-updater.lock.yml)
 - [![Daily News](https://github.com/githubnext/gh-aw/actions/workflows/daily-news.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-news.lock.yml)
+- [![Daily Perf Improver](https://github.com/githubnext/gh-aw/actions/workflows/daily-perf-improver.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-perf-improver.lock.yml)
+- [![Daily Test Coverage Improver](https://github.com/githubnext/gh-aw/actions/workflows/daily-test-improver.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-test-improver.lock.yml)
 - [![Dev](https://github.com/githubnext/gh-aw/actions/workflows/dev.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/dev.lock.yml)
 - [![Dev Hawk](https://github.com/githubnext/gh-aw/actions/workflows/dev-hawk.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/dev-hawk.lock.yml)
 - [![Dictation Prompt Generator](https://github.com/githubnext/gh-aw/actions/workflows/dictation-prompt.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/dictation-prompt.lock.yml)
