@@ -903,29 +903,6 @@ engine:
   args: []
     # Array of strings
 
-# Claude-specific configuration
-# (optional)
-claude:
-  # Claude model to use
-  # (optional)
-  model: "example-value"
-
-  # Claude version
-  # (optional)
-  version: "example-value"
-
-  # Allowed Claude tools
-  # (optional)
-  # This field supports multiple formats (oneOf):
-
-  # Option 1: array
-  allowed: []
-    # Array items: string
-
-  # Option 2: object
-  allowed:
-    {}
-
 # MCP server definitions
 # (optional)
 mcp-servers:

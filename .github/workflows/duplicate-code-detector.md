@@ -15,6 +15,7 @@ safe-outputs:
     title-prefix: "[duplicate-code] "
     labels: [code-quality, automated-analysis]
     assignees: copilot
+    max: 3
 timeout_minutes: 15
 strict: true
 ---
@@ -95,14 +96,20 @@ Assess findings to identify true code duplication:
 
 ### 5. Issue Reporting
 
-Create an issue if significant duplication is found (threshold: >10 lines of duplicated code OR 3+ instances of similar patterns):
+Create separate issues for each distinct duplication pattern found (maximum 3 patterns per run). Each pattern should get its own issue to enable focused remediation.
 
-**Issue Contents**:
-- **Executive Summary**: Brief description of duplication found
-- **Duplication Details**: Specific locations and code blocks
-- **Severity Assessment**: Impact and maintainability concerns
-- **Refactoring Recommendations**: Suggested approaches to eliminate duplication
-- **Code Examples**: Concrete examples with file paths and line numbers
+**When to Create Issues**:
+- Only create issues if significant duplication is found (threshold: >10 lines of duplicated code OR 3+ instances of similar patterns)
+- **Create one issue per distinct pattern** - do NOT bundle multiple patterns in a single issue
+- Limit to the top 3 most significant patterns if more are found
+- Use the `create_issue` tool from safe-outputs MCP **once for each pattern**
+
+**Issue Contents for Each Pattern**:
+- **Executive Summary**: Brief description of this specific duplication pattern
+- **Duplication Details**: Specific locations and code blocks for this pattern only
+- **Severity Assessment**: Impact and maintainability concerns for this pattern
+- **Refactoring Recommendations**: Suggested approaches to eliminate this pattern
+- **Code Examples**: Concrete examples with file paths and line numbers for this pattern
 
 ## Detection Scope
 
@@ -135,10 +142,10 @@ Create an issue if significant duplication is found (threshold: >10 lines of dup
 
 ## Issue Template
 
-If duplication is found, create an issue using this structure:
+For each distinct duplication pattern found, create a separate issue using this structure:
 
 ```markdown
-# 🔍 Duplicate Code Detected
+# 🔍 Duplicate Code Detected: [Pattern Name]
 
 *Analysis of commit ${{ github.event.head_commit.id }}*
 
@@ -146,11 +153,11 @@ If duplication is found, create an issue using this structure:
 
 ## Summary
 
-[Brief overview of duplication findings]
+[Brief overview of this specific duplication pattern]
 
 ## Duplication Details
 
-### Pattern 1: [Description]
+### Pattern: [Description]
 - **Severity**: High/Medium/Low
 - **Occurrences**: [Number of instances]
 - **Locations**:
@@ -160,9 +167,6 @@ If duplication is found, create an issue using this structure:
   ```[language]
   [Example of duplicated code]
   ```
-
-### Pattern 2: [Description]
-[... additional patterns ...]
 
 ## Impact Analysis
 
@@ -216,11 +220,14 @@ If duplication is found, create an issue using this structure:
 - Provide specific, actionable recommendations
 
 ### Issue Creation
-- Only create an issue if significant duplication is found
+- Create **one issue per distinct duplication pattern** - do NOT bundle multiple patterns in a single issue
+- Limit to the top 3 most significant patterns if more are found
+- Only create issues if significant duplication is found
 - Include sufficient detail for SWE agents to understand and act on findings
 - Provide concrete examples with file paths and line numbers
 - Suggest practical refactoring approaches
 - Assign issue to @copilot for automated remediation
+- Use descriptive titles that clearly identify the specific pattern (e.g., "Duplicate Code: Error Handling Pattern in Parser Module")
 
 ## Tool Usage Sequence
 
