@@ -145,7 +145,7 @@ on:
 #   pull_request:
 #     types: [opened, synchronize]
 #   schedule:
-#     - cron: "0 9 * * 1"  # Every Monday at 9 AM UTC
+#     - cron: "0 9 * * 1-5"  # Every weekday at 9 AM UTC (Monday-Friday)
 
 # Permissions - what can this workflow access?
 permissions:
