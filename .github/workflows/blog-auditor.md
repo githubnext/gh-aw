@@ -43,7 +43,7 @@ Verify that the GitHub Next Agentic Workflows blog page is available, accessible
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
-- **Target URL**: https://githubnext.com/project/agentic-workflows
+- **Target URL**: https://githubnext.com/projects/agentic-workflows/
 
 ## Audit Process
 
@@ -51,7 +51,7 @@ Verify that the GitHub Next Agentic Workflows blog page is available, accessible
 
 Use Playwright to navigate to the target URL and capture the accessibility snapshot:
 
-1. **Navigate to URL**: Use `browser_navigate` to load https://githubnext.com/project/agentic-workflows
+1. **Navigate to URL**: Use `browser_navigate` to load https://githubnext.com/projects/agentic-workflows/
 2. **Capture Accessibility Snapshot**: Use `browser_snapshot` to get the accessibility tree representation of the page
    - This provides a text-only version of the page as screen readers would see it
    - Captures the semantic structure and content without styling
@@ -110,7 +110,7 @@ If all validations pass, **create a new issue** with:
 ## ✅ Agentic Workflows Blog Audit - PASSED
 
 **Audit Timestamp**: [UTC timestamp]
-**Target URL**: https://githubnext.com/project/agentic-workflows
+**Target URL**: https://githubnext.com/projects/agentic-workflows/
 
 ### Validation Results
 
@@ -146,7 +146,7 @@ If any validation fails:
 The automated audit of the GitHub Next Agentic Workflows blog has detected issues.
 
 **Audit Timestamp**: [UTC timestamp]
-**Target URL**: https://githubnext.com/project/agentic-workflows
+**Target URL**: https://githubnext.com/projects/agentic-workflows/
 **Final URL**: [final URL after redirects]
 
 ### Failed Validation Checks
