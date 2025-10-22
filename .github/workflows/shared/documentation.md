@@ -1,10 +1,6 @@
----
-description: Documentation
-applyTo: docs/**.md
----
 ### Documentation
 
-The documentation for this project is available in the `docs/` directory. It uses the Astro Starlight system and follows the Diátaxis framework for systematic documentation.
+The documentation for this project uses the Astro Starlight system and follows the Diátaxis framework for systematic documentation.
 
 ## Diátaxis Framework
 
@@ -77,86 +73,6 @@ on: push
 ---
 # Your workflow steps here
 ```
-
-## Astro Starlight Syntax
-
-Documentation files use Astro Starlight with MDX support. Key syntax elements:
-
-### Frontmatter
-Every documentation page must have frontmatter:
-```markdown
----
-title: Page Title
-description: Brief description for SEO and navigation
----
-```
-
-### Callouts and Asides
-Use Starlight's aside component for notes, tips, warnings, and cautions:
-```markdown
-:::note
-Important information the reader should notice.
-:::
-
-:::tip
-Helpful advice for the reader.
-:::
-
-:::caution
-Warning about potential issues or pitfalls.
-:::
-
-:::danger
-Critical warning about dangerous operations.
-:::
-```
-
-### Code Blocks
-- Use syntax highlighting with language tags
-- Add `title` attribute for file names: ` ```yaml title=".github/workflows/example.yml" `
-- Use `aw` language for agentic workflow files with YAML frontmatter
-- Add `wrap` for line wrapping: ` ```aw wrap `
-
-### Links
-- Internal links: Use relative paths between documentation pages
-- External links: Open in new tab automatically
-- Link text: Use descriptive text, avoid "click here"
-
-### Tabs
-Use tabs for showing alternatives (e.g., different languages, platforms):
-```markdown
-import { Tabs, TabItem } from '@astrojs/starlight/components';
-
-<Tabs>
-  <TabItem label="npm">
-    ```bash
-    npm install package
-    ```
-  </TabItem>
-  <TabItem label="yarn">
-    ```bash
-    yarn add package
-    ```
-  </TabItem>
-</Tabs>
-```
-
-### Cards
-Use cards for navigation or highlighting multiple options:
-```markdown
-import { Card, CardGrid } from '@astrojs/starlight/components';
-
-<CardGrid>
-  <Card title="Getting Started" icon="rocket">
-    Quick introduction to the basics.
-  </Card>
-  <Card title="Advanced Usage" icon="setting">
-    Deep dive into advanced features.
-  </Card>
-</CardGrid>
-```
-
-**Remember**: Keep components minimal. Prefer standard markdown when possible.
 
 ## Content to Avoid
 
@@ -235,11 +151,3 @@ Use it when you need X by following steps 1-5. [Learn more](url)
 2. **Be surgical**: Make precise edits, don't rewrite everything
 3. **Maintain tone**: Keep the neutral, technical tone
 4. **Test locally**: Verify links and formatting are still correct
-
-## Structure by File Type
-
-- **Getting Started**: Tutorial format
-- **How-to Guides**: Goal-oriented, one task per guide
-- **CLI Reference**: Reference format, complete command documentation
-- **Concepts**: Explanation format, building understanding
-- **API Reference**: Reference format, complete API documentation

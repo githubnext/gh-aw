@@ -16,6 +16,9 @@ network:
     - defaults
     - github
 
+imports:
+  - shared/documentation.md
+
 safe-outputs:
   add-comment:
     max: 1
