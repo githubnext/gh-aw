@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -115,4 +116,35 @@ func matchesDomain(domain, pattern string) bool {
 	}
 
 	return false
+}
+
+// ComputeAllowedDomainsForSanitization computes the list of allowed domains for output sanitization
+// by combining default GitHub domains with domains from network permissions
+func ComputeAllowedDomainsForSanitization(networkPermissions *NetworkPermissions) []string {
+	// Get allowed domains from network permissions (includes ecosystem expansion)
+	networkDomains := GetAllowedDomains(networkPermissions)
+
+	// Create map for deduplication
+	domainsMap := make(map[string]bool)
+
+	// Always include GitHub sanitization domains
+	for _, domain := range getEcosystemDomains("github-sanitization") {
+		domainsMap[domain] = true
+	}
+
+	// Add network domains
+	for _, domain := range networkDomains {
+		domainsMap[domain] = true
+	}
+
+	// Convert map back to slice
+	var result []string
+	for domain := range domainsMap {
+		result = append(result, domain)
+	}
+
+	// Sort for consistency
+	sort.Strings(result)
+
+	return result
 }

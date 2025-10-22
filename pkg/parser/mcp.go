@@ -388,7 +388,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 		}
 
 		// Set default allowed domains to localhost with all port variations (matches implementation)
-		allowedDomains := constants.DefaultAllowedDomains
+		allowedDomains := []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"}
 
 		// Check for custom Playwright configuration
 		if toolConfig, ok := toolValue.(map[string]any); ok {

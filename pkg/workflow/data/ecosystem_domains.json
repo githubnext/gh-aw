@@ -230,5 +230,19 @@
     "productionresultssa17.blob.core.windows.net",
     "productionresultssa18.blob.core.windows.net",
     "productionresultssa19.blob.core.windows.net"
+  ],
+  "github-sanitization": [
+    "github.com",
+    "github.io",
+    "githubusercontent.com",
+    "githubassets.com",
+    "github.dev",
+    "codespaces.new"
+  ],
+  "playwright-localhost": [
+    "localhost",
+    "localhost:*",
+    "127.0.0.1",
+    "127.0.0.1:*"
   ]
 }

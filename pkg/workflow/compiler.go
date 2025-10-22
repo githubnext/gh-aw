@@ -1754,37 +1754,6 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 }
 
 // needsGitCommands checks if safe outputs configuration requires Git commands
-// computeAllowedDomainsForSanitization computes the list of allowed domains for output sanitization
-// by combining default GitHub domains with domains from network permissions
-func computeAllowedDomainsForSanitization(data *WorkflowData) []string {
-	// Get allowed domains from network permissions (includes ecosystem expansion)
-	networkDomains := GetAllowedDomains(data.NetworkPermissions)
-
-	// Combine default domains with network domains, removing duplicates
-	domainsMap := make(map[string]bool)
-
-	// Add default GitHub domains
-	for _, domain := range constants.DefaultSanitizationDomains {
-		domainsMap[domain] = true
-	}
-
-	// Add network domains
-	for _, domain := range networkDomains {
-		domainsMap[domain] = true
-	}
-
-	// Convert map back to slice
-	var result []string
-	for domain := range domainsMap {
-		result = append(result, domain)
-	}
-
-	// Sort for consistency
-	sort.Strings(result)
-
-	return result
-}
-
 func needsGitCommands(safeOutputs *SafeOutputsConfig) bool {
 	if safeOutputs == nil {
 		return false
@@ -3356,7 +3325,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	// Add allowed domains configuration for sanitization
 	// Combine default domains with network permissions
-	allowedDomains := computeAllowedDomainsForSanitization(data)
+	allowedDomains := ComputeAllowedDomainsForSanitization(data.NetworkPermissions)
 	if len(allowedDomains) > 0 {
 		domainsStr := strings.Join(allowedDomains, ",")
 		fmt.Fprintf(yaml, "          GH_AW_ALLOWED_DOMAINS: %q\n", domainsStr)

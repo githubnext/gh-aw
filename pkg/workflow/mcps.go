@@ -307,7 +307,7 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 // Uses the same domain bundle resolution as top-level network configuration, defaulting to localhost only
 func generatePlaywrightAllowedDomains(playwrightTool any) []string {
 	// Default to localhost with all port variations (same as Copilot agent default)
-	allowedDomains := constants.DefaultAllowedDomains
+	allowedDomains := getEcosystemDomains("playwright-localhost")
 
 	// Extract allowed_domains from Playwright tool configuration
 	if toolConfig, ok := playwrightTool.(map[string]any); ok {

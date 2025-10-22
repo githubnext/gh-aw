@@ -3,22 +3,26 @@ package workflow
 import (
 	"sort"
 	"testing"
-
-	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestComputeAllowedDomainsForSanitization(t *testing.T) {
-	t.Run("nil network permissions returns default GitHub domains", func(t *testing.T) {
-		data := &WorkflowData{
-			NetworkPermissions: nil,
-		}
+	// Expected GitHub sanitization domains (now in defaults ecosystem)
+	expectedGitHubDomains := []string{
+		"github.com",
+		"github.io",
+		"githubusercontent.com",
+		"githubassets.com",
+		"github.dev",
+		"codespaces.new",
+	}
 
-		domains := computeAllowedDomainsForSanitization(data)
+	t.Run("nil network permissions returns default GitHub domains", func(t *testing.T) {
+		domains := ComputeAllowedDomainsForSanitization(nil)
 
 		// Should also include ecosystem defaults (from GetAllowedDomains)
 		// When nil, GetAllowedDomains returns "defaults" ecosystem
 		// Check that we have at least the GitHub defaults
-		for _, expected := range constants.DefaultSanitizationDomains {
+		for _, expected := range expectedGitHubDomains {
 			found := false
 			for _, domain := range domains {
 				if domain == expected {
@@ -33,16 +37,14 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 	})
 
 	t.Run("network permissions with custom domains combines with defaults", func(t *testing.T) {
-		data := &WorkflowData{
-			NetworkPermissions: &NetworkPermissions{
-				Allowed: []string{"example.com", "trusted.org"},
-			},
+		networkPermissions := &NetworkPermissions{
+			Allowed: []string{"example.com", "trusted.org"},
 		}
 
-		domains := computeAllowedDomainsForSanitization(data)
+		domains := ComputeAllowedDomainsForSanitization(networkPermissions)
 
-		// Should include default GitHub domains plus custom domains
-		expectedDomains := append(constants.DefaultSanitizationDomains, "example.com", "trusted.org")
+		// Should include custom domains
+		expectedDomains := []string{"example.com", "trusted.org"}
 
 		for _, expected := range expectedDomains {
 			found := false
@@ -59,16 +61,14 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 	})
 
 	t.Run("network permissions with ecosystem identifiers expands correctly", func(t *testing.T) {
-		data := &WorkflowData{
-			NetworkPermissions: &NetworkPermissions{
-				Allowed: []string{"defaults", "python"},
-			},
+		networkPermissions := &NetworkPermissions{
+			Allowed: []string{"defaults", "python"},
 		}
 
-		domains := computeAllowedDomainsForSanitization(data)
+		domains := ComputeAllowedDomainsForSanitization(networkPermissions)
 
-		// Should include default GitHub domains
-		for _, expected := range constants.DefaultSanitizationDomains {
+		// Should include default GitHub domains (now part of defaults)
+		for _, expected := range expectedGitHubDomains {
 			found := false
 			for _, domain := range domains {
 				if domain == expected {
@@ -114,16 +114,14 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 	})
 
 	t.Run("network permissions with defaults mode includes ecosystem defaults", func(t *testing.T) {
-		data := &WorkflowData{
-			NetworkPermissions: &NetworkPermissions{
-				Mode: "defaults",
-			},
+		networkPermissions := &NetworkPermissions{
+			Mode: "defaults",
 		}
 
-		domains := computeAllowedDomainsForSanitization(data)
+		domains := ComputeAllowedDomainsForSanitization(networkPermissions)
 
-		// Should include default GitHub domains
-		for _, expected := range constants.DefaultSanitizationDomains {
+		// Should include default GitHub domains (now part of defaults)
+		for _, expected := range expectedGitHubDomains {
 			found := false
 			for _, domain := range domains {
 				if domain == expected {
@@ -153,13 +151,11 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 	})
 
 	t.Run("removes duplicate domains", func(t *testing.T) {
-		data := &WorkflowData{
-			NetworkPermissions: &NetworkPermissions{
-				Allowed: []string{"github.com", "example.com"},
-			},
+		networkPermissions := &NetworkPermissions{
+			Allowed: []string{"github.com", "example.com"},
 		}
 
-		domains := computeAllowedDomainsForSanitization(data)
+		domains := ComputeAllowedDomainsForSanitization(networkPermissions)
 
 		// Count occurrences of github.com
 		count := 0
@@ -175,13 +171,11 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 	})
 
 	t.Run("returns sorted domains for consistency", func(t *testing.T) {
-		data := &WorkflowData{
-			NetworkPermissions: &NetworkPermissions{
-				Allowed: []string{"zebra.com", "alpha.com"},
-			},
+		networkPermissions := &NetworkPermissions{
+			Allowed: []string{"zebra.com", "alpha.com"},
 		}
 
-		domains := computeAllowedDomainsForSanitization(data)
+		domains := ComputeAllowedDomainsForSanitization(networkPermissions)
 
 		// Check if domains are sorted
 		sortedDomains := make([]string, len(domains))
