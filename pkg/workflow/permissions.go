@@ -771,3 +771,82 @@ func NewPermissionsContentsWritePRReadIssuesRead() *Permissions {
 		PermissionIssues:       PermissionRead,
 	})
 }
+
+// ConvertKeyToPermissionScope converts a string key to a PermissionScope
+func ConvertKeyToPermissionScope(key string) PermissionScope {
+	switch key {
+	case "actions":
+		return PermissionActions
+	case "attestations":
+		return PermissionAttestations
+	case "checks":
+		return PermissionChecks
+	case "contents":
+		return PermissionContents
+	case "deployments":
+		return PermissionDeployments
+	case "discussions":
+		return PermissionDiscussions
+	case "id-token":
+		return PermissionIdToken
+	case "issues":
+		return PermissionIssues
+	case "models":
+		return PermissionModels
+	case "packages":
+		return PermissionPackages
+	case "pages":
+		return PermissionPages
+	case "pull-requests":
+		return PermissionPullRequests
+	case "repository-projects":
+		return PermissionRepositoryProj
+	case "security-events":
+		return PermissionSecurityEvents
+	case "statuses":
+		return PermissionStatuses
+	default:
+		return ""
+	}
+}
+
+// ExtractPermissionsYAML extracts permissions from frontmatter and handles all: read expansion
+// Returns YAML string representation of the permissions
+func ExtractPermissionsYAML(permissionsValue any) string {
+	if permissionsValue == nil {
+		return ""
+	}
+
+	// If it's a shorthand permission string, convert to YAML format
+	if strValue, ok := permissionsValue.(string); ok {
+		return "permissions: " + strValue
+	}
+
+	// If it's a map, check if it has 'all' and expand it
+	if mapValue, ok := permissionsValue.(map[string]any); ok {
+		if allValue, hasAll := mapValue["all"]; hasAll {
+			if allLevel, ok := allValue.(string); ok && allLevel == "read" {
+				// Create a new Permissions object and expand all: read
+				permissions := NewPermissionsAllRead()
+
+				// Add any explicit overrides
+				for key, value := range mapValue {
+					if key != "all" {
+						if strValue, ok := value.(string); ok {
+							if scope := ConvertKeyToPermissionScope(key); scope != "" {
+								permissions.Set(scope, PermissionLevel(strValue))
+							}
+						}
+					}
+				}
+
+				// Render to YAML
+				yamlStr := permissions.RenderToYAML()
+				return yamlStr
+			}
+		}
+	}
+
+	// For other cases, return empty (caller should use standard extraction)
+	return ""
+}

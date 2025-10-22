@@ -1070,76 +1070,14 @@ func (c *Compiler) extractPermissions(frontmatter map[string]any) string {
 		return ""
 	}
 
-	// If it's a shorthand permission, use the standard extraction
-	if _, ok := permissionsValue.(string); ok {
-		return c.extractTopLevelYAMLSection(frontmatter, "permissions")
-	}
-
-	// If it's a map, check if it has 'all' and expand it
-	if mapValue, ok := permissionsValue.(map[string]any); ok {
-		if allValue, hasAll := mapValue["all"]; hasAll {
-			if allLevel, ok := allValue.(string); ok && allLevel == "read" {
-				// Create a new Permissions object and expand all: read
-				permissions := NewPermissionsAllRead()
-
-				// Add any explicit overrides
-				for key, value := range mapValue {
-					if key != "all" {
-						if strValue, ok := value.(string); ok {
-							if scope := c.convertKeyToPermissionScope(key); scope != "" {
-								permissions.Set(scope, PermissionLevel(strValue))
-							}
-						}
-					}
-				}
-
-				// Render to YAML and remove the "permissions:" prefix
-				yamlStr := permissions.RenderToYAML()
-				return yamlStr
-			}
-		}
+	// Try to use the permissions.go ExtractPermissionsYAML function first
+	yamlStr := ExtractPermissionsYAML(permissionsValue)
+	if yamlStr != "" {
+		return yamlStr
 	}
 
 	// Fallback to standard extraction for other cases
 	return c.extractTopLevelYAMLSection(frontmatter, "permissions")
-}
-
-// convertKeyToPermissionScope converts a string key to a PermissionScope
-func (c *Compiler) convertKeyToPermissionScope(key string) PermissionScope {
-	switch key {
-	case "actions":
-		return PermissionActions
-	case "attestations":
-		return PermissionAttestations
-	case "checks":
-		return PermissionChecks
-	case "contents":
-		return PermissionContents
-	case "deployments":
-		return PermissionDeployments
-	case "discussions":
-		return PermissionDiscussions
-	case "id-token":
-		return PermissionIdToken
-	case "issues":
-		return PermissionIssues
-	case "models":
-		return PermissionModels
-	case "packages":
-		return PermissionPackages
-	case "pages":
-		return PermissionPages
-	case "pull-requests":
-		return PermissionPullRequests
-	case "repository-projects":
-		return PermissionRepositoryProj
-	case "security-events":
-		return PermissionSecurityEvents
-	case "statuses":
-		return PermissionStatuses
-	default:
-		return ""
-	}
 }
 
 // extractIfCondition extracts the if condition from frontmatter, returning just the expression
