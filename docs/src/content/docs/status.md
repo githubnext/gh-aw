@@ -33,6 +33,7 @@ This page shows the current status of all agentic workflows in the repository.
 - [![Issue Summary to Notion](https://github.com/githubnext/gh-aw/actions/workflows/notion-issue-summary.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/notion-issue-summary.lock.yml)
 - [![Lockfile Statistics Analysis Agent](https://github.com/githubnext/gh-aw/actions/workflows/lockfile-stats.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/lockfile-stats.lock.yml)
 - [![MCP Inspector Agent](https://github.com/githubnext/gh-aw/actions/workflows/mcp-inspector.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/mcp-inspector.lock.yml)
+- [![Mergefest](https://github.com/githubnext/gh-aw/actions/workflows/mergefest.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/mergefest.lock.yml)
 - [![Plan Command](https://github.com/githubnext/gh-aw/actions/workflows/plan.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/plan.lock.yml)
 - [![Poem Bot - A Creative Agentic Workflow](https://github.com/githubnext/gh-aw/actions/workflows/poem-bot.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/poem-bot.lock.yml)
 - [![Q](https://github.com/githubnext/gh-aw/actions/workflows/q.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/q.lock.yml)
