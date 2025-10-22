@@ -5,23 +5,15 @@ sidebar:
   order: 400
 ---
 
-Quality and testing workflows focus on improving code quality through automated test coverage analysis, performance optimization, and systematic quality improvements.
-
-You can write your own workflows tailored to your specific needs. Here are some sample workflows from the Agentics collection to get you started:
+Quality and testing workflows automate test coverage analysis, performance optimization, and systematic quality improvements.
 
 ### 🧪 Daily Test Coverage Improver
-Improve test coverage by adding meaningful tests to under-tested areas.
 
-- **What it does**: Analyzes test coverage, identifies gaps, and creates PRs with new comprehensive tests
-- **Why it's valuable**: Systematically improves code quality and reduces bugs through better test coverage
-- **Learn more**: [Daily Test Coverage Improver Documentation](https://github.com/githubnext/agentics/blob/main/docs/daily-test-improver.md)
+Analyzes test coverage, identifies gaps, and creates PRs with comprehensive tests to systematically improve code quality and reduce bugs. [Learn more](https://github.com/githubnext/agentics/blob/main/docs/daily-test-improver.md)
 
 ### ⚡ Daily Performance Improver
-Analyze and improve code performance through benchmarking and optimization.
 
-- **What it does**: Identifies performance bottlenecks, runs benchmarks, and implements optimization improvements
-- **Why it's valuable**: Proactively improves application performance and identifies optimization opportunities
-- **Learn more**: [Daily Performance Improver Documentation](https://github.com/githubnext/agentics/blob/main/docs/daily-perf-improver.md)
+Identifies performance bottlenecks, runs benchmarks, and implements optimizations to proactively improve application performance. [Learn more](https://github.com/githubnext/agentics/blob/main/docs/daily-perf-improver.md)
 
 > [!WARNING]
 > GitHub Agentic Workflows is a research demonstrator, and not for production use.
