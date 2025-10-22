@@ -596,12 +596,13 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${reactionScript} })()`);
 
-      // Verify comment was created
+      // Verify comment was created with replyToId parameter (threaded comment)
       expect(mockGithub.graphql).toHaveBeenCalledWith(
         expect.stringContaining("addDiscussionComment"),
         expect.objectContaining({
           dId: "D_kwDOABcD1M4AaBbC",
           body: expect.stringContaining("Agentic [Discussion Bot]"),
+          replyToId: "DC_kwDOABcD1M4AaBbC",
         })
       );
 
