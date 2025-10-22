@@ -41,39 +41,15 @@ Workflow instructions here...
 
 ## Path Formats
 
-### Local Paths
-- `shared/file.md` - Relative to workflow file
-- `../file.md` - Parent directory
-- `/absolute/path.md` - Absolute path
+Import paths support local files (`shared/file.md`, `../file.md`), remote repositories (`owner/repo/file.md@v1.0.0`), and section references (`file.md#SectionName`). Optional imports use `{{#import? file.md}}` syntax in markdown.
 
-### Remote (Workflowspec)
-- `owner/repo/path/file.md` - From GitHub repository
-- `owner/repo/path/file.md@v1.0.0` - With version tag
-- `owner/repo/path/file.md@branch` - With branch
-- `owner/repo/path/file.md@sha` - With commit SHA
-
-### Section References
-- `file.md#SectionName` - Extract specific section (H1-H3)
-- `owner/repo/file.md@v1.0.0#Section` - Remote with section
-
-### Optional Imports
-- `{{#import? file.md}}` - Optional (markdown only)
-
-### Import Path Resolution
-
-- **Relative paths**: Resolved relative to the importing file
-- **Nested imports**: Imported files can import other files
-- **Circular protection**: System prevents infinite import loops
+Paths are resolved relative to the importing file, with support for nested imports and circular import protection.
 
 ## Frontmatter Merging
 
-When importing files, frontmatter fields are merged with the main workflow:
-- **Only `tools:`, `mcp-servers:`, and `services:` frontmatter** is allowed in imported files, other entries give a warning.
-- **Tool merging**: `allowed:` tools are merged across all imported files
-- **MCP server merging**: MCP servers defined in imported files are merged with the main workflow
-- **Services merging**: Docker services defined in imported files are merged with the main workflow
+Imported files can only define `tools:`, `mcp-servers:`, and `services:` frontmatter (other fields trigger warnings). These fields are merged with the main workflow's configuration.
 
-### Example MCP Server Merging
+### Example
 
 ```aw wrap
 # Base workflow
@@ -95,46 +71,10 @@ mcp-servers:
 ---
 ```
 
-**Result**: Final workflow has the Tavily MCP server configured and available to the AI engine.
-
-### Example Services Merging
-
-```aw wrap
-# Base workflow
----
-on: issues
-engine: copilot
-imports:
-  - shared/mcp/jupyter.md
----
-```
-
-```aw wrap
-# shared/mcp/jupyter.md
----
-services:
-  jupyter:
-    image: jupyter/base-notebook:latest
-    ports:
-      - 8888:8888
-    env:
-      JUPYTER_TOKEN: ${{ github.run_id }}
-
-mcp-servers:
-  jupyter:
-    type: http
-    url: "http://jupyter:3000"
-    allowed: ["*"]
----
-```
-
-**Result**: Final workflow has the Jupyter service and MCP server configured with shared networking.
+The imported MCP server configuration is merged into the final workflow, making it available to the AI engine.
 
 ## Related Documentation
 
-- [Packaging and Updating](/gh-aw/guides/packaging-imports/) - Complete guide to adding, updating, and importing workflows
-- [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
-- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
-- [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options
-- [Tools](/gh-aw/reference/tools/) - GitHub and other tools setup
-- [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration
+- [Packaging and Updating](/gh-aw/guides/packaging-imports/) - Complete guide to managing workflow imports
+- [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options reference
+- [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup
