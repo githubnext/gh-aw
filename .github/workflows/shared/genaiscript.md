@@ -3,7 +3,7 @@ engine:
   id: custom
   env:
     GH_AW_AGENT_VERSION: "2.5.1"
-    GH_AW_AGENT_MODEL_VERSION: "github:gpt-4o-mini"
+    GH_AW_AGENT_MODEL_VERSION: "openai:gpt-4.1"
   steps:
     - name: Install GenAIScript
       run: npm install -g genaiscript@${GH_AW_AGENT_VERSION} && genaiscript --version
@@ -57,6 +57,6 @@ imports:
 **Note**: 
 - This workflow requires internet access to install npm packages
 - The genaiscript version can be customized by setting the `GH_AW_AGENT_VERSION` environment variable (default: `2.5.1`)
-- The AI model can be customized by setting the `GH_AW_AGENT_MODEL_VERSION` environment variable (default: `gpt-4o-mini`)
+- The AI model can be customized by setting the `GH_AW_AGENT_MODEL_VERSION` environment variable (default: `openai:gpt-4.1`)
 - MCP server configuration is automatically passed if configured in the workflow
 -->
