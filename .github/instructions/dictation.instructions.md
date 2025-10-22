@@ -54,7 +54,6 @@ lockfile
 logger
 logs
 main
-makefile
 max-concurrency
 max-turns
 mcp
@@ -92,7 +91,6 @@ session
 smoke
 source
 staged
-starlight
 step
 steps
 stop-after
