@@ -1772,12 +1772,12 @@ func computeAllowedDomainsForSanitization(data *WorkflowData) []string {
 
 	// Combine default domains with network domains, removing duplicates
 	domainsMap := make(map[string]bool)
-	
+
 	// Add default GitHub domains
 	for _, domain := range defaultDomains {
 		domainsMap[domain] = true
 	}
-	
+
 	// Add network domains
 	for _, domain := range networkDomains {
 		domainsMap[domain] = true
@@ -1791,7 +1791,7 @@ func computeAllowedDomainsForSanitization(data *WorkflowData) []string {
 
 	// Sort for consistency
 	sort.Strings(result)
-	
+
 	return result
 }
 
