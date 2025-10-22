@@ -11,6 +11,10 @@ permissions:
   actions: read
 tools:
   github:
+safe-outputs:
+  create-issue:
+    title-prefix: "[dev] "
+    labels: [automation, dev-test]
 ---
 
 # Test GitHub MCP Tools

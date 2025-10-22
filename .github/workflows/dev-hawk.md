@@ -13,7 +13,7 @@ permissions:
   contents: read
   actions: read
   pull-requests: read
-engine: copilot
+engine: claude
 tools:
   agentic-workflows:
   github:
