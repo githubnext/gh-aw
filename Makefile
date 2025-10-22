@@ -46,7 +46,7 @@ test-unit:
 
 .PHONY: test-perf
 test-perf:
-	go test -v -count=1 -timeout=3m -tags '!integration' ./... | tee /tmp/gh-aw/test-output.log; \
+	go test -v -count=1 -timeout=3m -tags 'integration' ./... | tee /tmp/gh-aw/test-output.log; \
 	EXIT_CODE=$$?; \
 	echo ""; \
 	echo "=== SLOWEST TESTS ==="; \
