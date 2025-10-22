@@ -148,7 +148,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Build the AWF-wrapped command (always enabled for copilot)
-	var awfLogLevel string = "debug"
+	var awfLogLevel = "debug"
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil && workflowData.EngineConfig.Firewall.LogLevel != "" {
 		awfLogLevel = workflowData.EngineConfig.Firewall.LogLevel
 	}
