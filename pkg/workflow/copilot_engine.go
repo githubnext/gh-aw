@@ -42,6 +42,7 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	)
 	steps = append(steps, secretValidation)
 
+	// First, get the setup Node.js step from npm steps
 	npmSteps := BuildStandardNpmEngineInstallSteps(
 		"@github/copilot",
 		constants.DefaultCopilotVersion,
@@ -49,9 +50,14 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		"copilot",
 		workflowData,
 	)
-	steps = append(steps, npmSteps...)
+
+	// Add Node.js setup step first (before AWF)
+	if len(npmSteps) > 0 {
+		steps = append(steps, npmSteps[0]) // Setup Node.js step
+	}
 
 	// Add AWF installation steps (always enabled for copilot)
+	// Install AWF after Node.js setup but before Copilot CLI installation
 	var awfVersion string
 	var cleanupScript string
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil {
@@ -67,6 +73,11 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	awfCleanup := generateAWFCleanupStep(cleanupScript)
 	steps = append(steps, awfCleanup)
 
+	// Add Copilot CLI installation step after AWF
+	if len(npmSteps) > 1 {
+		steps = append(steps, npmSteps[1:]...) // Install Copilot CLI and subsequent steps
+	}
+
 	return steps
 }
 
@@ -75,8 +86,9 @@ func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
 }
 
 // GetVersionCommand returns the command to get Copilot CLI's version
+// Uses npx to ensure we get the correct version we installed
 func (e *CopilotEngine) GetVersionCommand() string {
-	return "copilot --version"
+	return fmt.Sprintf("npx -y @github/copilot@%s --version", constants.DefaultCopilotVersion)
 }
 
 // extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags
@@ -96,7 +108,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
 
 	// Build copilot CLI arguments based on configuration
-	var copilotArgs = []string{"--add-dir", "/tmp/", "--add-dir", "/tmp/gh-aw/", "--add-dir", "/tmp/gh-aw/agent/", "--log-level", "all", "--log-dir", logsFolder}
+	var copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all"}
 
 	// Add --disable-builtin-mcps to disable built-in MCP servers
 	copilotArgs = append(copilotArgs, "--disable-builtin-mcps")
@@ -134,18 +146,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, workflowData.EngineConfig.Args...)
 	}
 
-	copilotArgs = append(copilotArgs, "--prompt", "\"$COPILOT_CLI_INSTRUCTION\"")
-
-	// Extract all --add-dir paths and generate mkdir commands
-	addDirPaths := extractAddDirPaths(copilotArgs)
-
-	// Also ensure the log directory exists
-	addDirPaths = append(addDirPaths, logsFolder)
-
-	var mkdirCommands strings.Builder
-	for _, dir := range addDirPaths {
-		mkdirCommands.WriteString(fmt.Sprintf("mkdir -p %s\n", dir))
-	}
+	copilotArgs = append(copilotArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
 
 	// Build the AWF-wrapped command (always enabled for copilot)
 	var awfLogLevel = "debug"
@@ -153,7 +154,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		awfLogLevel = workflowData.EngineConfig.Firewall.LogLevel
 	}
 
-	// Get allowed domains (copilot defaults + network permissions)
+	// Get allowed domains (copilot defaults + network permissions) with specific ordering
 	allowedDomains := GetCopilotAllowedDomains(workflowData.NetworkPermissions)
 
 	// Determine Copilot CLI version to use
@@ -166,8 +167,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	copilotCommand := fmt.Sprintf("npx -y @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
 
 	command := fmt.Sprintf(`set -o pipefail
-COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-%ssudo -E awf --env-all \
+sudo -E awf --env-all \
   --allow-domains %s \
   --log-level %s \
   '%s' \
@@ -180,7 +180,7 @@ if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   mkdir -p %s
   mv "$COPILOT_LOGS_DIR"/* %s || true
   rmdir "$COPILOT_LOGS_DIR" || true
-fi`, mkdirCommands.String(), allowedDomains, awfLogLevel, copilotCommand, logFile, logsFolder, logsFolder, logsFolder)
+fi`, allowedDomains, awfLogLevel, copilotCommand, logFile, logsFolder, logsFolder, logsFolder)
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":           "/home/runner",
@@ -265,6 +265,18 @@ fi`, mkdirCommands.String(), allowedDomains, awfLogLevel, copilotCommand, logFil
 
 	steps = append(steps, GitHubActionStep(stepLines))
 
+	return steps
+}
+
+// convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
+func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
+	return ConvertStepToYAML(stepMap)
+}
+
+// GetSquidLogsSteps returns the steps for collecting and uploading Squid logs
+func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
+	var steps []GitHubActionStep
+
 	// Add Squid logs collection and upload steps (AWF generates these logs)
 	squidLogsCollection := generateSquidLogsCollectionStep(workflowData.Name)
 	steps = append(steps, squidLogsCollection)
@@ -272,20 +284,16 @@ fi`, mkdirCommands.String(), allowedDomains, awfLogLevel, copilotCommand, logFil
 	squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
 	steps = append(steps, squidLogsUpload)
 
-	// Add post-execution cleanup step (always runs)
+	return steps
+}
+
+// GetCleanupStep returns the post-execution cleanup step
+func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionStep {
 	var postCleanupScript string
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil {
 		postCleanupScript = workflowData.EngineConfig.Firewall.CleanupScript
 	}
-	postCleanup := generateAWFPostExecutionCleanupStep(postCleanupScript)
-	steps = append(steps, postCleanup)
-
-	return steps
-}
-
-// convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
-func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	return ConvertStepToYAML(stepMap)
+	return generateAWFPostExecutionCleanupStep(postCleanupScript)
 }
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
@@ -894,7 +902,7 @@ func sanitizeWorkflowName(name string) string {
 
 // generateSquidLogsCollectionStep creates a GitHub Actions step to collect Squid logs from AWF
 func generateSquidLogsCollectionStep(workflowName string) GitHubActionStep {
-	sanitizedName := sanitizeWorkflowName(workflowName)
+	sanitizedName := strings.ToLower(sanitizeWorkflowName(workflowName))
 	squidLogsDir := fmt.Sprintf("/tmp/gh-aw/squid-logs-%s/", sanitizedName)
 
 	stepLines := []string{
@@ -916,7 +924,7 @@ func generateSquidLogsCollectionStep(workflowName string) GitHubActionStep {
 
 // generateSquidLogsUploadStep creates a GitHub Actions step to upload Squid logs as artifact
 func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
-	sanitizedName := sanitizeWorkflowName(workflowName)
+	sanitizedName := strings.ToLower(sanitizeWorkflowName(workflowName))
 	artifactName := fmt.Sprintf("squid-logs-%s", sanitizedName)
 	squidLogsDir := fmt.Sprintf("/tmp/gh-aw/squid-logs-%s/", sanitizedName)
 

@@ -59,8 +59,8 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
-	// Use the embedded JavaScript code with comment removal
-	WriteJavaScriptToYAML(yaml, redactSecretsScript)
+	// Use the embedded JavaScript code preserving all comments (security-sensitive)
+	WriteJavaScriptToYAMLPreservingComments(yaml, redactSecretsScript)
 
 	// Add environment variables
 	yaml.WriteString("        env:\n")
