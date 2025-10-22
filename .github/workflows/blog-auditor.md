@@ -26,6 +26,7 @@ tools:
     - "ls *"
     - "rm *"
     - "test *"
+    - "for * in *; do *; done"
 safe-outputs:
   create-issue:
     title-prefix: "[audit] "
@@ -101,7 +102,8 @@ Extract code snippets from the blog page and validate them against the latest ag
 1. **Extract Code Snippets**: Use Playwright's `browser_evaluate` to extract all code blocks from the page
    - Look for `<code>` elements with language hints for YAML or markdown
    - Extract the text content of each code block
-   - Filter to only workflow-related snippets (those containing frontmatter with `---` markers and workflow-related fields like `on:`, `engine:`, `tools:`, etc.)
+   - Filter to only workflow-related snippets (those containing frontmatter with `---` markers AND at least one of these workflow fields: `on:`, `engine:`, `tools:`, `permissions:`, `safe-outputs:`)
+   - Valid workflow snippets must have both YAML frontmatter structure and workflow-specific configuration
 
 2. **Create Temporary Directory**: Use bash with `mktemp` to create a secure temporary directory
    ```bash
@@ -113,13 +115,15 @@ Extract code snippets from the blog page and validate them against the latest ag
    - Name files sequentially: `snippet-1.md`, `snippet-2.md`, etc.
    - Store the temporary directory path in a variable for cleanup
 
-4. **Validate Each Snippet**: Use `gh aw compile` to validate each snippet
+4. **Validate Each Snippet**: Use `gh aw compile` to validate each snippet by iterating through all files
    ```bash
-   gh aw compile --no-emit --validate $TEMP_DIR/snippet-1.md
+   for snippet in $TEMP_DIR/snippet-*.md; do
+     gh aw compile --no-emit --validate "$snippet"
+   done
    ```
    - The `--no-emit` flag validates without generating lock files
    - The `--validate` flag enables schema validation
-   - Capture any validation errors or warnings
+   - Capture any validation errors or warnings for each snippet
 
 5. **Record Results**: Track which snippets passed and which failed validation
    - Count total snippets found
