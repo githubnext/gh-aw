@@ -34,7 +34,7 @@ You are an AI agent tasked with creating a dictation prompt that helps rephrase 
 ## Your Mission
 
 Create a comprehensive dictation instruction file at `.github/instructions/dictation.instructions.md` that:
-1. Contains a glossary of 100 project-specific terms
+1. Contains a glossary of approximately 100 project-specific terms (95-105 is acceptable)
 2. Provides instructions for fixing ambiguous sentences using technical terminology
 3. Rephrases text to create proper agentic planning prompts for GitHub Copilot
 
@@ -73,7 +73,7 @@ ls -1 pkg/ cmd/ .github/workflows/ | head -50
 9. **Programming concepts**: struct, schema, validation, compilation, parsing
 10. **Operations**: recompile, fmt, lint, test-unit, test-integration
 
-**Goal**: Create a list of exactly 100 terms that are most relevant to this project, avoiding generic software engineering terms that are universally known.
+**Goal**: Create a list of approximately 100 terms (95-105 is acceptable) that are most relevant to this project, avoiding generic software engineering terms that are universally known.
 
 ### 2. Extract Known Technical Terms
 
@@ -220,7 +220,7 @@ When using this prompt with speech-to-text dictation:
 
 ### 4. Generate the Actual Content
 
-Use your analysis of the repository to populate the glossary with exactly 100 relevant terms. Scan the codebase thoroughly to identify the most important and frequently used terms.
+Use your analysis of the repository to populate the glossary with approximately 100 relevant terms (95-105 is acceptable). Scan the codebase thoroughly to identify the most important and frequently used terms.
 
 ### 5. Create Pull Request
 
@@ -236,7 +236,7 @@ After creating the dictation instructions file:
 ## Important Guidelines
 
 - **Be Thorough**: Scan the entire codebase to extract accurate terms
-- **Be Precise**: The glossary should contain exactly 100 terms, no more, no less
+- **Be Precise**: The glossary should contain approximately 100 terms (95-105 is acceptable)
 - **Prioritize Relevance**: Include terms that are actually used frequently in this project
 - **Avoid Duplicates**: Each term should appear only once in the glossary
 - **Alphabetize**: Sort the glossary alphabetically for easy reference
@@ -248,7 +248,7 @@ After creating the dictation instructions file:
 
 Your task is complete when:
 1. ✅ The file `.github/instructions/dictation.instructions.md` exists
-2. ✅ It contains exactly 100 project-specific terms in the glossary
+2. ✅ It contains approximately 100 project-specific terms in the glossary (95-105 is acceptable)
 3. ✅ The rephrasing guidelines are clear and actionable
 4. ✅ Examples demonstrate proper transformation from dictated to agentic prompts
 5. ✅ A pull request has been created with the new file
