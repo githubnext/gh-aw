@@ -2,12 +2,17 @@
 name: Dictation Prompt Generator
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 0"  # Weekly on Sundays at 6 AM UTC
 
 permissions:
   contents: read
   actions: read
 
 engine: copilot
+
+imports:
+  - shared/reporting.md
 
 tools:
   edit:
