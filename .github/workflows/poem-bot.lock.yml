@@ -5871,6 +5871,28 @@ jobs:
           node-version: '24'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.347
+      - name: Verify engine installation
+        run: |
+          echo "Verifying GitHub Copilot CLI installation..."
+          if ! command -v copilot &> /dev/null; then
+            echo "Error: copilot command not found"
+            exit 1
+          fi
+          copilot --version
+          echo "GitHub Copilot CLI is installed and working"
+      - name: Verify prompt file
+        run: |
+          echo "Verifying prompt file..."
+          if [ ! -f /tmp/gh-aw/aw-prompts/prompt.txt ]; then
+            echo "Error: Prompt file not found at /tmp/gh-aw/aw-prompts/prompt.txt"
+            exit 1
+          fi
+          PROMPT_SIZE=$(wc -c < /tmp/gh-aw/aw-prompts/prompt.txt)
+          if [ "$PROMPT_SIZE" -eq 0 ]; then
+            echo "Error: Prompt file is empty"
+            exit 1
+          fi
+          echo "Prompt file exists and has content ($PROMPT_SIZE bytes)"
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):

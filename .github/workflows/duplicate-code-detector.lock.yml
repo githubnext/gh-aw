@@ -3323,6 +3323,28 @@ jobs:
           node-version: '24'
       - name: Install Codex
         run: npm install -g @openai/codex@0.47.0
+      - name: Verify engine installation
+        run: |
+          echo "Verifying Codex installation..."
+          if ! command -v codex &> /dev/null; then
+            echo "Error: codex command not found"
+            exit 1
+          fi
+          codex --version
+          echo "Codex is installed and working"
+      - name: Verify prompt file
+        run: |
+          echo "Verifying prompt file..."
+          if [ ! -f /tmp/gh-aw/aw-prompts/prompt.txt ]; then
+            echo "Error: Prompt file not found at /tmp/gh-aw/aw-prompts/prompt.txt"
+            exit 1
+          fi
+          PROMPT_SIZE=$(wc -c < /tmp/gh-aw/aw-prompts/prompt.txt)
+          if [ "$PROMPT_SIZE" -eq 0 ]; then
+            echo "Error: Prompt file is empty"
+            exit 1
+          fi
+          echo "Prompt file exists and has content ($PROMPT_SIZE bytes)"
       - name: Run Codex
         run: |
           set -o pipefail

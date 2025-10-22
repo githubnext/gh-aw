@@ -352,6 +352,12 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 		}
 	}
 
+	// Add verification step for engine installation
+	steps = append(steps, c.buildEngineVerificationStep(engine)...)
+
+	// Add verification step for prompt file
+	steps = append(steps, c.buildPromptVerificationStep()...)
+
 	// Add engine execution steps
 	logFile := "/tmp/gh-aw/threat-detection/detection.log"
 	executionSteps := engine.GetExecutionSteps(threatDetectionData, logFile)
@@ -362,6 +368,56 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 	}
 
 	return steps
+}
+
+// buildEngineVerificationStep creates a step to verify the engine CLI is installed and working
+func (c *Compiler) buildEngineVerificationStep(engine CodingAgentEngine) []string {
+	versionCmd := engine.GetVersionCommand()
+	if versionCmd == "" {
+		// No version command available, skip verification
+		return []string{}
+	}
+
+	return []string{
+		"      - name: Verify engine installation\n",
+		"        run: |\n",
+		fmt.Sprintf("          echo \"Verifying %s installation...\"\n", engine.GetDisplayName()),
+		fmt.Sprintf("          if ! command -v %s &> /dev/null; then\n", getCommandName(versionCmd)),
+		fmt.Sprintf("            echo \"Error: %s command not found\"\n", getCommandName(versionCmd)),
+		"            exit 1\n",
+		"          fi\n",
+		fmt.Sprintf("          %s\n", versionCmd),
+		fmt.Sprintf("          echo \"%s is installed and working\"\n", engine.GetDisplayName()),
+	}
+}
+
+// buildPromptVerificationStep creates a step to verify the prompt file exists and has content
+func (c *Compiler) buildPromptVerificationStep() []string {
+	return []string{
+		"      - name: Verify prompt file\n",
+		"        run: |\n",
+		"          echo \"Verifying prompt file...\"\n",
+		"          if [ ! -f /tmp/gh-aw/aw-prompts/prompt.txt ]; then\n",
+		"            echo \"Error: Prompt file not found at /tmp/gh-aw/aw-prompts/prompt.txt\"\n",
+		"            exit 1\n",
+		"          fi\n",
+		"          PROMPT_SIZE=$(wc -c < /tmp/gh-aw/aw-prompts/prompt.txt)\n",
+		"          if [ \"$PROMPT_SIZE\" -eq 0 ]; then\n",
+		"            echo \"Error: Prompt file is empty\"\n",
+		"            exit 1\n",
+		"          fi\n",
+		"          echo \"Prompt file exists and has content ($PROMPT_SIZE bytes)\"\n",
+	}
+}
+
+// getCommandName extracts the command name from a version command string
+func getCommandName(versionCmd string) string {
+	// Extract the first word from the version command (e.g., "copilot --version" -> "copilot")
+	parts := strings.Split(versionCmd, " ")
+	if len(parts) > 0 {
+		return parts[0]
+	}
+	return versionCmd
 }
 
 // buildParsingStep creates the results parsing step
