@@ -77,3 +77,23 @@ jobs:
         with:
           go_version_file: go.mod
           build_script_override: scripts/build-release.sh
+
+  trigger-maintenance:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger maintenance workflow in agentics repository
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: 'githubnext',
+              repo: 'agentics',
+              event_type: 'maintenance',
+              client_payload: {
+                triggered_by: 'gh-aw-release',
+                release_tag: context.ref.replace('refs/tags/', ''),
+                repository: context.repo.repo
+              }
+            });
