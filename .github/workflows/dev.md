@@ -4,11 +4,12 @@ on:
     name: dev
     events: [discussion_comment]
   workflow_dispatch:
+  reaction: "rocket"
 concurrency:
   group: dev-workflow-${{ github.ref }}
   cancel-in-progress: true
 name: Dev
-engine: copilot
+engine: claude
 permissions:
   contents: read
   actions: read
