@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.23.2 - 2025-10-22
+
+### Bug Fixes
+
+#### Add commit-changes-analyzer agentic workflow
+
+#### Add agentic workflow for enhancing Go files with debug logging
+
+#### Add jsDoc type checking support to JavaScript .cjs files
+
+#### Add reporting instructions for HTML details/summary formatting in report workflows
+
+#### Add documentation page for GitHub Actions status badges
+
+#### Consolidate permission parsing logic and add support for "all: read" syntax
+
+#### Fix discussion comment replies to use threading instead of creating new top-level comments
+
+#### Refactor duplicate MCP configuration rendering logic into shared helper
+
+#### Remove js-yaml dependency in badge generator script
+
+#### Add semantic function refactoring workflow for Go code analysis
+
+#### Improved clarity and conciseness of imports reference documentation
+
+
 ## v0.23.1 - 2025-10-21
 
 ### Bug Fixes
