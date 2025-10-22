@@ -1452,6 +1452,16 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
                 }
               },
+              "playwright": {
+                "command": "npx",
+                "args": [
+                  "@playwright/mcp@latest",
+                  "--output-dir",
+                  "/tmp/gh-aw/mcp-logs/playwright",
+                  "--allowed-origins",
+                  "localhost;localhost:*;127.0.0.1;127.0.0.1:*;githubnext.com;www.githubnext.com"
+                ]
+              },
               "safe_outputs": {
                 "command": "node",
                 "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
@@ -1521,14 +1531,19 @@ jobs:
           
           ## Audit Process
           
-          ### Phase 1: Fetch and Capture Blog Metrics
+          ### Phase 1: Navigate and Capture Blog Content
           
-          Use the `web-fetch` tool to retrieve the target URL and capture:
+          Use Playwright to navigate to the target URL and capture the accessibility snapshot:
           
-          1. **HTTP Status Code**: The response status (expect 200)
-          2. **Final URL**: The URL after any redirects (should match target or be within allowed domains)
-          3. **Content Length**: Size of the page content in bytes
-          4. **Page Content**: The actual HTML/text content for keyword validation
+          1. **Navigate to URL**: Use `browser_navigate` to load https://githubnext.com/project/agentic-workflows
+          2. **Capture Accessibility Snapshot**: Use `browser_snapshot` to get the accessibility tree representation of the page
+             - This provides a text-only version of the page as screen readers would see it
+             - Captures the semantic structure and content without styling
+          3. **Extract Metrics**: From the navigation and snapshot, capture:
+             - **HTTP Status Code**: The response status (expect 200)
+             - **Final URL**: The URL after any redirects (should match target or be within allowed domains)
+             - **Content Length**: Size of the accessibility snapshot text content in characters
+             - **Page Content**: The accessibility tree text for keyword validation
           
           Store these metrics for validation and reporting.
           
@@ -1545,9 +1560,9 @@ jobs:
           - **Failure**: Redirect to unexpected domain or URL structure
           
           #### 2.3 Content Length Check
-          - **Requirement**: Content length must be greater than 10,000 bytes
-          - **Failure**: Content length <= 10,000 bytes suggests missing or incomplete page
-          - **Note**: A typical blog post should be substantially larger than this threshold
+          - **Requirement**: Content length must be greater than 5,000 characters
+          - **Failure**: Content length <= 5,000 characters suggests missing or incomplete page
+          - **Note**: A typical blog post's accessibility tree should be substantially larger than this threshold
           
           #### 2.4 Keyword Presence Check
           - **Required Keywords**: All of the following must be present in the page content:
@@ -1585,7 +1600,7 @@ jobs:
           
           - ✅ **HTTP Status**: 200 OK
           - ✅ **Final URL**: [final URL after redirects]
-          - ✅ **Content Length**: [X bytes] (threshold: 10,000 bytes)
+          - ✅ **Content Length**: [X characters] (threshold: 5,000 characters)
           - ✅ **Keywords Found**: All required keywords present
             - "agentic-workflows" ✓
             - "GitHub" ✓
@@ -1633,8 +1648,8 @@ jobs:
           - **Status**: [✅ PASS / ❌ FAIL]
           
           #### Content Length Check
-          - **Expected**: > 10,000 bytes
-          - **Actual**: [X bytes]
+          - **Expected**: > 5,000 characters
+          - **Actual**: [X characters]
           - **Status**: [✅ PASS / ❌ FAIL]
           
           #### Keyword Presence Check
@@ -1657,8 +1672,8 @@ jobs:
           
           - **HTTP Status**: [status]
           - **Final URL**: [URL]
-          - **Content Length**: [bytes]
-          - **Available Content Preview**: [first 200 chars of content if available]
+          - **Content Length**: [characters]
+          - **Available Content Preview**: [first 200 chars of accessibility snapshot if available]
           
           ---
           *Automated audit run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}*
@@ -1678,9 +1693,10 @@ jobs:
           - **Be Accurate**: Double-check all metrics before reporting
           
           ### Resource Efficiency
-          - **Single Fetch**: Fetch the URL once and reuse the response for all validations
-          - **Efficient Parsing**: Use efficient methods to search for keywords
+          - **Single Navigation**: Navigate to the URL once and capture the accessibility snapshot
+          - **Efficient Parsing**: Use the accessibility tree text to search for keywords
           - **Stay Within Timeout**: Complete audit within the 10-minute timeout
+          - **Browser Cleanup**: Ensure Playwright browser is properly closed after use
           
           ## Output Requirements
           
@@ -1693,13 +1709,14 @@ jobs:
           ## Success Criteria
           
           A successful audit:
-          - ✅ Fetches the blog URL successfully
+          - ✅ Navigates to the blog URL successfully using Playwright
+          - ✅ Captures the accessibility snapshot (screen reader view)
           - ✅ Validates all criteria (HTTP status, URL, content length, keywords)
           - ✅ Reports results appropriately (issue on failure, comment on success)
           - ✅ Provides actionable information for remediation
           - ✅ Completes within timeout limits
           
-          Begin your audit now. Fetch the blog, validate all criteria, and report your findings.
+          Begin your audit now. Navigate to the blog using Playwright, capture the accessibility snapshot, validate all criteria, and report your findings.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1745,6 +1762,19 @@ jobs:
           ## Temporary Files
           
           **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/agent/` directory** that has been pre-created for you. Do NOT use the root `/tmp/` directory directly.
+          
+          EOF
+      - name: Append playwright output directory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GH_AW_PROMPT << 'EOF'
+          
+          ---
+          
+          ## Playwright Output Directory
+          
+          **IMPORTANT**: When using Playwright tools to take screenshots or generate files, **all output files are automatically saved to `/tmp/gh-aw/mcp-logs/playwright/`**. This is the Playwright `--output-dir` and you can find any screenshots, traces, or other files generated by Playwright in this directory.
           
           EOF
       - name: Append safe outputs instructions to prompt
@@ -1934,7 +1964,6 @@ jobs:
         # - Read
         # - Task
         # - TodoWrite
-        # - WebFetch
         # - Write
         # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
@@ -1990,11 +2019,32 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
+        # - mcp__playwright__browser_click
+        # - mcp__playwright__browser_close
+        # - mcp__playwright__browser_console_messages
+        # - mcp__playwright__browser_drag
+        # - mcp__playwright__browser_evaluate
+        # - mcp__playwright__browser_file_upload
+        # - mcp__playwright__browser_fill_form
+        # - mcp__playwright__browser_handle_dialog
+        # - mcp__playwright__browser_hover
+        # - mcp__playwright__browser_install
+        # - mcp__playwright__browser_navigate
+        # - mcp__playwright__browser_navigate_back
+        # - mcp__playwright__browser_network_requests
+        # - mcp__playwright__browser_press_key
+        # - mcp__playwright__browser_resize
+        # - mcp__playwright__browser_select_option
+        # - mcp__playwright__browser_snapshot
+        # - mcp__playwright__browser_tabs
+        # - mcp__playwright__browser_take_screenshot
+        # - mcp__playwright__browser_type
+        # - mcp__playwright__browser_wait_for
         timeout-minutes: 10
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat),Bash(date *),Bash(date),Bash(echo *),Bash(echo),Bash(grep),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite,WebFetch,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat),Bash(date *),Bash(date),Bash(echo *),Bash(echo),Bash(grep),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"

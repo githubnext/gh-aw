@@ -18,7 +18,10 @@ network:
     - githubnext.com
     - www.githubnext.com
 tools:
-  web-fetch:
+  playwright:
+    allowed_domains:
+      - githubnext.com
+      - www.githubnext.com
   bash:
     - "date *"
     - "echo *"
@@ -52,14 +55,19 @@ Verify that the GitHub Next Agentic Workflows blog page is available, accessible
 
 ## Audit Process
 
-### Phase 1: Fetch and Capture Blog Metrics
+### Phase 1: Navigate and Capture Blog Content
 
-Use the `web-fetch` tool to retrieve the target URL and capture:
+Use Playwright to navigate to the target URL and capture the accessibility snapshot:
 
-1. **HTTP Status Code**: The response status (expect 200)
-2. **Final URL**: The URL after any redirects (should match target or be within allowed domains)
-3. **Content Length**: Size of the page content in bytes
-4. **Page Content**: The actual HTML/text content for keyword validation
+1. **Navigate to URL**: Use `browser_navigate` to load https://githubnext.com/project/agentic-workflows
+2. **Capture Accessibility Snapshot**: Use `browser_snapshot` to get the accessibility tree representation of the page
+   - This provides a text-only version of the page as screen readers would see it
+   - Captures the semantic structure and content without styling
+3. **Extract Metrics**: From the navigation and snapshot, capture:
+   - **HTTP Status Code**: The response status (expect 200)
+   - **Final URL**: The URL after any redirects (should match target or be within allowed domains)
+   - **Content Length**: Size of the accessibility snapshot text content in characters
+   - **Page Content**: The accessibility tree text for keyword validation
 
 Store these metrics for validation and reporting.
 
@@ -76,9 +84,9 @@ Perform the following validations:
 - **Failure**: Redirect to unexpected domain or URL structure
 
 #### 2.3 Content Length Check
-- **Requirement**: Content length must be greater than 10,000 bytes
-- **Failure**: Content length <= 10,000 bytes suggests missing or incomplete page
-- **Note**: A typical blog post should be substantially larger than this threshold
+- **Requirement**: Content length must be greater than 5,000 characters
+- **Failure**: Content length <= 5,000 characters suggests missing or incomplete page
+- **Note**: A typical blog post's accessibility tree should be substantially larger than this threshold
 
 #### 2.4 Keyword Presence Check
 - **Required Keywords**: All of the following must be present in the page content:
@@ -116,7 +124,7 @@ All checks passed successfully:
 
 - ✅ **HTTP Status**: 200 OK
 - ✅ **Final URL**: [final URL after redirects]
-- ✅ **Content Length**: [X bytes] (threshold: 10,000 bytes)
+- ✅ **Content Length**: [X characters] (threshold: 5,000 characters)
 - ✅ **Keywords Found**: All required keywords present
   - "agentic-workflows" ✓
   - "GitHub" ✓
@@ -164,8 +172,8 @@ The automated audit of the GitHub Next Agentic Workflows blog has detected issue
 - **Status**: [✅ PASS / ❌ FAIL]
 
 #### Content Length Check
-- **Expected**: > 10,000 bytes
-- **Actual**: [X bytes]
+- **Expected**: > 5,000 characters
+- **Actual**: [X characters]
 - **Status**: [✅ PASS / ❌ FAIL]
 
 #### Keyword Presence Check
@@ -188,8 +196,8 @@ The automated audit of the GitHub Next Agentic Workflows blog has detected issue
 
 - **HTTP Status**: [status]
 - **Final URL**: [URL]
-- **Content Length**: [bytes]
-- **Available Content Preview**: [first 200 chars of content if available]
+- **Content Length**: [characters]
+- **Available Content Preview**: [first 200 chars of accessibility snapshot if available]
 
 ---
 *Automated audit run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}*
@@ -209,9 +217,10 @@ The automated audit of the GitHub Next Agentic Workflows blog has detected issue
 - **Be Accurate**: Double-check all metrics before reporting
 
 ### Resource Efficiency
-- **Single Fetch**: Fetch the URL once and reuse the response for all validations
-- **Efficient Parsing**: Use efficient methods to search for keywords
+- **Single Navigation**: Navigate to the URL once and capture the accessibility snapshot
+- **Efficient Parsing**: Use the accessibility tree text to search for keywords
 - **Stay Within Timeout**: Complete audit within the 10-minute timeout
+- **Browser Cleanup**: Ensure Playwright browser is properly closed after use
 
 ## Output Requirements
 
@@ -224,10 +233,11 @@ Your output must be:
 ## Success Criteria
 
 A successful audit:
-- ✅ Fetches the blog URL successfully
+- ✅ Navigates to the blog URL successfully using Playwright
+- ✅ Captures the accessibility snapshot (screen reader view)
 - ✅ Validates all criteria (HTTP status, URL, content length, keywords)
 - ✅ Reports results appropriately (issue on failure, comment on success)
 - ✅ Provides actionable information for remediation
 - ✅ Completes within timeout limits
 
-Begin your audit now. Fetch the blog, validate all criteria, and report your findings.
+Begin your audit now. Navigate to the blog using Playwright, capture the accessibility snapshot, validate all criteria, and report your findings.
