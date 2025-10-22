@@ -36,6 +36,7 @@ This page shows the current status of all agentic workflows in the repository.
 [![Resource Summarizer Agent](https://github.com/githubnext/gh-aw/actions/workflows/pdf-summary.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/pdf-summary.lock.yml)
 [![Scout](https://github.com/githubnext/gh-aw/actions/workflows/scout.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/scout.lock.yml)
 [![Security Fix PR](https://github.com/githubnext/gh-aw/actions/workflows/security-fix-pr.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/security-fix-pr.lock.yml)
+[![Semantic Function Refactoring](https://github.com/githubnext/gh-aw/actions/workflows/semantic-function-refactor.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/semantic-function-refactor.lock.yml)
 [![Smoke Claude](https://github.com/githubnext/gh-aw/actions/workflows/smoke-claude.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-claude.lock.yml)
 [![Smoke Codex](https://github.com/githubnext/gh-aw/actions/workflows/smoke-codex.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-codex.lock.yml)
 [![Smoke Copilot](https://github.com/githubnext/gh-aw/actions/workflows/smoke-copilot.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-copilot.lock.yml)
