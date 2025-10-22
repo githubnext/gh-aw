@@ -47,9 +47,10 @@ function generateFooter(
  * @param {string} repo - Repository name
  * @param {number} discussionNumber - Discussion number
  * @param {string} message - Comment body
+ * @param {string|undefined} replyToId - Optional comment node ID to reply to (for threaded comments)
  * @returns {Promise<{id: string, html_url: string, discussion_url: string}>} Comment details
  */
-async function commentOnDiscussion(github, owner, repo, discussionNumber, message) {
+async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
   // 1. Retrieve discussion node ID
   const { repository } = await github.graphql(
     `
@@ -71,21 +72,41 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
   const discussionId = repository.discussion.id;
   const discussionUrl = repository.discussion.url;
 
-  // 2. Add comment
-  const result = await github.graphql(
-    `
-    mutation($dId: ID!, $body: String!) {
-      addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-        comment { 
-          id 
-          body 
-          createdAt 
-          url
+  // 2. Add comment (with optional replyToId for threading)
+  let result;
+  if (replyToId) {
+    // Create a threaded reply to an existing comment
+    result = await github.graphql(
+      `
+      mutation($dId: ID!, $body: String!, $replyToId: ID!) {
+        addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
+          comment { 
+            id 
+            body 
+            createdAt 
+            url
+          }
         }
-      }
-    }`,
-    { dId: discussionId, body: message }
-  );
+      }`,
+      { dId: discussionId, body: message, replyToId }
+    );
+  } else {
+    // Create a top-level comment on the discussion
+    result = await github.graphql(
+      `
+      mutation($dId: ID!, $body: String!) {
+        addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+          comment { 
+            id 
+            body 
+            createdAt 
+            url
+          }
+        }
+      }`,
+      { dId: discussionId, body: message }
+    );
+  }
 
   const comment = result.addDiscussionComment.comment;
 
@@ -380,8 +401,15 @@ async function main() {
         core.info(`Creating comment on discussion #${itemNumber}`);
         core.info(`Comment content length: ${body.length}`);
 
+        // For discussion_comment events, extract the comment node_id to create a threaded reply
+        let replyToId;
+        if (context.eventName === "discussion_comment" && context.payload?.comment?.node_id) {
+          replyToId = context.payload.comment.node_id;
+          core.info(`Creating threaded reply to comment ${replyToId}`);
+        }
+
         // Create discussion comment using GraphQL
-        comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body);
+        comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body, replyToId);
         core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
 
         // Add discussion_url to the comment object for consistency

@@ -679,7 +679,7 @@ jobs:
               footer += "\n";
               return footer;
             }
-            async function commentOnDiscussion(github, owner, repo, discussionNumber, message) {
+            async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
               const { repository } = await github.graphql(
                 `
                 query($owner: String!, $repo: String!, $num: Int!) {
@@ -697,20 +697,38 @@ jobs:
               }
               const discussionId = repository.discussion.id;
               const discussionUrl = repository.discussion.url;
-              const result = await github.graphql(
-                `
-                mutation($dId: ID!, $body: String!) {
-                  addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-                    comment { 
-                      id 
-                      body 
-                      createdAt 
-                      url
+              let result;
+              if (replyToId) {
+                result = await github.graphql(
+                  `
+                  mutation($dId: ID!, $body: String!, $replyToId: ID!) {
+                    addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
+                      comment { 
+                        id 
+                        body 
+                        createdAt 
+                        url
+                      }
                     }
-                  }
-                }`,
-                { dId: discussionId, body: message }
-              );
+                  }`,
+                  { dId: discussionId, body: message, replyToId }
+                );
+              } else {
+                result = await github.graphql(
+                  `
+                  mutation($dId: ID!, $body: String!) {
+                    addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                      comment { 
+                        id 
+                        body 
+                        createdAt 
+                        url
+                      }
+                    }
+                  }`,
+                  { dId: discussionId, body: message }
+                );
+              }
               const comment = result.addDiscussionComment.comment;
               return {
                 id: comment.id,
@@ -940,7 +958,12 @@ jobs:
                   if (commentEndpoint === "discussions") {
                     core.info(`Creating comment on discussion #${itemNumber}`);
                     core.info(`Comment content length: ${body.length}`);
-                    comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body);
+                    let replyToId;
+                    if (context.eventName === "discussion_comment" && context.payload?.comment?.node_id) {
+                      replyToId = context.payload.comment.node_id;
+                      core.info(`Creating threaded reply to comment ${replyToId}`);
+                    }
+                    comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body, replyToId);
                     core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
                     comment.discussion_url = comment.discussion_url;
                   } else {

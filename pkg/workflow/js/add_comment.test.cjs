@@ -486,6 +486,10 @@ describe("add_comment.cjs", () => {
     // Simulate discussion_comment context
     global.context.eventName = "discussion_comment";
     global.context.payload.discussion = { number: 1993 };
+    global.context.payload.comment = {
+      id: 12345,
+      node_id: "DC_kwDOABcD1M4AaBbC", // Node ID of the comment to reply to
+    };
     delete global.context.payload.issue;
     delete global.context.payload.pull_request;
 
@@ -502,7 +506,7 @@ describe("add_comment.cjs", () => {
         },
       })
       .mockResolvedValueOnce({
-        // Second call: create comment
+        // Second call: create comment with replyToId
         addDiscussionComment: {
           comment: {
             id: "DC_kwDOPc1QR84BpqRt",
@@ -530,10 +534,12 @@ describe("add_comment.cjs", () => {
       num: 1993,
     });
 
-    // Second call should create the comment
+    // Second call should create the comment with replyToId
     expect(mockGraphqlResponse.mock.calls[1][0]).toContain("mutation");
     expect(mockGraphqlResponse.mock.calls[1][0]).toContain("addDiscussionComment");
+    expect(mockGraphqlResponse.mock.calls[1][0]).toContain("replyToId");
     expect(mockGraphqlResponse.mock.calls[1][1].body).toContain("Test discussion comment");
+    expect(mockGraphqlResponse.mock.calls[1][1].replyToId).toBe("DC_kwDOABcD1M4AaBbC");
 
     // Verify REST API was NOT called
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
@@ -548,6 +554,7 @@ describe("add_comment.cjs", () => {
     // Clean up
     delete global.github.graphql;
     delete global.context.payload.discussion;
+    delete global.context.payload.comment;
   });
 
   it("should create comment on discussion using GraphQL when GITHUB_AW_COMMENT_DISCUSSION is true (explicit discussion mode)", async () => {
@@ -585,7 +592,7 @@ describe("add_comment.cjs", () => {
         },
       })
       .mockResolvedValueOnce({
-        // Second call: create comment
+        // Second call: create comment (no replyToId for non-comment context)
         addDiscussionComment: {
           comment: {
             id: "DC_kwDOPc1QR84BpqRv",
@@ -613,10 +620,12 @@ describe("add_comment.cjs", () => {
       num: 2001, // Should use the item_number from the comment item
     });
 
-    // Second call should create the comment
+    // Second call should create the comment (without replyToId since this is not discussion_comment context)
     expect(mockGraphqlResponse.mock.calls[1][0]).toContain("mutation");
     expect(mockGraphqlResponse.mock.calls[1][0]).toContain("addDiscussionComment");
     expect(mockGraphqlResponse.mock.calls[1][1].body).toContain("Test explicit discussion comment");
+    // Should NOT have replyToId since we're not in discussion_comment context
+    expect(mockGraphqlResponse.mock.calls[1][1].replyToId).toBeUndefined();
 
     // Verify REST API was NOT called (should use GraphQL for discussions)
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
