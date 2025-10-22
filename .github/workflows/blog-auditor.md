@@ -1,11 +1,6 @@
 ---
 on:
   workflow_dispatch:
-    inputs:
-      tracking_issue_number:
-        description: 'Issue number to comment on when audit passes'
-        required: false
-        type: string
   schedule:
     - cron: "0 12 * * 3"  # Weekly on Wednesday at 12:00 UTC
 permissions:
@@ -30,8 +25,6 @@ safe-outputs:
     title-prefix: "[audit] "
     labels: [audit, downstream]
     max: 1
-  add-comment:
-    max: 1
 timeout_minutes: 10
 strict: true
 imports:
@@ -51,7 +44,6 @@ Verify that the GitHub Next Agentic Workflows blog page is available, accessible
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
 - **Target URL**: https://githubnext.com/project/agentic-workflows
-- **Tracking Issue**: ${{ github.event.inputs.tracking_issue_number }}
 
 ## Audit Process
 
@@ -105,13 +97,15 @@ date -u "+%Y-%m-%d %H:%M:%S UTC"
 
 ### Phase 4: Report Results
 
-Based on validation results, follow one of these paths:
+Create a new issue to document the audit results.
 
-#### Path A: All Validations Pass ✅
+#### For Successful Audits ✅
 
-If all validations pass and a tracking issue number is provided:
+If all validations pass, **create a new issue** with:
+- **Title**: "[audit] Agentic Workflows blog audit - PASSED"
+- **Labels**: audit, downstream
 
-**Create a comment** on the tracking issue with:
+**Issue Body**:
 ```markdown
 ## ✅ Agentic Workflows Blog Audit - PASSED
 
@@ -137,9 +131,7 @@ The Agentic Workflows blog is accessible and up to date.
 *Automated audit run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}*
 ```
 
-If no tracking issue number is provided, log success but do not create a comment.
-
-#### Path B: Any Validation Fails ❌
+#### For Failed Audits ❌
 
 If any validation fails:
 
