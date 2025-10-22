@@ -1179,13 +1179,31 @@ jobs:
           
           ## Report Formatting
           
-          Wrap your report in HTML `<details>` and `<summary>` tags:
+          Structure your report with an overview followed by detailed content:
+          
+          1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
+          
+          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information.
+          
+          **Example format:**
           
           ```markdown
-          <details>
-          <summary>summary of the report</summary>
+          Brief overview paragraph 1 introducing the report and its main findings.
           
-          report content here
+          Optional overview paragraph 2 with additional context or highlights.
+          
+          <details>
+          <summary>Full Report Details</summary>
+          
+          ## Detailed Analysis
+          
+          Full report content with all sections, tables, and detailed information goes here.
+          
+          ### Section 1
+          [Content]
+          
+          ### Section 2
+          [Content]
           
           </details>
           ```
@@ -1539,6 +1557,12 @@ jobs:
           - **Organize data**: Keep historical data well-structured in JSON format
           - **Limit retention**: Keep last 90 days (3 months) of daily data for trend analysis
           - **Handle errors**: If cache is corrupted, reinitialize gracefully
+          EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GH_AW_PROMPT << 'EOF'
           - **Simplified data collection**: Focus on 3-day trends, not weekly or monthly
             - Only collect and maintain last 3 days of data for trend comparison
             - Save progress after each day to ensure data persistence
@@ -1554,12 +1578,6 @@ jobs:
           
           ### No PRs in Last 24 Hours
           If no PRs were created by Copilot in the last 24 hours:
-          EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat >> $GH_AW_PROMPT << 'EOF'
           - Create a minimal discussion: "No Copilot agent activity in the last 24 hours."
           - Update cache memory with zero counts
           - Keep it to 2-3 sentences max
