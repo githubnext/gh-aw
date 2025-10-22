@@ -168,6 +168,48 @@ func TestCopilotFirewallIntegration(t *testing.T) {
 			t.Error("Should expand 'defaults' ecosystem to include json-schema.org")
 		}
 	})
+
+	t.Run("firewall is not used when wildcard allows all domains", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			NetworkPermissions: &NetworkPermissions{
+				Allowed: []string{"*"},
+			},
+			Tools: map[string]any{
+				"github": nil,
+			},
+		}
+
+		engine := NewCopilotEngine()
+
+		// Check installation steps - firewall should NOT be installed
+		installSteps := engine.GetInstallationSteps(workflowData)
+		var installLines []string
+		for _, step := range installSteps {
+			installLines = append(installLines, step...)
+		}
+		installStr := strings.Join(installLines, "\n")
+
+		if strings.Contains(installStr, "Install gh-aw-firewall") {
+			t.Error("Should not install firewall when wildcard allows all domains")
+		}
+
+		// Check execution steps - firewall should NOT be used
+		execSteps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		var execLines []string
+		for _, step := range execSteps {
+			execLines = append(execLines, step...)
+		}
+		execStr := strings.Join(execLines, "\n")
+
+		if strings.Contains(execStr, "/tmp/gh-aw-firewall") {
+			t.Error("Should not use firewall when wildcard allows all domains")
+		}
+
+		// Should have direct copilot command
+		if !strings.Contains(execStr, "copilot --add-dir") {
+			t.Error("Should have direct copilot command when wildcard allows all")
+		}
+	})
 }
 
 func TestFirewallInstallationStep(t *testing.T) {

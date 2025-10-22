@@ -52,9 +52,23 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	steps = append(steps, npmSteps...)
 
 	// Add firewall installation step if network permissions are configured
+	// Skip firewall if allowed domains include wildcard "*" (allow all)
 	if ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		firewallStep := e.generateFirewallInstallationStep()
-		steps = append(steps, firewallStep)
+		allowedDomains := GetAllowedDomains(workflowData.NetworkPermissions)
+		// Check if wildcard "*" is in the allowed list (allow all domains)
+		hasWildcard := false
+		for _, domain := range allowedDomains {
+			if domain == "*" {
+				hasWildcard = true
+				break
+			}
+		}
+
+		// Only install firewall if not using wildcard (which would allow all domains)
+		if !hasWildcard {
+			firewallStep := e.generateFirewallInstallationStep()
+			steps = append(steps, firewallStep)
+		}
 	}
 
 	return steps
@@ -156,15 +170,33 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	copilotCommand := fmt.Sprintf("copilot %s", shellJoinArgs(copilotArgs))
 
 	// Wrap with firewall if network permissions are configured
+	// Skip firewall if allowed domains include wildcard "*" (allow all)
 	var command string
 	if ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		allowedDomains := GetAllowedDomains(workflowData.NetworkPermissions)
-		// Format allowed domains as comma-separated list for firewall
-		domainsArg := strings.Join(allowedDomains, ",")
 
-		command = fmt.Sprintf(`set -o pipefail
+		// Check if wildcard "*" is in the allowed list (allow all domains)
+		hasWildcard := false
+		for _, domain := range allowedDomains {
+			if domain == "*" {
+				hasWildcard = true
+				break
+			}
+		}
+
+		if hasWildcard {
+			// Wildcard allows all domains - skip firewall entirely
+			command = fmt.Sprintf(`set -o pipefail
+COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+%s%s 2>&1 | tee %s`, mkdirCommands.String(), copilotCommand, logFile)
+		} else {
+			// Format allowed domains as comma-separated list for firewall
+			domainsArg := strings.Join(allowedDomains, ",")
+
+			command = fmt.Sprintf(`set -o pipefail
 COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 %s/tmp/gh-aw-firewall --allowed-domains "%s" --env-all -- %s 2>&1 | tee %s`, mkdirCommands.String(), domainsArg, copilotCommand, logFile)
+		}
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
 COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
