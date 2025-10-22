@@ -10,7 +10,9 @@ on:
 permissions:
   contents: read
   actions: read
-engine: copilot
+engine:
+  id: claude
+  max-turns: 100
 tools:
   github:
     toolset: [default]
@@ -21,7 +23,7 @@ safe-outputs:
   create-discussion:
     category: "dev"
     max: 1
-timeout_minutes: 10
+timeout_minutes: 30
 ---
 
 # Commit Changes Analyzer
