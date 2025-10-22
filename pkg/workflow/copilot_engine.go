@@ -118,18 +118,18 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	copilotArgs = append(copilotArgs, "--prompt", "\"$COPILOT_CLI_INSTRUCTION\"")
-	
+
 	// Extract all --add-dir paths and generate mkdir commands
 	addDirPaths := extractAddDirPaths(copilotArgs)
-	
+
 	// Also ensure the log directory exists
 	addDirPaths = append(addDirPaths, logsFolder)
-	
+
 	var mkdirCommands strings.Builder
 	for _, dir := range addDirPaths {
 		mkdirCommands.WriteString(fmt.Sprintf("mkdir -p %s\n", dir))
 	}
-	
+
 	command := fmt.Sprintf(`set -o pipefail
 COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 %scopilot %s 2>&1 | tee %s`, mkdirCommands.String(), shellJoinArgs(copilotArgs), logFile)
