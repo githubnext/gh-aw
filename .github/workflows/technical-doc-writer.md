@@ -17,7 +17,7 @@ network:
     - github
 
 imports:
-  - shared/documentation.md
+  - ../instructions/documentation.instructions.md
 
 safe-outputs:
   add-comment:
