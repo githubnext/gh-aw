@@ -29,7 +29,7 @@ name: "Smoke OpenCode"
 "on":
   workflow_dispatch: null
 
-permissions: {}
+permissions: read-all
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

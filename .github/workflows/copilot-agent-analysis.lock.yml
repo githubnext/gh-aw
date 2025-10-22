@@ -31,7 +31,7 @@ name: "Copilot Agent PR Analysis"
   - cron: 0 10 * * *
   workflow_dispatch: null
 
-permissions: {}
+permissions: read-all
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

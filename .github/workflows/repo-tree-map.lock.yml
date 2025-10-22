@@ -25,7 +25,9 @@ name: "Repository Tree Map Generator"
 "on":
   workflow_dispatch: null
 
-permissions: {}
+permissions:
+  actions: read
+  contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

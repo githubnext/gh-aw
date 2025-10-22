@@ -34,7 +34,9 @@ name: "Basic Research Agent"
         required: true
         type: string
 
-permissions: {}
+permissions:
+  actions: read
+  contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

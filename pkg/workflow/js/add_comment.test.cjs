@@ -549,4 +549,91 @@ describe("add_comment.cjs", () => {
     delete global.github.graphql;
     delete global.context.payload.discussion;
   });
+
+  it("should create comment on discussion using GraphQL when GITHUB_AW_COMMENT_DISCUSSION is true (explicit discussion mode)", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "Test explicit discussion comment",
+          item_number: 2001,
+        },
+      ],
+    });
+
+    // Set target configuration to use explicit number
+    process.env.GH_AW_COMMENT_TARGET = "*";
+    // Force discussion mode via environment variable
+    process.env.GITHUB_AW_COMMENT_DISCUSSION = "true";
+
+    // Use a non-discussion context (e.g., issues) to test explicit override
+    global.context.eventName = "issues";
+    global.context.payload.issue = { number: 123 };
+    delete global.context.payload.discussion;
+    delete global.context.payload.pull_request;
+
+    // Mock GraphQL responses for discussion
+    const mockGraphqlResponse = vi.fn();
+    mockGraphqlResponse
+      .mockResolvedValueOnce({
+        // First call: get discussion ID
+        repository: {
+          discussion: {
+            id: "D_kwDOPc1QR84BpqRu",
+            url: "https://github.com/testowner/testrepo/discussions/2001",
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        // Second call: create comment
+        addDiscussionComment: {
+          comment: {
+            id: "DC_kwDOPc1QR84BpqRv",
+            body: "Test explicit discussion comment",
+            createdAt: "2025-10-22T12:00:00Z",
+            url: "https://github.com/testowner/testrepo/discussions/2001#discussioncomment-456",
+          },
+        },
+      });
+
+    global.github.graphql = mockGraphqlResponse;
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify GraphQL was called with correct queries
+    expect(mockGraphqlResponse).toHaveBeenCalledTimes(2);
+
+    // First call should fetch discussion ID for the explicit number
+    expect(mockGraphqlResponse.mock.calls[0][0]).toContain("query");
+    expect(mockGraphqlResponse.mock.calls[0][0]).toContain("discussion(number: $num)");
+    expect(mockGraphqlResponse.mock.calls[0][1]).toEqual({
+      owner: "testowner",
+      repo: "testrepo",
+      num: 2001, // Should use the item_number from the comment item
+    });
+
+    // Second call should create the comment
+    expect(mockGraphqlResponse.mock.calls[1][0]).toContain("mutation");
+    expect(mockGraphqlResponse.mock.calls[1][0]).toContain("addDiscussionComment");
+    expect(mockGraphqlResponse.mock.calls[1][1].body).toContain("Test explicit discussion comment");
+
+    // Verify REST API was NOT called (should use GraphQL for discussions)
+    expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+
+    // Verify outputs were set
+    expect(mockCore.setOutput).toHaveBeenCalledWith("comment_id", "DC_kwDOPc1QR84BpqRv");
+    expect(mockCore.setOutput).toHaveBeenCalledWith(
+      "comment_url",
+      "https://github.com/testowner/testrepo/discussions/2001#discussioncomment-456"
+    );
+
+    // Verify info logging shows it's targeting a discussion
+    expect(mockCore.info).toHaveBeenCalledWith("Creating comment on discussion #2001");
+
+    // Clean up
+    delete process.env.GH_AW_COMMENT_TARGET;
+    delete process.env.GITHUB_AW_COMMENT_DISCUSSION;
+    delete global.github.graphql;
+  });
 });

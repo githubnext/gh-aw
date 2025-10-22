@@ -27,7 +27,9 @@ name: "Lockfile Statistics Analysis Agent"
   - cron: 0 3 * * *
   workflow_dispatch: null
 
-permissions: {}
+permissions:
+  actions: read
+  contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

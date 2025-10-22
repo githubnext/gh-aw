@@ -14,6 +14,8 @@ type PermissionsParser struct {
 	parsedPerms    map[string]string
 	isShorthand    bool
 	shorthandValue string
+	hasAll         bool
+	allLevel       string
 }
 
 // NewPermissionsParser creates a new PermissionsParser instance
@@ -104,7 +106,28 @@ func (p *PermissionsParser) parse() {
 	// Try to parse as YAML map
 	var perms map[string]any
 	if err := yaml.Unmarshal([]byte(yamlContent), &perms); err == nil {
-		// Convert any values to strings
+		// Handle 'all' key specially
+		if allValue, exists := perms["all"]; exists {
+			if strValue, ok := allValue.(string); ok {
+				if strValue == "write" {
+					// all: write is not allowed - don't set any permissions
+					return
+				}
+				if strValue == "read" {
+					// Check that no other permissions are set to 'none' when all: read is used
+					for key, value := range perms {
+						if key != "all" {
+							if permValue, ok := value.(string); ok && permValue == "none" {
+								// all: read cannot be combined with : none - don't set any permissions
+								return
+							}
+						}
+					}
+					p.hasAll = true
+					p.allLevel = strValue
+				}
+			}
+		} // Convert any values to strings
 		for key, value := range perms {
 			if strValue, ok := value.(string); ok {
 				p.parsedPerms[key] = strValue
@@ -124,6 +147,15 @@ func (p *PermissionsParser) HasContentsReadAccess() bool {
 			return false
 		}
 		return false
+	}
+
+	// Handle all: read case
+	if p.hasAll && p.allLevel == "read" {
+		// all: read grants contents access unless explicitly overridden
+		if contentsLevel, exists := p.parsedPerms["contents"]; exists {
+			return contentsLevel == "read" || contentsLevel == "write"
+		}
+		return true
 	}
 
 	// Handle explicit permissions map
@@ -155,6 +187,24 @@ func (p *PermissionsParser) IsAllowed(scope, level string) bool {
 		default:
 			return false
 		}
+	}
+
+	// Handle all: read case
+	if p.hasAll && p.allLevel == "read" {
+		// Check if there's an explicit permission for this scope
+		if permLevel, exists := p.parsedPerms[scope]; exists {
+			if level == "read" {
+				// Read access is allowed if permission is "read" or "write"
+				return permLevel == "read" || permLevel == "write"
+			}
+			return permLevel == level
+		}
+		// No explicit permission, use the "all" default
+		// Special case: id-token doesn't support read level
+		if scope == "id-token" && level == "read" {
+			return false
+		}
+		return level == "read"
 	}
 
 	// Handle explicit permissions map
@@ -189,6 +239,29 @@ func NewPermissionsParserFromValue(permissionsValue any) *PermissionsParser {
 
 	// Handle map format
 	if mapValue, ok := permissionsValue.(map[string]any); ok {
+		// Handle 'all' key specially
+		if allValue, exists := mapValue["all"]; exists {
+			if strValue, ok := allValue.(string); ok {
+				if strValue == "write" {
+					// all: write is not allowed, return empty parser
+					return parser
+				}
+				if strValue == "read" {
+					// Check that no other permissions are set to 'none' when all: read is used
+					for key, value := range mapValue {
+						if key != "all" {
+							if permValue, ok := value.(string); ok && permValue == "none" {
+								// all: read cannot be combined with : none, return empty parser
+								return parser
+							}
+						}
+					}
+					parser.hasAll = true
+					parser.allLevel = strValue
+				}
+			}
+		}
+
 		for key, value := range mapValue {
 			if strValue, ok := value.(string); ok {
 				parser.parsedPerms[key] = strValue
@@ -236,25 +309,51 @@ type PermissionScope string
 
 const (
 	PermissionActions        PermissionScope = "actions"
+	PermissionAttestations   PermissionScope = "attestations"
 	PermissionChecks         PermissionScope = "checks"
 	PermissionContents       PermissionScope = "contents"
 	PermissionDeployments    PermissionScope = "deployments"
 	PermissionDiscussions    PermissionScope = "discussions"
+	PermissionIdToken        PermissionScope = "id-token"
 	PermissionIssues         PermissionScope = "issues"
+	PermissionModels         PermissionScope = "models"
 	PermissionPackages       PermissionScope = "packages"
 	PermissionPages          PermissionScope = "pages"
 	PermissionPullRequests   PermissionScope = "pull-requests"
 	PermissionRepositoryProj PermissionScope = "repository-projects"
 	PermissionSecurityEvents PermissionScope = "security-events"
 	PermissionStatuses       PermissionScope = "statuses"
-	PermissionModels         PermissionScope = "models"
 )
+
+// GetAllPermissionScopes returns all available permission scopes
+func GetAllPermissionScopes() []PermissionScope {
+	return []PermissionScope{
+		PermissionActions,
+		PermissionAttestations,
+		PermissionChecks,
+		PermissionContents,
+		PermissionDeployments,
+		PermissionDiscussions,
+		PermissionIdToken,
+		PermissionIssues,
+		PermissionModels,
+		PermissionPackages,
+		PermissionPages,
+		PermissionPullRequests,
+		PermissionRepositoryProj,
+		PermissionSecurityEvents,
+		PermissionStatuses,
+	}
+}
 
 // Permissions represents GitHub Actions permissions
 // It can be a shorthand (read-all, write-all, read, write, none) or a map of scopes to levels
+// It can also have an "all" permission that expands to all scopes
 type Permissions struct {
 	shorthand   string
 	permissions map[PermissionScope]PermissionLevel
+	hasAll      bool
+	allLevel    PermissionLevel
 }
 
 // NewPermissions creates a new Permissions with an empty map
@@ -308,6 +407,14 @@ func NewPermissionsFromMap(perms map[PermissionScope]PermissionLevel) *Permissio
 	return p
 }
 
+// NewPermissionsAllRead creates a Permissions with all: read
+func NewPermissionsAllRead() *Permissions {
+	return &Permissions{
+		hasAll:   true,
+		allLevel: PermissionRead,
+	}
+}
+
 // Set sets a permission for a specific scope
 func (p *Permissions) Set(scope PermissionScope, level PermissionLevel) {
 	if p.shorthand != "" {
@@ -316,6 +423,20 @@ func (p *Permissions) Set(scope PermissionScope, level PermissionLevel) {
 		if p.permissions == nil {
 			p.permissions = make(map[PermissionScope]PermissionLevel)
 		}
+	}
+	if p.hasAll {
+		// Convert from all to explicit map
+		if p.permissions == nil {
+			p.permissions = make(map[PermissionScope]PermissionLevel)
+		}
+		// Expand all permissions to explicit permissions first
+		for _, s := range GetAllPermissionScopes() {
+			if _, exists := p.permissions[s]; !exists {
+				p.permissions[s] = p.allLevel
+			}
+		}
+		p.hasAll = false
+		p.allLevel = ""
 	}
 	p.permissions[scope] = level
 }
@@ -334,8 +455,22 @@ func (p *Permissions) Get(scope PermissionScope) (PermissionLevel, bool) {
 		}
 		return "", false
 	}
-	level, exists := p.permissions[scope]
-	return level, exists
+
+	// Check explicit permission first
+	if level, exists := p.permissions[scope]; exists {
+		return level, true
+	}
+
+	// If we have all: read, return that as default for any scope not explicitly set
+	if p.hasAll {
+		// Special case: id-token doesn't support read level
+		if scope == PermissionIdToken && p.allLevel == PermissionRead {
+			return "", false
+		}
+		return p.allLevel, true
+	}
+
+	return "", false
 }
 
 // Merge merges another Permissions into this one
@@ -344,6 +479,73 @@ func (p *Permissions) Get(scope PermissionScope) (PermissionLevel, bool) {
 func (p *Permissions) Merge(other *Permissions) {
 	if other == nil {
 		return
+	}
+
+	// Handle all permissions - convert to explicit first if needed
+	if p.hasAll || other.hasAll {
+		// Convert both to explicit maps
+		if p.hasAll {
+			if p.permissions == nil {
+				p.permissions = make(map[PermissionScope]PermissionLevel)
+			}
+			for _, scope := range GetAllPermissionScopes() {
+				if _, exists := p.permissions[scope]; !exists {
+					// Skip id-token when level is read since it doesn't support read
+					if scope == PermissionIdToken && p.allLevel == PermissionRead {
+						continue
+					}
+					p.permissions[scope] = p.allLevel
+				}
+			}
+			p.hasAll = false
+			p.allLevel = ""
+		}
+		if other.hasAll {
+			if other.permissions == nil {
+				// Create a temporary map for merging
+				tempPerms := make(map[PermissionScope]PermissionLevel)
+				for _, scope := range GetAllPermissionScopes() {
+					// Skip id-token when level is read since it doesn't support read
+					if scope == PermissionIdToken && other.allLevel == PermissionRead {
+						continue
+					}
+					tempPerms[scope] = other.allLevel
+				}
+				// Merge the temporary map
+				for scope, otherLevel := range tempPerms {
+					currentLevel, exists := p.permissions[scope]
+					if !exists {
+						p.permissions[scope] = otherLevel
+					} else {
+						// Write takes precedence
+						if otherLevel == PermissionWrite || currentLevel == PermissionWrite {
+							p.permissions[scope] = PermissionWrite
+						} else if otherLevel == PermissionRead || currentLevel == PermissionRead {
+							p.permissions[scope] = PermissionRead
+						} else {
+							p.permissions[scope] = PermissionNone
+						}
+					}
+				}
+				// Also merge explicit permissions from other if any
+				for scope, otherLevel := range other.permissions {
+					currentLevel, exists := p.permissions[scope]
+					if !exists {
+						p.permissions[scope] = otherLevel
+					} else {
+						// Write takes precedence
+						if otherLevel == PermissionWrite || currentLevel == PermissionWrite {
+							p.permissions[scope] = PermissionWrite
+						} else if otherLevel == PermissionRead || currentLevel == PermissionRead {
+							p.permissions[scope] = PermissionRead
+						} else {
+							p.permissions[scope] = PermissionNone
+						}
+					}
+				}
+				return
+			}
+		}
 	}
 
 	// If other has shorthand, we need to handle it specially
@@ -374,15 +576,13 @@ func (p *Permissions) Merge(other *Permissions) {
 		}
 
 		// For all scopes we don't have, set to other's shorthand level
-		allScopes := []PermissionScope{
-			PermissionActions, PermissionChecks, PermissionContents,
-			PermissionDeployments, PermissionDiscussions, PermissionIssues,
-			PermissionPackages, PermissionPages, PermissionPullRequests,
-			PermissionRepositoryProj, PermissionSecurityEvents, PermissionStatuses,
-			PermissionModels,
-		}
+		allScopes := GetAllPermissionScopes()
 		for _, scope := range allScopes {
 			if _, exists := p.permissions[scope]; !exists && otherLevel != PermissionNone {
+				// Skip id-token when level is read since it doesn't support read
+				if scope == PermissionIdToken && otherLevel == PermissionRead {
+					continue
+				}
 				p.permissions[scope] = otherLevel
 			}
 		}
@@ -426,13 +626,32 @@ func (p *Permissions) RenderToYAML() string {
 		return fmt.Sprintf("permissions: %s", p.shorthand)
 	}
 
-	if len(p.permissions) == 0 {
+	// Collect all permissions to render
+	allPerms := make(map[PermissionScope]PermissionLevel)
+
+	if p.hasAll {
+		// Expand all: read/write to individual permissions
+		for _, scope := range GetAllPermissionScopes() {
+			// Skip id-token when expanding all: read since id-token doesn't support read level
+			if scope == PermissionIdToken && p.allLevel == PermissionRead {
+				continue
+			}
+			allPerms[scope] = p.allLevel
+		}
+	}
+
+	// Override with explicit permissions
+	for scope, level := range p.permissions {
+		allPerms[scope] = level
+	}
+
+	if len(allPerms) == 0 {
 		return ""
 	}
 
 	// Sort scopes for consistent output
 	var scopes []string
-	for scope := range p.permissions {
+	for scope := range allPerms {
 		scopes = append(scopes, string(scope))
 	}
 	sort.Strings(scopes)
@@ -441,7 +660,7 @@ func (p *Permissions) RenderToYAML() string {
 	lines = append(lines, "permissions:")
 	for _, scopeStr := range scopes {
 		scope := PermissionScope(scopeStr)
-		level := p.permissions[scope]
+		level := allPerms[scope]
 		// Add 2 spaces for proper indentation under permissions:
 		// When rendered in a job, the job renderer adds 4 spaces to the first line only,
 		// so we need to pre-indent continuation lines with 4 additional spaces

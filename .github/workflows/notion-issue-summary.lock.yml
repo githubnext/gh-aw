@@ -28,7 +28,7 @@ name: "Issue Summary to Notion"
         required: true
         type: string
 
-permissions: {}
+permissions: read-all
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

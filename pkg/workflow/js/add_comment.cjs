@@ -99,6 +99,7 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
 async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
 
   // Read the validated output content from environment variable
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
@@ -181,6 +182,7 @@ async function main() {
     context.eventName === "pull_request_review" ||
     context.eventName === "pull_request_review_comment";
   const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+  const isDiscussion = isDiscussionContext || isDiscussionExplicit;
 
   // If in staged mode, emit step summary instead of creating comments
   if (isStaged) {
@@ -215,7 +217,7 @@ async function main() {
       const targetNumber = getTargetNumber(item);
       if (targetNumber) {
         const repoUrl = getRepositoryUrl();
-        if (isDiscussionContext) {
+        if (isDiscussion) {
           const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
           summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
         } else {
@@ -223,7 +225,7 @@ async function main() {
           summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
         }
       } else {
-        if (isDiscussionContext) {
+        if (isDiscussion) {
           summaryContent += `**Target:** Current discussion\n\n`;
         } else {
           summaryContent += `**Target:** Current issue/PR\n\n`;
@@ -272,7 +274,7 @@ async function main() {
           core.info(`Invalid target number specified: ${targetNumber}`);
           continue;
         }
-        commentEndpoint = isDiscussionContext ? "discussions" : "issues";
+        commentEndpoint = isDiscussion ? "discussions" : "issues";
       } else {
         core.info(`Target is "*" but no number specified in comment item`);
         continue;
@@ -284,7 +286,7 @@ async function main() {
         core.info(`Invalid target number in target configuration: ${commentTarget}`);
         continue;
       }
-      commentEndpoint = isDiscussionContext ? "discussions" : "issues";
+      commentEndpoint = isDiscussion ? "discussions" : "issues";
     } else {
       // Default behavior: use triggering issue/PR/discussion
       if (isIssueContext) {

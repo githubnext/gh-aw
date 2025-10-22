@@ -852,7 +852,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
 	// to avoid issues with nested keys (e.g., tools.mcps.*.env being confused with top-level env)
 	workflowData.On = c.extractTopLevelYAMLSection(result.Frontmatter, "on")
-	workflowData.Permissions = c.extractTopLevelYAMLSection(result.Frontmatter, "permissions")
+	workflowData.Permissions = c.extractPermissions(result.Frontmatter)
 	workflowData.Network = c.extractTopLevelYAMLSection(result.Frontmatter, "network")
 	workflowData.Concurrency = c.extractTopLevelYAMLSection(result.Frontmatter, "concurrency")
 	workflowData.RunName = c.extractTopLevelYAMLSection(result.Frontmatter, "run-name")
@@ -1061,6 +1061,85 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	}
 
 	return yamlStr
+}
+
+// extractPermissions extracts permissions from frontmatter and handles all: read expansion
+func (c *Compiler) extractPermissions(frontmatter map[string]any) string {
+	permissionsValue, exists := frontmatter["permissions"]
+	if !exists {
+		return ""
+	}
+
+	// If it's a shorthand permission, use the standard extraction
+	if _, ok := permissionsValue.(string); ok {
+		return c.extractTopLevelYAMLSection(frontmatter, "permissions")
+	}
+
+	// If it's a map, check if it has 'all' and expand it
+	if mapValue, ok := permissionsValue.(map[string]any); ok {
+		if allValue, hasAll := mapValue["all"]; hasAll {
+			if allLevel, ok := allValue.(string); ok && allLevel == "read" {
+				// Create a new Permissions object and expand all: read
+				permissions := NewPermissionsAllRead()
+
+				// Add any explicit overrides
+				for key, value := range mapValue {
+					if key != "all" {
+						if strValue, ok := value.(string); ok {
+							if scope := c.convertKeyToPermissionScope(key); scope != "" {
+								permissions.Set(scope, PermissionLevel(strValue))
+							}
+						}
+					}
+				}
+
+				// Render to YAML and remove the "permissions:" prefix
+				yamlStr := permissions.RenderToYAML()
+				return yamlStr
+			}
+		}
+	}
+
+	// Fallback to standard extraction for other cases
+	return c.extractTopLevelYAMLSection(frontmatter, "permissions")
+}
+
+// convertKeyToPermissionScope converts a string key to a PermissionScope
+func (c *Compiler) convertKeyToPermissionScope(key string) PermissionScope {
+	switch key {
+	case "actions":
+		return PermissionActions
+	case "attestations":
+		return PermissionAttestations
+	case "checks":
+		return PermissionChecks
+	case "contents":
+		return PermissionContents
+	case "deployments":
+		return PermissionDeployments
+	case "discussions":
+		return PermissionDiscussions
+	case "id-token":
+		return PermissionIdToken
+	case "issues":
+		return PermissionIssues
+	case "models":
+		return PermissionModels
+	case "packages":
+		return PermissionPackages
+	case "pages":
+		return PermissionPages
+	case "pull-requests":
+		return PermissionPullRequests
+	case "repository-projects":
+		return PermissionRepositoryProj
+	case "security-events":
+		return PermissionSecurityEvents
+	case "statuses":
+		return PermissionStatuses
+	default:
+		return ""
+	}
 }
 
 // extractIfCondition extracts the if condition from frontmatter, returning just the expression
@@ -1826,7 +1905,14 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// Write basic workflow structure
 	yaml.WriteString(fmt.Sprintf("name: \"%s\"\n", data.Name))
 	yaml.WriteString(data.On + "\n\n")
-	yaml.WriteString("permissions: {}\n\n")
+
+	// Add permissions if present
+	if data.Permissions != "" {
+		yaml.WriteString(data.Permissions + "\n\n")
+	} else {
+		yaml.WriteString("permissions: {}\n\n")
+	}
+
 	yaml.WriteString(data.Concurrency + "\n\n")
 	yaml.WriteString(data.RunName + "\n\n")
 

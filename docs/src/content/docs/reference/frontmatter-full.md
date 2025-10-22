@@ -609,6 +609,12 @@ permissions:
   # (optional)
   statuses: "read"
 
+  # Permission shorthand that applies read access to all permission scopes. Can be
+  # combined with specific write permissions to override individual scopes. 'write'
+  # is not allowed for all.
+  # (optional)
+  all: "read"
+
 # Custom name for workflow runs that appears in the GitHub Actions interface
 # (supports GitHub expressions like ${{ github.event.issue.title }})
 # (optional)

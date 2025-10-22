@@ -21,7 +21,8 @@ name: "Test Svelte MCP"
 "on":
   workflow_dispatch: null
 
-permissions: {}
+permissions:
+  contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
