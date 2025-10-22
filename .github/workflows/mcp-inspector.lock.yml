@@ -51,8 +51,8 @@ name: "MCP Inspector Agent"
   workflow_dispatch: null
 
 permissions:
-  actions: read
-  contents: read
+      actions: read
+      contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -83,8 +83,8 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: read
+          actions: read
+          contents: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:

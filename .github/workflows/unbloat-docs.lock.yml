@@ -46,9 +46,9 @@ name: "Documentation Unbloat"
   workflow_dispatch: null
 
 permissions:
-  actions: read
-  contents: read
-  pull-requests: read
+      actions: read
+      contents: read
+      pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
@@ -792,9 +792,9 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: read
-      pull-requests: read
+          actions: read
+          contents: read
+          pull-requests: read
     env:
       GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
       GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"

@@ -71,8 +71,8 @@ name: "Scout"
         required: true
 
 permissions:
-  actions: read
-  contents: read
+      actions: read
+      contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
@@ -985,8 +985,8 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: read
+          actions: read
+          contents: read
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"missing_tool\":{}}"

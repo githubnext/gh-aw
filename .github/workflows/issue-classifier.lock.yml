@@ -32,9 +32,9 @@ name: "Issue Classifier"
     - opened
 
 permissions:
-  actions: read
-  contents: read
-  models: read
+      actions: read
+      contents: read
+      models: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
@@ -810,9 +810,9 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: read
-      models: read
+          actions: read
+          contents: read
+          models: read
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_labels\":{\"allowed\":[\"bug\",\"feature\",\"enhancement\",\"documentation\"],\"max\":1},\"missing_tool\":{}}"

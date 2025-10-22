@@ -16,8 +16,8 @@ name: "Dev"
   workflow_dispatch: null
 
 permissions:
-  actions: read
-  contents: read
+      actions: read
+      contents: read
 
 concurrency:
   cancel-in-progress: true
@@ -49,8 +49,8 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: read
+          actions: read
+          contents: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     steps:

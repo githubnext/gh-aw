@@ -833,6 +833,22 @@ func ExtractPermissionsYAML(permissionsValue any) string {
 				return yamlStr
 			}
 		}
+
+		// Regular permissions map (no 'all' key or non-read 'all' value)
+		// Convert to Permissions object and render
+		permissions := NewPermissions()
+		for key, value := range mapValue {
+			if strValue, ok := value.(string); ok {
+				if scope := ConvertKeyToPermissionScope(key); scope != "" {
+					permissions.Set(scope, PermissionLevel(strValue))
+				}
+			}
+		}
+
+		// Only render if we have permissions
+		if len(permissions.permissions) > 0 {
+			return permissions.RenderToYAML()
+		}
 	}
 
 	// For other cases, return empty (caller should use standard extraction)

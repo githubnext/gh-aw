@@ -1070,13 +1070,13 @@ func (c *Compiler) extractPermissions(frontmatter map[string]any) string {
 		return ""
 	}
 
-	// Try to use the permissions.go ExtractPermissionsYAML function first
+	// Use the permissions.go ExtractPermissionsYAML function which handles all cases
 	yamlStr := ExtractPermissionsYAML(permissionsValue)
 	if yamlStr != "" {
 		return yamlStr
 	}
 
-	// Fallback to standard extraction for other cases
+	// Fallback to standard extraction for edge cases
 	return c.extractTopLevelYAMLSection(frontmatter, "permissions")
 }
 

@@ -35,8 +35,8 @@ name: "Go Pattern Detector"
   workflow_dispatch: null
 
 permissions:
-  actions: read
-  contents: read
+      actions: read
+      contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
@@ -69,8 +69,8 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: read
+          actions: read
+          contents: read
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"

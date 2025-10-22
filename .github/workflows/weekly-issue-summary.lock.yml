@@ -26,9 +26,9 @@ name: "Weekly Issue Summary"
   workflow_dispatch: null
 
 permissions:
-  actions: read
-  contents: read
-  issues: read
+      actions: read
+      contents: read
+      issues: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -59,9 +59,9 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: read
-      issues: read
+          actions: read
+          contents: read
+          issues: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:

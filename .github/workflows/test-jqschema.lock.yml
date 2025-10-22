@@ -20,7 +20,7 @@ name: "Test jqschema"
   workflow_dispatch: null
 
 permissions:
-  contents: read
+      contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -51,7 +51,7 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+          contents: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     steps:

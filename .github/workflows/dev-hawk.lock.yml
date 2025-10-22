@@ -35,9 +35,9 @@ name: "Dev Hawk"
     - Dev
 
 permissions:
-  actions: read
-  contents: read
-  pull-requests: read
+      actions: read
+      contents: read
+      pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -434,9 +434,9 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: read
-      pull-requests: read
+          actions: read
+          contents: read
+          pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:

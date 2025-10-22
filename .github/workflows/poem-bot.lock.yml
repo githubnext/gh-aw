@@ -71,8 +71,8 @@ name: "Poem Bot - A Creative Agentic Workflow"
         required: false
 
 permissions:
-  actions: read
-  contents: read
+      actions: read
+      contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
@@ -1224,8 +1224,8 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: read
+          actions: read
+          contents: read
     env:
       GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
       GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
