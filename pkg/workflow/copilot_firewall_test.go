@@ -41,7 +41,7 @@ func TestCopilotFirewallIntegration(t *testing.T) {
 		}
 
 		// Should make firewall executable
-		if !strings.Contains(stepsStr, "chmod +x /tmp/gh-aw-firewall") {
+		if !strings.Contains(stepsStr, "chmod +x /tmp/gh-aw-firewall/gh-aw-firewall") {
 			t.Error("Should make firewall executable")
 		}
 	})
@@ -86,7 +86,7 @@ func TestCopilotFirewallIntegration(t *testing.T) {
 		stepsStr := strings.Join(allLines, "\n")
 
 		// Should wrap copilot with firewall
-		if !strings.Contains(stepsStr, "/tmp/gh-aw-firewall") {
+		if !strings.Contains(stepsStr, "/tmp/gh-aw-firewall/gh-aw-firewall") {
 			t.Error("Should wrap copilot command with firewall")
 		}
 
@@ -129,7 +129,7 @@ func TestCopilotFirewallIntegration(t *testing.T) {
 		stepsStr := strings.Join(allLines, "\n")
 
 		// Should NOT wrap copilot with firewall
-		if strings.Contains(stepsStr, "/tmp/gh-aw-firewall") {
+		if strings.Contains(stepsStr, "/tmp/gh-aw-firewall/gh-aw-firewall") {
 			t.Error("Should not wrap copilot command with firewall when no network permissions")
 		}
 
@@ -201,7 +201,7 @@ func TestCopilotFirewallIntegration(t *testing.T) {
 		}
 		execStr := strings.Join(execLines, "\n")
 
-		if strings.Contains(execStr, "/tmp/gh-aw-firewall") {
+		if strings.Contains(execStr, "/tmp/gh-aw-firewall/gh-aw-firewall") {
 			t.Error("Should not use firewall when wildcard allows all domains")
 		}
 
@@ -238,19 +238,19 @@ func TestFirewallInstallationStep(t *testing.T) {
 	})
 
 	t.Run("saves to /tmp directory", func(t *testing.T) {
-		if !strings.Contains(stepStr, "/tmp/gh-aw-firewall") {
-			t.Error("Should save firewall to /tmp/gh-aw-firewall")
+		if !strings.Contains(stepStr, "/tmp/gh-aw-firewall/gh-aw-firewall") {
+			t.Error("Should save firewall to /tmp/gh-aw-firewall/gh-aw-firewall")
 		}
 	})
 
 	t.Run("makes firewall executable", func(t *testing.T) {
-		if !strings.Contains(stepStr, "chmod +x /tmp/gh-aw-firewall") {
+		if !strings.Contains(stepStr, "chmod +x /tmp/gh-aw-firewall/gh-aw-firewall") {
 			t.Error("Should make firewall executable")
 		}
 	})
 
 	t.Run("verifies installation with version check", func(t *testing.T) {
-		if !strings.Contains(stepStr, "/tmp/gh-aw-firewall --version") {
+		if !strings.Contains(stepStr, "/tmp/gh-aw-firewall/gh-aw-firewall --version") {
 			t.Error("Should verify installation with version check")
 		}
 	})

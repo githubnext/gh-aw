@@ -89,11 +89,12 @@ func (e *CopilotEngine) generateFirewallInstallationStep() GitHubActionStep {
 	lines = append(lines, "      - name: Install gh-aw-firewall")
 	lines = append(lines, "        run: |")
 	lines = append(lines, "          set -e")
+	lines = append(lines, "          mkdir -p /tmp/gh-aw-firewall")
 	lines = append(lines, fmt.Sprintf("          FIREWALL_VERSION=%s", constants.DefaultFirewallVersion))
 	lines = append(lines, "          FIREWALL_URL=\"https://github.com/githubnext/gh-aw-firewall/releases/download/${FIREWALL_VERSION}/gh-aw-firewall-linux-amd64\"")
-	lines = append(lines, "          curl -L -o /tmp/gh-aw-firewall \"${FIREWALL_URL}\"")
-	lines = append(lines, "          chmod +x /tmp/gh-aw-firewall")
-	lines = append(lines, "          /tmp/gh-aw-firewall --version")
+	lines = append(lines, "          curl -L -o /tmp/gh-aw-firewall/gh-aw-firewall \"${FIREWALL_URL}\"")
+	lines = append(lines, "          chmod +x /tmp/gh-aw-firewall/gh-aw-firewall")
+	lines = append(lines, "          /tmp/gh-aw-firewall/gh-aw-firewall --version")
 
 	return GitHubActionStep(lines)
 }
@@ -195,7 +196,7 @@ COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 
 			command = fmt.Sprintf(`set -o pipefail
 COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-%s/tmp/gh-aw-firewall --allowed-domains "%s" --env-all -- %s 2>&1 | tee %s`, mkdirCommands.String(), domainsArg, copilotCommand, logFile)
+%s/tmp/gh-aw-firewall/gh-aw-firewall --allowed-domains "%s" --env-all -- %s 2>&1 | tee %s`, mkdirCommands.String(), domainsArg, copilotCommand, logFile)
 		}
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
