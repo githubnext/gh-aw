@@ -20,11 +20,12 @@ tools:
   bash:
     - "date *"
     - "echo *"
-    - "mkdir *"
+    - "mktemp *"
     - "cat *"
     - "gh aw compile *"
     - "ls *"
     - "rm *"
+    - "test *"
 safe-outputs:
   create-issue:
     title-prefix: "[audit] "
@@ -100,20 +101,21 @@ Extract code snippets from the blog page and validate them against the latest ag
 1. **Extract Code Snippets**: Use Playwright's `browser_evaluate` to extract all code blocks from the page
    - Look for `<code>` elements with language hints for YAML or markdown
    - Extract the text content of each code block
-   - Filter to only workflow-related snippets (those containing frontmatter with `---` markers)
+   - Filter to only workflow-related snippets (those containing frontmatter with `---` markers and workflow-related fields like `on:`, `engine:`, `tools:`, etc.)
 
-2. **Create Temporary Directory**: Use bash to create a temporary directory for validation
+2. **Create Temporary Directory**: Use bash with `mktemp` to create a secure temporary directory
    ```bash
-   mkdir -p /tmp/blog-audit-snippets
+   TEMP_DIR=$(mktemp -d)
    ```
 
 3. **Write Snippets to Files**: For each extracted code snippet, write it to a temporary file
    - Use bash `echo` to write the snippet content to a file
    - Name files sequentially: `snippet-1.md`, `snippet-2.md`, etc.
+   - Store the temporary directory path in a variable for cleanup
 
 4. **Validate Each Snippet**: Use `gh aw compile` to validate each snippet
    ```bash
-   gh aw compile --no-emit --validate /tmp/blog-audit-snippets/snippet-N.md
+   gh aw compile --no-emit --validate $TEMP_DIR/snippet-1.md
    ```
    - The `--no-emit` flag validates without generating lock files
    - The `--validate` flag enables schema validation
@@ -124,9 +126,11 @@ Extract code snippets from the blog page and validate them against the latest ag
    - Count snippets with validation errors
    - Store error messages for reporting
 
-6. **Cleanup**: Remove temporary files after validation
+6. **Cleanup**: Remove temporary files after validation, with safety checks
    ```bash
-   rm -rf /tmp/blog-audit-snippets
+   if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
+     rm -rf "$TEMP_DIR"
+   fi
    ```
 
 ### Phase 4: Generate Timestamp
