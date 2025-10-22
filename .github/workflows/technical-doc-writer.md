@@ -16,6 +16,9 @@ network:
     - defaults
     - github
 
+imports:
+  - ../instructions/documentation.instructions.md
+
 safe-outputs:
   add-comment:
     max: 1

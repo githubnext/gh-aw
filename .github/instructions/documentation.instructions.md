@@ -166,6 +166,76 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 - Overly verbose examples with all optional parameters
 - Mixing documentation types (e.g., tutorials that become reference)
 
+## Avoiding Documentation Bloat
+
+Documentation bloat reduces clarity and makes content harder to navigate. Common types of bloat include:
+
+### Types of Documentation Bloat
+
+1. **Duplicate content**: Same information repeated in different sections
+2. **Excessive bullet points**: Long lists that could be condensed into prose or tables
+3. **Redundant examples**: Multiple examples showing the same concept
+4. **Verbose descriptions**: Overly wordy explanations that could be more concise
+5. **Repetitive structure**: The same "What it does" / "Why it's valuable" pattern overused
+
+### Writing Concise Documentation
+
+When editing documentation, focus on:
+
+**Consolidate bullet points**: 
+- Convert long bullet lists into concise prose or tables
+- Remove redundant points that say the same thing differently
+
+**Eliminate duplicates**:
+- Remove repeated information
+- Consolidate similar sections
+
+**Condense verbose text**:
+- Make descriptions more direct and concise
+- Remove filler words and phrases
+- Keep technical accuracy while reducing word count
+
+**Standardize structure**:
+- Reduce repetitive "What it does" / "Why it's valuable" patterns
+- Use varied, natural language
+
+**Simplify code samples**:
+- Remove unnecessary complexity from code examples
+- Focus on demonstrating the core concept clearly
+- Eliminate boilerplate or setup code unless essential for understanding
+- Keep examples minimal yet complete
+- Use realistic but simple scenarios
+
+### Example: Before and After
+
+**Before (Bloated)**:
+```markdown
+### Tool Name
+Description of the tool.
+
+- **What it does**: This tool does X, Y, and Z
+- **Why it's valuable**: It's valuable because A, B, and C
+- **How to use**: You use it by doing steps 1, 2, 3, 4, 5
+- **When to use**: Use it when you need X
+- **Benefits**: Gets you benefit A, benefit B, benefit C
+- **Learn more**: [Link](url)
+```
+
+**After (Concise)**:
+```markdown
+### Tool Name
+Description of the tool that does X, Y, and Z to achieve A, B, and C.
+
+Use it when you need X by following steps 1-5. [Learn more](url)
+```
+
+### Documentation Quality Guidelines
+
+1. **Preserve meaning**: Never lose important information
+2. **Be surgical**: Make precise edits, don't rewrite everything
+3. **Maintain tone**: Keep the neutral, technical tone
+4. **Test locally**: Verify links and formatting are still correct
+
 ## Structure by File Type
 
 - **Getting Started**: Tutorial format
