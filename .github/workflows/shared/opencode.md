@@ -13,7 +13,13 @@ engine:
     - name: Run OpenCode
       id: opencode
       run: |
-        opencode run "$(cat "$GH_AW_PROMPT")" --print-logs
+        output=$(opencode run "$(cat "$GH_AW_PROMPT")" --print-logs 2>&1)
+        echo "$output"
+        # Check if opencode showed usage help instead of running (indicates error)
+        if echo "$output" | grep -q "Run OpenCode with a message"; then
+          echo "Error: OpenCode failed to run (showed usage help)"
+          exit 1
+        fi
       env:
         GH_AW_AGENT_MODEL: ${{ env.GH_AW_AGENT_MODEL }}
         GH_AW_PROMPT: ${{ env.GH_AW_PROMPT }}
