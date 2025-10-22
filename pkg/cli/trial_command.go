@@ -18,8 +18,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var trialLog = logger.New("cli:trial_command")
-
 // WorkflowTrialResult represents the result of running a single workflow trial
 type WorkflowTrialResult struct {
 	WorkflowName        string                 `json:"workflow_name"`
@@ -154,7 +152,8 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 
 // RunWorkflowTrials executes the main logic for trialing one or more workflows
 func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepoSpec string, hostRepoSpec string, deleteHostRepo, forceDeleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, repeatCount int, autoMergePRs bool, engineOverride string, appendText string, verbose bool) error {
-	trialLog.Printf("Starting workflow trials: workflow_count=%d, timeout_minutes=%d", len(workflowSpecs), timeoutMinutes)
+	log := logger.New("cli:trial_command")
+	log.Printf("Starting workflow trials: workflow_count=%d, timeout_minutes=%d", len(workflowSpecs), timeoutMinutes)
 	// Parse all workflow specifications
 	var parsedSpecs []*WorkflowSpec
 	for _, spec := range workflowSpecs {
@@ -164,7 +163,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 		}
 		parsedSpecs = append(parsedSpecs, parsedSpec)
 	}
-	trialLog.Printf("Parsed %d workflow specifications", len(parsedSpecs))
+	log.Printf("Parsed %d workflow specifications", len(parsedSpecs))
 
 	if len(parsedSpecs) == 1 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of workflow '%s' from '%s'", parsedSpecs[0].WorkflowName, parsedSpecs[0].RepoSlug)))
@@ -576,7 +575,8 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 // For clone-repo mode, reusing an existing host repository is not allowed
 // If forceDeleteHostRepo is true, deletes the repository if it exists before creating it
 func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHostRepo bool, verbose bool) error {
-	trialLog.Printf("Ensuring trial repository: repo=%s, force_delete=%v", repoSlug, forceDeleteHostRepo)
+	log := logger.New("cli:trial_command")
+	log.Printf("Ensuring trial repository: repo=%s, force_delete=%v", repoSlug, forceDeleteHostRepo)
 	parts := strings.Split(repoSlug, "/")
 	if len(parts) != 2 {
 		return fmt.Errorf("invalid repository slug format: %s (expected user/repo)", repoSlug)
@@ -585,7 +585,7 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 	// Check if repository already exists
 	cmd := exec.Command("gh", "repo", "view", repoSlug)
 	if err := cmd.Run(); err == nil {
-		trialLog.Printf("Trial repository already exists: %s", repoSlug)
+		log.Printf("Trial repository already exists: %s", repoSlug)
 		// Repository exists - determine what to do
 		if forceDeleteHostRepo {
 			// Force delete mode: delete the existing repository first
@@ -880,7 +880,8 @@ func addGitHubTokenSecret(repoSlug string, tracker *TrialSecretTracker, verbose 
 }
 
 func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, verbose bool) (string, error) {
-	trialLog.Printf("Triggering workflow run: repo=%s, workflow=%s", repoSlug, workflowName)
+	log := logger.New("cli:trial_command")
+	log.Printf("Triggering workflow run: repo=%s, workflow=%s", repoSlug, workflowName)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Triggering workflow run for: %s", workflowName)))
 	}

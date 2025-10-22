@@ -10,13 +10,12 @@ import (
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
-var mcpConfigLog = logger.New("workflow:mcp-config")
-
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
 // This is a shared function used by both Claude and Custom engines
 func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
-	mcpConfigLog.Print("Rendering Playwright MCP configuration")
+	log := logger.New("workflow:mcp-config")
+	log.Print("Rendering Playwright MCP configuration")
 	renderPlaywrightMCPConfigWithOptions(yaml, playwrightTool, isLast, false, false)
 }
 
@@ -717,7 +716,8 @@ func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 
 // getMCPConfig extracts MCP configuration from a tool config and returns a structured MCPServerConfig
 func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServerConfig, error) {
-	mcpConfigLog.Printf("Extracting MCP configuration for tool: %s", toolName)
+	log := logger.New("workflow:mcp-config")
+	log.Printf("Extracting MCP configuration for tool: %s", toolName)
 	config := MapToolConfig(toolConfig)
 	result := &parser.MCPServerConfig{
 		Name:    toolName,
