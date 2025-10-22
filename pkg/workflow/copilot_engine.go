@@ -62,6 +62,17 @@ func (e *CopilotEngine) GetVersionCommand() string {
 	return "copilot --version"
 }
 
+// extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags
+func extractAddDirPaths(args []string) []string {
+	var dirs []string
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == "--add-dir" {
+			dirs = append(dirs, args[i+1])
+		}
+	}
+	return dirs
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	// Handle custom steps if they exist in engine config
@@ -107,9 +118,21 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	copilotArgs = append(copilotArgs, "--prompt", "\"$COPILOT_CLI_INSTRUCTION\"")
+
+	// Extract all --add-dir paths and generate mkdir commands
+	addDirPaths := extractAddDirPaths(copilotArgs)
+
+	// Also ensure the log directory exists
+	addDirPaths = append(addDirPaths, logsFolder)
+
+	var mkdirCommands strings.Builder
+	for _, dir := range addDirPaths {
+		mkdirCommands.WriteString(fmt.Sprintf("mkdir -p %s\n", dir))
+	}
+
 	command := fmt.Sprintf(`set -o pipefail
 COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
+%scopilot %s 2>&1 | tee %s`, mkdirCommands.String(), shellJoinArgs(copilotArgs), logFile)
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":           "/home/runner",
