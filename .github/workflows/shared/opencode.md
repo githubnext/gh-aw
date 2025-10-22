@@ -13,7 +13,7 @@ engine:
     - name: Run OpenCode
       id: opencode
       run: |
-        opencode run "$(cat "$GH_AW_PROMPT")" --model "${GH_AW_AGENT_MODEL}" --no-tui
+        opencode run "$(cat "$GH_AW_PROMPT")" --print-logs
       env:
         GH_AW_AGENT_MODEL: ${{ env.GH_AW_AGENT_MODEL }}
         GH_AW_PROMPT: ${{ env.GH_AW_PROMPT }}
@@ -52,18 +52,19 @@ engine:
 **Requirements:**
 - The workflow will install opencode-ai npm package using version from `GH_AW_AGENT_VERSION` env var
 - The prompt file is read directly in the Run OpenCode step using command substitution
-- OpenCode is executed in non-TUI mode with the specified model
+- OpenCode is executed in non-interactive mode with logs printed to stderr
 - Output is captured in the agent log file
+- **Network access required**: OpenCode connects to https://api.dev.opencode.ai/
 
 **Environment Variables:**
 - `GH_AW_AGENT_VERSION`: OpenCode version (default: `0.1.0`)
-- `GH_AW_AGENT_MODEL`: AI model in `provider/model` format (default: `anthropic/claude-3-5-sonnet-20241022`)
+- `GH_AW_AGENT_MODEL`: AI model preference (for documentation only - not used by CLI)
 - `ANTHROPIC_API_KEY`: Required if using Anthropic models
 - `OPENAI_API_KEY`: Required if using OpenAI models
 
-**Note**: 
-- This workflow requires internet access to install npm packages
+**Important Notes**: 
+- The opencode-ai project repository is archived and may not receive updates
+- This workflow requires internet access to both install npm packages and connect to OpenCode's cloud service
 - The opencode version can be customized by setting the `GH_AW_AGENT_VERSION` environment variable
-- The AI model can be customized by setting the `GH_AW_AGENT_MODEL` environment variable
-- OpenCode is provider-agnostic and supports multiple LLM providers
+- Model selection is configured through OpenCode's cloud service, not via CLI flags
 -->
