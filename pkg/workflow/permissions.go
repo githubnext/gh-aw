@@ -106,33 +106,7 @@ func (p *PermissionsParser) parse() {
 	// Try to parse as YAML map
 	var perms map[string]any
 	if err := yaml.Unmarshal([]byte(yamlContent), &perms); err == nil {
-		// Handle 'all' key specially
-		if allValue, exists := perms["all"]; exists {
-			if strValue, ok := allValue.(string); ok {
-				if strValue == "write" {
-					// all: write is not allowed - don't set any permissions
-					return
-				}
-				if strValue == "read" {
-					// Check that no other permissions are set to 'none' when all: read is used
-					for key, value := range perms {
-						if key != "all" {
-							if permValue, ok := value.(string); ok && permValue == "none" {
-								// all: read cannot be combined with : none - don't set any permissions
-								return
-							}
-						}
-					}
-					p.hasAll = true
-					p.allLevel = strValue
-				}
-			}
-		} // Convert any values to strings
-		for key, value := range perms {
-			if strValue, ok := value.(string); ok {
-				p.parsedPerms[key] = strValue
-			}
-		}
+		p.parsePermissionsMap(perms)
 	}
 }
 
@@ -237,39 +211,45 @@ func NewPermissionsParserFromValue(permissionsValue any) *PermissionsParser {
 		return parser
 	}
 
-	// Handle map format
+	// Handle map format - use shared validation logic
 	if mapValue, ok := permissionsValue.(map[string]any); ok {
-		// Handle 'all' key specially
-		if allValue, exists := mapValue["all"]; exists {
-			if strValue, ok := allValue.(string); ok {
-				if strValue == "write" {
-					// all: write is not allowed, return empty parser
-					return parser
-				}
-				if strValue == "read" {
-					// Check that no other permissions are set to 'none' when all: read is used
-					for key, value := range mapValue {
-						if key != "all" {
-							if permValue, ok := value.(string); ok && permValue == "none" {
-								// all: read cannot be combined with : none, return empty parser
-								return parser
-							}
+		parser.parsePermissionsMap(mapValue)
+	}
+
+	return parser
+}
+
+// parsePermissionsMap parses a permissions map and validates all: read usage
+func (p *PermissionsParser) parsePermissionsMap(perms map[string]any) {
+	// Handle 'all' key specially
+	if allValue, exists := perms["all"]; exists {
+		if strValue, ok := allValue.(string); ok {
+			if strValue == "write" {
+				// all: write is not allowed - don't set any permissions
+				return
+			}
+			if strValue == "read" {
+				// Check that no other permissions are set to 'none' when all: read is used
+				for key, value := range perms {
+					if key != "all" {
+						if permValue, ok := value.(string); ok && permValue == "none" {
+							// all: read cannot be combined with : none - don't set any permissions
+							return
 						}
 					}
-					parser.hasAll = true
-					parser.allLevel = strValue
 				}
-			}
-		}
-
-		for key, value := range mapValue {
-			if strValue, ok := value.(string); ok {
-				parser.parsedPerms[key] = strValue
+				p.hasAll = true
+				p.allLevel = strValue
 			}
 		}
 	}
 
-	return parser
+	// Convert any values to strings
+	for key, value := range perms {
+		if strValue, ok := value.(string); ok {
+			p.parsedPerms[key] = strValue
+		}
+	}
 }
 
 // ContainsCheckout returns true if the given custom steps contain an actions/checkout step
@@ -826,6 +806,14 @@ func ExtractPermissionsYAML(permissionsValue any) string {
 	if mapValue, ok := permissionsValue.(map[string]any); ok {
 		if allValue, hasAll := mapValue["all"]; hasAll {
 			if allLevel, ok := allValue.(string); ok && allLevel == "read" {
+				// Use the parser to validate the map
+				parser := NewPermissionsParserFromValue(permissionsValue)
+
+				// If validation failed (hasAll is not set), return empty
+				if !parser.hasAll {
+					return ""
+				}
+
 				// Create a new Permissions object and expand all: read
 				permissions := NewPermissionsAllRead()
 
