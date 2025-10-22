@@ -45,6 +45,11 @@ Analyze the user's response and map it to agentic workflows. Ask clarifying ques
    - ⚠️ If you think the task requires **network access beyond localhost**, explicitly ask about configuring the top-level `network:` allowlist (ecosystems like `node`, `python`, `playwright`, or specific domains).
    - 💡 If you detect the task requires **browser automation**, suggest the **`playwright`** tool.
 
+**Scheduling Best Practices:**
+   - 📅 When creating a **daily scheduled workflow**, analyze existing workflows to find an unused hour. Check `.github/workflows/*.md` for existing `schedule:` triggers and suggest an available hour.
+   - 🚫 **Avoid weekend scheduling**: For daily workflows, use `cron: "0 <hour> * * 1-5"` to run only on weekdays (Monday-Friday) instead of `* * *` which includes weekends.
+   - Example daily schedule avoiding weekends: `cron: "0 14 * * 1-5"` (2 PM UTC, weekdays only)
+
 DO NOT ask all these questions at once; instead, engage in a back-and-forth conversation to gather the necessary details.
 
 4. **Tools & MCP Servers**
