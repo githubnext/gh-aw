@@ -3616,6 +3616,8 @@ jobs:
       - name: Ensure threat-detection directory and log
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
+          mkdir -p /tmp/gh-aw/agent
+          mkdir -p /tmp/gh-aw/.copilot/logs
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Validate COPILOT_CLI_TOKEN secret
         run: |

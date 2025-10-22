@@ -208,6 +208,8 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 		"      - name: Ensure threat-detection directory and log\n",
 		"        run: |\n",
 		"          mkdir -p /tmp/gh-aw/threat-detection\n",
+		"          mkdir -p /tmp/gh-aw/agent\n",
+		"          mkdir -p /tmp/gh-aw/.copilot/logs\n",
 		"          touch /tmp/gh-aw/threat-detection/detection.log\n",
 	}...)
 
