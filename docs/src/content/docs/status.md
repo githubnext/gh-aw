@@ -2,7 +2,7 @@
 title: Workflow Status
 description: Status badges for all GitHub Actions workflows in the repository.
 sidebar:
-  order: 999
+  order: 1000
 ---
 
 This page shows the current status of all agentic workflows in the repository.
@@ -41,6 +41,7 @@ This page shows the current status of all agentic workflows in the repository.
 [![Smoke Copilot](https://github.com/githubnext/gh-aw/actions/workflows/smoke-copilot.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-copilot.lock.yml)
 [![Smoke GenAIScript](https://github.com/githubnext/gh-aw/actions/workflows/smoke-genaiscript.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-genaiscript.lock.yml)
 [![Smoke OpenCode](https://github.com/githubnext/gh-aw/actions/workflows/smoke-opencode.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-opencode.lock.yml)
+[![Smoke Outpost - Smoke Test Failure Investigator](https://github.com/githubnext/gh-aw/actions/workflows/smoke-outpost.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-outpost.lock.yml)
 [![Technical Documentation Writer for GitHub Actions](https://github.com/githubnext/gh-aw/actions/workflows/technical-doc-writer.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/technical-doc-writer.lock.yml)
 [![Test jqschema](https://github.com/githubnext/gh-aw/actions/workflows/test-jqschema.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/test-jqschema.lock.yml)
 [![Test Post-Steps Workflow](https://github.com/githubnext/gh-aw/actions/workflows/test-post-steps.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/test-post-steps.lock.yml)

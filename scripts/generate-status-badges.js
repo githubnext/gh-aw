@@ -19,7 +19,7 @@ const __dirname = path.dirname(__filename);
 
 // Paths
 const WORKFLOWS_DIR = path.join(__dirname, '../.github/workflows');
-const OUTPUT_PATH = path.join(__dirname, '../docs/src/content/docs/reference/status.md');
+const OUTPUT_PATH = path.join(__dirname, '../docs/src/content/docs/status.md');
 
 // Repository owner and name
 const REPO_OWNER = 'githubnext';
@@ -70,7 +70,7 @@ function generateMarkdown(workflows) {
   lines.push('title: Workflow Status');
   lines.push('description: Status badges for all GitHub Actions workflows in the repository.');
   lines.push('sidebar:');
-  lines.push('  order: 999');
+  lines.push('  order: 1000');
   lines.push('---');
   lines.push('');
   
