@@ -128,22 +128,47 @@ if log.Enabled() {
 - Be consistent with existing loggers in the codebase
 
 **Debug Output Control:**
+
+The `DEBUG` environment variable supports flexible pattern matching to control which loggers are enabled.
+
 ```bash
 # Enable all debug logs
 DEBUG=* gh aw compile
 
-# Enable specific package
+# Enable specific package (prefix wildcard)
 DEBUG=cli:* gh aw compile
 
-# Enable multiple packages
-DEBUG=cli:*,workflow:* gh aw compile
+# Enable exact namespace (no wildcard)
+DEBUG=cli:compile_command gh aw compile
 
-# Exclude specific loggers
+# Enable all loggers ending with specific suffix (suffix wildcard)
+DEBUG=*:compiler gh aw compile
+
+# Enable with prefix and suffix match (middle wildcard)
+DEBUG=cli:*:command gh aw compile
+
+# Enable multiple packages (comma-separated, spaces are trimmed)
+DEBUG=cli:*,workflow:* gh aw compile
+DEBUG="cli:* , workflow:*" gh aw compile  # spaces require quotes
+
+# Exclude specific loggers (exclusions take precedence)
 DEBUG=*,-workflow:test gh aw compile
 
-# Disable colors (auto-disabled when piping)
+# Exclude entire namespace
+DEBUG=*,-cli:* gh aw compile
+
+# Disable colors (auto-disabled when piping to files/commands)
 DEBUG_COLORS=0 DEBUG=* gh aw compile
 ```
+
+**Pattern Matching Rules:**
+- `*` matches all loggers
+- `namespace:*` matches all loggers with the given prefix (e.g., `cli:*` matches `cli:compile`, `cli:logs`, etc.)
+- `*:suffix` matches all loggers ending with the suffix (e.g., `*:compiler` matches `workflow:compiler`, `cli:compiler`)
+- `prefix:*:suffix` matches loggers with both prefix and suffix (e.g., `cli:*:command`)
+- `exact:match` matches only the exact namespace (e.g., `cli:compile_command`)
+- `-pattern` excludes loggers matching the pattern (exclusions take precedence over inclusions)
+- Patterns can be combined with commas, and spaces around commas are trimmed
 
 **Key Features:**
 - **Zero overhead**: Logs only computed when DEBUG matches the logger's namespace
