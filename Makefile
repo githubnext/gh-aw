@@ -176,6 +176,11 @@ install: build
 generate-schema-docs:
 	node scripts/generate-schema-docs.js
 
+# Generate status badges documentation
+.PHONY: generate-status-badges
+generate-status-badges:
+	node scripts/generate-status-badges.js
+
 # Recompile all workflow files
 .PHONY: recompile
 recompile: build 
@@ -203,7 +208,7 @@ release: test
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt fmt-cjs lint build test-all recompile generate-schema-docs
+agent-finish: deps-dev fmt fmt-cjs lint build test-all recompile generate-schema-docs generate-status-badges
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -231,6 +236,7 @@ help:
 	@echo "  install          - Install binary locally"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
+	@echo "  generate-status-badges - Generate workflow status badges documentation page"
 
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
 	@echo "  version   - Preview next version from changesets"
