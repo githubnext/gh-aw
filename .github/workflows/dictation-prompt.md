@@ -53,13 +53,13 @@ Extract a comprehensive glossary of terms specific to this project from document
 
 ```bash
 # Scan documentation markdown files for technical terms
-find docs -name "*.md" -type f -exec grep -hoE '\b[a-z][a-z0-9_-]{2,}\b' {} + | sort -u | head -200
+find docs/src/content/docs -name "*.md" -type f -exec grep -hoE '\b[a-z][a-z0-9_-]{2,}\b' {} + | sort -u | head -200
 
 # Extract headings from documentation
-find docs -name "*.md" -type f -exec grep -h "^#" {} + | sed 's/^#* //' | head -100
+find docs/src/content/docs -name "*.md" -type f -exec grep -h "^#" {} + | sed 's/^#* //' | head -100
 
 # Check key documentation files
-cat docs/README.md docs/src/content/docs/reference/*.md | grep -oE '\b[a-z][a-z0-9_-]{3,}\b' | sort -u | head -150
+cat docs/src/content/docs/reference/*.md | grep -oE '\b[a-z][a-z0-9_-]{3,}\b' | sort -u | head -150
 ```
 
 **Extract terms from documentation covering:**
@@ -74,6 +74,8 @@ cat docs/README.md docs/src/content/docs/reference/*.md | grep -oE '\b[a-z][a-z0
 8. **Operations**: fmt, lint, test-unit, timeout_minutes, runs-on
 
 **Goal**: Create a list of approximately 100 terms (95-105 is acceptable) that are most relevant to this project, extracted from documentation only.
+
+**Exclude tooling-specific terms**: Do not include makefile, Astro, or starlight as these are tooling-specific and not user-facing concepts.
 
 ### 2. Create the Dictation Instructions File
 
@@ -151,7 +153,8 @@ After creating the dictation instructions file:
 
 ## Important Guidelines
 
-- **Extract from documentation**: Scan only docs/**.md files for terms
+- **Extract from documentation**: Scan only docs/src/content/docs/**/*.md files for terms
+- **Ignore tooling-specific terms**: Exclude makefile, Astro, and starlight (tooling-specific, not user-facing)
 - **Be Thorough**: Scan all documentation files to extract accurate terms
 - **Be Precise**: The glossary should contain approximately 100 terms (95-105 is acceptable)
 - **Prioritize Relevance**: Include terms that are actually used frequently in documentation
@@ -166,7 +169,8 @@ After creating the dictation instructions file:
 Your task is complete when:
 1. ✅ The file `.github/instructions/dictation.instructions.md` exists
 2. ✅ It contains approximately 100 project-specific terms in the glossary (95-105 is acceptable)
-3. ✅ Terms are extracted from documentation files only (docs/**.md)
+3. ✅ Terms are extracted from documentation files only (docs/src/content/docs/**/*.md)
+4. ✅ Tooling-specific terms (makefile, Astro, starlight) are excluded
 4. ✅ The rephrasing guidelines are clear and actionable
 5. ✅ NO examples are included (keep it short)
 6. ✅ File description removed and rephrased as a prompt
