@@ -51,28 +51,30 @@ type FileTracker interface {
 type Compiler struct {
 	verbose              bool
 	engineOverride       string
-	customOutput         string          // If set, output will be written to this path instead of default location
-	version              string          // Version of the extension
-	skipValidation       bool            // If true, skip schema validation
-	noEmit               bool            // If true, validate without generating lock files
-	strictMode           bool            // If true, enforce strict validation requirements
-	trialMode            bool            // If true, suppress safe outputs for trial mode execution
-	trialLogicalRepoSlug string          // If set in trial mode, the logical repository to checkout
-	jobManager           *JobManager     // Manages jobs and dependencies
-	engineRegistry       *EngineRegistry // Registry of available agentic engines
-	fileTracker          FileTracker     // Optional file tracker for tracking created files
-	warningCount         int             // Number of warnings encountered during compilation
+	customOutput         string            // If set, output will be written to this path instead of default location
+	version              string            // Version of the extension
+	skipValidation       bool              // If true, skip schema validation
+	noEmit               bool              // If true, validate without generating lock files
+	strictMode           bool              // If true, enforce strict validation requirements
+	trialMode            bool              // If true, suppress safe outputs for trial mode execution
+	trialLogicalRepoSlug string            // If set in trial mode, the logical repository to checkout
+	jobManager           *JobManager       // Manages jobs and dependencies
+	engineRegistry       *EngineRegistry   // Registry of available agentic engines
+	fileTracker          FileTracker       // Optional file tracker for tracking created files
+	warningCount         int               // Number of warnings encountered during compilation
+	stepOrderTracker     *StepOrderTracker // Tracks step ordering for validation
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
 func NewCompiler(verbose bool, engineOverride string, version string) *Compiler {
 	c := &Compiler{
-		verbose:        verbose,
-		engineOverride: engineOverride,
-		version:        version,
-		skipValidation: true, // Skip validation by default for now since existing workflows don't fully comply
-		jobManager:     NewJobManager(),
-		engineRegistry: GetGlobalEngineRegistry(),
+		verbose:          verbose,
+		engineOverride:   engineOverride,
+		version:          version,
+		skipValidation:   true, // Skip validation by default for now since existing workflows don't fully comply
+		jobManager:       NewJobManager(),
+		engineRegistry:   GetGlobalEngineRegistry(),
+		stepOrderTracker: NewStepOrderTracker(),
 	}
 
 	return c
@@ -219,6 +221,9 @@ type SafeOutputsConfig struct {
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
 func (c *Compiler) CompileWorkflow(markdownPath string) error {
+
+	// Reset the step order tracker for this compilation
+	c.stepOrderTracker = NewStepOrderTracker()
 
 	// replace the .md extension by .lock.yml
 	lockFile := strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
@@ -2664,6 +2669,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add AI execution step using the agentic engine
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
 
+	// Mark that we've completed agent execution - step order validation starts from here
+	c.stepOrderTracker.MarkAgentExecutionComplete()
+
+	// Add secret redaction step BEFORE any artifact uploads
+	// This ensures all artifacts are scanned for secrets before being uploaded
+	c.generateSecretRedactionStep(yaml, yaml.String())
+
 	// Add output collection step only if safe-outputs feature is used (GH_AW_SAFE_OUTPUTS functionality)
 	if data.SafeOutputs != nil {
 		c.generateOutputCollectionStep(yaml, data)
@@ -2703,9 +2715,18 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
+
+	// Validate step ordering - this is a compiler check to ensure security
+	if err := c.stepOrderTracker.ValidateStepOrdering(); err != nil {
+		// This is a compiler bug if validation fails
+		panic(err)
+	}
 }
 
 func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFileFull string) {
+	// Record artifact upload for validation
+	c.stepOrderTracker.RecordArtifactUpload("Upload Agent Stdio", []string{logFileFull})
+
 	yaml.WriteString("      - name: Upload Agent Stdio\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
@@ -2716,6 +2737,9 @@ func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFileFull st
 }
 
 func (c *Compiler) generateUploadAssets(yaml *strings.Builder) {
+	// Record artifact upload for validation
+	c.stepOrderTracker.RecordArtifactUpload("Upload safe outputs assets", []string{"/tmp/gh-aw/safe-outputs/assets/"})
+
 	yaml.WriteString("      - name: Upload safe outputs assets\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
@@ -2837,6 +2861,9 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 }
 
 func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
+	// Record artifact upload for validation
+	c.stepOrderTracker.RecordArtifactUpload("Upload agentic run info", []string{"/tmp/gh-aw/aw_info.json"})
+
 	yaml.WriteString("      - name: Upload agentic run info\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
@@ -2847,6 +2874,9 @@ func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
 }
 
 func (c *Compiler) generateUploadPrompt(yaml *strings.Builder) {
+	// Record artifact upload for validation
+	c.stepOrderTracker.RecordArtifactUpload("Upload prompt", []string{"/tmp/gh-aw/aw-prompts/prompt.txt"})
+
 	yaml.WriteString("      - name: Upload prompt\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
@@ -2905,6 +2935,9 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 		return
 	}
 
+	// Record artifact upload for validation
+	c.stepOrderTracker.RecordArtifactUpload("Upload squid access logs", []string{"/tmp/gh-aw/access-logs/"})
+
 	yaml.WriteString("      - name: Upload squid access logs\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
@@ -2915,6 +2948,9 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 }
 
 func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder) {
+	// Record artifact upload for validation
+	c.stepOrderTracker.RecordArtifactUpload("Upload MCP logs", []string{"/tmp/gh-aw/mcp-logs/"})
+
 	yaml.WriteString("      - name: Upload MCP logs\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
@@ -3301,6 +3337,9 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 
 // generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {
+	// Record artifact upload for validation
+	c.stepOrderTracker.RecordArtifactUpload("Upload Safe Outputs", []string{"${{ env.GH_AW_SAFE_OUTPUTS }}"})
+
 	yaml.WriteString("      - name: Upload Safe Outputs\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
@@ -3339,6 +3378,9 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	// Add each line of the script with proper indentation
 	WriteJavaScriptToYAML(yaml, collectJSONLOutputScript)
+
+	// Record artifact upload for validation
+	c.stepOrderTracker.RecordArtifactUpload("Upload sanitized agent output", []string{"${{ env.GH_AW_AGENT_OUTPUT }}"})
 
 	yaml.WriteString("      - name: Upload sanitized agent output\n")
 	yaml.WriteString("        if: always() && env.GH_AW_AGENT_OUTPUT\n")

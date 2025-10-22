@@ -48,8 +48,17 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 	// Extract secret references from the generated YAML
 	secretReferences := CollectSecretReferences(yamlContent)
 
-	// If no secrets found, skip the redaction step
+	// Always record that we're adding a secret redaction step, even if no secrets found
+	// This is important for validation to ensure the step ordering is correct
+	c.stepOrderTracker.RecordSecretRedaction("Redact secrets in logs")
+
+	// If no secrets found, we still generate the step but it will be a no-op at runtime
+	// This ensures consistent step ordering and validation
 	if len(secretReferences) == 0 {
+		// Generate a minimal no-op redaction step for validation purposes
+		yaml.WriteString("      - name: Redact secrets in logs\n")
+		yaml.WriteString("        if: always()\n")
+		yaml.WriteString("        run: echo 'No secrets to redact'\n")
 		return
 	}
 
