@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestAllowedDomainsEnvironmentVariable(t *testing.T) {
@@ -51,16 +53,7 @@ Test workflow content.
 		}
 
 		// Check that default GitHub domains are included
-		expectedDomains := []string{
-			"github.com",
-			"github.io",
-			"githubusercontent.com",
-			"githubassets.com",
-			"github.dev",
-			"codespaces.new",
-		}
-
-		for _, domain := range expectedDomains {
+		for _, domain := range constants.DefaultSanitizationDomains {
 			if !strings.Contains(yamlStr, domain) {
 				t.Errorf("Expected domain '%s' to be in GH_AW_ALLOWED_DOMAINS", domain)
 			}

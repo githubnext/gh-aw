@@ -60,6 +60,17 @@ const DefaultMCPStartupTimeoutSeconds = 120
 // that are always allowed for Playwright browser automation
 var DefaultAllowedDomains = []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"}
 
+// DefaultSanitizationDomains defines the default GitHub-related domains
+// that are always allowed in output sanitization
+var DefaultSanitizationDomains = []string{
+	"github.com",
+	"github.io",
+	"githubusercontent.com",
+	"githubassets.com",
+	"github.dev",
+	"codespaces.new",
+}
+
 // SafeWorkflowEvents defines events that are considered safe and don't require permission checks
 var SafeWorkflowEvents = []string{"workflow_dispatch", "workflow_run", "schedule"}
 

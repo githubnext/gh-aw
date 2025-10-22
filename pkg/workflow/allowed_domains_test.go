@@ -3,6 +3,8 @@ package workflow
 import (
 	"sort"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestComputeAllowedDomainsForSanitization(t *testing.T) {
@@ -13,20 +15,10 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 
 		domains := computeAllowedDomainsForSanitization(data)
 
-		// Should include default GitHub domains
-		expectedDefaults := []string{
-			"github.com",
-			"github.io",
-			"githubusercontent.com",
-			"githubassets.com",
-			"github.dev",
-			"codespaces.new",
-		}
-
 		// Should also include ecosystem defaults (from GetAllowedDomains)
 		// When nil, GetAllowedDomains returns "defaults" ecosystem
 		// Check that we have at least the GitHub defaults
-		for _, expected := range expectedDefaults {
+		for _, expected := range constants.DefaultSanitizationDomains {
 			found := false
 			for _, domain := range domains {
 				if domain == expected {
@@ -49,17 +41,8 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 
 		domains := computeAllowedDomainsForSanitization(data)
 
-		// Should include default GitHub domains
-		expectedDomains := []string{
-			"github.com",
-			"github.io",
-			"githubusercontent.com",
-			"githubassets.com",
-			"github.dev",
-			"codespaces.new",
-			"example.com",
-			"trusted.org",
-		}
+		// Should include default GitHub domains plus custom domains
+		expectedDomains := append(constants.DefaultSanitizationDomains, "example.com", "trusted.org")
 
 		for _, expected := range expectedDomains {
 			found := false
@@ -85,16 +68,7 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 		domains := computeAllowedDomainsForSanitization(data)
 
 		// Should include default GitHub domains
-		expectedDefaults := []string{
-			"github.com",
-			"github.io",
-			"githubusercontent.com",
-			"githubassets.com",
-			"github.dev",
-			"codespaces.new",
-		}
-
-		for _, expected := range expectedDefaults {
+		for _, expected := range constants.DefaultSanitizationDomains {
 			found := false
 			for _, domain := range domains {
 				if domain == expected {
@@ -149,16 +123,7 @@ func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 		domains := computeAllowedDomainsForSanitization(data)
 
 		// Should include default GitHub domains
-		expectedDefaults := []string{
-			"github.com",
-			"github.io",
-			"githubusercontent.com",
-			"githubassets.com",
-			"github.dev",
-			"codespaces.new",
-		}
-
-		for _, expected := range expectedDefaults {
+		for _, expected := range constants.DefaultSanitizationDomains {
 			found := false
 			for _, domain := range domains {
 				if domain == expected {

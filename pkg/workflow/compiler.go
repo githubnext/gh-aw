@@ -1757,16 +1757,6 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 // computeAllowedDomainsForSanitization computes the list of allowed domains for output sanitization
 // by combining default GitHub domains with domains from network permissions
 func computeAllowedDomainsForSanitization(data *WorkflowData) []string {
-	// Start with default GitHub-related domains that match the JavaScript defaults
-	defaultDomains := []string{
-		"github.com",
-		"github.io",
-		"githubusercontent.com",
-		"githubassets.com",
-		"github.dev",
-		"codespaces.new",
-	}
-
 	// Get allowed domains from network permissions (includes ecosystem expansion)
 	networkDomains := GetAllowedDomains(data.NetworkPermissions)
 
@@ -1774,7 +1764,7 @@ func computeAllowedDomainsForSanitization(data *WorkflowData) []string {
 	domainsMap := make(map[string]bool)
 
 	// Add default GitHub domains
-	for _, domain := range defaultDomains {
+	for _, domain := range constants.DefaultSanitizationDomains {
 		domainsMap[domain] = true
 	}
 
