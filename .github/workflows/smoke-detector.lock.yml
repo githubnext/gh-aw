@@ -23,7 +23,7 @@
 #   detection --> missing_tool
 # ```
 
-name: "Smoke Outpost - Smoke Test Failure Investigator"
+name: "Smoke Detector - Smoke Test Failure Investigator"
 "on":
   workflow_run:
     types:
@@ -40,7 +40,7 @@ permissions: read-all
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Smoke Outpost - Smoke Test Failure Investigator"
+run-name: "Smoke Detector - Smoke Test Failure Investigator"
 
 jobs:
   activation:
@@ -77,7 +77,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GH_AW_REACTION: eyes
-          GH_AW_WORKFLOW_NAME: "Smoke Outpost - Smoke Test Failure Investigator"
+          GH_AW_WORKFLOW_NAME: "Smoke Detector - Smoke Test Failure Investigator"
         with:
           script: |
             async function main() {
@@ -1447,9 +1447,9 @@ jobs:
           cat > $GH_AW_PROMPT << 'EOF'
           
           
-          # Smoke Outpost - Smoke Test Failure Investigator
+          # Smoke Detector - Smoke Test Failure Investigator
           
-          You are the Smoke Outpost, an expert investigative agent that analyzes failed smoke test workflows to identify root causes and patterns. Your mission is to conduct a deep investigation when any smoke test workflow fails.
+          You are the Smoke Detector, an expert investigative agent that analyzes failed smoke test workflows to identify root causes and patterns. Your mission is to conduct a deep investigation when any smoke test workflow fails.
           
           **IMPORTANT**: Use the `gh-aw_audit` tool to get diagnostic information and logs from the workflow run. Do NOT use the GitHub MCP server for workflow run analysis - use `gh-aw_audit` instead as it provides specialized workflow diagnostics.
           
@@ -1812,7 +1812,7 @@ jobs:
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Smoke Outpost - Smoke Test Failure Investigator",
+              workflow_name: "Smoke Detector - Smoke Test Failure Investigator",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -3414,8 +3414,8 @@ jobs:
         uses: actions/github-script@v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Smoke Outpost - Smoke Test Failure Investigator"
-          GH_AW_ISSUE_TITLE_PREFIX: "[smoke-outpost] "
+          GH_AW_WORKFLOW_NAME: "Smoke Detector - Smoke Test Failure Investigator"
+          GH_AW_ISSUE_TITLE_PREFIX: "[smoke-detector] "
           GH_AW_ISSUE_LABELS: "smoke-test,investigation"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -3718,7 +3718,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          WORKFLOW_NAME: "Smoke Outpost - Smoke Test Failure Investigator"
+          WORKFLOW_NAME: "Smoke Detector - Smoke Test Failure Investigator"
           WORKFLOW_DESCRIPTION: "No description provided"
         with:
           script: |
