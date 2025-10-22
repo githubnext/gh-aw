@@ -133,6 +133,90 @@ type JSONMCPConfigOptions struct {
 	PostEOFCommands func(yaml *strings.Builder)
 }
 
+// GitHubMCPDockerOptions defines configuration for GitHub MCP Docker rendering
+type GitHubMCPDockerOptions struct {
+	// ReadOnly enables read-only mode for GitHub API operations
+	ReadOnly bool
+	// Toolsets specifies the GitHub toolsets to enable
+	Toolsets string
+	// DockerImageVersion specifies the GitHub MCP server Docker image version
+	DockerImageVersion string
+	// CustomArgs are additional arguments to append to the Docker command
+	CustomArgs []string
+	// IncludeTypeField indicates whether to include the "type": "local" field (Copilot needs it, Claude doesn't)
+	IncludeTypeField bool
+	// AllowedTools specifies the list of allowed tools (Copilot uses this, Claude doesn't)
+	AllowedTools []string
+	// EffectiveToken is the GitHub token to use (Claude uses this, Copilot uses env passthrough)
+	EffectiveToken string
+}
+
+// RenderGitHubMCPDockerConfig renders the GitHub MCP server configuration for Docker (local mode).
+// This shared function extracts the duplicate pattern from Claude and Copilot engines.
+//
+// Parameters:
+//   - yaml: The string builder for YAML output
+//   - options: GitHub MCP Docker rendering options
+func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerOptions) {
+	// Add type field if needed (Copilot requires this, Claude doesn't)
+	if options.IncludeTypeField {
+		yaml.WriteString("                \"type\": \"local\",\n")
+	}
+
+	yaml.WriteString("                \"command\": \"docker\",\n")
+	yaml.WriteString("                \"args\": [\n")
+	yaml.WriteString("                  \"run\",\n")
+	yaml.WriteString("                  \"-i\",\n")
+	yaml.WriteString("                  \"--rm\",\n")
+	yaml.WriteString("                  \"-e\",\n")
+	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
+
+	if options.ReadOnly {
+		yaml.WriteString("                  \"-e\",\n")
+		yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
+	}
+
+	// Add GITHUB_TOOLSETS environment variable (always configured, defaults to "default")
+	yaml.WriteString("                  \"-e\",\n")
+	yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS=%s\",\n", options.Toolsets))
+
+	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + options.DockerImageVersion + "\"")
+
+	// Append custom args if present
+	writeArgsToYAML(yaml, options.CustomArgs, "                  ")
+
+	yaml.WriteString("\n")
+	yaml.WriteString("                ],\n")
+
+	// Add tools field if provided (Copilot uses this, Claude doesn't)
+	if len(options.AllowedTools) > 0 {
+		yaml.WriteString("                \"tools\": [\n")
+		for i, tool := range options.AllowedTools {
+			comma := ","
+			if i == len(options.AllowedTools)-1 {
+				comma = ""
+			}
+			fmt.Fprintf(yaml, "                  \"%s\"%s\n", tool, comma)
+		}
+		yaml.WriteString("                ],\n")
+	} else if options.IncludeTypeField {
+		// Copilot always includes tools field, even if empty (uses wildcard)
+		yaml.WriteString("                \"tools\": [\"*\"],\n")
+	}
+
+	// Add env section
+	yaml.WriteString("                \"env\": {\n")
+	if options.EffectiveToken != "" {
+		// Claude uses effective token directly
+		yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"", options.EffectiveToken))
+	} else {
+		// Copilot uses env passthrough
+		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_PERSONAL_ACCESS_TOKEN}\"")
+	}
+	yaml.WriteString("\n")
+	yaml.WriteString("                }\n")
+}
+
 // RenderJSONMCPConfig renders MCP configuration in JSON format with the common mcpServers structure.
 // This shared function extracts the duplicate pattern from Claude, Copilot, and Custom engines.
 //

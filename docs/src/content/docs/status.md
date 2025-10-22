@@ -10,6 +10,7 @@ This page shows the current status of all agentic workflows in the repository.
 - [![Agentic Workflow Audit Agent](https://github.com/githubnext/gh-aw/actions/workflows/audit-workflows.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/audit-workflows.lock.yml)
 - [![Artifacts Summary](https://github.com/githubnext/gh-aw/actions/workflows/artifacts-summary.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/artifacts-summary.lock.yml)
 - [![Basic Research Agent](https://github.com/githubnext/gh-aw/actions/workflows/research.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/research.lock.yml)
+- [![Blog Auditor](https://github.com/githubnext/gh-aw/actions/workflows/blog-auditor.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/blog-auditor.lock.yml)
 - [![Brave Web Search Agent](https://github.com/githubnext/gh-aw/actions/workflows/brave.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/brave.lock.yml)
 - [![Changeset Generator](https://github.com/githubnext/gh-aw/actions/workflows/changeset-generator.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/changeset-generator.lock.yml)
 - [![CI Failure Doctor](https://github.com/githubnext/gh-aw/actions/workflows/ci-doctor.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/ci-doctor.lock.yml)

@@ -1106,8 +1106,74 @@ jobs:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
-      - name: Install OpenCode
-        run: npm install -g opencode-ai@${GH_AW_AGENT_VERSION}
+      - name: Install OpenCode and jq
+        run: |
+          npm install -g opencode-ai@${GH_AW_AGENT_VERSION}
+          sudo apt-get update && sudo apt-get install -y jq
+        env:
+          GH_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
+          GH_AW_AGENT_VERSION: 0.15.13
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_SAFE_OUTPUTS_CONFIG: "\"{\\\"create_issue\\\":{\\\"max\\\":1,\\\"min\\\":1},\\\"missing_tool\\\":{}}\""
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
+      - name: Configure OpenCode MCP servers
+        run: |
+          set -e
+
+          # Create OpenCode config directory
+          mkdir -p ~/.config/opencode
+
+          # Check if MCP config exists
+          if [ -n "$GH_AW_MCP_CONFIG" ] && [ -f "$GH_AW_MCP_CONFIG" ]; then
+            echo "Found MCP configuration at: $GH_AW_MCP_CONFIG"
+
+            # Create base OpenCode config with proper schema
+            echo '{"$schema": "https://opencode.sh/schema.json", "mcp": {}}' > ~/.config/opencode/opencode.json
+
+            # Transform Copilot-style MCP config to OpenCode format
+            jq -r '.mcpServers | to_entries[] | 
+              if .value.type == "local" or (.value.command and .value.args) then
+                {
+                  key: .key,
+                  value: {
+                    type: "local",
+                    command: (
+                      if .value.command then
+                        [.value.command] + (.value.args // [])
+                      else
+                        []
+                      end
+                    ),
+                    enabled: true,
+                    environment: (.value.env // {})
+                  }
+                }
+              elif .value.type == "http" then
+                {
+                  key: .key,
+                  value: {
+                    type: "remote",
+                    url: .value.url,
+                    enabled: true,
+                    headers: (.value.headers // {})
+                  }
+                }
+              else empty end' "$GH_AW_MCP_CONFIG" | \
+              jq -s 'reduce .[] as $item ({}; .[$item.key] = $item.value)' > /tmp/mcp-servers.json
+
+            # Merge MCP servers into config
+            jq --slurpfile servers /tmp/mcp-servers.json '.mcp = $servers[0]' \
+              ~/.config/opencode/opencode.json > /tmp/opencode-final.json
+            mv /tmp/opencode-final.json ~/.config/opencode/opencode.json
+
+            echo "✅ OpenCode MCP configuration created successfully"
+            echo "Configuration contents:"
+            cat ~/.config/opencode/opencode.json | jq .
+          else
+            echo "⚠️  No MCP config found - OpenCode will run without MCP tools"
+          fi
         env:
           GH_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
           GH_AW_AGENT_VERSION: 0.15.13
@@ -1135,6 +1201,122 @@ jobs:
         run: |
           echo "Custom steps execution completed" >> /tmp/gh-aw/agent-stdio.log
           touch /tmp/gh-aw/agent-stdio.log
+      - name: Redact secrets in logs
+        if: always()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            function findFiles(dir, extensions) {
+              const results = [];
+              try {
+                if (!fs.existsSync(dir)) {
+                  return results;
+                }
+                const entries = fs.readdirSync(dir, { withFileTypes: true });
+                for (const entry of entries) {
+                  const fullPath = path.join(dir, entry.name);
+                  if (entry.isDirectory()) {
+                    results.push(...findFiles(fullPath, extensions));
+                  } else if (entry.isFile()) {
+                    const ext = path.extname(entry.name).toLowerCase();
+                    if (extensions.includes(ext)) {
+                      results.push(fullPath);
+                    }
+                  }
+                }
+              } catch (error) {
+                core.warning(`Failed to scan directory ${dir}: ${error instanceof Error ? error.message : String(error)}`);
+              }
+              return results;
+            }
+            function redactSecrets(content, secretValues) {
+              let redactionCount = 0;
+              let redacted = content;
+              const sortedSecrets = secretValues.slice().sort((a, b) => b.length - a.length);
+              for (const secretValue of sortedSecrets) {
+                if (!secretValue || secretValue.length < 8) {
+                  continue;
+                }
+                const prefix = secretValue.substring(0, 3);
+                const asterisks = "*".repeat(Math.max(0, secretValue.length - 3));
+                const replacement = prefix + asterisks;
+                const parts = redacted.split(secretValue);
+                const occurrences = parts.length - 1;
+                if (occurrences > 0) {
+                  redacted = parts.join(replacement);
+                  redactionCount += occurrences;
+                  core.info(`Redacted ${occurrences} occurrence(s) of a secret`);
+                }
+              }
+              return { content: redacted, redactionCount };
+            }
+            function processFile(filePath, secretValues) {
+              try {
+                const content = fs.readFileSync(filePath, "utf8");
+                const { content: redactedContent, redactionCount } = redactSecrets(content, secretValues);
+                if (redactionCount > 0) {
+                  fs.writeFileSync(filePath, redactedContent, "utf8");
+                  core.info(`Processed ${filePath}: ${redactionCount} redaction(s)`);
+                }
+                return redactionCount;
+              } catch (error) {
+                core.warning(`Failed to process file ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+                return 0;
+              }
+            }
+            async function main() {
+              const secretNames = process.env.GH_AW_SECRET_NAMES;
+              if (!secretNames) {
+                core.info("GH_AW_SECRET_NAMES not set, no redaction performed");
+                return;
+              }
+              core.info("Starting secret redaction in /tmp/gh-aw directory");
+              try {
+                const secretNameList = secretNames.split(",").filter(name => name.trim());
+                const secretValues = [];
+                for (const secretName of secretNameList) {
+                  const envVarName = `SECRET_${secretName}`;
+                  const secretValue = process.env[envVarName];
+                  if (!secretValue || secretValue.trim() === "") {
+                    continue;
+                  }
+                  secretValues.push(secretValue.trim());
+                }
+                if (secretValues.length === 0) {
+                  core.info("No secret values found to redact");
+                  return;
+                }
+                core.info(`Found ${secretValues.length} secret(s) to redact`);
+                const targetExtensions = [".txt", ".json", ".log"];
+                const files = findFiles("/tmp/gh-aw", targetExtensions);
+                core.info(`Found ${files.length} file(s) to scan for secrets`);
+                let totalRedactions = 0;
+                let filesWithRedactions = 0;
+                for (const file of files) {
+                  const redactionCount = processFile(file, secretValues);
+                  if (redactionCount > 0) {
+                    filesWithRedactions++;
+                    totalRedactions += redactionCount;
+                  }
+                }
+                if (totalRedactions > 0) {
+                  core.info(`Secret redaction complete: ${totalRedactions} redaction(s) in ${filesWithRedactions} file(s)`);
+                } else {
+                  core.info("Secret redaction complete: no secrets found");
+                }
+              } catch (error) {
+                core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            await main();
+        env:
+          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
+          SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@v4
@@ -2365,8 +2547,74 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Install OpenCode
-        run: npm install -g opencode-ai@${GH_AW_AGENT_VERSION}
+      - name: Install OpenCode and jq
+        run: |
+          npm install -g opencode-ai@${GH_AW_AGENT_VERSION}
+          sudo apt-get update && sudo apt-get install -y jq
+        env:
+          GH_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
+          GH_AW_AGENT_VERSION: 0.15.13
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_SAFE_OUTPUTS_CONFIG: "\"{\\\"create_issue\\\":{\\\"max\\\":1,\\\"min\\\":1},\\\"missing_tool\\\":{}}\""
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
+      - name: Configure OpenCode MCP servers
+        run: |
+          set -e
+
+          # Create OpenCode config directory
+          mkdir -p ~/.config/opencode
+
+          # Check if MCP config exists
+          if [ -n "$GH_AW_MCP_CONFIG" ] && [ -f "$GH_AW_MCP_CONFIG" ]; then
+            echo "Found MCP configuration at: $GH_AW_MCP_CONFIG"
+
+            # Create base OpenCode config with proper schema
+            echo '{"$schema": "https://opencode.sh/schema.json", "mcp": {}}' > ~/.config/opencode/opencode.json
+
+            # Transform Copilot-style MCP config to OpenCode format
+            jq -r '.mcpServers | to_entries[] | 
+              if .value.type == "local" or (.value.command and .value.args) then
+                {
+                  key: .key,
+                  value: {
+                    type: "local",
+                    command: (
+                      if .value.command then
+                        [.value.command] + (.value.args // [])
+                      else
+                        []
+                      end
+                    ),
+                    enabled: true,
+                    environment: (.value.env // {})
+                  }
+                }
+              elif .value.type == "http" then
+                {
+                  key: .key,
+                  value: {
+                    type: "remote",
+                    url: .value.url,
+                    enabled: true,
+                    headers: (.value.headers // {})
+                  }
+                }
+              else empty end' "$GH_AW_MCP_CONFIG" | \
+              jq -s 'reduce .[] as $item ({}; .[$item.key] = $item.value)' > /tmp/mcp-servers.json
+
+            # Merge MCP servers into config
+            jq --slurpfile servers /tmp/mcp-servers.json '.mcp = $servers[0]' \
+              ~/.config/opencode/opencode.json > /tmp/opencode-final.json
+            mv /tmp/opencode-final.json ~/.config/opencode/opencode.json
+
+            echo "✅ OpenCode MCP configuration created successfully"
+            echo "Configuration contents:"
+            cat ~/.config/opencode/opencode.json | jq .
+          else
+            echo "⚠️  No MCP config found - OpenCode will run without MCP tools"
+          fi
         env:
           GH_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
           GH_AW_AGENT_VERSION: 0.15.13

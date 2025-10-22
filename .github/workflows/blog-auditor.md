@@ -20,6 +20,12 @@ tools:
   bash:
     - "date *"
     - "echo *"
+    - "mktemp *"
+    - "cat *"
+    - "gh aw compile *"
+    - "ls *"
+    - "rm *"
+    - "test *"
 safe-outputs:
   create-issue:
     title-prefix: "[audit] "
@@ -43,7 +49,7 @@ Verify that the GitHub Next Agentic Workflows blog page is available, accessible
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
-- **Target URL**: https://githubnext.com/project/agentic-workflows
+- **Target URL**: https://githubnext.com/projects/agentic-workflows/
 
 ## Audit Process
 
@@ -51,7 +57,7 @@ Verify that the GitHub Next Agentic Workflows blog page is available, accessible
 
 Use Playwright to navigate to the target URL and capture the accessibility snapshot:
 
-1. **Navigate to URL**: Use `browser_navigate` to load https://githubnext.com/project/agentic-workflows
+1. **Navigate to URL**: Use `browser_navigate` to load https://githubnext.com/projects/agentic-workflows/
 2. **Capture Accessibility Snapshot**: Use `browser_snapshot` to get the accessibility tree representation of the page
    - This provides a text-only version of the page as screen readers would see it
    - Captures the semantic structure and content without styling
@@ -88,14 +94,55 @@ Perform the following validations:
   - "compiler"
 - **Failure**: Any missing keyword indicates outdated or incorrect content
 
-### Phase 3: Generate Timestamp
+### Phase 3: Extract and Validate Code Snippets
+
+Extract code snippets from the blog page and validate them against the latest agentic workflow schema:
+
+1. **Extract Code Snippets**: Use Playwright's `browser_evaluate` to extract all code blocks from the page
+   - Look for `<code>` elements with language hints for YAML or markdown
+   - Extract the text content of each code block
+   - Filter to only workflow-related snippets (those containing frontmatter with `---` markers AND at least one of these workflow fields: `on:`, `engine:`, `tools:`, `permissions:`, `safe-outputs:`)
+   - Valid workflow snippets must have both YAML frontmatter structure and workflow-specific configuration
+
+2. **Create Temporary Directory**: Use bash with `mktemp` to create a secure temporary directory
+   ```bash
+   TEMP_DIR=$(mktemp -d)
+   ```
+
+3. **Write Snippets to Files**: For each extracted code snippet, write it to a temporary file
+   - Use bash `echo` to write the snippet content to a file
+   - Name files sequentially: `snippet-1.md`, `snippet-2.md`, etc.
+   - Store the temporary directory path in a variable for cleanup
+
+4. **Validate All Snippets**: Use `gh aw compile` with the `--workflows-dir` flag to validate all snippets at once
+   ```bash
+   gh aw compile --no-emit --validate --workflows-dir "$TEMP_DIR"
+   ```
+   - The `--workflows-dir` flag specifies the temporary directory containing snippet files
+   - The `--no-emit` flag validates without generating lock files
+   - The `--validate` flag enables schema validation
+   - Capture any validation errors or warnings from the compile output
+
+5. **Record Results**: Track which snippets passed and which failed validation
+   - Count total snippets found
+   - Count snippets with validation errors
+   - Store error messages for reporting
+
+6. **Cleanup**: Remove temporary files after validation, with safety checks
+   ```bash
+   if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
+     rm -rf "$TEMP_DIR"
+   fi
+   ```
+
+### Phase 4: Generate Timestamp
 
 Use bash to generate a UTC timestamp for the audit:
 ```bash
 date -u "+%Y-%m-%d %H:%M:%S UTC"
 ```
 
-### Phase 4: Report Results
+### Phase 5: Report Results
 
 Create a new issue to document the audit results.
 
@@ -110,7 +157,7 @@ If all validations pass, **create a new issue** with:
 ## ✅ Agentic Workflows Blog Audit - PASSED
 
 **Audit Timestamp**: [UTC timestamp]
-**Target URL**: https://githubnext.com/project/agentic-workflows
+**Target URL**: https://githubnext.com/projects/agentic-workflows/
 
 ### Validation Results
 
@@ -124,8 +171,9 @@ All checks passed successfully:
   - "GitHub" ✓
   - "workflow" ✓
   - "compiler" ✓
+- ✅ **Code Snippets**: [N snippets validated, all passed schema validation]
 
-The Agentic Workflows blog is accessible and up to date.
+The Agentic Workflows blog is accessible and up to date with valid code examples.
 
 ---
 *Automated audit run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}*
@@ -146,7 +194,7 @@ If any validation fails:
 The automated audit of the GitHub Next Agentic Workflows blog has detected issues.
 
 **Audit Timestamp**: [UTC timestamp]
-**Target URL**: https://githubnext.com/project/agentic-workflows
+**Target URL**: https://githubnext.com/projects/agentic-workflows/
 **Final URL**: [final URL after redirects]
 
 ### Failed Validation Checks
@@ -176,6 +224,20 @@ The automated audit of the GitHub Next Agentic Workflows blog has detected issue
   - "compiler": [✅ FOUND / ❌ MISSING]
 - **Status**: [✅ PASS / ❌ FAIL]
 
+#### Code Snippet Validation Check
+- **Total Snippets Found**: [N]
+- **Snippets with Validation Errors**: [M]
+- **Status**: [✅ PASS / ❌ FAIL]
+
+[If there are validation errors, list them:]
+
+**Validation Errors:**
+```
+[Snippet 1 error details]
+[Snippet 2 error details]
+...
+```
+
 ### Suggested Next Steps
 
 1. **Verify Blog Accessibility**: Visit the target URL and confirm it loads correctly
@@ -183,6 +245,7 @@ The automated audit of the GitHub Next Agentic Workflows blog has detected issue
 3. **Review Redirects**: If URL changed, update documentation and monitoring
 4. **Check GitHub Next Site**: Verify if there are broader issues with the githubnext.com site
 5. **Update Links**: If the blog moved, update references in documentation and code
+6. **Fix Code Snippets**: If code snippets have validation errors, update the blog post with correct syntax
 
 ### Diagnostic Information
 
@@ -228,8 +291,10 @@ A successful audit:
 - ✅ Navigates to the blog URL successfully using Playwright
 - ✅ Captures the accessibility snapshot (screen reader view)
 - ✅ Validates all criteria (HTTP status, URL, content length, keywords)
-- ✅ Reports results appropriately (issue on failure, comment on success)
+- ✅ Extracts code snippets from the blog page
+- ✅ Validates code snippets against the latest agentic workflow schema
+- ✅ Reports results appropriately (issue with all validation details)
 - ✅ Provides actionable information for remediation
 - ✅ Completes within timeout limits
 
-Begin your audit now. Navigate to the blog using Playwright, capture the accessibility snapshot, validate all criteria, and report your findings.
+Begin your audit now. Navigate to the blog using Playwright, capture the accessibility snapshot, extract and validate code snippets, validate all criteria, and report your findings.
