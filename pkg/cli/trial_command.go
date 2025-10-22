@@ -19,10 +19,10 @@ import (
 
 // WorkflowTrialResult represents the result of running a single workflow trial
 type WorkflowTrialResult struct {
-	WorkflowName        string                 `json:"workflow_name"`
-	RunID               string                 `json:"run_id"`
-	SafeOutputs         map[string]interface{} `json:"safe_outputs"`
-	AgentStdioLogs      []string               `json:"agent_stdio_logs,omitempty"`
+	WorkflowName string                 `json:"workflow_name"`
+	RunID        string                 `json:"run_id"`
+	SafeOutputs  map[string]interface{} `json:"safe_outputs"`
+	//AgentStdioLogs      []string               `json:"agent_stdio_logs,omitempty"`
 	AgenticRunInfo      map[string]interface{} `json:"agentic_run_info,omitempty"`
 	AdditionalArtifacts map[string]interface{} `json:"additional_artifacts,omitempty"`
 	Timestamp           time.Time              `json:"timestamp"`
@@ -339,10 +339,10 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 
 			// Save individual workflow results
 			result := WorkflowTrialResult{
-				WorkflowName:        parsedSpec.WorkflowName,
-				RunID:               runID,
-				SafeOutputs:         artifacts.SafeOutputs,
-				AgentStdioLogs:      artifacts.AgentStdioLogs,
+				WorkflowName: parsedSpec.WorkflowName,
+				RunID:        runID,
+				SafeOutputs:  artifacts.SafeOutputs,
+				//AgentStdioLogs:      artifacts.AgentStdioLogs,
 				AgenticRunInfo:      artifacts.AgenticRunInfo,
 				AdditionalArtifacts: artifacts.AdditionalArtifacts,
 				Timestamp:           time.Now(),
@@ -367,9 +367,9 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 			}
 
 			// Display additional artifact information if available
-			if len(artifacts.AgentStdioLogs) > 0 {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("=== Agent Stdio Logs Available from %s (%d files) ===", parsedSpec.WorkflowName, len(artifacts.AgentStdioLogs))))
-			}
+			// if len(artifacts.AgentStdioLogs) > 0 {
+			// 	fmt.Println(console.FormatInfoMessage(fmt.Sprintf("=== Agent Stdio Logs Available from %s (%d files) ===", parsedSpec.WorkflowName, len(artifacts.AgentStdioLogs))))
+			// }
 			if len(artifacts.AgenticRunInfo) > 0 {
 				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("=== Agentic Run Information Available from %s ===", parsedSpec.WorkflowName)))
 			}
@@ -1220,8 +1220,8 @@ func cleanupTrialSecrets(repoSlug string, tracker *TrialSecretTracker, verbose b
 
 // TrialArtifacts represents all artifacts downloaded from a workflow run
 type TrialArtifacts struct {
-	SafeOutputs         map[string]interface{} `json:"safe_outputs"`
-	AgentStdioLogs      []string               `json:"agent_stdio_logs,omitempty"`
+	SafeOutputs map[string]interface{} `json:"safe_outputs"`
+	//AgentStdioLogs      []string               `json:"agent_stdio_logs,omitempty"`
 	AgenticRunInfo      map[string]interface{} `json:"agentic_run_info,omitempty"`
 	AdditionalArtifacts map[string]interface{} `json:"additional_artifacts,omitempty"`
 }
@@ -1290,11 +1290,11 @@ func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtif
 				artifacts.AgenticRunInfo = runInfo
 			}
 
-		case strings.Contains(relPath, "agent") && strings.HasSuffix(path, ".log"):
-			// Collect agent stdio logs
-			if logContent := readTextArtifact(path, verbose); logContent != "" {
-				artifacts.AgentStdioLogs = append(artifacts.AgentStdioLogs, logContent)
-			}
+		// case strings.Contains(relPath, "agent") && strings.HasSuffix(path, ".log"):
+		// 	// Collect agent stdio logs
+		// 	if logContent := readTextArtifact(path, verbose); logContent != "" {
+		// 		artifacts.AgentStdioLogs = append(artifacts.AgentStdioLogs, logContent)
+		// 	}
 
 		case strings.HasSuffix(path, ".json") || strings.HasSuffix(path, ".jsonl") || strings.HasSuffix(path, ".log") || strings.HasSuffix(path, ".txt"):
 			// Handle other artifacts
