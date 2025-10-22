@@ -26,6 +26,64 @@ const OUTPUT_PATH = path.join(__dirname, '../docs/src/content/docs/reference/fro
 const schema = JSON.parse(fs.readFileSync(SCHEMA_PATH, 'utf-8'));
 
 /**
+ * Resolve a $ref reference in the schema
+ * @param {string} ref - The $ref value (e.g., "#/$defs/engine_config")
+ * @returns {object|null} - The resolved schema object or null if not found
+ */
+function resolveRef(ref) {
+  if (!ref || typeof ref !== 'string') {
+    return null;
+  }
+  
+  // Handle JSON pointer references (e.g., "#/$defs/engine_config" or "#/properties/permissions")
+  if (!ref.startsWith('#/')) {
+    console.warn(`Unsupported $ref format: ${ref}`);
+    return null;
+  }
+  
+  const path = ref.substring(2).split('/'); // Remove '#/' and split by '/'
+  let current = schema;
+  
+  for (const segment of path) {
+    if (current && typeof current === 'object' && segment in current) {
+      current = current[segment];
+    } else {
+      console.warn(`Could not resolve $ref: ${ref} (failed at segment: ${segment})`);
+      return null;
+    }
+  }
+  
+  return current;
+}
+
+/**
+ * Resolve a property that may contain a $ref
+ * @param {object} prop - The property object that may contain a $ref
+ * @returns {object} - The resolved property object with $ref merged
+ */
+function resolvePropertyRef(prop) {
+  if (!prop || typeof prop !== 'object') {
+    return prop;
+  }
+  
+  // If the property has a $ref, resolve it
+  if (prop.$ref) {
+    const resolved = resolveRef(prop.$ref);
+    if (resolved) {
+      // Merge the resolved schema with the original property
+      // The original property's description takes precedence
+      return {
+        ...resolved,
+        ...prop,
+        $ref: undefined, // Remove the $ref after resolving
+      };
+    }
+  }
+  
+  return prop;
+}
+
+/**
  * Format a description as YAML comment
  */
 function formatComment(text, indent = 0) {
@@ -86,6 +144,9 @@ function getExampleValue(prop, propName = '') {
  * Generate YAML for a property with variants (oneOf/anyOf)
  */
 function generateVariants(prop, propName, indent = 0, required = []) {
+  // Resolve $ref if present
+  prop = resolvePropertyRef(prop);
+  
   const indentStr = ' '.repeat(indent);
   const lines = [];
   const isRequired = required.includes(propName);
@@ -150,6 +211,9 @@ function generateVariants(prop, propName, indent = 0, required = []) {
  * Generate YAML for a single property
  */
 function generateProperty(propName, prop, indent = 0, isRequired = false) {
+  // Resolve $ref if present
+  prop = resolvePropertyRef(prop);
+  
   const indentStr = ' '.repeat(indent);
   const lines = [];
   
@@ -207,11 +271,14 @@ function generateProperties(properties, required = [], indent = 0) {
     
     const isRequired = required.includes(propName);
     
+    // Resolve $ref before checking for variants
+    const resolvedProp = resolvePropertyRef(prop);
+    
     // Check if property has variants
-    if (prop.oneOf || prop.anyOf) {
-      lines.push(generateVariants(prop, propName, indent, required));
+    if (resolvedProp.oneOf || resolvedProp.anyOf) {
+      lines.push(generateVariants(resolvedProp, propName, indent, required));
     } else {
-      lines.push(...generateProperty(propName, prop, indent, isRequired));
+      lines.push(...generateProperty(propName, resolvedProp, indent, isRequired));
     }
   });
   
