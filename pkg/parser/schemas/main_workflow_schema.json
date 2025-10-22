@@ -1521,48 +1521,6 @@
       "description": "AI engine configuration that specifies which AI processor interprets and executes the markdown content of the workflow. Defaults to 'claude'.",
       "$ref": "#/$defs/engine_config"
     },
-    "claude": {
-      "description": "Claude-specific configuration",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "model": {
-          "type": "string",
-          "description": "Claude model to use"
-        },
-        "version": {
-          "type": "string",
-          "description": "Claude version"
-        },
-        "allowed": {
-          "description": "Allowed Claude tools",
-          "oneOf": [
-            {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            {
-              "type": "object",
-              "additionalProperties": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      }
-    },
     "mcp-servers": {
       "type": "object",
       "description": "MCP server definitions",
