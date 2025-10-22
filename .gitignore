@@ -54,6 +54,10 @@ logs/
 node_modules/
 gh-aw-test/
 
+# Root package.json and package-lock.json are only for build tooling
+/package.json
+/package-lock.json
+
 pkg/cli/workflows/*.yml
 .github/workflows/test-update.md
 .github/workflows/test-update.lock.yml

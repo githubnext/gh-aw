@@ -5,10 +5,12 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
+    "prebuild": "npm run generate-status-badges",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "validate-links": "astro build"
+    "validate-links": "astro build",
+    "generate-status-badges": "cd .. && node scripts/generate-status-badges.js"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.35.2",
