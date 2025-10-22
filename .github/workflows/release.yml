@@ -81,6 +81,7 @@ jobs:
   trigger-maintenance:
     needs: release
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Trigger maintenance workflow in agentics repository
         uses: actions/github-script@v7
