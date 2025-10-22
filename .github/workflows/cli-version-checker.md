@@ -11,6 +11,7 @@ network:
    allowed: [defaults, "registry.npmjs.org", "api.github.com", "ghcr.io"]
 imports:
   - shared/jqschema.md
+  - shared/check-existing-pr.md
 tools:
   web-fetch:
   bash:
@@ -41,6 +42,16 @@ Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Co
 
 ## Process
 
+### 0. Check for Existing Pull Request
+Before starting version checks and updates, verify if there's already an open PR from this workflow:
+- Use `search_pull_requests` with query: `repo:${{ github.repository }} is:pr is:open "[ca]" label:automation label:dependencies`
+- If an existing open PR is found:
+  - Print message: "An open pull request already exists for CLI version updates"
+  - Include PR number, URL, and title
+  - Stop execution immediately
+- If no existing PR found, proceed with version checks
+
+### 1. Check for Updates
 For each CLI/MCP server:
 1. Fetch latest version from NPM registry or GitHub releases
 2. Compare with current version in `./pkg/constants/constants.go`
