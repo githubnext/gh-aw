@@ -33,7 +33,7 @@
 #   missing_tool --> update_reaction
 # ```
 
-name: "Agentic Workflows Blog Audit Agent"
+name: "Blog Auditor"
 "on":
   schedule:
   - cron: 0 12 * * 3
@@ -51,7 +51,7 @@ permissions:
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Agentic Workflows Blog Audit Agent"
+run-name: "Blog Auditor"
 
 jobs:
   activation:
@@ -115,7 +115,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Agentic Workflows Blog Audit Agent"
+          GH_AW_WORKFLOW_NAME: "Blog Auditor"
           GH_AW_CREATED_ISSUE_URL: ${{ needs.create_issue.outputs.issue_url }}
           GH_AW_CREATED_ISSUE_NUMBER: ${{ needs.create_issue.outputs.issue_number }}
         with:
@@ -1514,9 +1514,9 @@ jobs:
           </details>
           ```
           
-          # Agentic Workflows Blog Audit Agent
+          # Blog Auditor
           
-          You are the Agentic Workflows Blog Audit Agent - an automated monitor that verifies the GitHub Next "Agentic Workflows" blog is accessible and up to date.
+          You are the Blog Auditor - an automated monitor that verifies the GitHub Next "Agentic Workflows" blog is accessible and up to date.
           
           ## Mission
           
@@ -1909,7 +1909,7 @@ jobs:
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Agentic Workflows Blog Audit Agent",
+              workflow_name: "Blog Auditor",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -3544,7 +3544,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Agentic Workflows Blog Audit Agent"
+          GH_AW_WORKFLOW_NAME: "Blog Auditor"
           GH_AW_ISSUE_TITLE_PREFIX: "[audit] "
           GH_AW_ISSUE_LABELS: "audit,downstream"
         with:
@@ -3848,7 +3848,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          WORKFLOW_NAME: "Agentic Workflows Blog Audit Agent"
+          WORKFLOW_NAME: "Blog Auditor"
           WORKFLOW_DESCRIPTION: "No description provided"
         with:
           script: |
@@ -4231,7 +4231,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Agentic Workflows Blog Audit Agent"
+          GH_AW_WORKFLOW_NAME: "Blog Auditor"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
