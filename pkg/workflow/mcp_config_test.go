@@ -36,7 +36,7 @@ tools:
 			// With Docker MCP always enabled, default is docker (not services)
 			expectedType:        "docker",
 			expectedCommand:     "docker",
-			expectedDockerImage: "ghcr.io/github/github-mcp-server:v0.19.0",
+			expectedDockerImage: "ghcr.io/github/github-mcp-server:v0.19.1",
 		},
 	}
 
@@ -168,7 +168,7 @@ func TestGenerateGitHubMCPConfig(t *testing.T) {
 				if !strings.Contains(result, `"command": "docker"`) {
 					t.Errorf("Expected Docker command but got:\n%s", result)
 				}
-				if !strings.Contains(result, `"ghcr.io/github/github-mcp-server:v0.19.0"`) {
+				if !strings.Contains(result, `"ghcr.io/github/github-mcp-server:v0.19.1"`) {
 					t.Errorf("Expected Docker image but got:\n%s", result)
 				}
 				if strings.Contains(result, `"type": "http"`) {
@@ -253,7 +253,7 @@ tools:
     allowed: ["custom_action"]
 ---`,
 			expectedType:        "docker",  // Services mode removed - always Docker
-			expectedDockerImage: "v0.19.0", // Default version
+			expectedDockerImage: "v0.19.1", // Default version
 		},
 		{
 			name: "custom docker MCP with different settings",
@@ -268,7 +268,7 @@ tools:
     allowed: ["custom_action"]
 ---`,
 			expectedType:        "docker",
-			expectedDockerImage: "v0.19.0", // Default version
+			expectedDockerImage: "v0.19.1", // Default version
 		},
 		{
 			name: "mixed MCP configuration with defaults",
@@ -288,7 +288,7 @@ tools:
     allowed: ["docker_action"]
 ---`,
 			expectedType:        "docker",  // GitHub should now use docker by default (not services)
-			expectedDockerImage: "v0.19.0", // Default version
+			expectedDockerImage: "v0.19.1", // Default version
 		},
 		{
 			name: "custom docker MCP with custom Docker image version",
