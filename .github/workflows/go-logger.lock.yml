@@ -24,7 +24,7 @@
 name: "Go Logger Enhancement"
 "on":
   schedule:
-  - cron: 0 9 * * *
+  - cron: 0 12 * * *
   workflow_dispatch: null
 
 permissions:

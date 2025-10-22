@@ -3,7 +3,7 @@ name: Documentation Unbloat
 on:
   # Daily at 2am PST (10am UTC)
   schedule:
-    - cron: "0 10 * * *"
+    - cron: "0 22 * * *"  # Daily at 10 PM UTC
   
   # Command trigger for /unbloat in PR comments
   command:
