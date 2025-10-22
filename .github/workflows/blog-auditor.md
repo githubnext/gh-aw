@@ -26,7 +26,6 @@ tools:
     - "ls *"
     - "rm *"
     - "test *"
-    - "for * in *; do *; done"
 safe-outputs:
   create-issue:
     title-prefix: "[audit] "
@@ -115,15 +114,14 @@ Extract code snippets from the blog page and validate them against the latest ag
    - Name files sequentially: `snippet-1.md`, `snippet-2.md`, etc.
    - Store the temporary directory path in a variable for cleanup
 
-4. **Validate Each Snippet**: Use `gh aw compile` to validate each snippet by iterating through all files
+4. **Validate All Snippets**: Use `gh aw compile` with the `--workflows-dir` flag to validate all snippets at once
    ```bash
-   for snippet in $TEMP_DIR/snippet-*.md; do
-     gh aw compile --no-emit --validate "$snippet"
-   done
+   gh aw compile --no-emit --validate --workflows-dir "$TEMP_DIR"
    ```
+   - The `--workflows-dir` flag specifies the temporary directory containing snippet files
    - The `--no-emit` flag validates without generating lock files
    - The `--validate` flag enables schema validation
-   - Capture any validation errors or warnings for each snippet
+   - Capture any validation errors or warnings from the compile output
 
 5. **Record Results**: Track which snippets passed and which failed validation
    - Count total snippets found
