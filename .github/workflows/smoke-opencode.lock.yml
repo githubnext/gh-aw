@@ -1110,7 +1110,7 @@ jobs:
         run: npm install -g opencode-ai@${GH_AW_AGENT_VERSION}
         env:
           GH_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
-          GH_AW_AGENT_VERSION: 0.1.0
+          GH_AW_AGENT_VERSION: 0.15.13
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -1119,11 +1119,11 @@ jobs:
       - name: Run OpenCode
         id: opencode
         run: |
-          opencode run "$(cat "$GH_AW_PROMPT")" --model "${GH_AW_AGENT_MODEL}" --no-tui
+          opencode run "$(cat "$GH_AW_PROMPT")" --model "${GH_AW_AGENT_MODEL}" --print-logs
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GH_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
-          GH_AW_AGENT_VERSION: 0.1.0
+          GH_AW_AGENT_VERSION: 0.15.13
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -2369,7 +2369,7 @@ jobs:
         run: npm install -g opencode-ai@${GH_AW_AGENT_VERSION}
         env:
           GH_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
-          GH_AW_AGENT_VERSION: 0.1.0
+          GH_AW_AGENT_VERSION: 0.15.13
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -2378,11 +2378,11 @@ jobs:
       - name: Run OpenCode
         id: opencode
         run: |
-          opencode run "$(cat "$GH_AW_PROMPT")" --model "${GH_AW_AGENT_MODEL}" --no-tui
+          opencode run "$(cat "$GH_AW_PROMPT")" --model "${GH_AW_AGENT_MODEL}" --print-logs
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GH_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
-          GH_AW_AGENT_VERSION: 0.1.0
+          GH_AW_AGENT_VERSION: 0.15.13
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}

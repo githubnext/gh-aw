@@ -2,7 +2,7 @@
 engine:
   id: custom
   env:
-    GH_AW_AGENT_VERSION: "0.1.0"
+    GH_AW_AGENT_VERSION: "0.15.13"
     GH_AW_AGENT_MODEL: "anthropic/claude-3-5-sonnet-20241022"
   steps:
     - name: Install OpenCode
@@ -13,7 +13,7 @@ engine:
     - name: Run OpenCode
       id: opencode
       run: |
-        opencode run "$(cat "$GH_AW_PROMPT")" --model "${GH_AW_AGENT_MODEL}" --no-tui
+        opencode run "$(cat "$GH_AW_PROMPT")" --model "${GH_AW_AGENT_MODEL}" --print-logs
       env:
         GH_AW_AGENT_MODEL: ${{ env.GH_AW_AGENT_MODEL }}
         GH_AW_PROMPT: ${{ env.GH_AW_PROMPT }}
@@ -44,7 +44,7 @@ imports:
   - shared/opencode.md
 engine:
   env:
-    GH_AW_AGENT_VERSION: "0.2.0"  # Use a different OpenCode version
+    GH_AW_AGENT_VERSION: "0.15.13"  # Use a different OpenCode version
     GH_AW_AGENT_MODEL: "openai/gpt-4"  # Use a different AI model
 ---
 ```
@@ -52,11 +52,11 @@ engine:
 **Requirements:**
 - The workflow will install opencode-ai npm package using version from `GH_AW_AGENT_VERSION` env var
 - The prompt file is read directly in the Run OpenCode step using command substitution
-- OpenCode is executed in non-TUI mode with the specified model
+- OpenCode is executed in non-interactive mode with logs printed to stderr
 - Output is captured in the agent log file
 
 **Environment Variables:**
-- `GH_AW_AGENT_VERSION`: OpenCode version (default: `0.1.0`)
+- `GH_AW_AGENT_VERSION`: OpenCode version (default: `0.15.13`)
 - `GH_AW_AGENT_MODEL`: AI model in `provider/model` format (default: `anthropic/claude-3-5-sonnet-20241022`)
 - `ANTHROPIC_API_KEY`: Required if using Anthropic models
 - `OPENAI_API_KEY`: Required if using OpenAI models
