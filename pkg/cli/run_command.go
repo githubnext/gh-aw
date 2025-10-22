@@ -12,11 +12,16 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
+var runLog = logger.New("cli:run_command")
+
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
 func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride string, repoOverride string, autoMergePRs bool, verbose bool) error {
+	runLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s", workflowIdOrName, enable, engineOverride, repoOverride)
+
 	if workflowIdOrName == "" {
 		return fmt.Errorf("workflow name or ID is required")
 	}
@@ -32,12 +37,14 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 
 	// Validate workflow exists and is runnable
 	if repoOverride != "" {
+		runLog.Printf("Validating remote workflow: %s in repo %s", workflowIdOrName, repoOverride)
 		// For remote repositories, use remote validation
 		if err := validateRemoteWorkflow(workflowIdOrName, repoOverride, verbose); err != nil {
 			return fmt.Errorf("failed to validate remote workflow: %w", err)
 		}
 		// Note: We skip local runnable check for remote workflows as we assume they are properly configured
 	} else {
+		runLog.Printf("Validating local workflow: %s", workflowIdOrName)
 		// For local workflows, use existing local validation
 		workflowFile, err := resolveWorkflowFile(workflowIdOrName, verbose)
 		if err != nil {
@@ -53,6 +60,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		if !runnable {
 			return fmt.Errorf("workflow '%s' cannot be run on GitHub Actions - it must have 'workflow_dispatch' trigger", workflowIdOrName)
 		}
+		runLog.Printf("Workflow is runnable: %s", workflowFile)
 	}
 
 	// Handle --enable flag logic: check workflow state and enable if needed
@@ -198,12 +206,14 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 	}
 
 	fmt.Printf("Successfully triggered workflow: %s\n", lockFileName)
+	runLog.Printf("Workflow triggered successfully: %s", lockFileName)
 
 	// Try to get the latest run for this workflow to show a direct link
 	// Add a delay to allow GitHub Actions time to register the new workflow run
 	runInfo, runErr := getLatestWorkflowRunWithRetry(lockFileName, repoOverride, verbose)
 	if runErr == nil && runInfo.URL != "" {
 		fmt.Printf("\n🔗 View workflow run: %s\n", runInfo.URL)
+		runLog.Printf("Workflow run URL: %s (ID: %d)", runInfo.URL, runInfo.DatabaseID)
 	} else if verbose && runErr != nil {
 		fmt.Printf("Note: Could not get workflow run URL: %v\n", runErr)
 	}

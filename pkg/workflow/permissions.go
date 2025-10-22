@@ -5,8 +5,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
+
+var permissionsLog = logger.New("workflow:permissions")
 
 // PermissionsParser provides functionality to parse and analyze GitHub Actions permissions
 type PermissionsParser struct {
@@ -20,6 +23,8 @@ type PermissionsParser struct {
 
 // NewPermissionsParser creates a new PermissionsParser instance
 func NewPermissionsParser(permissionsYAML string) *PermissionsParser {
+	permissionsLog.Print("Creating new permissions parser")
+
 	parser := &PermissionsParser{
 		rawPermissions: permissionsYAML,
 		parsedPerms:    make(map[string]string),
@@ -31,8 +36,11 @@ func NewPermissionsParser(permissionsYAML string) *PermissionsParser {
 // parse parses the permissions YAML and populates the internal structures
 func (p *PermissionsParser) parse() {
 	if p.rawPermissions == "" {
+		permissionsLog.Print("No permissions to parse")
 		return
 	}
+
+	permissionsLog.Printf("Parsing permissions YAML: length=%d", len(p.rawPermissions))
 
 	// Remove the "permissions:" prefix if present and get just the YAML content
 	yamlContent := strings.TrimSpace(p.rawPermissions)
@@ -138,12 +146,16 @@ func (p *PermissionsParser) parse() {
 
 // HasContentsReadAccess returns true if the permissions allow reading contents
 func (p *PermissionsParser) HasContentsReadAccess() bool {
+	permissionsLog.Print("Checking contents read access")
+
 	// Handle shorthand permissions
 	if p.isShorthand {
 		switch p.shorthandValue {
 		case "read-all", "write-all", "read", "write":
+			permissionsLog.Printf("Shorthand permissions grant contents read: %s", p.shorthandValue)
 			return true
 		case "none":
+			permissionsLog.Print("Shorthand 'none' denies contents read")
 			return false
 		}
 		return false

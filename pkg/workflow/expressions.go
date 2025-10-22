@@ -6,7 +6,10 @@ import (
 	"unicode"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var expressionsLog = logger.New("workflow:expressions")
 
 // ConditionNode represents a node in a condition expression tree
 type ConditionNode interface {
@@ -497,6 +500,8 @@ const (
 // Supports && (AND), || (OR), ! (NOT), and parentheses for grouping
 // Example: "condition1 && (condition2 || !condition3)"
 func ParseExpression(expression string) (ConditionNode, error) {
+	expressionsLog.Printf("Parsing expression: %s", expression)
+
 	if strings.TrimSpace(expression) == "" {
 		return nil, fmt.Errorf("empty expression")
 	}
@@ -504,6 +509,7 @@ func ParseExpression(expression string) (ConditionNode, error) {
 	parser := &ExpressionParser{}
 	tokens, err := parser.tokenize(expression)
 	if err != nil {
+		expressionsLog.Printf("Failed to tokenize expression: %v", err)
 		return nil, err
 	}
 	parser.tokens = tokens
@@ -511,6 +517,7 @@ func ParseExpression(expression string) (ConditionNode, error) {
 
 	result, err := parser.parseOrExpression()
 	if err != nil {
+		expressionsLog.Printf("Failed to parse expression: %v", err)
 		return nil, err
 	}
 
@@ -519,6 +526,7 @@ func ParseExpression(expression string) (ConditionNode, error) {
 		return nil, fmt.Errorf("unexpected token '%s' at position %d", parser.current().value, parser.current().pos)
 	}
 
+	expressionsLog.Printf("Successfully parsed expression with %d tokens", len(tokens))
 	return result, nil
 }
 
@@ -760,6 +768,8 @@ func BreakLongExpression(expression string) []string {
 	if len(expression) <= constants.MaxExpressionLineLength {
 		return []string{expression}
 	}
+
+	expressionsLog.Printf("Breaking long expression: length=%d", len(expression))
 
 	var lines []string
 	current := ""
