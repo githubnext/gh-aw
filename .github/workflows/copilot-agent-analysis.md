@@ -23,6 +23,7 @@ safe-outputs:
 
 imports:
   - shared/jqschema.md
+  - shared/reporting.md
 
 tools:
   cache-memory: true

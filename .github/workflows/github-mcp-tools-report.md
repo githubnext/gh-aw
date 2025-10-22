@@ -23,6 +23,8 @@ safe-outputs:
     reviewers: copilot
     draft: false
 timeout_minutes: 15
+imports:
+  - shared/reporting.md
 ---
 
 # GitHub MCP Remote Server Tools Report Generator
