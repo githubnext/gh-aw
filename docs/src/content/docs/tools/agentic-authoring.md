@@ -65,6 +65,18 @@ load @.github/prompts/create-agentic-workflow.prompt.md
 
 Load the prompt file into your preferred AI chat or agent interface that supports loading from files. The prompt is designed to be compatible with various AI tools, although the tools might not be completely configured and you'll need to allow running the compiler.
 
+## Dictating Agentic Workflows
+
+When creating agentic workflows using speech-to-text (dictation), you may encounter terminology mismatches and formatting issues common to voice recognition systems. To help correct these issues, use the [dictation instructions prompt](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/dictation.instructions.md).
+
+This prompt helps rephrase text captured through speech-to-text recognition by:
+- Correcting project-specific terminology (e.g., "ghaw" → "gh-aw", "work flow" → "workflow")
+- Transforming casual dictated sentences into clear, imperative task descriptions
+- Removing filler words and improving technical tone
+- Adding necessary context that might be implicit in spoken requests
+
+Load the dictation prompt into your AI assistant before or after dictating your workflow instructions to improve accuracy and clarity.
+
 ## After compiling
 
 Commit the generated files (`.lock.yml`) if they are part of the project's tracked artifacts. The project uses compiled workflows in version control.
