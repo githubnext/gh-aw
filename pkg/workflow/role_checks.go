@@ -75,8 +75,8 @@ func (c *Compiler) extractRoles(frontmatter map[string]any) []string {
 			return v
 		}
 	}
-	// Default: require write permissions
-	return []string{"write"}
+	// Default: require admin, maintainer, or write permissions
+	return []string{"admin", "maintainer", "write"}
 }
 
 // needsRoleCheck determines if the workflow needs permission checks with full context

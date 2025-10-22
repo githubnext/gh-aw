@@ -4700,7 +4700,7 @@ jobs:
         id: check_membership
         uses: actions/github-script@v8
         env:
-          GH_AW_REQUIRED_ROLES: write
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
         with:
           script: |
             async function main() {

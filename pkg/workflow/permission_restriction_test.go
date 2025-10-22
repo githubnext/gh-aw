@@ -40,7 +40,7 @@ tools:
 Test workflow content.`,
 			filename:              "push-workflow.md",
 			expectPermissionCheck: true,
-			expectedPermissions:   []string{"write"},
+			expectedPermissions:   []string{"admin", "maintainer", "write"},
 		},
 		{
 			name: "workflow with issues trigger should include permission check (default)",
@@ -57,7 +57,7 @@ tools:
 Test workflow content.`,
 			filename:              "issues-workflow.md",
 			expectPermissionCheck: true,
-			expectedPermissions:   []string{"write"},
+			expectedPermissions:   []string{"admin", "maintainer", "write"},
 		},
 		{
 			name: "workflow with roles: all should not include permission check",
@@ -144,7 +144,7 @@ tools:
 Test workflow content.`,
 			filename:              "schedule-workflow.md",
 			expectPermissionCheck: false,
-			expectedPermissions:   []string{"write"},
+			expectedPermissions:   []string{"admin", "maintainer", "write"},
 		},
 		{
 			name: "workflow with workflow_run only should NOT include permission check (safe event)",
@@ -162,7 +162,7 @@ tools:
 Test workflow content.`,
 			filename:              "workflow-run-workflow.md",
 			expectPermissionCheck: false,
-			expectedPermissions:   []string{"write"},
+			expectedPermissions:   []string{"admin", "maintainer", "write"},
 		},
 		{
 			name: "workflow with mixed safe and unsafe events should include permission check",
@@ -180,7 +180,7 @@ tools:
 Test workflow content.`,
 			filename:              "mixed-workflow.md",
 			expectPermissionCheck: true,
-			expectedPermissions:   []string{"write"},
+			expectedPermissions:   []string{"admin", "maintainer", "write"},
 		},
 		{
 			name: "workflow with command and workflow_dispatch with write role should include permission check for command",
