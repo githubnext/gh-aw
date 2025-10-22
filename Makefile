@@ -37,7 +37,7 @@ build-windows:
 # Test the code (runs both unit and integration tests)
 .PHONY: test
 test:
-	go test -v -count=1 -timeout=3m -tags 'integration' ./...
+	go test -v -timeout=3m -tags 'integration' ./...
 
 # Test unit tests only (excludes integration tests)
 .PHONY: test-unit
