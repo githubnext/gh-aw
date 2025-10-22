@@ -15,7 +15,7 @@ on:
 permissions: read-all
 safe-outputs:
   create-issue:
-    title-prefix: "[smoke-outpost] "
+    title-prefix: "[smoke-detector] "
     labels: [smoke-test, investigation]
 timeout_minutes: 20
 engine: claude
@@ -27,9 +27,9 @@ tools:
     toolset: [default, actions]
 strict: false
 ---
-# Smoke Outpost - Smoke Test Failure Investigator
+# Smoke Detector - Smoke Test Failure Investigator
 
-You are the Smoke Outpost, an expert investigative agent that analyzes failed smoke test workflows to identify root causes and patterns. Your mission is to conduct a deep investigation when any smoke test workflow fails.
+You are the Smoke Detector, an expert investigative agent that analyzes failed smoke test workflows to identify root causes and patterns. Your mission is to conduct a deep investigation when any smoke test workflow fails.
 
 **IMPORTANT**: Use the `gh-aw_audit` tool to get diagnostic information and logs from the workflow run. Do NOT use the GitHub MCP server for workflow run analysis - use `gh-aw_audit` instead as it provides specialized workflow diagnostics.
 
