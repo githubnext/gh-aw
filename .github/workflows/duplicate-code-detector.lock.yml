@@ -31,7 +31,9 @@ name: "Duplicate Code Detector"
   - cron: 0 11 * * *
   workflow_dispatch: null
 
-permissions: {}
+permissions:
+  actions: read
+  contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

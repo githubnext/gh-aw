@@ -44,7 +44,7 @@ name: "Technical Documentation Writer for GitHub Actions"
         required: true
         type: string
 
-permissions: {}
+permissions: read-all
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -185,6 +185,7 @@ jobs:
             }
             async function main() {
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
               const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
                 core.info("No GH_AW_AGENT_OUTPUT environment variable found");
@@ -242,6 +243,7 @@ jobs:
                 context.eventName === "pull_request_review" ||
                 context.eventName === "pull_request_review_comment";
               const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+              const isDiscussion = isDiscussionContext || isDiscussionExplicit;
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
                 summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
@@ -270,7 +272,7 @@ jobs:
                   const targetNumber = getTargetNumber(item);
                   if (targetNumber) {
                     const repoUrl = getRepositoryUrl();
-                    if (isDiscussionContext) {
+                    if (isDiscussion) {
                       const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
                       summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
                     } else {
@@ -278,7 +280,7 @@ jobs:
                       summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
                     }
                   } else {
-                    if (isDiscussionContext) {
+                    if (isDiscussion) {
                       summaryContent += `**Target:** Current discussion\n\n`;
                     } else {
                       summaryContent += `**Target:** Current issue/PR\n\n`;
@@ -314,7 +316,7 @@ jobs:
                       core.info(`Invalid target number specified: ${targetNumber}`);
                       continue;
                     }
-                    commentEndpoint = isDiscussionContext ? "discussions" : "issues";
+                    commentEndpoint = isDiscussion ? "discussions" : "issues";
                   } else {
                     core.info(`Target is "*" but no number specified in comment item`);
                     continue;
@@ -325,7 +327,7 @@ jobs:
                     core.info(`Invalid target number in target configuration: ${commentTarget}`);
                     continue;
                   }
-                  commentEndpoint = isDiscussionContext ? "discussions" : "issues";
+                  commentEndpoint = isDiscussion ? "discussions" : "issues";
                 } else {
                   if (isIssueContext) {
                     itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;

@@ -31,7 +31,9 @@ name: "CLI Version Checker"
   - cron: 0 10 * * *
   workflow_dispatch: null
 
-permissions: {}
+permissions:
+  actions: read
+  contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

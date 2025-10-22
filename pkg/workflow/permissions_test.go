@@ -828,6 +828,7 @@ func TestPermissionsMerge(t *testing.T) {
 			want: map[PermissionScope]PermissionLevel{
 				PermissionContents:       PermissionWrite, // preserved
 				PermissionActions:        PermissionRead,  // added
+				PermissionAttestations:   PermissionRead,
 				PermissionChecks:         PermissionRead,
 				PermissionDeployments:    PermissionRead,
 				PermissionDiscussions:    PermissionRead,
@@ -839,6 +840,7 @@ func TestPermissionsMerge(t *testing.T) {
 				PermissionSecurityEvents: PermissionRead,
 				PermissionStatuses:       PermissionRead,
 				PermissionModels:         PermissionRead,
+				// Note: id-token is NOT included because it doesn't support read level
 			},
 		},
 		{
@@ -848,9 +850,11 @@ func TestPermissionsMerge(t *testing.T) {
 			want: map[PermissionScope]PermissionLevel{
 				PermissionContents:       PermissionRead, // preserved (not overwritten)
 				PermissionActions:        PermissionWrite,
+				PermissionAttestations:   PermissionWrite,
 				PermissionChecks:         PermissionWrite,
 				PermissionDeployments:    PermissionWrite,
 				PermissionDiscussions:    PermissionWrite,
+				PermissionIdToken:        PermissionWrite, // id-token supports write
 				PermissionIssues:         PermissionWrite,
 				PermissionPackages:       PermissionWrite,
 				PermissionPages:          PermissionWrite,
@@ -868,6 +872,7 @@ func TestPermissionsMerge(t *testing.T) {
 			want: map[PermissionScope]PermissionLevel{
 				PermissionContents:       PermissionWrite,
 				PermissionActions:        PermissionRead,
+				PermissionAttestations:   PermissionRead,
 				PermissionChecks:         PermissionRead,
 				PermissionDeployments:    PermissionRead,
 				PermissionDiscussions:    PermissionRead,
@@ -879,6 +884,7 @@ func TestPermissionsMerge(t *testing.T) {
 				PermissionSecurityEvents: PermissionRead,
 				PermissionStatuses:       PermissionRead,
 				PermissionModels:         PermissionRead,
+				// Note: id-token is NOT included because it doesn't support read level
 			},
 		},
 		{
@@ -888,10 +894,12 @@ func TestPermissionsMerge(t *testing.T) {
 			want: map[PermissionScope]PermissionLevel{
 				PermissionIssues:         PermissionRead,
 				PermissionActions:        PermissionWrite,
+				PermissionAttestations:   PermissionWrite,
 				PermissionChecks:         PermissionWrite,
 				PermissionContents:       PermissionWrite,
 				PermissionDeployments:    PermissionWrite,
 				PermissionDiscussions:    PermissionWrite,
+				PermissionIdToken:        PermissionWrite, // id-token supports write
 				PermissionPackages:       PermissionWrite,
 				PermissionPages:          PermissionWrite,
 				PermissionPullRequests:   PermissionWrite,
@@ -1047,6 +1055,379 @@ func TestPermissionsRenderToYAML(t *testing.T) {
 			got := tt.permissions.RenderToYAML()
 			if got != tt.want {
 				t.Errorf("RenderToYAML() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPermissions_AllReadWithIdTokenWrite(t *testing.T) {
+	// Test that "all: read" with "id-token: write" works as expected
+	// id-token is special because it only supports write and none, not read
+
+	// Create permissions with all: read and id-token: write
+	perms := &Permissions{
+		hasAll:   true,
+		allLevel: PermissionRead,
+		permissions: map[PermissionScope]PermissionLevel{
+			PermissionIdToken: PermissionWrite,
+		},
+	}
+
+	// Test that all normal scopes have read access
+	normalScopes := []PermissionScope{
+		PermissionActions, PermissionAttestations, PermissionChecks, PermissionContents,
+		PermissionDeployments, PermissionDiscussions, PermissionIssues, PermissionPackages,
+		PermissionPages, PermissionPullRequests, PermissionRepositoryProj,
+		PermissionSecurityEvents, PermissionStatuses, PermissionModels,
+	}
+
+	for _, scope := range normalScopes {
+		level, allowed := perms.Get(scope)
+		if !allowed || level != PermissionRead {
+			t.Errorf("scope %s should have read access, got allowed=%v, level=%s", scope, allowed, level)
+		}
+	}
+
+	// Test that id-token has write access (explicit override)
+	level, allowed := perms.Get(PermissionIdToken)
+	if !allowed || level != PermissionWrite {
+		t.Errorf("id-token should have write access, got allowed=%v, level=%s", allowed, level)
+	}
+
+	// Test that id-token does NOT get read access from all: read
+	// This should return false because id-token doesn't support read
+	if level, allowed := perms.Get(PermissionIdToken); allowed && level == PermissionRead {
+		t.Errorf("id-token should NOT have read access from all: read")
+	}
+
+	// Test YAML rendering excludes id-token: read but includes id-token: write
+	yaml := perms.RenderToYAML()
+
+	// Should contain all normal scopes with read access
+	expectedLines := []string{
+		"      actions: read",
+		"      attestations: read",
+		"      checks: read",
+		"      contents: read",
+		"      deployments: read",
+		"      discussions: read",
+		"      issues: read",
+		"      packages: read",
+		"      pages: read",
+		"      pull-requests: read",
+		"      repository-projects: read",
+		"      security-events: read",
+		"      statuses: read",
+		"      models: read",
+		"      id-token: write", // explicit override
+	}
+
+	for _, expected := range expectedLines {
+		if !strings.Contains(yaml, expected) {
+			t.Errorf("YAML should contain %q, but got:\n%s", expected, yaml)
+		}
+	}
+
+	// Should NOT contain id-token: read
+	if strings.Contains(yaml, "id-token: read") {
+		t.Errorf("YAML should NOT contain 'id-token: read', but got:\n%s", yaml)
+	}
+}
+
+func TestPermissionsParser_AllRead(t *testing.T) {
+	tests := []struct {
+		name        string
+		permissions string
+		expected    bool
+		scope       string
+		level       string
+	}{
+		{
+			name: "all: read grants contents read access",
+			permissions: `permissions:
+  all: read
+  contents: write`,
+			expected: true,
+			scope:    "contents",
+			level:    "read",
+		},
+		{
+			name: "all: read grants contents write access when overridden",
+			permissions: `permissions:
+  all: read
+  contents: write`,
+			expected: true,
+			scope:    "contents",
+			level:    "write",
+		},
+		{
+			name: "all: read grants issues read access",
+			permissions: `permissions:
+  all: read
+  contents: write`,
+			expected: true,
+			scope:    "issues",
+			level:    "read",
+		},
+		{
+			name: "all: read denies issues write access by default",
+			permissions: `permissions:
+  all: read`,
+			expected: false,
+			scope:    "issues",
+			level:    "write",
+		},
+		{
+			name: "all: read with explicit write override",
+			permissions: `permissions:
+  all: read
+  issues: write`,
+			expected: true,
+			scope:    "issues",
+			level:    "write",
+		},
+		{
+			name: "all: write is not allowed - should fail parsing",
+			permissions: `permissions:
+  all: write`,
+			expected: false,
+			scope:    "contents",
+			level:    "read",
+		},
+		{
+			name: "all: read with none is not allowed - should fail parsing",
+			permissions: `permissions:
+  all: read
+  contents: none`,
+			expected: false,
+			scope:    "contents",
+			level:    "read",
+		},
+		{
+			name: "all: read grants id-token write access when overridden",
+			permissions: `permissions:
+  all: read
+  id-token: write`,
+			expected: true,
+			scope:    "id-token",
+			level:    "write",
+		},
+		{
+			name: "all: read does not grant id-token read access (not supported)",
+			permissions: `permissions:
+  all: read`,
+			expected: false,
+			scope:    "id-token",
+			level:    "read",
+		},
+		{
+			name: "all: read denies id-token write access by default (not included in expansion)",
+			permissions: `permissions:
+  all: read`,
+			expected: false,
+			scope:    "id-token",
+			level:    "write",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parser := NewPermissionsParser(tt.permissions)
+			result := parser.IsAllowed(tt.scope, tt.level)
+			if result != tt.expected {
+				t.Errorf("IsAllowed(%s, %s) = %v, want %v", tt.scope, tt.level, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPermissions_AllRead(t *testing.T) {
+	tests := []struct {
+		name     string
+		perms    *Permissions
+		scope    PermissionScope
+		expected PermissionLevel
+		exists   bool
+	}{
+		{
+			name:     "all: read returns read for contents",
+			perms:    NewPermissionsAllRead(),
+			scope:    PermissionContents,
+			expected: PermissionRead,
+			exists:   true,
+		},
+		{
+			name:     "all: read returns read for issues",
+			perms:    NewPermissionsAllRead(),
+			scope:    PermissionIssues,
+			expected: PermissionRead,
+			exists:   true,
+		},
+		{
+			name: "all: read with explicit override",
+			perms: func() *Permissions {
+				p := NewPermissionsAllRead()
+				p.Set(PermissionContents, PermissionWrite)
+				return p
+			}(),
+			scope:    PermissionContents,
+			expected: PermissionWrite,
+			exists:   true,
+		},
+		{
+			name:     "all: read does not include id-token (not supported at read level)",
+			perms:    NewPermissionsAllRead(),
+			scope:    PermissionIdToken,
+			expected: "",    // Should be empty since the permission doesn't exist
+			exists:   false, // Should not exist because id-token doesn't support read
+		},
+		{
+			name: "all: read with explicit id-token: write override",
+			perms: func() *Permissions {
+				p := NewPermissionsAllRead()
+				p.Set(PermissionIdToken, PermissionWrite)
+				return p
+			}(),
+			scope:    PermissionIdToken,
+			expected: PermissionWrite,
+			exists:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			level, exists := tt.perms.Get(tt.scope)
+			if exists != tt.exists {
+				t.Errorf("Get(%s) exists = %v, want %v", tt.scope, exists, tt.exists)
+			}
+			if level != tt.expected {
+				t.Errorf("Get(%s) = %v, want %v", tt.scope, level, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPermissions_AllReadRenderToYAML(t *testing.T) {
+	tests := []struct {
+		name        string
+		perms       *Permissions
+		contains    []string // Check that output contains these lines
+		notContains []string // Check that output does NOT contain these lines
+	}{
+		{
+			name:  "all: read expands to individual permissions",
+			perms: NewPermissionsAllRead(),
+			contains: []string{
+				"permissions:",
+				"      actions: read",
+				"      attestations: read",
+				"      checks: read",
+				"      contents: read",
+				"      deployments: read",
+				"      discussions: read",
+				"      issues: read",
+				"      models: read",
+				"      packages: read",
+				"      pages: read",
+				"      pull-requests: read",
+				"      repository-projects: read",
+				"      security-events: read",
+				"      statuses: read",
+			},
+		},
+		{
+			name: "all: read with explicit override - write overrides read",
+			perms: func() *Permissions {
+				p := NewPermissionsAllRead()
+				p.Set(PermissionContents, PermissionWrite)
+				return p
+			}(),
+			contains: []string{
+				"permissions:",
+				"      actions: read",
+				"      contents: write", // Overridden to write
+				"      issues: read",
+			},
+			notContains: []string{
+				"      contents: read", // Should NOT contain contents: read when explicitly set to write
+			},
+		},
+		{
+			name: "all: read with multiple explicit overrides",
+			perms: func() *Permissions {
+				p := NewPermissionsAllRead()
+				p.Set(PermissionContents, PermissionWrite)
+				p.Set(PermissionIssues, PermissionWrite)
+				return p
+			}(),
+			contains: []string{
+				"permissions:",
+				"      actions: read",
+				"      contents: write",
+				"      issues: write",
+				"      packages: read",
+			},
+			notContains: []string{
+				"      contents: read", // Should NOT contain contents: read
+				"      issues: read",   // Should NOT contain issues: read
+			},
+		},
+		{
+			name: "all: read with id-token: write - id-token should be excluded from all: read expansion but included when explicitly set to write",
+			perms: func() *Permissions {
+				p := NewPermissionsAllRead()
+				p.Set(PermissionIdToken, PermissionWrite)
+				return p
+			}(),
+			contains: []string{
+				"permissions:",
+				"      actions: read",
+				"      contents: read",
+				"      id-token: write", // Explicitly set to write
+				"      issues: read",
+			},
+			notContains: []string{
+				"      id-token: read", // Should NOT contain id-token: read (not supported)
+			},
+		},
+		{
+			name:  "all: read excludes id-token since it doesn't support read level",
+			perms: NewPermissionsAllRead(),
+			contains: []string{
+				"permissions:",
+				"      actions: read",
+				"      attestations: read",
+				"      checks: read",
+				"      contents: read",
+				"      deployments: read",
+				"      discussions: read",
+				"      issues: read",
+				"      models: read",
+				"      packages: read",
+				"      pages: read",
+				"      pull-requests: read",
+				"      repository-projects: read",
+				"      security-events: read",
+				"      statuses: read",
+			},
+			notContains: []string{
+				"      id-token: read", // Should NOT be included since id-token doesn't support read
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.perms.RenderToYAML()
+			for _, expected := range tt.contains {
+				if !strings.Contains(result, expected) {
+					t.Errorf("RenderToYAML() should contain %q, but got:\n%s", expected, result)
+				}
+			}
+			for _, notExpected := range tt.notContains {
+				if strings.Contains(result, notExpected) {
+					t.Errorf("RenderToYAML() should NOT contain %q, but got:\n%s", notExpected, result)
+				}
 			}
 		})
 	}

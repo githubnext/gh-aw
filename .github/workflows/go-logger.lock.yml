@@ -27,7 +27,9 @@ name: "Go Logger Enhancement"
   - cron: 0 9 * * *
   workflow_dispatch: null
 
-permissions: {}
+permissions:
+  actions: read
+  contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

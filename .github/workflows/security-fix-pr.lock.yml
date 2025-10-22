@@ -25,7 +25,10 @@ name: "Security Fix PR"
 "on":
   workflow_dispatch: null
 
-permissions: {}
+permissions:
+  actions: read
+  contents: read
+  security-events: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"

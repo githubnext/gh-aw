@@ -27,7 +27,9 @@ name: "Weekly Workflow Analysis"
   - cron: 0 9 * * 1
   workflow_dispatch: null
 
-permissions: {}
+permissions:
+  actions: read
+  contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
