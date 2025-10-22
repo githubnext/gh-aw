@@ -13,7 +13,6 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import yaml from 'js-yaml';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,20 +27,28 @@ const REPO_NAME = 'gh-aw';
 
 /**
  * Extract workflow name and filename from a lock file
+ * Uses simple regex parsing instead of YAML parser
  */
 function extractWorkflowInfo(filePath) {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
-    const workflow = yaml.load(content);
     
-    if (!workflow || !workflow.name) {
+    // Match the name field in YAML format
+    // Handles both quoted and unquoted values:
+    // name: "My Workflow"
+    // name: 'My Workflow'
+    // name: My Workflow
+    const nameMatch = content.match(/^name:\s*["']?([^"'\n]+?)["']?\s*$/m);
+    
+    if (!nameMatch) {
       return null;
     }
     
+    const workflowName = nameMatch[1].trim();
     const filename = path.basename(filePath);
     
     return {
-      name: workflow.name,
+      name: workflowName,
       filename: filename,
       badgeUrl: `https://github.com/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${filename}/badge.svg`,
       workflowUrl: `https://github.com/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${filename}`
