@@ -1119,7 +1119,7 @@ jobs:
           
           - **Repository**: ${{ github.repository }}
           - **Run ID**: ${{ github.run_id }}
-          - **Target URL**: https://githubnext.com/project/agentic-workflows
+          - **Target URL**: https://githubnext.com/projects/agentic-workflows/
           
           ## Audit Process
           
@@ -1127,7 +1127,7 @@ jobs:
           
           Use Playwright to navigate to the target URL and capture the accessibility snapshot:
           
-          1. **Navigate to URL**: Use `browser_navigate` to load https://githubnext.com/project/agentic-workflows
+          1. **Navigate to URL**: Use `browser_navigate` to load https://githubnext.com/projects/agentic-workflows/
           2. **Capture Accessibility Snapshot**: Use `browser_snapshot` to get the accessibility tree representation of the page
              - This provides a text-only version of the page as screen readers would see it
              - Captures the semantic structure and content without styling
@@ -1164,14 +1164,55 @@ jobs:
             - "compiler"
           - **Failure**: Any missing keyword indicates outdated or incorrect content
           
-          ### Phase 3: Generate Timestamp
+          ### Phase 3: Extract and Validate Code Snippets
+          
+          Extract code snippets from the blog page and validate them against the latest agentic workflow schema:
+          
+          1. **Extract Code Snippets**: Use Playwright's `browser_evaluate` to extract all code blocks from the page
+             - Look for `<code>` elements with language hints for YAML or markdown
+             - Extract the text content of each code block
+             - Filter to only workflow-related snippets (those containing frontmatter with `---` markers AND at least one of these workflow fields: `on:`, `engine:`, `tools:`, `permissions:`, `safe-outputs:`)
+             - Valid workflow snippets must have both YAML frontmatter structure and workflow-specific configuration
+          
+          2. **Create Temporary Directory**: Use bash with `mktemp` to create a secure temporary directory
+             ```bash
+             TEMP_DIR=$(mktemp -d)
+             ```
+          
+          3. **Write Snippets to Files**: For each extracted code snippet, write it to a temporary file
+             - Use bash `echo` to write the snippet content to a file
+             - Name files sequentially: `snippet-1.md`, `snippet-2.md`, etc.
+             - Store the temporary directory path in a variable for cleanup
+          
+          4. **Validate All Snippets**: Use `gh aw compile` with the `--workflows-dir` flag to validate all snippets at once
+             ```bash
+             gh aw compile --no-emit --validate --workflows-dir "$TEMP_DIR"
+             ```
+             - The `--workflows-dir` flag specifies the temporary directory containing snippet files
+             - The `--no-emit` flag validates without generating lock files
+             - The `--validate` flag enables schema validation
+             - Capture any validation errors or warnings from the compile output
+          
+          5. **Record Results**: Track which snippets passed and which failed validation
+             - Count total snippets found
+             - Count snippets with validation errors
+             - Store error messages for reporting
+          
+          6. **Cleanup**: Remove temporary files after validation, with safety checks
+             ```bash
+             if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
+               rm -rf "$TEMP_DIR"
+             fi
+             ```
+          
+          ### Phase 4: Generate Timestamp
           
           Use bash to generate a UTC timestamp for the audit:
           ```bash
           date -u "+%Y-%m-%d %H:%M:%S UTC"
           ```
           
-          ### Phase 4: Report Results
+          ### Phase 5: Report Results
           
           Create a new issue to document the audit results.
           
@@ -1186,7 +1227,7 @@ jobs:
           ## ✅ Agentic Workflows Blog Audit - PASSED
           
           **Audit Timestamp**: [UTC timestamp]
-          **Target URL**: https://githubnext.com/project/agentic-workflows
+          **Target URL**: https://githubnext.com/projects/agentic-workflows/
           
           ### Validation Results
           
@@ -1200,8 +1241,9 @@ jobs:
             - "GitHub" ✓
             - "workflow" ✓
             - "compiler" ✓
+          - ✅ **Code Snippets**: [N snippets validated, all passed schema validation]
           
-          The Agentic Workflows blog is accessible and up to date.
+          The Agentic Workflows blog is accessible and up to date with valid code examples.
           
           ---
           *Automated audit run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}*
@@ -1222,7 +1264,7 @@ jobs:
           The automated audit of the GitHub Next Agentic Workflows blog has detected issues.
           
           **Audit Timestamp**: [UTC timestamp]
-          **Target URL**: https://githubnext.com/project/agentic-workflows
+          **Target URL**: https://githubnext.com/projects/agentic-workflows/
           **Final URL**: [final URL after redirects]
           
           ### Failed Validation Checks
@@ -1252,6 +1294,20 @@ jobs:
             - "compiler": [✅ FOUND / ❌ MISSING]
           - **Status**: [✅ PASS / ❌ FAIL]
           
+          #### Code Snippet Validation Check
+          - **Total Snippets Found**: [N]
+          - **Snippets with Validation Errors**: [M]
+          - **Status**: [✅ PASS / ❌ FAIL]
+          
+          [If there are validation errors, list them:]
+          
+          **Validation Errors:**
+          ```
+          [Snippet 1 error details]
+          [Snippet 2 error details]
+          ...
+          ```
+          
           ### Suggested Next Steps
           
           1. **Verify Blog Accessibility**: Visit the target URL and confirm it loads correctly
@@ -1259,6 +1315,7 @@ jobs:
           3. **Review Redirects**: If URL changed, update documentation and monitoring
           4. **Check GitHub Next Site**: Verify if there are broader issues with the githubnext.com site
           5. **Update Links**: If the blog moved, update references in documentation and code
+          6. **Fix Code Snippets**: If code snippets have validation errors, update the blog post with correct syntax
           
           ### Diagnostic Information
           
@@ -1304,11 +1361,13 @@ jobs:
           - ✅ Navigates to the blog URL successfully using Playwright
           - ✅ Captures the accessibility snapshot (screen reader view)
           - ✅ Validates all criteria (HTTP status, URL, content length, keywords)
-          - ✅ Reports results appropriately (issue on failure, comment on success)
+          - ✅ Extracts code snippets from the blog page
+          - ✅ Validates code snippets against the latest agentic workflow schema
+          - ✅ Reports results appropriately (issue with all validation details)
           - ✅ Provides actionable information for remediation
           - ✅ Completes within timeout limits
           
-          Begin your audit now. Navigate to the blog using Playwright, capture the accessibility snapshot, validate all criteria, and report your findings.
+          Begin your audit now. Navigate to the blog using Playwright, capture the accessibility snapshot, extract and validate code snippets, validate all criteria, and report your findings.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1528,17 +1587,23 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
+        # - Bash(cat *)
         # - Bash(cat)
         # - Bash(date *)
         # - Bash(date)
         # - Bash(echo *)
         # - Bash(echo)
+        # - Bash(gh aw compile *)
         # - Bash(grep)
         # - Bash(head)
+        # - Bash(ls *)
         # - Bash(ls)
+        # - Bash(mktemp *)
         # - Bash(pwd)
+        # - Bash(rm *)
         # - Bash(sort)
         # - Bash(tail)
+        # - Bash(test *)
         # - Bash(uniq)
         # - Bash(wc)
         # - Bash(yq)
@@ -1632,7 +1697,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat),Bash(date *),Bash(date),Bash(echo *),Bash(echo),Bash(grep),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat *),Bash(cat),Bash(date *),Bash(date),Bash(echo *),Bash(echo),Bash(gh aw compile *),Bash(grep),Bash(head),Bash(ls *),Bash(ls),Bash(mktemp *),Bash(pwd),Bash(rm *),Bash(sort),Bash(tail),Bash(test *),Bash(uniq),Bash(wc),Bash(yq),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -1651,6 +1716,121 @@ jobs:
           rm -rf .claude/hooks/network_permissions.py || true
           rm -rf .claude/hooks || true
           rm -rf .claude || true
+      - name: Redact secrets in logs
+        if: always()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            function findFiles(dir, extensions) {
+              const results = [];
+              try {
+                if (!fs.existsSync(dir)) {
+                  return results;
+                }
+                const entries = fs.readdirSync(dir, { withFileTypes: true });
+                for (const entry of entries) {
+                  const fullPath = path.join(dir, entry.name);
+                  if (entry.isDirectory()) {
+                    results.push(...findFiles(fullPath, extensions));
+                  } else if (entry.isFile()) {
+                    const ext = path.extname(entry.name).toLowerCase();
+                    if (extensions.includes(ext)) {
+                      results.push(fullPath);
+                    }
+                  }
+                }
+              } catch (error) {
+                core.warning(`Failed to scan directory ${dir}: ${error instanceof Error ? error.message : String(error)}`);
+              }
+              return results;
+            }
+            function redactSecrets(content, secretValues) {
+              let redactionCount = 0;
+              let redacted = content;
+              const sortedSecrets = secretValues.slice().sort((a, b) => b.length - a.length);
+              for (const secretValue of sortedSecrets) {
+                if (!secretValue || secretValue.length < 8) {
+                  continue;
+                }
+                const prefix = secretValue.substring(0, 3);
+                const asterisks = "*".repeat(Math.max(0, secretValue.length - 3));
+                const replacement = prefix + asterisks;
+                const parts = redacted.split(secretValue);
+                const occurrences = parts.length - 1;
+                if (occurrences > 0) {
+                  redacted = parts.join(replacement);
+                  redactionCount += occurrences;
+                  core.info(`Redacted ${occurrences} occurrence(s) of a secret`);
+                }
+              }
+              return { content: redacted, redactionCount };
+            }
+            function processFile(filePath, secretValues) {
+              try {
+                const content = fs.readFileSync(filePath, "utf8");
+                const { content: redactedContent, redactionCount } = redactSecrets(content, secretValues);
+                if (redactionCount > 0) {
+                  fs.writeFileSync(filePath, redactedContent, "utf8");
+                  core.info(`Processed ${filePath}: ${redactionCount} redaction(s)`);
+                }
+                return redactionCount;
+              } catch (error) {
+                core.warning(`Failed to process file ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+                return 0;
+              }
+            }
+            async function main() {
+              const secretNames = process.env.GH_AW_SECRET_NAMES;
+              if (!secretNames) {
+                core.info("GH_AW_SECRET_NAMES not set, no redaction performed");
+                return;
+              }
+              core.info("Starting secret redaction in /tmp/gh-aw directory");
+              try {
+                const secretNameList = secretNames.split(",").filter(name => name.trim());
+                const secretValues = [];
+                for (const secretName of secretNameList) {
+                  const envVarName = `SECRET_${secretName}`;
+                  const secretValue = process.env[envVarName];
+                  if (!secretValue || secretValue.trim() === "") {
+                    continue;
+                  }
+                  secretValues.push(secretValue.trim());
+                }
+                if (secretValues.length === 0) {
+                  core.info("No secret values found to redact");
+                  return;
+                }
+                core.info(`Found ${secretValues.length} secret(s) to redact`);
+                const targetExtensions = [".txt", ".json", ".log"];
+                const files = findFiles("/tmp/gh-aw", targetExtensions);
+                core.info(`Found ${files.length} file(s) to scan for secrets`);
+                let totalRedactions = 0;
+                let filesWithRedactions = 0;
+                for (const file of files) {
+                  const redactionCount = processFile(file, secretValues);
+                  if (redactionCount > 0) {
+                    filesWithRedactions++;
+                    totalRedactions += redactionCount;
+                  }
+                }
+                if (totalRedactions > 0) {
+                  core.info(`Secret redaction complete: ${totalRedactions} redaction(s) in ${filesWithRedactions} file(s)`);
+                } else {
+                  core.info("Secret redaction complete: no secrets found");
+                }
+              } catch (error) {
+                core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            await main();
+        env:
+          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@v4

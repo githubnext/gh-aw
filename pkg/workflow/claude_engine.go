@@ -684,37 +684,18 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 		customArgs := getGitHubCustomArgs(githubTool)
 
-		yaml.WriteString("                \"command\": \"docker\",\n")
-		yaml.WriteString("                \"args\": [\n")
-		yaml.WriteString("                  \"run\",\n")
-		yaml.WriteString("                  \"-i\",\n")
-		yaml.WriteString("                  \"--rm\",\n")
-		yaml.WriteString("                  \"-e\",\n")
-		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
-		if readOnly {
-			yaml.WriteString("                  \"-e\",\n")
-			yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
-		}
-
-		// Add GITHUB_TOOLSETS environment variable (always configured, defaults to "default")
-		yaml.WriteString("                  \"-e\",\n")
-		yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS=%s\",\n", toolsets))
-
-		yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
-
-		// Append custom args if present
-		writeArgsToYAML(yaml, customArgs, "                  ")
-
-		yaml.WriteString("\n")
-		yaml.WriteString("                ],\n")
-		yaml.WriteString("                \"env\": {\n")
-
 		// Use effective token with precedence: custom > top-level > default
 		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
-		yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"", effectiveToken))
 
-		yaml.WriteString("\n")
-		yaml.WriteString("                }\n")
+		RenderGitHubMCPDockerConfig(yaml, GitHubMCPDockerOptions{
+			ReadOnly:           readOnly,
+			Toolsets:           toolsets,
+			DockerImageVersion: githubDockerImageVersion,
+			CustomArgs:         customArgs,
+			IncludeTypeField:   false, // Claude doesn't include "type" field
+			AllowedTools:       nil,   // Claude doesn't use tools field
+			EffectiveToken:     effectiveToken,
+		})
 	}
 
 	if isLast {

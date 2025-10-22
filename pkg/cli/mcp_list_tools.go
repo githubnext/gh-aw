@@ -110,49 +110,19 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 
 // findWorkflowsWithMCPServer searches for workflows containing a specific MCP server
 func findWorkflowsWithMCPServer(workflowsDir string, mcpServerName string, verbose bool) error {
-	// Check if the workflows directory exists
-	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return fmt.Errorf("workflows directory not found: %s", workflowsDir)
-	}
-
-	// Find all .md files in the workflows directory
-	files, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
+	// Scan workflows for MCP configurations, filtering by server name
+	results, err := ScanWorkflowsForMCP(workflowsDir, mcpServerName, verbose)
 	if err != nil {
-		return fmt.Errorf("failed to search for workflow files: %w", err)
+		return err
 	}
 
 	var matchingWorkflows []string
 
-	for _, file := range files {
-		content, err := os.ReadFile(file)
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
-		frontmatterData, err := parser.ExtractFrontmatterFromContent(string(content))
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
-		mcpConfigs, err := parser.ExtractMCPConfigurations(frontmatterData.Frontmatter, mcpServerName)
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Error extracting MCP from %s: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
+	for _, result := range results {
 		// Check if this workflow contains the target MCP server
-		for _, config := range mcpConfigs {
+		for _, config := range result.MCPConfigs {
 			if strings.EqualFold(config.Name, mcpServerName) {
-				baseName := strings.TrimSuffix(filepath.Base(file), ".md")
-				matchingWorkflows = append(matchingWorkflows, baseName)
+				matchingWorkflows = append(matchingWorkflows, result.BaseName)
 				break
 			}
 		}
