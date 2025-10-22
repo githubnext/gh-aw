@@ -12,7 +12,7 @@ permissions:
   contents: read
   actions: read
 roles: [admin, maintainer, write]
-engine: copilot
+engine: claude
 imports:
   - shared/mcp/arxiv.md
   - shared/mcp/tavily.md
