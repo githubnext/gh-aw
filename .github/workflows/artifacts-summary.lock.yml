@@ -24,7 +24,7 @@
 name: "Artifacts Summary"
 "on":
   schedule:
-  - cron: 0 9 * * 0
+  - cron: 0 6 * * 0
   workflow_dispatch: null
 
 permissions:

@@ -24,7 +24,7 @@
 name: "Weekly Issue Summary"
 "on":
   schedule:
-  - cron: 0 9 * * 1
+  - cron: 0 15 * * 1
   workflow_dispatch: null
 
 permissions:

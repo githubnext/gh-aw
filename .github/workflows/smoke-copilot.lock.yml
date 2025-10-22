@@ -23,6 +23,8 @@
 
 name: "Smoke Copilot"
 "on":
+  schedule:
+  - cron: 0 0,6,12,18 * * *
   workflow_dispatch: null
 
 permissions: read-all

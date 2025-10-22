@@ -2,8 +2,8 @@
 name: Copilot Agent PR Analysis
 on:
   schedule:
-    # Every day at 10am UTC
-    - cron: "0 10 * * *"
+    # Every day at 6pm UTC
+    - cron: "0 18 * * *"
   workflow_dispatch:
 
 permissions: read-all
