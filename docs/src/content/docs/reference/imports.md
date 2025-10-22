@@ -126,20 +126,6 @@ Mark imports as optional using the `?` modifier (supported in markdown directive
 
 **Note:** Optional imports are only supported in markdown `{{#import?}}` directives, not in frontmatter `imports:` field.
 
-### 5. Deprecated Syntax (Legacy)
-
-The following syntax is deprecated but still supported:
-
-```markdown
-@include shared/file.md
-@import shared/file.md
-@include? shared/optional.md
-```
-
-**Migration:** Use `{{#import}}` instead:
-- `@include path` → `{{#import path}}`
-- `@include? path` → `{{#import? path}}`
-
 ### Import Path Resolution
 
 - **Relative paths**: Resolved relative to the importing file's directory
