@@ -1617,8 +1617,8 @@ safe-outputs:
   runs-on: "example-value"
 
 # Repository access roles required to trigger agentic workflows. Defaults to
-# ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user
-# (⚠️ security consideration).
+# ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any
+# authenticated user (⚠️ security consideration).
 # (optional)
 # This field supports multiple formats (oneOf):
 
