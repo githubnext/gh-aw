@@ -326,53 +326,15 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 		customArgs := getGitHubCustomArgs(githubTool)
 
-		yaml.WriteString("                \"type\": \"local\",\n")
-
-		// Use Docker-based GitHub MCP server (same as Claude engine)
-		yaml.WriteString("                \"command\": \"docker\",\n")
-		yaml.WriteString("                \"args\": [\n")
-		yaml.WriteString("                  \"run\",\n")
-		yaml.WriteString("                  \"-i\",\n")
-		yaml.WriteString("                  \"--rm\",\n")
-		yaml.WriteString("                  \"-e\",\n")
-		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
-
-		if readOnly {
-			yaml.WriteString("                  \"-e\",\n")
-			yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
-		}
-
-		// Add GITHUB_TOOLSETS environment variable (always configured, defaults to "default")
-		yaml.WriteString("                  \"-e\",\n")
-		yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS=%s\",\n", toolsets))
-
-		yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
-
-		// Append custom args if present
-		writeArgsToYAML(yaml, customArgs, "                  ")
-
-		yaml.WriteString("\n")
-		yaml.WriteString("                ],\n")
-
-		// Populate tools field with allowed tools or "*" if none specified
-		if len(allowedTools) > 0 {
-			yaml.WriteString("                \"tools\": [\n")
-			for i, tool := range allowedTools {
-				comma := ","
-				if i == len(allowedTools)-1 {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "                  \"%s\"%s\n", tool, comma)
-			}
-			yaml.WriteString("                ],\n")
-		} else {
-			yaml.WriteString("                \"tools\": [\"*\"],\n")
-		}
-
-		// Add env section for passthrough
-		yaml.WriteString("                \"env\": {\n")
-		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_PERSONAL_ACCESS_TOKEN}\"\n")
-		yaml.WriteString("                }\n")
+		RenderGitHubMCPDockerConfig(yaml, GitHubMCPDockerOptions{
+			ReadOnly:           readOnly,
+			Toolsets:           toolsets,
+			DockerImageVersion: githubDockerImageVersion,
+			CustomArgs:         customArgs,
+			IncludeTypeField:   true, // Copilot includes "type": "local" field
+			AllowedTools:       allowedTools,
+			EffectiveToken:     "", // Copilot uses env passthrough
+		})
 	}
 
 	if isLast {
