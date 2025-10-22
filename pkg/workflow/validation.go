@@ -10,25 +10,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 )
 
-// isTimeoutError checks if the error output indicates a timeout
-func isTimeoutError(output string) bool {
-	timeoutIndicators := []string{
-		"TimeoutError",
-		"Read timed out",
-		"ReadTimeoutError",
-		"timed out",
-		"timeout",
-	}
-
-	outputLower := strings.ToLower(output)
-	for _, indicator := range timeoutIndicators {
-		if strings.Contains(outputLower, strings.ToLower(indicator)) {
-			return true
-		}
-	}
-	return false
-}
-
 // validateExpressionSizes validates that no expression values in the generated YAML exceed GitHub Actions limits
 func (c *Compiler) validateExpressionSizes(yamlContent string) error {
 	lines := strings.Split(yamlContent, "\n")
