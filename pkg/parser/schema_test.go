@@ -686,15 +686,14 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			errContains: "additional properties 'invalid_prop' not allowed",
 		},
 		{
-			name: "invalid claude configuration with additional properties",
+			name: "invalid claude top-level field (deprecated)",
 			frontmatter: map[string]any{
 				"claude": map[string]any{
-					"model":        "claude-3",
-					"invalid_prop": "value",
+					"model": "claude-3",
 				},
 			},
 			wantErr:     true,
-			errContains: "additional properties 'invalid_prop' not allowed",
+			errContains: "additional properties 'claude' not allowed",
 		},
 		{
 			name: "invalid safe-outputs configuration with additional properties",
