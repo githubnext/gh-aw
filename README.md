@@ -5,6 +5,13 @@ Write agentic workflows in natural language markdown, and run them safely in Git
 > [!WARNING]
 > This extension is a research demonstrator. It is in early development and may change significantly. Using agentic workflows in your repository requires careful attention to security considerations and careful human supervision, and even then things can still go wrong. Use it with caution, and at your own risk.
 
+<!--
+> [!NOTE]
+> **For AI Agents**: To learn about GitHub Agentic Workflows syntax, file formats, tools, and best practices, please read the comprehensive instructions at: [.github/instructions/github-agentic-workflows.instructions.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/github-agentic-workflows.instructions.md)
+>
+> **Prompt Template**: Use `/create-agentic-workflow` in GitHub Copilot Chat to interactively create agentic workflows. The prompt template is available at: [.github/prompts/create-agentic-workflow.prompt.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/prompts/create-agentic-workflow.prompt.md)
+-->
+
 ## 🚀 Quick Start
 
 Ready to get your first agentic workflow running? Follow our step-by-step [Quick Start Guide](https://githubnext.github.io/gh-aw/start-here/quick-start/) to install the extension, add a sample workflow, and see it in action.
