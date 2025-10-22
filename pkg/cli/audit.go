@@ -14,9 +14,12 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
+
+var auditLog = logger.New("cli:audit")
 
 // NewAuditCommand creates the audit command
 func NewAuditCommand() *cobra.Command {
@@ -148,11 +151,14 @@ func isPermissionError(err error) bool {
 
 // AuditWorkflowRun audits a single workflow run and generates a report
 func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse bool, jsonOutput bool) error {
+	auditLog.Printf("Starting audit for workflow run: runID=%d, owner=%s, repo=%s", runInfo.RunID, runInfo.Owner, runInfo.Repo)
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auditing workflow run %d...", runInfo.RunID)))
 	}
 
 	runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", runInfo.RunID))
+	auditLog.Printf("Using output directory: %s", runOutputDir)
 
 	// Check if we have locally cached artifacts first
 	hasLocalCache := dirExists(runOutputDir) && !isDirEmpty(runOutputDir)
@@ -188,10 +194,12 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 		}
 
 		// Download artifacts for the run
+		auditLog.Printf("Downloading artifacts for run %d", runInfo.RunID)
 		err := downloadRunArtifacts(runInfo.RunID, runOutputDir, verbose)
 		if err != nil {
 			// Gracefully handle cases where the run legitimately has no artifacts
 			if errors.Is(err, ErrNoArtifacts) {
+				auditLog.Printf("No artifacts found for run %d", runInfo.RunID)
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No artifacts attached to this run. Proceeding with metadata-only audit."))
 				}

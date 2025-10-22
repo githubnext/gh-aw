@@ -11,8 +11,11 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
+
+var schemaLog = logger.New("parser:schema")
 
 //go:embed schemas/main_workflow_schema.json
 var mainWorkflowSchema string
@@ -25,8 +28,11 @@ var mcpConfigSchema string
 
 // ValidateMainWorkflowFrontmatterWithSchema validates main workflow frontmatter using JSON schema
 func ValidateMainWorkflowFrontmatterWithSchema(frontmatter map[string]any) error {
+	schemaLog.Print("Validating main workflow frontmatter with schema")
+
 	// First run the standard schema validation
 	if err := validateWithSchema(frontmatter, mainWorkflowSchema, "main workflow file"); err != nil {
+		schemaLog.Printf("Schema validation failed for main workflow: %v", err)
 		return err
 	}
 
@@ -47,8 +53,11 @@ func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string
 
 // ValidateIncludedFileFrontmatterWithSchema validates included file frontmatter using JSON schema
 func ValidateIncludedFileFrontmatterWithSchema(frontmatter map[string]any) error {
+	schemaLog.Print("Validating included file frontmatter with schema")
+
 	// First run the standard schema validation
 	if err := validateWithSchema(frontmatter, includedFileSchema, "included file"); err != nil {
+		schemaLog.Printf("Schema validation failed for included file: %v", err)
 		return err
 	}
 
@@ -321,6 +330,7 @@ func validateEngineSpecificRules(frontmatter map[string]any) error {
 
 	// Handle string format engine
 	if engineStr, ok := engine.(string); ok {
+		schemaLog.Printf("Validating engine-specific rules for string engine: %s", engineStr)
 		// String format doesn't support permissions, so no validation needed
 		_ = engineStr
 		return nil
@@ -338,9 +348,12 @@ func validateEngineSpecificRules(frontmatter map[string]any) error {
 		return nil // Missing or invalid ID, but this should be caught by schema validation
 	}
 
+	schemaLog.Printf("Validating engine-specific rules for engine: %s", engineID)
+
 	// Check if codex engine has permissions configured
 	if engineID == "codex" {
 		if _, hasPermissions := engineMap["permissions"]; hasPermissions {
+			schemaLog.Printf("Codex engine has invalid permissions configuration")
 			return errors.New("engine permissions are not supported for codex engine. Only Claude engine supports permissions configuration")
 		}
 	}
