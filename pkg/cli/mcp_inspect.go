@@ -212,55 +212,21 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 
 // listWorkflowsWithMCP shows available workflow files that contain MCP configurations
 func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
-	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return fmt.Errorf("no .github/workflows directory found")
-	}
-
-	files, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
+	// Scan workflows for MCP configurations
+	results, err := ScanWorkflowsForMCP(workflowsDir, "", verbose)
 	if err != nil {
-		return fmt.Errorf("failed to read workflow files: %w", err)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("no .github/workflows directory found")
+		}
+		return err
 	}
 
+	// Filter out safe-outputs MCP servers for inspection
 	var workflowsWithMCP []string
-
-	for _, file := range files {
-		content, err := os.ReadFile(file)
-		if err != nil {
-			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
-		workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
-		if err != nil {
-			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
-		// Validate frontmatter before analyzing MCPs (non-verbose mode to avoid spam)
-		if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(workflowData.Frontmatter, file); err != nil {
-			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s due to frontmatter validation: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
-		mcpConfigs, err := parser.ExtractMCPConfigurations(workflowData.Frontmatter, "")
-		if err != nil {
-			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
-		// Filter out safe-outputs MCP servers for inspection
-		filteredConfigs := filterOutSafeOutputs(mcpConfigs)
-
+	for _, result := range results {
+		filteredConfigs := filterOutSafeOutputs(result.MCPConfigs)
 		if len(filteredConfigs) > 0 {
-			workflowsWithMCP = append(workflowsWithMCP, filepath.Base(file))
+			workflowsWithMCP = append(workflowsWithMCP, result.FileName)
 		}
 	}
 
