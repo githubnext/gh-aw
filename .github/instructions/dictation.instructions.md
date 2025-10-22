@@ -8,7 +8,6 @@ activation
 add-comment
 add-labels
 agent-finish
-agent-task
 agentic
 agentic-workflows
 allowed
@@ -22,7 +21,6 @@ changeset
 checkout
 claude
 codex
-coding-agent
 compile
 compiler
 concurrency
@@ -63,14 +61,10 @@ metadata
 missing-tool
 model
 network
-npm
-nvm
-octokit
 on
 permissions
 playwright
 post-steps
-pre-activation
 pull_request
 pull_request_review_comment
 recompile
@@ -88,8 +82,6 @@ sanitized
 schema
 secrets
 session
-smoke
-source
 staged
 step
 steps
@@ -101,7 +93,6 @@ target
 target-repo
 tavily
 test-unit
-threat-detection
 timeout
 timeout_minutes
 title-prefix
@@ -109,10 +100,8 @@ toolset
 tools
 trial
 trigger
-unbloat
 update-issue
 upload
-user-agent
 validation
 version
 web-fetch
@@ -120,9 +109,6 @@ web-search
 workflow
 workflow_dispatch
 workflows
-workspace
-xpia
-yaml
 
 ## Technical Context
 
