@@ -6,7 +6,6 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/jqschema.md
-#     - shared/check-existing-pr.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -1156,104 +1155,6 @@ jobs:
           # Now you know which fields exist and can use them in your analysis
           ```
           
-          ## Check for Existing Pull Request
-          
-          Before creating a new pull request, verify if there's already an open PR from this workflow to avoid duplicates.
-          
-          ### Search Strategy
-          
-          Use both title prefix and labels for highly effective PR matching:
-          
-          1. **Search by title prefix and labels**: Use `search_pull_requests` with a query combining:
-             - Repository scope: `repo:${{ github.repository }}`
-             - PR filter: `is:pr`
-             - State filter: `is:open`
-             - Title pattern matching the workflow's title prefix
-             - Label filter matching the workflow's automation labels
-          
-          2. **Fallback search**: If needed, use `list_pull_requests` with `state: open` and manually filter by:
-             - Title prefix match
-             - Label match (both "automation" and workflow-specific labels)
-          
-          ### Example Search Pattern
-          
-          For a workflow that creates PRs with:
-          - Title prefix: `[ca]` (CLI automation)
-          - Labels: `automation`, `dependencies`
-          
-          Use this search query:
-          ```
-          repo:${{ github.repository }} is:pr is:open "[ca]" label:automation label:dependencies
-          ```
-          
-          This pattern is highly effective because it combines:
-          - **Exact repository scoping**: Limits search to current repository
-          - **PR type filtering**: Only pull requests, not issues
-          - **State filtering**: Only open PRs
-          - **Title prefix matching**: Matches the unique workflow prefix in quotes for exact matching
-          - **Label combination**: Requires BOTH automation and workflow-specific labels
-          
-          ### Implementation
-          
-          When checking for existing PRs:
-          
-          1. **First attempt** - Use `search_pull_requests`:
-             ```
-             query: 'repo:${{ github.repository }} is:pr is:open "[your-prefix]" label:automation label:workflow-label'
-             ```
-          
-          2. **Verify results**: Check if any PRs are returned
-             - If found: Extract PR number, URL, and branch name
-             - If none: Proceed with creating a new PR
-          
-          3. **Handle edge cases**:
-             - Multiple matching PRs: Use the most recently created/updated
-             - PR closed recently: Confirm it's truly open before reporting
-          
-          ### Stop Condition
-          
-          If an existing open PR is found:
-          - Print a clear message: "An open pull request already exists for this workflow"
-          - Include PR details: number, URL, title
-          - Stop execution immediately without creating a new PR
-          - Exit successfully (not as an error)
-          
-          ### Integration with Workflows
-          
-          Import this shared workflow in your agentic workflow frontmatter:
-          ```yaml
-          imports:
-            - shared/check-existing-pr.md
-          ```
-          
-          Then, in your workflow instructions, add as the first step:
-          ```
-          ### 0. Check for Existing Pull Request
-          Before starting any work, check if there's already an open pull request from this workflow:
-          - Use the search pattern with title prefix "[your-prefix]" and labels
-          - If found, print message and stop execution
-          - If not found, proceed with workflow tasks
-          ```
-          
-          ### Search Query Examples
-          
-          **For CLI version checker** (`[ca]` prefix, `automation` + `dependencies` labels):
-          ```
-          repo:${{ github.repository }} is:pr is:open "[ca]" label:automation label:dependencies
-          ```
-          
-          **For tidy workflow** (`[tidy]` prefix, `automation` + `maintenance` labels):
-          ```
-          repo:${{ github.repository }} is:pr is:open "[tidy]" label:automation label:maintenance
-          ```
-          
-          **For security fixes** (`[security-fix]` prefix, `security` + `automated-fix` labels):
-          ```
-          repo:${{ github.repository }} is:pr is:open "[security-fix]" label:security label:automated-fix
-          ```
-          
-          This approach ensures extremely effective PR detection by requiring all criteria to match, making false positives virtually impossible.
-          
           # CLI Version Checker
           
           Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, and GitHub MCP Server.
@@ -1262,16 +1163,6 @@ jobs:
           
           ## Process
           
-          ### 0. Check for Existing Pull Request
-          Before starting version checks and updates, verify if there's already an open PR from this workflow:
-          - Use `search_pull_requests` with query: `repo:${{ github.repository }} is:pr is:open "[ca]" label:automation label:dependencies`
-          - If an existing open PR is found:
-            - Print message: "An open pull request already exists for CLI version updates"
-            - Include PR number, URL, and title
-            - Stop execution immediately
-          - If no existing PR found, proceed with version checks
-          
-          ### 1. Check for Updates
           For each CLI/MCP server:
           1. Fetch latest version from NPM registry or GitHub releases
           2. Compare with current version in `./pkg/constants/constants.go`
@@ -1613,13 +1504,65 @@ jobs:
         # - TodoWrite
         # - WebFetch
         # - Write
+        # - mcp__github__download_workflow_run_artifact
+        # - mcp__github__get_code_scanning_alert
+        # - mcp__github__get_commit
+        # - mcp__github__get_dependabot_alert
+        # - mcp__github__get_discussion
+        # - mcp__github__get_discussion_comments
+        # - mcp__github__get_file_contents
+        # - mcp__github__get_issue
+        # - mcp__github__get_issue_comments
+        # - mcp__github__get_job_logs
+        # - mcp__github__get_label
+        # - mcp__github__get_latest_release
+        # - mcp__github__get_me
+        # - mcp__github__get_notification_details
+        # - mcp__github__get_pull_request
+        # - mcp__github__get_pull_request_comments
+        # - mcp__github__get_pull_request_diff
+        # - mcp__github__get_pull_request_files
+        # - mcp__github__get_pull_request_review_comments
+        # - mcp__github__get_pull_request_reviews
+        # - mcp__github__get_pull_request_status
+        # - mcp__github__get_release_by_tag
+        # - mcp__github__get_secret_scanning_alert
+        # - mcp__github__get_tag
+        # - mcp__github__get_workflow_run
+        # - mcp__github__get_workflow_run_logs
+        # - mcp__github__get_workflow_run_usage
+        # - mcp__github__list_branches
+        # - mcp__github__list_code_scanning_alerts
+        # - mcp__github__list_commits
+        # - mcp__github__list_dependabot_alerts
+        # - mcp__github__list_discussion_categories
+        # - mcp__github__list_discussions
+        # - mcp__github__list_issue_types
+        # - mcp__github__list_issues
+        # - mcp__github__list_label
+        # - mcp__github__list_notifications
         # - mcp__github__list_pull_requests
+        # - mcp__github__list_releases
+        # - mcp__github__list_secret_scanning_alerts
+        # - mcp__github__list_starred_repositories
+        # - mcp__github__list_sub_issues
+        # - mcp__github__list_tags
+        # - mcp__github__list_workflow_jobs
+        # - mcp__github__list_workflow_run_artifacts
+        # - mcp__github__list_workflow_runs
+        # - mcp__github__list_workflows
+        # - mcp__github__pull_request_read
+        # - mcp__github__search_code
+        # - mcp__github__search_issues
+        # - mcp__github__search_orgs
         # - mcp__github__search_pull_requests
+        # - mcp__github__search_repositories
+        # - mcp__github__search_users
         timeout-minutes: 15
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(/tmp/gh-aw/jqschema.sh),Bash(cat *),Bash(cat),Bash(claude-code --help),Bash(codex --help),Bash(copilot --help),Bash(date),Bash(echo),Bash(git *),Bash(grep *),Bash(grep),Bash(head),Bash(jq *),Bash(ls *),Bash(ls),Bash(make *),Bash(npm install *),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,Write,mcp__github__list_pull_requests,mcp__github__search_pull_requests" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(/tmp/gh-aw/jqschema.sh),Bash(cat *),Bash(cat),Bash(claude-code --help),Bash(codex --help),Bash(copilot --help),Bash(date),Bash(echo),Bash(git *),Bash(grep *),Bash(grep),Bash(head),Bash(jq *),Bash(ls *),Bash(ls),Bash(make *),Bash(npm install *),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
