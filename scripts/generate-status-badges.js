@@ -71,16 +71,13 @@ function generateMarkdown(workflows) {
   lines.push('This page shows the current status of all agentic workflows in the repository.');
   lines.push('');
   
-  // Generate status badges in a compact table format
-  lines.push('| Workflow | Status |');
-  lines.push('|----------|--------|');
-  
   // Sort workflows alphabetically by name
   workflows.sort((a, b) => a.name.localeCompare(b.name));
   
+  // Generate status badges - one per line
   for (const workflow of workflows) {
     const badge = `[![${workflow.name}](${workflow.badgeUrl})](${workflow.workflowUrl})`;
-    lines.push(`| ${workflow.name} | ${badge} |`);
+    lines.push(badge);
   }
   
   lines.push('');
