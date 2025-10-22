@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/huh"
@@ -355,81 +353,6 @@ func (b *InteractiveWorkflowBuilder) generateWorkflowContent() string {
 
 // Helper methods for generating configuration sections
 
-// findAvailableScheduleHour analyzes existing workflow schedules and returns an available hour
-func findAvailableScheduleHour() int {
-	return findAvailableScheduleHourInDir("")
-}
-
-// findAvailableScheduleHourInDir analyzes existing workflow schedules in a specific directory
-// If dir is empty, uses git root
-func findAvailableScheduleHourInDir(dir string) int {
-	usedHours := make(map[int]bool)
-	
-	var workflowsDir string
-	if dir != "" {
-		// Use provided directory
-		workflowsDir = filepath.Join(dir, ".github", "workflows")
-	} else {
-		// Get git root to find workflows directory
-		gitRoot, err := findGitRoot()
-		if err != nil {
-			// If not in a git repo, return default hour
-			return 9
-		}
-		workflowsDir = filepath.Join(gitRoot, ".github", "workflows")
-	}
-	
-	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		// No workflows directory, return default hour
-		return 9
-	}
-	
-	// Read all .md workflow files
-	files, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
-	if err != nil {
-		return 9
-	}
-	
-	// Regular expression to match cron schedules with hour patterns
-	// Matches patterns like: "0 9 * * *" or "0 9 * * 1-5"
-	cronPattern := regexp.MustCompile(`cron:\s*"0\s+(\d+)\s+\*\s+\*\s+(\*|1-5)"`)
-	
-	// Parse each file looking for schedule triggers
-	for _, file := range files {
-		content, err := os.ReadFile(file)
-		if err != nil {
-			continue
-		}
-		
-		matches := cronPattern.FindAllStringSubmatch(string(content), -1)
-		for _, match := range matches {
-			if len(match) > 1 {
-				if hour, err := strconv.Atoi(match[1]); err == nil && hour >= 0 && hour < 24 {
-					usedHours[hour] = true
-				}
-			}
-		}
-	}
-	
-	// Find first available hour, preferring business hours (8-17 UTC)
-	businessHours := []int{9, 10, 11, 14, 13, 8, 15, 16, 17}
-	for _, hour := range businessHours {
-		if !usedHours[hour] {
-			return hour
-		}
-	}
-	
-	// If all business hours are taken, find any available hour
-	for hour := 0; hour < 24; hour++ {
-		if !usedHours[hour] {
-			return hour
-		}
-	}
-	
-	// All hours are taken (unlikely), return 9 as fallback
-	return 9
-}
-
 func (b *InteractiveWorkflowBuilder) generateTriggerConfig() string {
 	switch b.Trigger {
 	case "workflow_dispatch":
@@ -443,8 +366,7 @@ func (b *InteractiveWorkflowBuilder) generateTriggerConfig() string {
 	case "issue_comment":
 		return "on:\n  issue_comment:\n    types: [created]\n"
 	case "schedule_daily":
-		hour := findAvailableScheduleHour()
-		return fmt.Sprintf("on:\n  schedule:\n    - cron: \"0 %d * * 1-5\"  # Daily at %d:00 UTC (weekdays only)\n", hour, hour)
+		return "on:\n  schedule:\n    - cron: \"0 9 * * *\"  # Daily at 9 AM UTC\n"
 	case "schedule_weekly":
 		return "on:\n  schedule:\n    - cron: \"0 9 * * 1\"  # Weekly on Monday at 9 AM UTC\n"
 	case "command":
@@ -531,7 +453,7 @@ func (b *InteractiveWorkflowBuilder) describeTrigger() string {
 	case "issue_comment":
 		return "Issue comment created"
 	case "schedule_daily":
-		return "Daily schedule (weekdays only)"
+		return "Daily schedule (9 AM UTC)"
 	case "schedule_weekly":
 		return "Weekly schedule (Monday 9 AM UTC)"
 	case "command":
