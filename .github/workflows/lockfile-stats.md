@@ -16,6 +16,8 @@ safe-outputs:
     max: 1
 timeout_minutes: 15
 strict: true
+imports:
+  - shared/reporting.md
 ---
 
 # Lockfile Statistics Analysis Agent
