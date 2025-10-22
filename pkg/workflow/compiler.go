@@ -1072,12 +1072,12 @@ func (c *Compiler) extractPermissions(frontmatter map[string]any) string {
 
 	// Check if this is an "all: read" case by using the parser
 	parser := NewPermissionsParserFromValue(permissionsValue)
-	
+
 	// If it's "all: read", use the parser to expand it
 	if parser.hasAll && parser.allLevel == "read" {
 		permissions := parser.ToPermissions()
 		yaml := permissions.RenderToYAML()
-		
+
 		// Adjust indentation from 6 spaces to 2 spaces for workflow-level permissions
 		// RenderToYAML uses 6 spaces for job-level rendering
 		lines := strings.Split(yaml, "\n")
@@ -1088,7 +1088,7 @@ func (c *Compiler) extractPermissions(frontmatter map[string]any) string {
 		}
 		return strings.Join(lines, "\n")
 	}
-	
+
 	// For all other cases, use standard extraction
 	return c.extractTopLevelYAMLSection(frontmatter, "permissions")
 }

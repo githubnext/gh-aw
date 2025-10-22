@@ -299,7 +299,7 @@ func (p *PermissionsParser) ToPermissions() *Permissions {
 	// Handle all: read case
 	if p.hasAll && p.allLevel == "read" {
 		perms := NewPermissionsAllRead()
-		
+
 		// Apply explicit overrides from parsedPerms
 		for key, value := range p.parsedPerms {
 			if key == "all" {
@@ -310,7 +310,7 @@ func (p *PermissionsParser) ToPermissions() *Permissions {
 				perms.Set(scope, PermissionLevel(value))
 			}
 		}
-		
+
 		return perms
 	}
 
