@@ -48,7 +48,10 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	if data.SafeOutputs.AddComments.Target != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_TARGET: %q\n", data.SafeOutputs.AddComments.Target))
 	}
-
+	// Pass the discussion flag configuration
+	if data.SafeOutputs.AddComments.Discussion != nil && *data.SafeOutputs.AddComments.Discussion {
+		customEnvVars = append(customEnvVars, "          GITHUB_AW_COMMENT_DISCUSSION: \"true\"\n")
+	}
 	// Add environment variables for the URLs from other safe output jobs if they exist
 	if createIssueJobName != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CREATED_ISSUE_URL: ${{ needs.%s.outputs.issue_url }}\n", createIssueJobName))
