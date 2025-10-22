@@ -145,7 +145,7 @@ on:
 
 			if tt.expectStopTime {
 				// Should contain stop-time check
-				if !strings.Contains(compiledStr, "STOP_TIME=") {
+				if !strings.Contains(compiledStr, "GH_AW_STOP_TIME:") {
 					t.Error("Compiled workflow should contain stop-time check but doesn't")
 				}
 
@@ -156,35 +156,34 @@ on:
 					}
 				} else {
 					// For relative times, check that the format looks like a resolved timestamp
-					// Extract the STOP_TIME value
+					// Extract the GH_AW_STOP_TIME value
 					lines := strings.Split(compiledStr, "\n")
 					var stopTimeLine string
 					for _, line := range lines {
-						if strings.Contains(line, "STOP_TIME=") {
+						if strings.Contains(line, "GH_AW_STOP_TIME:") {
 							stopTimeLine = line
 							break
 						}
 					}
 
 					if stopTimeLine == "" {
-						t.Error("Could not find STOP_TIME line in compiled workflow")
+						t.Error("Could not find GH_AW_STOP_TIME line in compiled workflow")
 						return
 					}
 
-					// Extract the timestamp value (between quotes)
-					start := strings.Index(stopTimeLine, `"`) + 1
-					end := strings.LastIndex(stopTimeLine, `"`)
-					if start <= 0 || end <= start {
-						t.Error("Could not extract STOP_TIME value from line: " + stopTimeLine)
+					// Extract the timestamp value (after colon and space)
+					parts := strings.SplitN(stopTimeLine, "GH_AW_STOP_TIME:", 2)
+					if len(parts) < 2 {
+						t.Error("Could not extract GH_AW_STOP_TIME value from line: " + stopTimeLine)
 						return
 					}
 
-					timestamp := stopTimeLine[start:end]
+					timestamp := strings.TrimSpace(parts[1])
 
 					// Parse as timestamp to verify it's valid
 					_, err := time.Parse("2006-01-02 15:04:05", timestamp)
 					if err != nil {
-						t.Errorf("STOP_TIME value %q is not a valid timestamp: %v", timestamp, err)
+						t.Errorf("GH_AW_STOP_TIME value %q is not a valid timestamp: %v", timestamp, err)
 					}
 
 					// Verify it's in the future (relative to now)
@@ -195,7 +194,7 @@ on:
 				}
 			} else {
 				// Should not contain stop-time check
-				if strings.Contains(compiledStr, "STOP_TIME=") {
+				if strings.Contains(compiledStr, "GH_AW_STOP_TIME:") {
 					t.Error("Compiled workflow should not contain stop-time check but does")
 				}
 			}
