@@ -357,17 +357,20 @@ async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
 
       const discussionId = repository.discussion.id;
 
+      // Get the comment node ID to use as the parent for threading
+      const commentNodeId = context.payload?.comment?.node_id;
+
       const result = await github.graphql(
         `
-        mutation($dId: ID!, $body: String!) {
-          addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+        mutation($dId: ID!, $body: String!, $replyToId: ID!) {
+          addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
             comment { 
               id 
               url
             }
           }
         }`,
-        { dId: discussionId, body: workflowLinkText }
+        { dId: discussionId, body: workflowLinkText, replyToId: commentNodeId }
       );
 
       const comment = result.addDiscussionComment.comment;
