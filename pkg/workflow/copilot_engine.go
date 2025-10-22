@@ -50,6 +50,23 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		workflowData,
 	)
 	steps = append(steps, npmSteps...)
+
+	// Add AWF installation steps (always enabled for copilot)
+	var awfVersion string
+	var cleanupScript string
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil {
+		awfVersion = workflowData.EngineConfig.Firewall.Version
+		cleanupScript = workflowData.EngineConfig.Firewall.CleanupScript
+	}
+
+	// Install AWF binary
+	awfInstall := generateAWFInstallationStep(awfVersion)
+	steps = append(steps, awfInstall)
+
+	// Pre-execution cleanup
+	awfCleanup := generateAWFCleanupStep(cleanupScript)
+	steps = append(steps, awfCleanup)
+
 	return steps
 }
 
@@ -130,9 +147,40 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		mkdirCommands.WriteString(fmt.Sprintf("mkdir -p %s\n", dir))
 	}
 
+	// Build the AWF-wrapped command (always enabled for copilot)
+	var awfLogLevel string = "debug"
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil && workflowData.EngineConfig.Firewall.LogLevel != "" {
+		awfLogLevel = workflowData.EngineConfig.Firewall.LogLevel
+	}
+
+	// Get allowed domains (copilot defaults + network permissions)
+	allowedDomains := GetCopilotAllowedDomains(workflowData.NetworkPermissions)
+
+	// Determine Copilot CLI version to use
+	copilotVersion := constants.DefaultCopilotVersion
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		copilotVersion = workflowData.EngineConfig.Version
+	}
+
+	// Build the copilot command wrapped with AWF (using npx to ensure version)
+	copilotCommand := fmt.Sprintf("npx -y @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
+
 	command := fmt.Sprintf(`set -o pipefail
 COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-%scopilot %s 2>&1 | tee %s`, mkdirCommands.String(), shellJoinArgs(copilotArgs), logFile)
+%ssudo -E awf --env-all \
+  --allow-domains %s \
+  --log-level %s \
+  '%s' \
+  2>&1 | tee %s
+
+# Move preserved Copilot logs to expected location
+COPILOT_LOGS_DIR=$(ls -td /tmp/copilot-logs-* 2>/dev/null | head -1)
+if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
+  echo "Moving Copilot logs from $COPILOT_LOGS_DIR to %s"
+  mkdir -p %s
+  mv "$COPILOT_LOGS_DIR"/* %s || true
+  rmdir "$COPILOT_LOGS_DIR" || true
+fi`, mkdirCommands.String(), allowedDomains, awfLogLevel, copilotCommand, logFile, logsFolder, logsFolder, logsFolder)
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":           "/home/runner",
@@ -216,6 +264,21 @@ COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 	stepLines = FormatStepWithCommandAndEnv(stepLines, command, env)
 
 	steps = append(steps, GitHubActionStep(stepLines))
+
+	// Add Squid logs collection and upload steps (AWF generates these logs)
+	squidLogsCollection := generateSquidLogsCollectionStep(workflowData.Name)
+	steps = append(steps, squidLogsCollection)
+
+	squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
+	steps = append(steps, squidLogsUpload)
+
+	// Add post-execution cleanup step (always runs)
+	var postCleanupScript string
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil {
+		postCleanupScript = workflowData.EngineConfig.Firewall.CleanupScript
+	}
+	postCleanup := generateAWFPostExecutionCleanupStep(postCleanupScript)
+	steps = append(steps, postCleanup)
 
 	return steps
 }
@@ -766,4 +829,121 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 	}...)
 
 	return patterns
+}
+
+// generateAWFInstallationStep creates a GitHub Actions step to install the AWF binary
+func generateAWFInstallationStep(version string) GitHubActionStep {
+	stepLines := []string{
+		"      - name: Install awf binary",
+		"        run: |",
+	}
+
+	if version == "" {
+		stepLines = append(stepLines, "          LATEST_TAG=$(gh release view --repo githubnext/gh-aw-firewall --json tagName --jq .tagName)")
+		stepLines = append(stepLines, "          echo \"Installing awf from release: $LATEST_TAG\"")
+		stepLines = append(stepLines, "          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/${LATEST_TAG}/awf-linux-x64 -o awf")
+	} else {
+		stepLines = append(stepLines, fmt.Sprintf("          echo \"Installing awf from release: %s\"", version))
+		stepLines = append(stepLines, fmt.Sprintf("          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/%s/awf-linux-x64 -o awf", version))
+	}
+
+	stepLines = append(stepLines,
+		"          chmod +x awf",
+		"          sudo mv awf /usr/local/bin/",
+		"          which awf",
+		"          awf --version",
+		"        env:",
+		"          GH_TOKEN: ${{ github.token }}",
+	)
+
+	return GitHubActionStep(stepLines)
+}
+
+// generateAWFCleanupStep creates a GitHub Actions step to cleanup AWF resources
+func generateAWFCleanupStep(scriptPath string) GitHubActionStep {
+	if scriptPath == "" {
+		scriptPath = "./scripts/ci/cleanup.sh"
+	}
+
+	stepLines := []string{
+		"      - name: Cleanup any existing awf resources",
+		fmt.Sprintf("        run: %s || true", scriptPath),
+	}
+
+	return GitHubActionStep(stepLines)
+}
+
+// sanitizeWorkflowName sanitizes a workflow name for use in artifact names and file paths
+// Removes or replaces characters that are invalid in YAML artifact names or filesystem paths
+func sanitizeWorkflowName(name string) string {
+	// Replace colons, slashes, and other problematic characters with hyphens
+	sanitized := strings.ReplaceAll(name, ":", "-")
+	sanitized = strings.ReplaceAll(sanitized, "/", "-")
+	sanitized = strings.ReplaceAll(sanitized, "\\", "-")
+	sanitized = strings.ReplaceAll(sanitized, " ", "-")
+	// Remove any remaining special characters that might cause issues
+	sanitized = strings.Map(func(r rune) rune {
+		// Allow alphanumeric, hyphens, underscores, and periods
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			return r
+		}
+		return '-'
+	}, sanitized)
+	return sanitized
+}
+
+// generateSquidLogsCollectionStep creates a GitHub Actions step to collect Squid logs from AWF
+func generateSquidLogsCollectionStep(workflowName string) GitHubActionStep {
+	sanitizedName := sanitizeWorkflowName(workflowName)
+	squidLogsDir := fmt.Sprintf("/tmp/gh-aw/squid-logs-%s/", sanitizedName)
+
+	stepLines := []string{
+		"      - name: Collect Squid logs for upload",
+		"        if: always()",
+		"        run: |",
+		"          # Squid logs are preserved in timestamped directories",
+		"          SQUID_LOGS_DIR=$(ls -td /tmp/squid-logs-* 2>/dev/null | head -1)",
+		"          if [ -n \"$SQUID_LOGS_DIR\" ] && [ -d \"$SQUID_LOGS_DIR\" ]; then",
+		"            echo \"Found Squid logs at: $SQUID_LOGS_DIR\"",
+		fmt.Sprintf("            mkdir -p %s", squidLogsDir),
+		fmt.Sprintf("            sudo cp -r \"$SQUID_LOGS_DIR\"/* %s || true", squidLogsDir),
+		fmt.Sprintf("            sudo chmod -R a+r %s || true", squidLogsDir),
+		"          fi",
+	}
+
+	return GitHubActionStep(stepLines)
+}
+
+// generateSquidLogsUploadStep creates a GitHub Actions step to upload Squid logs as artifact
+func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
+	sanitizedName := sanitizeWorkflowName(workflowName)
+	artifactName := fmt.Sprintf("squid-logs-%s", sanitizedName)
+	squidLogsDir := fmt.Sprintf("/tmp/gh-aw/squid-logs-%s/", sanitizedName)
+
+	stepLines := []string{
+		"      - name: Upload Squid logs",
+		"        if: always()",
+		"        uses: actions/upload-artifact@v4",
+		"        with:",
+		fmt.Sprintf("          name: %s", artifactName),
+		fmt.Sprintf("          path: %s", squidLogsDir),
+		"          if-no-files-found: ignore",
+	}
+
+	return GitHubActionStep(stepLines)
+}
+
+// generateAWFPostExecutionCleanupStep creates a GitHub Actions step to cleanup AWF resources after execution
+func generateAWFPostExecutionCleanupStep(scriptPath string) GitHubActionStep {
+	if scriptPath == "" {
+		scriptPath = "./scripts/ci/cleanup.sh"
+	}
+
+	stepLines := []string{
+		"      - name: Cleanup awf resources",
+		"        if: always()",
+		fmt.Sprintf("        run: %s || true", scriptPath),
+	}
+
+	return GitHubActionStep(stepLines)
 }

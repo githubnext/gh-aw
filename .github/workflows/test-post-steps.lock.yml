@@ -119,6 +119,19 @@ jobs:
           node-version: '24'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.347
+      - name: Install awf binary
+        run: |
+          LATEST_TAG=$(gh release view --repo githubnext/gh-aw-firewall --json tagName --jq .tagName)
+          echo "Installing awf from release: $LATEST_TAG"
+          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/${LATEST_TAG}/awf-linux-x64 -o awf
+          chmod +x awf
+          sudo mv awf /usr/local/bin/
+          which awf
+          awf --version
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Cleanup any existing awf resources
+        run: ./scripts/ci/cleanup.sh || true
       - name: Downloading container images
         run: |
           set -e
@@ -371,7 +384,20 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(get_repository)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          sudo -E awf --env-all \
+            --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org \
+            --log-level debug \
+            'npx -y @github/copilot@0.0.347 --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(get_repository)' --prompt "$COPILOT_CLI_INSTRUCTION"' \
+            2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          
+          # Move preserved Copilot logs to expected location
+          COPILOT_LOGS_DIR=$(ls -td /tmp/copilot-logs-* 2>/dev/null | head -1)
+          if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
+            echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/.copilot/logs/"
+            mkdir -p /tmp/gh-aw/.copilot/logs/
+            mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/.copilot/logs/ || true
+            rmdir "$COPILOT_LOGS_DIR" || true
+          fi
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
@@ -380,6 +406,27 @@ jobs:
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
           XDG_CONFIG_HOME: /home/runner
+      - name: Collect Squid logs for upload
+        if: always()
+        run: |
+          # Squid logs are preserved in timestamped directories
+          SQUID_LOGS_DIR=$(ls -td /tmp/squid-logs-* 2>/dev/null | head -1)
+          if [ -n "$SQUID_LOGS_DIR" ] && [ -d "$SQUID_LOGS_DIR" ]; then
+            echo "Found Squid logs at: $SQUID_LOGS_DIR"
+            mkdir -p /tmp/gh-aw/squid-logs-Test-Post-Steps-Workflow/
+            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-Test-Post-Steps-Workflow/ || true
+            sudo chmod -R a+r /tmp/gh-aw/squid-logs-Test-Post-Steps-Workflow/ || true
+          fi
+      - name: Upload Squid logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: squid-logs-Test-Post-Steps-Workflow
+          path: /tmp/gh-aw/squid-logs-Test-Post-Steps-Workflow/
+          if-no-files-found: ignore
+      - name: Cleanup awf resources
+        if: always()
+        run: ./scripts/ci/cleanup.sh || true
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@v8

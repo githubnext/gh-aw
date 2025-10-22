@@ -42,8 +42,8 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 	// Test with no version
 	workflowData := &WorkflowData{}
 	steps := engine.GetInstallationSteps(workflowData)
-	if len(steps) != 3 {
-		t.Errorf("Expected 3 installation steps (secret validation + Node.js setup + install), got %d", len(steps))
+	if len(steps) != 5 {
+		t.Errorf("Expected 5 installation steps (secret validation + Node.js setup + install + AWF install + AWF cleanup), got %d", len(steps))
 	}
 
 	// Test with version
@@ -51,8 +51,8 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 		EngineConfig: &EngineConfig{Version: "1.0.0"},
 	}
 	stepsWithVersion := engine.GetInstallationSteps(workflowDataWithVersion)
-	if len(stepsWithVersion) != 3 {
-		t.Errorf("Expected 3 installation steps with version (secret validation + Node.js setup + install), got %d", len(stepsWithVersion))
+	if len(stepsWithVersion) != 5 {
+		t.Errorf("Expected 5 installation steps with version (secret validation + Node.js setup + install + AWF install + AWF cleanup), got %d", len(stepsWithVersion))
 	}
 }
 
@@ -63,8 +63,8 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step (copilot execution), got %d", len(steps))
+	if len(steps) != 4 {
+		t.Fatalf("Expected 4 steps (copilot execution + Squid logs collection + upload + cleanup), got %d", len(steps))
 	}
 
 	// Check the execution step (first step)
@@ -74,8 +74,8 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected step name 'Execute GitHub Copilot CLI' in step content:\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir") {
-		t.Errorf("Expected command to contain 'copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir' in step content:\n%s", stepContent)
+	if !strings.Contains(stepContent, "npx -y @github/copilot@") || !strings.Contains(stepContent, "--add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir") {
+		t.Errorf("Expected command to contain 'npx -y @github/copilot@' and '--add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir' in step content:\n%s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "/tmp/gh-aw/test.log") {
@@ -119,8 +119,8 @@ func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step (copilot execution) with output, got %d", len(steps))
+	if len(steps) != 4 {
+		t.Fatalf("Expected 4 steps (copilot execution + Squid logs collection + upload + cleanup) with output, got %d", len(steps))
 	}
 
 	// Check the execution step (first step)
@@ -411,8 +411,8 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step (copilot execution), got %d", len(steps))
+	if len(steps) != 4 {
+		t.Fatalf("Expected 4 steps (copilot execution + Squid logs collection + upload + cleanup), got %d", len(steps))
 	}
 
 	// Check the execution step contains tool arguments (first step)
@@ -495,8 +495,8 @@ func TestCopilotEngineEditToolAddsAllowAllPaths(t *testing.T) {
 			}
 			steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-			if len(steps) != 1 {
-				t.Fatalf("Expected 1 step, got %d", len(steps))
+			if len(steps) != 4 {
+				t.Fatalf("Expected 4 steps, got %d", len(steps))
 			}
 
 			stepContent := strings.Join([]string(steps[0]), "\n")
@@ -517,7 +517,7 @@ func TestCopilotEngineEditToolAddsAllowAllPaths(t *testing.T) {
 				lines := strings.Split(stepContent, "\n")
 				foundInCommand := false
 				for _, line := range lines {
-					if strings.Contains(line, "copilot ") && strings.Contains(line, "--allow-all-paths") {
+					if strings.Contains(line, "npx") && strings.Contains(line, "--allow-all-paths") {
 						foundInCommand = true
 						break
 					}
@@ -540,8 +540,8 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 4 {
+		t.Fatalf("Expected 4 steps, got %d", len(steps))
 	}
 
 	// Get the full command from the execution step (step 0 is the copilot execution)
@@ -551,7 +551,7 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 	lines := strings.Split(stepContent, "\n")
 	var copilotCommand string
 	for _, line := range lines {
-		if strings.Contains(line, "copilot ") && strings.Contains(line, "--allow-tool") {
+		if strings.Contains(line, "npx") && strings.Contains(line, "--allow-tool") {
 			copilotCommand = strings.TrimSpace(line)
 			break
 		}
@@ -585,8 +585,8 @@ func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 4 {
+		t.Fatalf("Expected 4 steps, got %d", len(steps))
 	}
 
 	// Get the full command from the execution step (step 0 is the copilot execution)
@@ -596,7 +596,7 @@ func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
 	lines := strings.Split(stepContent, "\n")
 	var copilotCommand string
 	for _, line := range lines {
-		if strings.Contains(line, "copilot ") && strings.Contains(line, "--prompt") {
+		if strings.Contains(line, "npx") && strings.Contains(line, "--prompt") {
 			copilotCommand = strings.TrimSpace(line)
 			break
 		}
@@ -799,8 +799,8 @@ func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 4 {
+		t.Fatalf("Expected 4 steps, got %d", len(steps))
 	}
 
 	// Get the full command from the execution step (step 0 is the copilot execution)
@@ -810,7 +810,7 @@ func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
 	lines := strings.Split(stepContent, "\n")
 	var copilotCommand string
 	for _, line := range lines {
-		if strings.Contains(line, "copilot ") && strings.Contains(line, "--allow-tool") {
+		if strings.Contains(line, "npx") && strings.Contains(line, "--allow-tool") {
 			copilotCommand = strings.TrimSpace(line)
 			break
 		}
@@ -959,8 +959,8 @@ func TestCopilotEngineExecutionStepsWithCacheMemory(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 4 {
+		t.Fatalf("Expected 4 steps, got %d", len(steps))
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
@@ -998,8 +998,8 @@ func TestCopilotEngineExecutionStepsWithCustomAddDirArgs(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step, got %d", len(steps))
+	if len(steps) != 4 {
+		t.Fatalf("Expected 4 steps, got %d", len(steps))
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")

@@ -22,12 +22,21 @@ type EngineConfig struct {
 	ErrorPatterns []ErrorPattern
 	Config        string
 	Args          []string
+	Firewall      *FirewallConfig // AWF firewall configuration
 }
 
 // NetworkPermissions represents network access permissions
 type NetworkPermissions struct {
 	Mode    string   `yaml:"mode,omitempty"`    // "defaults" for default access
 	Allowed []string `yaml:"allowed,omitempty"` // List of allowed domains
+}
+
+// FirewallConfig represents AWF (gh-aw-firewall) configuration for network egress control
+type FirewallConfig struct {
+	Enabled       bool   `yaml:"enabled,omitempty"`        // Always true for copilot by default
+	Version       string `yaml:"version,omitempty"`        // AWF version (empty = latest)
+	LogLevel      string `yaml:"log_level,omitempty"`      // AWF log level (default: "debug")
+	CleanupScript string `yaml:"cleanup_script,omitempty"` // Cleanup script path (default: "./scripts/ci/cleanup.sh")
 }
 
 // EngineNetworkConfig combines engine configuration with top-level network permissions
@@ -203,6 +212,44 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					}
 				} else if argsStrArray, ok := args.([]string); ok {
 					config.Args = argsStrArray
+				}
+			}
+
+			// Extract optional 'firewall' field (object format)
+			if firewall, hasFirewall := engineObj["firewall"]; hasFirewall {
+				if firewallObj, ok := firewall.(map[string]any); ok {
+					firewallConfig := &FirewallConfig{}
+
+					// Extract enabled field (defaults to true for copilot)
+					if enabled, hasEnabled := firewallObj["enabled"]; hasEnabled {
+						if enabledBool, ok := enabled.(bool); ok {
+							firewallConfig.Enabled = enabledBool
+						}
+					}
+
+					// Extract version field (empty = latest)
+					if version, hasVersion := firewallObj["version"]; hasVersion {
+						if versionStr, ok := version.(string); ok {
+							firewallConfig.Version = versionStr
+						}
+					}
+
+					// Extract log_level field (default: "debug")
+					if logLevel, hasLogLevel := firewallObj["log_level"]; hasLogLevel {
+						if logLevelStr, ok := logLevel.(string); ok {
+							firewallConfig.LogLevel = logLevelStr
+						}
+					}
+
+					// Extract cleanup_script field (default: "./scripts/ci/cleanup.sh")
+					if cleanupScript, hasCleanupScript := firewallObj["cleanup_script"]; hasCleanupScript {
+						if cleanupScriptStr, ok := cleanupScript.(string); ok {
+							firewallConfig.CleanupScript = cleanupScriptStr
+						}
+					}
+
+					config.Firewall = firewallConfig
+					engineLog.Print("Extracted firewall configuration")
 				}
 			}
 

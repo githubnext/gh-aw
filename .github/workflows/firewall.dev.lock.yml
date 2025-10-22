@@ -3,10 +3,6 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mcp/svelte.md
-#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -15,17 +11,19 @@
 #   activation --> agent
 # ```
 
-name: "Test Svelte MCP"
+name: "Dev"
 "on":
   workflow_dispatch: null
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  cancel-in-progress: true
+  group: dev-workflow-${{ github.ref }}
 
-run-name: "Test Svelte MCP"
+run-name: "Dev"
 
 jobs:
   activation:
@@ -51,6 +49,7 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
@@ -164,17 +163,6 @@ jobs:
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_PERSONAL_ACCESS_TOKEN}"
                 }
-              },
-              "svelte": {
-                "type": "http",
-                "url": "https://mcp.svelte.dev/mcp",
-                "tools": [
-                  "list-sections",
-                  "get-documentation",
-                  "svelte-autofixer",
-                  "playground-link",
-                  "svelte_definition"
-                ]
               }
             }
           }
@@ -192,23 +180,45 @@ jobs:
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'EOF'
+          # Test GitHub MCP Tools
           
+          Test each GitHub MCP tool with sensible arguments to verify they are configured properly.
           
-          # Test Svelte MCP
+          **Goal**: Invoke each tool from the GitHub MCP server with reasonable arguments. Some tools may fail due to missing data or invalid arguments, but they should at least be callable. Fail if there are permission issues indicating the tools aren't properly configured.
           
-          Test the Svelte MCP server functionality.
+          ## Instructions
           
-          1. Use the `list-sections` tool to list all available Svelte documentation sections
-          2. Use the `get-documentation` tool to retrieve documentation about Svelte 5 runes (specifically the `$state` rune)
-          3. Create a simple Svelte 5 component that demonstrates the `$state` rune
-          4. Use the `svelte-autofixer` tool to analyze the component for any issues
-          5. Use the `playground-link` tool to generate a playground link for the component
-          6. Report the results including:
-             - Available documentation sections (summary)
-             - Brief explanation of the `$state` rune from the documentation
-             - The component code you created
-             - Any analysis results from the autofixer
-             - The playground link for testing
+          **Discover and test all available GitHub MCP tools:**
+          
+          1. First, explore and identify all tools available from the GitHub MCP server
+          2. For each discovered tool, invoke it with sensible arguments based on the repository context (${{ github.repository }})
+          3. Use appropriate parameters for each tool (e.g., repository name, issue numbers, PR numbers, etc.)
+          
+          Example tools you should discover and test may include (but are not limited to):
+          - Context tools: `get_me`, etc.
+          - Repository tools: `get_file_contents`, `list_branches`, `list_commits`, `search_repositories`, etc.
+          - Issues tools: `list_issues`, `search_issues`, `get_issue`, etc.
+          - Pull Request tools: `list_pull_requests`, `get_pull_request`, `search_pull_requests`, etc.
+          - Actions tools: `list_workflows`, `list_workflow_runs`, etc.
+          - Release tools: `list_releases`, etc.
+          - And any other tools you discover from the GitHub MCP server
+          
+          ## Expected Behavior
+          
+          - Each tool should be invoked successfully, even if it returns empty results or errors due to data not existing
+          - If a tool cannot be called due to **permission issues** (e.g., "tool not allowed", "permission denied", "unauthorized"), the task should **FAIL** 
+          - If a tool fails due to invalid arguments or missing data (e.g., "resource not found", "invalid parameters"), that's acceptable - continue to the next tool
+          - Log the results of each tool invocation (success or failure reason)
+          
+          ## Summary
+          
+          After testing all tools, provide a summary:
+          - Total tools tested: [count]
+          - Successfully invoked: [count]
+          - Failed due to missing data/invalid args: [count]  
+          - Failed due to permission issues: [count] - **FAIL if > 0**
+          
+          If any permission issues were encountered, clearly state which tools had permission problems and fail the workflow.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -363,7 +373,7 @@ jobs:
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Test Svelte MCP",
+              workflow_name: "Dev",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -395,25 +405,7 @@ jobs:
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
-        # --allow-tool shell(cat)
-        # --allow-tool shell(date)
-        # --allow-tool shell(echo)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(pwd)
-        # --allow-tool shell(sort)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(uniq)
-        # --allow-tool shell(wc)
-        # --allow-tool shell(yq)
-        # --allow-tool svelte
-        # --allow-tool svelte(get-documentation)
-        # --allow-tool svelte(list-sections)
-        # --allow-tool svelte(playground-link)
-        # --allow-tool svelte(svelte-autofixer)
-        # --allow-tool svelte(svelte_definition)
-        timeout-minutes: 5
+        timeout-minutes: 20
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
@@ -424,7 +416,7 @@ jobs:
           sudo -E awf --env-all \
             --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org \
             --log-level debug \
-            'npx -y @github/copilot@0.0.347 --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool svelte --allow-tool 'svelte(get-documentation)' --allow-tool 'svelte(list-sections)' --allow-tool 'svelte(playground-link)' --allow-tool 'svelte(svelte-autofixer)' --allow-tool 'svelte(svelte_definition)' --prompt "$COPILOT_CLI_INSTRUCTION"' \
+            'npx -y @github/copilot@0.0.347 --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --prompt "$COPILOT_CLI_INSTRUCTION"' \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
           
           # Move preserved Copilot logs to expected location
@@ -450,16 +442,16 @@ jobs:
           SQUID_LOGS_DIR=$(ls -td /tmp/squid-logs-* 2>/dev/null | head -1)
           if [ -n "$SQUID_LOGS_DIR" ] && [ -d "$SQUID_LOGS_DIR" ]; then
             echo "Found Squid logs at: $SQUID_LOGS_DIR"
-            mkdir -p /tmp/gh-aw/squid-logs-Test-Svelte-MCP/
-            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-Test-Svelte-MCP/ || true
-            sudo chmod -R a+r /tmp/gh-aw/squid-logs-Test-Svelte-MCP/ || true
+            mkdir -p /tmp/gh-aw/squid-logs-Dev/
+            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-Dev/ || true
+            sudo chmod -R a+r /tmp/gh-aw/squid-logs-Dev/ || true
           fi
       - name: Upload Squid logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: squid-logs-Test-Svelte-MCP
-          path: /tmp/gh-aw/squid-logs-Test-Svelte-MCP/
+          name: squid-logs-Dev
+          path: /tmp/gh-aw/squid-logs-Dev/
           if-no-files-found: ignore
       - name: Cleanup awf resources
         if: always()
