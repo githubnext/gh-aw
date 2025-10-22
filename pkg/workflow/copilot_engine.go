@@ -50,6 +50,13 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		workflowData,
 	)
 	steps = append(steps, npmSteps...)
+
+	// Add firewall installation step if network permissions are configured
+	if ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
+		firewallStep := e.generateFirewallInstallationStep()
+		steps = append(steps, firewallStep)
+	}
+
 	return steps
 }
 
@@ -60,6 +67,21 @@ func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
 // GetVersionCommand returns the command to get Copilot CLI's version
 func (e *CopilotEngine) GetVersionCommand() string {
 	return "copilot --version"
+}
+
+// generateFirewallInstallationStep creates the step to install gh-aw-firewall
+func (e *CopilotEngine) generateFirewallInstallationStep() GitHubActionStep {
+	var lines []string
+	lines = append(lines, "      - name: Install gh-aw-firewall")
+	lines = append(lines, "        run: |")
+	lines = append(lines, "          set -e")
+	lines = append(lines, fmt.Sprintf("          FIREWALL_VERSION=%s", constants.DefaultFirewallVersion))
+	lines = append(lines, "          FIREWALL_URL=\"https://github.com/githubnext/gh-aw-firewall/releases/download/${FIREWALL_VERSION}/gh-aw-firewall-linux-amd64\"")
+	lines = append(lines, "          curl -L -o /tmp/gh-aw-firewall \"${FIREWALL_URL}\"")
+	lines = append(lines, "          chmod +x /tmp/gh-aw-firewall")
+	lines = append(lines, "          /tmp/gh-aw-firewall --version")
+
+	return GitHubActionStep(lines)
 }
 
 // extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags
@@ -130,9 +152,24 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		mkdirCommands.WriteString(fmt.Sprintf("mkdir -p %s\n", dir))
 	}
 
-	command := fmt.Sprintf(`set -o pipefail
+	// Build the copilot command
+	copilotCommand := fmt.Sprintf("copilot %s", shellJoinArgs(copilotArgs))
+
+	// Wrap with firewall if network permissions are configured
+	var command string
+	if ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
+		allowedDomains := GetAllowedDomains(workflowData.NetworkPermissions)
+		// Format allowed domains as comma-separated list for firewall
+		domainsArg := strings.Join(allowedDomains, ",")
+
+		command = fmt.Sprintf(`set -o pipefail
 COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-%scopilot %s 2>&1 | tee %s`, mkdirCommands.String(), shellJoinArgs(copilotArgs), logFile)
+%s/tmp/gh-aw-firewall --allowed-domains "%s" --env-all -- %s 2>&1 | tee %s`, mkdirCommands.String(), domainsArg, copilotCommand, logFile)
+	} else {
+		command = fmt.Sprintf(`set -o pipefail
+COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+%s%s 2>&1 | tee %s`, mkdirCommands.String(), copilotCommand, logFile)
+	}
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":           "/home/runner",
