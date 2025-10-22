@@ -87,7 +87,12 @@ func FormatStepWithCommandAndEnv(stepLines []string, command string, env map[str
 	// Split command into lines and indent them properly
 	commandLines := strings.Split(command, "\n")
 	for _, line := range commandLines {
-		stepLines = append(stepLines, "          "+line)
+		// Don't add indentation to empty lines
+		if line == "" {
+			stepLines = append(stepLines, "")
+		} else {
+			stepLines = append(stepLines, "          "+line)
+		}
 	}
 
 	// Add environment variables

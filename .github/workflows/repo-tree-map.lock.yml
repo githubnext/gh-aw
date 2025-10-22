@@ -131,6 +131,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Install awf binary
+        run: |
+          LATEST_TAG=$(gh release view --repo githubnext/gh-aw-firewall --json tagName --jq .tagName)
+          echo "Installing awf from release: $LATEST_TAG"
+          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/${LATEST_TAG}/awf-linux-x64 -o awf
+          chmod +x awf
+          sudo mv awf /usr/local/bin/
+          which awf
+          awf --version
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Cleanup any existing awf resources
+        run: ./scripts/ci/cleanup.sh || true
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.347
       - name: Downloading container images
@@ -1250,7 +1263,7 @@ jobs:
           if-no-files-found: warn
       - name: Capture agent version
         run: |
-          VERSION_OUTPUT=$(copilot --version 2>&1 || echo "unknown")
+          VERSION_OUTPUT=$(npx -y @github/copilot@0.0.347 --version 2>&1 || echo "unknown")
           # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)
           CLEAN_VERSION=$(echo "$VERSION_OUTPUT" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo "unknown")
           echo "AGENT_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
@@ -1301,12 +1314,20 @@ jobs:
         timeout-minutes: 5
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          mkdir -p /tmp/
-          mkdir -p /tmp/gh-aw/
-          mkdir -p /tmp/gh-aw/agent/
-          mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          sudo -E awf --env-all \
+            --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org \
+            --log-level debug \
+            'npx -y @github/copilot@0.0.347 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' \
+            2>&1 | tee /tmp/gh-aw/agent-stdio.log
+
+          # Move preserved Copilot logs to expected location
+          COPILOT_LOGS_DIR=$(ls -td /tmp/copilot-logs-* 2>/dev/null | head -1)
+          if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
+            echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/.copilot/logs/"
+            mkdir -p /tmp/gh-aw/.copilot/logs/
+            mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/.copilot/logs/ || true
+            rmdir "$COPILOT_LOGS_DIR" || true
+          fi
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
@@ -1322,8 +1343,19 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
+            /**
+             * Redacts secrets from files in /tmp/gh-aw directory before uploading artifacts
+             * This script processes all .txt, .json, .log files under /tmp/gh-aw and redacts
+             * any strings matching the actual secret values provided via environment variables.
+             */
             const fs = require("fs");
             const path = require("path");
+            /**
+             * Recursively finds all files matching the specified extensions
+             * @param {string} dir - Directory to search
+             * @param {string[]} extensions - File extensions to match (e.g., ['.txt', '.json', '.log'])
+             * @returns {string[]} Array of file paths
+             */
             function findFiles(dir, extensions) {
               const results = [];
               try {
@@ -1334,8 +1366,10 @@ jobs:
                 for (const entry of entries) {
                   const fullPath = path.join(dir, entry.name);
                   if (entry.isDirectory()) {
+                    // Recursively search subdirectories
                     results.push(...findFiles(fullPath, extensions));
                   } else if (entry.isFile()) {
+                    // Check if file has one of the target extensions
                     const ext = path.extname(entry.name).toLowerCase();
                     if (extensions.includes(ext)) {
                       results.push(fullPath);
@@ -1347,14 +1381,27 @@ jobs:
               }
               return results;
             }
+
+            /**
+             * Redacts secrets from file content using exact string matching
+             * @param {string} content - File content to process
+             * @param {string[]} secretValues - Array of secret values to redact
+             * @returns {{content: string, redactionCount: number}} Redacted content and count of redactions
+             */
             function redactSecrets(content, secretValues) {
               let redactionCount = 0;
               let redacted = content;
+              // Sort secret values by length (longest first) to handle overlapping secrets
               const sortedSecrets = secretValues.slice().sort((a, b) => b.length - a.length);
               for (const secretValue of sortedSecrets) {
+                // Skip empty or very short values (likely not actual secrets)
                 if (!secretValue || secretValue.length < 8) {
                   continue;
                 }
+                // Count occurrences before replacement
+                // Use split and join for exact string matching (not regex)
+                // This is safer than regex as it doesn't interpret special characters
+                // Show first 3 letters followed by asterisks for the remaining length
                 const prefix = secretValue.substring(0, 3);
                 const asterisks = "*".repeat(Math.max(0, secretValue.length - 3));
                 const replacement = prefix + asterisks;
@@ -1368,6 +1415,13 @@ jobs:
               }
               return { content: redacted, redactionCount };
             }
+
+            /**
+             * Process a single file for secret redaction
+             * @param {string} filePath - Path to the file
+             * @param {string[]} secretValues - Array of secret values to redact
+             * @returns {number} Number of redactions made
+             */
             function processFile(filePath, secretValues) {
               try {
                 const content = fs.readFileSync(filePath, "utf8");
@@ -1382,7 +1436,12 @@ jobs:
                 return 0;
               }
             }
+
+            /**
+             * Main function
+             */
             async function main() {
+              // Get the list of secret names from environment variable
               const secretNames = process.env.GH_AW_SECRET_NAMES;
               if (!secretNames) {
                 core.info("GH_AW_SECRET_NAMES not set, no redaction performed");
@@ -1390,11 +1449,14 @@ jobs:
               }
               core.info("Starting secret redaction in /tmp/gh-aw directory");
               try {
+                // Parse the comma-separated list of secret names
                 const secretNameList = secretNames.split(",").filter(name => name.trim());
+                // Collect the actual secret values from environment variables
                 const secretValues = [];
                 for (const secretName of secretNameList) {
                   const envVarName = `SECRET_${secretName}`;
                   const secretValue = process.env[envVarName];
+                  // Skip empty or undefined secrets
                   if (!secretValue || secretValue.trim() === "") {
                     continue;
                   }
@@ -1405,11 +1467,13 @@ jobs:
                   return;
                 }
                 core.info(`Found ${secretValues.length} secret(s) to redact`);
+                // Find all target files in /tmp/gh-aw directory
                 const targetExtensions = [".txt", ".json", ".log"];
                 const files = findFiles("/tmp/gh-aw", targetExtensions);
                 core.info(`Found ${files.length} file(s) to scan for secrets`);
                 let totalRedactions = 0;
                 let filesWithRedactions = 0;
+                // Process each file
                 for (const file of files) {
                   const redactionCount = processFile(file, secretValues);
                   if (redactionCount > 0) {
@@ -2220,6 +2284,24 @@ jobs:
         with:
           name: mcp-logs
           path: /tmp/gh-aw/mcp-logs/
+          if-no-files-found: ignore
+      - name: Agent Firewall logs
+        if: always()
+        run: |
+          # Squid logs are preserved in timestamped directories
+          SQUID_LOGS_DIR=$(ls -td /tmp/squid-logs-* 2>/dev/null | head -1)
+          if [ -n "$SQUID_LOGS_DIR" ] && [ -d "$SQUID_LOGS_DIR" ]; then
+            echo "Found Squid logs at: $SQUID_LOGS_DIR"
+            mkdir -p /tmp/gh-aw/squid-logs-repository-tree-map-generator/
+            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-repository-tree-map-generator/ || true
+            sudo chmod -R a+r /tmp/gh-aw/squid-logs-repository-tree-map-generator/ || true
+          fi
+      - name: Upload Squid logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: squid-logs-repository-tree-map-generator
+          path: /tmp/gh-aw/squid-logs-repository-tree-map-generator/
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
@@ -3050,6 +3132,9 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      - name: Cleanup awf resources
+        if: always()
+        run: ./scripts/ci/cleanup.sh || true
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v8
@@ -3691,6 +3776,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Install awf binary
+        run: |
+          LATEST_TAG=$(gh release view --repo githubnext/gh-aw-firewall --json tagName --jq .tagName)
+          echo "Installing awf from release: $LATEST_TAG"
+          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/${LATEST_TAG}/awf-linux-x64 -o awf
+          chmod +x awf
+          sudo mv awf /usr/local/bin/
+          which awf
+          awf --version
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Cleanup any existing awf resources
+        run: ./scripts/ci/cleanup.sh || true
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.347
       - name: Execute GitHub Copilot CLI
@@ -3706,12 +3804,20 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          mkdir -p /tmp/
-          mkdir -p /tmp/gh-aw/
-          mkdir -p /tmp/gh-aw/agent/
-          mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          sudo -E awf --env-all \
+            --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org \
+            --log-level debug \
+            'npx -y @github/copilot@0.0.347 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' \
+            2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+
+          # Move preserved Copilot logs to expected location
+          COPILOT_LOGS_DIR=$(ls -td /tmp/copilot-logs-* 2>/dev/null | head -1)
+          if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
+            echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/.copilot/logs/"
+            mkdir -p /tmp/gh-aw/.copilot/logs/
+            mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/.copilot/logs/ || true
+            rmdir "$COPILOT_LOGS_DIR" || true
+          fi
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
