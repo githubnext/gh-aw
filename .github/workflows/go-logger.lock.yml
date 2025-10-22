@@ -1095,17 +1095,32 @@ jobs:
           
           ### Logger Declaration
           
-          If a file doesn't have a logger, add this at the top of the file (after imports):
+          **IMPORTANT: Logger variable MUST always be named `log`**
           
-          ```go
-          import "github.com/githubnext/gh-aw/pkg/logger"
+          The logger variable naming follows these rules:
           
-          var log = logger.New("pkg:filename")
-          ```
+          1. **Always use the name `log`** - Never use descriptive names like `trialLog`, `claudeEngineLog`, etc.
+          2. **For packages with multiple files needing loggers**, use function-scoped loggers to avoid conflicts:
+             ```go
+             func MyFunction() {
+                 log := logger.New("pkg:filename")
+                 log.Printf("Function started")
+                 // ... function body ...
+             }
+             ```
           
-          Replace `pkg:filename` with the actual package and filename:
+          3. **For packages where only one file needs a logger**, use package-level declaration:
+             ```go
+             import "github.com/githubnext/gh-aw/pkg/logger"
+             
+             var log = logger.New("pkg:filename")
+             ```
+          
+          **Why function-scoped loggers?** In Go, package-level variables are shared across all files in the package. If multiple files in the same package (like `pkg/workflow`) declare `var log`, it creates a naming conflict. Function-scoped loggers avoid this issue.
+          
+          **Logger namespace naming:** Replace `pkg:filename` with the actual package and filename:
           - For `pkg/workflow/compiler.go` → `"workflow:compiler"`
-          - For `pkg/cli/compile.go` → `"cli:compile"`
+          - For `pkg/cli/compile.go` → `"cli:compile"`  
           - For `pkg/parser/frontmatter.go` → `"parser:frontmatter"`
           
           ### Logger Usage Patterns
@@ -1195,9 +1210,22 @@ jobs:
           
           For each file:
           
-          1. **Add logger declaration if missing:**
-             - Add import: `"github.com/githubnext/gh-aw/pkg/logger"`
-             - Add logger variable using correct naming: `var log = logger.New("pkg:filename")`
+          1. **Add logger declaration:**
+             - **For packages with many files** (like `pkg/workflow`, `pkg/cli`): Use function-scoped logger
+               ```go
+               func MyFunction() {
+                   log := logger.New("pkg:filename")
+                   log.Printf("Function started")
+                   // ... rest of function ...
+               }
+               ```
+             - **For single-file packages**: Use package-level logger
+               ```go
+               import "github.com/githubnext/gh-aw/pkg/logger"
+               
+               var log = logger.New("pkg:filename")
+               ```
+             - **IMPORTANT**: Always name the variable `log`, never use descriptive names like `trialLog` or `claudeEngineLog`
           
           2. **Add meaningful logging calls:**
              - Add logging at function entry for important functions
@@ -1266,7 +1294,7 @@ jobs:
           }
           ```
           
-          **After:**
+          **After (function-scoped logger for packages with multiple files):**
           ```go
           package workflow
           
@@ -1277,9 +1305,8 @@ jobs:
               "github.com/githubnext/gh-aw/pkg/logger"
           )
           
-          var log = logger.New("workflow:compiler")
-          
           func CompileWorkflow(path string) error {
+              log := logger.New("workflow:compiler")
               log.Printf("Compiling workflow: %s", path)
               
               data, err := os.ReadFile(path)
@@ -1297,13 +1324,35 @@ jobs:
           }
           ```
           
+          **Alternative (package-level logger for single-file packages):**
+          ```go
+          package parser
+          
+          import (
+              "fmt"
+              "os"
+              
+              "github.com/githubnext/gh-aw/pkg/logger"
+          )
+          
+          var log = logger.New("parser:frontmatter")
+          
+          func ParseFrontmatter(path string) error {
+              log.Printf("Parsing frontmatter: %s", path)
+              // ... function body ...
+          }
+          ```
+          
           ## Quality Checklist
           
           Before creating the PR, verify:
           
           - [ ] Maximum 5 files modified
           - [ ] No test files modified (`*_test.go`)
-          - [ ] Each file has logger declaration with correct naming convention
+          - [ ] Logger variable is always named `log` (not descriptive names)
+          - [ ] For packages with multiple files: use function-scoped `log := logger.New(...)`
+          - [ ] For single-file packages: use package-level `var log = logger.New(...)`
+          - [ ] Logger namespace follows `pkg:filename` convention
           - [ ] Logger arguments don't compute anything or cause side effects
           - [ ] Logging messages are meaningful and helpful
           - [ ] No duplicate logging with existing logs

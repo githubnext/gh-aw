@@ -8,8 +8,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
-var jsLog = logger.New("workflow:js")
-
 //go:embed js/create_pull_request.cjs
 var createPullRequestScript string
 
@@ -413,12 +411,13 @@ func isDigit(r rune) bool {
 
 // FormatJavaScriptForYAML formats a JavaScript script with proper indentation for embedding in YAML
 func FormatJavaScriptForYAML(script string) []string {
-	jsLog.Printf("Formatting JavaScript for YAML: script_length=%d", len(script))
+	log := logger.New("workflow:js")
+	log.Printf("Formatting JavaScript for YAML: script_length=%d", len(script))
 	var formattedLines []string
 
 	// Remove JavaScript comments first
 	cleanScript := removeJavaScriptComments(script)
-	jsLog.Printf("Removed JavaScript comments: clean_length=%d", len(cleanScript))
+	log.Printf("Removed JavaScript comments: clean_length=%d", len(cleanScript))
 
 	scriptLines := strings.Split(cleanScript, "\n")
 	for _, line := range scriptLines {
@@ -432,7 +431,8 @@ func FormatJavaScriptForYAML(script string) []string {
 
 // WriteJavaScriptToYAML writes a JavaScript script with proper indentation to a strings.Builder
 func WriteJavaScriptToYAML(yaml *strings.Builder, script string) {
-	jsLog.Printf("Writing JavaScript to YAML builder: script_length=%d", len(script))
+	log := logger.New("workflow:js")
+	log.Printf("Writing JavaScript to YAML builder: script_length=%d", len(script))
 	// Remove JavaScript comments first
 	cleanScript := removeJavaScriptComments(script)
 
