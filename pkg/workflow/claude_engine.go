@@ -9,7 +9,10 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var claudeEngineLog = logger.New("workflow:claude_engine")
 
 // ClaudeEngine represents the Claude Code agentic engine
 type ClaudeEngine struct {
@@ -33,6 +36,7 @@ func NewClaudeEngine() *ClaudeEngine {
 }
 
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
+	claudeEngineLog.Printf("Generating installation steps for Claude engine: workflow=%s", workflowData.Name)
 	var steps []GitHubActionStep
 
 	// Add secret validation step
@@ -85,6 +89,7 @@ func (e *ClaudeEngine) GetVersionCommand() string {
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude
 func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
+	claudeEngineLog.Printf("Generating execution steps for Claude: workflow=%s, logfile=%s", workflowData.Name, logFile)
 	// Handle custom steps if they exist in engine config
 	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
 
@@ -370,6 +375,7 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 // 3. adds default Claude tools and git commands based on safe outputs configuration
 // 4. generates the allowed tools string for Claude
 func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, safeOutputs *SafeOutputsConfig, cacheMemoryConfig *CacheMemoryConfig) string {
+	claudeEngineLog.Printf("Computing allowed Claude tools: tool_count=%d", len(tools))
 	// Initialize tools map if nil
 	if tools == nil {
 		tools = make(map[string]any)

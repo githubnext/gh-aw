@@ -6,7 +6,10 @@ import (
 	"unicode"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var expressionsLog = logger.New("workflow:expressions")
 
 // ConditionNode represents a node in a condition expression tree
 type ConditionNode interface {
@@ -497,6 +500,7 @@ const (
 // Supports && (AND), || (OR), ! (NOT), and parentheses for grouping
 // Example: "condition1 && (condition2 || !condition3)"
 func ParseExpression(expression string) (ConditionNode, error) {
+	expressionsLog.Printf("Parsing expression: length=%d", len(expression))
 	if strings.TrimSpace(expression) == "" {
 		return nil, fmt.Errorf("empty expression")
 	}
@@ -504,13 +508,16 @@ func ParseExpression(expression string) (ConditionNode, error) {
 	parser := &ExpressionParser{}
 	tokens, err := parser.tokenize(expression)
 	if err != nil {
+		expressionsLog.Printf("Failed to tokenize expression: %s", err)
 		return nil, err
 	}
+	expressionsLog.Printf("Tokenized expression into %d tokens", len(tokens))
 	parser.tokens = tokens
 	parser.pos = 0
 
 	result, err := parser.parseOrExpression()
 	if err != nil {
+		expressionsLog.Printf("Failed to parse expression: %s", err)
 		return nil, err
 	}
 
@@ -519,6 +526,7 @@ func ParseExpression(expression string) (ConditionNode, error) {
 		return nil, fmt.Errorf("unexpected token '%s' at position %d", parser.current().value, parser.current().pos)
 	}
 
+	expressionsLog.Print("Successfully parsed expression into condition tree")
 	return result, nil
 }
 
