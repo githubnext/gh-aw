@@ -2,8 +2,8 @@
 name: Go Logger Enhancement
 on:
   schedule:
-    # Daily at 9am UTC
-    - cron: "0 9 * * *"
+    # Daily at 12pm UTC
+    - cron: "0 12 * * *"
   workflow_dispatch:
 
 permissions:

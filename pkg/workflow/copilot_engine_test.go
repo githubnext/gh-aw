@@ -95,6 +95,20 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	if !strings.Contains(stepContent, "--disable-builtin-mcps") {
 		t.Errorf("Expected --disable-builtin-mcps flag in command, got:\n%s", stepContent)
 	}
+
+	// Test that mkdir commands are present for --add-dir directories
+	if !strings.Contains(stepContent, "mkdir -p /tmp/") {
+		t.Errorf("Expected 'mkdir -p /tmp/' command in step content:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/") {
+		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/' command in step content:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/agent/") {
+		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/agent/' command in step content:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/.copilot/logs/") {
+		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/.copilot/logs/' command in step content:\n%s", stepContent)
+	}
 }
 
 func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
@@ -873,4 +887,130 @@ This workflow tests that Copilot log parsing uses the correct log file path.
 	}
 
 	t.Log("Successfully verified that Copilot log parsing uses /tmp/gh-aw/.copilot/logs/")
+}
+
+func TestExtractAddDirPaths(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		expected []string
+	}{
+		{
+			name:     "empty args",
+			args:     []string{},
+			expected: []string{},
+		},
+		{
+			name:     "no add-dir flags",
+			args:     []string{"--log-level", "debug", "--model", "gpt-4"},
+			expected: []string{},
+		},
+		{
+			name:     "single add-dir",
+			args:     []string{"--add-dir", "/tmp/"},
+			expected: []string{"/tmp/"},
+		},
+		{
+			name:     "multiple add-dir flags",
+			args:     []string{"--add-dir", "/tmp/", "--log-level", "debug", "--add-dir", "/tmp/gh-aw/"},
+			expected: []string{"/tmp/", "/tmp/gh-aw/"},
+		},
+		{
+			name:     "add-dir at end of args",
+			args:     []string{"--log-level", "debug", "--add-dir", "/tmp/gh-aw/agent/"},
+			expected: []string{"/tmp/gh-aw/agent/"},
+		},
+		{
+			name:     "all default copilot args",
+			args:     []string{"--add-dir", "/tmp/", "--add-dir", "/tmp/gh-aw/", "--add-dir", "/tmp/gh-aw/agent/", "--log-level", "all", "--log-dir", "/tmp/gh-aw/.copilot/logs/"},
+			expected: []string{"/tmp/", "/tmp/gh-aw/", "/tmp/gh-aw/agent/"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractAddDirPaths(tt.args)
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d paths, got %d: %v", len(tt.expected), len(result), result)
+				return
+			}
+
+			for i, expected := range tt.expected {
+				if i >= len(result) || result[i] != expected {
+					t.Errorf("Expected path %d to be '%s', got '%s'", i, expected, result[i])
+				}
+			}
+		})
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithCacheMemory(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		CacheMemoryConfig: &CacheMemoryConfig{
+			Caches: []CacheMemoryEntry{
+				{ID: "default"},
+				{ID: "session"},
+				{ID: "logs"},
+			},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Test that mkdir commands are present for cache-memory directories
+	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/cache-memory/") {
+		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/cache-memory/' command for default cache in step content:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/cache-memory-session/") {
+		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/cache-memory-session/' command for session cache in step content:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/cache-memory-logs/") {
+		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/cache-memory-logs/' command for logs cache in step content:\n%s", stepContent)
+	}
+
+	// Verify --add-dir flags are present for cache directories
+	if !strings.Contains(stepContent, "--add-dir /tmp/gh-aw/cache-memory/") {
+		t.Errorf("Expected '--add-dir /tmp/gh-aw/cache-memory/' in copilot args")
+	}
+	if !strings.Contains(stepContent, "--add-dir /tmp/gh-aw/cache-memory-session/") {
+		t.Errorf("Expected '--add-dir /tmp/gh-aw/cache-memory-session/' in copilot args")
+	}
+	if !strings.Contains(stepContent, "--add-dir /tmp/gh-aw/cache-memory-logs/") {
+		t.Errorf("Expected '--add-dir /tmp/gh-aw/cache-memory-logs/' in copilot args")
+	}
+}
+
+func TestCopilotEngineExecutionStepsWithCustomAddDirArgs(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			Args: []string{"--add-dir", "/custom/path/", "--verbose"},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Test that mkdir commands are present for custom --add-dir path
+	if !strings.Contains(stepContent, "mkdir -p /custom/path/") {
+		t.Errorf("Expected 'mkdir -p /custom/path/' command for custom add-dir arg in step content:\n%s", stepContent)
+	}
+
+	// Verify the custom --add-dir flag is still present in copilot args
+	if !strings.Contains(stepContent, "--add-dir /custom/path/") {
+		t.Errorf("Expected '--add-dir /custom/path/' in copilot args")
+	}
 }

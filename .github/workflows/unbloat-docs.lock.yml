@@ -42,7 +42,7 @@ name: "Documentation Unbloat"
     - created
     - edited
   schedule:
-  - cron: 0 10 * * *
+  - cron: 0 22 * * *
   workflow_dispatch: null
 
 permissions:
