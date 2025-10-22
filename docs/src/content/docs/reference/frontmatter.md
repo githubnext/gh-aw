@@ -100,11 +100,12 @@ If you specify any permission, unspecified ones are set to `none`.
 
 ### Repository Access Roles (`roles:`)
 
-Controls who can trigger agentic workflows based on repository permission level. Defaults to `[admin, maintainer]` for security.
+Controls who can trigger agentic workflows based on repository permission level. Defaults to `[admin, maintainer, write]` for security.
 
 ```yaml
-roles: [admin, maintainer]        # Default
-roles: [admin, maintainer, write] # Allow write access
+roles: [admin, maintainer, write]  # Default
+roles: [admin, maintainer]         # Restrict to admin/maintainer only
+roles: [write]                     # Allow write access only
 roles: all                         # Allow any user (⚠️ use with caution)
 ```
 

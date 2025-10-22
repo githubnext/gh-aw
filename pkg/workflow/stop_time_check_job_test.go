@@ -22,6 +22,7 @@ func TestPreActivationJob(t *testing.T) {
 on:
   workflow_dispatch:
   stop-after: "+48h"
+roles: [admin, maintainer]
 engine: claude
 ---
 
