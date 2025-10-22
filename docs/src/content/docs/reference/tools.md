@@ -181,14 +181,21 @@ mcp-servers:
 tools:
   github:
     allowed: [create_issue, update_issue]
+
+engine:
+  startup-timeout: 180  # Allow more time for MCP server initialization
+  timeout: 120          # Set timeout for MCP tool operations
 ```
 
 MCP servers run alongside the AI engine in isolated environments with controlled network access.
+
+**Timeout Configuration**: MCP servers may require increased timeout values depending on initialization complexity and tool operation duration. See [Timeout Configuration](/gh-aw/reference/timeouts/) for guidance on setting appropriate timeouts.
 
 ## Related Documentation
 
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All frontmatter configuration options
 - [Network Permissions](/gh-aw/reference/network/) - Network access control for AI engines
+- [Timeout Configuration](/gh-aw/reference/timeouts/) - Timeout settings for workflows, tools, and MCP servers
 - [MCPs](/gh-aw/guides/mcps/) - Complete Model Context Protocol setup and usage
 - [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization

@@ -159,8 +159,10 @@ Standard GitHub Actions properties:
 ```yaml
 run-name: "Custom workflow run name"  # Defaults to workflow name
 runs-on: ubuntu-latest               # Defaults to ubuntu-latest
-timeout_minutes: 30                  # Defaults to 20 minutes
+timeout_minutes: 30                  # Workflow timeout in minutes (default: 20)
 ```
+
+The `timeout_minutes` setting controls the maximum execution time for the entire workflow job. This is separate from tool-level and MCP server timeouts configured in the `engine:` section. See [Timeout Configuration](/gh-aw/reference/timeouts/) for complete timeout documentation.
 
 ### Workflow Concurrency Control (`concurrency:`)
 
@@ -252,4 +254,4 @@ cache:
 
 ## Related Documentation
 
-See also: [Trigger Events](/gh-aw/reference/triggers/), [AI Engines](/gh-aw/reference/engines/), [CLI Commands](/gh-aw/tools/cli/), [Workflow Structure](/gh-aw/reference/workflow-structure/), [Network Permissions](/gh-aw/reference/network/), [Command Triggers](/gh-aw/reference/command-triggers/), [MCPs](/gh-aw/guides/mcps/), [Tools](/gh-aw/reference/tools/), [Imports](/gh-aw/reference/imports/)
+See also: [Trigger Events](/gh-aw/reference/triggers/), [AI Engines](/gh-aw/reference/engines/), [Timeout Configuration](/gh-aw/reference/timeouts/), [CLI Commands](/gh-aw/tools/cli/), [Workflow Structure](/gh-aw/reference/workflow-structure/), [Network Permissions](/gh-aw/reference/network/), [Command Triggers](/gh-aw/reference/command-triggers/), [MCPs](/gh-aw/guides/mcps/), [Tools](/gh-aw/reference/tools/), [Imports](/gh-aw/reference/imports/)

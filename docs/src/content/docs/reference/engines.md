@@ -166,6 +166,31 @@ engine:
 
 Arguments are added in order and placed before the `--prompt` flag. Common uses include adding directories (`--add-dir`), enabling verbose logging (`--verbose`, `--debug`), and passing engine-specific flags. Consult the specific engine's CLI documentation for available flags.
 
+## Timeout Configuration
+
+Control execution time limits for tool operations and MCP server initialization:
+
+```yaml
+engine:
+  id: claude
+  timeout: 120           # Tool operation timeout in seconds
+  startup-timeout: 180   # MCP server startup timeout in seconds
+```
+
+**Tool Timeout** (`timeout`):
+- Controls maximum execution time for individual tool or MCP server operations
+- Applies to GitHub API calls, bash commands, file operations, and all MCP tools
+- Default: 60 seconds (Claude), 120 seconds (Codex)
+- Supported engines: Claude Code, Codex
+
+**MCP Startup Timeout** (`startup-timeout`):
+- Controls maximum time for MCP servers to initialize
+- Applies to Docker container startup and stdio process initialization
+- Default: 120 seconds (all engines)
+- Increase for Docker images with large downloads or complex initialization
+
+See [Timeout Configuration](/gh-aw/reference/timeouts/) for complete timeout documentation, best practices, and troubleshooting guidance.
+
 ## Engine Error Patterns
 
 All engines support custom error pattern recognition for enhanced log validation:
@@ -201,5 +226,6 @@ Engine-specific features may not be available when switching engines.
 
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete configuration reference
 - [Tools](/gh-aw/reference/tools/) - Available tools and MCP servers
+- [Timeout Configuration](/gh-aw/reference/timeouts/) - Timeout settings for workflows, tools, and MCP servers
 - [Security Guide](/gh-aw/guides/security/) - Security considerations for AI engines
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration
