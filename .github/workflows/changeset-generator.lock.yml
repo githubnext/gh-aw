@@ -4001,7 +4001,7 @@ jobs:
         id: check_membership
         uses: actions/github-script@v8
         env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer
+          GH_AW_REQUIRED_ROLES: write
         with:
           script: |
             async function main() {

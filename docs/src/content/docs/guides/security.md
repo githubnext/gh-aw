@@ -25,7 +25,7 @@ When working with agentic workflows, thorough review is essential:
 2. **Assess compiled workflows** (`.lock.yml` files) to understand the actual permissions and operations being performed
 3. **Understand GitHub's security model** - GitHub Actions provides built-in protections like read-only defaults for fork PRs and restricted secret access. These apply to agentic workflows as well. See [GitHub Actions security](https://docs.github.com/en/actions/reference/security/secure-use) and [permissions documentation](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions)
 4. **Remember permission defaults** - when you specify any permission explicitly, all unspecified permissions default to `none`
-5. **Check repository access restrictions** - By default, agentic workflows restrict execution to users with `admin` or `maintainer` repository permissions. Use `roles: all` carefully, especially in public repositories where any user can potentially trigger workflows
+5. **Check repository access restrictions** - By default, agentic workflows restrict execution to users with `write` repository permissions or higher. Use `roles: all` carefully, especially in public repositories where any user can potentially trigger workflows
 
 ## Threat Model
 
@@ -183,9 +183,9 @@ Use `gh aw logs` to monitor the costs of running agentic workflows. This command
 
 Agentic workflows include built-in access control to prevent unauthorized execution:
 
-By default, workflows restrict execution to users with administrative privileges:
+By default, workflows restrict execution to users with write permissions or higher:
 
-- **Default roles**: `admin` and `maintainer` repository permissions are required
+- **Default roles**: `write` repository permission is required (includes write, maintain, and admin)
 - **Automatic enforcement**: Permission checks are automatically added to workflows with potentially unsafe triggers (`push`, `issues`, `pull_request`, etc.)
 - **Safe trigger exceptions**: Workflows that only use "safe" triggers (`schedule`, `workflow_run`) skip permission checks by default
 - **workflow_dispatch** is treated as safe only when `write` is in the allowed roles, since workflow_dispatch can be triggered by users with write access
@@ -193,11 +193,11 @@ By default, workflows restrict execution to users with administrative privileges
 Use the `roles:` frontmatter field to customize who can trigger workflows:
 
 ```yaml
-# Default (recommended for most workflows)
-roles: [admin, maintainer]
+# Default (write access and above)
+roles: [write]
 
-# Allow contributors with write access (use carefully)
-roles: [admin, maintainer, write]
+# More restrictive - only admin/maintainer (use for sensitive operations)
+roles: [admin, maintainer]
 
 # Disable restrictions entirely (high risk in public repos)
 roles: all
@@ -211,10 +211,10 @@ on:
   workflow_dispatch:
 roles: [admin, maintainer]  # Users with write access will be denied
 
-# Permission check SKIPPED - write role allowed
+# Permission check SKIPPED - write role allowed (default)
 on:
   workflow_dispatch:
-roles: [admin, maintainer, write]  # Users with write access allowed
+roles: [write]  # Users with write access allowed
 
 # Permission check SKIPPED - all users allowed
 on:

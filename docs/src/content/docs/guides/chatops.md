@@ -17,7 +17,6 @@ on:
   command:
     name: review
     events: [pull_request_comment]  # Only respond to /review in PR comments
-roles: [admin, maintainer]  # Default security restriction
 permissions:
   contents: read
   pull-requests: read
@@ -67,9 +66,9 @@ This command only responds when mentioned in issues, not in pull requests.
 
 ## Security and Access Control
 
-By default, ChatOps workflows restrict execution to users with `admin` or `maintainer` repository permissions. This prevents unauthorized users from triggering automation. Permission checks happen at runtime, automatically canceling workflows for unauthorized users.
+By default, ChatOps workflows restrict execution to users with `write` repository permissions or higher. This prevents unauthorized users from triggering automation. Permission checks happen at runtime, automatically canceling workflows for unauthorized users.
 
-You can customize access using the `roles:` configuration, but using `roles: all` creates security risks, especially in public repositories where any authenticated user could trigger workflows.
+You can customize access using the `roles:` configuration. For more restrictive access, use `roles: [admin, maintainer]`. Using `roles: all` creates security risks, especially in public repositories where any authenticated user could trigger workflows.
 
 ## Accessing Context Information
 
