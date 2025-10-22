@@ -16,6 +16,7 @@ tools:
     toolset: [default]
   bash:
     - "*"
+  edit:
 safe-outputs:
   create-discussion:
     category: "dev"
