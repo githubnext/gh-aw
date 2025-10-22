@@ -1106,6 +1106,25 @@ jobs:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
+      - name: Validate OPENAI_API_KEY secret
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "Error: OPENAI_API_KEY secret is not set"
+            echo "The GenAIScript engine with openai:gpt-4.1 model requires OPENAI_API_KEY secret to be configured."
+            echo "Please configure this secret in your repository settings."
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/"
+            exit 1
+          fi
+          echo "OPENAI_API_KEY secret is configured"
+        env:
+          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4.1
+          GH_AW_AGENT_VERSION: 2.5.1
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_SAFE_OUTPUTS_CONFIG: "\"{\\\"create_issue\\\":{\\\"max\\\":1,\\\"min\\\":1},\\\"missing_tool\\\":{}}\""
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Install GenAIScript
         run: npm install -g genaiscript@${GH_AW_AGENT_VERSION} && genaiscript --version
         env:
@@ -1148,6 +1167,7 @@ jobs:
           GH_AW_SAFE_OUTPUTS_CONFIG: "\"{\\\"create_issue\\\":{\\\"max\\\":1,\\\"min\\\":1},\\\"missing_tool\\\":{}}\""
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Ensure log file exists
         run: |
           echo "Custom steps execution completed" >> /tmp/gh-aw/agent-stdio.log
@@ -2382,6 +2402,25 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
+      - name: Validate OPENAI_API_KEY secret
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "Error: OPENAI_API_KEY secret is not set"
+            echo "The GenAIScript engine with openai:gpt-4.1 model requires OPENAI_API_KEY secret to be configured."
+            echo "Please configure this secret in your repository settings."
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/"
+            exit 1
+          fi
+          echo "OPENAI_API_KEY secret is configured"
+        env:
+          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4.1
+          GH_AW_AGENT_VERSION: 2.5.1
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_SAFE_OUTPUTS_CONFIG: "\"{\\\"create_issue\\\":{\\\"max\\\":1,\\\"min\\\":1},\\\"missing_tool\\\":{}}\""
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Install GenAIScript
         run: npm install -g genaiscript@${GH_AW_AGENT_VERSION} && genaiscript --version
         env:
@@ -2424,6 +2463,7 @@ jobs:
           GH_AW_SAFE_OUTPUTS_CONFIG: "\"{\\\"create_issue\\\":{\\\"max\\\":1,\\\"min\\\":1},\\\"missing_tool\\\":{}}\""
           GH_AW_SAFE_OUTPUTS_STAGED: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Ensure log file exists
         run: |
           echo "Custom steps execution completed" >> /tmp/gh-aw/threat-detection/detection.log

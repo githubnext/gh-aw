@@ -5,6 +5,19 @@ engine:
     GH_AW_AGENT_VERSION: "2.5.1"
     GH_AW_AGENT_MODEL_VERSION: "openai:gpt-4.1"
   steps:
+    - name: Validate OPENAI_API_KEY secret
+      run: |
+        if [ -z "$OPENAI_API_KEY" ]; then
+          echo "Error: OPENAI_API_KEY secret is not set"
+          echo "The GenAIScript engine with openai:gpt-4.1 model requires OPENAI_API_KEY secret to be configured."
+          echo "Please configure this secret in your repository settings."
+          echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/"
+          exit 1
+        fi
+        echo "OPENAI_API_KEY secret is configured"
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    
     - name: Install GenAIScript
       run: npm install -g genaiscript@${GH_AW_AGENT_VERSION} && genaiscript --version
       env:
@@ -33,6 +46,7 @@ engine:
         GH_AW_PROMPT: ${{ env.GH_AW_PROMPT }}
         GH_AW_MCP_CONFIG: ${{ env.GH_AW_MCP_CONFIG }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 ---
 
 <!--
