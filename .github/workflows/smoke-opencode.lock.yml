@@ -1106,8 +1106,74 @@ jobs:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
-      - name: Install OpenCode
-        run: npm install -g opencode-ai@${GH_AW_AGENT_VERSION}
+      - name: Install OpenCode and jq
+        run: |
+          npm install -g opencode-ai@${GH_AW_AGENT_VERSION}
+          sudo apt-get update && sudo apt-get install -y jq
+        env:
+          GH_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
+          GH_AW_AGENT_VERSION: 0.15.13
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_SAFE_OUTPUTS_CONFIG: "\"{\\\"create_issue\\\":{\\\"max\\\":1,\\\"min\\\":1},\\\"missing_tool\\\":{}}\""
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
+      - name: Configure OpenCode MCP servers
+        run: |
+          set -e
+
+          # Create OpenCode config directory
+          mkdir -p ~/.config/opencode
+
+          # Check if MCP config exists
+          if [ -n "$GH_AW_MCP_CONFIG" ] && [ -f "$GH_AW_MCP_CONFIG" ]; then
+            echo "Found MCP configuration at: $GH_AW_MCP_CONFIG"
+
+            # Create base OpenCode config with proper schema
+            echo '{"$schema": "https://opencode.sh/schema.json", "mcp": {}}' > ~/.config/opencode/opencode.json
+
+            # Transform Copilot-style MCP config to OpenCode format
+            jq -r '.mcpServers | to_entries[] | 
+              if .value.type == "local" or (.value.command and .value.args) then
+                {
+                  key: .key,
+                  value: {
+                    type: "local",
+                    command: (
+                      if .value.command then
+                        [.value.command] + (.value.args // [])
+                      else
+                        []
+                      end
+                    ),
+                    enabled: true,
+                    environment: (.value.env // {})
+                  }
+                }
+              elif .value.type == "http" then
+                {
+                  key: .key,
+                  value: {
+                    type: "remote",
+                    url: .value.url,
+                    enabled: true,
+                    headers: (.value.headers // {})
+                  }
+                }
+              else empty end' "$GH_AW_MCP_CONFIG" | \
+              jq -s 'reduce .[] as $item ({}; .[$item.key] = $item.value)' > /tmp/mcp-servers.json
+
+            # Merge MCP servers into config
+            jq --slurpfile servers /tmp/mcp-servers.json '.mcp = $servers[0]' \
+              ~/.config/opencode/opencode.json > /tmp/opencode-final.json
+            mv /tmp/opencode-final.json ~/.config/opencode/opencode.json
+
+            echo "✅ OpenCode MCP configuration created successfully"
+            echo "Configuration contents:"
+            cat ~/.config/opencode/opencode.json | jq .
+          else
+            echo "⚠️  No MCP config found - OpenCode will run without MCP tools"
+          fi
         env:
           GH_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
           GH_AW_AGENT_VERSION: 0.15.13
@@ -2365,8 +2431,74 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Install OpenCode
-        run: npm install -g opencode-ai@${GH_AW_AGENT_VERSION}
+      - name: Install OpenCode and jq
+        run: |
+          npm install -g opencode-ai@${GH_AW_AGENT_VERSION}
+          sudo apt-get update && sudo apt-get install -y jq
+        env:
+          GH_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
+          GH_AW_AGENT_VERSION: 0.15.13
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_SAFE_OUTPUTS_CONFIG: "\"{\\\"create_issue\\\":{\\\"max\\\":1,\\\"min\\\":1},\\\"missing_tool\\\":{}}\""
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
+      - name: Configure OpenCode MCP servers
+        run: |
+          set -e
+
+          # Create OpenCode config directory
+          mkdir -p ~/.config/opencode
+
+          # Check if MCP config exists
+          if [ -n "$GH_AW_MCP_CONFIG" ] && [ -f "$GH_AW_MCP_CONFIG" ]; then
+            echo "Found MCP configuration at: $GH_AW_MCP_CONFIG"
+
+            # Create base OpenCode config with proper schema
+            echo '{"$schema": "https://opencode.sh/schema.json", "mcp": {}}' > ~/.config/opencode/opencode.json
+
+            # Transform Copilot-style MCP config to OpenCode format
+            jq -r '.mcpServers | to_entries[] | 
+              if .value.type == "local" or (.value.command and .value.args) then
+                {
+                  key: .key,
+                  value: {
+                    type: "local",
+                    command: (
+                      if .value.command then
+                        [.value.command] + (.value.args // [])
+                      else
+                        []
+                      end
+                    ),
+                    enabled: true,
+                    environment: (.value.env // {})
+                  }
+                }
+              elif .value.type == "http" then
+                {
+                  key: .key,
+                  value: {
+                    type: "remote",
+                    url: .value.url,
+                    enabled: true,
+                    headers: (.value.headers // {})
+                  }
+                }
+              else empty end' "$GH_AW_MCP_CONFIG" | \
+              jq -s 'reduce .[] as $item ({}; .[$item.key] = $item.value)' > /tmp/mcp-servers.json
+
+            # Merge MCP servers into config
+            jq --slurpfile servers /tmp/mcp-servers.json '.mcp = $servers[0]' \
+              ~/.config/opencode/opencode.json > /tmp/opencode-final.json
+            mv /tmp/opencode-final.json ~/.config/opencode/opencode.json
+
+            echo "✅ OpenCode MCP configuration created successfully"
+            echo "Configuration contents:"
+            cat ~/.config/opencode/opencode.json | jq .
+          else
+            echo "⚠️  No MCP config found - OpenCode will run without MCP tools"
+          fi
         env:
           GH_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
           GH_AW_AGENT_VERSION: 0.15.13
