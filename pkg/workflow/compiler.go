@@ -1444,8 +1444,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 				if reactionStr, ok := reactionValue.(string); ok {
 					// Validate reaction value
 					if !isValidReaction(reactionStr) {
-						validValues := []string{"+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"}
-						return fmt.Errorf("invalid reaction value '%s': must be one of %v", reactionStr, validValues)
+						return fmt.Errorf("invalid reaction value '%s': must be one of %v", reactionStr, getValidReactions())
 					}
 					workflowData.AIReaction = reactionStr
 				}
