@@ -7,11 +7,15 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 )
 
+var validationLog = logger.New("workflow:validation")
+
 // validateExpressionSizes validates that no expression values in the generated YAML exceed GitHub Actions limits
 func (c *Compiler) validateExpressionSizes(yamlContent string) error {
+	validationLog.Print("Validating expression sizes in generated YAML")
 	lines := strings.Split(yamlContent, "\n")
 	maxSize := MaxExpressionSize
 
@@ -51,6 +55,7 @@ func (c *Compiler) validateContainerImages(workflowData *WorkflowData) error {
 		return nil
 	}
 
+	validationLog.Printf("Validating container images for %d tools", len(workflowData.Tools))
 	var errors []string
 	for toolName, toolConfig := range workflowData.Tools {
 		if config, ok := toolConfig.(map[string]any); ok {
@@ -97,6 +102,7 @@ func (c *Compiler) validateContainerImages(workflowData *WorkflowData) error {
 func (c *Compiler) validateRuntimePackages(workflowData *WorkflowData) error {
 	// Detect runtime requirements
 	requirements := DetectRuntimeRequirements(workflowData)
+	validationLog.Printf("Validating runtime packages: found %d runtime requirements", len(requirements))
 
 	var errors []string
 	for _, req := range requirements {
