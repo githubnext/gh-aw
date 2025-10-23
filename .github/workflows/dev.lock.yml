@@ -767,7 +767,7 @@ jobs:
                 const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
                 const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
                 if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
-                  summaryContent += "**Related Items:**\n";
+                  summaryContent += "#### Related Items\n\n";
                   if (createdIssueUrl && createdIssueNumber) {
                     summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
                   }
@@ -880,7 +880,7 @@ jobs:
                 const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
                 const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
                 let hasReferences = false;
-                let referencesSection = "\n\n## Related Items\n\n";
+                let referencesSection = "\n\n#### Related Items\n\n";
                 if (createdIssueUrl && createdIssueNumber) {
                   referencesSection += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
                   hasReferences = true;

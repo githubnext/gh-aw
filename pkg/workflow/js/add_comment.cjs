@@ -219,7 +219,7 @@ async function main() {
     const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
 
     if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
-      summaryContent += "**Related Items:**\n";
+      summaryContent += "#### Related Items\n\n";
       if (createdIssueUrl && createdIssueNumber) {
         summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
       }
@@ -355,7 +355,7 @@ async function main() {
 
     // Add references section if any URLs are available
     let hasReferences = false;
-    let referencesSection = "\n\n## Related Items\n\n";
+    let referencesSection = "\n\n#### Related Items\n\n";
 
     if (createdIssueUrl && createdIssueNumber) {
       referencesSection += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;

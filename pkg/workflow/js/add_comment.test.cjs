@@ -473,6 +473,111 @@ describe("add_comment.cjs", () => {
     delete global.context.payload.pull_request;
   });
 
+  it("should use header level 4 for related items in comments", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "Test comment with related items",
+        },
+      ],
+    });
+    global.context.eventName = "issues";
+    global.context.payload.issue = { number: 123 };
+
+    // Set environment variables for created items
+    process.env.GH_AW_CREATED_ISSUE_URL = "https://github.com/testowner/testrepo/issues/456";
+    process.env.GH_AW_CREATED_ISSUE_NUMBER = "456";
+    process.env.GH_AW_CREATED_DISCUSSION_URL = "https://github.com/testowner/testrepo/discussions/789";
+    process.env.GH_AW_CREATED_DISCUSSION_NUMBER = "789";
+    process.env.GH_AW_CREATED_PULL_REQUEST_URL = "https://github.com/testowner/testrepo/pull/101";
+    process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER = "101";
+
+    const mockComment = {
+      id: 890,
+      html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-890",
+    };
+
+    mockGithub.rest.issues.createComment.mockResolvedValue({ data: mockComment });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    const callArgs = mockGithub.rest.issues.createComment.mock.calls[0][0];
+
+    // Check that the related items section uses header level 4 (####)
+    expect(callArgs.body).toContain("#### Related Items");
+    // Check that it uses exactly 4 hashes, not 2
+    expect(callArgs.body).toMatch(/####\s+Related Items/);
+    expect(callArgs.body).not.toMatch(/^##\s+Related Items/m);
+    expect(callArgs.body).not.toMatch(/\*\*Related Items:\*\*/);
+
+    // Check that the references are included
+    expect(callArgs.body).toContain("- Issue: [#456](https://github.com/testowner/testrepo/issues/456)");
+    expect(callArgs.body).toContain("- Discussion: [#789](https://github.com/testowner/testrepo/discussions/789)");
+    expect(callArgs.body).toContain("- Pull Request: [#101](https://github.com/testowner/testrepo/pull/101)");
+
+    // Clean up
+    delete process.env.GH_AW_CREATED_ISSUE_URL;
+    delete process.env.GH_AW_CREATED_ISSUE_NUMBER;
+    delete process.env.GH_AW_CREATED_DISCUSSION_URL;
+    delete process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+    delete process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+    delete process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
+  });
+
+  it("should use header level 4 for related items in staged mode preview", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "Test comment in staged mode",
+        },
+      ],
+    });
+    global.context.eventName = "issues";
+    global.context.payload.issue = { number: 123 };
+
+    // Enable staged mode
+    process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+
+    // Set environment variables for created items
+    process.env.GH_AW_CREATED_ISSUE_URL = "https://github.com/testowner/testrepo/issues/456";
+    process.env.GH_AW_CREATED_ISSUE_NUMBER = "456";
+    process.env.GH_AW_CREATED_DISCUSSION_URL = "https://github.com/testowner/testrepo/discussions/789";
+    process.env.GH_AW_CREATED_DISCUSSION_NUMBER = "789";
+    process.env.GH_AW_CREATED_PULL_REQUEST_URL = "https://github.com/testowner/testrepo/pull/101";
+    process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER = "101";
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Check that summary was written with correct header level 4
+    expect(mockCore.summary.addRaw).toHaveBeenCalled();
+    const summaryContent = mockCore.summary.addRaw.mock.calls[0][0];
+
+    // Check that the related items section uses header level 4 (####)
+    expect(summaryContent).toContain("#### Related Items");
+    // Check that it uses exactly 4 hashes, not 2
+    expect(summaryContent).toMatch(/####\s+Related Items/);
+    expect(summaryContent).not.toMatch(/^##\s+Related Items/m);
+    expect(summaryContent).not.toMatch(/\*\*Related Items:\*\*/);
+
+    // Check that the references are included
+    expect(summaryContent).toContain("- Issue: [#456](https://github.com/testowner/testrepo/issues/456)");
+    expect(summaryContent).toContain("- Discussion: [#789](https://github.com/testowner/testrepo/discussions/789)");
+    expect(summaryContent).toContain("- Pull Request: [#101](https://github.com/testowner/testrepo/pull/101)");
+
+    // Clean up
+    delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+    delete process.env.GH_AW_CREATED_ISSUE_URL;
+    delete process.env.GH_AW_CREATED_ISSUE_NUMBER;
+    delete process.env.GH_AW_CREATED_DISCUSSION_URL;
+    delete process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
+    delete process.env.GH_AW_CREATED_PULL_REQUEST_URL;
+    delete process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
+  });
+
   it("should create comment on discussion using GraphQL when in discussion_comment context", async () => {
     setAgentOutput({
       items: [
