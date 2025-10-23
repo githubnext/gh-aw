@@ -10,7 +10,7 @@ engine:
   id: claude
   max-turns: 30
 network: 
-   allowed: [defaults, "registry.npmjs.org", "api.github.com", "ghcr.io"]
+   allowed: [defaults, node, "api.github.com", "ghcr.io"]
 imports:
   - shared/jqschema.md
 tools:
@@ -50,6 +50,8 @@ Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Co
 1. Check cache-memory at `/tmp/gh-aw/cache-memory/` for previous version checks and help outputs
 2. If cached versions exist and are recent (< 24h), verify if updates are needed before proceeding
 3. If no version changes detected, exit early with success
+
+**CRITICAL**: If ANY version changes are detected, you MUST create an issue using safe-outputs.create-issue. Do not skip issue creation even for minor updates.
 
 For each CLI/MCP server:
 1. Fetch latest version from NPM registry or GitHub releases (use npm view commands for package metadata)
@@ -97,7 +99,7 @@ For each CLI tool update:
 1. Edit `./pkg/constants/constants.go` with new version(s)
 2. Run `make recompile` to update workflows
 3. Verify changes with `git status`
-4. Create issue via safe-outputs with detailed analysis
+4. **REQUIRED**: Create issue via safe-outputs with detailed analysis (do NOT skip this step)
 
 ## Issue Format
 Include for each updated CLI:
