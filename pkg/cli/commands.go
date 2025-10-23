@@ -9,7 +9,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var commandsLog = logger.New("cli:commands")
 
 // Package-level version information
 var (
@@ -45,6 +48,7 @@ func isGHCLIAvailable() bool {
 func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error) {
 	// First, try to use it as a direct file path
 	if _, err := os.Stat(fileOrWorkflowName); err == nil {
+		commandsLog.Printf("Found workflow file at path: %s", fileOrWorkflowName)
 		if verbose {
 			fmt.Printf("Found workflow file at path: %s\n", fileOrWorkflowName)
 		}
@@ -57,9 +61,7 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 	}
 
 	// If it's not a direct file path, try to resolve it as a workflow name
-	if verbose {
-		fmt.Printf("File not found at %s, trying to resolve as workflow name...\n", fileOrWorkflowName)
-	}
+	commandsLog.Printf("File not found at %s, trying to resolve as workflow name", fileOrWorkflowName)
 
 	// Add .md extension if not present
 	workflowPath := fileOrWorkflowName
@@ -67,9 +69,7 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 		workflowPath += ".md"
 	}
 
-	if verbose {
-		fmt.Printf("Looking for workflow file: %s\n", workflowPath)
-	}
+	commandsLog.Printf("Looking for workflow file: %s", workflowPath)
 
 	workflowsDir := getWorkflowsDir()
 
@@ -79,9 +79,7 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 		return "", fmt.Errorf("workflow '%s' not found in local .github/workflows or components", fileOrWorkflowName)
 	}
 
-	if verbose {
-		fmt.Printf("Found workflow in local components\n")
-	}
+	commandsLog.Print("Found workflow in local components")
 
 	// Return absolute path
 	absPath, err := filepath.Abs(path)

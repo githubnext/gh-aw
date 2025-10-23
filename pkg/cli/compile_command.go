@@ -33,9 +33,7 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 		return nil
 	}
 
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Validating generated lock file YAML syntax..."))
-	}
+	compileLog.Print("Validating generated lock file YAML syntax")
 
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
@@ -188,9 +186,6 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			}
 			workflowDataList = append(workflowDataList, workflowData)
 
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Compiling %s", resolvedFile)))
-			}
 			compileLog.Printf("Starting compilation of %s", resolvedFile)
 			if err := CompileWorkflowWithValidation(compiler, resolvedFile, verbose); err != nil {
 				// Always put error on a new line and don't wrap with "failed to compile workflow"

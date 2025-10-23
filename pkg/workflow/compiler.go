@@ -230,16 +230,9 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	lockFile := strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
 
 	log.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
-	if c.verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Starting compilation of: %s", console.ToRelativePath(markdownPath))))
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Output file: %s", console.ToRelativePath(lockFile))))
-	}
 
 	// Parse the markdown file
 	log.Printf("Parsing workflow file")
-	if c.verbose {
-		fmt.Println(console.FormatInfoMessage("Parsing workflow file..."))
-	}
 	workflowData, err := c.ParseWorkflowFile(markdownPath)
 	if err != nil {
 		// Check if this is already a formatted console error
@@ -262,9 +255,6 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 
 	// Validate expression safety - check that all GitHub Actions expressions are in the allowed list
 	log.Printf("Validating expression safety")
-	if c.verbose {
-		fmt.Println(console.FormatInfoMessage("Validating expression safety..."))
-	}
 	if err := validateExpressionSafety(workflowData.MarkdownContent); err != nil {
 		formattedErr := console.FormatError(console.CompilerError{
 			Position: console.ErrorPosition{
@@ -281,15 +271,6 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	// Note: Markdown content size is now handled by splitting into multiple steps in generatePrompt
 
 	log.Printf("Workflow: %s, Tools: %d", workflowData.Name, len(workflowData.Tools))
-	if c.verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Workflow name: %s", workflowData.Name)))
-		if len(workflowData.Tools) > 0 {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Tools configured: %d", len(workflowData.Tools))))
-		}
-		if workflowData.AIReaction != "" {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("AI reaction configured: %s", workflowData.AIReaction)))
-		}
-	}
 
 	// Note: compute-text functionality is now inlined directly in the task job
 	// instead of using a shared action file
@@ -311,9 +292,7 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 
 	// Validate against GitHub Actions schema (unless skipped)
 	if !c.skipValidation {
-		if c.verbose {
-			fmt.Println(console.FormatInfoMessage("Validating workflow against GitHub Actions schema..."))
-		}
+		log.Print("Validating workflow against GitHub Actions schema")
 		if err := c.validateGitHubActionsSchema(yamlContent); err != nil {
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
@@ -333,9 +312,7 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		}
 
 		// Validate expression sizes
-		if c.verbose {
-			fmt.Println(console.FormatInfoMessage("Validating expression sizes..."))
-		}
+		log.Print("Validating expression sizes")
 		if err := c.validateExpressionSizes(yamlContent); err != nil {
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
@@ -355,9 +332,7 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		}
 
 		// Validate container images used in MCP configurations
-		if c.verbose {
-			fmt.Println(console.FormatInfoMessage("Validating container images..."))
-		}
+		log.Print("Validating container images")
 		if err := c.validateContainerImages(workflowData); err != nil {
 			// Treat container image validation failures as warnings, not errors
 			// This is because validation may fail due to auth issues locally (e.g., private registries)
@@ -375,9 +350,7 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		}
 
 		// Validate runtime packages (npx, uv)
-		if c.verbose {
-			fmt.Println(console.FormatInfoMessage("Validating runtime packages..."))
-		}
+		log.Print("Validating runtime packages")
 		if err := c.validateRuntimePackages(workflowData); err != nil {
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
@@ -397,13 +370,9 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 
 	// Write to lock file (unless noEmit is enabled)
 	if c.noEmit {
-		if c.verbose {
-			fmt.Println(console.FormatInfoMessage("Validation completed - no lock file generated (--no-emit enabled)"))
-		}
+		log.Print("Validation completed - no lock file generated (--no-emit enabled)")
 	} else {
-		if c.verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Writing output to: %s", console.ToRelativePath(lockFile))))
-		}
+		log.Printf("Writing output to: %s", lockFile)
 		if err := os.WriteFile(lockFile, []byte(yamlContent), 0644); err != nil {
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
@@ -501,9 +470,6 @@ func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 // ParseWorkflowFile parses a markdown workflow file and extracts all necessary data
 func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
 	log.Printf("Reading file: %s", markdownPath)
-	if c.verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Reading file: %s", console.ToRelativePath(markdownPath))))
-	}
 
 	// Read the file
 	content, err := os.ReadFile(markdownPath)
@@ -512,9 +478,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	log.Printf("File size: %d bytes", len(content))
-	if c.verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("File size: %d bytes", len(content))))
-	}
 
 	// Parse frontmatter and markdown
 	result, err := parser.ExtractFrontmatterFromContent(string(content))
@@ -546,10 +509,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	log.Printf("Frontmatter: %d chars, Markdown: %d chars", len(result.Frontmatter), len(result.Markdown))
-	if c.verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Frontmatter: %d characters, Markdown content length: %d characters",
-			len(result.Frontmatter), len(result.Markdown))))
-	}
 
 	markdownDir := filepath.Dir(markdownPath)
 
@@ -668,14 +627,12 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to get agentic engine: %w", err)
 	}
 
-	if c.verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("AI engine: %s (%s)", agenticEngine.GetDisplayName(), engineSetting)))
-		if agenticEngine.IsExperimental() {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Using experimental engine: %s", agenticEngine.GetDisplayName())))
-			c.IncrementWarningCount()
-		}
-		fmt.Println(console.FormatInfoMessage("Processing tools and includes..."))
+	log.Printf("AI engine: %s (%s)", agenticEngine.GetDisplayName(), engineSetting)
+	if agenticEngine.IsExperimental() && c.verbose {
+		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Using experimental engine: %s", agenticEngine.GetDisplayName())))
+		c.IncrementWarningCount()
 	}
+	log.Print("Processing tools and includes...")
 
 	// Extract SafeOutputs configuration early so we can use it when applying default tools
 	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
@@ -792,9 +749,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		markdownContent = importsResult.MergedMarkdown + markdownContent
 	}
 
-	if c.verbose {
-		fmt.Println(console.FormatInfoMessage("Expanded includes in markdown content"))
-	}
+	log.Print("Expanded includes in markdown content")
 
 	// Combine all included files (from tools and markdown)
 	// Use a map to deduplicate files
@@ -824,9 +779,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		workflowName = frontmatterName
 	}
 
-	if c.verbose {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Extracted workflow name: '%s'", workflowName)))
-	}
+	log.Printf("Extracted workflow name: '%s'", workflowName)
 
 	// Check if the markdown content uses the text output
 	needsTextOutput := c.detectTextOutputUsage(markdownContent)
@@ -1796,13 +1749,7 @@ func needsGitCommands(safeOutputs *SafeOutputsConfig) bool {
 func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
 	// Check for the specific GitHub Actions expression
 	hasUsage := strings.Contains(markdownContent, "${{ needs.activation.outputs.text }}")
-	if c.verbose {
-		if hasUsage {
-			fmt.Println(console.FormatInfoMessage("Detected usage of activation.outputs.text - compute-text step will be included"))
-		} else {
-			fmt.Println(console.FormatInfoMessage("No usage of activation.outputs.text found - compute-text step will be skipped"))
-		}
-	}
+	log.Printf("Detected usage of activation.outputs.text: %v", hasUsage)
 	return hasUsage
 }
 
