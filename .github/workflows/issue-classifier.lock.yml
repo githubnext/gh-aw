@@ -2025,7 +2025,7 @@ jobs:
                   return;
                 }
                 core.info(`Found ${secretValues.length} secret(s) to redact`);
-                const targetExtensions = [".txt", ".json", ".log"];
+                const targetExtensions = [".txt", ".json", ".log", ".md", ".mdx", ".yml", ".jsonl"];
                 const files = findFiles("/tmp/gh-aw", targetExtensions);
                 core.info(`Found ${files.length} file(s) to scan for secrets`);
                 let totalRedactions = 0;

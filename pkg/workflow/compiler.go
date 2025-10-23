@@ -1505,21 +1505,6 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 	return nil
 }
 
-// isValidReaction checks if a reaction value is valid according to the schema
-func isValidReaction(reaction string) bool {
-	validReactions := map[string]bool{
-		"+1":       true,
-		"-1":       true,
-		"laugh":    true,
-		"confused": true,
-		"heart":    true,
-		"hooray":   true,
-		"rocket":   true,
-		"eyes":     true,
-	}
-	return validReactions[reaction]
-}
-
 // generateJobName converts a workflow name to a valid YAML job identifier
 func (c *Compiler) generateJobName(workflowName string) string {
 	// Convert to lowercase and replace spaces and special characters with hyphens
