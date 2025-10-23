@@ -936,17 +936,17 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
-          cat > $GH_AW_PROMPT << 'EOF'
+          cat > $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'
           
           
           Review the last 5 merged pull requests in this repository and post summary in an issue.
           
-          EOF
+          PROMPT_CONTENT_EOF
       - name: Append temporary folder instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'
           
           ---
           
@@ -954,12 +954,12 @@ jobs:
           
           **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/agent/` directory** that has been pre-created for you. Do NOT use the root `/tmp/` directory directly.
           
-          EOF
+          PROMPT_CONTENT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'
           
           ---
           
@@ -975,12 +975,12 @@ jobs:
           
           To report a missing tool use the missing-tool tool from the safe-outputs MCP.
           
-          EOF
+          PROMPT_CONTENT_EOF
       - name: Append GitHub context to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'EOF'
+          cat >> $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'
           
           ---
           
@@ -1009,7 +1009,7 @@ jobs:
           
           Use this context information to understand the scope of your work.
           
-          EOF
+          PROMPT_CONTENT_EOF
       - name: Render template conditionals
         uses: actions/github-script@v8
         env:
