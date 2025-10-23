@@ -1442,6 +1442,11 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			if reactionValue, hasReactionField := onMap["reaction"]; hasReactionField {
 				hasReaction = true
 				if reactionStr, ok := reactionValue.(string); ok {
+					// Validate reaction value
+					if !isValidReaction(reactionStr) {
+						validValues := []string{"+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"}
+						return fmt.Errorf("invalid reaction value '%s': must be one of %v", reactionStr, validValues)
+					}
 					workflowData.AIReaction = reactionStr
 				}
 			}
@@ -1498,6 +1503,21 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 	}
 
 	return nil
+}
+
+// isValidReaction checks if a reaction value is valid according to the schema
+func isValidReaction(reaction string) bool {
+	validReactions := map[string]bool{
+		"+1":       true,
+		"-1":       true,
+		"laugh":    true,
+		"confused": true,
+		"heart":    true,
+		"hooray":   true,
+		"rocket":   true,
+		"eyes":     true,
+	}
+	return validReactions[reaction]
 }
 
 // generateJobName converts a workflow name to a valid YAML job identifier

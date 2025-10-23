@@ -2904,6 +2904,61 @@ Test command workflow with custom reaction override.
 	}
 }
 
+// TestInvalidReactionValue tests that invalid reaction values are rejected
+func TestInvalidReactionValue(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "invalid-reaction-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test invalid reaction value
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+  reaction: invalid_emoji
+permissions:
+  contents: read
+  issues: write
+tools:
+  github:
+    allowed: [get_issue]
+---
+
+# Invalid Reaction Test
+
+Test workflow with invalid reaction value.
+`
+
+	testFile := filepath.Join(tmpDir, "test-invalid-reaction.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow - should fail with validation error
+	_, err = compiler.ParseWorkflowFile(testFile)
+	if err == nil {
+		t.Fatal("Expected error for invalid reaction value, but got none")
+	}
+
+	// Verify error message mentions the invalid value and valid options
+	expectedSubstrings := []string{
+		"invalid reaction value",
+		"invalid_emoji",
+		"must be one of",
+	}
+
+	for _, expected := range expectedSubstrings {
+		if !strings.Contains(err.Error(), expected) {
+			t.Errorf("Error message should contain '%s', got: %v", expected, err)
+		}
+	}
+}
+
 // TestPullRequestDraftFilter tests the pull_request draft: false filter functionality
 func TestPullRequestDraftFilter(t *testing.T) {
 	// Create temporary directory for test files
