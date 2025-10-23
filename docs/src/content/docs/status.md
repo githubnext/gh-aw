@@ -22,6 +22,7 @@ This page shows the current status of all agentic workflows in the repository.
 - [![Daily Perf Improver](https://github.com/githubnext/gh-aw/actions/workflows/daily-perf-improver.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-perf-improver.lock.yml)
 - [![Daily Test Coverage Improver](https://github.com/githubnext/gh-aw/actions/workflows/daily-test-improver.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-test-improver.lock.yml)
 - [![Dev](https://github.com/githubnext/gh-aw/actions/workflows/dev.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/dev.lock.yml)
+- [![Dev Firewall](https://github.com/githubnext/gh-aw/actions/workflows/dev.firewall.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/dev.firewall.lock.yml)
 - [![Dev Hawk](https://github.com/githubnext/gh-aw/actions/workflows/dev-hawk.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/dev-hawk.lock.yml)
 - [![Dictation Prompt Generator](https://github.com/githubnext/gh-aw/actions/workflows/dictation-prompt.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/dictation-prompt.lock.yml)
 - [![Documentation Unbloat](https://github.com/githubnext/gh-aw/actions/workflows/unbloat-docs.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/unbloat-docs.lock.yml)
