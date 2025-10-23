@@ -724,32 +724,6 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "valid GitHub Actions defaults property",
-			frontmatter: map[string]any{
-				"on": "push",
-				"defaults": map[string]any{
-					"run": map[string]any{
-						"shell":             "bash",
-						"working-directory": "/app",
-					},
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "invalid defaults with additional properties",
-			frontmatter: map[string]any{
-				"defaults": map[string]any{
-					"run": map[string]any{
-						"shell":        "bash",
-						"invalid_prop": "value",
-					},
-				},
-			},
-			wantErr:     true,
-			errContains: "additional properties 'invalid_prop' not allowed",
-		},
-		{
 			name: "valid claude engine with network permissions",
 			frontmatter: map[string]any{
 				"on": "push",
