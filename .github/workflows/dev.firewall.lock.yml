@@ -356,7 +356,7 @@ jobs:
           if-no-files-found: warn
       - name: Capture agent version
         run: |
-          VERSION_OUTPUT=$(copilot --version 2>&1 || echo "unknown")
+          VERSION_OUTPUT=$(npx -y @github/copilot@0.0.347 --version 2>&1 || echo "unknown")
           # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)
           CLEAN_VERSION=$(echo "$VERSION_OUTPUT" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo "unknown")
           echo "AGENT_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV

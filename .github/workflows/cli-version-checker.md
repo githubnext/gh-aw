@@ -8,7 +8,7 @@ permissions:
   actions: read
 engine:
   id: claude
-  max-turns: 30
+  max-turns: 75
 network: 
    allowed: [defaults, node, "api.github.com", "ghcr.io"]
 imports:
