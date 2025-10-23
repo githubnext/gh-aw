@@ -680,6 +680,12 @@ env:
 # Option 2: string
 env: "example-value"
 
+# Feature flags to enable experimental or optional features in the workflow. Each
+# feature is specified as a key with a boolean value.
+# (optional)
+features:
+  {}
+
 # Environment that the job references (for protected environments and deployments)
 # (optional)
 # This field supports multiple formats (oneOf):

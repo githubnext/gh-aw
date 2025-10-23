@@ -281,6 +281,18 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract MCP failures: %v", err)))
 	}
 
+	// Analyze access logs if available
+	accessAnalysis, err := analyzeAccessLogs(runOutputDir, verbose)
+	if err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs: %v", err)))
+	}
+
+	// List all artifacts
+	artifacts, err := listArtifacts(runOutputDir)
+	if err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to list artifacts: %v", err)))
+	}
+
 	// Create processed run for report generation
 	processedRun := ProcessedRun{
 		Run:          run,
@@ -320,6 +332,26 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 			}
 		} else if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No engine detected (aw_info.json missing or invalid); skipping agent log rendering"))
+		}
+	}
+
+	// Save run summary for caching future audit runs
+	summary := &RunSummary{
+		CLIVersion:     GetVersion(),
+		RunID:          run.DatabaseID,
+		ProcessedAt:    time.Now(),
+		Run:            run,
+		Metrics:        metrics,
+		AccessAnalysis: accessAnalysis,
+		MissingTools:   missingTools,
+		MCPFailures:    mcpFailures,
+		ArtifactsList:  artifacts,
+		JobDetails:     jobDetails,
+	}
+
+	if err := saveRunSummary(runOutputDir, summary, verbose); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save run summary: %v", err)))
 		}
 	}
 
