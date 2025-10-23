@@ -619,12 +619,14 @@ func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 	patterns = append(patterns, []ErrorPattern{
 		// Rust format patterns (without brackets, with milliseconds and Z timezone)
 		{
+			ID:           "codex-rust-error",
 			Pattern:      `(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\s+(ERROR)\s+(.+)`,
 			LevelGroup:   2, // "ERROR" is in the second capture group
 			MessageGroup: 3, // error message is in the third capture group
 			Description:  "Codex ERROR messages with timestamp",
 		},
 		{
+			ID:           "codex-rust-warning",
 			Pattern:      `(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\s+(WARN|WARNING)\s+(.+)`,
 			LevelGroup:   2, // "WARN" or "WARNING" is in the second capture group
 			MessageGroup: 3, // warning message is in the third capture group

@@ -20,10 +20,11 @@ type ToolCallInfo struct {
 
 // LogError represents a single error or warning from the log
 type LogError struct {
-	File    string // File path (usually the log file)
-	Line    int    // Line number in the log file
-	Type    string // "error" or "warning"
-	Message string // Error/warning message
+	File      string // File path (usually the log file)
+	Line      int    // Line number in the log file
+	Type      string // "error" or "warning"
+	Message   string // Error/warning message
+	PatternID string // ID of the error pattern that matched (if available)
 }
 
 // CountErrors counts the number of errors in the slice
@@ -321,17 +322,19 @@ func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPatte
 				if strings.ToLower(level) == "error" {
 					if message != "" {
 						errors = append(errors, LogError{
-							Line:    lineNum + 1, // 1-based line numbering
-							Type:    "error",
-							Message: message,
+							Line:      lineNum + 1, // 1-based line numbering
+							Type:      "error",
+							Message:   message,
+							PatternID: pattern.ID,
 						})
 					}
 				} else if strings.ToLower(level) == "warning" || strings.ToLower(level) == "warn" {
 					if message != "" {
 						errors = append(errors, LogError{
-							Line:    lineNum + 1, // 1-based line numbering
-							Type:    "warning",
-							Message: message,
+							Line:      lineNum + 1, // 1-based line numbering
+							Type:      "warning",
+							Message:   message,
+							PatternID: pattern.ID,
 						})
 					}
 				}
