@@ -157,9 +157,11 @@ The YAML frontmatter supports these fields:
     safe-outputs:
       create-discussion:
         title-prefix: "[ai] "           # Optional: prefix for discussion titles  
-        category-id: 12345678           # Required: discussion category ID
+        category: "General"             # Optional: discussion category name, slug, or ID (defaults to first category if not specified)
         max: 3                          # Optional: maximum number of discussions (default: 1)
     ```
+    The `category` field is optional and can be specified by name (e.g., "General"), slug (e.g., "general"), or ID (e.g., "DIC_kwDOGFsHUM4BsUn3"). If not specified, discussions will be created in the first available category. Category resolution tries ID first, then name, then slug.
+    
     When using `safe-outputs.create-discussion`, the main job does **not** need `discussions: write` permission since discussion creation is handled by a separate job with appropriate permissions.
   - `add-comment:` - Safe comment creation on issues/PRs
     ```yaml
