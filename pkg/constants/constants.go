@@ -317,7 +317,7 @@ var PriorityStepFields = []string{"name", "id", "if", "run", "uses", "script", "
 
 // PriorityJobFields defines the conventional field order for GitHub Actions workflow jobs
 // Fields appear in this order first, followed by remaining fields alphabetically
-var PriorityJobFields = []string{"name", "runs-on", "needs", "if", "permissions", "environment", "concurrency", "outputs", "env", "defaults", "steps"}
+var PriorityJobFields = []string{"name", "runs-on", "needs", "if", "permissions", "environment", "concurrency", "outputs", "env", "steps"}
 
 // PriorityWorkflowFields defines the conventional field order for top-level GitHub Actions workflow frontmatter
 // Fields appear in this order first, followed by remaining fields alphabetically

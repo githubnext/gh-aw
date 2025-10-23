@@ -620,20 +620,6 @@ permissions:
 # (optional)
 run-name: "example-value"
 
-# Default settings that will apply to all jobs in the workflow
-# (optional)
-defaults:
-  # Default shell and working directory
-  # (optional)
-  run:
-    # Default shell for run steps
-    # (optional)
-    shell: "example-value"
-
-    # Default working directory for run steps
-    # (optional)
-    working-directory: "example-value"
-
 # Groups together all the jobs that run in the workflow
 # (optional)
 jobs:
