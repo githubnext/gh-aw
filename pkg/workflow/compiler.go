@@ -156,6 +156,7 @@ type WorkflowData struct {
 	Concurrency         string // workflow-level concurrency configuration
 	RunName             string
 	Env                 string
+	Defaults            string // default settings for all jobs in the workflow
 	If                  string
 	TimeoutMinutes      string
 	CustomSteps         string
@@ -862,6 +863,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Concurrency = c.extractTopLevelYAMLSection(result.Frontmatter, "concurrency")
 	workflowData.RunName = c.extractTopLevelYAMLSection(result.Frontmatter, "run-name")
 	workflowData.Env = c.extractTopLevelYAMLSection(result.Frontmatter, "env")
+	workflowData.Defaults = c.extractTopLevelYAMLSection(result.Frontmatter, "defaults")
 	workflowData.If = c.extractIfCondition(result.Frontmatter)
 	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout_minutes")
 	workflowData.CustomSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "steps")
@@ -1871,6 +1873,11 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	yaml.WriteString(data.Concurrency + "\n\n")
 	yaml.WriteString(data.RunName + "\n\n")
+
+	// Add defaults section if present
+	if data.Defaults != "" {
+		yaml.WriteString(data.Defaults + "\n\n")
+	}
 
 	// Add env section if present
 	if data.Env != "" {
