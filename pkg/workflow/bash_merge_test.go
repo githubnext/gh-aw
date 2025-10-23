@@ -31,6 +31,14 @@ func TestBashToolsMergeCustomWithDefaults(t *testing.T) {
 			expected:    []string{"*"},
 		},
 		{
+			name: "bash: false should be removed",
+			tools: map[string]any{
+				"bash": false,
+			},
+			safeOutputs: nil,
+			expected:    nil, // bash should not exist
+		},
+		{
 			name: "bash: true with safe outputs should use wildcard (not add git commands)",
 			tools: map[string]any{
 				"bash": true,
@@ -75,6 +83,15 @@ func TestBashToolsMergeCustomWithDefaults(t *testing.T) {
 
 			// Check the bash tools
 			bashTools, exists := result["bash"]
+
+			// Handle case where bash should not exist (e.g., bash: false)
+			if tt.expected == nil {
+				if exists {
+					t.Errorf("Expected bash to be removed, but it exists: %v", bashTools)
+				}
+				return
+			}
+
 			if !exists {
 				t.Fatalf("Expected bash tools to exist")
 			}

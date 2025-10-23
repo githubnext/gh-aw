@@ -1707,6 +1707,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	// This runs after git commands logic, so it only applies when git commands weren't added
 	// Behavior:
 	//   - bash: true → All commands allowed (converted to ["*"])
+	//   - bash: false → Tool disabled (removed from tools)
 	//   - bash: nil → Add default commands
 	//   - bash: [] → No commands (empty array means no tools allowed)
 	//   - bash: ["cmd1", "cmd2"] → Add default commands + specific commands
@@ -1725,6 +1726,9 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		} else if bashTool == true {
 			// bash is true - convert to wildcard (allow all commands)
 			tools["bash"] = []any{"*"}
+		} else if bashTool == false {
+			// bash is false - disable the tool by removing it
+			delete(tools, "bash")
 		} else if bashArray, ok := bashTool.([]any); ok {
 			// bash is an array - merge default commands with custom commands
 			if len(bashArray) > 0 {
