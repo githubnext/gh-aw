@@ -30,6 +30,7 @@ This page shows the current status of all agentic workflows in the repository.
 - [![GitHub MCP Remote Server Tools Report Generator](https://github.com/githubnext/gh-aw/actions/workflows/github-mcp-tools-report.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/github-mcp-tools-report.lock.yml)
 - [![Go Logger Enhancement](https://github.com/githubnext/gh-aw/actions/workflows/go-logger.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/go-logger.lock.yml)
 - [![Go Pattern Detector](https://github.com/githubnext/gh-aw/actions/workflows/go-pattern-detector.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/go-pattern-detector.lock.yml)
+- [![Instructions Janitor](https://github.com/githubnext/gh-aw/actions/workflows/instructions-janitor.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/instructions-janitor.lock.yml)
 - [![Issue Classifier](https://github.com/githubnext/gh-aw/actions/workflows/issue-classifier.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/issue-classifier.lock.yml)
 - [![Issue Summary to Notion](https://github.com/githubnext/gh-aw/actions/workflows/notion-issue-summary.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/notion-issue-summary.lock.yml)
 - [![Lockfile Statistics Analysis Agent](https://github.com/githubnext/gh-aw/actions/workflows/lockfile-stats.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/lockfile-stats.lock.yml)
