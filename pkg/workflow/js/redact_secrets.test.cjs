@@ -237,5 +237,36 @@ describe("redact_secrets.cjs", () => {
       // Should complete without error
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No secret values found to redact"));
     });
+
+    it("should handle new file extensions (.md, .mdx, .yml, .jsonl)", async () => {
+      // Create test files with the new extensions
+      fs.writeFileSync(path.join(tempDir, "test.md"), "# Markdown\nSecret: api-key-md123");
+      fs.writeFileSync(path.join(tempDir, "test.mdx"), "# MDX\nSecret: api-key-mdx123");
+      fs.writeFileSync(path.join(tempDir, "test.yml"), "# YAML\nkey: api-key-yml123");
+      fs.writeFileSync(path.join(tempDir, "test.jsonl"), '{"key": "api-key-jsonl123"}');
+
+      process.env.GH_AW_SECRET_NAMES = "API_MD,API_MDX,API_YML,API_JSONL";
+      process.env.SECRET_API_MD = "api-key-md123";
+      process.env.SECRET_API_MDX = "api-key-mdx123";
+      process.env.SECRET_API_YML = "api-key-yml123";
+      process.env.SECRET_API_JSONL = "api-key-jsonl123";
+
+      const modifiedScript = redactScript.replace(
+        'findFiles("/tmp/gh-aw", targetExtensions)',
+        `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
+      );
+
+      await eval(`(async () => { ${modifiedScript} })()`);
+
+      // Check all files were redacted
+      // api-key-md123 (13 chars) -> api + 10 asterisks
+      // api-key-mdx123 (14 chars) -> api + 11 asterisks
+      // api-key-yml123 (14 chars) -> api + 11 asterisks
+      // api-key-jsonl123 (16 chars) -> api + 13 asterisks
+      expect(fs.readFileSync(path.join(tempDir, "test.md"), "utf8")).toBe("# Markdown\nSecret: api**********");
+      expect(fs.readFileSync(path.join(tempDir, "test.mdx"), "utf8")).toBe("# MDX\nSecret: api***********");
+      expect(fs.readFileSync(path.join(tempDir, "test.yml"), "utf8")).toBe("# YAML\nkey: api***********");
+      expect(fs.readFileSync(path.join(tempDir, "test.jsonl"), "utf8")).toBe('{"key": "api*************"}');
+    });
   });
 });
