@@ -930,7 +930,7 @@ jobs:
                 ],
                 "tools": ["*"],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_PERSONAL_ACCESS_TOKEN}"
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
               },
               "notion": {
@@ -1215,7 +1215,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_CONFIG: "{\"notion-add-comment\":{\"description\":\"Add a comment to a Notion page\",\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"}},\"output\":\"Comment added to Notion successfully!\"}}"
-          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
           XDG_CONFIG_HOME: /home/runner

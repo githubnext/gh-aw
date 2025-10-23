@@ -258,9 +258,9 @@ Test that top-level github-token is used in Copilot engine.
 
 		yamlContent := string(content)
 
-		// Verify that the top-level token is used in GITHUB_PERSONAL_ACCESS_TOKEN env var
-		if !strings.Contains(yamlContent, "GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.TOPLEVEL_PAT }}") {
-			t.Error("Expected top-level github-token to be used in GITHUB_PERSONAL_ACCESS_TOKEN env var for Copilot")
+		// Verify that the top-level token is used in GITHUB_MCP_SERVER_TOKEN env var
+		if !strings.Contains(yamlContent, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.TOPLEVEL_PAT }}") {
+			t.Error("Expected top-level github-token to be used in GITHUB_MCP_SERVER_TOKEN env var for Copilot")
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 	})
