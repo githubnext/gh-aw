@@ -399,49 +399,15 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 
 	// Check if remote mode is enabled (type: remote)
 	if githubType == "remote" {
-		// Remote mode - use hosted GitHub MCP server
-		yaml.WriteString("                \"type\": \"http\",\n")
-		yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp/\",\n")
-		yaml.WriteString("                \"headers\": {\n")
-
-		// Collect headers in a map
-		headers := make(map[string]string)
-		headers["Authorization"] = "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"
-
-		// Add X-MCP-Readonly header if read-only mode is enabled
-		if readOnly {
-			headers["X-MCP-Readonly"] = "true"
-		}
-
-		// Add X-MCP-Toolsets header if toolsets are configured
-		if toolsets != "" {
-			headers["X-MCP-Toolsets"] = toolsets
-		}
-
-		// Write headers using helper
-		writeHeadersToYAML(yaml, headers, "                  ")
-
-		yaml.WriteString("                },\n")
-
-		// Populate tools field with allowed tools or "*" if none specified
-		if len(allowedTools) > 0 {
-			yaml.WriteString("                \"tools\": [\n")
-			for i, tool := range allowedTools {
-				comma := ","
-				if i == len(allowedTools)-1 {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "                  \"%s\"%s\n", tool, comma)
-			}
-			yaml.WriteString("                ],\n")
-		} else {
-			yaml.WriteString("                \"tools\": [\"*\"],\n")
-		}
-
-		// Add env section for passthrough
-		yaml.WriteString("                \"env\": {\n")
-		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_PERSONAL_ACCESS_TOKEN}\"\n")
-		yaml.WriteString("                }\n")
+		// Render remote configuration using shared helper
+		RenderGitHubMCPRemoteConfig(yaml, GitHubMCPRemoteOptions{
+			ReadOnly:           readOnly,
+			Toolsets:           toolsets,
+			AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
+			IncludeToolsField:  true, // Copilot uses tools field
+			AllowedTools:       allowedTools,
+			IncludeEnvSection:  true, // Copilot uses env section for passthrough
+		})
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)

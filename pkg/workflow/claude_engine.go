@@ -653,32 +653,18 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 
 	// Check if remote mode is enabled (type: remote)
 	if githubType == "remote" {
-		// Remote mode - use hosted GitHub MCP server
-		yaml.WriteString("                \"type\": \"http\",\n")
-		yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp/\",\n")
-		yaml.WriteString("                \"headers\": {\n")
-
 		// Use effective token with precedence: custom > top-level > default
 		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
 
-		// Collect headers in a map
-		headers := make(map[string]string)
-		headers["Authorization"] = fmt.Sprintf("Bearer %s", effectiveToken)
-
-		// Add X-MCP-Readonly header if read-only mode is enabled
-		if readOnly {
-			headers["X-MCP-Readonly"] = "true"
-		}
-
-		// Add X-MCP-Toolsets header if toolsets are configured
-		if toolsets != "" {
-			headers["X-MCP-Toolsets"] = toolsets
-		}
-
-		// Write headers using helper
-		writeHeadersToYAML(yaml, headers, "                  ")
-
-		yaml.WriteString("                }\n")
+		// Render remote configuration using shared helper
+		RenderGitHubMCPRemoteConfig(yaml, GitHubMCPRemoteOptions{
+			ReadOnly:           readOnly,
+			Toolsets:           toolsets,
+			AuthorizationValue: fmt.Sprintf("Bearer %s", effectiveToken),
+			IncludeToolsField:  false, // Claude doesn't use tools field
+			AllowedTools:       nil,
+			IncludeEnvSection:  false, // Claude doesn't use env section
+		})
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
