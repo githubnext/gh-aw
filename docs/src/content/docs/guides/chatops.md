@@ -3,13 +3,7 @@ title: ChatOps
 description: A guide to building interactive automation using command triggers and safe outputs for ChatOps-style workflows.
 ---
 
-ChatOps brings automation directly into development conversations. GitHub Agentic Workflows makes ChatOps natural and secure through command triggers that respond to slash commands, and safe outputs that handle results securely without granting write permissions to AI agents.
-
-## Overview
-
-ChatOps provides an easy and secure way to bring automation directly into development conversations. Team members can trigger automation by typing simple slash commands like `/review` or `/deploy` directly in GitHub issues and pull requests. These are called command triggers.
-
-Command triggers make any GitHub repository responsive to automation commands. When you configure a command trigger, your workflow automatically listens for specific slash commands in issues, pull requests, and comments.
+ChatOps brings automation into GitHub conversations through command triggers that respond to slash commands in issues, pull requests, and comments. Team members can trigger workflows by typing commands like `/review` or `/deploy` directly in discussions.
 
 ```aw wrap
 ---
@@ -35,11 +29,11 @@ Examine the diff for potential bugs, security vulnerabilities, performance impli
 Create specific review comments on relevant lines of code and add a summary comment with overall observations and recommendations.
 ```
 
-This workflow creates an AI code reviewer that activates when someone types `/review` in a pull request comment. The AI agent runs with minimal read permissions, while safe outputs handle comment creation through separate secured jobs.
+When someone types `/review`, the AI analyzes code changes and posts review comments. The agent runs with read-only permissions while safe outputs handle write operations securely.
 
 ## Filtering Command Events
 
-By default, command triggers respond to mentions in all comment-related contexts: issue bodies, issue comments, pull request bodies, PR comments, and PR review comments. You can restrict where commands are active using the `events:` field:
+Command triggers respond to all comment contexts by default. Use the `events:` field to restrict where commands activate:
 
 ```aw wrap
 ---
@@ -66,21 +60,19 @@ This command only responds when mentioned in issues, not in pull requests.
 
 ## Security and Access Control
 
-By default, ChatOps workflows restrict execution to users with repository permissions of admin, maintainer, or write. This prevents unauthorized users from triggering automation. Permission checks happen at runtime, automatically canceling workflows for unauthorized users.
+ChatOps workflows restrict execution to users with admin, maintainer, or write permissions by default. Permission checks happen at runtime, canceling workflows for unauthorized users.
 
-You can customize access using the `roles:` configuration. For more restrictive access, use `roles: [admin, maintainer]`. Using `roles: all` creates security risks, especially in public repositories where any authenticated user could trigger workflows.
+Customize access with the `roles:` configuration. Use `roles: [admin, maintainer]` for stricter control. Avoid `roles: all` in public repositories as any authenticated user could trigger workflows.
 
 ## Accessing Context Information
 
-ChatOps workflows have access to sanitized context from the triggering event through `needs.activation.outputs.text`. This provides safer access to issue content, pull request details, or comment text with reduced security risks.
+Access sanitized event context through `needs.activation.outputs.text`:
 
 ```aw wrap
-# In your workflow content, reference the sanitized text:
+# Reference the sanitized text in your workflow:
 Analyze this content: "${{ needs.activation.outputs.text }}"
 ```
 
-The sanitized context automatically filters out potential security issues like unauthorized mentions, malicious links, and excessive content while preserving the essential information your automation needs.
+Sanitization filters unauthorized mentions, malicious links, and excessive content while preserving essential information.
 
-**Security Caution**: While sanitization reduces many risks, the content may still contain prompt injection attempts. Always treat user-provided content as potentially untrusted and design your automation to be resilient against malicious instructions embedded in issue descriptions, comments, or pull request content.
-
-Start with simple, high-value commands and expand based on team needs. Each command should solve real problems and integrate naturally into existing development conversations.
+**Security**: Treat user-provided content as untrusted. Design workflows to resist prompt injection attempts in issue descriptions, comments, or pull request content.
