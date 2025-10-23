@@ -71,10 +71,10 @@ The agentic part of your workflow should describe the issue(s) it wants created.
   - **Special value**: Use `copilot` to assign to the Copilot bot
   - Uses the configured GitHub token (respects `github-token` precedence: create-issue config > safe-outputs config > top-level config > default)
 
-:::note
-To assign issues to bots (including `copilot`), you must use a Personal Access Token (PAT) with appropriate permissions. The default `GITHUB_TOKEN` does not have permission to assign issues to bots. 
+:::caution
+To assign issues to bots (including `copilot`), you **must** use a Personal Access Token (PAT) with appropriate permissions. The default `GITHUB_TOKEN` does **not** have permission to assign issues to bots and is **not** included as a fallback for bot assignments.
 
-**Recommended**: Store your PAT as `GH_AW_COPILOT_TOKEN` in repository secrets for automatic authentication, or configure a custom token using the `github-token` field at the workflow, safe-outputs, or create-issue level.
+**Required**: Store your PAT as `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN` in repository secrets, or configure a custom token using the `github-token` field at the workflow, safe-outputs, or create-issue level.
 :::
 
 **Example markdown to generate the output:**
@@ -265,10 +265,10 @@ safe-outputs:
   - **Special value**: Use `copilot` to assign the Copilot bot as a reviewer
   - Uses the configured GitHub token (respects `github-token` precedence: create-pull-request config > safe-outputs config > top-level config > default)
 
-:::note
-To add bots as reviewers (including `copilot`), you must use a Personal Access Token (PAT) with appropriate permissions. The default `GITHUB_TOKEN` does not have permission to add bots as reviewers.
+:::caution
+To add bots as reviewers (including `copilot`), you **must** use a Personal Access Token (PAT) with appropriate permissions. The default `GITHUB_TOKEN` does **not** have permission to add bots as reviewers and is **not** included as a fallback for bot reviewer operations.
 
-**Recommended**: Store your PAT as `GH_AW_COPILOT_TOKEN` in repository secrets for automatic authentication, or configure a custom token using the `github-token` field at the workflow, safe-outputs, or create-pull-request level.
+**Required**: Store your PAT as `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN` in repository secrets, or configure a custom token using the `github-token` field at the workflow, safe-outputs, or create-pull-request level.
 :::
 
 **Fallback Behavior:**
@@ -729,10 +729,15 @@ safe-outputs:
 
 **Authentication:**
 
+:::caution
+Agent task creation requires a Personal Access Token (PAT) with appropriate permissions. The default `GITHUB_TOKEN` does **not** have permission to create agent tasks.
+:::
+
 Agent task creation automatically uses the specialized Copilot token precedence:
 1. **`GH_AW_COPILOT_TOKEN`** - Dedicated secret for Copilot operations (recommended)
 2. **`GH_AW_GITHUB_TOKEN`** - General GitHub token override
-3. **`GITHUB_TOKEN`** - Default GitHub Actions token (fallback)
+
+**Note**: The default `GITHUB_TOKEN` is **not** included in the fallback chain. You **must** configure either `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN` with a PAT, or provide a custom token using the `github-token` field.
 
 Store your Personal Access Token (PAT) as `GH_AW_COPILOT_TOKEN` in your repository secrets for automatic authentication.
 
@@ -998,7 +1003,7 @@ safe-outputs:
 ### Authentication Requirements
 
 :::caution
-To assign issues to bots or add bots as reviewers (including `copilot`), you must use a **Personal Access Token (PAT)** with appropriate permissions. The default `GITHUB_TOKEN` does not have permission to assign issues to bots or add bots as reviewers.
+To assign issues to bots or add bots as reviewers (including `copilot`), you **must** use a **Personal Access Token (PAT)** with appropriate permissions. The default `GITHUB_TOKEN` does **not** have permission to assign issues to bots or add bots as reviewers and is **not** included as a fallback for these operations.
 :::
 
 **Built-in Token Support:**
@@ -1007,7 +1012,8 @@ GitHub Agentic Workflows automatically uses a specialized token precedence for C
 
 1. **`GH_AW_COPILOT_TOKEN`** (highest priority) - Dedicated secret for Copilot operations
 2. **`GH_AW_GITHUB_TOKEN`** - General GitHub token override
-3. **`GITHUB_TOKEN`** - Default GitHub Actions token (fallback)
+
+**Note**: The default `GITHUB_TOKEN` is **not** included in the fallback chain because it does not have permission to assign issues to bots, add bots as reviewers, or create agent tasks. You **must** configure either `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN` with a Personal Access Token (PAT) that has the appropriate permissions.
 
 This precedence applies automatically when:
 - Assigning `copilot` to issues (`assignees: copilot`)
