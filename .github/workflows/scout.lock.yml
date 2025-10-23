@@ -1112,7 +1112,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.24
+        run: npm install -g @anthropic-ai/claude-code@2.0.25
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -1225,7 +1225,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.19.0
+          docker pull ghcr.io/github/github-mcp-server:v0.19.1
           docker pull mcp/arxiv-mcp-server
           docker pull mcp/context7
           docker pull ubuntu/squid:latest
@@ -2293,7 +2293,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.19.0"
+                  "ghcr.io/github/github-mcp-server:v0.19.1"
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
@@ -4732,7 +4732,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.24
+        run: npm install -g @anthropic-ai/claude-code@2.0.25
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

@@ -132,11 +132,11 @@ jobs:
       - name: Cleanup any existing awf resources
         run: ./scripts/ci/cleanup.sh || true
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.347
+        run: npm install -g @github/copilot@0.0.349
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.19.0
+          docker pull ghcr.io/github/github-mcp-server:v0.19.1
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
@@ -157,7 +157,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.19.0"
+                  "ghcr.io/github/github-mcp-server:v0.19.1"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -411,7 +411,7 @@ jobs:
           sudo -E awf --env-all \
             --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org \
             --log-level debug \
-            'npx -y @github/copilot@0.0.347 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool github --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' \
+            'npx -y @github/copilot@0.0.349 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool github --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved Copilot logs to expected location
