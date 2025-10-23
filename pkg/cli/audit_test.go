@@ -849,6 +849,96 @@ func TestRenderJSON(t *testing.T) {
 	}
 }
 
+func TestAuditCachingBehavior(t *testing.T) {
+	// Create a temporary directory for test artifacts
+	tempDir := t.TempDir()
+	runOutputDir := filepath.Join(tempDir, "run-12345")
+	if err := os.MkdirAll(runOutputDir, 0755); err != nil {
+		t.Fatalf("Failed to create run directory: %v", err)
+	}
+
+	// Create minimal test artifacts
+	awInfoPath := filepath.Join(runOutputDir, "aw_info.json")
+	awInfoContent := `{"engine_id": "copilot", "workflow_name": "test-workflow"}`
+	if err := os.WriteFile(awInfoPath, []byte(awInfoContent), 0644); err != nil {
+		t.Fatalf("Failed to create mock aw_info.json: %v", err)
+	}
+
+	// Create a test run
+	run := WorkflowRun{
+		DatabaseID:    12345,
+		WorkflowName:  "Test Workflow",
+		Status:        "completed",
+		Conclusion:    "success",
+		CreatedAt:     time.Now(),
+		Event:         "push",
+		HeadBranch:    "main",
+		URL:           "https://github.com/org/repo/actions/runs/12345",
+		TokenUsage:    1000,
+		EstimatedCost: 0.01,
+		Turns:         3,
+		ErrorCount:    0,
+		WarningCount:  0,
+		LogsPath:      runOutputDir,
+	}
+
+	metrics := LogMetrics{
+		TokenUsage:    1000,
+		EstimatedCost: 0.01,
+		Turns:         3,
+	}
+
+	// Create and save a run summary
+	summary := &RunSummary{
+		CLIVersion:     GetVersion(),
+		RunID:          run.DatabaseID,
+		ProcessedAt:    time.Now(),
+		Run:            run,
+		Metrics:        metrics,
+		AccessAnalysis: nil,
+		MissingTools:   []MissingToolReport{},
+		MCPFailures:    []MCPFailureReport{},
+		ArtifactsList:  []string{"aw_info.json"},
+		JobDetails:     []JobInfoWithDuration{},
+	}
+
+	if err := saveRunSummary(runOutputDir, summary, false); err != nil {
+		t.Fatalf("Failed to save run summary: %v", err)
+	}
+
+	summaryPath := filepath.Join(runOutputDir, runSummaryFileName)
+
+	// Verify summary file was created
+	if _, err := os.Stat(summaryPath); os.IsNotExist(err) {
+		t.Fatalf("Run summary file should exist after saveRunSummary")
+	}
+
+	// Load the summary back
+	loadedSummary, ok := loadRunSummary(runOutputDir, false)
+	if !ok {
+		t.Fatalf("Failed to load run summary")
+	}
+
+	// Verify loaded summary matches
+	if loadedSummary.RunID != summary.RunID {
+		t.Errorf("Expected run ID %d, got %d", summary.RunID, loadedSummary.RunID)
+	}
+	if loadedSummary.CLIVersion != summary.CLIVersion {
+		t.Errorf("Expected CLI version %s, got %s", summary.CLIVersion, loadedSummary.CLIVersion)
+	}
+	if loadedSummary.Run.WorkflowName != summary.Run.WorkflowName {
+		t.Errorf("Expected workflow name %s, got %s", summary.Run.WorkflowName, loadedSummary.Run.WorkflowName)
+	}
+
+	// Verify that downloadRunArtifacts skips download when valid summary exists
+	// This is tested by checking that the function returns without error
+	// and doesn't attempt to call `gh run download`
+	err := downloadRunArtifacts(run.DatabaseID, runOutputDir, false)
+	if err != nil {
+		t.Errorf("downloadRunArtifacts should skip download when valid summary exists, but got error: %v", err)
+	}
+}
+
 func TestAuditParseFlagBehavior(t *testing.T) {
 	// Create a temporary directory for test artifacts
 	tempDir := t.TempDir()
