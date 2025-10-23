@@ -174,7 +174,7 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 	yaml.WriteString("                  \"-i\",\n")
 	yaml.WriteString("                  \"--rm\",\n")
 	yaml.WriteString("                  \"-e\",\n")
-	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
+	yaml.WriteString("                  \"GITHUB_MCP_SERVER_TOKEN\",\n")
 	if readOnly {
 		yaml.WriteString("                  \"-e\",\n")
 		yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
@@ -189,7 +189,7 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 	yaml.WriteString("                \"env\": {\n")
 	// Use effective token with precedence: custom > top-level > default
 	effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
-	yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"\n", effectiveToken))
+	yaml.WriteString(fmt.Sprintf("                  \"GITHUB_MCP_SERVER_TOKEN\": \"%s\"\n", effectiveToken))
 	yaml.WriteString("                }\n")
 
 	if isLast {

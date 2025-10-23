@@ -245,7 +245,7 @@ COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 		customGitHubToken := getGitHubToken(githubTool)
 		// Use effective token with precedence: custom > top-level > default
 		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
-		env["GITHUB_PERSONAL_ACCESS_TOKEN"] = effectiveToken
+		env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
 	}
 
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
@@ -406,7 +406,7 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 
 		// Collect headers in a map
 		headers := make(map[string]string)
-		headers["Authorization"] = "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"
+		headers["Authorization"] = "Bearer \\${GITHUB_MCP_SERVER_TOKEN}"
 
 		// Add X-MCP-Readonly header if read-only mode is enabled
 		if readOnly {
@@ -440,7 +440,7 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 
 		// Add env section for passthrough
 		yaml.WriteString("                \"env\": {\n")
-		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_PERSONAL_ACCESS_TOKEN}\"\n")
+		yaml.WriteString("                  \"GITHUB_MCP_SERVER_TOKEN\": \"\\${GITHUB_MCP_SERVER_TOKEN}\"\n")
 		yaml.WriteString("                }\n")
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)

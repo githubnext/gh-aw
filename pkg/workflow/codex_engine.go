@@ -537,7 +537,7 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		yaml.WriteString("            \"-i\",\n")
 		yaml.WriteString("            \"--rm\",\n")
 		yaml.WriteString("            \"-e\",\n")
-		yaml.WriteString("            \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
+		yaml.WriteString("            \"GITHUB_MCP_SERVER_TOKEN\",\n")
 		if readOnly {
 			yaml.WriteString("            \"-e\",\n")
 			yaml.WriteString("            \"GITHUB_READ_ONLY=1\",\n")
@@ -561,7 +561,7 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 
 		// Use effective token with precedence: custom > top-level > default
 		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
-		yaml.WriteString("          GITHUB_PERSONAL_ACCESS_TOKEN = \"" + effectiveToken + "\"\n")
+		yaml.WriteString("          GITHUB_MCP_SERVER_TOKEN = \"" + effectiveToken + "\"\n")
 	}
 }
 

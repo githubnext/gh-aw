@@ -174,7 +174,7 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	yaml.WriteString("                  \"-i\",\n")
 	yaml.WriteString("                  \"--rm\",\n")
 	yaml.WriteString("                  \"-e\",\n")
-	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
+	yaml.WriteString("                  \"GITHUB_MCP_SERVER_TOKEN\",\n")
 
 	if options.ReadOnly {
 		yaml.WriteString("                  \"-e\",\n")
@@ -213,10 +213,10 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	yaml.WriteString("                \"env\": {\n")
 	if options.EffectiveToken != "" {
 		// Claude uses effective token directly
-		yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"", options.EffectiveToken))
+		yaml.WriteString(fmt.Sprintf("                  \"GITHUB_MCP_SERVER_TOKEN\": \"%s\"", options.EffectiveToken))
 	} else {
 		// Copilot uses env passthrough
-		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_PERSONAL_ACCESS_TOKEN}\"")
+		yaml.WriteString("                  \"GITHUB_MCP_SERVER_TOKEN\": \"\\${GITHUB_MCP_SERVER_TOKEN}\"")
 	}
 	yaml.WriteString("\n")
 	yaml.WriteString("                }\n")

@@ -220,11 +220,11 @@ This is a test workflow for GitHub remote mode configuration.
 					}
 					// For Copilot engine, check for new ${} syntax
 					if tt.engineType == "copilot" {
-						if !strings.Contains(lockContent, `"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`) {
-							t.Errorf("Expected Authorization header with ${GITHUB_PERSONAL_ACCESS_TOKEN} syntax but didn't find it in:\n%s", lockContent)
+						if !strings.Contains(lockContent, `"Authorization": "Bearer \${GITHUB_MCP_SERVER_TOKEN}"`) {
+							t.Errorf("Expected Authorization header with ${GITHUB_MCP_SERVER_TOKEN} syntax but didn't find it in:\n%s", lockContent)
 						}
-						if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_PERSONAL_ACCESS_TOKEN}"`) {
-							t.Errorf("Expected env section with GITHUB_PERSONAL_ACCESS_TOKEN passthrough but didn't find it in:\n%s", lockContent)
+						if !strings.Contains(lockContent, `"GITHUB_MCP_SERVER_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`) {
+							t.Errorf("Expected env section with GITHUB_MCP_SERVER_TOKEN passthrough but didn't find it in:\n%s", lockContent)
 						}
 					} else {
 						// For other engines, check for old GitHub Actions expression syntax

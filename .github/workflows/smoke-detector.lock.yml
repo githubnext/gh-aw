@@ -1414,7 +1414,7 @@ jobs:
                   "-i",
                   "--rm",
                   "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "GITHUB_MCP_SERVER_TOKEN",
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
@@ -1422,7 +1422,7 @@ jobs:
                   "ghcr.io/github/github-mcp-server:v0.19.1"
                 ],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+                  "GITHUB_MCP_SERVER_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
                 }
               },
               "safe_outputs": {

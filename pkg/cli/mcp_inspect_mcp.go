@@ -129,7 +129,7 @@ func validateServerSecrets(config parser.MCPServerConfig, verbose bool, useActio
 					// This should have been caught by extractSecretsFromConfig
 					continue
 				}
-				if strings.Contains(value, "GH_TOKEN") || strings.Contains(value, "GITHUB_TOKEN") || strings.Contains(value, "GITHUB_PERSONAL_ACCESS_TOKEN") {
+				if strings.Contains(value, "GH_TOKEN") || strings.Contains(value, "GITHUB_TOKEN") || strings.Contains(value, "GITHUB_MCP_SERVER_TOKEN") {
 					if token, err := parser.GetGitHubToken(); err != nil {
 						return fmt.Errorf("GitHub token not found in environment (set GH_TOKEN or GITHUB_TOKEN)")
 					} else {
@@ -159,7 +159,7 @@ func validateServerSecrets(config parser.MCPServerConfig, verbose bool, useActio
 					}
 				} else {
 					// Automatically try to get GitHub token for GitHub-related environment variables
-					if key == "GITHUB_PERSONAL_ACCESS_TOKEN" || key == "GITHUB_TOKEN" || key == "GH_TOKEN" {
+					if key == "GITHUB_MCP_SERVER_TOKEN" || key == "GITHUB_TOKEN" || key == "GH_TOKEN" {
 						if actualValue := os.Getenv(key); actualValue == "" {
 							// Try to automatically get the GitHub token
 							if token, err := parser.GetGitHubToken(); err == nil {

@@ -139,7 +139,7 @@ jobs:
                   "-i",
                   "--rm",
                   "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "GITHUB_MCP_SERVER_TOKEN",
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
@@ -148,7 +148,7 @@ jobs:
                 ],
                 "tools": ["*"],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_PERSONAL_ACCESS_TOKEN}"
+                  "GITHUB_MCP_SERVER_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
               }
             }
@@ -405,7 +405,7 @@ jobs:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
           XDG_CONFIG_HOME: /home/runner

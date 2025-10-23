@@ -309,7 +309,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 				Type:    "docker", // GitHub defaults to Docker (local containerized)
 				Command: "docker",
 				Args: []string{
-					"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+					"run", "-i", "--rm", "-e", "GITHUB_MCP_SERVER_TOKEN",
 					"ghcr.io/github/github-mcp-server:" + constants.DefaultGitHubMCPServerVersion,
 				},
 				Env: make(map[string]string),
@@ -318,10 +318,10 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 			// Try to get GitHub token, but don't fail if it's not available
 			// This allows tests to run without GitHub authentication
 			if githubToken, err := GetGitHubToken(); err == nil {
-				config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = githubToken
+				config.Env["GITHUB_MCP_SERVER_TOKEN"] = githubToken
 			} else {
 				// Set a placeholder that will be validated later during connection
-				config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = "${GITHUB_TOKEN_REQUIRED}"
+				config.Env["GITHUB_MCP_SERVER_TOKEN"] = "${GITHUB_TOKEN_REQUIRED}"
 			}
 		}
 

@@ -29,11 +29,11 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				`"-i"`,
 				`"--rm"`,
 				`"-e"`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN"`,
+				`"GITHUB_MCP_SERVER_TOKEN"`,
 				`"GITHUB_TOOLSETS=default"`,
 				`"ghcr.io/github/github-mcp-server:latest"`,
 				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"`,
+				`"GITHUB_MCP_SERVER_TOKEN": "${{ secrets.GITHUB_TOKEN }}"`,
 			},
 			notFound: []string{
 				`"type": "local"`,
@@ -58,7 +58,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				`"tools": [`,
 				`"create_issue"`,
 				`"get_issue"`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_PERSONAL_ACCESS_TOKEN}"`,
+				`"GITHUB_MCP_SERVER_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 			},
 			notFound: []string{
 				`"GITHUB_READ_ONLY=1"`,

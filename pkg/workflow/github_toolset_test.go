@@ -89,7 +89,7 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 			name:       "No toolsets configured",
 			githubTool: map[string]any{},
 			expectedInYAML: []string{
-				`"GITHUB_PERSONAL_ACCESS_TOKEN"`,
+				`"GITHUB_MCP_SERVER_TOKEN"`,
 				"GITHUB_TOOLSETS",
 				"default", // now defaults to "default"
 			},
@@ -172,7 +172,7 @@ func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 			name:       "No toolsets configured",
 			githubTool: map[string]any{},
 			expectedInYAML: []string{
-				`GITHUB_PERSONAL_ACCESS_TOKEN`,
+				`GITHUB_MCP_SERVER_TOKEN`,
 				"GITHUB_TOOLSETS",
 				"default", // now defaults to "default"
 			},
@@ -244,7 +244,7 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 			name:       "No toolsets configured",
 			githubTool: map[string]any{},
 			expectedInYAML: []string{
-				`GITHUB_PERSONAL_ACCESS_TOKEN`,
+				`GITHUB_MCP_SERVER_TOKEN`,
 				"GITHUB_TOOLSETS",
 				"default", // now defaults to "default"
 			},

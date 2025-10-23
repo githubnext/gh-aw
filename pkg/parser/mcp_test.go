@@ -91,12 +91,12 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Type:    "docker",
 					Command: "docker",
 					Args: []string{
-						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"run", "-i", "--rm", "-e", "GITHUB_MCP_SERVER_TOKEN",
 						"-e", "GITHUB_READ_ONLY=1",
 						"ghcr.io/github/github-mcp-server:" + constants.DefaultGitHubMCPServerVersion,
 					},
 					Env: map[string]string{
-						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
+						"GITHUB_MCP_SERVER_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
 					},
 					Allowed: []string{},
 				},
@@ -117,11 +117,11 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Type:    "docker",
 					Command: "docker",
 					Args: []string{
-						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"run", "-i", "--rm", "-e", "GITHUB_MCP_SERVER_TOKEN",
 						"ghcr.io/github/github-mcp-server:" + constants.DefaultGitHubMCPServerVersion,
 					},
 					Env: map[string]string{
-						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
+						"GITHUB_MCP_SERVER_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
 					},
 					Allowed: []string{},
 				},
@@ -140,11 +140,11 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Type:    "docker",
 					Command: "docker",
 					Args: []string{
-						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"run", "-i", "--rm", "-e", "GITHUB_MCP_SERVER_TOKEN",
 						"ghcr.io/github/github-mcp-server:" + constants.DefaultGitHubMCPServerVersion,
 					},
 					Env: map[string]string{
-						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
+						"GITHUB_MCP_SERVER_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
 					},
 					Allowed: []string{},
 				},
@@ -290,10 +290,10 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Type:    "docker",
 					Command: "docker",
 					Args: []string{
-						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"run", "-i", "--rm", "-e", "GITHUB_MCP_SERVER_TOKEN",
 						"ghcr.io/github/github-mcp-server:" + constants.DefaultGitHubMCPServerVersion,
 					},
-					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Env:     map[string]string{"GITHUB_MCP_SERVER_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
 					Allowed: []string{},
 				},
 			},
@@ -314,10 +314,10 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Type:    "docker",
 					Command: "docker",
 					Args: []string{
-						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"run", "-i", "--rm", "-e", "GITHUB_MCP_SERVER_TOKEN",
 						"ghcr.io/github/github-mcp-server:latest",
 					},
-					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Env:     map[string]string{"GITHUB_MCP_SERVER_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
 					Allowed: []string{"issue_create", "pull_request_list"},
 				},
 			},
@@ -519,10 +519,10 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Type:    "docker",
 					Command: "docker",
 					Args: []string{
-						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"run", "-i", "--rm", "-e", "GITHUB_MCP_SERVER_TOKEN",
 						"ghcr.io/github/github-mcp-server:" + constants.DefaultGitHubMCPServerVersion,
 					},
-					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
+					Env:     map[string]string{"GITHUB_MCP_SERVER_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
 					Allowed: []string{},
 				},
 			},
@@ -642,11 +642,11 @@ func TestExtractMCPConfigurations(t *testing.T) {
 				if !reflect.DeepEqual(actual.Args, expected.Args) {
 					t.Errorf("Config %d: expected args %v, got %v", i, expected.Args, actual.Args)
 				}
-				// For GitHub configurations, just check that GITHUB_PERSONAL_ACCESS_TOKEN exists
+				// For GitHub configurations, just check that GITHUB_MCP_SERVER_TOKEN exists
 				// The actual value depends on environment and may be a real token or placeholder
 				if actual.Name == "github" {
-					if _, hasToken := actual.Env["GITHUB_PERSONAL_ACCESS_TOKEN"]; !hasToken {
-						t.Errorf("Config %d: GitHub config missing GITHUB_PERSONAL_ACCESS_TOKEN", i)
+					if _, hasToken := actual.Env["GITHUB_MCP_SERVER_TOKEN"]; !hasToken {
+						t.Errorf("Config %d: GitHub config missing GITHUB_MCP_SERVER_TOKEN", i)
 					}
 				} else {
 					if !reflect.DeepEqual(actual.Env, expected.Env) {

@@ -88,7 +88,7 @@ tools:
 This workflow has no toolsets configured.
 `,
 			expectedInYAML: []string{
-				`GITHUB_PERSONAL_ACCESS_TOKEN`,
+				`GITHUB_MCP_SERVER_TOKEN`,
 				`GITHUB_TOOLSETS`,
 			},
 		},
