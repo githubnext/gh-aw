@@ -4,6 +4,7 @@ import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
+import react from '@astrojs/react';
 // import starlightChangelogs, { makeChangelogsSidebarLinks } from 'starlight-changelogs';
 
 // NOTE: A previous attempt defined a custom Shiki grammar for `aw` (agentic workflow) but
@@ -21,6 +22,7 @@ export default defineConfig({
 		enabled: false
 	},
 	integrations: [
+		react(),
 		starlight({
 			title: 'GitHub Agentic Workflows',
 			social: [

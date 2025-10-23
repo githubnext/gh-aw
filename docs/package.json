@@ -21,6 +21,11 @@
     "starlight-llms-txt": "^0.6.0"
   },
   "devDependencies": {
+    "@astrojs/react": "^4.4.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "starlight-github-alerts": "^0.1.0"
   }
 }

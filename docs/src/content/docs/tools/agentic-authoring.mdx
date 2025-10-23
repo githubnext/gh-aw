@@ -5,6 +5,8 @@ sidebar:
   order: 100
 ---
 
+import CopyEntireFileButton from '../../../components/CopyEntireFileButton.astro';
+
 GitHub Agentic Workflows provide a prompt file that turns your favorite agent into 
 a powerful workflow authoring tool. This guide explains how to use this mode to author agentic workflows in natural language.
 
@@ -67,7 +69,7 @@ Load the prompt file into your preferred AI chat or agent interface that support
 
 ## Dictating Agentic Workflows
 
-When creating agentic workflows using speech-to-text (dictation), you may encounter terminology mismatches and formatting issues common to voice recognition systems. To help correct these issues, use the [dictation instructions prompt](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/dictation.instructions.md).
+When creating agentic workflows using speech-to-text (dictation), you may encounter terminology mismatches and formatting issues common to voice recognition systems. To help correct these issues, use the [dictation instructions prompt](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/dictation.instructions.md) or <CopyEntireFileButton filePath="/gh-aw/api/dictation-instructions.txt" label="Copy full instructions" />.
 
 This prompt helps rephrase text captured through speech-to-text recognition by:
 - Correcting project-specific terminology (e.g., "ghaw" → "gh-aw", "work flow" → "workflow")
