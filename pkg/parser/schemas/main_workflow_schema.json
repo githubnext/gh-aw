@@ -1606,6 +1606,10 @@
               "description": "Enable bash tool with all shell commands allowed (security consideration: use restricted list in production)"
             },
             {
+              "type": "boolean",
+              "description": "Enable bash tool - true allows all commands (equivalent to ['*']), false disables the tool"
+            },
+            {
               "type": "array",
               "description": "List of allowed bash commands and patterns (e.g., ['echo', 'ls', 'git status', 'npm install'])",
               "items": {

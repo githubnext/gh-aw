@@ -957,7 +957,11 @@ tools:
   # consideration: use restricted list in production)
   bash: null
 
-  # Option 2: List of allowed bash commands and patterns (e.g., ['echo', 'ls', 'git
+  # Option 2: Enable bash tool - true allows all commands (equivalent to ['*']),
+  # false disables the tool
+  bash: true
+
+  # Option 3: List of allowed bash commands and patterns (e.g., ['echo', 'ls', 'git
   # status', 'npm install'])
   bash: []
     # Array items: string
