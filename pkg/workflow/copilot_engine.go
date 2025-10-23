@@ -56,22 +56,24 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		steps = append(steps, npmSteps[0]) // Setup Node.js step
 	}
 
-	// Add AWF installation steps (always enabled for copilot)
-	// Install AWF after Node.js setup but before Copilot CLI installation
-	var awfVersion string
-	var cleanupScript string
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil {
-		awfVersion = workflowData.EngineConfig.Firewall.Version
-		cleanupScript = workflowData.EngineConfig.Firewall.CleanupScript
+	// Add AWF installation steps only if "firewall" feature is enabled
+	if IsFeatureEnabled("firewall") {
+		// Install AWF after Node.js setup but before Copilot CLI installation
+		var awfVersion string
+		var cleanupScript string
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil {
+			awfVersion = workflowData.EngineConfig.Firewall.Version
+			cleanupScript = workflowData.EngineConfig.Firewall.CleanupScript
+		}
+
+		// Install AWF binary
+		awfInstall := generateAWFInstallationStep(awfVersion)
+		steps = append(steps, awfInstall)
+
+		// Pre-execution cleanup
+		awfCleanup := generateAWFCleanupStep(cleanupScript)
+		steps = append(steps, awfCleanup)
 	}
-
-	// Install AWF binary
-	awfInstall := generateAWFInstallationStep(awfVersion)
-	steps = append(steps, awfInstall)
-
-	// Pre-execution cleanup
-	awfCleanup := generateAWFCleanupStep(cleanupScript)
-	steps = append(steps, awfCleanup)
 
 	// Add Copilot CLI installation step after AWF
 	if len(npmSteps) > 1 {
@@ -86,9 +88,13 @@ func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
 }
 
 // GetVersionCommand returns the command to get Copilot CLI's version
-// Uses npx to ensure we get the correct version we installed
 func (e *CopilotEngine) GetVersionCommand() string {
-	return fmt.Sprintf("npx -y @github/copilot@%s --version", constants.DefaultCopilotVersion)
+	if IsFeatureEnabled("firewall") {
+		// When firewall is enabled, use version pinning with npx
+		return fmt.Sprintf("npx -y @github/copilot@%s --version", constants.DefaultCopilotVersion)
+	}
+	// When firewall is disabled, use unpinned command
+	return "copilot --version"
 }
 
 // extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags
@@ -108,7 +114,14 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
 
 	// Build copilot CLI arguments based on configuration
-	var copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all"}
+	var copilotArgs []string
+	if IsFeatureEnabled("firewall") {
+		// Simplified args for firewall mode
+		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all"}
+	} else {
+		// Original args for non-firewall mode
+		copilotArgs = []string{"--add-dir", "/tmp/", "--add-dir", "/tmp/gh-aw/", "--add-dir", "/tmp/gh-aw/agent/", "--log-level", "all", "--log-dir", logsFolder}
+	}
 
 	// Add --disable-builtin-mcps to disable built-in MCP servers
 	copilotArgs = append(copilotArgs, "--disable-builtin-mcps")
@@ -146,27 +159,51 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, workflowData.EngineConfig.Args...)
 	}
 
-	copilotArgs = append(copilotArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
-
-	// Build the AWF-wrapped command (always enabled for copilot)
-	var awfLogLevel = "debug"
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil && workflowData.EngineConfig.Firewall.LogLevel != "" {
-		awfLogLevel = workflowData.EngineConfig.Firewall.LogLevel
+	// Add prompt argument - inline for firewall, variable for non-firewall
+	if IsFeatureEnabled("firewall") {
+		copilotArgs = append(copilotArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
+	} else {
+		copilotArgs = append(copilotArgs, "--prompt", "\"$COPILOT_CLI_INSTRUCTION\"")
 	}
 
-	// Get allowed domains (copilot defaults + network permissions) with specific ordering
-	allowedDomains := GetCopilotAllowedDomains(workflowData.NetworkPermissions)
+	// Extract all --add-dir paths and generate mkdir commands
+	addDirPaths := extractAddDirPaths(copilotArgs)
 
-	// Determine Copilot CLI version to use
-	copilotVersion := constants.DefaultCopilotVersion
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		copilotVersion = workflowData.EngineConfig.Version
+	// Also ensure the log directory exists
+	addDirPaths = append(addDirPaths, logsFolder)
+
+	var mkdirCommands strings.Builder
+	for _, dir := range addDirPaths {
+		mkdirCommands.WriteString(fmt.Sprintf("mkdir -p %s\n", dir))
 	}
 
-	// Build the copilot command wrapped with AWF (using npx to ensure version)
-	copilotCommand := fmt.Sprintf("npx -y @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
+	// Build the copilot command
+	var copilotCommand string
+	if IsFeatureEnabled("firewall") {
+		// When firewall is enabled, use version pinning with npx
+		copilotVersion := constants.DefaultCopilotVersion
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+			copilotVersion = workflowData.EngineConfig.Version
+		}
+		copilotCommand = fmt.Sprintf("npx -y @github/copilot@%s %s", copilotVersion, shellJoinArgs(copilotArgs))
+	} else {
+		// When firewall is disabled, use unpinned copilot command
+		copilotCommand = fmt.Sprintf("copilot %s", shellJoinArgs(copilotArgs))
+	}
 
-	command := fmt.Sprintf(`set -o pipefail
+	// Conditionally wrap with AWF if "firewall" feature is enabled
+	var command string
+	if IsFeatureEnabled("firewall") {
+		// Build the AWF-wrapped command - no mkdir needed, AWF handles it
+		var awfLogLevel = "debug"
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil && workflowData.EngineConfig.Firewall.LogLevel != "" {
+			awfLogLevel = workflowData.EngineConfig.Firewall.LogLevel
+		}
+
+		// Get allowed domains (copilot defaults + network permissions) with specific ordering
+		allowedDomains := GetCopilotAllowedDomains(workflowData.NetworkPermissions)
+
+		command = fmt.Sprintf(`set -o pipefail
 sudo -E awf --env-all \
   --allow-domains %s \
   --log-level %s \
@@ -181,6 +218,12 @@ if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   mv "$COPILOT_LOGS_DIR"/* %s || true
   rmdir "$COPILOT_LOGS_DIR" || true
 fi`, allowedDomains, awfLogLevel, copilotCommand, logFile, logsFolder, logsFolder, logsFolder)
+	} else {
+		// Run copilot command without AWF wrapper
+		command = fmt.Sprintf(`set -o pipefail
+COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+%s%s 2>&1 | tee %s`, mkdirCommands.String(), copilotCommand, logFile)
+	}
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":           "/home/runner",
@@ -277,23 +320,30 @@ func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error
 func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
 	var steps []GitHubActionStep
 
-	// Add Squid logs collection and upload steps (AWF generates these logs)
-	squidLogsCollection := generateSquidLogsCollectionStep(workflowData.Name)
-	steps = append(steps, squidLogsCollection)
+	// Only add Squid logs collection and upload steps if "firewall" feature is enabled
+	if IsFeatureEnabled("firewall") {
+		squidLogsCollection := generateSquidLogsCollectionStep(workflowData.Name)
+		steps = append(steps, squidLogsCollection)
 
-	squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
-	steps = append(steps, squidLogsUpload)
+		squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
+		steps = append(steps, squidLogsUpload)
+	}
 
 	return steps
 }
 
 // GetCleanupStep returns the post-execution cleanup step
 func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionStep {
-	var postCleanupScript string
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil {
-		postCleanupScript = workflowData.EngineConfig.Firewall.CleanupScript
+	// Only add cleanup step if "firewall" feature is enabled
+	if IsFeatureEnabled("firewall") {
+		var postCleanupScript string
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil {
+			postCleanupScript = workflowData.EngineConfig.Firewall.CleanupScript
+		}
+		return generateAWFPostExecutionCleanupStep(postCleanupScript)
 	}
-	return generateAWFPostExecutionCleanupStep(postCleanupScript)
+	// Return empty step if firewall is disabled
+	return GitHubActionStep([]string{})
 }
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
