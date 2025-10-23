@@ -222,6 +222,85 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 	yaml.WriteString("                }\n")
 }
 
+// GitHubMCPRemoteOptions defines configuration for GitHub MCP remote mode rendering
+type GitHubMCPRemoteOptions struct {
+	// ReadOnly enables read-only mode for GitHub API operations
+	ReadOnly bool
+	// Toolsets specifies the GitHub toolsets to enable
+	Toolsets string
+	// AuthorizationValue is the value for the Authorization header
+	// For Claude: "Bearer {effectiveToken}"
+	// For Copilot: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"
+	AuthorizationValue string
+	// IncludeToolsField indicates whether to include the "tools" field (Copilot needs it, Claude doesn't)
+	IncludeToolsField bool
+	// AllowedTools specifies the list of allowed tools (Copilot uses this, Claude doesn't)
+	AllowedTools []string
+	// IncludeEnvSection indicates whether to include the env section (Copilot needs it, Claude doesn't)
+	IncludeEnvSection bool
+}
+
+// RenderGitHubMCPRemoteConfig renders the GitHub MCP server configuration for remote (hosted) mode.
+// This shared function extracts the duplicate pattern from Claude and Copilot engines.
+//
+// Parameters:
+//   - yaml: The string builder for YAML output
+//   - options: GitHub MCP remote rendering options
+func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteOptions) {
+	// Remote mode - use hosted GitHub MCP server
+	yaml.WriteString("                \"type\": \"http\",\n")
+	yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp/\",\n")
+	yaml.WriteString("                \"headers\": {\n")
+
+	// Collect headers in a map
+	headers := make(map[string]string)
+	headers["Authorization"] = options.AuthorizationValue
+
+	// Add X-MCP-Readonly header if read-only mode is enabled
+	if options.ReadOnly {
+		headers["X-MCP-Readonly"] = "true"
+	}
+
+	// Add X-MCP-Toolsets header if toolsets are configured
+	if options.Toolsets != "" {
+		headers["X-MCP-Toolsets"] = options.Toolsets
+	}
+
+	// Write headers using helper
+	writeHeadersToYAML(yaml, headers, "                  ")
+
+	// Close headers section
+	if options.IncludeToolsField || options.IncludeEnvSection {
+		yaml.WriteString("                },\n")
+	} else {
+		yaml.WriteString("                }\n")
+	}
+
+	// Add tools field if needed (Copilot uses this, Claude doesn't)
+	if options.IncludeToolsField {
+		if len(options.AllowedTools) > 0 {
+			yaml.WriteString("                \"tools\": [\n")
+			for i, tool := range options.AllowedTools {
+				comma := ","
+				if i == len(options.AllowedTools)-1 {
+					comma = ""
+				}
+				fmt.Fprintf(yaml, "                  \"%s\"%s\n", tool, comma)
+			}
+			yaml.WriteString("                ],\n")
+		} else {
+			yaml.WriteString("                \"tools\": [\"*\"],\n")
+		}
+	}
+
+	// Add env section if needed (Copilot uses this, Claude doesn't)
+	if options.IncludeEnvSection {
+		yaml.WriteString("                \"env\": {\n")
+		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_PERSONAL_ACCESS_TOKEN}\"\n")
+		yaml.WriteString("                }\n")
+	}
+}
+
 // RenderJSONMCPConfig renders MCP configuration in JSON format with the common mcpServers structure.
 // This shared function extracts the duplicate pattern from Claude, Copilot, and Custom engines.
 //
