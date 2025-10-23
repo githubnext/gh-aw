@@ -9,6 +9,8 @@ engine: copilot
 permissions:
   contents: read
   actions: read
+network:
+  firewall: squid
 tools:
   github:
 ---

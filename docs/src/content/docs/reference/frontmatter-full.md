@@ -759,6 +759,11 @@ network:
     # Array of Domain name or ecosystem identifier (supports wildcards like
     # '*.example.com' and ecosystem names like 'python', 'node')
 
+  # Network firewall configuration. When set to 'squid', enables Squid proxy-based
+  # network filtering for the Copilot engine.
+  # (optional)
+  firewall: "squid"
+
 # Conditional execution expression
 # (optional)
 if: "example-value"
