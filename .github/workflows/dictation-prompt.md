@@ -47,105 +47,48 @@ Create a concise dictation instruction file at `.github/instructions/dictation.i
 
 ### 1. Scan Documentation for Project-Specific Glossary
 
-Extract a comprehensive glossary of terms specific to this project from documentation files only.
+Scan documentation files in `docs/src/content/docs/` to extract approximately 100 project-specific technical terms (95-105 acceptable).
 
-**Analyze these sources:**
+**Focus areas:**
+- Configuration: safe-outputs, permissions, tools, cache-memory, toolset, frontmatter
+- Engines: copilot, claude, codex, custom
+- Commands: compile, audit, logs, mcp, recompile
+- GitHub concepts: workflow_dispatch, pull_request, issues, discussions
+- Repository-specific: agentic workflows, gh-aw, activation, MCP servers
+- File formats: markdown, lockfile (.lock.yml), YAML
+- Tool types: edit, bash, github, playwright, web-fetch, web-search
+- Operations: fmt, lint, test-unit, timeout_minutes, runs-on
 
-```bash
-# Scan documentation markdown files for technical terms
-find docs/src/content/docs -name "*.md" -type f -exec grep -hoE '\b[a-z][a-z0-9_-]{2,}\b' {} + | sort -u | head -200
-
-# Extract headings from documentation
-find docs/src/content/docs -name "*.md" -type f -exec grep -h "^#" {} + | sed 's/^#* //' | head -100
-
-# Check key documentation files
-cat docs/src/content/docs/reference/*.md | grep -oE '\b[a-z][a-z0-9_-]{3,}\b' | sort -u | head -150
-```
-
-**Extract terms from documentation covering:**
-
-1. **Configuration terms**: safe-outputs, permissions, tools, cache-memory, toolset, frontmatter
-2. **Engine types**: copilot, claude, codex, custom
-3. **Actions and commands**: compile, audit, logs, mcp, recompile
-4. **GitHub concepts**: workflow_dispatch, pull_request, issues, discussions, permissions
-5. **Repository-specific**: agentic workflows, gh-aw, activation, MCP servers
-6. **File types and formats**: markdown, lockfile (.lock.yml), YAML
-7. **Tool types**: edit, bash, github, playwright, web-fetch, web-search
-8. **Operations**: fmt, lint, test-unit, timeout_minutes, runs-on
-
-**Goal**: Create a list of approximately 100 terms (95-105 is acceptable) that are most relevant to this project, extracted from documentation only.
-
-**Exclude tooling-specific terms**: Do not include makefile, Astro, or starlight as these are tooling-specific and not user-facing concepts.
+**Exclude**: makefile, Astro, starlight (tooling-specific, not user-facing)
 
 ### 2. Create the Dictation Instructions File
 
-Create the file `.github/instructions/dictation.instructions.md` with the following structure (NO EXAMPLES, NO PLANNING GUIDELINES):
+Create `.github/instructions/dictation.instructions.md` with:
+- Title: Fix text-to-speech errors in dictated text
+- Project Glossary: ~100 terms, alphabetically sorted, one per line
+- Technical Context: Brief description of gh-aw
+- Fix Speech-to-Text Errors: Common misrecognitions → correct terms
 
-```markdown
-Fix text-to-speech errors in dictated text for creating agentic workflow prompts in the gh-aw repository.
+### 3. Create Pull Request
 
-## Project Glossary
+Use the create-pull-request tool to submit your changes with:
+- Title: "[docs] Update dictation prompt instructions"
+- Description explaining the changes made
 
-[List all 100 terms here, one per line, no descriptions, alphabetically sorted]
+## Guidelines
 
-## Technical Context
-
-GitHub Agentic Workflows (gh-aw) - a Go-based GitHub CLI extension for writing agentic workflows in natural language using markdown files with YAML frontmatter, which compile to GitHub Actions workflows.
-
-## Fix Speech-to-Text Errors
-
-Replace speech-to-text ambiguities with correct technical terms from the glossary:
-
-- "ghaw" → "gh-aw"
-- "work flow" → "workflow"
-- "front matter" → "frontmatter"
-- "lock file" → "lockfile" or ".lock.yml"
-- "co-pilot" → "copilot"
-- "safe outputs" → "safe-outputs"
-- "cache memory" → "cache-memory"
-- "max turns" → "max-turns"
-- "issue comment" → "issue_comment"
-- "pull request" → "pull_request"
-- "workflow dispatch" → "workflow_dispatch"
-- "runs on" → "runs-on"
-- "timeout minutes" → "timeout_minutes"
-```
-
-### 3. Generate the Actual Content
-
-Use your analysis of the documentation to populate the glossary with approximately 100 relevant terms (95-105 is acceptable). Scan documentation files thoroughly to identify the most important and frequently used terms.
-
-### 4. Create Pull Request
-
-After creating the dictation instructions file:
-
-1. Use the safe-outputs create-pull-request to submit your changes
-2. Title: "[docs] Update dictation prompt instructions"
-3. Include a PR description that explains the changes made
-
-## Important Guidelines
-
-- **Extract from documentation**: Scan only docs/src/content/docs/**/*.md files for terms
-- **Ignore tooling-specific terms**: Exclude makefile, Astro, and starlight (tooling-specific, not user-facing)
-- **Be Thorough**: Scan all documentation files to extract accurate terms
-- **Be Precise**: The glossary should contain approximately 100 terms (95-105 is acceptable)
-- **Prioritize Relevance**: Include terms that are actually used frequently in documentation
-- **Avoid Duplicates**: Each term should appear only once in the glossary
-- **Alphabetize**: Sort the glossary alphabetically for easy reference
-- **No Descriptions**: The glossary should be a simple list of terms, no definitions
-- **No Examples**: Keep the instructions concise without example transformations
-- **No Planning Guidelines**: Focus only on fixing speech-to-text errors, not on restructuring or planning tasks
-- **Focus on Specificity**: Prefer project-specific terms over generic software terms
+- Scan only `docs/src/content/docs/**/*.md` files
+- Extract ~100 terms (95-105 acceptable)
+- Exclude tooling-specific terms (makefile, Astro, starlight)
+- Prioritize frequently used project-specific terms
+- Alphabetize the glossary
+- No descriptions in glossary (just term names)
+- Focus on fixing speech-to-text errors, not planning or examples
 
 ## Success Criteria
 
-Your task is complete when:
-1. ✅ The file `.github/instructions/dictation.instructions.md` exists
-2. ✅ It contains approximately 100 project-specific terms in the glossary (95-105 is acceptable)
-3. ✅ Terms are extracted from documentation files only (docs/src/content/docs/**/*.md)
-4. ✅ Tooling-specific terms (makefile, Astro, starlight) are excluded
-5. ✅ The instructions focus on fixing speech-to-text errors only
-6. ✅ NO planning guidelines are included (sentence structure, tone adjustment, context enhancement)
-7. ✅ NO examples are included (keep it short)
-8. ✅ File description clearly states focus on fixing text-to-speech errors
-9. ✅ A pull request has been created with the updated file
+- ✅ File `.github/instructions/dictation.instructions.md` exists
+- ✅ Contains ~100 project-specific terms (95-105 acceptable)
+- ✅ Terms extracted from documentation only
+- ✅ Focuses on fixing speech-to-text errors
+- ✅ Pull request created with changes
