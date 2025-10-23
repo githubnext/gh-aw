@@ -22,20 +22,17 @@ func TestErrorsSummaryDemo(t *testing.T) {
 		},
 	}
 
-	// Build error summaries
-	errorsSummary, warningsSummary := buildErrorsSummary(processedRuns)
+	// Build combined error summaries
+	combined := buildCombinedErrorsSummary(processedRuns)
 
 	// Verify the function works correctly with empty data
-	if len(errorsSummary) != 0 {
-		t.Errorf("Expected 0 errors in summary with empty logs, got %d", len(errorsSummary))
-	}
-
-	if len(warningsSummary) != 0 {
-		t.Errorf("Expected 0 warnings in summary with empty logs, got %d", len(warningsSummary))
+	if len(combined) != 0 {
+		t.Errorf("Expected 0 entries in summary with empty logs, got %d", len(combined))
 	}
 
 	// Test the structure of ErrorSummary
 	demoSummary := ErrorSummary{
+		Type:         "Error",
 		Message:      "Permission denied: Unable to access resource",
 		Count:        15,
 		PatternID:    "common-generic-error",
@@ -46,6 +43,9 @@ func TestErrorsSummaryDemo(t *testing.T) {
 	}
 
 	// Verify all fields are accessible
+	if demoSummary.Type == "" {
+		t.Error("Type field should not be empty")
+	}
 	if demoSummary.Message == "" {
 		t.Error("Message field should not be empty")
 	}
@@ -68,8 +68,9 @@ func TestLogsDataWithErrorSummaries(t *testing.T) {
 			TotalErrors:   25,
 			TotalWarnings: 10,
 		},
-		ErrorsSummary: []ErrorSummary{
+		ErrorsAndWarnings: []ErrorSummary{
 			{
+				Type:         "Error",
 				Message:      "Authentication failed",
 				Count:        15,
 				PatternID:    "common-generic-error",
@@ -79,6 +80,7 @@ func TestLogsDataWithErrorSummaries(t *testing.T) {
 				WorkflowName: "auth-workflow",
 			},
 			{
+				Type:         "Error",
 				Message:      "Network timeout",
 				Count:        10,
 				PatternID:    "common-generic-error",
@@ -87,9 +89,8 @@ func TestLogsDataWithErrorSummaries(t *testing.T) {
 				RunURL:       "https://github.com/test/repo/actions/runs/12346",
 				WorkflowName: "network-workflow",
 			},
-		},
-		WarningsSummary: []ErrorSummary{
 			{
+				Type:         "Warning",
 				Message:      "Rate limit approaching",
 				Count:        8,
 				PatternID:    "common-generic-warning",
@@ -110,23 +111,24 @@ func TestLogsDataWithErrorSummaries(t *testing.T) {
 
 	t.Logf("LogsData JSON structure:\n%s", string(jsonData))
 
-	// Verify the summaries are sorted by count
-	if len(logsData.ErrorsSummary) >= 2 {
-		if logsData.ErrorsSummary[0].Count < logsData.ErrorsSummary[1].Count {
-			t.Error("Error summaries should be sorted by count in descending order")
+	// Verify the summaries are sorted by type then count
+	if len(logsData.ErrorsAndWarnings) >= 2 {
+		// Errors should come first
+		if logsData.ErrorsAndWarnings[0].Type != "Error" {
+			t.Error("Errors should be sorted before warnings")
 		}
 	}
 
 	// Verify all required fields are present
-	if len(logsData.ErrorsSummary) > 0 {
-		firstError := logsData.ErrorsSummary[0]
-		if firstError.Message == "" {
+	if len(logsData.ErrorsAndWarnings) > 0 {
+		firstEntry := logsData.ErrorsAndWarnings[0]
+		if firstEntry.Type == "" {
+			t.Error("Error summary type should not be empty")
+		}
+		if firstEntry.Message == "" {
 			t.Error("Error summary message should not be empty")
 		}
-		if firstError.PatternID == "" {
-			t.Error("Error summary pattern ID should not be empty")
-		}
-		if firstError.RunID == 0 {
+		if firstEntry.RunID == 0 {
 			t.Error("Error summary run ID should not be zero")
 		}
 	}

@@ -15,16 +15,15 @@ import (
 
 // LogsData represents the complete structured data for logs output
 type LogsData struct {
-	Summary         LogsSummary          `json:"summary" console:"title:Workflow Logs Summary"`
-	Runs            []RunData            `json:"runs" console:"title:Workflow Logs Overview"`
-	ToolUsage       []ToolUsageSummary   `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
-	ErrorsSummary   []ErrorSummary       `json:"errors_summary,omitempty" console:"title:⚠️  Errors Summary,omitempty"`
-	WarningsSummary []ErrorSummary       `json:"warnings_summary,omitempty" console:"title:⚠️  Warnings Summary,omitempty"`
-	MissingTools    []MissingToolSummary `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
-	MCPFailures     []MCPFailureSummary  `json:"mcp_failures,omitempty" console:"title:⚠️  MCP Server Failures,omitempty"`
-	AccessLog       *AccessLogSummary    `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
-	Continuation    *ContinuationData    `json:"continuation,omitempty" console:"-"`
-	LogsLocation    string               `json:"logs_location" console:"-"`
+	Summary           LogsSummary          `json:"summary" console:"title:Workflow Logs Summary"`
+	Runs              []RunData            `json:"runs" console:"title:Workflow Logs Overview"`
+	ToolUsage         []ToolUsageSummary   `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
+	ErrorsAndWarnings []ErrorSummary       `json:"errors_and_warnings,omitempty" console:"title:Errors and Warnings,omitempty"`
+	MissingTools      []MissingToolSummary `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
+	MCPFailures       []MCPFailureSummary  `json:"mcp_failures,omitempty" console:"title:⚠️  MCP Server Failures,omitempty"`
+	AccessLog         *AccessLogSummary    `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
+	Continuation      *ContinuationData    `json:"continuation,omitempty" console:"-"`
+	LogsLocation      string               `json:"logs_location" console:"-"`
 }
 
 // ContinuationData provides parameters to continue querying when timeout is reached
@@ -86,13 +85,14 @@ type ToolUsageSummary struct {
 
 // ErrorSummary contains aggregated error/warning statistics
 type ErrorSummary struct {
-	Message      string `json:"message" console:"header:Error/Warning,maxlen:80"`
+	Type         string `json:"type" console:"header:Type"`
+	Message      string `json:"message" console:"header:Message,maxlen:80"`
 	Count        int    `json:"count" console:"header:Occurrences"`
-	PatternID    string `json:"pattern_id,omitempty" console:"header:Pattern ID,omitempty"`
 	Engine       string `json:"engine,omitempty" console:"header:Engine,omitempty"`
 	RunID        int64  `json:"run_id" console:"header:Sample Run"`
 	RunURL       string `json:"run_url" console:"-"`
 	WorkflowName string `json:"workflow_name,omitempty" console:"-"`
+	PatternID    string `json:"pattern_id,omitempty" console:"-"`
 }
 
 // AccessLogSummary contains aggregated access log analysis
@@ -177,8 +177,8 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	// Build tool usage summary
 	toolUsage := buildToolUsageSummary(processedRuns)
 
-	// Build error and warning summaries
-	errorsSummary, warningsSummary := buildErrorsSummary(processedRuns)
+	// Build combined error and warning summary
+	errorsAndWarnings := buildCombinedErrorsSummary(processedRuns)
 
 	// Build missing tools summary
 	missingTools := buildMissingToolsSummary(processedRuns)
@@ -192,16 +192,15 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	absOutputDir, _ := filepath.Abs(outputDir)
 
 	return LogsData{
-		Summary:         summary,
-		Runs:            runs,
-		ToolUsage:       toolUsage,
-		ErrorsSummary:   errorsSummary,
-		WarningsSummary: warningsSummary,
-		MissingTools:    missingTools,
-		MCPFailures:     mcpFailures,
-		AccessLog:       accessLog,
-		Continuation:    continuation,
-		LogsLocation:    absOutputDir,
+		Summary:           summary,
+		Runs:              runs,
+		ToolUsage:         toolUsage,
+		ErrorsAndWarnings: errorsAndWarnings,
+		MissingTools:      missingTools,
+		MCPFailures:       mcpFailures,
+		AccessLog:         accessLog,
+		Continuation:      continuation,
+		LogsLocation:      absOutputDir,
 	}
 }
 
@@ -404,8 +403,74 @@ func buildAccessLogSummary(processedRuns []ProcessedRun) *AccessLogSummary {
 	}
 }
 
+// buildCombinedErrorsSummary aggregates errors and warnings across all runs into a single list
+func buildCombinedErrorsSummary(processedRuns []ProcessedRun) []ErrorSummary {
+	// Track all errors and warnings in a single map
+	combinedMap := make(map[string]*ErrorSummary)
+
+	for _, pr := range processedRuns {
+		// Extract metrics from run's logs
+		metrics := ExtractLogMetricsFromRun(pr)
+
+		// Get engine information for this run
+		engineID := ""
+		awInfoPath := filepath.Join(pr.Run.LogsPath, "aw_info.json")
+		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
+			engineID = info.EngineID
+		}
+
+		// Process each error/warning
+		for _, logErr := range metrics.Errors {
+			// Create a combined key using type and message
+			key := logErr.Type + ":" + logErr.Message
+
+			if existing, exists := combinedMap[key]; exists {
+				// Increment count for existing error/warning
+				existing.Count++
+			} else {
+				// Create new entry
+				// Capitalize the type for display
+				displayType := logErr.Type
+				if displayType == "error" {
+					displayType = "Error"
+				} else if displayType == "warning" {
+					displayType = "Warning"
+				}
+
+				combinedMap[key] = &ErrorSummary{
+					Type:         displayType,
+					Message:      logErr.Message,
+					Count:        1,
+					PatternID:    logErr.PatternID,
+					Engine:       engineID,
+					RunID:        pr.Run.DatabaseID,
+					RunURL:       pr.Run.URL,
+					WorkflowName: pr.Run.WorkflowName,
+				}
+			}
+		}
+	}
+
+	// Convert map to slice and sort by count (descending), then by type (errors first)
+	var combined []ErrorSummary
+	for _, summary := range combinedMap {
+		combined = append(combined, *summary)
+	}
+	sort.Slice(combined, func(i, j int) bool {
+		// First sort by type (Error before Warning)
+		if combined[i].Type != combined[j].Type {
+			return combined[i].Type == "Error"
+		}
+		// Then by count (descending)
+		return combined[i].Count > combined[j].Count
+	})
+
+	return combined
+}
+
 // buildErrorsSummary aggregates errors and warnings across all runs
 // Returns two slices: errorsSummary and warningsSummary
+// DEPRECATED: Use buildCombinedErrorsSummary instead
 func buildErrorsSummary(processedRuns []ProcessedRun) ([]ErrorSummary, []ErrorSummary) {
 	// Track errors and warnings separately
 	errorMap := make(map[string]*ErrorSummary)
@@ -438,8 +503,17 @@ func buildErrorsSummary(processedRuns []ProcessedRun) ([]ErrorSummary, []ErrorSu
 				// Increment count for existing error/warning
 				existing.Count++
 			} else {
+				// Capitalize the type for display
+				displayType := logErr.Type
+				if displayType == "error" {
+					displayType = "Error"
+				} else if displayType == "warning" {
+					displayType = "Warning"
+				}
+
 				// Create new entry
 				targetMap[key] = &ErrorSummary{
+					Type:         displayType,
 					Message:      logErr.Message,
 					Count:        1,
 					PatternID:    logErr.PatternID,
