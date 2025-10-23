@@ -76,7 +76,7 @@ func TestCreatePullRequestJobWithReviewers(t *testing.T) {
 		t.Error("Expected conditional if statement for reviewer steps")
 	}
 
-	// Verify that GH_TOKEN is set with proper token expression
+	// Verify that GH_TOKEN is set with proper token expression (without GITHUB_TOKEN fallback for regular reviewers)
 	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
 		t.Error("Expected GH_TOKEN environment variable to be set with proper token expression")
 	}
@@ -266,6 +266,29 @@ func TestCreatePullRequestJobWithCopilotReviewer(t *testing.T) {
 	// Verify that gh pr edit is NOT used for copilot
 	if strings.Contains(stepsContent, "gh pr edit") && strings.Contains(stepsContent, "copilot") {
 		t.Error("Should not use gh pr edit for copilot reviewer")
+	}
+
+	// Find the reviewer step section (after "Add copilot as reviewer")
+	reviewerStepIndex := strings.Index(stepsContent, "Add copilot as reviewer")
+	if reviewerStepIndex == -1 {
+		t.Fatal("Could not find reviewer step")
+	}
+	reviewerStepContent := stepsContent[reviewerStepIndex:]
+
+	// Find the next step or end of content (limit to this step only)
+	nextStepIndex := strings.Index(reviewerStepContent[len("Add copilot as reviewer"):], "- name:")
+	if nextStepIndex != -1 {
+		reviewerStepContent = reviewerStepContent[:len("Add copilot as reviewer")+nextStepIndex]
+	}
+
+	// Verify that GH_TOKEN uses Copilot token precedence without GITHUB_TOKEN fallback in reviewer step
+	if !strings.Contains(reviewerStepContent, "GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
+		t.Error("Expected GH_TOKEN in reviewer step to use Copilot token precedence without GITHUB_TOKEN fallback")
+	}
+
+	// Verify GITHUB_TOKEN is NOT in the fallback chain for copilot reviewers in reviewer step
+	if strings.Contains(reviewerStepContent, "|| secrets.GITHUB_TOKEN }}") {
+		t.Errorf("Did not expect GITHUB_TOKEN in fallback chain for copilot reviewers in reviewer step. Content: %s", reviewerStepContent)
 	}
 }
 
