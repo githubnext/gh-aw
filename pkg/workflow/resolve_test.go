@@ -3,10 +3,19 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
+
+// shouldSkipFirewallWorkflow returns true if the workflow filename contains ".firewall"
+// and the firewall feature is not enabled. This helper should be used in tests that
+// iterate over actual workflow files in .github/workflows to skip firewall workflows
+// when the GH_AW_FEATURES environment variable doesn't include "firewall".
+func shouldSkipFirewallWorkflow(workflowName string) bool {
+	return strings.Contains(workflowName, ".firewall") && !IsFeatureEnabled("firewall")
+}
 
 func TestNormalizeWorkflowName(t *testing.T) {
 	tests := []struct {
@@ -354,6 +363,11 @@ func TestResolveWorkflowName_ExistingAgenticWorkflow(t *testing.T) {
 			mdFile := filepath.Join(workflowsDir, workflow+".md")
 			lockFile := filepath.Join(workflowsDir, workflow+".lock.yml")
 
+			// Skip .firewall workflows unless the firewall feature is enabled
+			if shouldSkipFirewallWorkflow(workflow) {
+				t.Skipf("Skipping firewall workflow %s (feature not enabled)", workflow)
+			}
+
 			// Check if both files exist
 			if _, err := os.Stat(mdFile); err != nil {
 				t.Skipf("Workflow %s.md not found, skipping", workflow)
@@ -393,6 +407,71 @@ func TestResolveWorkflowName_ExistingAgenticWorkflow(t *testing.T) {
 			}
 			if result3 != result {
 				t.Errorf("Expected %s for input %s.lock.yml, got %s", result, workflow, result3)
+			}
+		})
+	}
+}
+
+func TestShouldSkipFirewallWorkflow(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowName string
+		featureValue string
+		shouldSkip   bool
+	}{
+		{
+			name:         "regular workflow without firewall feature",
+			workflowName: "weekly-research",
+			featureValue: "",
+			shouldSkip:   false,
+		},
+		{
+			name:         "firewall workflow without firewall feature",
+			workflowName: "dev.firewall",
+			featureValue: "",
+			shouldSkip:   true,
+		},
+		{
+			name:         "firewall workflow with firewall feature enabled",
+			workflowName: "dev.firewall",
+			featureValue: "firewall",
+			shouldSkip:   false,
+		},
+		{
+			name:         "firewall workflow with multiple features including firewall",
+			workflowName: "test.firewall.workflow",
+			featureValue: "feature1,firewall,feature2",
+			shouldSkip:   false,
+		},
+		{
+			name:         "regular workflow with firewall feature enabled",
+			workflowName: "daily-plan",
+			featureValue: "firewall",
+			shouldSkip:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set the environment variable
+			oldValue := os.Getenv("GH_AW_FEATURES")
+			if tt.featureValue != "" {
+				os.Setenv("GH_AW_FEATURES", tt.featureValue)
+			} else {
+				os.Unsetenv("GH_AW_FEATURES")
+			}
+			defer func() {
+				if oldValue != "" {
+					os.Setenv("GH_AW_FEATURES", oldValue)
+				} else {
+					os.Unsetenv("GH_AW_FEATURES")
+				}
+			}()
+
+			result := shouldSkipFirewallWorkflow(tt.workflowName)
+			if result != tt.shouldSkip {
+				t.Errorf("shouldSkipFirewallWorkflow(%q) with GH_AW_FEATURES=%q = %v, expected %v",
+					tt.workflowName, tt.featureValue, result, tt.shouldSkip)
 			}
 		})
 	}
