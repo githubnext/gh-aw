@@ -29,7 +29,7 @@ timeout_minutes: 30
 
 You are an expert system that detects inconsistencies between:
 - The main JSON schema of the frontmatter (`pkg/parser/schemas/main_workflow_schema.json`)
-- The compiler parser implementation (`pkg/parser/*.go`)
+- The parser and compiler implementation (`pkg/parser/*.go` and `pkg/workflow/*.go`)
 - The documentation (`docs/src/content/docs/**/*.md`)
 - The workflows in the project (`.github/workflows/*.md`)
 
@@ -70,19 +70,30 @@ Strategy database structure:
 ### 1. Schema vs Parser Implementation
 
 **Check for:**
-- Fields defined in schema but not handled in parser
-- Fields handled in parser but missing from schema
+- Fields defined in schema but not handled in parser/compiler
+- Fields handled in parser/compiler but missing from schema
 - Type mismatches (schema says `string`, parser expects `object`)
-- Enum values in schema not validated in parser
+- Enum values in schema not validated in parser/compiler
 - Required fields not enforced
-- Default values inconsistent between schema and parser
+- Default values inconsistent between schema and parser/compiler
 
 **Key files to analyze:**
 - `pkg/parser/schemas/main_workflow_schema.json`
 - `pkg/parser/schemas/included_file_schema.json`
 - `pkg/parser/schemas/mcp_config_schema.json`
-- `pkg/parser/frontmatter.go`
-- `pkg/parser/*.go` (all parser files)
+- `pkg/parser/frontmatter.go` and `pkg/parser/*.go`
+- `pkg/workflow/compiler.go` - main workflow compiler
+- `pkg/workflow/tools.go` - tools configuration processing
+- `pkg/workflow/safe_outputs.go` - safe-outputs configuration
+- `pkg/workflow/cache.go` - cache and cache-memory configuration
+- `pkg/workflow/permissions.go` - permissions processing
+- `pkg/workflow/network.go` - network permissions
+- `pkg/workflow/strict_mode.go` - strict mode validation
+- `pkg/workflow/stop_after.go` - stop-after processing
+- `pkg/workflow/safe_jobs.go` - safe-jobs configuration
+- `pkg/workflow/runtime_setup.go` - runtime overrides
+- `pkg/workflow/github_token.go` - github-token configuration
+- `pkg/workflow/*.go` (all workflow processing files that use frontmatter)
 
 ### 2. Schema vs Documentation
 
@@ -116,10 +127,14 @@ Strategy database structure:
 ### 4. Parser vs Documentation
 
 **Check for:**
-- Parser features not documented
-- Documented features not implemented
+- Parser/compiler features not documented
+- Documented features not implemented in parser/compiler
 - Error messages that don't match docs
 - Validation rules not documented
+
+**Focus on:**
+- `pkg/parser/*.go` - frontmatter parsing
+- `pkg/workflow/*.go` - workflow compilation and feature processing
 
 ## Detection Strategies
 
@@ -182,8 +197,12 @@ Use chosen strategy to find inconsistencies. Examples:
 # Extract schema fields using jq for robust JSON parsing
 jq -r '.properties | keys[]' pkg/parser/schemas/main_workflow_schema.json 2>/dev/null | sort -u
 
-# Extract parser fields (look for yaml tags)
+# Extract parser fields from pkg/parser (look for yaml tags)
 grep -r "yaml:\"" pkg/parser/*.go | grep -o 'yaml:"[^"]*"' | sort -u
+
+# Extract workflow compiler fields from pkg/workflow (look for yaml tags and frontmatter access)
+grep -r "yaml:\"" pkg/workflow/*.go | grep -o 'yaml:"[^"]*"' | sort -u
+grep -r 'frontmatter\["[^"]*"\]' pkg/workflow/*.go | grep -o '\["[^"]*"\]' | sort -u
 
 # Extract documented fields
 grep -r "^###\? " docs/src/content/docs/reference/frontmatter.md
