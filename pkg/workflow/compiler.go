@@ -186,6 +186,7 @@ type WorkflowData struct {
 	ToolsTimeout        int                 // timeout in seconds for tool/MCP operations (0 = use engine default)
 	GitHubToken         string              // top-level github-token expression from frontmatter
 	ToolsStartupTimeout int                 // timeout in seconds for MCP server startup (0 = use engine default)
+	Features            map[string]bool     // feature flags from frontmatter
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
@@ -862,6 +863,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Concurrency = c.extractTopLevelYAMLSection(result.Frontmatter, "concurrency")
 	workflowData.RunName = c.extractTopLevelYAMLSection(result.Frontmatter, "run-name")
 	workflowData.Env = c.extractTopLevelYAMLSection(result.Frontmatter, "env")
+	workflowData.Features = c.extractFeatures(result.Frontmatter)
 	workflowData.If = c.extractIfCondition(result.Frontmatter)
 	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout_minutes")
 	workflowData.CustomSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "steps")
@@ -1112,6 +1114,29 @@ func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
 	}
 
 	return ""
+}
+
+// extractFeatures extracts the features field from frontmatter
+// Returns a map of feature flags (feature name -> enabled)
+func (c *Compiler) extractFeatures(frontmatter map[string]any) map[string]bool {
+	value, exists := frontmatter["features"]
+	if !exists {
+		return nil
+	}
+
+	// Features should be an object with boolean values
+	if featuresMap, ok := value.(map[string]any); ok {
+		result := make(map[string]bool)
+		for key, val := range featuresMap {
+			// Convert value to boolean
+			if boolVal, ok := val.(bool); ok {
+				result[key] = boolVal
+			}
+		}
+		return result
+	}
+
+	return nil
 }
 
 // extractDescription extracts the description field from frontmatter
