@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.24.0 - 2025-10-23
+
+### Features
+
+#### Add support for `bash: true` as shortcut for `bash: "*"` and `bash: false` to disable bash tool
+
+#### Add support for feature flags in frontmatter via "features" field
+
+#### Remove "defaults" section from main JSON schema
+
+#### Remove GITHUB_TOKEN fallback for Copilot operations
+
+This is a breaking change. The default `secrets.GITHUB_TOKEN` fallback has been removed from Copilot-related operations (create-agent-task, assigning Copilot to issues, and adding Copilot as PR reviewer) because it lacks the required permissions, causing silent failures.
+
+Users must now configure a Personal Access Token (PAT) as either `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN` secret to use these features. Enhanced error messages now guide users to proper configuration when authentication or permission errors occur.
+
+
+### Bug Fixes
+
+#### Add safe output messages design system documentation
+
+#### Remove bloat from MCP Server documentation
+
+#### Update duplicate finder workflow to create individual issues per pattern (max 3)
+
+#### Fix heredoc delimiter collision causing workflow compilation failures
+
+#### Fixed $ref resolution in schema documentation generator for frontmatter-full.md
+
+#### Add internal compiler check for secret redaction step ordering
+
+#### Refactor duplicate MCP code patterns for improved maintainability
+
+#### Remove deprecated "claude" top-level field from workflow schema
+
+
 ## v0.23.2 - 2025-10-22
 
 ### Bug Fixes
