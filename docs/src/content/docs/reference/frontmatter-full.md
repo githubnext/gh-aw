@@ -861,6 +861,10 @@ engine:
   # (optional)
   error_patterns: []
     # Array items:
+      # Unique identifier for this error pattern
+      # (optional)
+      id: "example-value"
+
       # Ecma script regular expression pattern to match log lines
       pattern: "example-value"
 
@@ -1732,6 +1736,10 @@ safe-outputs:
       # (optional)
       error_patterns: []
         # Array items:
+          # Unique identifier for this error pattern
+          # (optional)
+          id: "example-value"
+
           # Ecma script regular expression pattern to match log lines
           pattern: "example-value"
 
