@@ -199,7 +199,7 @@ jobs:
           
           # Domain allow-list (populated during generation)
           # JSON array safely embedded as Python list literal
-          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","registry.npmjs.org","api.github.com","ghcr.io"]
+          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","npmjs.org","npmjs.com","registry.npmjs.com","registry.npmjs.org","skimdb.npmjs.com","npm.pkg.github.com","api.npms.io","nodejs.org","yarnpkg.com","registry.yarnpkg.com","repo.yarnpkg.com","deb.nodesource.com","get.pnpm.io","bun.sh","deno.land","registry.bower.io","api.github.com","ghcr.io"]
           
           def extract_domain(url_or_query):
               """Extract domain from URL or search query."""
@@ -1188,6 +1188,8 @@ jobs:
           2. If cached versions exist and are recent (< 24h), verify if updates are needed before proceeding
           3. If no version changes detected, exit early with success
           
+          **CRITICAL**: If ANY version changes are detected, you MUST create an issue using safe-outputs.create-issue. Do not skip issue creation even for minor updates.
+          
           For each CLI/MCP server:
           1. Fetch latest version from NPM registry or GitHub releases (use npm view commands for package metadata)
           2. Compare with current version in `./pkg/constants/constants.go`
@@ -1234,7 +1236,7 @@ jobs:
           1. Edit `./pkg/constants/constants.go` with new version(s)
           2. Run `make recompile` to update workflows
           3. Verify changes with `git status`
-          4. Create issue via safe-outputs with detailed analysis
+          4. **REQUIRED**: Create issue via safe-outputs with detailed analysis (do NOT skip this step)
           
           ## Issue Format
           Include for each updated CLI:
