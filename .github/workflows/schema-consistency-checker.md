@@ -16,7 +16,7 @@ tools:
     read-only: false
     toolset: [default, discussions]
   cache-memory:
-    key: schema-consistency-${{ github.workflow }}
+    key: schema-consistency-cache-${{ github.workflow }}
 safe-outputs:
   create-discussion:
     category: "audits"
@@ -45,6 +45,7 @@ Use the cache memory folder at `/tmp/gh-aw/cache-memory/` to store and reuse suc
 2. **Strategy Selection**: 
    - 70% of the time: Use a proven strategy from the cache
    - 30% of the time: Try a radically different approach to discover new inconsistencies
+   - Implementation: Use the day of year (e.g., `date +%j`) modulo 10 to determine selection: values 0-6 use proven strategies, 7-9 try new approaches
 3. **Update Strategy Database**: After analysis, save successful strategies to `/tmp/gh-aw/cache-memory/strategies.json`
 
 Strategy database structure:
@@ -178,8 +179,8 @@ Use chosen strategy to find inconsistencies. Examples:
 
 **Example: Field enumeration**
 ```bash
-# Extract schema fields
-cat pkg/parser/schemas/main_workflow_schema.json | grep -o '"[^"]*":' | sort -u
+# Extract schema fields using jq for robust JSON parsing
+jq -r '.properties | keys[]' pkg/parser/schemas/main_workflow_schema.json 2>/dev/null | sort -u
 
 # Extract parser fields (look for yaml tags)
 grep -r "yaml:\"" pkg/parser/*.go | grep -o 'yaml:"[^"]*"' | sort -u
@@ -190,8 +191,11 @@ grep -r "^###\? " docs/src/content/docs/reference/frontmatter.md
 
 **Example: Type checking**
 ```bash
-# Find schema field types
-cat pkg/parser/schemas/main_workflow_schema.json | jq -r '.properties | to_entries[] | "\(.key): \(.value.type // .value.oneOf // "complex")"'
+# Find schema field types (handles different JSON Schema patterns)
+jq -r '
+  (.properties // {}) | to_entries[] | 
+  "\(.key): \(.value.type // .value.oneOf // .value.anyOf // .value.allOf // "complex")"
+' pkg/parser/schemas/main_workflow_schema.json 2>/dev/null || echo "Failed to parse schema"
 ```
 
 ### Step 4: Record Findings
@@ -295,7 +299,8 @@ Create a well-structured discussion report:
 - Never execute untrusted code from workflows
 - Validate all file paths before reading
 - Sanitize all grep/bash commands
-- Don't modify files outside `.github/workflows/` or `/tmp/gh-aw/cache-memory/`
+- Read-only access to schema, parser, and documentation files for analysis
+- Only modify files in `/tmp/gh-aw/cache-memory/` (never modify source files)
 
 ### Quality
 - Be thorough but focused on actionable findings
