@@ -64,8 +64,8 @@ func TestLogsDataWithErrorSummaries(t *testing.T) {
 	// Create a complete LogsData structure with error summaries
 	logsData := LogsData{
 		Summary: LogsSummary{
-			TotalRuns:    5,
-			TotalErrors:  25,
+			TotalRuns:     5,
+			TotalErrors:   25,
 			TotalWarnings: 10,
 		},
 		ErrorsSummary: []ErrorSummary{
