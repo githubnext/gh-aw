@@ -5,11 +5,11 @@ sidebar:
   order: 400
 ---
 
-The `gh aw mcp-server` command exposes `gh aw` CLI tools (status, compile, logs, audit, mcp-inspect) to AI agents through the Model Context Protocol. The MCP server enables AI agents to:
-- Check workflow status and compile workflows
-- Download and analyze workflow logs
-- Investigate workflow run failures
-- Inspect MCP servers in workflows
+The `gh aw mcp-server` command exposes `gh aw` CLI tools (status, compile, logs, audit, mcp-inspect) to AI agents through the Model Context Protocol, enabling agents to check workflow status, compile workflows, download logs, investigate failures, and inspect MCP servers.
+
+:::tip
+Enable this MCP server in agentic workflows by adding `agentic-workflows:` to the `tools:` section in your workflow frontmatter. See [Using as Agentic Workflows Tool](#using-as-agentic-workflows-tool) for details.
+:::
 
 Start the server for local CLI usage:
 
@@ -33,10 +33,7 @@ Use the `--cmd` flag to specify a custom path to the gh-aw binary instead of usi
 gh aw mcp-server --cmd ./gh-aw
 ```
 
-This is useful when:
-- Running a local build of gh-aw for development
-- Using a specific version of gh-aw in CI/CD workflows
-- Running the MCP server in environments where the gh CLI extension is not available
+Use this for local development builds, CI/CD workflows with specific versions, or environments without the gh CLI extension.
 
 Example in an agentic workflow:
 ```yaml
@@ -65,13 +62,7 @@ gh aw mcp-server --port 8080
 
 ## Available Tools
 
-The MCP server provides these tools:
-
-- **status** - List workflows with optional pattern filter
-- **compile** - Compile workflows to GitHub Actions YAML
-- **logs** - Download workflow logs with automatic timeout handling and continuation support
-- **audit** - Generate detailed workflow run report (saved to `/tmp/gh-aw/aw-mcp/logs`)
-- **mcp-inspect** - Inspect MCP servers in workflows and validate secrets
+The MCP server provides **status** (list workflows with pattern filter), **compile** (generate GitHub Actions YAML), **logs** (download with timeout handling and continuation), **audit** (generate report to `/tmp/gh-aw/aw-mcp/logs`), and **mcp-inspect** (inspect servers and validate secrets).
 
 ### Logs Tool Features
 
@@ -106,21 +97,12 @@ When tool outputs exceed 16,000 tokens (~64KB), the MCP server automatically wri
 }
 ```
 
-Schema descriptions help agents understand data structure:
-- JSON arrays: `[{key1, key2}] (N items)`
-- JSON objects: `{key1, key2, ...} (N keys)`
-- Text content: `text content`
+Schema descriptions format: JSON arrays as `[{key1, key2}] (N items)`, objects as `{key1, key2, ...} (N keys)`, and text as `text content`.
 
 ## Example Prompt
 
 ```markdown
-Check all workflows in this repository:
-
-1. Use `status` to list workflows
-2. Use `logs` to get recent runs (last 5 for each workflow)
-3. Use `audit` to investigate any failures
-4. Generate a summary report
-
+Check all workflows: use `status` to list workflows, `logs` for recent runs, `audit` for failures, then generate a summary report.
 ```
 
 ## Using as Agentic Workflows Tool
