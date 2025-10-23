@@ -90,7 +90,7 @@ async function exchangeForAppToken(oidcToken, exchangeUrl) {
         "Action skipped due to workflow validation error. This is expected when adding workflows to new repositories or on PRs with workflow changes. If you're seeing this, your workflow will begin working once you merge your PR."
       );
       core.setOutput("skipped_due_to_workflow_validation_mismatch", "true");
-      process.exit(0);
+      return;
     }
 
     const errorMessage = responseJson?.error?.message ?? "Unknown error";
@@ -152,11 +152,10 @@ async function main() {
     // Also output the token for post-step revocation
     core.setOutput("oidc_token_obtained", "true");
   } catch (error) {
-    // Only set failed if we get here - workflow validation errors will exit(0) before this
+    // Only set failed if we get here - workflow validation errors will return before this
     core.setFailed(
       `Failed to setup token: ${error instanceof Error ? error.message : String(error)}\n\nIf you instead wish to use a custom token, provide it via the fallback environment variable.`
     );
-    process.exit(1);
   }
 }
 

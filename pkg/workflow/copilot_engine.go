@@ -97,6 +97,19 @@ func (e *CopilotEngine) GetVersionCommand() string {
 	return "copilot --version"
 }
 
+// GetOIDCConfig returns the OIDC configuration for Copilot engine
+func (e *CopilotEngine) GetOIDCConfig(workflowData *WorkflowData) *OIDCConfig {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.OIDC != nil && workflowData.EngineConfig.OIDC.Enabled {
+		return workflowData.EngineConfig.OIDC
+	}
+	return nil
+}
+
+// GetTokenEnvVarName returns the environment variable name for Copilot's authentication token
+func (e *CopilotEngine) GetTokenEnvVarName() string {
+	return "GITHUB_TOKEN"
+}
+
 // extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags
 func extractAddDirPaths(args []string) []string {
 	var dirs []string

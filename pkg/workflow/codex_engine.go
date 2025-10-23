@@ -82,6 +82,19 @@ func (e *CodexEngine) GetVersionCommand() string {
 	return "codex --version"
 }
 
+// GetOIDCConfig returns the OIDC configuration for Codex engine
+func (e *CodexEngine) GetOIDCConfig(workflowData *WorkflowData) *OIDCConfig {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.OIDC != nil && workflowData.EngineConfig.OIDC.Enabled {
+		return workflowData.EngineConfig.OIDC
+	}
+	return nil
+}
+
+// GetTokenEnvVarName returns the environment variable name for Codex's authentication token
+func (e *CodexEngine) GetTokenEnvVarName() string {
+	return "OPENAI_API_KEY"
+}
+
 // GetDeclaredOutputFiles returns the output files that Codex may produce
 // Codex (written in Rust) writes logs to ~/.codex/log/codex-tui.log
 func (e *CodexEngine) GetDeclaredOutputFiles() []string {

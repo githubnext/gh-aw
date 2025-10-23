@@ -83,6 +83,19 @@ func (e *ClaudeEngine) GetVersionCommand() string {
 	return "claude --version"
 }
 
+// GetOIDCConfig returns the OIDC configuration for Claude engine
+func (e *ClaudeEngine) GetOIDCConfig(workflowData *WorkflowData) *OIDCConfig {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.OIDC != nil && workflowData.EngineConfig.OIDC.Enabled {
+		return workflowData.EngineConfig.OIDC
+	}
+	return nil
+}
+
+// GetTokenEnvVarName returns the environment variable name for Claude's authentication token
+func (e *ClaudeEngine) GetTokenEnvVarName() string {
+	return "ANTHROPIC_API_KEY"
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude
 func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	// Handle custom steps if they exist in engine config
@@ -90,7 +103,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add OIDC setup step if OIDC is configured
 	if HasOIDCConfig(workflowData.EngineConfig) {
-		oidcSetupStep := GenerateOIDCSetupStep(workflowData.EngineConfig.OIDC, e.id)
+		oidcSetupStep := GenerateOIDCSetupStep(workflowData.EngineConfig.OIDC, e)
 		steps = append(steps, oidcSetupStep)
 	}
 

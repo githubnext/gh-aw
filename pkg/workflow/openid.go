@@ -23,6 +23,65 @@ type OIDCConfig struct {
 	FallbackEnvVar string `yaml:"fallback_env_var,omitempty"`
 }
 
+// ParseOIDCConfig parses OIDC configuration from engine object
+func ParseOIDCConfig(engineObj map[string]any) *OIDCConfig {
+	oidc, hasOIDC := engineObj["oidc"]
+	if !hasOIDC {
+		return nil
+	}
+
+	oidcObj, ok := oidc.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	oidcConfig := &OIDCConfig{}
+
+	// Extract enabled field (defaults to false)
+	if enabled, hasEnabled := oidcObj["enabled"]; hasEnabled {
+		if enabledBool, ok := enabled.(bool); ok {
+			oidcConfig.Enabled = enabledBool
+		}
+	}
+
+	// Extract audience field
+	if audience, hasAudience := oidcObj["audience"]; hasAudience {
+		if audienceStr, ok := audience.(string); ok {
+			oidcConfig.Audience = audienceStr
+		}
+	}
+
+	// Extract token_exchange_url field
+	if tokenExchangeURL, hasTokenExchangeURL := oidcObj["token_exchange_url"]; hasTokenExchangeURL {
+		if tokenExchangeURLStr, ok := tokenExchangeURL.(string); ok {
+			oidcConfig.TokenExchangeURL = tokenExchangeURLStr
+		}
+	}
+
+	// Extract token_revoke_url field (optional)
+	if tokenRevokeURL, hasTokenRevokeURL := oidcObj["token_revoke_url"]; hasTokenRevokeURL {
+		if tokenRevokeURLStr, ok := tokenRevokeURL.(string); ok {
+			oidcConfig.TokenRevokeURL = tokenRevokeURLStr
+		}
+	}
+
+	// Extract env_var_name field (optional)
+	if envVarName, hasEnvVarName := oidcObj["env_var_name"]; hasEnvVarName {
+		if envVarNameStr, ok := envVarName.(string); ok {
+			oidcConfig.EnvVarName = envVarNameStr
+		}
+	}
+
+	// Extract fallback_env_var field (optional)
+	if fallbackEnvVar, hasFallbackEnvVar := oidcObj["fallback_env_var"]; hasFallbackEnvVar {
+		if fallbackEnvVarStr, ok := fallbackEnvVar.(string); ok {
+			oidcConfig.FallbackEnvVar = fallbackEnvVarStr
+		}
+	}
+
+	return oidcConfig
+}
+
 // HasOIDCConfig checks if the engine has OIDC configuration
 func HasOIDCConfig(config *EngineConfig) bool {
 	return config != nil && config.OIDC != nil && config.OIDC.Enabled
@@ -43,38 +102,8 @@ func (config *OIDCConfig) GetOIDCAudience(engineID string) string {
 	}
 }
 
-// GetTokenEnvVarName returns the environment variable name for the token
-func (config *OIDCConfig) GetTokenEnvVarName(engineID string) string {
-	if config.EnvVarName != "" {
-		return config.EnvVarName
-	}
-
-	// Default env var names based on engine
-	switch engineID {
-	case "claude":
-		return "ANTHROPIC_API_KEY"
-	default:
-		return "GITHUB_TOKEN"
-	}
-}
-
-// GetFallbackEnvVar returns the fallback environment variable name
-func (config *OIDCConfig) GetFallbackEnvVar(engineID string) string {
-	if config.FallbackEnvVar != "" {
-		return config.FallbackEnvVar
-	}
-
-	// Default fallback based on engine
-	switch engineID {
-	case "claude":
-		return "ANTHROPIC_API_KEY"
-	default:
-		return "GITHUB_TOKEN"
-	}
-}
-
 // GenerateOIDCSetupStep generates a GitHub Actions step to setup OIDC token
-func GenerateOIDCSetupStep(oidcConfig *OIDCConfig, engineID string) GitHubActionStep {
+func GenerateOIDCSetupStep(oidcConfig *OIDCConfig, engine CodingAgentEngine) GitHubActionStep {
 	var stepLines []string
 
 	stepLines = append(stepLines, "      - name: Setup OIDC token")
@@ -83,7 +112,7 @@ func GenerateOIDCSetupStep(oidcConfig *OIDCConfig, engineID string) GitHubAction
 	stepLines = append(stepLines, "        env:")
 
 	// Add OIDC configuration as environment variables
-	audience := oidcConfig.GetOIDCAudience(engineID)
+	audience := oidcConfig.GetOIDCAudience(engine.GetID())
 	if audience != "" {
 		stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_AUDIENCE: %s", audience))
 	}
@@ -92,15 +121,14 @@ func GenerateOIDCSetupStep(oidcConfig *OIDCConfig, engineID string) GitHubAction
 		stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_EXCHANGE_URL: %s", oidcConfig.TokenExchangeURL))
 	}
 
-	envVarName := oidcConfig.GetTokenEnvVarName(engineID)
+	// Use engine's token environment variable name
+	envVarName := engine.GetTokenEnvVarName()
 	stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_ENV_VAR_NAME: %s", envVarName))
 
-	fallbackEnvVar := oidcConfig.GetFallbackEnvVar(engineID)
-	if fallbackEnvVar != "" {
-		stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_FALLBACK_ENV_VAR: %s", fallbackEnvVar))
-		// Add the actual fallback secret if it exists
-		stepLines = append(stepLines, fmt.Sprintf("          %s: ${{ secrets.%s }}", fallbackEnvVar, fallbackEnvVar))
-	}
+	// Use the same env var as fallback
+	stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_FALLBACK_ENV_VAR: %s", envVarName))
+	// Add the actual fallback secret if it exists
+	stepLines = append(stepLines, fmt.Sprintf("          %s: ${{ secrets.%s }}", envVarName, envVarName))
 
 	stepLines = append(stepLines, "        with:")
 	stepLines = append(stepLines, "          script: |")

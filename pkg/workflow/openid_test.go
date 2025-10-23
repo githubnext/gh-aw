@@ -77,16 +77,24 @@ func TestOIDCConfigDefaults(t *testing.T) {
 		t.Errorf("Expected default audience 'claude-code-github-action', got '%s'", audience)
 	}
 
-	// Test default env var name for Claude
-	envVarName := oidcConfig.GetTokenEnvVarName("claude")
+	// Test engine method for token env var name
+	claudeEngine := NewClaudeEngine()
+	envVarName := claudeEngine.GetTokenEnvVarName()
 	if envVarName != "ANTHROPIC_API_KEY" {
-		t.Errorf("Expected default env var name 'ANTHROPIC_API_KEY', got '%s'", envVarName)
+		t.Errorf("Expected Claude env var name 'ANTHROPIC_API_KEY', got '%s'", envVarName)
 	}
 
-	// Test default fallback for Claude
-	fallback := oidcConfig.GetFallbackEnvVar("claude")
-	if fallback != "ANTHROPIC_API_KEY" {
-		t.Errorf("Expected default fallback 'ANTHROPIC_API_KEY', got '%s'", fallback)
+	// Test for other engines
+	copilotEngine := NewCopilotEngine()
+	copilotEnvVar := copilotEngine.GetTokenEnvVarName()
+	if copilotEnvVar != "GITHUB_TOKEN" {
+		t.Errorf("Expected Copilot env var name 'GITHUB_TOKEN', got '%s'", copilotEnvVar)
+	}
+
+	codexEngine := NewCodexEngine()
+	codexEnvVar := codexEngine.GetTokenEnvVarName()
+	if codexEnvVar != "OPENAI_API_KEY" {
+		t.Errorf("Expected Codex env var name 'OPENAI_API_KEY', got '%s'", codexEnvVar)
 	}
 }
 

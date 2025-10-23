@@ -70,6 +70,14 @@ type CodingAgentEngine interface {
 	// GetVersionCommand returns the command to get the version of the agent (e.g., "copilot --version")
 	// Returns empty string if the engine does not support version reporting
 	GetVersionCommand() string
+
+	// GetOIDCConfig returns the OIDC configuration for this engine
+	// Returns nil if the engine does not support OIDC or OIDC is not configured
+	GetOIDCConfig(workflowData *WorkflowData) *OIDCConfig
+
+	// GetTokenEnvVarName returns the environment variable name for authentication tokens
+	// Used by OIDC token setup to determine where to store the obtained token
+	GetTokenEnvVarName() string
 }
 
 // ErrorPattern represents a regex pattern for extracting error information from logs
@@ -153,6 +161,17 @@ func (e *BaseEngine) GetErrorPatterns() []ErrorPattern {
 // GetVersionCommand returns empty string by default (engines can override)
 func (e *BaseEngine) GetVersionCommand() string {
 	return ""
+}
+
+// GetOIDCConfig returns nil by default (engines can override for OIDC support)
+func (e *BaseEngine) GetOIDCConfig(workflowData *WorkflowData) *OIDCConfig {
+	return nil
+}
+
+// GetTokenEnvVarName returns the default token environment variable name
+// Engines should override this to return engine-specific values
+func (e *BaseEngine) GetTokenEnvVarName() string {
+	return "GITHUB_TOKEN"
 }
 
 // GetLogFileForParsing returns the default log file path for parsing
