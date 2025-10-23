@@ -6,7 +6,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var jobLog = logger.New("workflow:jobs")
 
 // Job represents a GitHub Actions job with all its properties
 type Job struct {
@@ -50,6 +53,7 @@ func (jm *JobManager) AddJob(job *Job) error {
 		return fmt.Errorf("job '%s' already exists", job.Name)
 	}
 
+	jobLog.Printf("Adding job: %s", job.Name)
 	jm.jobs[job.Name] = job
 	jm.jobOrder = append(jm.jobOrder, job.Name)
 	// Keep jobOrder sorted alphabetically after each addition
@@ -75,10 +79,12 @@ func (jm *JobManager) GetAllJobs() map[string]*Job {
 
 // ValidateDependencies checks that all job dependencies exist and there are no cycles
 func (jm *JobManager) ValidateDependencies() error {
+	jobLog.Printf("Validating dependencies for %d jobs", len(jm.jobs))
 	// First check that all dependencies reference existing jobs
 	for jobName, job := range jm.jobs {
 		for _, dep := range job.Needs {
 			if _, exists := jm.jobs[dep]; !exists {
+				jobLog.Printf("Validation failed: job %s depends on non-existent job %s", jobName, dep)
 				return fmt.Errorf("job '%s' depends on non-existent job '%s'", jobName, dep)
 			}
 		}
@@ -118,6 +124,7 @@ func (jm *JobManager) dfsVisit(jobName string, visitState map[string]int) error 
 	for _, dep := range job.Needs {
 		if visitState[dep] == 1 {
 			// Found a back edge - cycle detected
+			jobLog.Printf("Cycle detected: job %s has circular dependency through %s", jobName, dep)
 			return fmt.Errorf("cycle detected in job dependencies: job '%s' has circular dependency through '%s'", jobName, dep)
 		}
 		if visitState[dep] == 0 {

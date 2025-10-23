@@ -7,8 +7,11 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+var mcpLog = logger.New("parser:mcp")
 
 // EnsureLocalhostDomains ensures that localhost and 127.0.0.1 are always included
 // in the allowed domains list for Playwright, even when custom domains are specified
@@ -88,6 +91,7 @@ type MCPServerInfo struct {
 
 // ExtractMCPConfigurations extracts MCP server configurations from workflow frontmatter
 func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) ([]MCPServerConfig, error) {
+	mcpLog.Printf("Extracting MCP configurations with filter: %s", serverFilter)
 	var configs []MCPServerConfig
 
 	// Check for safe-outputs configuration first (built-in MCP)
@@ -459,6 +463,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 
 // ParseMCPConfig parses MCP configuration from various formats (map or JSON string)
 func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) (MCPServerConfig, error) {
+	mcpLog.Printf("Parsing MCP configuration for tool: %s", toolName)
 	config := MCPServerConfig{
 		Name:    toolName,
 		Env:     make(map[string]string),
