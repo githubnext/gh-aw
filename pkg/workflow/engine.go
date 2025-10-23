@@ -23,6 +23,7 @@ type EngineConfig struct {
 	Config        string
 	Args          []string
 	Firewall      *FirewallConfig // AWF firewall configuration
+	OIDC          *OIDCConfig     // OIDC authentication configuration
 }
 
 // NetworkPermissions represents network access permissions
@@ -250,6 +251,58 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 
 					config.Firewall = firewallConfig
 					engineLog.Print("Extracted firewall configuration")
+				}
+			}
+
+			// Extract optional 'oidc' field (object format)
+			if oidc, hasOIDC := engineObj["oidc"]; hasOIDC {
+				if oidcObj, ok := oidc.(map[string]any); ok {
+					oidcConfig := &OIDCConfig{}
+
+					// Extract enabled field (defaults to false)
+					if enabled, hasEnabled := oidcObj["enabled"]; hasEnabled {
+						if enabledBool, ok := enabled.(bool); ok {
+							oidcConfig.Enabled = enabledBool
+						}
+					}
+
+					// Extract audience field
+					if audience, hasAudience := oidcObj["audience"]; hasAudience {
+						if audienceStr, ok := audience.(string); ok {
+							oidcConfig.Audience = audienceStr
+						}
+					}
+
+					// Extract token_exchange_url field
+					if tokenExchangeURL, hasTokenExchangeURL := oidcObj["token_exchange_url"]; hasTokenExchangeURL {
+						if tokenExchangeURLStr, ok := tokenExchangeURL.(string); ok {
+							oidcConfig.TokenExchangeURL = tokenExchangeURLStr
+						}
+					}
+
+					// Extract token_revoke_url field (optional)
+					if tokenRevokeURL, hasTokenRevokeURL := oidcObj["token_revoke_url"]; hasTokenRevokeURL {
+						if tokenRevokeURLStr, ok := tokenRevokeURL.(string); ok {
+							oidcConfig.TokenRevokeURL = tokenRevokeURLStr
+						}
+					}
+
+					// Extract env_var_name field (optional)
+					if envVarName, hasEnvVarName := oidcObj["env_var_name"]; hasEnvVarName {
+						if envVarNameStr, ok := envVarName.(string); ok {
+							oidcConfig.EnvVarName = envVarNameStr
+						}
+					}
+
+					// Extract fallback_env_var field (optional)
+					if fallbackEnvVar, hasFallbackEnvVar := oidcObj["fallback_env_var"]; hasFallbackEnvVar {
+						if fallbackEnvVarStr, ok := fallbackEnvVar.(string); ok {
+							oidcConfig.FallbackEnvVar = fallbackEnvVarStr
+						}
+					}
+
+					config.OIDC = oidcConfig
+					engineLog.Print("Extracted OIDC configuration")
 				}
 			}
 

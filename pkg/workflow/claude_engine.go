@@ -88,6 +88,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Handle custom steps if they exist in engine config
 	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
 
+	// Add OIDC setup step if OIDC is configured
+	if HasOIDCConfig(workflowData.EngineConfig) {
+		oidcSetupStep := GenerateOIDCSetupStep(workflowData.EngineConfig.OIDC, e.id)
+		steps = append(steps, oidcSetupStep)
+	}
+
 	// Build claude CLI arguments based on configuration
 	var claudeArgs []string
 
@@ -190,8 +196,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add environment section - always include environment section for GH_AW_PROMPT
 	stepLines = append(stepLines, "        env:")
 
-	// Add Anthropic API key
-	stepLines = append(stepLines, "          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}")
+	// Add Anthropic API key - if OIDC is configured, use the token from the setup step
+	// Otherwise, use the secret directly
+	if HasOIDCConfig(workflowData.EngineConfig) {
+		stepLines = append(stepLines, "          ANTHROPIC_API_KEY: ${{ steps.setup_oidc_token.outputs.token }}")
+	} else {
+		stepLines = append(stepLines, "          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}")
+	}
 
 	// Disable telemetry, error reporting, and bug command for privacy and security
 	stepLines = append(stepLines, "          DISABLE_TELEMETRY: \"1\"")
@@ -266,6 +277,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			"          rm -rf .claude || true",
 		}
 		steps = append(steps, cleanupStep)
+	}
+
+	// Add OIDC revoke step if OIDC is configured
+	if HasOIDCConfig(workflowData.EngineConfig) {
+		oidcRevokeStep := GenerateOIDCRevokeStep(workflowData.EngineConfig.OIDC)
+		steps = append(steps, oidcRevokeStep)
 	}
 
 	return steps

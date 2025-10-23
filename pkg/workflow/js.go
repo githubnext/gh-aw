@@ -87,6 +87,12 @@ var redactSecretsScript string
 //go:embed js/notify_comment_error.cjs
 var notifyCommentErrorScript string
 
+//go:embed js/setup_oidc_token.cjs
+var setupOIDCTokenScript string
+
+//go:embed js/revoke_oidc_token.cjs
+var revokeOIDCTokenScript string
+
 // removeJavaScriptComments removes JavaScript comments (// and /* */) from code
 // while preserving comments that appear within string literals
 func removeJavaScriptComments(code string) string {
