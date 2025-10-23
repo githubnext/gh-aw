@@ -5,8 +5,6 @@
 #
 # Source: githubnext/agentics/workflows/daily-perf-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6
 #
-# Effective stop-time: 2025-10-25 00:59:54
-#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -17,9 +15,7 @@
 #   create_pull_request["create_pull_request"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
-#   pre_activation["pre_activation"]
 #   update_reaction["update_reaction"]
-#   pre_activation --> activation
 #   agent --> add_comment
 #   create_discussion --> add_comment
 #   create_pull_request --> add_comment
@@ -70,8 +66,6 @@ run-name: "Daily Perf Improver"
 
 jobs:
   activation:
-    needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check workflow file timestamps
@@ -4947,48 +4941,6 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
-
-  pre_activation:
-    runs-on: ubuntu-latest
-    outputs:
-      activated: ${{ steps.check_stop_time.outputs.stop_time_ok == 'true' }}
-    steps:
-      - name: Check stop-time limit
-        id: check_stop_time
-        uses: actions/github-script@v8
-        env:
-          GH_AW_STOP_TIME: 2025-10-25 00:59:54
-          GH_AW_WORKFLOW_NAME: "Daily Perf Improver"
-        with:
-          script: |
-            async function main() {
-              const stopTime = process.env.GH_AW_STOP_TIME;
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME;
-              if (!stopTime) {
-                core.setFailed("Configuration error: GH_AW_STOP_TIME not specified.");
-                return;
-              }
-              if (!workflowName) {
-                core.setFailed("Configuration error: GH_AW_WORKFLOW_NAME not specified.");
-                return;
-              }
-              core.info(`Checking stop-time limit: ${stopTime}`);
-              const stopTimeDate = new Date(stopTime);
-              if (isNaN(stopTimeDate.getTime())) {
-                core.setFailed(`Invalid stop-time format: ${stopTime}. Expected format: YYYY-MM-DD HH:MM:SS`);
-                return;
-              }
-              const currentTime = new Date();
-              core.info(`Current time: ${currentTime.toISOString()}`);
-              core.info(`Stop time: ${stopTimeDate.toISOString()}`);
-              if (currentTime >= stopTimeDate) {
-                core.warning(`⏰ Stop time reached. Workflow execution will be prevented by activation job.`);
-                core.setOutput("stop_time_ok", "false");
-                return;
-              }
-              core.setOutput("stop_time_ok", "true");
-            }
-            await main();
 
   update_reaction:
     needs:
