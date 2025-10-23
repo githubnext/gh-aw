@@ -72,7 +72,9 @@ The agentic part of your workflow should describe the issue(s) it wants created.
   - Uses the configured GitHub token (respects `github-token` precedence: create-issue config > safe-outputs config > top-level config > default)
 
 :::note
-To assign issues to bots (including `copilot`), you must use a Personal Access Token (PAT) with appropriate permissions. The default `GITHUB_TOKEN` does not have permission to assign issues to bots. Configure a PAT using the `github-token` field at the workflow, safe-outputs, or create-issue level.
+To assign issues to bots (including `copilot`), you must use a Personal Access Token (PAT) with appropriate permissions. The default `GITHUB_TOKEN` does not have permission to assign issues to bots. 
+
+**Recommended**: Store your PAT as `GH_AW_COPILOT_TOKEN` in repository secrets for automatic authentication, or configure a custom token using the `github-token` field at the workflow, safe-outputs, or create-issue level.
 :::
 
 **Example markdown to generate the output:**
@@ -264,7 +266,9 @@ safe-outputs:
   - Uses the configured GitHub token (respects `github-token` precedence: create-pull-request config > safe-outputs config > top-level config > default)
 
 :::note
-To add bots as reviewers (including `copilot`), you must use a Personal Access Token (PAT) with appropriate permissions. The default `GITHUB_TOKEN` does not have permission to add bots as reviewers. Configure a PAT using the `github-token` field at the workflow, safe-outputs, or create-pull-request level.
+To add bots as reviewers (including `copilot`), you must use a Personal Access Token (PAT) with appropriate permissions. The default `GITHUB_TOKEN` does not have permission to add bots as reviewers.
+
+**Recommended**: Store your PAT as `GH_AW_COPILOT_TOKEN` in repository secrets for automatic authentication, or configure a custom token using the `github-token` field at the workflow, safe-outputs, or create-pull-request level.
 :::
 
 **Fallback Behavior:**
