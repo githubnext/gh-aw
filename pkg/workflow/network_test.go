@@ -248,6 +248,73 @@ network:
 			}
 		}
 	})
+
+	t.Run("Network permissions with firewall field", func(t *testing.T) {
+		yamlContent := `---
+engine:
+  id: copilot
+network:
+  allowed:
+    - "github.com"
+  firewall: "squid"
+---
+
+# Test Workflow with Firewall
+This workflow has firewall enabled.`
+
+		filePath, cleanup := createTempWorkflowFile(yamlContent)
+		defer cleanup()
+
+		workflowData, err := compiler.ParseWorkflowFile(filePath)
+		if err != nil {
+			t.Fatalf("Failed to parse workflow: %v", err)
+		}
+
+		if workflowData.NetworkPermissions == nil {
+			t.Fatal("Expected network permissions to be extracted")
+		}
+
+		if workflowData.NetworkPermissions.Firewall != "squid" {
+			t.Errorf("Expected firewall to be 'squid', got '%s'", workflowData.NetworkPermissions.Firewall)
+		}
+
+		if len(workflowData.NetworkPermissions.Allowed) != 1 {
+			t.Fatalf("Expected 1 allowed domain, got %d", len(workflowData.NetworkPermissions.Allowed))
+		}
+
+		if workflowData.NetworkPermissions.Allowed[0] != "github.com" {
+			t.Errorf("Expected domain 'github.com', got '%s'", workflowData.NetworkPermissions.Allowed[0])
+		}
+	})
+
+	t.Run("Network permissions without firewall field", func(t *testing.T) {
+		yamlContent := `---
+engine:
+  id: copilot
+network:
+  allowed:
+    - "github.com"
+---
+
+# Test Workflow without Firewall
+This workflow does not have firewall enabled.`
+
+		filePath, cleanup := createTempWorkflowFile(yamlContent)
+		defer cleanup()
+
+		workflowData, err := compiler.ParseWorkflowFile(filePath)
+		if err != nil {
+			t.Fatalf("Failed to parse workflow: %v", err)
+		}
+
+		if workflowData.NetworkPermissions == nil {
+			t.Fatal("Expected network permissions to be extracted")
+		}
+
+		if workflowData.NetworkPermissions.Firewall != "" {
+			t.Errorf("Expected firewall to be empty, got '%s'", workflowData.NetworkPermissions.Firewall)
+		}
+	})
 }
 
 func TestNetworkPermissionsUtilities(t *testing.T) {

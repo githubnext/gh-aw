@@ -259,8 +259,13 @@ func TestGenerateAgentVersionCapture(t *testing.T) {
 				t.Fatalf("Failed to get %s engine: %v", tt.engineID, err)
 			}
 
+			// Create minimal WorkflowData for the test
+			workflowData := &WorkflowData{
+				NetworkPermissions: nil, // No firewall enabled
+			}
+
 			var yaml strings.Builder
-			compiler.generateAgentVersionCapture(&yaml, engine)
+			compiler.generateAgentVersionCapture(&yaml, engine, workflowData)
 			output := yaml.String()
 
 			if tt.expectEmptyVar {

@@ -1030,3 +1030,62 @@ func TestCopilotEngineExecutionStepsWithCustomAddDirArgs(t *testing.T) {
 		t.Errorf("Expected '--add-dir /custom/path/' in copilot args")
 	}
 }
+
+func TestIsFirewallEnabled(t *testing.T) {
+	tests := []struct {
+		name               string
+		networkPermissions *NetworkPermissions
+		expected           bool
+	}{
+		{
+			name:               "nil network permissions",
+			networkPermissions: nil,
+			expected:           false,
+		},
+		{
+			name: "firewall set to squid",
+			networkPermissions: &NetworkPermissions{
+				Firewall: "squid",
+			},
+			expected: true,
+		},
+		{
+			name: "firewall not set",
+			networkPermissions: &NetworkPermissions{
+				Allowed: []string{"github.com"},
+			},
+			expected: false,
+		},
+		{
+			name: "firewall set to empty string",
+			networkPermissions: &NetworkPermissions{
+				Firewall: "",
+			},
+			expected: false,
+		},
+		{
+			name: "firewall set to invalid value",
+			networkPermissions: &NetworkPermissions{
+				Firewall: "other",
+			},
+			expected: false,
+		},
+		{
+			name: "firewall set to squid with other fields",
+			networkPermissions: &NetworkPermissions{
+				Firewall: "squid",
+				Allowed:  []string{"github.com", "api.example.com"},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isFirewallEnabled(tt.networkPermissions)
+			if result != tt.expected {
+				t.Errorf("isFirewallEnabled() = %v, expected %v", result, tt.expected)
+			}
+		})
+	}
+}

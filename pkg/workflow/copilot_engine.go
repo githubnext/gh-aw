@@ -10,6 +10,11 @@ import (
 
 const logsFolder = "/tmp/gh-aw/.copilot/logs/"
 
+// isFirewallEnabled checks if firewall is enabled in network permissions
+func isFirewallEnabled(networkPermissions *NetworkPermissions) bool {
+	return networkPermissions != nil && networkPermissions.Firewall == "squid"
+}
+
 // CopilotEngine represents the GitHub Copilot CLI agentic engine
 type CopilotEngine struct {
 	BaseEngine
@@ -56,8 +61,8 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		steps = append(steps, npmSteps[0]) // Setup Node.js step
 	}
 
-	// Add AWF installation steps only if "firewall" feature is enabled
-	if IsFeatureEnabled("firewall") {
+	// Add AWF installation steps only if firewall is enabled
+	if isFirewallEnabled(workflowData.NetworkPermissions) {
 		// Install AWF after Node.js setup but before Copilot CLI installation
 		var awfVersion string
 		var cleanupScript string
@@ -89,11 +94,7 @@ func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
 
 // GetVersionCommand returns the command to get Copilot CLI's version
 func (e *CopilotEngine) GetVersionCommand() string {
-	if IsFeatureEnabled("firewall") {
-		// When firewall is enabled, use version pinning with npx
-		return fmt.Sprintf("npx -y @github/copilot@%s --version", constants.DefaultCopilotVersion)
-	}
-	// When firewall is disabled, use unpinned command
+	// Return unpinned command (firewall handling is in compiler)
 	return "copilot --version"
 }
 
@@ -115,7 +116,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Build copilot CLI arguments based on configuration
 	var copilotArgs []string
-	if IsFeatureEnabled("firewall") {
+	if isFirewallEnabled(workflowData.NetworkPermissions) {
 		// Simplified args for firewall mode
 		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all"}
 	} else {
@@ -160,7 +161,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Add prompt argument - inline for firewall, variable for non-firewall
-	if IsFeatureEnabled("firewall") {
+	if isFirewallEnabled(workflowData.NetworkPermissions) {
 		copilotArgs = append(copilotArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
 	} else {
 		copilotArgs = append(copilotArgs, "--prompt", "\"$COPILOT_CLI_INSTRUCTION\"")
@@ -179,7 +180,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Build the copilot command
 	var copilotCommand string
-	if IsFeatureEnabled("firewall") {
+	if isFirewallEnabled(workflowData.NetworkPermissions) {
 		// When firewall is enabled, use version pinning with npx
 		copilotVersion := constants.DefaultCopilotVersion
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
@@ -191,9 +192,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotCommand = fmt.Sprintf("copilot %s", shellJoinArgs(copilotArgs))
 	}
 
-	// Conditionally wrap with AWF if "firewall" feature is enabled
+	// Conditionally wrap with AWF if firewall is enabled
 	var command string
-	if IsFeatureEnabled("firewall") {
+	if isFirewallEnabled(workflowData.NetworkPermissions) {
 		// Build the AWF-wrapped command - no mkdir needed, AWF handles it
 		var awfLogLevel = "debug"
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil && workflowData.EngineConfig.Firewall.LogLevel != "" {
@@ -320,8 +321,8 @@ func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error
 func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
 	var steps []GitHubActionStep
 
-	// Only add Squid logs collection and upload steps if "firewall" feature is enabled
-	if IsFeatureEnabled("firewall") {
+	// Only add Squid logs collection and upload steps if firewall is enabled
+	if isFirewallEnabled(workflowData.NetworkPermissions) {
 		squidLogsCollection := generateSquidLogsCollectionStep(workflowData.Name)
 		steps = append(steps, squidLogsCollection)
 
@@ -334,8 +335,8 @@ func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubAc
 
 // GetCleanupStep returns the post-execution cleanup step
 func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionStep {
-	// Only add cleanup step if "firewall" feature is enabled
-	if IsFeatureEnabled("firewall") {
+	// Only add cleanup step if firewall is enabled
+	if isFirewallEnabled(workflowData.NetworkPermissions) {
 		var postCleanupScript string
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil {
 			postCleanupScript = workflowData.EngineConfig.Firewall.CleanupScript

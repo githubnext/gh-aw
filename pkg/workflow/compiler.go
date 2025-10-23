@@ -2659,7 +2659,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	logFileFull := "/tmp/gh-aw/agent-stdio.log"
 
 	// Capture agent version if engine supports it
-	c.generateAgentVersionCapture(yaml, engine)
+	c.generateAgentVersionCapture(yaml, engine, data)
 
 	// Generate aw_info.json with agentic run metadata
 	c.generateCreateAwInfo(yaml, data, engine)
@@ -3266,13 +3266,18 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 }
 
 // generateAgentVersionCapture generates a step that captures the agent version if the engine supports it
-func (c *Compiler) generateAgentVersionCapture(yaml *strings.Builder, engine CodingAgentEngine) {
+func (c *Compiler) generateAgentVersionCapture(yaml *strings.Builder, engine CodingAgentEngine, data *WorkflowData) {
 	versionCmd := engine.GetVersionCommand()
 	if versionCmd == "" {
 		// Engine doesn't support version reporting, set empty env var
 		yaml.WriteString("      - name: Set agent version (not available)\n")
 		yaml.WriteString("        run: echo \"AGENT_VERSION=\" >> $GITHUB_ENV\n")
 		return
+	}
+
+	// For Copilot engine with firewall enabled, use pinned version command
+	if engine.GetID() == "copilot" && isFirewallEnabled(data.NetworkPermissions) {
+		versionCmd = fmt.Sprintf("npx -y @github/copilot@%s --version", constants.DefaultCopilotVersion)
 	}
 
 	yaml.WriteString("      - name: Capture agent version\n")

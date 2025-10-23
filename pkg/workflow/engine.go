@@ -27,8 +27,9 @@ type EngineConfig struct {
 
 // NetworkPermissions represents network access permissions
 type NetworkPermissions struct {
-	Mode    string   `yaml:"mode,omitempty"`    // "defaults" for default access
-	Allowed []string `yaml:"allowed,omitempty"` // List of allowed domains
+	Mode     string   `yaml:"mode,omitempty"`     // "defaults" for default access
+	Allowed  []string `yaml:"allowed,omitempty"`  // List of allowed domains
+	Firewall string   `yaml:"firewall,omitempty"` // "squid" to enable Squid proxy-based network filtering
 }
 
 // FirewallConfig represents AWF (gh-aw-firewall) configuration for network egress control

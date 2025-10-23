@@ -14,7 +14,7 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 			return nil
 		}
 
-		// Handle object format: { allowed: [...] } or {}
+		// Handle object format: { allowed: [...], firewall: "squid" } or {}
 		if networkObj, ok := network.(map[string]any); ok {
 			permissions := &NetworkPermissions{}
 
@@ -28,6 +28,14 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 					}
 				}
 			}
+
+			// Extract firewall if present
+			if firewall, hasFirewall := networkObj["firewall"]; hasFirewall {
+				if firewallStr, ok := firewall.(string); ok {
+					permissions.Firewall = firewallStr
+				}
+			}
+
 			// Empty object {} means no network access (empty allowed list)
 			return permissions
 		}

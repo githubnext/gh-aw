@@ -1436,6 +1436,13 @@
                 "type": "string",
                 "description": "Domain name or ecosystem identifier (supports wildcards like '*.example.com' and ecosystem names like 'python', 'node')"
               }
+            },
+            "firewall": {
+              "type": "string",
+              "enum": [
+                "squid"
+              ],
+              "description": "Network firewall configuration. When set to 'squid', enables Squid proxy-based network filtering for the Copilot engine."
             }
           },
           "additionalProperties": false
