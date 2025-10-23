@@ -3035,11 +3035,11 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	WriteShellScriptToYAML(yaml, createPromptFirstScript, "          ")
 
 	if len(chunks) > 0 {
-		yaml.WriteString("          cat > $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'\n")
+		yaml.WriteString("          cat > $GH_AW_PROMPT << 'PROMPT_EOF'\n")
 		for _, line := range strings.Split(chunks[0], "\n") {
 			yaml.WriteString("          " + line + "\n")
 		}
-		yaml.WriteString("          PROMPT_CONTENT_EOF\n")
+		yaml.WriteString("          PROMPT_EOF\n")
 	} else {
 		yaml.WriteString("          touch $GH_AW_PROMPT\n")
 	}
@@ -3051,11 +3051,11 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          cat >> $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'\n")
+		yaml.WriteString("          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'\n")
 		for _, line := range strings.Split(chunk, "\n") {
 			yaml.WriteString("          " + line + "\n")
 		}
-		yaml.WriteString("          PROMPT_CONTENT_EOF\n")
+		yaml.WriteString("          PROMPT_EOF\n")
 	}
 
 	// Add XPIA security prompt as separate step if enabled (before other prompts)
@@ -3080,10 +3080,10 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          cat >> $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'\n")
+		yaml.WriteString("          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'\n")
 		yaml.WriteString("          ## Note\n")
 		yaml.WriteString(fmt.Sprintf("          This workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.\n", c.trialLogicalRepoSlug))
-		yaml.WriteString("          PROMPT_CONTENT_EOF\n")
+		yaml.WriteString("          PROMPT_EOF\n")
 	}
 
 	// Add cache memory prompt as separate step if enabled
