@@ -13,6 +13,15 @@ var ecosystemDomainsJSON []byte
 // ecosystemDomains holds the loaded domain data
 var ecosystemDomains map[string][]string
 
+// CopilotDefaultDomains are the default domains required for GitHub Copilot CLI authentication and operation
+var CopilotDefaultDomains = []string{
+	"api.enterprise.githubcopilot.com",
+	"api.github.com",
+	"github.com",
+	"raw.githubusercontent.com",
+	"registry.npmjs.org",
+}
+
 // init loads the ecosystem domains from the embedded JSON
 func init() {
 	if err := json.Unmarshal(ecosystemDomainsJSON, &ecosystemDomains); err != nil {
@@ -115,4 +124,34 @@ func matchesDomain(domain, pattern string) bool {
 	}
 
 	return false
+}
+
+// GetCopilotAllowedDomains merges Copilot default domains with NetworkPermissions allowed domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetCopilotAllowedDomains(network *NetworkPermissions) string {
+	domainMap := make(map[string]bool)
+
+	// Add Copilot default domains
+	for _, domain := range CopilotDefaultDomains {
+		domainMap[domain] = true
+	}
+
+	// Add NetworkPermissions domains (if specified)
+	if network != nil && len(network.Allowed) > 0 {
+		// Expand ecosystem identifiers and add individual domains
+		expandedDomains := GetAllowedDomains(network)
+		for _, domain := range expandedDomains {
+			domainMap[domain] = true
+		}
+	}
+
+	// Convert to sorted slice for consistent output
+	domains := make([]string, 0, len(domainMap))
+	for domain := range domainMap {
+		domains = append(domains, domain)
+	}
+	SortStrings(domains)
+
+	// Join with commas for AWF --allow-domains flag
+	return strings.Join(domains, ",")
 }

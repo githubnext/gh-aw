@@ -438,6 +438,59 @@ func WriteJavaScriptToYAML(yaml *strings.Builder, script string) {
 	}
 }
 
+// WriteJavaScriptToYAMLPreservingComments writes a JavaScript script with proper indentation to a strings.Builder
+// while preserving JSDoc and inline comments, but removing TypeScript-specific comments.
+// Used for security-sensitive scripts like redact_secrets.
+func WriteJavaScriptToYAMLPreservingComments(yaml *strings.Builder, script string) {
+	scriptLines := strings.Split(script, "\n")
+	previousLineWasEmpty := false
+	hasWrittenContent := false // Track if we've written any content yet
+
+	for i, line := range scriptLines {
+		trimmed := strings.TrimSpace(line)
+
+		// Skip TypeScript-specific comments
+		if strings.HasPrefix(trimmed, "// @ts-") || strings.HasPrefix(trimmed, "/// <reference") {
+			continue
+		}
+
+		// Handle empty lines
+		if trimmed == "" {
+			// Don't add blank lines at the beginning of the script
+			if !hasWrittenContent {
+				continue
+			}
+
+			// Look ahead to see if the next non-empty line is a JSDoc comment or function
+			shouldKeepBlankLine := false
+			for j := i + 1; j < len(scriptLines); j++ {
+				nextTrimmed := strings.TrimSpace(scriptLines[j])
+				if nextTrimmed == "" {
+					continue
+				}
+				// Keep blank line if followed by JSDoc or function/const/async
+				if strings.HasPrefix(nextTrimmed, "/**") ||
+					strings.HasPrefix(nextTrimmed, "function ") ||
+					strings.HasPrefix(nextTrimmed, "async function") ||
+					strings.HasPrefix(nextTrimmed, "await main(") {
+					shouldKeepBlankLine = true
+				}
+				break
+			}
+
+			if shouldKeepBlankLine && !previousLineWasEmpty {
+				fmt.Fprintf(yaml, "\n")
+				previousLineWasEmpty = true
+			}
+			continue
+		}
+
+		fmt.Fprintf(yaml, "            %s\n", line)
+		previousLineWasEmpty = false
+		hasWrittenContent = true
+	}
+}
+
 // GetLogParserScript returns the JavaScript content for a log parser by name
 func GetLogParserScript(name string) string {
 	switch name {

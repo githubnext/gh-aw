@@ -4,7 +4,7 @@ on:
 concurrency:
   group: dev-workflow-${{ github.ref }}
   cancel-in-progress: true
-name: Dev
+name: Dev Firewall
 engine: copilot
 permissions:
   contents: read

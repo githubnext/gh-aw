@@ -227,9 +227,10 @@ Brief content`,
 					t.Errorf("%s: Expected error containing '%s', got: %s", tt.description, tt.expectedErrorMsg, err.Error())
 				}
 				// Verify error contains file:line:column format for better IDE integration
-				expectedPrefix := fmt.Sprintf("%s:1:1:", testFile)
-				if !strings.Contains(err.Error(), expectedPrefix) {
-					t.Errorf("%s: Error should contain '%s' for IDE integration, got: %s", tt.description, expectedPrefix, err.Error())
+				// The error should contain the filename (relative or absolute) with :line:column:
+				expectedPattern := fmt.Sprintf("%s:1:1:", tt.name+".md")
+				if !strings.Contains(err.Error(), expectedPattern) {
+					t.Errorf("%s: Error should contain '%s' for IDE integration, got: %s", tt.description, expectedPattern, err.Error())
 				}
 			} else {
 				if err != nil {
@@ -3544,9 +3545,10 @@ YAML error that demonstrates column position handling.`,
 			errorStr := err.Error()
 
 			// Verify error contains file:line:column: format
-			expectedPrefix := fmt.Sprintf("%s:%d:%d:", testFile, tt.expectedErrorLine, tt.expectedErrorColumn)
-			if !strings.Contains(errorStr, expectedPrefix) {
-				t.Errorf("%s: error should contain '%s', got: %s", tt.description, expectedPrefix, errorStr)
+			// The error should contain the filename (relative or absolute) with :line:column:
+			expectedPattern := fmt.Sprintf("%s.md:%d:%d:", tt.name, tt.expectedErrorLine, tt.expectedErrorColumn)
+			if !strings.Contains(errorStr, expectedPattern) {
+				t.Errorf("%s: error should contain '%s', got: %s", tt.description, expectedPattern, errorStr)
 			}
 
 			// Verify error contains "error:" type indicator
