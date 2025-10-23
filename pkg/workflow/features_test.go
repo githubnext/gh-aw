@@ -89,68 +89,68 @@ func TestIsFeatureEnabledNoEnv(t *testing.T) {
 
 func TestIsFeatureEnabledWithData(t *testing.T) {
 	tests := []struct {
-		name         string
-		envValue     string
-		frontmatter  map[string]bool
-		flag         string
-		expected     bool
-		description  string
+		name        string
+		envValue    string
+		frontmatter map[string]bool
+		flag        string
+		expected    bool
+		description string
 	}{
 		{
-			name:         "frontmatter takes precedence - enabled in frontmatter, disabled in env",
-			envValue:     "",
-			frontmatter:  map[string]bool{"firewall": true},
-			flag:         "firewall",
-			expected:     true,
-			description:  "When feature is in frontmatter, it should be enabled regardless of env",
+			name:        "frontmatter takes precedence - enabled in frontmatter, disabled in env",
+			envValue:    "",
+			frontmatter: map[string]bool{"firewall": true},
+			flag:        "firewall",
+			expected:    true,
+			description: "When feature is in frontmatter, it should be enabled regardless of env",
 		},
 		{
-			name:         "frontmatter takes precedence - disabled in frontmatter, enabled in env",
-			envValue:     "firewall",
-			frontmatter:  map[string]bool{"firewall": false},
-			flag:         "firewall",
-			expected:     false,
-			description:  "When feature is explicitly disabled in frontmatter, env should be ignored",
+			name:        "frontmatter takes precedence - disabled in frontmatter, enabled in env",
+			envValue:    "firewall",
+			frontmatter: map[string]bool{"firewall": false},
+			flag:        "firewall",
+			expected:    false,
+			description: "When feature is explicitly disabled in frontmatter, env should be ignored",
 		},
 		{
-			name:         "fallback to env when not in frontmatter",
-			envValue:     "firewall",
-			frontmatter:  map[string]bool{"other-feature": true},
-			flag:         "firewall",
-			expected:     true,
-			description:  "When feature is not in frontmatter, should check env",
+			name:        "fallback to env when not in frontmatter",
+			envValue:    "firewall",
+			frontmatter: map[string]bool{"other-feature": true},
+			flag:        "firewall",
+			expected:    true,
+			description: "When feature is not in frontmatter, should check env",
 		},
 		{
-			name:         "disabled when not in frontmatter or env",
-			envValue:     "",
-			frontmatter:  map[string]bool{"other-feature": true},
-			flag:         "firewall",
-			expected:     false,
-			description:  "When feature is in neither frontmatter nor env, should be disabled",
+			name:        "disabled when not in frontmatter or env",
+			envValue:    "",
+			frontmatter: map[string]bool{"other-feature": true},
+			flag:        "firewall",
+			expected:    false,
+			description: "When feature is in neither frontmatter nor env, should be disabled",
 		},
 		{
-			name:         "case insensitive frontmatter check",
-			envValue:     "",
-			frontmatter:  map[string]bool{"FIREWALL": true},
-			flag:         "firewall",
-			expected:     true,
-			description:  "Frontmatter feature check should be case insensitive",
+			name:        "case insensitive frontmatter check",
+			envValue:    "",
+			frontmatter: map[string]bool{"FIREWALL": true},
+			flag:        "firewall",
+			expected:    true,
+			description: "Frontmatter feature check should be case insensitive",
 		},
 		{
-			name:         "nil frontmatter falls back to env",
-			envValue:     "firewall",
-			frontmatter:  nil,
-			flag:         "firewall",
-			expected:     true,
-			description:  "When frontmatter is nil, should check env",
+			name:        "nil frontmatter falls back to env",
+			envValue:    "firewall",
+			frontmatter: nil,
+			flag:        "firewall",
+			expected:    true,
+			description: "When frontmatter is nil, should check env",
 		},
 		{
-			name:         "empty frontmatter falls back to env",
-			envValue:     "firewall",
-			frontmatter:  map[string]bool{},
-			flag:         "firewall",
-			expected:     true,
-			description:  "When frontmatter is empty, should check env",
+			name:        "empty frontmatter falls back to env",
+			envValue:    "firewall",
+			frontmatter: map[string]bool{},
+			flag:        "firewall",
+			expected:    true,
+			description: "When frontmatter is empty, should check env",
 		},
 	}
 
