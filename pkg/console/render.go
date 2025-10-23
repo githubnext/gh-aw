@@ -49,14 +49,13 @@ func renderValue(val reflect.Value, title string, output *strings.Builder, depth
 func renderStruct(val reflect.Value, title string, output *strings.Builder, depth int) {
 	typ := val.Type()
 
-	// Print title if provided
+	// Print title without FormatInfoMessage styling
 	if title != "" {
 		if depth == 0 {
-			output.WriteString(FormatInfoMessage(fmt.Sprintf("# %s", title)))
+			output.WriteString(fmt.Sprintf("# %s\n\n", title))
 		} else {
-			output.WriteString(FormatInfoMessage(fmt.Sprintf("%s %s", strings.Repeat("#", depth+1), title)))
+			output.WriteString(fmt.Sprintf("%s %s\n\n", strings.Repeat("#", depth+1), title))
 		}
-		output.WriteString("\n\n")
 	}
 
 	// Track the longest field name for alignment
@@ -140,14 +139,13 @@ func renderSlice(val reflect.Value, title string, output *strings.Builder, depth
 		return
 	}
 
-	// Print title
+	// Print title without FormatInfoMessage styling
 	if title != "" {
 		if depth == 0 {
-			output.WriteString(FormatInfoMessage(fmt.Sprintf("# %s", title)))
+			output.WriteString(fmt.Sprintf("# %s\n\n", title))
 		} else {
-			output.WriteString(FormatInfoMessage(fmt.Sprintf("%s %s", strings.Repeat("#", depth+1), title)))
+			output.WriteString(fmt.Sprintf("%s %s\n\n", strings.Repeat("#", depth+1), title))
 		}
-		output.WriteString("\n\n")
 	}
 
 	// Check if slice elements are structs (for table rendering)
@@ -176,14 +174,13 @@ func renderMap(val reflect.Value, title string, output *strings.Builder, depth i
 		return
 	}
 
-	// Print title
+	// Print title without FormatInfoMessage styling
 	if title != "" {
 		if depth == 0 {
-			output.WriteString(FormatInfoMessage(fmt.Sprintf("# %s", title)))
+			output.WriteString(fmt.Sprintf("# %s\n\n", title))
 		} else {
-			output.WriteString(FormatInfoMessage(fmt.Sprintf("%s %s", strings.Repeat("#", depth+1), title)))
+			output.WriteString(fmt.Sprintf("%s %s\n\n", strings.Repeat("#", depth+1), title))
 		}
-		output.WriteString("\n\n")
 	}
 
 	// Render map entries
