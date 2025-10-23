@@ -14,7 +14,7 @@ import (
 // iterate over actual workflow files in .github/workflows to skip firewall workflows
 // when the GH_AW_FEATURES environment variable doesn't include "firewall".
 func shouldSkipFirewallWorkflow(workflowName string) bool {
-	return strings.Contains(workflowName, ".firewall") && !IsFeatureEnabled("firewall")
+	return strings.Contains(workflowName, ".firewall") && !isFeatureEnabled("firewall", nil)
 }
 
 func TestNormalizeWorkflowName(t *testing.T) {

@@ -9,6 +9,8 @@ engine: copilot
 permissions:
   contents: read
   actions: read
+features:
+  firewall: true
 tools:
   github:
 ---

@@ -1255,6 +1255,13 @@
         }
       ]
     },
+    "features": {
+      "description": "Feature flags to enable experimental or optional features in the workflow. Each feature is specified as a key with a boolean value.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "boolean"
+      }
+    },
     "environment": {
       "description": "Environment that the job references (for protected environments and deployments)",
       "oneOf": [
