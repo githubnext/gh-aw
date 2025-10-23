@@ -35,7 +35,7 @@ func TestWritePromptTextToYAML_IntegrationWithCompiler(t *testing.T) {
 	result := yaml.String()
 
 	// Verify multiple heredoc blocks were created
-	heredocCount := strings.Count(result, "cat >> $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'")
+	heredocCount := strings.Count(result, "cat >> $GH_AW_PROMPT << 'PROMPT_EOF'")
 	if heredocCount < 2 {
 		t.Errorf("Expected multiple heredoc blocks for large text (%d bytes), got %d", totalSize, heredocCount)
 	}
@@ -46,7 +46,7 @@ func TestWritePromptTextToYAML_IntegrationWithCompiler(t *testing.T) {
 	}
 
 	// Verify each heredoc is closed
-	eofCount := strings.Count(result, indent+"PROMPT_CONTENT_EOF")
+	eofCount := strings.Count(result, indent+"PROMPT_EOF")
 	if eofCount != heredocCount {
 		t.Errorf("Expected %d EOF markers to match %d heredoc blocks, got %d", heredocCount, heredocCount, eofCount)
 	}
@@ -62,7 +62,7 @@ func TestWritePromptTextToYAML_IntegrationWithCompiler(t *testing.T) {
 	}
 
 	// Verify the YAML structure is valid (basic check)
-	if !strings.Contains(result, "cat >> $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'") {
+	if !strings.Contains(result, "cat >> $GH_AW_PROMPT << 'PROMPT_EOF'") {
 		t.Error("Expected proper heredoc syntax in output")
 	}
 
@@ -160,7 +160,7 @@ func TestWritePromptTextToYAML_RealWorldSizeSimulation(t *testing.T) {
 			WritePromptTextToYAML(&yaml, text, indent)
 
 			result := yaml.String()
-			heredocCount := strings.Count(result, "cat >> $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'")
+			heredocCount := strings.Count(result, "cat >> $GH_AW_PROMPT << 'PROMPT_EOF'")
 
 			if heredocCount < tt.expectedChunks {
 				t.Errorf("Expected at least %d chunks for %s, got %d", tt.expectedChunks, tt.name, heredocCount)
@@ -170,7 +170,7 @@ func TestWritePromptTextToYAML_RealWorldSizeSimulation(t *testing.T) {
 				t.Errorf("Expected at most %d chunks for %s, got %d", tt.maxChunks, tt.name, heredocCount)
 			}
 
-			eofCount := strings.Count(result, indent+"PROMPT_CONTENT_EOF")
+			eofCount := strings.Count(result, indent+"PROMPT_EOF")
 			if eofCount != heredocCount {
 				t.Errorf("EOF count (%d) doesn't match heredoc count (%d) for %s", eofCount, heredocCount, tt.name)
 			}
@@ -196,13 +196,13 @@ func extractLinesFromYAML(yamlOutput string, indent string) []string {
 
 	for _, line := range strings.Split(yamlOutput, "\n") {
 		// Check if we're starting a heredoc block
-		if strings.Contains(line, "cat >> $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'") {
+		if strings.Contains(line, "cat >> $GH_AW_PROMPT << 'PROMPT_EOF'") {
 			inHeredoc = true
 			continue
 		}
 
 		// Check if we're ending a heredoc block
-		if strings.TrimSpace(line) == "PROMPT_CONTENT_EOF" {
+		if strings.TrimSpace(line) == "PROMPT_EOF" {
 			inHeredoc = false
 			continue
 		}
@@ -332,7 +332,7 @@ func TestWritePromptTextToYAML_ChunkIntegrity(t *testing.T) {
 	result := yaml.String()
 
 	// Count heredoc blocks
-	heredocCount := strings.Count(result, "cat >> $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'")
+	heredocCount := strings.Count(result, "cat >> $GH_AW_PROMPT << 'PROMPT_EOF'")
 
 	t.Logf("Created %d heredoc blocks for %d lines (%d bytes)", heredocCount, len(lines), len(text))
 
@@ -346,7 +346,7 @@ func TestWritePromptTextToYAML_ChunkIntegrity(t *testing.T) {
 	}
 
 	// Verify all heredocs are properly closed
-	eofCount := strings.Count(result, indent+"PROMPT_CONTENT_EOF")
+	eofCount := strings.Count(result, indent+"PROMPT_EOF")
 	if eofCount != heredocCount {
 		t.Errorf("Heredoc closure mismatch: %d opens, %d closes", heredocCount, eofCount)
 	}

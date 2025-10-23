@@ -21,9 +21,9 @@ func TestAppendPromptStep(t *testing.T) {
 				"env:",
 				"GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt",
 				"run: |",
-				"cat >> $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'",
+				"cat >> $GH_AW_PROMPT << 'PROMPT_EOF'",
 				"Test prompt content",
-				"PROMPT_CONTENT_EOF",
+				"PROMPT_EOF",
 			},
 		},
 		{
@@ -36,9 +36,9 @@ func TestAppendPromptStep(t *testing.T) {
 				"env:",
 				"GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt",
 				"run: |",
-				"cat >> $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'",
+				"cat >> $GH_AW_PROMPT << 'PROMPT_EOF'",
 				"Conditional prompt content",
-				"PROMPT_CONTENT_EOF",
+				"PROMPT_EOF",
 			},
 		},
 	}
@@ -87,10 +87,10 @@ func TestAppendPromptStepWithHeredoc(t *testing.T) {
 				"env:",
 				"GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt",
 				"run: |",
-				"cat >> $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'",
+				"cat >> $GH_AW_PROMPT << 'PROMPT_EOF'",
 				"Structured content line 1",
 				"Structured content line 2",
-				"PROMPT_CONTENT_EOF",
+				"PROMPT_EOF",
 			},
 		},
 	}
@@ -133,7 +133,7 @@ func TestPromptStepRefactoringConsistency(t *testing.T) {
 		if !strings.Contains(result, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
 			t.Error("Expected GH_AW_PROMPT env variable not found")
 		}
-		if !strings.Contains(result, "cat >> $GH_AW_PROMPT << 'PROMPT_CONTENT_EOF'") {
+		if !strings.Contains(result, "cat >> $GH_AW_PROMPT << 'PROMPT_EOF'") {
 			t.Error("Expected heredoc start not found")
 		}
 	})
