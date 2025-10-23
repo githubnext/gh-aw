@@ -2927,6 +2927,10 @@
                 "type": "object",
                 "description": "Error pattern definition",
                 "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Unique identifier for this error pattern"
+                  },
                   "pattern": {
                     "type": "string",
                     "description": "Ecma script regular expression pattern to match log lines"

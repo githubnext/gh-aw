@@ -74,6 +74,8 @@ type CodingAgentEngine interface {
 
 // ErrorPattern represents a regex pattern for extracting error information from logs
 type ErrorPattern struct {
+	// ID is a unique identifier for this error pattern
+	ID string `json:"id"`
 	// Pattern is the regular expression to match log lines
 	Pattern string `json:"pattern"`
 	// LevelGroup is the capture group index (1-based) that contains the error level (error, warning, etc.)
@@ -413,18 +415,21 @@ func GetCommonErrorPatterns() []ErrorPattern {
 	return []ErrorPattern{
 		// GitHub Actions workflow commands - standard error/warning/notice syntax
 		{
+			ID:           "common-gh-actions-error",
 			Pattern:      `::(error)(?:\s+[^:]*)?::(.+)`,
 			LevelGroup:   1, // "error" is in the first capture group
 			MessageGroup: 2, // message is in the second capture group
 			Description:  "GitHub Actions workflow command - error",
 		},
 		{
+			ID:           "common-gh-actions-warning",
 			Pattern:      `::(warning)(?:\s+[^:]*)?::(.+)`,
 			LevelGroup:   1, // "warning" is in the first capture group
 			MessageGroup: 2, // message is in the second capture group
 			Description:  "GitHub Actions workflow command - warning",
 		},
 		{
+			ID:           "common-gh-actions-notice",
 			Pattern:      `::(notice)(?:\s+[^:]*)?::(.+)`,
 			LevelGroup:   1, // "notice" is in the first capture group
 			MessageGroup: 2, // message is in the second capture group
@@ -432,12 +437,14 @@ func GetCommonErrorPatterns() []ErrorPattern {
 		},
 		// Generic error/warning patterns - common log formats
 		{
+			ID:           "common-generic-error",
 			Pattern:      `(ERROR|Error):\s+(.+)`,
 			LevelGroup:   1, // "ERROR" or "Error" is in the first capture group
 			MessageGroup: 2, // error message is in the second capture group
 			Description:  "Generic ERROR messages",
 		},
 		{
+			ID:           "common-generic-warning",
 			Pattern:      `(WARNING|Warning):\s+(.+)`,
 			LevelGroup:   1, // "WARNING" or "Warning" is in the first capture group
 			MessageGroup: 2, // warning message is in the second capture group
