@@ -68,9 +68,9 @@ func TestIsFeatureEnabled(t *testing.T) {
 			os.Setenv("GH_AW_FEATURES", tt.envValue)
 			defer os.Unsetenv("GH_AW_FEATURES")
 
-			result := IsFeatureEnabled(tt.flag)
+			result := isFeatureEnabled(tt.flag, nil)
 			if result != tt.expected {
-				t.Errorf("IsFeatureEnabled(%q) with env=%q = %v, want %v",
+				t.Errorf("isFeatureEnabled(%q, nil) with env=%q = %v, want %v",
 					tt.flag, tt.envValue, result, tt.expected)
 			}
 		})
@@ -81,9 +81,9 @@ func TestIsFeatureEnabledNoEnv(t *testing.T) {
 	// Ensure environment variable is not set
 	os.Unsetenv("GH_AW_FEATURES")
 
-	result := IsFeatureEnabled("firewall")
+	result := isFeatureEnabled("firewall", nil)
 	if result != false {
-		t.Errorf("IsFeatureEnabled(\"firewall\") with no env = %v, want false", result)
+		t.Errorf("isFeatureEnabled(\"firewall\", nil) with no env = %v, want false", result)
 	}
 }
 
@@ -172,9 +172,9 @@ func TestIsFeatureEnabledWithData(t *testing.T) {
 				}
 			}
 
-			result := IsFeatureEnabledWithData(tt.flag, workflowData)
+			result := isFeatureEnabled(tt.flag, workflowData)
 			if result != tt.expected {
-				t.Errorf("%s: IsFeatureEnabledWithData(%q, %+v) with env=%q = %v, want %v",
+				t.Errorf("%s: isFeatureEnabled(%q, %+v) with env=%q = %v, want %v",
 					tt.description, tt.flag, tt.frontmatter, tt.envValue, result, tt.expected)
 			}
 		})
@@ -187,8 +187,8 @@ func TestIsFeatureEnabledWithDataNilWorkflow(t *testing.T) {
 	defer os.Unsetenv("GH_AW_FEATURES")
 
 	// When workflowData is nil, should fall back to env
-	result := IsFeatureEnabledWithData("firewall", nil)
+	result := isFeatureEnabled("firewall", nil)
 	if result != true {
-		t.Errorf("IsFeatureEnabledWithData(\"firewall\", nil) with env=firewall = %v, want true", result)
+		t.Errorf("isFeatureEnabled(\"firewall\", nil) with env=firewall = %v, want true", result)
 	}
 }

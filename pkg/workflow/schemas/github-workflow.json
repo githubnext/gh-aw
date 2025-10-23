@@ -1798,13 +1798,6 @@
       "description": "The name for workflow runs generated from the workflow. GitHub displays the workflow run name in the list of workflow runs on your repository's 'Actions' tab.",
       "type": "string"
     },
-    "features": {
-      "description": "Feature flags to enable experimental or optional features in the workflow. Each feature is specified as a key with a boolean value.",
-      "type": "object",
-      "additionalProperties": {
-        "type": "boolean"
-      }
-    },
     "permissions": {
       "$ref": "#/definitions/permissions"
     }

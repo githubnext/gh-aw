@@ -5,21 +5,12 @@ import (
 	"strings"
 )
 
-// IsFeatureEnabled checks if a feature flag is enabled in the GH_AW_FEATURES environment variable.
-// The function performs case-insensitive string comparison and checks if the flag is present
-// in the comma-separated list of features.
-//
-// Example: GH_AW_FEATURES="firewall,feature2,feature3"
-func IsFeatureEnabled(flag string) bool {
-	return IsFeatureEnabledWithData(flag, nil)
-}
-
-// IsFeatureEnabledWithData checks if a feature flag is enabled by merging information from
+// isFeatureEnabled checks if a feature flag is enabled by merging information from
 // the frontmatter features field and the GH_AW_FEATURES environment variable.
 // Features from frontmatter take precedence over environment variables.
 //
 // If workflowData is nil or has no features, it falls back to checking the environment variable only.
-func IsFeatureEnabledWithData(flag string, workflowData *WorkflowData) bool {
+func isFeatureEnabled(flag string, workflowData *WorkflowData) bool {
 	flagLower := strings.ToLower(strings.TrimSpace(flag))
 
 	// First, check if the feature is explicitly set in frontmatter
