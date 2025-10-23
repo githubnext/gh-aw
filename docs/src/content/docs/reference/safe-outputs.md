@@ -36,6 +36,7 @@ This declares that the workflow should create at most one new issue.
 | **Create Pull Request** | `create-pull-request:` | Create pull requests with code changes | 1 | ✅ |
 | **Pull Request Review Comments** | `create-pull-request-review-comment:` | Create review comments on specific lines of code | 1 | ✅ |
 | **Create Discussions** | `create-discussion:` | Create GitHub discussions based on workflow output | 1 | ✅ |
+| **Create Agent Task** | `create-agent-task:` | Create GitHub Copilot agent tasks for automated code changes | 1 | ✅ |
 | **Push to Pull Request Branch** | `push-to-pull-request-branch:` | Push changes directly to a branch | 1 | ❌ |
 | **Create Code Scanning Alerts** | `create-code-scanning-alert:` | Generate SARIF repository security advisories and upload to GitHub Code Scanning | unlimited | ❌ |
 | **Missing Tool Reporting** | `missing-tool:` | Report missing tools or functionality (enabled by default when safe-outputs is configured) | unlimited | ❌ |
@@ -704,6 +705,63 @@ The compiled workflow will have additional prompting describing that, to create 
 
 **Note:** The `category` field accepts a category slug (e.g., `"general"`), category name (e.g., `"General"`), or category ID (e.g., `"DIC_kwDOGFsHUM4BsUn3"`). The workflow will first try to match against category IDs, then against category names, and finally against category slugs. If no `category` is specified, the workflow will use the first available discussion category in the repository. To find valid category values, visit your repository's discussions settings page, open an existing discussion to see the category in the URL, or query via the GitHub GraphQL API.
 
+### Agent Task Creation (`create-agent-task:`)
+
+Adding `create-agent-task:` to the `safe-outputs:` section declares that the workflow should conclude with creating GitHub Copilot agent tasks based on the workflow's output. This enables workflows to delegate coding tasks to GitHub Copilot for automated code changes.
+
+**Basic Configuration:**
+```yaml
+safe-outputs:
+  create-agent-task:
+```
+
+**With Configuration:**
+```yaml
+safe-outputs:
+  create-agent-task:
+    base: main                       # Optional: base branch for the agent task PR (defaults to current branch)
+    target-repo: "owner/target-repo" # Optional: create agent tasks in a different repository (requires github-token with appropriate permissions)
+```
+
+**Authentication:**
+
+Agent task creation automatically uses the specialized Copilot token precedence:
+1. **`GH_AW_COPILOT_TOKEN`** - Dedicated secret for Copilot operations (recommended)
+2. **`GH_AW_GITHUB_TOKEN`** - General GitHub token override
+3. **`GITHUB_TOKEN`** - Default GitHub Actions token (fallback)
+
+Store your Personal Access Token (PAT) as `GH_AW_COPILOT_TOKEN` in your repository secrets for automatic authentication.
+
+**Example natural language to generate the output:**
+
+```aw wrap
+---
+on:
+  issues:
+    types: [labeled]
+permissions:
+  contents: read
+  actions: read
+engine: claude
+safe-outputs:
+  create-agent-task:
+    base: main
+---
+
+# Code Task Delegator
+
+When an issue is labeled with "code-task", analyze the requirements and create a GitHub Copilot agent task with detailed instructions for implementing the requested changes.
+```
+
+The compiled workflow will have additional prompting describing that, to create agent tasks, it should write the task details to a special file.
+
+**Key Features:**
+- Delegates coding tasks to GitHub Copilot for automated implementation
+- Creates pull requests with AI-generated code changes
+- Supports cross-repository task creation with `target-repo` configuration
+- Automatically uses specialized Copilot authentication tokens
+- Maximum of 1 agent task per workflow execution
+
 ## Cross-Repository Operations
 
 Many safe output types support the `target-repo` configuration for cross-repository operations. This enables workflows to create issues, comments, pull requests, and other outputs in repositories other than where the workflow is running.
@@ -939,12 +997,31 @@ safe-outputs:
 To assign issues to bots or add bots as reviewers (including `copilot`), you must use a **Personal Access Token (PAT)** with appropriate permissions. The default `GITHUB_TOKEN` does not have permission to assign issues to bots or add bots as reviewers.
 :::
 
-Configure a PAT using the `github-token` field at any of these levels (in order of precedence):
+**Built-in Token Support:**
+
+GitHub Agentic Workflows automatically uses a specialized token precedence for Copilot-related operations:
+
+1. **`GH_AW_COPILOT_TOKEN`** (highest priority) - Dedicated secret for Copilot operations
+2. **`GH_AW_GITHUB_TOKEN`** - General GitHub token override
+3. **`GITHUB_TOKEN`** - Default GitHub Actions token (fallback)
+
+This precedence applies automatically when:
+- Assigning `copilot` to issues (`assignees: copilot`)
+- Adding `copilot` as a pull request reviewer (`reviewers: copilot`)
+- Creating agent tasks (`create-agent-task`)
+
+**Recommended Setup:**
+
+Store your Personal Access Token (PAT) as `GH_AW_COPILOT_TOKEN` in your repository secrets. This token will be automatically used for all Copilot-related operations without needing to configure `github-token` fields explicitly.
+
+**Token Precedence Override:**
+
+You can also override the token for specific safe outputs using the `github-token` field at these levels (in order of precedence):
 1. Specific safe output level (`create-issue` or `create-pull-request`)
 2. Safe outputs section level
 3. Top-level workflow configuration
 
-**Example with custom token:**
+**Example with built-in token (recommended):**
 
 ```yaml
 ---
@@ -956,7 +1033,31 @@ permissions:
   actions: read
 engine: copilot
 safe-outputs:
-  github-token: ${{ secrets.COPILOT_PAT }}  # PAT with permissions to add bot assignees/reviewers
+  # No github-token needed - GH_AW_COPILOT_TOKEN is used automatically
+  create-issue:
+    assignees: copilot
+  create-pull-request:
+    reviewers: copilot
+---
+
+# AI Issue and PR Handler
+
+Analyze issues and create follow-up items with Copilot assigned for automated assistance.
+```
+
+**Example with explicit token override:**
+
+```yaml
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  actions: read
+engine: copilot
+safe-outputs:
+  github-token: ${{ secrets.CUSTOM_COPILOT_PAT }}  # Override the automatic token precedence
   create-issue:
     assignees: copilot
   create-pull-request:
