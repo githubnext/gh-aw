@@ -23,6 +23,24 @@ func TestBashToolsMergeCustomWithDefaults(t *testing.T) {
 			expected:    []string{"echo", "ls", "pwd", "cat", "head", "tail", "grep", "wc", "sort", "uniq", "date", "yq", "make:*"},
 		},
 		{
+			name: "bash: true should be converted to wildcard",
+			tools: map[string]any{
+				"bash": true,
+			},
+			safeOutputs: nil,
+			expected:    []string{"*"},
+		},
+		{
+			name: "bash: true with safe outputs should use wildcard (not add git commands)",
+			tools: map[string]any{
+				"bash": true,
+			},
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+			expected: []string{"*"},
+		},
+		{
 			name: "bash with multiple commands should include defaults + custom",
 			tools: map[string]any{
 				"bash": []any{"make:*", "npm:*"},
