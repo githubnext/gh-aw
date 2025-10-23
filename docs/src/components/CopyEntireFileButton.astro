@@ -1,0 +1,101 @@
+---
+const { filePath, label = 'Copy instructions' } = Astro.props;
+const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
+---
+
+<button
+  id={id}
+  type="button"
+  class="copy-entire-file-btn"
+  data-filepath={filePath}
+  aria-label="Copy entire instructions file to clipboard"
+  title="Copy entire instructions file to clipboard"
+>
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z" fill="currentColor"/>
+  </svg>
+  <span class="btn-text">{label}</span>
+</button>
+
+<style>
+  .copy-entire-file-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid var(--sl-color-hairline);
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+    cursor: pointer;
+    font-size: inherit;
+    font-family: inherit;
+  }
+
+  .copy-entire-file-btn:hover {
+    background: var(--sl-color-gray-6);
+  }
+
+  .copy-entire-file-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.copy-entire-file-btn').forEach((button) => {
+      const filepath = button.getAttribute('data-filepath');
+      if (!filepath) return;
+
+      const btnText = button.querySelector('.btn-text');
+      const originalText = btnText ? btnText.textContent : 'Copy instructions';
+
+      button.addEventListener('click', async () => {
+        try {
+          button.setAttribute('disabled', 'true');
+          if (btnText) btnText.textContent = 'Copying…';
+
+          const res = await fetch(filepath, { cache: 'no-store' });
+          if (!res.ok) throw new Error(`Failed to fetch file: ${res.status}`);
+          const text = await res.text();
+
+          // Prefer Async Clipboard API
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            // Fallback
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.top = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+          }
+
+          if (btnText) btnText.textContent = 'Copied!';
+          setTimeout(() => {
+            button.removeAttribute('disabled');
+            if (btnText) btnText.textContent = originalText;
+          }, 2000);
+        } catch (e) {
+          console.error(e);
+          if (btnText) btnText.textContent = 'Error';
+          setTimeout(() => {
+            button.removeAttribute('disabled');
+            if (btnText) btnText.textContent = originalText;
+          }, 3000);
+        }
+      });
+    });
+  });
+</script>
