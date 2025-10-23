@@ -903,6 +903,7 @@
                 "rocket",
                 "eyes"
               ],
+              "default": "eyes",
               "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes). Defaults to 'eyes' if not specified."
             }
           },

@@ -2904,6 +2904,61 @@ Test command workflow with custom reaction override.
 	}
 }
 
+// TestInvalidReactionValue tests that invalid reaction values are rejected
+func TestInvalidReactionValue(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "invalid-reaction-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test invalid reaction value
+	testContent := `---
+on:
+  issues:
+    types: [opened]
+  reaction: invalid_emoji
+permissions:
+  contents: read
+  issues: write
+tools:
+  github:
+    allowed: [get_issue]
+---
+
+# Invalid Reaction Test
+
+Test workflow with invalid reaction value.
+`
+
+	testFile := filepath.Join(tmpDir, "test-invalid-reaction.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow - should fail with validation error
+	_, err = compiler.ParseWorkflowFile(testFile)
+	if err == nil {
+		t.Fatal("Expected error for invalid reaction value, but got none")
+	}
+
+	// Verify error message mentions the invalid value and valid options
+	// The error can come from either schema validation or custom validation
+	errMsg := err.Error()
+	hasInvalidValue := strings.Contains(errMsg, "invalid_emoji") || strings.Contains(errMsg, "reaction")
+	hasValidOptions := strings.Contains(errMsg, "must be one of") || strings.Contains(errMsg, "+1") || strings.Contains(errMsg, "eyes")
+
+	if !hasInvalidValue {
+		t.Errorf("Error message should mention the invalid reaction value, got: %v", err)
+	}
+	if !hasValidOptions {
+		t.Errorf("Error message should mention valid reaction options, got: %v", err)
+	}
+}
+
 // TestPullRequestDraftFilter tests the pull_request draft: false filter functionality
 func TestPullRequestDraftFilter(t *testing.T) {
 	// Create temporary directory for test files

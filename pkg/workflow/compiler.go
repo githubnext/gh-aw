@@ -1395,6 +1395,10 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 			if reactionValue, hasReactionField := onMap["reaction"]; hasReactionField {
 				hasReaction = true
 				if reactionStr, ok := reactionValue.(string); ok {
+					// Validate reaction value
+					if !isValidReaction(reactionStr) {
+						return fmt.Errorf("invalid reaction value '%s': must be one of %v", reactionStr, getValidReactions())
+					}
 					workflowData.AIReaction = reactionStr
 				}
 			}
