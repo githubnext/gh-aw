@@ -76,7 +76,7 @@ func TestCreateIssueJobWithAssignees(t *testing.T) {
 		t.Error("Expected conditional if statement for assignee steps")
 	}
 
-	// Verify that GH_TOKEN is set with proper token expression
+	// Verify that GH_TOKEN is set with proper token expression (without GITHUB_TOKEN fallback for regular assignees)
 	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
 		t.Error("Expected GH_TOKEN environment variable to be set with proper token expression")
 	}
@@ -252,6 +252,29 @@ func TestCreateIssueJobWithCopilotAssignee(t *testing.T) {
 	// Verify that the original "copilot" without @ is NOT used as assignee
 	if strings.Contains(stepsContent, `ASSIGNEE: "copilot"`) && !strings.Contains(stepsContent, `ASSIGNEE: "@copilot"`) {
 		t.Error("Expected 'copilot' to be mapped to '@copilot', not used directly")
+	}
+
+	// Find the assignee step section (after "Assign issue to copilot")
+	assigneeStepIndex := strings.Index(stepsContent, "Assign issue to copilot")
+	if assigneeStepIndex == -1 {
+		t.Fatal("Could not find assignee step")
+	}
+	assigneeStepContent := stepsContent[assigneeStepIndex:]
+	
+	// Find the next step or end of content (limit to this step only)
+	nextStepIndex := strings.Index(assigneeStepContent[len("Assign issue to copilot"):], "- name:")
+	if nextStepIndex != -1 {
+		assigneeStepContent = assigneeStepContent[:len("Assign issue to copilot")+nextStepIndex]
+	}
+
+	// Verify that GH_TOKEN uses Copilot token precedence without GITHUB_TOKEN fallback in assignee step
+	if !strings.Contains(assigneeStepContent, "GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
+		t.Error("Expected GH_TOKEN in assignee step to use Copilot token precedence without GITHUB_TOKEN fallback")
+	}
+
+	// Verify GITHUB_TOKEN is NOT in the fallback chain for copilot assignees in assignee step
+	if strings.Contains(assigneeStepContent, "|| secrets.GITHUB_TOKEN }}") {
+		t.Errorf("Did not expect GITHUB_TOKEN in fallback chain for copilot assignees in assignee step. Content: %s", assigneeStepContent)
 	}
 }
 
