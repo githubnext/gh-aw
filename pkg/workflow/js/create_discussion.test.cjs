@@ -208,7 +208,7 @@ describe("create_discussion.cjs", () => {
     expect(mockCore.setOutput).toHaveBeenCalledWith("discussion_url", "https://github.com/testowner/testrepo/discussions/1");
 
     // Verify summary was written
-    expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("## GitHub Discussions"));
+    expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("## Created Discussions"));
     expect(mockCore.summary.write).toHaveBeenCalled();
   });
 

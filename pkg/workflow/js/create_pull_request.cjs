@@ -32,8 +32,8 @@ function generatePatchPreview(patchContent) {
 
   const truncated = lineTruncated || charTruncated;
   const summary = truncated
-    ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
-    : `Show patch (${lines.length} lines)`;
+    ? `Patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
+    : `Patch (${lines.length} lines)`;
 
   return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
 }
@@ -86,10 +86,10 @@ async function main() {
 
     // If in staged mode, still show preview
     if (isStaged) {
-      let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-      summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-      summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
-      summaryContent += `**Message:** ${message}\n\n`;
+      let summaryContent = "## 🎭 Staged Mode Preview\n\n";
+      summaryContent += "_Would create the following pull request:_\n\n";
+      summaryContent += `_Status: ⚠️ No patch file found_\n\n`;
+      summaryContent += `${message}\n\n`;
 
       // Write to step summary
       await core.summary.addRaw(summaryContent).write();
@@ -118,10 +118,10 @@ async function main() {
 
     // If in staged mode, still show preview
     if (isStaged) {
-      let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-      summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-      summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-      summaryContent += `**Message:** ${message}\n\n`;
+      let summaryContent = "## 🎭 Staged Mode Preview\n\n";
+      summaryContent += "_Would create the following pull request:_\n\n";
+      summaryContent += `_Status: ⚠️ Patch file contains error_\n\n`;
+      summaryContent += `${message}\n\n`;
 
       // Write to step summary
       await core.summary.addRaw(summaryContent).write();
@@ -157,10 +157,10 @@ async function main() {
 
       // If in staged mode, still show preview with error
       if (isStaged) {
-        let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-        summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-        summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
-        summaryContent += `**Message:** ${message}\n\n`;
+        let summaryContent = "## 🎭 Staged Mode Preview\n\n";
+        summaryContent += "_Would create the following pull request:_\n\n";
+        summaryContent += `_Status: ❌ Patch size exceeded_\n\n`;
+        summaryContent += `${message}\n\n`;
 
         // Write to step summary
         await core.summary.addRaw(summaryContent).write();
@@ -221,24 +221,27 @@ async function main() {
 
   // If in staged mode, emit step summary instead of creating PR
   if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+    let summaryContent = "## 🎭 Staged Mode Preview\n\n";
+    summaryContent += "_Would create the following pull request:_\n\n";
 
-    summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
-    summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
-    summaryContent += `**Base:** ${baseBranch}\n\n`;
+    const title = pullRequestItem.title || "No title provided";
+    summaryContent += `### ${title}\n\n`;
+    summaryContent += `_Branch: ${pullRequestItem.branch || "auto-generated"} → ${baseBranch}_\n\n`;
 
     if (pullRequestItem.body) {
-      summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
+      summaryContent += `${pullRequestItem.body}\n\n`;
     }
 
     if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
       const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
       if (patchStats.trim()) {
-        summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-        summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+        const lineCount = patchStats.split("\n").length;
+        summaryContent += `_Changes: ${lineCount} lines_\n\n`;
+        const preview = patchStats.slice(0, 2000);
+        const truncated = patchStats.length > 2000;
+        summaryContent += `<details><summary>Patch preview</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
       } else {
-        summaryContent += `**Changes:** No changes (empty patch)\n\n`;
+        summaryContent += `_Changes: No changes (empty patch)_\n\n`;
       }
     }
 
@@ -271,7 +274,7 @@ async function main() {
   const runUrl = context.payload.repository
     ? `${context.payload.repository.html_url}/actions/runs/${runId}`
     : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-  bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
+  bodyLines.push(``, ``, `> _Generated by [${workflowName}](${runUrl})_`, "");
 
   // Prepare the body content
   const body = bodyLines.join("\n").trim();
@@ -375,11 +378,11 @@ async function main() {
 ---
 
 > [!NOTE]
-> This was originally intended as a pull request, but the git push operation failed.
+> _Originally intended as a pull request, but the git push operation failed._
 >
-> **Workflow Run:** [View run details and download patch artifact](${runUrl})
+> _Workflow Run: [View details and download patch artifact](${runUrl})_
 >
-> The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
+> _The patch file is available as an artifact (\`aw.patch\`) in the workflow run above._
 
 To apply the patch locally:
 
@@ -417,10 +420,10 @@ ${patchPreview}`;
             `
 
 ## Push Failure Fallback
-- **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
-- **Fallback Issue:** [#${issue.number}](${issue.html_url})
-- **Patch Artifact:** Available in workflow run artifacts
-- **Note:** Push failed, created issue as fallback
+_Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}_
+
+- [Fallback Issue #${issue.number}](${issue.html_url})
+- Patch artifact available in workflow run artifacts
 `
           )
           .write();
@@ -487,10 +490,9 @@ ${patchPreview}`;
       .addRaw(
         `
 
-## Pull Request
-- **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
-- **Branch**: \`${branchName}\`
-- **Base Branch**: \`${baseBranch}\`
+## Created Pull Request
+- [${pullRequest.title} #${pullRequest.number}](${pullRequest.html_url})
+- _Branch: \`${branchName}\` → \`${baseBranch}\`_
 `
       )
       .write();
@@ -515,9 +517,9 @@ ${patchPreview}`;
 
 ---
 
-**Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
+_Originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl})._
 
-**Original error:** ${prError instanceof Error ? prError.message : String(prError)}
+_Original error: ${prError instanceof Error ? prError.message : String(prError)}_
 
 You can manually create a pull request from the branch if needed.${patchPreview}`;
 
@@ -544,10 +546,10 @@ You can manually create a pull request from the branch if needed.${patchPreview}
           `
 
 ## Fallback Issue Created
-- **Issue**: [#${issue.number}](${issue.html_url})
-- **Branch**: [\`${branchName}\`](${branchUrl})
-- **Base Branch**: \`${baseBranch}\`
-- **Note**: Pull request creation failed, created issue as fallback
+_Pull request creation failed, created issue as fallback_
+
+- [Issue #${issue.number}](${issue.html_url})
+- _Branch: [\`${branchName}\`](${branchUrl}) → \`${baseBranch}\`_
 `
         )
         .write();

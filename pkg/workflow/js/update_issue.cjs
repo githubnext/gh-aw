@@ -53,26 +53,26 @@ async function main() {
 
   // If in staged mode, emit step summary instead of updating issues
   if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Update Issues Preview\n\n";
-    summaryContent += "The following issue updates would be applied if staged mode was disabled:\n\n";
+    let summaryContent = "## 🎭 Staged Mode Preview\n\n";
+    summaryContent += "_Would update the following issues:_\n\n";
 
     for (let i = 0; i < updateItems.length; i++) {
       const item = updateItems[i];
-      summaryContent += `### Issue Update ${i + 1}\n`;
+      summaryContent += `### Issue Update ${i + 1}\n\n`;
       if (item.issue_number) {
-        summaryContent += `**Target Issue:** #${item.issue_number}\n\n`;
+        summaryContent += `_Target: #${item.issue_number}_\n\n`;
       } else {
-        summaryContent += `**Target:** Current issue\n\n`;
+        summaryContent += `_Target: Current issue_\n\n`;
       }
 
       if (item.title !== undefined) {
-        summaryContent += `**New Title:** ${item.title}\n\n`;
+        summaryContent += `_New title:_ ${item.title}\n\n`;
       }
       if (item.body !== undefined) {
-        summaryContent += `**New Body:**\n${item.body}\n\n`;
+        summaryContent += `${item.body}\n\n`;
       }
       if (item.status !== undefined) {
-        summaryContent += `**New Status:** ${item.status}\n\n`;
+        summaryContent += `_New status: ${item.status}_\n\n`;
       }
       summaryContent += "---\n\n";
     }
@@ -220,7 +220,7 @@ async function main() {
   if (updatedIssues.length > 0) {
     let summaryContent = "\n\n## Updated Issues\n";
     for (const issue of updatedIssues) {
-      summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+      summaryContent += `- [${issue.title} #${issue.number}](${issue.html_url})\n`;
     }
     await core.summary.addRaw(summaryContent).write();
   }
