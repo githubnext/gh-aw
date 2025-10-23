@@ -3,13 +3,13 @@ engine:
   id: custom
   env:
     GH_AW_AGENT_VERSION: "2.5.1"
-    GH_AW_AGENT_MODEL_VERSION: "openai:gpt-4.1"
+    GH_AW_AGENT_MODEL_VERSION: "openai:gpt-4o"
   steps:
     - name: Validate OPENAI_API_KEY secret
       run: |
         if [ -z "$OPENAI_API_KEY" ]; then
           echo "Error: OPENAI_API_KEY secret is not set"
-          echo "The GenAIScript engine with openai:gpt-4.1 model requires OPENAI_API_KEY secret to be configured."
+          echo "The GenAIScript engine with openai:gpt-4o model requires OPENAI_API_KEY secret to be configured."
           echo "Please configure this secret in your repository settings."
           echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/"
           exit 1
@@ -72,7 +72,7 @@ imports:
 **Note**: 
 - This workflow requires internet access to install npm packages
 - The genaiscript version can be customized by setting the `GH_AW_AGENT_VERSION` environment variable (default: `2.5.1`)
-- The AI model can be customized by setting the `GH_AW_AGENT_MODEL_VERSION` environment variable (default: `openai:gpt-4.1`)
+- The AI model can be customized by setting the `GH_AW_AGENT_MODEL_VERSION` environment variable (default: `openai:gpt-4o`)
 - MCP server configuration is automatically passed if configured in the workflow
 - When using `openai:` models, ensure the `OPENAI_API_KEY` secret is configured in your repository settings
 -->

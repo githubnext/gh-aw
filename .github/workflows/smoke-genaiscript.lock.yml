@@ -1110,14 +1110,14 @@ jobs:
         run: |
           if [ -z "$OPENAI_API_KEY" ]; then
             echo "Error: OPENAI_API_KEY secret is not set"
-            echo "The GenAIScript engine with openai:gpt-4.1 model requires OPENAI_API_KEY secret to be configured."
+            echo "The GenAIScript engine with openai:gpt-4o model requires OPENAI_API_KEY secret to be configured."
             echo "Please configure this secret in your repository settings."
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/"
             exit 1
           fi
           echo "OPENAI_API_KEY secret is configured"
         env:
-          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4.1
+          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4o
           GH_AW_AGENT_VERSION: 2.5.1
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1128,7 +1128,7 @@ jobs:
       - name: Install GenAIScript
         run: npm install -g genaiscript@${GH_AW_AGENT_VERSION} && genaiscript --version
         env:
-          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4.1
+          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4o
           GH_AW_AGENT_VERSION: 2.5.1
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1147,7 +1147,7 @@ jobs:
           echo "Generated GenAI prompt file:"
           cat /tmp/gh-aw/aw-prompts/prompt.genai.md
         env:
-          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4.1
+          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4o
           GH_AW_AGENT_VERSION: 2.5.1
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1159,7 +1159,7 @@ jobs:
         run: genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md --mcp-config $GH_AW_MCP_CONFIG --out /tmp/gh-aw/genaiscript-output.md
         env:
           DEBUG: genaiscript:*
-          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4.1
+          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4o
           GH_AW_AGENT_VERSION: 2.5.1
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2521,14 +2521,14 @@ jobs:
         run: |
           if [ -z "$OPENAI_API_KEY" ]; then
             echo "Error: OPENAI_API_KEY secret is not set"
-            echo "The GenAIScript engine with openai:gpt-4.1 model requires OPENAI_API_KEY secret to be configured."
+            echo "The GenAIScript engine with openai:gpt-4o model requires OPENAI_API_KEY secret to be configured."
             echo "Please configure this secret in your repository settings."
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/"
             exit 1
           fi
           echo "OPENAI_API_KEY secret is configured"
         env:
-          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4.1
+          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4o
           GH_AW_AGENT_VERSION: 2.5.1
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2539,7 +2539,7 @@ jobs:
       - name: Install GenAIScript
         run: npm install -g genaiscript@${GH_AW_AGENT_VERSION} && genaiscript --version
         env:
-          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4.1
+          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4o
           GH_AW_AGENT_VERSION: 2.5.1
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2558,7 +2558,7 @@ jobs:
           echo "Generated GenAI prompt file:"
           cat /tmp/gh-aw/aw-prompts/prompt.genai.md
         env:
-          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4.1
+          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4o
           GH_AW_AGENT_VERSION: 2.5.1
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2570,7 +2570,7 @@ jobs:
         run: genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md --mcp-config $GH_AW_MCP_CONFIG --out /tmp/gh-aw/genaiscript-output.md
         env:
           DEBUG: genaiscript:*
-          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4.1
+          GH_AW_AGENT_MODEL_VERSION: openai:gpt-4o
           GH_AW_AGENT_VERSION: 2.5.1
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
