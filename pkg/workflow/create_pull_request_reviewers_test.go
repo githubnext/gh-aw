@@ -274,7 +274,7 @@ func TestCreatePullRequestJobWithCopilotReviewer(t *testing.T) {
 		t.Fatal("Could not find reviewer step")
 	}
 	reviewerStepContent := stepsContent[reviewerStepIndex:]
-	
+
 	// Find the next step or end of content (limit to this step only)
 	nextStepIndex := strings.Index(reviewerStepContent[len("Add copilot as reviewer"):], "- name:")
 	if nextStepIndex != -1 {

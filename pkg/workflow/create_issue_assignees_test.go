@@ -260,7 +260,7 @@ func TestCreateIssueJobWithCopilotAssignee(t *testing.T) {
 		t.Fatal("Could not find assignee step")
 	}
 	assigneeStepContent := stepsContent[assigneeStepIndex:]
-	
+
 	// Find the next step or end of content (limit to this step only)
 	nextStepIndex := strings.Index(assigneeStepContent[len("Assign issue to copilot"):], "- name:")
 	if nextStepIndex != -1 {
