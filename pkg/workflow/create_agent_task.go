@@ -2,9 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"os"
-
-	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 // CreateAgentTaskConfig holds configuration for creating GitHub Copilot agent tasks from agent output
@@ -82,17 +79,6 @@ func (c *Compiler) buildCreateOutputAgentTaskJob(data *WorkflowData, mainJobName
 	var token string
 	if data.SafeOutputs.CreateAgentTasks != nil {
 		token = data.SafeOutputs.CreateAgentTasks.GitHubToken
-	}
-
-	// Warn if no custom token is configured for agent task creation
-	var safeOutputsToken string
-	if data.SafeOutputs != nil {
-		safeOutputsToken = data.SafeOutputs.GitHubToken
-	}
-	if token == "" && safeOutputsToken == "" && data.GitHubToken == "" {
-		warning := console.FormatWarningMessage("Creating agent tasks requires a Personal Access Token (PAT). The default GITHUB_TOKEN does not have permission for this operation. Please configure GH_AW_COPILOT_TOKEN or GH_AW_GITHUB_TOKEN secret, or set the github-token field. See: https://githubnext.github.io/gh-aw/reference/safe-outputs/#agent-task-creation-create-agent-task")
-		fmt.Fprintln(os.Stderr, warning)
-		c.IncrementWarningCount()
 	}
 
 	// Build the GitHub Script step using the common helper and append to existing steps
