@@ -3,7 +3,7 @@
 
 /**
  * Redacts secrets from files in /tmp/gh-aw directory before uploading artifacts
- * This script processes all .txt, .json, .log files under /tmp/gh-aw and redacts
+ * This script processes all .txt, .json, .log, .md, .mdx, .yml, .jsonl files under /tmp/gh-aw and redacts
  * any strings matching the actual secret values provided via environment variables.
  */
 const fs = require("fs");
@@ -126,7 +126,7 @@ async function main() {
     }
     core.info(`Found ${secretValues.length} secret(s) to redact`);
     // Find all target files in /tmp/gh-aw directory
-    const targetExtensions = [".txt", ".json", ".log"];
+    const targetExtensions = [".txt", ".json", ".log", ".md", ".mdx", ".yml", ".jsonl"];
     const files = findFiles("/tmp/gh-aw", targetExtensions);
     core.info(`Found ${files.length} file(s) to scan for secrets`);
     let totalRedactions = 0;
