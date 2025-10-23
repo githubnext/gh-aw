@@ -20,7 +20,7 @@ const __dirname = path.dirname(__filename);
 
 // Paths
 const WORKFLOWS_DIR = path.join(__dirname, "../.github/workflows");
-const OUTPUT_PATH = path.join(__dirname, "../docs/src/content/docs/status.md");
+const OUTPUT_PATH = path.join(__dirname, "../docs/src/content/docs/status.mdx");
 
 // Repository owner and name
 const REPO_OWNER = "githubnext";
