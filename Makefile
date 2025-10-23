@@ -178,10 +178,17 @@ generate-status-badges:
 
 # Recompile all workflow files
 .PHONY: recompile
-recompile: build 
+recompile: build
 	./$(BINARY_NAME) init
 	./$(BINARY_NAME) compile --validate --verbose --purge
-	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate --verbose --purge;
+	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate --verbose --purge
+	@# Recompile .firewall. workflows with firewall feature enabled
+	@for file in .github/workflows/*.firewall.md; do \
+		if [ -f "$$file" ]; then \
+			echo "Recompiling $$file with firewall feature enabled..."; \
+			GH_AW_FEATURES=firewall ./$(BINARY_NAME) compile "$$file" --validate --verbose; \
+		fi; \
+	done
 
 # Run development server
 .PHONY: dev
