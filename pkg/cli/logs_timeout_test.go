@@ -103,20 +103,20 @@ func TestTimeoutLogic(t *testing.T) {
 
 // TestMCPServerDefaultTimeout tests that the MCP server sets a default timeout
 func TestMCPServerDefaultTimeout(t *testing.T) {
-	// Test that when no timeout is specified, MCP server uses 50 seconds
+	// Test that when no timeout is specified, MCP server uses 120 seconds
 	timeoutValue := 0
 	if timeoutValue == 0 {
-		timeoutValue = 50
+		timeoutValue = 120
 	}
 
-	if timeoutValue != 50 {
-		t.Errorf("Expected MCP server default timeout to be 50 but got %d", timeoutValue)
+	if timeoutValue != 120 {
+		t.Errorf("Expected MCP server default timeout to be 120 but got %d", timeoutValue)
 	}
 
 	// Test that explicit timeout overrides the default
 	timeoutValue = 120
 	if timeoutValue == 0 {
-		timeoutValue = 50
+		timeoutValue = 120
 	}
 
 	if timeoutValue != 120 {
