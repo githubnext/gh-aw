@@ -2693,12 +2693,30 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// upload MCP logs (if any MCP tools were used)
 	c.generateUploadMCPLogs(yaml)
 
+	// Add Squid logs collection and upload steps for Copilot engine
+	if copilotEngine, ok := engine.(*CopilotEngine); ok {
+		squidSteps := copilotEngine.GetSquidLogsSteps(data)
+		for _, step := range squidSteps {
+			for _, line := range step {
+				yaml.WriteString(line + "\n")
+			}
+		}
+	}
+
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine)
 
 	// upload agent logs
 	var _ string = logFile
 	c.generateUploadAgentLogs(yaml, logFileFull)
+
+	// Add post-execution cleanup step for Copilot engine
+	if copilotEngine, ok := engine.(*CopilotEngine); ok {
+		cleanupStep := copilotEngine.GetCleanupStep(data)
+		for _, line := range cleanupStep {
+			yaml.WriteString(line + "\n")
+		}
+	}
 
 	// upload assets if upload-asset is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {

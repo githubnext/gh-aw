@@ -11,7 +11,7 @@
 #   activation --> agent
 # ```
 
-name: "Dev"
+name: "Dev Firewall"
 "on":
   workflow_dispatch: null
 
@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: true
   group: dev-workflow-${{ github.ref }}
 
-run-name: "Dev"
+run-name: "Dev Firewall"
 
 jobs:
   activation:
@@ -360,7 +360,7 @@ jobs:
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Dev",
+              workflow_name: "Dev Firewall",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
