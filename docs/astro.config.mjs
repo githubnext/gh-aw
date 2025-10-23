@@ -83,6 +83,10 @@ export default defineConfig({
 				// ...makeChangelogsSidebarLinks([
 				// 	{ type: 'all', base: 'changelog', label: 'Changelog' }
 				// ]),
+				{
+					label: 'Status',
+					link: '/status/',
+				},
 			],
 		}),
 	],

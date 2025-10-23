@@ -5,6 +5,7 @@
  *
  * Generates a markdown documentation page with GitHub Actions status badges
  * for all workflows in the repository (only from .lock.yml files).
+ * Badges are displayed in a card grid layout for better visual presentation.
  *
  * Usage:
  *   node scripts/generate-status-badges.js
@@ -19,7 +20,7 @@ const __dirname = path.dirname(__filename);
 
 // Paths
 const WORKFLOWS_DIR = path.join(__dirname, "../.github/workflows");
-const OUTPUT_PATH = path.join(__dirname, "../docs/src/content/docs/status.md");
+const OUTPUT_PATH = path.join(__dirname, "../docs/src/content/docs/status.mdx");
 
 // Repository owner and name
 const REPO_OWNER = "githubnext";
@@ -74,6 +75,10 @@ function generateMarkdown(workflows) {
   lines.push("---");
   lines.push("");
 
+  // Import statement for Starlight components
+  lines.push("import { Card, CardGrid } from '@astrojs/starlight/components';");
+  lines.push("");
+
   // Introduction
   lines.push("This page shows the current status of all agentic workflows in the repository.");
   lines.push("");
@@ -81,11 +86,16 @@ function generateMarkdown(workflows) {
   // Sort workflows alphabetically by name
   workflows.sort((a, b) => a.name.localeCompare(b.name));
 
-  // Generate status badges - one per line with bullet points
+  // Generate status badges in CardGrid format
+  lines.push("<CardGrid>");
   for (const workflow of workflows) {
-    const badge = `- [![${workflow.name}](${workflow.badgeUrl})](${workflow.workflowUrl})`;
-    lines.push(badge);
+    lines.push("  <Card>");
+    lines.push(`    ### ${workflow.name}`);
+    lines.push("");
+    lines.push(`    [![${workflow.name}](${workflow.badgeUrl})](${workflow.workflowUrl})`);
+    lines.push("  </Card>");
   }
+  lines.push("</CardGrid>");
 
   lines.push("");
   lines.push(":::note");
