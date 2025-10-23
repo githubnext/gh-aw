@@ -294,6 +294,92 @@ npm warn exec The following package was not found
       expect(result.markdown).toContain("safe_outputs::missing-tool");
       expect(result.mcpFailures).toEqual([]);
     });
+
+    it("should detect when max-turns limit is hit", () => {
+      // Set the environment variable for max-turns
+      process.env.GH_AW_MAX_TURNS = "5";
+
+      const logWithMaxTurns = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-789",
+          tools: ["Bash"],
+          model: "claude-sonnet-4-20250514",
+        },
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text: "Task in progress" }],
+          },
+        },
+        {
+          type: "result",
+          total_cost_usd: 0.05,
+          usage: { input_tokens: 500, output_tokens: 200 },
+          num_turns: 5,
+        },
+      ]);
+
+      const result = parseClaudeLog(logWithMaxTurns);
+
+      expect(result.markdown).toContain("**Turns:** 5");
+      expect(result.maxTurnsHit).toBe(true);
+
+      // Clean up
+      delete process.env.GH_AW_MAX_TURNS;
+    });
+
+    it("should not flag max-turns when turns is less than limit", () => {
+      process.env.GH_AW_MAX_TURNS = "10";
+
+      const logBelowMaxTurns = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-890",
+          tools: ["Bash"],
+          model: "claude-sonnet-4-20250514",
+        },
+        {
+          type: "result",
+          total_cost_usd: 0.01,
+          usage: { input_tokens: 100, output_tokens: 50 },
+          num_turns: 3,
+        },
+      ]);
+
+      const result = parseClaudeLog(logBelowMaxTurns);
+
+      expect(result.markdown).toContain("**Turns:** 3");
+      expect(result.maxTurnsHit).toBe(false);
+
+      // Clean up
+      delete process.env.GH_AW_MAX_TURNS;
+    });
+
+    it("should not flag max-turns when environment variable is not set", () => {
+      const logWithoutMaxTurnsEnv = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-901",
+          tools: ["Bash"],
+          model: "claude-sonnet-4-20250514",
+        },
+        {
+          type: "result",
+          total_cost_usd: 0.01,
+          usage: { input_tokens: 100, output_tokens: 50 },
+          num_turns: 10,
+        },
+      ]);
+
+      const result = parseClaudeLog(logWithoutMaxTurnsEnv);
+
+      expect(result.markdown).toContain("**Turns:** 10");
+      expect(result.maxTurnsHit).toBe(false);
+    });
   });
 
   describe("main function integration", () => {
@@ -352,6 +438,37 @@ npm warn exec The following package was not found
       expect(mockCore.summary.addRaw).toHaveBeenCalled();
       expect(mockCore.summary.write).toHaveBeenCalled();
       expect(mockCore.setFailed).toHaveBeenCalledWith("MCP server(s) failed to launch: broken_server");
+    });
+
+    it("should call setFailed when max-turns limit is hit", async () => {
+      process.env.GH_AW_MAX_TURNS = "3";
+
+      const logHittingMaxTurns = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "max-turns-test",
+          tools: ["Bash"],
+          model: "claude-sonnet-4-20250514",
+        },
+        {
+          type: "result",
+          total_cost_usd: 0.02,
+          usage: { input_tokens: 200, output_tokens: 100 },
+          num_turns: 3,
+        },
+      ]);
+
+      await runScript(logHittingMaxTurns);
+
+      expect(mockCore.summary.addRaw).toHaveBeenCalled();
+      expect(mockCore.summary.write).toHaveBeenCalled();
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        "Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully."
+      );
+
+      // Clean up
+      delete process.env.GH_AW_MAX_TURNS;
     });
 
     it("should handle missing log file", async () => {

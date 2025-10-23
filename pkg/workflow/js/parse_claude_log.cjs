@@ -22,6 +22,9 @@ function main() {
       const failedServers = result.mcpFailures.join(", ");
       core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
     }
+    if (result.maxTurnsHit) {
+      core.setFailed(`Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.`);
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     core.setFailed(errorMessage);
@@ -31,7 +34,7 @@ function main() {
 /**
  * Parses Claude log content and converts it to markdown format
  * @param {string} logContent - The raw log content as a string
- * @returns {{markdown: string, mcpFailures: string[]}} Result with formatted markdown content and MCP failure list
+ * @returns {{markdown: string, mcpFailures: string[], maxTurnsHit: boolean}} Result with formatted markdown content, MCP failure list, and max-turns status
  */
 function parseClaudeLog(logContent) {
   try {
@@ -89,6 +92,7 @@ function parseClaudeLog(logContent) {
       return {
         markdown: "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
         mcpFailures: [],
+        maxTurnsHit: false,
       };
     }
 
@@ -229,12 +233,23 @@ function parseClaudeLog(logContent) {
       }
     }
 
-    return { markdown, mcpFailures };
+    // Check if max-turns limit was hit
+    let maxTurnsHit = false;
+    const maxTurns = process.env.GH_AW_MAX_TURNS;
+    if (maxTurns && lastEntry && lastEntry.num_turns) {
+      const configuredMaxTurns = parseInt(maxTurns, 10);
+      if (!isNaN(configuredMaxTurns) && lastEntry.num_turns >= configuredMaxTurns) {
+        maxTurnsHit = true;
+      }
+    }
+
+    return { markdown, mcpFailures, maxTurnsHit };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       markdown: `## Agent Log Summary\n\nError parsing Claude log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
       mcpFailures: [],
+      maxTurnsHit: false,
     };
   }
 }
