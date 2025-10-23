@@ -2,7 +2,10 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 // CreateIssuesConfig holds configuration for creating GitHub issues from agent output
@@ -143,6 +146,13 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		var effectiveToken string
 		if hasCopilotAssignee {
 			effectiveToken = getEffectiveCopilotGitHubToken(token, getEffectiveCopilotGitHubToken(safeOutputsToken, data.GitHubToken))
+			
+			// Warn if no custom token is configured for copilot assignees
+			if token == "" && safeOutputsToken == "" && data.GitHubToken == "" {
+				warning := console.FormatWarningMessage("Assigning issues to 'copilot' requires a Personal Access Token (PAT). The default GITHUB_TOKEN does not have permission for this operation. Please configure GH_AW_COPILOT_TOKEN or GH_AW_GITHUB_TOKEN secret, or set the github-token field. See: https://githubnext.github.io/gh-aw/reference/safe-outputs/#assigning-issues-and-pull-requests-to-copilot")
+				fmt.Fprintln(os.Stderr, warning)
+				c.IncrementWarningCount()
+			}
 		} else {
 			effectiveToken = getEffectiveGitHubToken(token, getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken))
 		}
