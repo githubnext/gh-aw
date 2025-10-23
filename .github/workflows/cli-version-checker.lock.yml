@@ -82,6 +82,26 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: |
+          mkdir -p /tmp/gh-aw/cache-memory
+          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
+          echo "This folder provides persistent file storage across workflow runs"
+          echo "LLMs and agentic tools can freely read and write files in this directory"
+      - name: Cache memory file share data
+        uses: actions/cache@v4
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-${{ github.workflow }}-
+            memory-
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -1163,16 +1183,23 @@ jobs:
           
           ## Process
           
+          **EFFICIENCY FIRST**: Before starting:
+          1. Check cache-memory at `/tmp/gh-aw/cache-memory/` for previous version checks and help outputs
+          2. If cached versions exist and are recent (< 24h), verify if updates are needed before proceeding
+          3. If no version changes detected, exit early with success
+          
           For each CLI/MCP server:
-          1. Fetch latest version from NPM registry or GitHub releases
+          1. Fetch latest version from NPM registry or GitHub releases (use npm view commands for package metadata)
           2. Compare with current version in `./pkg/constants/constants.go`
           3. If newer version exists, research changes and prepare update
           
           ### Version Sources
-          - **Claude Code**: `https://registry.npmjs.org/@anthropic-ai/claude-code/latest`
-          - **Copilot CLI**: `https://registry.npmjs.org/@github/copilot/latest`
-          - **Codex**: `https://registry.npmjs.org/@openai/codex/latest`
+          - **Claude Code**: Use `npm view @anthropic-ai/claude-code version` (faster than web-fetch)
+          - **Copilot CLI**: Use `npm view @github/copilot version`
+          - **Codex**: Use `npm view @openai/codex version`
           - **GitHub MCP Server**: `https://api.github.com/repos/github/github-mcp-server/releases/latest`
+          
+          **Optimization**: Fetch all versions in parallel using multiple npm view or WebFetch calls in a single turn.
           
           ### Research & Analysis
           For each update, analyze intermediate versions:
@@ -1182,12 +1209,17 @@ jobs:
           - Assign risk level (Low/Medium/High)
           
           ### Tool Installation & Discovery
+          **CACHE OPTIMIZATION**: 
+          - Before installing, check cache-memory for previous help outputs
+          - Only install and run --help if version has changed
+          - Store help outputs in cache-memory at `/tmp/gh-aw/cache-memory/[tool]-[version]-help.txt`
+          
           For each CLI tool update:
-          1. Install the new version globally:
+          1. Install the new version globally (skip if already installed from cache check):
              - Claude Code: `npm install -g @anthropic-ai/claude-code@<version>`
              - Copilot CLI: `npm install -g @github/copilot@<version>`
              - Codex: `npm install -g @openai/codex@<version>`
-          2. Invoke help to discover commands and flags:
+          2. Invoke help to discover commands and flags (compare with cached output if available):
              - Run `claude-code --help`
              - Run `copilot --help`
              - Run `codex --help`
@@ -1196,6 +1228,7 @@ jobs:
              - New command-line flags or options
              - Deprecated or removed features
              - Changed default behaviors
+          4. Save new help output to cache-memory for future runs
           
           ### Update Process
           1. Edit `./pkg/constants/constants.go` with new version(s)
@@ -1230,12 +1263,19 @@ jobs:
           - Only update stable versions (no pre-releases)
           - Prioritize security updates
           - Document all intermediate versions
+          - **USE NPM COMMANDS**: Use `npm view` instead of web-fetch for package metadata queries
+          - **CHECK CACHE FIRST**: Before re-analyzing versions, check cache-memory for recent results
+          - **PARALLEL FETCHING**: Fetch all versions in parallel using multiple npm/WebFetch calls in one turn
+          - **EARLY EXIT**: If no version changes detected, save check timestamp to cache and exit successfully
           - Install and test CLI tools to discover new features via `--help`
           - Compare help output between old and new versions
+          - **SAVE TO CACHE**: Store help outputs and version check results in cache-memory
           - Test with `make recompile` before creating PR
           - **DO NOT COMMIT** `*.lock.yml` or `pkg/workflow/js/*.js` files directly
           
           ## Error Handling
+          - **SAVE PROGRESS**: Before exiting on errors, save current state to cache-memory
+          - **RESUME ON RESTART**: Check cache-memory on startup to resume from where you left off
           - Retry NPM registry failures once after 30s
           - Continue if individual changelog fetch fails
           - Skip PR creation if recompile fails
@@ -1306,6 +1346,31 @@ jobs:
           
           **Do NOT** attempt to edit files outside these directories as you do not have the necessary permissions.
           
+          PROMPT_EOF
+      - name: Append cache memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          
+          ---
+          
+          ## Cache Folder Available
+          
+          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
+          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
+          - **File Share**: Use this as a simple file share - organize files as you see fit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
+          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
+          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
+          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
@@ -1483,6 +1548,8 @@ jobs:
         # - Bash(ls)
         # - Bash(make *)
         # - Bash(npm install *)
+        # - Bash(npm list *)
+        # - Bash(npm view *)
         # - Bash(pwd)
         # - Bash(sort)
         # - Bash(tail)
@@ -1491,19 +1558,23 @@ jobs:
         # - Bash(yq)
         # - BashOutput
         # - Edit
+        # - Edit(/tmp/gh-aw/cache-memory/*)
         # - ExitPlanMode
         # - Glob
         # - Grep
         # - KillBash
         # - LS
         # - MultiEdit
+        # - MultiEdit(/tmp/gh-aw/cache-memory/*)
         # - NotebookEdit
         # - NotebookRead
         # - Read
+        # - Read(/tmp/gh-aw/cache-memory/*)
         # - Task
         # - TodoWrite
         # - WebFetch
         # - Write
+        # - Write(/tmp/gh-aw/cache-memory/*)
         # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
         # - mcp__github__get_commit
@@ -1562,7 +1633,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(/tmp/gh-aw/jqschema.sh),Bash(cat *),Bash(cat),Bash(claude-code --help),Bash(codex --help),Bash(copilot --help),Bash(date),Bash(echo),Bash(git *),Bash(grep *),Bash(grep),Bash(head),Bash(jq *),Bash(ls *),Bash(ls),Bash(make *),Bash(npm install *),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --max-turns 30 --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(/tmp/gh-aw/jqschema.sh),Bash(cat *),Bash(cat),Bash(claude-code --help),Bash(codex --help),Bash(copilot --help),Bash(date),Bash(echo),Bash(git *),Bash(grep *),Bash(grep),Bash(head),Bash(jq *),Bash(ls *),Bash(ls),Bash(make *),Bash(npm install *),Bash(npm list *),Bash(npm view *),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,WebFetch,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -1575,6 +1646,7 @@ jobs:
           BASH_DEFAULT_TIMEOUT_MS: "60000"
           BASH_MAX_TIMEOUT_MS: "60000"
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_MAX_TURNS: 30
       - name: Clean up network proxy hook files
         if: always()
         run: |
@@ -3641,7 +3713,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          claude --print --max-turns 30 --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -3652,6 +3724,7 @@ jobs:
           MCP_TOOL_TIMEOUT: "60000"
           BASH_DEFAULT_TIMEOUT_MS: "60000"
           BASH_MAX_TIMEOUT_MS: "60000"
+          GH_AW_MAX_TURNS: 30
       - name: Parse threat detection results
         uses: actions/github-script@v8
         with:
