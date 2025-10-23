@@ -38,6 +38,7 @@ This page shows the current status of all agentic workflows in the repository.
 - [![Q](https://github.com/githubnext/gh-aw/actions/workflows/q.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/q.lock.yml)
 - [![Repository Tree Map Generator](https://github.com/githubnext/gh-aw/actions/workflows/repo-tree-map.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/repo-tree-map.lock.yml)
 - [![Resource Summarizer Agent](https://github.com/githubnext/gh-aw/actions/workflows/pdf-summary.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/pdf-summary.lock.yml)
+- [![Schema Consistency Checker](https://github.com/githubnext/gh-aw/actions/workflows/schema-consistency-checker.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/schema-consistency-checker.lock.yml)
 - [![Scout](https://github.com/githubnext/gh-aw/actions/workflows/scout.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/scout.lock.yml)
 - [![Security Fix PR](https://github.com/githubnext/gh-aw/actions/workflows/security-fix-pr.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/security-fix-pr.lock.yml)
 - [![Semantic Function Refactoring](https://github.com/githubnext/gh-aw/actions/workflows/semantic-function-refactor.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/semantic-function-refactor.lock.yml)
