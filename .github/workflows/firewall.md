@@ -5,9 +5,11 @@ on:
 permissions:
   contents: read
 
-engine: claude
+engine: copilot
 
-# Network firewall: Allow only basic infrastructure, NOT example.com
+features:
+  firewall: true
+  
 network: defaults
 
 tools:
