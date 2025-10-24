@@ -20,7 +20,7 @@ func TestStrictModeTimeout(t *testing.T) {
 on: push
 permissions:
   contents: read
-engine: claude
+engine: copilot
 network:
   allowed:
     - "api.example.com"
@@ -36,7 +36,7 @@ on: push
 permissions:
   contents: read
 timeout_minutes: 10
-engine: claude
+engine: copilot
 network:
   allowed:
     - "api.example.com"
@@ -92,7 +92,7 @@ permissions:
   contents: read
   issues: read
 timeout_minutes: 10
-engine: claude
+engine: copilot
 ---
 
 # Test Workflow`,
@@ -105,7 +105,7 @@ on: push
 permissions:
   contents: write
 timeout_minutes: 10
-engine: claude
+engine: copilot
 ---
 
 # Test Workflow`,
@@ -119,7 +119,7 @@ on: push
 permissions:
   issues: write
 timeout_minutes: 10
-engine: claude
+engine: copilot
 ---
 
 # Test Workflow`,
@@ -133,7 +133,7 @@ on: push
 permissions:
   pull-requests: write
 timeout_minutes: 10
-engine: claude
+engine: copilot
 ---
 
 # Test Workflow`,
@@ -145,7 +145,7 @@ engine: claude
 			content: `---
 on: push
 timeout_minutes: 10
-engine: claude
+engine: copilot
 ---
 
 # Test Workflow`,
@@ -157,7 +157,7 @@ engine: claude
 on: push
 permissions: write
 timeout_minutes: 10
-engine: claude
+engine: copilot
 ---
 
 # Test Workflow`,
@@ -170,7 +170,7 @@ engine: claude
 on: push
 permissions: write-all
 timeout_minutes: 10
-engine: claude
+engine: copilot
 ---
 
 # Test Workflow`,
@@ -184,7 +184,7 @@ engine: claude
 on: push
 permissions: read-all
 timeout_minutes: 10
-engine: claude
+engine: copilot
 network:
   allowed:
     - "api.example.com"
@@ -200,7 +200,7 @@ on: push
 permissions:
   contents: write # NOT IN STRICT MODE
 timeout_minutes: 10
-engine: claude
+engine: copilot
 ---
 
 # Test Workflow`,
@@ -253,7 +253,7 @@ on: push
 permissions:
   contents: read
 timeout_minutes: 10
-engine: claude
+engine: copilot
 network: defaults
 ---
 
@@ -267,7 +267,7 @@ on: push
 permissions:
   contents: read
 timeout_minutes: 10
-engine: claude
+engine: copilot
 network:
   allowed:
     - "api.example.com"
@@ -284,7 +284,7 @@ on: push
 permissions:
   contents: read
 timeout_minutes: 10
-engine: claude
+engine: copilot
 network:
   allowed:
     - "*"
@@ -301,7 +301,7 @@ on: push
 permissions:
   contents: read
 timeout_minutes: 10
-engine: claude
+engine: copilot
 network: {}
 ---
 
@@ -354,7 +354,7 @@ on: push
 permissions:
   contents: read
 timeout_minutes: 10
-engine: claude
+engine: copilot
 tools:
   github:
     allowed: [get_issue]
@@ -410,7 +410,7 @@ on: push
 permissions:
   contents: read
 timeout_minutes: 10
-engine: claude
+engine: copilot
 tools:
   bash: ["echo", "ls", "pwd"]
 network:
@@ -428,7 +428,7 @@ on: push
 permissions:
   contents: read
 timeout_minutes: 10
-engine: claude
+engine: copilot
 tools:
   bash:
 network:
@@ -446,7 +446,7 @@ on: push
 permissions:
   contents: read
 timeout_minutes: 10
-engine: claude
+engine: copilot
 tools:
   bash: []
 network:
@@ -464,7 +464,7 @@ on: push
 permissions:
   contents: read
 timeout_minutes: 10
-engine: claude
+engine: copilot
 tools:
   bash: ["*"]
 network:
@@ -483,7 +483,7 @@ on: push
 permissions:
   contents: read
 timeout_minutes: 10
-engine: claude
+engine: copilot
 tools:
   bash: [":*"]
 network:
@@ -502,7 +502,7 @@ on: push
 permissions:
   contents: read
 timeout_minutes: 10
-engine: claude
+engine: copilot
 tools:
   bash: ["echo", "ls", "*", "pwd"]
 network:
@@ -521,7 +521,7 @@ on: push
 permissions:
   contents: read
 timeout_minutes: 10
-engine: claude
+engine: copilot
 tools:
   bash: ["git:*", "npm:*"]
 network:
@@ -576,7 +576,7 @@ on: push
 permissions:
   contents: write
   issues: write
-engine: claude
+engine: copilot
 network:
   allowed:
     - "*"
@@ -618,7 +618,7 @@ on: push
 strict: true
 permissions:
   contents: read
-engine: claude
+engine: copilot
 network:
   allowed:
     - "api.example.com"
@@ -634,7 +634,7 @@ on: push
 strict: false
 permissions:
   contents: write
-engine: claude
+engine: copilot
 ---
 
 # Test Workflow`,
@@ -648,7 +648,7 @@ strict: true
 permissions:
   contents: read
 timeout_minutes: 10
-engine: claude
+engine: copilot
 network:
   allowed:
     - "api.example.com"
@@ -663,7 +663,7 @@ network:
 on: push
 permissions:
   contents: write
-engine: claude
+engine: copilot
 ---
 
 # Test Workflow`,
@@ -708,7 +708,7 @@ on: push
 strict: false
 permissions:
   contents: write
-engine: claude
+engine: copilot
 ---
 
 # Test Workflow`
@@ -750,7 +750,7 @@ on: push
 strict: true
 permissions:
   contents: read
-engine: claude
+engine: copilot
 network:
   allowed:
     - "api.example.com"
@@ -763,7 +763,7 @@ network:
 on: push
 permissions:
   contents: write
-engine: claude
+engine: copilot
 ---
 
 # Non-Strict Workflow`

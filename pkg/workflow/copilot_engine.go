@@ -30,6 +30,7 @@ func NewCopilotEngine() *CopilotEngine {
 			supportsMaxTurns:       false, // Copilot CLI does not support max-turns feature yet
 			supportsWebFetch:       false, // Copilot CLI does not have built-in web-fetch support
 			supportsWebSearch:      false, // Copilot CLI does not have built-in web-search support
+			supportsFirewall:       true,  // Copilot supports network firewalling via AWF
 		},
 	}
 }

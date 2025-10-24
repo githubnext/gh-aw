@@ -585,6 +585,28 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Using experimental engine: %s", agenticEngine.GetDisplayName())))
 		c.IncrementWarningCount()
 	}
+
+	// Save the initial strict mode state again for network support check
+	// (it was restored after validateStrictMode but we need it again)
+	initialStrictModeForNetwork := c.strictMode
+	if !c.strictMode {
+		if strictValue, exists := result.Frontmatter["strict"]; exists {
+			if strictBool, ok := strictValue.(bool); ok && strictBool {
+				c.strictMode = true
+			}
+		}
+	}
+
+	// Check if the engine supports network restrictions when they are defined
+	if err := c.checkNetworkSupport(agenticEngine, networkPermissions); err != nil {
+		// Restore strict mode before returning error
+		c.strictMode = initialStrictModeForNetwork
+		return nil, err
+	}
+
+	// Restore the strict mode state after network check
+	c.strictMode = initialStrictModeForNetwork
+
 	log.Print("Processing tools and includes...")
 
 	// Extract SafeOutputs configuration early so we can use it when applying default tools
