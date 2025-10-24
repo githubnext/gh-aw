@@ -167,3 +167,137 @@ func getGitHubRepoURL(repo string) string {
 	}
 	return "https://github.com/" + repo + ".git"
 }
+
+// TestExtractActionRepo tests the extractActionRepo function
+func TestExtractActionRepo(t *testing.T) {
+	tests := []struct {
+		name     string
+		uses     string
+		expected string
+	}{
+		{
+			name:     "action with version tag",
+			uses:     "actions/checkout@v4",
+			expected: "actions/checkout",
+		},
+		{
+			name:     "action with SHA",
+			uses:     "actions/setup-node@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+			expected: "actions/setup-node",
+		},
+		{
+			name:     "action with subpath and version",
+			uses:     "github/codeql-action/upload-sarif@v3",
+			expected: "github/codeql-action/upload-sarif",
+		},
+		{
+			name:     "action without version",
+			uses:     "actions/checkout",
+			expected: "actions/checkout",
+		},
+		{
+			name:     "action with branch ref",
+			uses:     "actions/setup-python@main",
+			expected: "actions/setup-python",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractActionRepo(tt.uses)
+			if result != tt.expected {
+				t.Errorf("extractActionRepo(%q) = %q, want %q", tt.uses, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestApplyActionPinToStep tests the ApplyActionPinToStep function
+func TestApplyActionPinToStep(t *testing.T) {
+	tests := []struct {
+		name        string
+		stepMap     map[string]any
+		expectPinned bool
+		expectedUses string
+	}{
+		{
+			name: "step with pinned action (checkout)",
+			stepMap: map[string]any{
+				"name": "Checkout code",
+				"uses": "actions/checkout@v4",
+			},
+			expectPinned: true,
+			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+		},
+		{
+			name: "step with pinned action (setup-node)",
+			stepMap: map[string]any{
+				"name": "Setup Node",
+				"uses": "actions/setup-node@v5",
+				"with": map[string]any{
+					"node-version": "20",
+				},
+			},
+			expectPinned: true,
+			expectedUses: "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+		},
+		{
+			name: "step with unpinned action",
+			stepMap: map[string]any{
+				"name": "Custom action",
+				"uses": "my-org/my-action@v1",
+			},
+			expectPinned: false,
+			expectedUses: "my-org/my-action@v1",
+		},
+		{
+			name: "step without uses field",
+			stepMap: map[string]any{
+				"name": "Run command",
+				"run":  "echo hello",
+			},
+			expectPinned: false,
+			expectedUses: "",
+		},
+		{
+			name: "step with already pinned SHA",
+			stepMap: map[string]any{
+				"name": "Checkout",
+				"uses": "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+			},
+			expectPinned: true,
+			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ApplyActionPinToStep(tt.stepMap)
+
+			// Check if uses field exists in result
+			if uses, hasUses := result["uses"]; hasUses {
+				usesStr, ok := uses.(string)
+				if !ok {
+					t.Errorf("ApplyActionPinToStep returned non-string uses field")
+					return
+				}
+
+				if usesStr != tt.expectedUses {
+					t.Errorf("ApplyActionPinToStep uses = %q, want %q", usesStr, tt.expectedUses)
+				}
+
+				// Verify other fields are preserved (check length and keys)
+				if len(result) != len(tt.stepMap) {
+					t.Errorf("ApplyActionPinToStep changed number of fields: got %d, want %d", len(result), len(tt.stepMap))
+				}
+				for k := range tt.stepMap {
+					if _, exists := result[k]; !exists {
+						t.Errorf("ApplyActionPinToStep lost field %q", k)
+					}
+				}
+			} else if tt.expectedUses != "" {
+				t.Errorf("ApplyActionPinToStep removed uses field when it should be %q", tt.expectedUses)
+			}
+		})
+	}
+}
