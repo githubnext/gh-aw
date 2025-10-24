@@ -120,24 +120,7 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 		}
 	}
 
-	// Test execution steps to verify env variables are declared
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/log.txt")
-
-	// Find the execution step
-	var executionStepContent string
-	for _, step := range steps {
-		stepStr := strings.Join(step, "\n")
-		if strings.Contains(stepStr, "Execute GitHub Copilot CLI") {
-			executionStepContent = stepStr
-			break
-		}
-	}
-
-	if executionStepContent == "" {
-		t.Fatal("Execution step not found")
-	}
-
-	// Verify env variables are declared with secret expressions
+	// Verify env variables are declared with secret expressions (already have stepContent from above)
 	expectedEnvChecks := []string{
 		`DD_API_KEY: ${{ secrets.DD_API_KEY }}`,
 		`DD_APPLICATION_KEY: ${{ secrets.DD_APPLICATION_KEY }}`,
@@ -145,8 +128,8 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 	}
 
 	for _, expected := range expectedEnvChecks {
-		if !strings.Contains(executionStepContent, expected) {
-			t.Errorf("Expected env declaration not found: %q\nActual execution step:\n%s", expected, executionStepContent)
+		if !strings.Contains(stepContent, expected) {
+			t.Errorf("Expected env declaration not found: %q\nActual execution step:\n%s", expected, stepContent)
 		}
 	}
 }
