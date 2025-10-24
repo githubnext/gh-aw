@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"strings"
@@ -734,34 +735,17 @@ func TestCopilotEngineRenderMCPConfigWithGitHub(t *testing.T) {
 		},
 	}
 
+	// RenderMCPConfig no longer generates file-writing code for Copilot
+	// Instead, MCP config is passed via --additional-mcp-config argument
+	// Test that RenderMCPConfig does nothing
 	mcpTools := []string{"github"}
 	var yaml strings.Builder
 	engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
 	output := yaml.String()
 
-	// Verify the MCP config structure
-	expectedStrs := []string{
-		"mkdir -p /home/runner/.copilot",
-		`cat > /home/runner/.copilot/mcp-config.json << EOF`,
-		`"mcpServers": {`,
-		`"github": {`,
-		`"type": "local",`,
-		`"command": "docker",`,
-		`"ghcr.io/github/github-mcp-server:custom-version"`,
-		`"GITHUB_PERSONAL_ACCESS_TOKEN",`,
-		`"env": {`,
-		`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
-		`"tools": ["*"]`,
-		"EOF",
-		"-------START MCP CONFIG-----------",
-		"cat /home/runner/.copilot/mcp-config.json",
-		"-------END MCP CONFIG-----------",
-	}
-
-	for _, expected := range expectedStrs {
-		if !strings.Contains(output, expected) {
-			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, output)
-		}
+	// Verify RenderMCPConfig produces no output
+	if output != "" {
+		t.Errorf("Expected RenderMCPConfig to produce no output, but got:\n%s", output)
 	}
 }
 
@@ -775,27 +759,94 @@ func TestCopilotEngineRenderMCPConfigWithGitHubAndPlaywright(t *testing.T) {
 		},
 	}
 
+	// RenderMCPConfig no longer generates file-writing code for Copilot
+	// Instead, MCP config is passed via --additional-mcp-config argument
+	// Test that RenderMCPConfig does nothing
 	mcpTools := []string{"github", "playwright"}
 	var yaml strings.Builder
 	engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
 	output := yaml.String()
 
-	// Verify both tools are configured
+	// Verify RenderMCPConfig produces no output
+	if output != "" {
+		t.Errorf("Expected RenderMCPConfig to produce no output, but got:\n%s", output)
+	}
+}
+
+func TestCopilotEngineAdditionalMCPConfigArgument(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	workflowData := &WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{
+				"allowed": []any{"get_repository"},
+			},
+		},
+		SafeOutputs: nil,
+	}
+
+	// Get execution steps
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	// Find the execution step
+	var executionStepFound bool
+	var stepContent string
+	for _, step := range steps {
+		stepStr := strings.Join(step, "\n")
+		if strings.Contains(stepStr, "Execute GitHub Copilot CLI") {
+			executionStepFound = true
+			stepContent = stepStr
+			break
+		}
+	}
+
+	if !executionStepFound {
+		t.Fatal("Could not find execution step")
+	}
+
+	// Verify --additional-mcp-config argument is present
+	if !strings.Contains(stepContent, "--additional-mcp-config") {
+		t.Errorf("Expected step to contain '--additional-mcp-config', but it didn't.\nStep content:\n%s", stepContent)
+	}
+
+	// Verify the base64-encoded config contains expected JSON structure
+	// Extract the base64 value
+	parts := strings.Split(stepContent, "--additional-mcp-config")
+	if len(parts) < 2 {
+		t.Fatal("Could not find --additional-mcp-config argument")
+	}
+
+	// The base64 value should be the next word after --additional-mcp-config
+	afterFlag := strings.TrimSpace(parts[1])
+	base64Value := strings.Fields(afterFlag)[0]
+
+	// Decode base64
+	decoded, err := base64.StdEncoding.DecodeString(base64Value)
+	if err != nil {
+		t.Fatalf("Failed to decode base64 MCP config: %v", err)
+	}
+
+	decodedStr := string(decoded)
+
+	// Verify JSON structure
 	expectedStrs := []string{
-		`"github": {`,
-		`"type": "local",`,
-		`"command": "docker",`,
-		`"ghcr.io/github/github-mcp-server:v0.19.1"`,
-		`},`, // GitHub should NOT be last (comma after closing brace)
-		`"playwright": {`,
-		`"type": "local",`,
-		`"command": "npx",`,
+		`"mcpServers"`,
+		`"github"`,
+		`"type": "local"`,
+		`"command": "docker"`,
+		`"tools"`,
+		`"get_repository"`,
 	}
 
 	for _, expected := range expectedStrs {
-		if !strings.Contains(output, expected) {
-			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, output)
+		if !strings.Contains(decodedStr, expected) {
+			t.Errorf("Expected decoded MCP config to contain '%s', but it didn't.\nDecoded config:\n%s", expected, decodedStr)
 		}
+	}
+
+	// Verify GH_AW_MCP_CONFIG environment variable is NOT set
+	if strings.Contains(stepContent, "GH_AW_MCP_CONFIG") {
+		t.Errorf("Expected step to NOT contain 'GH_AW_MCP_CONFIG' environment variable, but it did.\nStep content:\n%s", stepContent)
 	}
 }
 

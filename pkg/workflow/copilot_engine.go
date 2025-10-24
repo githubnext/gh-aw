@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/base64"
 	"fmt"
 	"sort"
 	"strings"
@@ -126,6 +127,40 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Add --disable-builtin-mcps to disable built-in MCP servers
 	copilotArgs = append(copilotArgs, "--disable-builtin-mcps")
 
+	// Add --additional-mcp-config with base64-encoded MCP configuration if there are MCP servers
+	if HasMCPServers(workflowData) {
+		// Collect tools that need MCP server configuration
+		var mcpTools []string
+		for toolName, toolValue := range workflowData.Tools {
+			// Standard MCP tools
+			if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
+				mcpTools = append(mcpTools, toolName)
+			} else if mcpConfig, ok := toolValue.(map[string]any); ok {
+				// Check if it's explicitly marked as MCP type in the new format
+				if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
+					mcpTools = append(mcpTools, toolName)
+				}
+			}
+		}
+		
+		// Check if safe-outputs is enabled and add to MCP tools
+		if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+			mcpTools = append(mcpTools, "safe-outputs")
+		}
+		
+		// Sort tools to ensure stable code generation
+		sort.Strings(mcpTools)
+		
+		// Build and encode MCP configuration
+		mcpConfigJSON := e.buildMCPConfigJSON(workflowData.Tools, mcpTools, workflowData)
+		
+		// Base64 encode the JSON
+		mcpConfigBase64 := base64.StdEncoding.EncodeToString([]byte(mcpConfigJSON))
+		
+		// Add the --additional-mcp-config argument
+		copilotArgs = append(copilotArgs, "--additional-mcp-config", mcpConfigBase64)
+	}
+
 	// Add model if specified (check if Copilot CLI supports this)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
 		copilotArgs = append(copilotArgs, "--model", workflowData.EngineConfig.Model)
@@ -235,11 +270,6 @@ COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 	// Always add GH_AW_PROMPT for agentic workflows
 	env["GH_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
 
-	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
-	if HasMCPServers(workflowData) {
-		env["GH_AW_MCP_CONFIG"] = "/home/runner/.copilot/mcp-config.json"
-	}
-
 	if hasGitHubTool(workflowData.Tools) {
 		githubTool := workflowData.Tools["github"]
 		customGitHubToken := getGitHubToken(githubTool)
@@ -347,12 +377,18 @@ func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionS
 }
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	// Create the directory first
-	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
+	// RenderMCPConfig is no longer used for Copilot engine
+	// MCP config is passed via --additional-mcp-config argument instead of file
+	// This method is kept for backward compatibility but does nothing
+}
 
-	// Use shared JSON MCP config renderer with Copilot-specific options
-	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
-		ConfigPath: "/home/runner/.copilot/mcp-config.json",
+// buildMCPConfigJSON builds the MCP configuration JSON string for Copilot CLI
+func (e *CopilotEngine) buildMCPConfigJSON(tools map[string]any, mcpTools []string, workflowData *WorkflowData) string {
+	// Use the existing RenderJSONMCPConfig to build the JSON content
+	var shellBuilder strings.Builder
+
+	RenderJSONMCPConfig(&shellBuilder, tools, mcpTools, workflowData, JSONMCPConfigOptions{
+		ConfigPath: "/dev/null", // Not used for --additional-mcp-config
 		Renderers: MCPToolRenderers{
 			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 				e.renderGitHubCopilotMCPConfig(yaml, githubTool, isLast)
@@ -364,7 +400,7 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 			RenderAgenticWorkflows: e.renderAgenticWorkflowsCopilotMCPConfig,
 			RenderSafeOutputs:      e.renderSafeOutputsCopilotMCPConfig,
 			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
-				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
+				renderMCPFetchServerConfig(yaml, "json", "            ", isLast, true)
 			},
 			RenderCustomMCPConfig: e.renderCopilotMCPConfig,
 		},
@@ -373,18 +409,43 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 			// Cache-memory is handled as a simple file share, not an MCP server
 			return toolName != "cache-memory"
 		},
-		PostEOFCommands: func(yaml *strings.Builder) {
-			// Add debug output
-			yaml.WriteString("          echo \"-------START MCP CONFIG-----------\"\n")
-			yaml.WriteString("          cat /home/runner/.copilot/mcp-config.json\n")
-			yaml.WriteString("          echo \"-------END MCP CONFIG-----------\"\n")
-			yaml.WriteString("          echo \"-------/home/runner/.copilot-----------\"\n")
-			yaml.WriteString("          find /home/runner/.copilot\n")
-		},
+		PostEOFCommands: nil, // No post-EOF commands needed for JSON string
 	})
-	//GITHUB_COPILOT_CLI_MODE
-	yaml.WriteString("          echo \"HOME: $HOME\"\n")
-	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")
+
+	// Extract the JSON content from the shell script
+	shellScript := shellBuilder.String()
+	
+	// Find the JSON content between the heredoc markers
+	// The JSON starts after "cat > /dev/null << EOF\n" and ends before "\nEOF\n"
+	startMarker := "cat > /dev/null << EOF\n"
+	endMarker := "\n          EOF"
+	
+	startIdx := strings.Index(shellScript, startMarker)
+	if startIdx == -1 {
+		return "{}" // Return empty JSON if parsing fails
+	}
+	startIdx += len(startMarker)
+	
+	endIdx := strings.Index(shellScript[startIdx:], endMarker)
+	if endIdx == -1 {
+		return "{}" // Return empty JSON if parsing fails
+	}
+	
+	jsonWithIndent := shellScript[startIdx : startIdx+endIdx]
+	
+	// Remove the 10-space shell script indentation from each line to get clean JSON
+	lines := strings.Split(jsonWithIndent, "\n")
+	var cleanLines []string
+	for _, line := range lines {
+		// Remove exactly 10 spaces of indentation (shell script level)
+		if len(line) >= 10 && line[:10] == "          " {
+			cleanLines = append(cleanLines, line[10:])
+		} else if line == "" {
+			cleanLines = append(cleanLines, line)
+		}
+	}
+	
+	return strings.Join(cleanLines, "\n")
 }
 
 // renderGitHubCopilotMCPConfig generates the GitHub MCP server configuration for Copilot CLI
