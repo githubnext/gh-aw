@@ -473,9 +473,9 @@ func (e *CopilotEngine) buildGitHubMCPServerJSON(githubTool any, workflowData *W
 		if readOnly {
 			server.Headers["X-MCP-Readonly"] = "true"
 		}
-		// Add toolset query parameters if specified
-		if toolsetsStr != "" && toolsetsStr != "default" {
-			server.URL = fmt.Sprintf("%s?toolset=%s", server.URL, toolsetsStr)
+		// Add X-MCP-Toolsets header if toolsets are specified
+		if toolsetsStr != "" {
+			server.Headers["X-MCP-Toolsets"] = toolsetsStr
 		}
 	} else {
 		// Local mode - use Docker

@@ -167,17 +167,21 @@ This workflow tests that MCP server env vars are sorted alphabetically.
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
 
-	// Find the test-server env section in the generated YAML
-	// Look for "test-server" first, then find the env section after it
-	testServerIndex := strings.Index(yamlContent, `"test-server"`)
+	// Find the test_server env section in the generated YAML (using underscore, not hyphen)
+	// For Copilot, the MCP server name is converted to use underscores in the JSON config
+	testServerIndex := strings.Index(yamlContent, `"test_server"`)
 	if testServerIndex == -1 {
-		t.Fatalf("Could not find test-server section in generated YAML")
+		t.Fatalf("Could not find test_server section in generated YAML")
 	}
 
-	// Find env section after test-server
-	envIndex := strings.Index(yamlContent[testServerIndex:], `"env": {`)
+	// Find env section after test_server
+	envIndex := strings.Index(yamlContent[testServerIndex:], `"env":{`)
 	if envIndex == -1 {
-		t.Fatalf("Could not find env section for test-server in generated YAML")
+		// Try with space after colon
+		envIndex = strings.Index(yamlContent[testServerIndex:], `"env": {`)
+		if envIndex == -1 {
+			t.Fatalf("Could not find env section for test_server in generated YAML")
+		}
 	}
 
 	// Adjust envIndex to be relative to the full yamlContent

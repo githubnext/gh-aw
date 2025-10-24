@@ -49,8 +49,9 @@ tools:
 This workflow tests GitHub toolsets as array.
 `,
 			expectedInYAML: []string{
-				`GITHUB_TOOLSETS`,
-				`repos,issues,actions`,
+				// For Copilot, toolsets are inlined in the --toolset arg within MCP config JSON
+				`"--toolset"`,
+				`"repos,issues,actions"`,
 			},
 			notInYAML: []string{},
 		},
@@ -253,7 +254,7 @@ tools:
 
 Copilot remote mode with toolsets.
 `,
-			expectedHeader: `"X-MCP-Toolsets": "actions,discussions"`,
+			expectedHeader: `"X-MCP-Toolsets":"actions,discussions"`, // Inline JSON format (no spaces)
 			engineType:     "copilot",
 		},
 		{
@@ -307,7 +308,7 @@ tools:
 
 Remote mode with toolsets and read-only.
 `,
-			expectedHeader: `"X-MCP-Toolsets": "repos,issues"`,
+			expectedHeader: `"X-MCP-Toolsets":"repos,issues"`, // Inline JSON format (no spaces)
 			engineType:     "copilot",
 		},
 	}
@@ -359,8 +360,16 @@ Remote mode with toolsets and read-only.
 
 			// If read-only is in the test name, also verify X-MCP-Readonly header
 			if strings.Contains(tt.name, "read-only") {
-				if !strings.Contains(yamlStr, `"X-MCP-Readonly": "true"`) {
-					t.Errorf("Expected X-MCP-Readonly header in YAML but didn't find it.\nGenerated YAML:\n%s", yamlStr)
+				// For Copilot, check inline JSON format (no spaces)
+				if tt.engineType == "copilot" {
+					if !strings.Contains(yamlStr, `"X-MCP-Readonly":"true"`) {
+						t.Errorf("Expected X-MCP-Readonly header in inline config but didn't find it.\nGenerated YAML:\n%s", yamlStr)
+					}
+				} else {
+					// For other engines, check file-based JSON format (with spaces)
+					if !strings.Contains(yamlStr, `"X-MCP-Readonly": "true"`) {
+						t.Errorf("Expected X-MCP-Readonly header in YAML but didn't find it.\nGenerated YAML:\n%s", yamlStr)
+					}
 				}
 			}
 		})
