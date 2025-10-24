@@ -83,26 +83,53 @@ func TestAgenticWorkflowsMCPConfigGeneration(t *testing.T) {
 				},
 			}
 
-			// Generate MCP config
-			var yaml strings.Builder
-			mcpTools := []string{"agentic-workflows"}
+			// For Copilot, check the execution steps instead of RenderMCPConfig
+			if e.name == "Copilot" {
+				steps := e.engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+				var result strings.Builder
+				for _, step := range steps {
+					for _, line := range step {
+						result.WriteString(line + "\n")
+					}
+				}
+				resultStr := result.String()
 
-			e.engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
-			result := yaml.String()
+				// Verify the MCP config contains agentic-workflows (with hyphen in JSON key)
+				if !strings.Contains(resultStr, "\"agentic-workflows\"") {
+					t.Errorf("Expected execution steps to contain 'agentic-workflows' in MCP config, got: %s", resultStr)
+				}
 
-			// Verify the MCP config contains agentic-workflows
-			if !strings.Contains(result, "agentic_workflows") {
-				t.Errorf("Expected MCP config to contain 'agentic_workflows', got: %s", result)
-			}
+				// Verify it has the correct command
+				if !strings.Contains(resultStr, "\"command\": \"gh\"") {
+					t.Errorf("Expected execution steps to contain 'gh' command in MCP config, got: %s", resultStr)
+				}
 
-			// Verify it has the correct command
-			if !strings.Contains(result, "gh") {
-				t.Errorf("Expected MCP config to contain 'gh' command, got: %s", result)
-			}
+				// Verify it has the mcp-server argument
+				if !strings.Contains(resultStr, "mcp-server") {
+					t.Errorf("Expected execution steps to contain 'mcp-server' argument in MCP config, got: %s", resultStr)
+				}
+			} else {
+				// For other engines, check RenderMCPConfig
+				var yaml strings.Builder
+				mcpTools := []string{"agentic-workflows"}
 
-			// Verify it has the mcp-server argument
-			if !strings.Contains(result, "mcp-server") {
-				t.Errorf("Expected MCP config to contain 'mcp-server' argument, got: %s", result)
+				e.engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
+				result := yaml.String()
+
+				// Verify the MCP config contains agentic_workflows
+				if !strings.Contains(result, "agentic_workflows") {
+					t.Errorf("Expected MCP config to contain 'agentic_workflows', got: %s", result)
+				}
+
+				// Verify it has the correct command
+				if !strings.Contains(result, "gh") {
+					t.Errorf("Expected MCP config to contain 'gh' command, got: %s", result)
+				}
+
+				// Verify it has the mcp-server argument
+				if !strings.Contains(result, "mcp-server") {
+					t.Errorf("Expected MCP config to contain 'mcp-server' argument, got: %s", result)
+				}
 			}
 		})
 	}
