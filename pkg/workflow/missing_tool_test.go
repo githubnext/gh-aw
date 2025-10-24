@@ -1,8 +1,11 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestMissingToolSafeOutput(t *testing.T) {
@@ -188,8 +191,8 @@ func TestMissingToolPromptGeneration(t *testing.T) {
 	}
 
 	// Check that the important note about safe-outputs tools is included
-	if !strings.Contains(output, "**IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools") {
-		t.Error("Expected important note about safe-outputs tools")
+	if !strings.Contains(output, fmt.Sprintf("**IMPORTANT**: To do the actions mentioned in the header of this section, use the **%s** tools", constants.SafeOutputsMCPServerID)) {
+		t.Error("Expected important note about safeoutputs tools")
 	}
 }
 

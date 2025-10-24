@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -275,7 +276,7 @@ func TestMCPInspectFiltersSafeOutputs(t *testing.T) {
 			// Verify parser includes safe-outputs when present
 			hasSafeOutputs := false
 			for _, config := range configs {
-				if config.Name == "safe-outputs" {
+				if config.Name == constants.SafeOutputsMCPServerID {
 					hasSafeOutputs = true
 					break
 				}
@@ -290,14 +291,14 @@ func TestMCPInspectFiltersSafeOutputs(t *testing.T) {
 			// Test the filtering logic that inspect command uses
 			var filteredConfigs []parser.MCPServerConfig
 			for _, config := range configs {
-				if config.Name != "safe-outputs" {
+				if config.Name != constants.SafeOutputsMCPServerID {
 					filteredConfigs = append(filteredConfigs, config)
 				}
 			}
 
 			// Verify no safe-outputs configurations remain after filtering
 			for _, config := range filteredConfigs {
-				if config.Name == "safe-outputs" {
+				if config.Name == constants.SafeOutputsMCPServerID {
 					t.Errorf("safe-outputs should be filtered out by inspect command but was found")
 				}
 			}
@@ -321,14 +322,14 @@ func TestFilterOutSafeOutputs(t *testing.T) {
 		{
 			name: "only safe-outputs",
 			input: []parser.MCPServerConfig{
-				{Name: "safe-outputs", Type: "stdio"},
+				{Name: constants.SafeOutputsMCPServerID, Type: "stdio"},
 			},
 			expected: []parser.MCPServerConfig{},
 		},
 		{
 			name: "mixed servers",
 			input: []parser.MCPServerConfig{
-				{Name: "safe-outputs", Type: "stdio"},
+				{Name: constants.SafeOutputsMCPServerID, Type: "stdio"},
 				{Name: "github", Type: "docker"},
 				{Name: "playwright", Type: "docker"},
 			},

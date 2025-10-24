@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
@@ -20,7 +21,7 @@ import (
 func filterOutSafeOutputs(configs []parser.MCPServerConfig) []parser.MCPServerConfig {
 	var filteredConfigs []parser.MCPServerConfig
 	for _, config := range configs {
-		if config.Name != "safe-outputs" {
+		if config.Name != constants.SafeOutputsMCPServerID {
 			filteredConfigs = append(filteredConfigs, config)
 		}
 	}
