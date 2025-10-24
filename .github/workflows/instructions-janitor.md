@@ -41,7 +41,6 @@ tools:
     - "git describe --tags --abbrev=0"
 
 timeout_minutes: 15
-strict: true
 
 ---
 

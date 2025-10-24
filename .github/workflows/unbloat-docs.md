@@ -71,7 +71,6 @@ safe-outputs:
 
 # Timeout
 timeout_minutes: 15
-strict: true
 
 # Build steps for documentation
 steps:

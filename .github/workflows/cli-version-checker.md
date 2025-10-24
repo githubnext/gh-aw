@@ -35,7 +35,6 @@ safe-outputs:
     labels: [automation, dependencies]
     assignees: copilot
 timeout_minutes: 15
-strict: true
 ---
 
 # CLI Version Checker
