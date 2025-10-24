@@ -89,7 +89,7 @@ jobs:
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
-      GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
+      GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"notion-add-comment\":{\"description\":\"Add a comment to a Notion page\",\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"}},\"output\":\"Comment added to Notion successfully!\"},\"post-to-slack-channel\":{\"description\":\"Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, \\u003equote, and links \\u003curl|text\\u003e. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set.\",\"inputs\":{\"message\":{\"description\":\"The message to post (max 200 characters, supports Slack markdown)\",\"required\":true,\"type\":\"string\"}},\"output\":\"Message posted to Slack successfully!\"}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
@@ -595,17 +595,17 @@ jobs:
           $SUDO iptables -C DOCKER-USER -s 172.28.160.0/24 -j REJECT 2>/dev/null || $SUDO iptables -A DOCKER-USER -s 172.28.160.0/24 -j REJECT
       - name: Setup Safe Outputs Collector MCP
         run: |
-          mkdir -p /tmp/gh-aw/safe-outputs
-          cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
+          mkdir -p /tmp/gh-aw/safeoutputs
+          cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
           {"create_discussion":{"max":1},"missing_tool":{},"notion-add-comment":{"description":"Add a comment to a Notion page","inputs":{"comment":{"description":"The comment text to add","required":true,"type":"string"}},"output":"Comment added to Notion successfully!"},"post-to-slack-channel":{"description":"Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, \u003equote, and links \u003curl|text\u003e. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set.","inputs":{"message":{"description":"The message to post (max 200 characters, supports Slack markdown)","required":true,"type":"string"}},"output":"Message posted to Slack successfully!"}}
           EOF
-          cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
+          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
             const { execSync } = require("child_process");
             const encoder = new TextEncoder();
-            const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
+            const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
             const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
@@ -624,7 +624,7 @@ jobs:
             const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
-              const defaultConfigPath = "/tmp/gh-aw/safe-outputs/config.json";
+              const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
               debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
               try {
                 if (fs.existsSync(defaultConfigPath)) {
@@ -657,7 +657,7 @@ jobs:
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
-            const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
+            const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
             if (!process.env.GH_AW_SAFE_OUTPUTS) {
               debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
               const outputDir = path.dirname(outputFile);
@@ -764,7 +764,7 @@ jobs:
               }
             }
             function writeLargeContentToFile(content) {
-              const logsDir = "/tmp/gh-aw/safe-outputs";
+              const logsDir = "/tmp/gh-aw/safeoutputs";
               if (!fs.existsSync(logsDir)) {
                 fs.mkdirSync(logsDir, { recursive: true });
               }
@@ -865,7 +865,7 @@ jobs:
               if (!allowedExts.includes(ext)) {
                 throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
               }
-              const assetsDir = "/tmp/gh-aw/safe-outputs/assets";
+              const assetsDir = "/tmp/gh-aw/safeoutputs/assets";
               if (!fs.existsSync(assetsDir)) {
                 fs.mkdirSync(assetsDir, { recursive: true });
               }
@@ -1360,7 +1360,7 @@ jobs:
             process.stdin.resume();
             debug(`listening...`);
           EOF
-          chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
+          chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
       - name: Setup MCPs
         run: |
@@ -1673,11 +1673,11 @@ jobs:
           
           ## Reporting Missing Tools or Functionality
           
-          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
           **Reporting Missing Tools or Functionality**
           
-          To report a missing tool use the missing-tool tool from the safe-outputs MCP.
+          To report a missing tool use the missing-tool tool from safeoutputs.
           
           PROMPT_EOF
       - name: Append GitHub context to prompt
@@ -1868,7 +1868,7 @@ jobs:
         # --allow-tool notion(get_page)
         # --allow-tool notion(query_database)
         # --allow-tool notion(search_pages)
-        # --allow-tool safe_outputs
+        # --allow-tool safeoutputs
         # --allow-tool sentry
         # --allow-tool sentry(analyze_issue_with_seer)
         # --allow-tool sentry(find_dsns)
@@ -1897,7 +1897,7 @@ jobs:
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/cache-memory/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool arxiv --allow-tool 'arxiv(get_paper_details)' --allow-tool 'arxiv(get_paper_pdf)' --allow-tool 'arxiv(search_arxiv)' --allow-tool ast-grep --allow-tool 'ast-grep(*)' --allow-tool brave-search --allow-tool 'brave-search(*)' --allow-tool context7 --allow-tool 'context7(get-library-docs)' --allow-tool 'context7(resolve-library-id)' --allow-tool datadog --allow-tool 'datadog(get_datadog_metric)' --allow-tool 'datadog(search_datadog_dashboards)' --allow-tool 'datadog(search_datadog_metrics)' --allow-tool 'datadog(search_datadog_slos)' --allow-tool deepwiki --allow-tool 'deepwiki(ask_question)' --allow-tool 'deepwiki(read_wiki_contents)' --allow-tool 'deepwiki(read_wiki_structure)' --allow-tool fabric-rti --allow-tool 'fabric-rti(get_eventstream)' --allow-tool 'fabric-rti(get_eventstream_definition)' --allow-tool 'fabric-rti(kusto_get_entities_schema)' --allow-tool 'fabric-rti(kusto_get_function_schema)' --allow-tool 'fabric-rti(kusto_get_shots)' --allow-tool 'fabric-rti(kusto_get_table_schema)' --allow-tool 'fabric-rti(kusto_known_services)' --allow-tool 'fabric-rti(kusto_list_databases)' --allow-tool 'fabric-rti(kusto_list_tables)' --allow-tool 'fabric-rti(kusto_query)' --allow-tool 'fabric-rti(kusto_sample_function_data)' --allow-tool 'fabric-rti(kusto_sample_table_data)' --allow-tool 'fabric-rti(list_eventstreams)' --allow-tool gh-aw --allow-tool github --allow-tool markitdown --allow-tool 'markitdown(*)' --allow-tool memory --allow-tool 'memory(delete_memory)' --allow-tool 'memory(list_memories)' --allow-tool 'memory(retrieve_memory)' --allow-tool 'memory(store_memory)' --allow-tool microsoftdocs --allow-tool 'microsoftdocs(*)' --allow-tool notion --allow-tool 'notion(get_database)' --allow-tool 'notion(get_page)' --allow-tool 'notion(query_database)' --allow-tool 'notion(search_pages)' --allow-tool safe_outputs --allow-tool sentry --allow-tool 'sentry(analyze_issue_with_seer)' --allow-tool 'sentry(find_dsns)' --allow-tool 'sentry(find_organizations)' --allow-tool 'sentry(find_projects)' --allow-tool 'sentry(find_releases)' --allow-tool 'sentry(find_teams)' --allow-tool 'sentry(get_doc)' --allow-tool 'sentry(get_event_attachment)' --allow-tool 'sentry(get_issue_details)' --allow-tool 'sentry(get_trace_details)' --allow-tool 'sentry(search_docs requires SENTRY_OPENAI_API_KEY)' --allow-tool 'sentry(search_events)' --allow-tool 'sentry(search_issues)' --allow-tool 'sentry(whoami)' --allow-tool serena --allow-tool 'serena(*)' --allow-tool tavily --allow-tool 'tavily(*)' --add-dir /tmp/gh-aw/cache-memory/ --additional-mcp-config '{"mcpServers":{"arxiv":{"type":"local","command":"docker","args":["run","--rm","-i","mcp/arxiv-mcp-server"],"tools":["search_arxiv","get_paper_details","get_paper_pdf"]},"ast_grep":{"type":"local","command":"docker","args":["run","--rm","-i","mcp/ast-grep:latest"],"tools":["*"]},"brave_search":{"type":"local","command":"docker","args":["run","--rm","-i","-e","BRAVE_API_KEY","docker.io/mcp/brave-search"],"env":{"BRAVE_API_KEY":"${{ secrets.BRAVE_API_KEY }}"},"tools":["*"]},"context7":{"type":"local","command":"docker","args":["run","--rm","-i","-e","CONTEXT7_API_KEY","mcp/context7"],"env":{"CONTEXT7_API_KEY":"${{ secrets.CONTEXT7_API_KEY }}"},"tools":["get-library-docs","resolve-library-id"]},"datadog":{"type":"http","env":{"DD_API_KEY":"${{ secrets.DD_API_KEY }}","DD_APPLICATION_KEY":"${{ secrets.DD_APPLICATION_KEY }}","DD_SITE":"${{ secrets.DD_SITE || 'datadoghq.com' }}"},"tools":["search_datadog_dashboards","search_datadog_slos","search_datadog_metrics","get_datadog_metric"],"url":"https://mcp.datadoghq.com/api/unstable/mcp-server/mcp","headers":{"DD_API_KEY":"${{ secrets.DD_API_KEY }}","DD_APPLICATION_KEY":"${{ secrets.DD_APPLICATION_KEY }}","DD_SITE":"${{ secrets.DD_SITE || 'datadoghq.com' }}"}},"deepwiki":{"type":"http","tools":["read_wiki_structure","read_wiki_contents","ask_question"],"url":"https://mcp.deepwiki.com/sse"},"fabric_rti":{"type":"local","command":"uvx","args":["microsoft-fabric-rti-mcp"],"env":{"AZURE_CLIENT_ID":"${{ secrets.AZURE_CLIENT_ID }}","AZURE_CLIENT_SECRET":"${{ secrets.AZURE_CLIENT_SECRET }}","AZURE_TENANT_ID":"${{ secrets.AZURE_TENANT_ID }}"},"tools":["kusto_known_services","kusto_query","kusto_list_databases","kusto_list_tables","kusto_get_entities_schema","kusto_get_table_schema","kusto_get_function_schema","kusto_sample_table_data","kusto_sample_function_data","kusto_get_shots","list_eventstreams","get_eventstream","get_eventstream_definition"]},"gh_aw":{"type":"http","tools":["*"],"url":"http://localhost:8765"},"github":{"type":"local","command":"docker","args":["run","-i","--rm","-e","GITHUB_PERSONAL_ACCESS_TOKEN","ghcr.io/github/github-mcp-server:v0.19.1","--read-only"],"env":{"GITHUB_PERSONAL_ACCESS_TOKEN":"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"},"tools":["*"]},"markitdown":{"type":"local","command":"markitdown-mcp","tools":["*"]},"memory":{"type":"local","command":"docker","args":["run","--rm","-i","-v","/tmp/gh-aw/cache-memory:/app/dist","mcp/memory"],"tools":["store_memory","retrieve_memory","list_memories","delete_memory"]},"microsoftdocs":{"type":"http","tools":["*"],"url":"https://learn.microsoft.com/api/mcp"},"notion":{"type":"local","command":"docker","args":["run","--rm","-i","-e","NOTION_API_TOKEN","mcp/notion"],"env":{"NOTION_API_TOKEN":"${{ secrets.NOTION_API_TOKEN }}"},"tools":["search_pages","get_page","get_database","query_database"]},"safe_outputs":{"type":"local","command":"node","args":["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],"env":{"GH_AW_ASSETS_ALLOWED_EXTS":"${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}","GH_AW_ASSETS_BRANCH":"${{ env.GH_AW_ASSETS_BRANCH }}","GH_AW_ASSETS_MAX_SIZE_KB":"${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}","GH_AW_SAFE_OUTPUTS":"${{ env.GH_AW_SAFE_OUTPUTS }}","GH_AW_SAFE_OUTPUTS_CONFIG":"${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}"},"tools":["*"]},"sentry":{"type":"local","command":"npx","args":["@sentry/mcp-server@latest"],"env":{"OPENAI_API_KEY":"${{ secrets.SENTRY_OPENAI_API_KEY }}","SENTRY_ACCESS_TOKEN":"${{ secrets.SENTRY_ACCESS_TOKEN }}","SENTRY_HOST":"${{ env.SENTRY_HOST }}"},"tools":["whoami","find_organizations","find_teams","find_projects","find_releases","get_issue_details","get_trace_details","get_event_attachment","search_events","search_issues","find_dsns","analyze_issue_with_seer","search_docs requires SENTRY_OPENAI_API_KEY","get_doc"]},"serena":{"type":"local","command":"uvx","args":["--from","git+https://github.com/oraios/serena","serena","start-mcp-server","--context","codex","--project","${{ github.workspace }}"],"tools":["*"]},"tavily":{"type":"http","env":{"TAVILY_API_KEY":"${{ secrets.TAVILY_API_KEY }}"},"tools":["*"],"url":"https://mcp.tavily.com/mcp/","headers":{"Authorization":"Bearer ${{ secrets.TAVILY_API_KEY }}"}}}}' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool arxiv --allow-tool 'arxiv(get_paper_details)' --allow-tool 'arxiv(get_paper_pdf)' --allow-tool 'arxiv(search_arxiv)' --allow-tool ast-grep --allow-tool 'ast-grep(*)' --allow-tool brave-search --allow-tool 'brave-search(*)' --allow-tool context7 --allow-tool 'context7(get-library-docs)' --allow-tool 'context7(resolve-library-id)' --allow-tool datadog --allow-tool 'datadog(get_datadog_metric)' --allow-tool 'datadog(search_datadog_dashboards)' --allow-tool 'datadog(search_datadog_metrics)' --allow-tool 'datadog(search_datadog_slos)' --allow-tool deepwiki --allow-tool 'deepwiki(ask_question)' --allow-tool 'deepwiki(read_wiki_contents)' --allow-tool 'deepwiki(read_wiki_structure)' --allow-tool fabric-rti --allow-tool 'fabric-rti(get_eventstream)' --allow-tool 'fabric-rti(get_eventstream_definition)' --allow-tool 'fabric-rti(kusto_get_entities_schema)' --allow-tool 'fabric-rti(kusto_get_function_schema)' --allow-tool 'fabric-rti(kusto_get_shots)' --allow-tool 'fabric-rti(kusto_get_table_schema)' --allow-tool 'fabric-rti(kusto_known_services)' --allow-tool 'fabric-rti(kusto_list_databases)' --allow-tool 'fabric-rti(kusto_list_tables)' --allow-tool 'fabric-rti(kusto_query)' --allow-tool 'fabric-rti(kusto_sample_function_data)' --allow-tool 'fabric-rti(kusto_sample_table_data)' --allow-tool 'fabric-rti(list_eventstreams)' --allow-tool gh-aw --allow-tool github --allow-tool markitdown --allow-tool 'markitdown(*)' --allow-tool memory --allow-tool 'memory(delete_memory)' --allow-tool 'memory(list_memories)' --allow-tool 'memory(retrieve_memory)' --allow-tool 'memory(store_memory)' --allow-tool microsoftdocs --allow-tool 'microsoftdocs(*)' --allow-tool notion --allow-tool 'notion(get_database)' --allow-tool 'notion(get_page)' --allow-tool 'notion(query_database)' --allow-tool 'notion(search_pages)' --allow-tool safeoutputs --allow-tool sentry --allow-tool 'sentry(analyze_issue_with_seer)' --allow-tool 'sentry(find_dsns)' --allow-tool 'sentry(find_organizations)' --allow-tool 'sentry(find_projects)' --allow-tool 'sentry(find_releases)' --allow-tool 'sentry(find_teams)' --allow-tool 'sentry(get_doc)' --allow-tool 'sentry(get_event_attachment)' --allow-tool 'sentry(get_issue_details)' --allow-tool 'sentry(get_trace_details)' --allow-tool 'sentry(search_docs requires SENTRY_OPENAI_API_KEY)' --allow-tool 'sentry(search_events)' --allow-tool 'sentry(search_issues)' --allow-tool 'sentry(whoami)' --allow-tool serena --allow-tool 'serena(*)' --allow-tool tavily --allow-tool 'tavily(*)' --add-dir /tmp/gh-aw/cache-memory/ --additional-mcp-config '{"mcpServers":{"arxiv":{"type":"local","command":"docker","args":["run","--rm","-i","mcp/arxiv-mcp-server"],"tools":["search_arxiv","get_paper_details","get_paper_pdf"]},"ast_grep":{"type":"local","command":"docker","args":["run","--rm","-i","mcp/ast-grep:latest"],"tools":["*"]},"brave_search":{"type":"local","command":"docker","args":["run","--rm","-i","-e","BRAVE_API_KEY","docker.io/mcp/brave-search"],"env":{"BRAVE_API_KEY":"${{ secrets.BRAVE_API_KEY }}"},"tools":["*"]},"context7":{"type":"local","command":"docker","args":["run","--rm","-i","-e","CONTEXT7_API_KEY","mcp/context7"],"env":{"CONTEXT7_API_KEY":"${{ secrets.CONTEXT7_API_KEY }}"},"tools":["get-library-docs","resolve-library-id"]},"datadog":{"type":"http","env":{"DD_API_KEY":"${{ secrets.DD_API_KEY }}","DD_APPLICATION_KEY":"${{ secrets.DD_APPLICATION_KEY }}","DD_SITE":"${{ secrets.DD_SITE || 'datadoghq.com' }}"},"tools":["search_datadog_dashboards","search_datadog_slos","search_datadog_metrics","get_datadog_metric"],"url":"https://mcp.datadoghq.com/api/unstable/mcp-server/mcp","headers":{"DD_API_KEY":"${{ secrets.DD_API_KEY }}","DD_APPLICATION_KEY":"${{ secrets.DD_APPLICATION_KEY }}","DD_SITE":"${{ secrets.DD_SITE || 'datadoghq.com' }}"}},"deepwiki":{"type":"http","tools":["read_wiki_structure","read_wiki_contents","ask_question"],"url":"https://mcp.deepwiki.com/sse"},"fabric_rti":{"type":"local","command":"uvx","args":["microsoft-fabric-rti-mcp"],"env":{"AZURE_CLIENT_ID":"${{ secrets.AZURE_CLIENT_ID }}","AZURE_CLIENT_SECRET":"${{ secrets.AZURE_CLIENT_SECRET }}","AZURE_TENANT_ID":"${{ secrets.AZURE_TENANT_ID }}"},"tools":["kusto_known_services","kusto_query","kusto_list_databases","kusto_list_tables","kusto_get_entities_schema","kusto_get_table_schema","kusto_get_function_schema","kusto_sample_table_data","kusto_sample_function_data","kusto_get_shots","list_eventstreams","get_eventstream","get_eventstream_definition"]},"gh_aw":{"type":"http","tools":["*"],"url":"http://localhost:8765"},"github":{"type":"local","command":"docker","args":["run","-i","--rm","-e","GITHUB_PERSONAL_ACCESS_TOKEN","ghcr.io/github/github-mcp-server:v0.19.1","--read-only"],"env":{"GITHUB_PERSONAL_ACCESS_TOKEN":"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"},"tools":["*"]},"markitdown":{"type":"local","command":"markitdown-mcp","tools":["*"]},"memory":{"type":"local","command":"docker","args":["run","--rm","-i","-v","/tmp/gh-aw/cache-memory:/app/dist","mcp/memory"],"tools":["store_memory","retrieve_memory","list_memories","delete_memory"]},"microsoftdocs":{"type":"http","tools":["*"],"url":"https://learn.microsoft.com/api/mcp"},"notion":{"type":"local","command":"docker","args":["run","--rm","-i","-e","NOTION_API_TOKEN","mcp/notion"],"env":{"NOTION_API_TOKEN":"${{ secrets.NOTION_API_TOKEN }}"},"tools":["search_pages","get_page","get_database","query_database"]},"safe_outputs":{"type":"local","command":"node","args":["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],"env":{"GH_AW_ASSETS_ALLOWED_EXTS":"${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}","GH_AW_ASSETS_BRANCH":"${{ env.GH_AW_ASSETS_BRANCH }}","GH_AW_ASSETS_MAX_SIZE_KB":"${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}","GH_AW_SAFE_OUTPUTS":"${{ env.GH_AW_SAFE_OUTPUTS }}","GH_AW_SAFE_OUTPUTS_CONFIG":"${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}"},"tools":["*"]},"sentry":{"type":"local","command":"npx","args":["@sentry/mcp-server@latest"],"env":{"OPENAI_API_KEY":"${{ secrets.SENTRY_OPENAI_API_KEY }}","SENTRY_ACCESS_TOKEN":"${{ secrets.SENTRY_ACCESS_TOKEN }}","SENTRY_HOST":"${{ env.SENTRY_HOST }}"},"tools":["whoami","find_organizations","find_teams","find_projects","find_releases","get_issue_details","get_trace_details","get_event_attachment","search_events","search_issues","find_dsns","analyze_issue_with_seer","search_docs requires SENTRY_OPENAI_API_KEY","get_doc"]},"serena":{"type":"local","command":"uvx","args":["--from","git+https://github.com/oraios/serena","serena","start-mcp-server","--context","codex","--project","${{ github.workspace }}"],"tools":["*"]},"tavily":{"type":"http","env":{"TAVILY_API_KEY":"${{ secrets.TAVILY_API_KEY }}"},"tools":["*"],"url":"https://mcp.tavily.com/mcp/","headers":{"Authorization":"Bearer ${{ secrets.TAVILY_API_KEY }}"}}}}' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -3703,7 +3703,7 @@ jobs:
               if (!command) return "";
               let formatted = command.replace(/\n/g, " ").replace(/\r/g, " ").replace(/\t/g, " ").replace(/\s+/g, " ").trim();
               formatted = formatted.replace(/`/g, "\\`");
-              const maxLength = 80;
+              const maxLength = 300;
               if (formatted.length > maxLength) {
                 formatted = formatted.substring(0, maxLength) + "...";
               }
@@ -3991,12 +3991,12 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: agent_output.json
-          path: /tmp/gh-aw/safe-outputs/
+          path: /tmp/gh-aw/safeoutputs/
       - name: Setup agent output environment variable
         run: |
-          mkdir -p /tmp/gh-aw/safe-outputs/
-          find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find /tmp/gh-aw/safeoutputs/ -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
       - name: Create Output Discussion
         id: create_discussion
         uses: actions/github-script@v8
@@ -4466,12 +4466,12 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: agent_output.json
-          path: /tmp/gh-aw/safe-outputs/
+          path: /tmp/gh-aw/safeoutputs/
       - name: Setup agent output environment variable
         run: |
-          mkdir -p /tmp/gh-aw/safe-outputs/
-          find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find /tmp/gh-aw/safeoutputs/ -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@v8
