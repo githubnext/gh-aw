@@ -602,7 +602,7 @@ describe("validateErrors with environment variable filtering", () => {
     const logContent = `2025-10-11T21:23:50.7452613Z   debug: false
 2025-10-11T21:23:50.7453024Z   user-agent: actions/github-script
 2025-10-11T21:23:50.7454107Z env:
-2025-10-11T21:23:50.7454400Z   GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
+2025-10-11T21:23:50.7454400Z   GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
 2025-10-11T21:23:50.7459810Z   GH_AW_ERROR_PATTERNS: [{"pattern":"access denied.*only authorized.*can trigger.*workflow","level_group":0,"message_group":0,"description":"Permission denied - workflow access restriction"},{"pattern":"error.*permission.*denied","level_group":0,"message_group":0,"description":"Permission denied error"}]
 2025-10-11T21:23:50.7464005Z ##[endgroup]
 Regular log content here

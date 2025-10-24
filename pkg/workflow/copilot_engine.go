@@ -567,7 +567,7 @@ func (e *CopilotEngine) parseCopilotToolCallsWithSequence(line string, toolCallM
 		} else if strings.Contains(line, "playwright") {
 			toolName = "playwright"
 		} else if strings.Contains(line, "safe") && strings.Contains(line, "output") {
-			toolName = "safe_outputs"
+			toolName = constants.SafeOutputsMCPServerID
 		}
 
 		if toolName != "" {
@@ -648,7 +648,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	// Handle safe_outputs MCP server - allow all tools if safe outputs are enabled
 	// This includes both safeOutputs config and safeOutputs.Jobs
 	if HasSafeOutputsEnabled(safeOutputs) {
-		args = append(args, "--allow-tool", "safe_outputs")
+		args = append(args, "--allow-tool", constants.SafeOutputsMCPServerID)
 	}
 
 	// Built-in tool names that should be skipped when processing MCP servers
