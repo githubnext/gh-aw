@@ -1,5 +1,5 @@
 ---
-name: Changeset Generator Firewall
+name: Changeset Generator
 on:
   pull_request:
     types: [ready_for_review]
