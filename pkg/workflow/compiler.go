@@ -527,6 +527,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to process imports from frontmatter: %w", err)
 	}
 
+	// Merge network permissions from imports with top-level network permissions
+	if importsResult.MergedNetwork != "" {
+		networkPermissions, err = c.MergeNetworkPermissions(networkPermissions, importsResult.MergedNetwork)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge network permissions: %w", err)
+		}
+	}
+
 	// Process @include directives to extract engine configurations and check for conflicts
 	includedEngines, err := parser.ExpandIncludesForEngines(result.Markdown, markdownDir)
 	if err != nil {

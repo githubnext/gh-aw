@@ -80,3 +80,52 @@ func (c *Compiler) MergeMCPServers(topMCPServers map[string]any, importedMCPServ
 
 	return result, nil
 }
+
+// MergeNetworkPermissions merges network permissions from imports with top-level network permissions
+// Combines allowed domains from both sources into a single list
+func (c *Compiler) MergeNetworkPermissions(topNetwork *NetworkPermissions, importedNetworkJSON string) (*NetworkPermissions, error) {
+	// If no imported network config, return top-level network as-is
+	if importedNetworkJSON == "" || importedNetworkJSON == "{}" {
+		return topNetwork, nil
+	}
+
+	// Start with top-level network or create a new one
+	result := &NetworkPermissions{}
+	if topNetwork != nil {
+		result.Mode = topNetwork.Mode
+		result.Allowed = make([]string, len(topNetwork.Allowed))
+		copy(result.Allowed, topNetwork.Allowed)
+	}
+
+	// Track domains to avoid duplicates
+	domainSet := make(map[string]bool)
+	for _, domain := range result.Allowed {
+		domainSet[domain] = true
+	}
+
+	// Split by newlines to handle multiple JSON objects from different imports
+	lines := strings.Split(importedNetworkJSON, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || line == "{}" {
+			continue
+		}
+
+		// Parse JSON line to NetworkPermissions struct
+		var importedNetwork NetworkPermissions
+		if err := json.Unmarshal([]byte(line), &importedNetwork); err != nil {
+			continue // Skip invalid lines
+		}
+
+		// Merge allowed domains from imported network
+		for _, domain := range importedNetwork.Allowed {
+			if !domainSet[domain] {
+				result.Allowed = append(result.Allowed, domain)
+				domainSet[domain] = true
+			}
+		}
+	}
+
+	return result, nil
+}
