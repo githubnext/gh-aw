@@ -11,6 +11,7 @@ permissions:
 engine: claude
 safe-outputs:
   push-to-pull-request-branch:
+    commit-title-prefix: "[skip-ci] "
 timeout_minutes: 10
 strict: true
 imports:
