@@ -127,5 +127,8 @@ func (c *Compiler) MergeNetworkPermissions(topNetwork *NetworkPermissions, impor
 		}
 	}
 
+	// Sort the final domain list for consistent output
+	SortStrings(result.Allowed)
+
 	return result, nil
 }
