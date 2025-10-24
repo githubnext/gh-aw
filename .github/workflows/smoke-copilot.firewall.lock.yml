@@ -60,7 +60,7 @@ jobs:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1,\"min\":1},\"missing_tool\":{}}"
+      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -152,7 +152,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"create_issue":{"max":1,"min":1},"missing_tool":{}}
+          {"create_issue":{"max":1},"missing_tool":{}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1205,7 +1205,7 @@ jobs:
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1,\"min\":1},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
           GH_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -1338,7 +1338,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1,\"min\":1},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
         with:
           script: |
             async function main() {
@@ -3261,7 +3261,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: always()
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_issue'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

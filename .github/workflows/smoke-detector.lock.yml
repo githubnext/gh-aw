@@ -32,6 +32,7 @@ name: "Smoke Detector - Smoke Test Failure Investigator"
     - Smoke Claude
     - Smoke Codex
     - Smoke Copilot
+    - Smoke Copilot Firewall
     - Smoke Genaiscript
     - Smoke Opencode
 
