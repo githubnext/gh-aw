@@ -577,6 +577,303 @@ jobs:
           name: squid-logs-dev-firewall
           path: /tmp/gh-aw/squid-logs-dev-firewall/
           if-no-files-found: ignore
+      - name: Parse firewall logs for step summary
+        if: always()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            function main() {
+
+              const fs = require("fs");
+
+              const path = require("path");
+
+              try {
+
+                const workflowName = process.env.GITHUB_WORKFLOW || "workflow";
+
+                const sanitizedName = sanitizeWorkflowName(workflowName);
+
+                const squidLogsDir = `/tmp/gh-aw/squid-logs-${sanitizedName}/`;
+
+                if (!fs.existsSync(squidLogsDir)) {
+
+                  core.info(`No firewall logs directory found at: ${squidLogsDir}`);
+
+                  return;
+
+                }
+
+                const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
+
+                if (files.length === 0) {
+
+                  core.info(`No firewall log files found in: ${squidLogsDir}`);
+
+                  return;
+
+                }
+
+                core.info(`Found ${files.length} firewall log file(s)`);
+
+                let totalRequests = 0;
+
+                let allowedRequests = 0;
+
+                let deniedRequests = 0;
+
+                const allowedDomains = new Set();
+
+                const deniedDomains = new Set();
+
+                const requestsByDomain = new Map();
+
+                for (const file of files) {
+
+                  const filePath = path.join(squidLogsDir, file);
+
+                  core.info(`Parsing firewall log: ${file}`);
+
+                  const content = fs.readFileSync(filePath, "utf8");
+
+                  const lines = content.split("\n").filter(line => line.trim());
+
+                  for (const line of lines) {
+
+                    const entry = parseFirewallLogLine(line);
+
+                    if (!entry) {
+
+                      continue;
+
+                    }
+
+                    totalRequests++;
+
+                    const isAllowed = isRequestAllowed(entry.decision, entry.status);
+
+                    if (isAllowed) {
+
+                      allowedRequests++;
+
+                      allowedDomains.add(entry.domain);
+
+                    } else {
+
+                      deniedRequests++;
+
+                      deniedDomains.add(entry.domain);
+
+                    }
+
+                    if (!requestsByDomain.has(entry.domain)) {
+
+                      requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
+
+                    }
+
+                    const domainStats = requestsByDomain.get(entry.domain);
+
+                    if (isAllowed) {
+
+                      domainStats.allowed++;
+
+                    } else {
+
+                      domainStats.denied++;
+
+                    }
+
+                  }
+
+                }
+
+                const summary = generateFirewallSummary({
+
+                  totalRequests,
+
+                  allowedRequests,
+
+                  deniedRequests,
+
+                  allowedDomains: Array.from(allowedDomains).sort(),
+
+                  deniedDomains: Array.from(deniedDomains).sort(),
+
+                  requestsByDomain,
+
+                });
+
+                core.summary.addRaw(summary).write();
+
+                core.info("Firewall log summary generated successfully");
+
+              } catch (error) {
+
+                core.setFailed(error instanceof Error ? error : String(error));
+
+              }
+
+            }
+
+            function parseFirewallLogLine(line) {
+
+              const trimmed = line.trim();
+
+              if (!trimmed || trimmed.startsWith("#")) {
+
+                return null;
+
+              }
+
+              const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
+
+              if (!fields || fields.length < 10) {
+
+                return null;
+
+              }
+
+              return {
+
+                timestamp: fields[0],
+
+                clientIpPort: fields[1],
+
+                domain: fields[2],
+
+                destIpPort: fields[3],
+
+                proto: fields[4],
+
+                method: fields[5],
+
+                status: fields[6],
+
+                decision: fields[7],
+
+                url: fields[8],
+
+                userAgent: fields[9] ? fields[9].replace(/^"|"$/g, "") : "-",
+
+              };
+
+            }
+
+            function isRequestAllowed(decision, status) {
+
+              const statusCode = parseInt(status, 10);
+
+              if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
+
+                return true;
+
+              }
+
+              if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
+
+                return true;
+
+              }
+
+              if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
+
+                return false;
+
+              }
+
+              return false;
+
+            }
+
+            function generateFirewallSummary(analysis) {
+
+              const { totalRequests, deniedRequests, deniedDomains, requestsByDomain } = analysis;
+
+              let summary = "# 🔥 Firewall Blocked Requests\n\n";
+
+              if (deniedRequests > 0) {
+
+                summary += `**${deniedRequests}** request${deniedRequests !== 1 ? "s" : ""} blocked across **${deniedDomains.length}** unique domain${deniedDomains.length !== 1 ? "s" : ""}`;
+
+                summary += ` (${totalRequests > 0 ? Math.round((deniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
+
+                summary += "## 🚫 Blocked Domains\n\n";
+
+                summary += "| Domain | Blocked Requests |\n";
+
+                summary += "|--------|------------------|\n";
+
+                for (const domain of deniedDomains) {
+
+                  const stats = requestsByDomain.get(domain);
+
+                  summary += `| ${domain} | ${stats.denied} |\n`;
+
+                }
+
+                summary += "\n";
+
+              } else {
+
+                summary += "✅ **No blocked requests detected**\n\n";
+
+                if (totalRequests > 0) {
+
+                  summary += `All ${totalRequests} request${totalRequests !== 1 ? "s" : ""} were allowed through the firewall.\n\n`;
+
+                } else {
+
+                  summary += "No firewall activity detected.\n\n";
+
+                }
+
+              }
+
+              return summary;
+
+            }
+
+            function sanitizeWorkflowName(name) {
+
+              return name
+
+                .toLowerCase()
+
+                .replace(/[:\\/\s]/g, "-")
+
+                .replace(/[^a-z0-9._-]/g, "-");
+
+            }
+
+            if (typeof module !== "undefined" && module.exports) {
+
+              module.exports = {
+
+                parseFirewallLogLine,
+
+                isRequestAllowed,
+
+                generateFirewallSummary,
+
+                sanitizeWorkflowName,
+
+                main,
+
+              };
+
+            }
+
+            const isDirectExecution =
+
+              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
+
+            if (isDirectExecution) {
+
+              main();
+
+            }
+
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v8
