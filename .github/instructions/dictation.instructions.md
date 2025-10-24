@@ -25,9 +25,12 @@ command
 compile
 concurrency
 copilot
+create-agent-task
+create-code-scanning-alert
 create-discussion
 create-issue
 create-pull-request
+create-pull-request-review-comment
 custom
 defaults
 description
@@ -50,7 +53,7 @@ jobs
 labelops
 labels
 lint
-lock.yml
+lock-yml
 lockfile
 logs
 markdown
@@ -65,13 +68,14 @@ missing-tool
 mode
 model
 network
+npmjs
 on
-openai
 permissions
 playwright
 post-steps
 pull-request
 pull-request-comment
+pull-request-review-comment
 purge
 push-to-pull-request-branch
 pypi
@@ -103,7 +107,6 @@ timeout-minutes
 title-prefix
 toolset
 tools
-trial
 triggers
 update-issue
 verbose
@@ -127,7 +130,7 @@ Replace speech-to-text ambiguities with correct technical terms from the glossar
 - "work flow" → "workflow"
 - "work flows" → "workflows"
 - "front matter" → "frontmatter"
-- "lock file" → "lockfile" or "lock.yml"
+- "lock file" → "lockfile" or "lock-yml"
 - "co-pilot" → "copilot"
 - "safe outputs" → "safe-outputs"
 - "cache memory" → "cache-memory"
