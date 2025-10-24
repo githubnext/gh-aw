@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
@@ -1266,7 +1268,7 @@ func TestFilterIgnoredFields(t *testing.T) {
 			}
 
 			// Check that ignored fields are not present
-			for _, ignoredField := range ignoredFields {
+			for _, ignoredField := range constants.IgnoredFrontmatterFields {
 				if _, ok := result[ignoredField]; ok {
 					t.Errorf("Ignored field %q should not be present in result", ignoredField)
 				}

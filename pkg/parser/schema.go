@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
@@ -26,9 +27,6 @@ var includedFileSchema string
 //go:embed schemas/mcp_config_schema.json
 var mcpConfigSchema string
 
-// ignoredFields are fields that should be silently ignored during frontmatter validation
-var ignoredFields = []string{"description", "applyTo"}
-
 // filterIgnoredFields removes ignored fields from frontmatter without warnings
 func filterIgnoredFields(frontmatter map[string]any) map[string]any {
 	if frontmatter == nil {
@@ -40,7 +38,7 @@ func filterIgnoredFields(frontmatter map[string]any) map[string]any {
 	for key, value := range frontmatter {
 		// Skip ignored fields
 		ignored := false
-		for _, ignoredField := range ignoredFields {
+		for _, ignoredField := range constants.IgnoredFrontmatterFields {
 			if key == ignoredField {
 				ignored = true
 				break
