@@ -570,7 +570,7 @@ jobs:
             sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-dev-firewall/ || true
             sudo chmod -R a+r /tmp/gh-aw/squid-logs-dev-firewall/ || true
           fi
-      - name: Upload Squid logs
+      - name: Upload Firewall Logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
