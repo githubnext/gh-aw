@@ -1717,7 +1717,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --allowed-tools "Bash(cat pkg/**/*.go),Bash(cat),Bash(date),Bash(echo),Bash(find pkg -name '*.go' ! -name '*_test.go' -type f),Bash(find pkg -type f -name '*.go' ! -name '*_test.go'),Bash(grep -r 'func ' pkg --include='*.go'),Bash(grep),Bash(head -n * pkg/**/*.go),Bash(head),Bash(ls -la pkg/),Bash(ls -la pkg/workflow/),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc -l pkg/**/*.go),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__get_file_contents,mcp__github__search_code,mcp__serena" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config "{"mcpServers":{"github":{"command":"docker","args":["run","-i","--rm","-e","GITHUB_PERSONAL_ACCESS_TOKEN","-e","GITHUB_READ_ONLY=1","-e","GITHUB_TOOLSETS=default","ghcr.io/github/github-mcp-server:v0.19.1"],"env":{"GITHUB_PERSONAL_ACCESS_TOKEN":"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"}},"safe_outputs":{"command":"node","args":["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],"env":{"GH_AW_SAFE_OUTPUTS":"${{ env.GH_AW_SAFE_OUTPUTS }}","GH_AW_SAFE_OUTPUTS_CONFIG":${{toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG)}},"GH_AW_ASSETS_BRANCH":"${{ env.GH_AW_ASSETS_BRANCH }}","GH_AW_ASSETS_MAX_SIZE_KB":"${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}","GH_AW_ASSETS_ALLOWED_EXTS":"${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}"}},"serena":{"type":"stdio","command":"uvx","args":["--from","git+https://github.com/oraios/serena","serena","start-mcp-server","--context","codex","--project","${{ github.workspace }}"]}}}" --allowed-tools "Bash(cat pkg/**/*.go),Bash(cat),Bash(date),Bash(echo),Bash(find pkg -name '*.go' ! -name '*_test.go' -type f),Bash(find pkg -type f -name '*.go' ! -name '*_test.go'),Bash(grep -r 'func ' pkg --include='*.go'),Bash(grep),Bash(head -n * pkg/**/*.go),Bash(head),Bash(ls -la pkg/),Bash(ls -la pkg/workflow/),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc -l pkg/**/*.go),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__get_file_contents,mcp__github__search_code,mcp__serena" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -1846,8 +1846,10 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY'
+          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@v4

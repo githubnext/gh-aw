@@ -225,8 +225,8 @@ This is a test workflow with imported MCP server.
 		t.Error("Expected compiled workflow to contain Tavily MCP URL from imported file")
 	}
 
-	// Verify it's configured as an HTTP MCP server
-	if !strings.Contains(workflowData, `"type": "http"`) {
+	// Verify it's configured as an HTTP MCP server (check compacted JSON format)
+	if !strings.Contains(workflowData, `"type":"http"`) {
 		t.Error("Expected tavily to be configured as HTTP MCP server")
 	}
 }

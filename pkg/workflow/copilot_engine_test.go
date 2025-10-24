@@ -735,32 +735,52 @@ func TestCopilotEngineRenderMCPConfigWithGitHub(t *testing.T) {
 	}
 
 	mcpTools := []string{"github"}
-	var yaml strings.Builder
-	engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
-	output := yaml.String()
+	
+	// Build MCP config JSON (the new way)
+	jsonConfig, err := BuildMCPConfigJSON(
+		workflowData.Tools,
+		mcpTools,
+		workflowData,
+		JSONMCPConfigOptions{
+			Renderers: MCPToolRenderers{
+				RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+					engine.renderGitHubCopilotMCPConfig(yaml, githubTool, isLast)
+				},
+				RenderPlaywright:       engine.renderPlaywrightCopilotMCPConfig,
+				RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
+				RenderAgenticWorkflows: engine.renderAgenticWorkflowsCopilotMCPConfig,
+				RenderSafeOutputs:      engine.renderSafeOutputsCopilotMCPConfig,
+				RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
+					renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
+				},
+				RenderCustomMCPConfig: engine.renderCopilotMCPConfig,
+			},
+			FilterTool: func(toolName string) bool {
+				return toolName != "cache-memory"
+			},
+		},
+	)
+	
+	if err != nil {
+		t.Fatalf("BuildMCPConfigJSON failed: %v", err)
+	}
 
-	// Verify the MCP config structure
+	// Verify the MCP config structure (JSON is now compacted)
 	expectedStrs := []string{
-		"mkdir -p /home/runner/.copilot",
-		`cat > /home/runner/.copilot/mcp-config.json << EOF`,
-		`"mcpServers": {`,
-		`"github": {`,
-		`"type": "local",`,
-		`"command": "docker",`,
+		`"mcpServers":{`,
+		`"github":{`,
+		`"type":"local"`,
+		`"command":"docker"`,
 		`"ghcr.io/github/github-mcp-server:custom-version"`,
-		`"GITHUB_PERSONAL_ACCESS_TOKEN",`,
-		`"env": {`,
-		`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
-		`"tools": ["*"]`,
-		"EOF",
-		"-------START MCP CONFIG-----------",
-		"cat /home/runner/.copilot/mcp-config.json",
-		"-------END MCP CONFIG-----------",
+		`"GITHUB_PERSONAL_ACCESS_TOKEN"`,
+		`"env":{`,
+		`"GITHUB_PERSONAL_ACCESS_TOKEN":"\${GITHUB_MCP_SERVER_TOKEN}"`,
+		`"tools":["*"]`,
 	}
 
 	for _, expected := range expectedStrs {
-		if !strings.Contains(output, expected) {
-			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, output)
+		if !strings.Contains(jsonConfig, expected) {
+			t.Errorf("Expected JSON config to contain '%s', but it didn't.\nFull config:\n%s", expected, jsonConfig)
 		}
 	}
 }
@@ -776,25 +796,50 @@ func TestCopilotEngineRenderMCPConfigWithGitHubAndPlaywright(t *testing.T) {
 	}
 
 	mcpTools := []string{"github", "playwright"}
-	var yaml strings.Builder
-	engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
-	output := yaml.String()
+	
+	// Build MCP config JSON (the new way)
+	jsonConfig, err := BuildMCPConfigJSON(
+		workflowData.Tools,
+		mcpTools,
+		workflowData,
+		JSONMCPConfigOptions{
+			Renderers: MCPToolRenderers{
+				RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+					engine.renderGitHubCopilotMCPConfig(yaml, githubTool, isLast)
+				},
+				RenderPlaywright:       engine.renderPlaywrightCopilotMCPConfig,
+				RenderCacheMemory:      func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {},
+				RenderAgenticWorkflows: engine.renderAgenticWorkflowsCopilotMCPConfig,
+				RenderSafeOutputs:      engine.renderSafeOutputsCopilotMCPConfig,
+				RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
+					renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
+				},
+				RenderCustomMCPConfig: engine.renderCopilotMCPConfig,
+			},
+			FilterTool: func(toolName string) bool {
+				return toolName != "cache-memory"
+			},
+		},
+	)
+	
+	if err != nil {
+		t.Fatalf("BuildMCPConfigJSON failed: %v", err)
+	}
 
-	// Verify both tools are configured
+	// Verify both tools are configured (JSON is now compacted, no spaces)
 	expectedStrs := []string{
-		`"github": {`,
-		`"type": "local",`,
-		`"command": "docker",`,
+		`"github":{`,
+		`"type":"local"`,
+		`"command":"docker"`,
 		`"ghcr.io/github/github-mcp-server:v0.19.1"`,
-		`},`, // GitHub should NOT be last (comma after closing brace)
-		`"playwright": {`,
-		`"type": "local",`,
-		`"command": "npx",`,
+		`"playwright":{`,
+		`"command":"npx"`,
+		`"@playwright/mcp@latest"`,
 	}
 
 	for _, expected := range expectedStrs {
-		if !strings.Contains(output, expected) {
-			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, output)
+		if !strings.Contains(jsonConfig, expected) {
+			t.Errorf("Expected JSON config to contain '%s', but it didn't.\nFull config:\n%s", expected, jsonConfig)
 		}
 	}
 }

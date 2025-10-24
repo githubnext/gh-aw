@@ -404,14 +404,19 @@ func TestClaudeEngineWithMCPServers(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// When MCP servers are configured, --mcp-config flag SHOULD be present
-	if !strings.Contains(stepContent, "--mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json") {
+	// When MCP servers are configured, --mcp-config flag SHOULD be present with JSON config
+	if !strings.Contains(stepContent, "--mcp-config") {
 		t.Errorf("Expected --mcp-config in CLI args when MCP servers are configured: %s", stepContent)
 	}
 
-	// When MCP servers are configured, GH_AW_MCP_CONFIG SHOULD be present
-	if !strings.Contains(stepContent, "GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
-		t.Errorf("Expected GH_AW_MCP_CONFIG environment variable when MCP servers are configured: %s", stepContent)
+	// Verify the MCP config contains github server configuration
+	if !strings.Contains(stepContent, `"github"`) {
+		t.Errorf("Expected github MCP server in config: %s", stepContent)
+	}
+
+	// When MCP servers are configured via CLI argument, GH_AW_MCP_CONFIG SHOULD NOT be present
+	if strings.Contains(stepContent, "GH_AW_MCP_CONFIG") {
+		t.Errorf("Did not expect GH_AW_MCP_CONFIG environment variable when using CLI config: %s", stepContent)
 	}
 }
 
@@ -438,13 +443,18 @@ func TestClaudeEngineWithSafeOutputs(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// When safe-outputs is configured, --mcp-config flag SHOULD be present
-	if !strings.Contains(stepContent, "--mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json") {
+	// When safe-outputs is configured, --mcp-config flag SHOULD be present with JSON config
+	if !strings.Contains(stepContent, "--mcp-config") {
 		t.Errorf("Expected --mcp-config in CLI args when safe-outputs are configured: %s", stepContent)
 	}
 
-	// When safe-outputs is configured, GH_AW_MCP_CONFIG SHOULD be present
-	if !strings.Contains(stepContent, "GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
-		t.Errorf("Expected GH_AW_MCP_CONFIG environment variable when safe-outputs are configured: %s", stepContent)
+	// Verify the MCP config contains safe_outputs server configuration
+	if !strings.Contains(stepContent, `"safe_outputs"`) {
+		t.Errorf("Expected safe_outputs MCP server in config: %s", stepContent)
+	}
+
+	// When MCP servers are configured via CLI argument, GH_AW_MCP_CONFIG SHOULD NOT be present
+	if strings.Contains(stepContent, "GH_AW_MCP_CONFIG") {
+		t.Errorf("Did not expect GH_AW_MCP_CONFIG environment variable when using CLI config: %s", stepContent)
 	}
 }
