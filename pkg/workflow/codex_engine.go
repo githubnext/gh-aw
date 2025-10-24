@@ -82,14 +82,6 @@ func (e *CodexEngine) GetVersionCommand() string {
 	return "codex --version"
 }
 
-// GetOIDCConfig returns the OIDC configuration for Codex engine
-func (e *CodexEngine) GetOIDCConfig(workflowData *WorkflowData) *OIDCConfig {
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.OIDC != nil && workflowData.EngineConfig.OIDC.TokenExchangeURL != "" {
-		return workflowData.EngineConfig.OIDC
-	}
-	return nil
-}
-
 // GetTokenEnvVarName returns the environment variable name for Codex's authentication token
 func (e *CodexEngine) GetTokenEnvVarName() string {
 	return "OPENAI_API_KEY"

@@ -12,8 +12,11 @@ import (
 )
 
 // ClaudeEngine represents the Claude Code agentic engine
+// ClaudeEngine represents the Claude Code engine
 type ClaudeEngine struct {
 	BaseEngine
+	// defaultOIDCConfig stores the default OIDC configuration for Claude
+	defaultOIDCConfig *OIDCConfig
 }
 
 func NewClaudeEngine() *ClaudeEngine {
@@ -28,6 +31,11 @@ func NewClaudeEngine() *ClaudeEngine {
 			supportsMaxTurns:       true, // Claude supports max-turns feature
 			supportsWebFetch:       true, // Claude has built-in WebFetch support
 			supportsWebSearch:      true, // Claude has built-in WebSearch support
+		},
+		defaultOIDCConfig: &OIDCConfig{
+			Audience:         "claude-code-github-action",
+			TokenExchangeURL: "https://api.anthropic.com/api/github/github-app-token-exchange",
+			TokenRevokeURL:   "https://api.anthropic.com/api/github/github-app-token-revoke",
 		},
 	}
 }
@@ -86,17 +94,7 @@ func (e *ClaudeEngine) GetVersionCommand() string {
 // GetOIDCConfig returns the OIDC configuration for Claude engine
 // Claude has OIDC enabled by default with Anthropic's token exchange endpoint
 func (e *ClaudeEngine) GetOIDCConfig(workflowData *WorkflowData) *OIDCConfig {
-	// If explicit OIDC config is provided, use it
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.OIDC != nil && workflowData.EngineConfig.OIDC.TokenExchangeURL != "" {
-		return workflowData.EngineConfig.OIDC
-	}
-
-	// Return default OIDC configuration for Claude
-	return &OIDCConfig{
-		Audience:         "claude-code-github-action",
-		TokenExchangeURL: "https://api.anthropic.com/api/github/github-app-token-exchange",
-		TokenRevokeURL:   "https://api.anthropic.com/api/github/github-app-token-revoke",
-	}
+	return e.BaseEngine.GetOIDCConfigWithDefault(workflowData, e.defaultOIDCConfig)
 }
 
 // GetTokenEnvVarName returns the environment variable name for Claude's API key authentication

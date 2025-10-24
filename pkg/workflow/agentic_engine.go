@@ -175,6 +175,18 @@ func (e *BaseEngine) GetOIDCConfig(workflowData *WorkflowData) *OIDCConfig {
 	return nil
 }
 
+// GetOIDCConfigWithDefault returns OIDC config from workflow data or falls back to default
+// This helper method allows engines to provide default OIDC configurations
+func (e *BaseEngine) GetOIDCConfigWithDefault(workflowData *WorkflowData, defaultConfig *OIDCConfig) *OIDCConfig {
+	// If explicit OIDC config is provided, use it
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.OIDC != nil && workflowData.EngineConfig.OIDC.TokenExchangeURL != "" {
+		return workflowData.EngineConfig.OIDC
+	}
+
+	// Return default OIDC configuration
+	return defaultConfig
+}
+
 // GetTokenEnvVarName returns the default API token environment variable name
 // Engines should override this to return engine-specific values
 func (e *BaseEngine) GetTokenEnvVarName() string {

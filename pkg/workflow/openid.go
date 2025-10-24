@@ -95,12 +95,31 @@ func (config *OIDCConfig) GetOIDCAudience(engineID string) string {
 	}
 }
 
+// GetOAuthTokenEnvVar returns the OAuth token environment variable, falling back to engine default
+func (config *OIDCConfig) GetOAuthTokenEnvVar(engine CodingAgentEngine) string {
+	if config.OauthTokenEnvVar != "" {
+		return config.OauthTokenEnvVar
+	}
+	return engine.GetOAuthTokenEnvVarName()
+}
+
+// GetApiTokenEnvVar returns the API token environment variable, falling back to engine default
+func (config *OIDCConfig) GetApiTokenEnvVar(engine CodingAgentEngine) string {
+	if config.ApiTokenEnvVar != "" {
+		return config.ApiTokenEnvVar
+	}
+	return engine.GetTokenEnvVarName()
+}
+
 // GenerateOIDCSetupStep generates a GitHub Actions step to setup OIDC token
 func GenerateOIDCSetupStep(oidcConfig *OIDCConfig, engine CodingAgentEngine) GitHubActionStep {
 	var stepLines []string
 
 	stepLines = append(stepLines, "      - name: Setup OIDC token")
 	stepLines = append(stepLines, "        id: setup_oidc_token")
+	// Only run if the fallback API token secret exists (check for non-empty secret)
+	apiTokenEnvVar := oidcConfig.GetApiTokenEnvVar(engine)
+	stepLines = append(stepLines, fmt.Sprintf("        if: secrets.%s != ''", apiTokenEnvVar))
 	stepLines = append(stepLines, "        uses: actions/github-script@v8")
 	stepLines = append(stepLines, "        env:")
 
@@ -115,17 +134,10 @@ func GenerateOIDCSetupStep(oidcConfig *OIDCConfig, engine CodingAgentEngine) Git
 	}
 
 	// OAuth token environment variable (where OIDC token will be stored)
-	oauthTokenEnvVar := oidcConfig.OauthTokenEnvVar
-	if oauthTokenEnvVar == "" {
-		oauthTokenEnvVar = engine.GetOAuthTokenEnvVarName()
-	}
+	oauthTokenEnvVar := oidcConfig.GetOAuthTokenEnvVar(engine)
 	stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_OAUTH_TOKEN: %s", oauthTokenEnvVar))
 
-	// API token environment variable (fallback)
-	apiTokenEnvVar := oidcConfig.ApiTokenEnvVar
-	if apiTokenEnvVar == "" {
-		apiTokenEnvVar = engine.GetTokenEnvVarName()
-	}
+	// API token environment variable (fallback) - already declared above
 	stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_API_KEY: %s", apiTokenEnvVar))
 	// Add the actual fallback secret if it exists
 	stepLines = append(stepLines, fmt.Sprintf("          %s: ${{ secrets.%s }}", apiTokenEnvVar, apiTokenEnvVar))

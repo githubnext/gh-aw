@@ -15,11 +15,11 @@ func TestOIDCConfigExtraction(t *testing.T) {
 		"engine": map[string]any{
 			"id": "claude",
 			"oidc": map[string]any{
-				"audience":              "test-audience",
-				"token_exchange_url":    "https://api.example.com/token-exchange",
-				"token_revoke_url":      "https://api.example.com/token-revoke",
-				"oauth-token-env-var":   "TEST_OAUTH_TOKEN",
-				"api-token-env-var":     "TEST_API_TOKEN",
+				"audience":            "test-audience",
+				"token_exchange_url":  "https://api.example.com/token-exchange",
+				"token_revoke_url":    "https://api.example.com/token-revoke",
+				"oauth-token-env-var": "TEST_OAUTH_TOKEN",
+				"api-token-env-var":   "TEST_API_TOKEN",
 			},
 		},
 	}
