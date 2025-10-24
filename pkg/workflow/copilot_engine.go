@@ -6,7 +6,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var copilotLog = logger.New("workflow:copilot_engine")
 
 const logsFolder = "/tmp/gh-aw/.copilot/logs/"
 
@@ -32,6 +35,8 @@ func NewCopilotEngine() *CopilotEngine {
 }
 
 func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
+	copilotLog.Printf("Generating installation steps for Copilot engine: workflow=%s", workflowData.Name)
+
 	var steps []GitHubActionStep
 
 	// Add secret validation step
@@ -347,6 +352,8 @@ func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionS
 }
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+	copilotLog.Printf("Rendering MCP config for Copilot engine: mcpTools=%d", len(mcpTools))
+
 	// Create the directory first
 	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
 
