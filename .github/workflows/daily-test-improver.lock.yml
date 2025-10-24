@@ -1743,7 +1743,7 @@ jobs:
                 ],
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\"{\\\"add_comment\\\":{\\\"max\\\":1,\\\"target\\\":\\\"*\\\"},\\\"create_discussion\\\":{\\\"max\\\":1},\\\"create_pull_request\\\":{},\\\"missing_tool\\\":{}}\""
+                  "GH_AW_SAFE_OUTPUTS_CONFIG": "{\"add_comment\":{\"max\":1,\"target\":\"*\"},\"create_discussion\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{}}"
                 },
                 "tools": [
                   "*"

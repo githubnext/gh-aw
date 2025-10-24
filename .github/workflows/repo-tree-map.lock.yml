@@ -1288,7 +1288,7 @@ jobs:
                 ],
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\"{\\\"create_discussion\\\":{\\\"max\\\":1},\\\"missing_tool\\\":{}}\""
+                  "GH_AW_SAFE_OUTPUTS_CONFIG": "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
                 },
                 "tools": [
                   "*"

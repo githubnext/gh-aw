@@ -1690,7 +1690,7 @@ jobs:
                 ],
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\"{\\\"create_pull_request\\\":{},\\\"missing_tool\\\":{},\\\"push_to_pull_request_branch\\\":{}}\""
+                  "GH_AW_SAFE_OUTPUTS_CONFIG": "{\"create_pull_request\":{},\"missing_tool\":{},\"push_to_pull_request_branch\":{}}"
                 },
                 "tools": [
                   "*"

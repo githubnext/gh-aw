@@ -1181,7 +1181,7 @@ jobs:
                 ],
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\"{\\\"notion-add-comment\\\":{\\\"description\\\":\\\"Add a comment to a Notion page\\\",\\\"inputs\\\":{\\\"comment\\\":{\\\"description\\\":\\\"The comment text to add\\\",\\\"required\\\":true,\\\"type\\\":\\\"string\\\"}},\\\"output\\\":\\\"Comment added to Notion successfully!\\\"}}\""
+                  "GH_AW_SAFE_OUTPUTS_CONFIG": "{\"notion-add-comment\":{\"description\":\"Add a comment to a Notion page\",\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"}},\"output\":\"Comment added to Notion successfully!\"}}"
                 },
                 "tools": [
                   "*"
