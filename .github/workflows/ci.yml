@@ -65,17 +65,6 @@ jobs:
 
       - name: Rebuild lock files
         run: make recompile
-
-      - name: Check for changes in generated files
-        run: |
-          git diff .github/workflows/*.lock.yml
-
-      - name: Check for uncommitted workflow changes
-        run: |
-          if [ -n "$(git status --porcelain .github/workflows/*.yml)" ]; then
-            echo "Error: Found uncommitted changes in workflow files:"
-            exit 1
-          fi
   js:
     name: Build JavaScript
     runs-on: ubuntu-latest

@@ -420,6 +420,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       - name: Setup git configuration
         run: "git config user.name \"github-actions[bot]\"\ngit config user.email \"github-actions[bot]@users.noreply.github.com\"\n\n# Create .gitignore to exclude workflow YAML files\ncat > /tmp/merge-gitignore << 'EOF'\n# Exclude all .yml files in .github/workflows/\n.github/workflows/*.yml\nEOF"
+
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -4797,12 +4798,25 @@ jobs:
                   if (commitTitlePrefix) {
                     core.info(`Prepending commit title prefix: "${commitTitlePrefix}"`);
                     let patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                    let normalizedPrefix = commitTitlePrefix;
+                    if (normalizedPrefix.startsWith("[") && normalizedPrefix.includes("]")) {
+                      const bracketContent = normalizedPrefix.match(/^\[([^\]]+)\]/);
+                      if (bracketContent) {
+                        const afterBracket = commitTitlePrefix.substring(commitTitlePrefix.indexOf("]") + 1);
+                        normalizedPrefix = bracketContent[1] + ":";
+                        if (afterBracket) {
+                          normalizedPrefix += afterBracket;
+                        } else {
+                          normalizedPrefix += " ";
+                        }
+                      }
+                    }
                     patchContent = patchContent.replace(
                       /^Subject: (?:\[PATCH\] )?(.*)$/gm,
-                      (match, title) => `Subject: [PATCH] ${commitTitlePrefix}${title}`
+                      (match, title) => `Subject: [PATCH] ${normalizedPrefix}${title}`
                     );
                     fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
-                    core.info("Patch modified with commit title prefix");
+                    core.info(`Patch modified with commit title prefix (normalized to: "${normalizedPrefix}")`);
                   }
                   await exec.exec("git am /tmp/gh-aw/aw.patch");
                   core.info("Patch applied successfully");

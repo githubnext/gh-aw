@@ -484,7 +484,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           cache: npm
           cache-dependency-path: docs/package-lock.json
@@ -497,6 +497,7 @@ jobs:
         name: Build documentation
         run: npm run build
         working-directory: ./docs
+
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent

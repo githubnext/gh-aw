@@ -751,4 +751,190 @@ const exec = global.exec;`
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });
+
+  describe("Commit title prefix", () => {
+    beforeEach(() => {
+      // Add writeFileSync to mockFs
+      mockFs.writeFileSync = vi.fn();
+    });
+
+    it("should normalize bracketed prefix to colon format", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+      process.env.GH_AW_COMMIT_TITLE_PREFIX = "[skip-ci] ";
+
+      mockFs.existsSync.mockReturnValue(true);
+      const originalPatch = `From abc123 Mon Sep 17 00:00:00 2001
+From: Test User <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Add new feature
+
+---
+ file.txt | 1 +
+ 1 file changed, 1 insertion(+)
+`;
+      mockPatchContent(originalPatch);
+
+      // Execute the script
+      await executeScript();
+
+      // Verify that writeFileSync was called with modified patch
+      expect(mockFs.writeFileSync).toHaveBeenCalled();
+      const writtenPatch = mockFs.writeFileSync.mock.calls[0][1];
+
+      // Check that the patch was modified to use skip-ci: instead of [skip-ci]
+      expect(writtenPatch).toContain("Subject: [PATCH] skip-ci: Add new feature");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('normalized to: "skip-ci: "'));
+    });
+
+    it("should preserve prefix without brackets as-is", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+      process.env.GH_AW_COMMIT_TITLE_PREFIX = "chore: ";
+
+      mockFs.existsSync.mockReturnValue(true);
+      const originalPatch = `From abc123 Mon Sep 17 00:00:00 2001
+From: Test User <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Add new feature
+
+---
+ file.txt | 1 +
+ 1 file changed, 1 insertion(+)
+`;
+      mockPatchContent(originalPatch);
+
+      // Execute the script
+      await executeScript();
+
+      // Verify that writeFileSync was called with modified patch
+      expect(mockFs.writeFileSync).toHaveBeenCalled();
+      const writtenPatch = mockFs.writeFileSync.mock.calls[0][1];
+
+      // Check that the patch was modified correctly
+      expect(writtenPatch).toContain("Subject: [PATCH] chore: Add new feature");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('normalized to: "chore: "'));
+    });
+
+    it("should handle prefix with trailing space after brackets", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+      process.env.GH_AW_COMMIT_TITLE_PREFIX = "[bot] ";
+
+      mockFs.existsSync.mockReturnValue(true);
+      const originalPatch = `From abc123 Mon Sep 17 00:00:00 2001
+From: Test User <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Add new feature
+
+---
+ file.txt | 1 +
+ 1 file changed, 1 insertion(+)
+`;
+      mockPatchContent(originalPatch);
+
+      // Execute the script
+      await executeScript();
+
+      // Verify that writeFileSync was called with modified patch
+      expect(mockFs.writeFileSync).toHaveBeenCalled();
+      const writtenPatch = mockFs.writeFileSync.mock.calls[0][1];
+
+      // Check that the patch was modified correctly with normalized prefix
+      expect(writtenPatch).toContain("Subject: [PATCH] bot: Add new feature");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('normalized to: "bot: "'));
+    });
+
+    it("should not modify patch when no commit title prefix is set", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+      delete process.env.GH_AW_COMMIT_TITLE_PREFIX;
+
+      mockFs.existsSync.mockReturnValue(true);
+      const originalPatch = `From abc123 Mon Sep 17 00:00:00 2001
+From: Test User <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Add new feature
+
+---
+ file.txt | 1 +
+ 1 file changed, 1 insertion(+)
+`;
+      mockPatchContent(originalPatch);
+
+      // Execute the script
+      await executeScript();
+
+      // Verify that writeFileSync was NOT called (no modification)
+      expect(mockFs.writeFileSync).not.toHaveBeenCalled();
+    });
+
+    it("should handle patch without [PATCH] prefix in Subject line", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+      process.env.GH_AW_COMMIT_TITLE_PREFIX = "[automated] ";
+
+      mockFs.existsSync.mockReturnValue(true);
+      const originalPatch = `From abc123 Mon Sep 17 00:00:00 2001
+From: Test User <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: Add new feature
+
+---
+ file.txt | 1 +
+ 1 file changed, 1 insertion(+)
+`;
+      mockPatchContent(originalPatch);
+
+      // Execute the script
+      await executeScript();
+
+      // Verify that writeFileSync was called with modified patch
+      expect(mockFs.writeFileSync).toHaveBeenCalled();
+      const writtenPatch = mockFs.writeFileSync.mock.calls[0][1];
+
+      // Check that [PATCH] was added along with the prefix
+      expect(writtenPatch).toContain("Subject: [PATCH] automated: Add new feature");
+    });
+  });
 });
