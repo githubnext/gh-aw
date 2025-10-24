@@ -721,13 +721,14 @@ func (e *CopilotEngine) buildSafeOutputsMCPConfig(workflowData *WorkflowData) ma
 	envVars["GH_AW_SAFE_OUTPUTS"] = "${{ env.GH_AW_SAFE_OUTPUTS }}"
 	
 	safeOutputConfig := generateSafeOutputsConfig(workflowData)
-	envVars["GH_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
+	// Don't quote the config - json.Marshal will handle escaping
+	envVars["GH_AW_SAFE_OUTPUTS_CONFIG"] = safeOutputConfig
 	
 	// Add branch name if upload assets is configured
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UploadAssets != nil {
-		envVars["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", workflowData.SafeOutputs.UploadAssets.BranchName)
+		envVars["GH_AW_ASSETS_BRANCH"] = workflowData.SafeOutputs.UploadAssets.BranchName
 		envVars["GH_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
-		envVars["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ","))
+		envVars["GH_AW_ASSETS_ALLOWED_EXTS"] = strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")
 	}
 	
 	config["env"] = envVars

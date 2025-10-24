@@ -128,12 +128,6 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.19.1
-      - name: Setup MCPs
-        run: |
-          mkdir -p /tmp/gh-aw/mcp-config
-          # MCP configuration will be passed via --additional-mcp-config argument
-          echo "HOME: $HOME"
-          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
