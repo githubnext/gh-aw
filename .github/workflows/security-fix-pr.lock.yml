@@ -1457,39 +1457,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config "{
-  "mcpServers": {
-              "github": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_READ_ONLY=1",
-                  "-e",
-                  "GITHUB_TOOLSETS=context,repos,code_security,pull_requests",
-                  "ghcr.io/github/github-mcp-server:v0.19.1"
-                ],
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-                }
-              },
-              "safe_outputs": {
-                "command": "node",
-                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
-                "env": {
-                  "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }},
-                  "GH_AW_ASSETS_BRANCH": "${{ env.GH_AW_ASSETS_BRANCH }}",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}"
-                }
-              }
-  }
-}" --allowed-tools "Bash,BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__get_code_scanning_alert,mcp__github__get_file_contents,mcp__github__get_pull_request,mcp__github__list_code_scanning_alerts,mcp__github__list_pull_requests" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config "{"mcpServers":{"github":{"command":"docker","args":["run","-i","--rm","-e","GITHUB_PERSONAL_ACCESS_TOKEN","-e","GITHUB_READ_ONLY=1","-e","GITHUB_TOOLSETS=context,repos,code_security,pull_requests","ghcr.io/github/github-mcp-server:v0.19.1"],"env":{"GITHUB_PERSONAL_ACCESS_TOKEN":"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"}},"safe_outputs":{"command":"node","args":["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],"env":{"GH_AW_SAFE_OUTPUTS":"${{ env.GH_AW_SAFE_OUTPUTS }}","GH_AW_SAFE_OUTPUTS_CONFIG":"${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}","GH_AW_ASSETS_BRANCH":"${{ env.GH_AW_ASSETS_BRANCH }}","GH_AW_ASSETS_MAX_SIZE_KB":"${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}","GH_AW_ASSETS_ALLOWED_EXTS":"${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}"}}}}" --allowed-tools "Bash,BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__get_code_scanning_alert,mcp__github__get_file_contents,mcp__github__get_pull_request,mcp__github__list_code_scanning_alerts,mcp__github__list_pull_requests" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
