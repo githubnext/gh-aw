@@ -445,7 +445,7 @@ func TestEngineOutputCleanupWithMixedPaths(t *testing.T) {
 
 	// Generate the engine output collection manually to test the logic
 	yaml.WriteString("      - name: Upload engine output files\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: agent_outputs\n")
 	yaml.WriteString("          path: |\n")
