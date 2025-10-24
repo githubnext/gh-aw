@@ -18,15 +18,16 @@ type CopilotEngine struct {
 func NewCopilotEngine() *CopilotEngine {
 	return &CopilotEngine{
 		BaseEngine: BaseEngine{
-			id:                     "copilot",
-			displayName:            "GitHub Copilot CLI",
-			description:            "Uses GitHub Copilot CLI with MCP server support",
-			experimental:           false,
-			supportsToolsAllowlist: true,
-			supportsHTTPTransport:  true,  // Copilot CLI supports HTTP transport via MCP
-			supportsMaxTurns:       false, // Copilot CLI does not support max-turns feature yet
-			supportsWebFetch:       false, // Copilot CLI does not have built-in web-fetch support
-			supportsWebSearch:      false, // Copilot CLI does not have built-in web-search support
+			id:                      "copilot",
+			displayName:             "GitHub Copilot CLI",
+			description:             "Uses GitHub Copilot CLI with MCP server support",
+			experimental:            false,
+			supportsToolsAllowlist:  true,
+			supportsHTTPTransport:   true,   // Copilot CLI supports HTTP transport via MCP
+			supportsMaxTurns:        false,  // Copilot CLI does not support max-turns feature yet
+			supportsWebFetch:        false,  // Copilot CLI does not have built-in web-fetch support
+			supportsWebSearch:       false,  // Copilot CLI does not have built-in web-search support
+			supportsMCPConfigCLIArg: false,  // Copilot uses file-based MCP config
 		},
 	}
 }

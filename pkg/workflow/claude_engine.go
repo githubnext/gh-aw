@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -19,15 +20,16 @@ type ClaudeEngine struct {
 func NewClaudeEngine() *ClaudeEngine {
 	return &ClaudeEngine{
 		BaseEngine: BaseEngine{
-			id:                     "claude",
-			displayName:            "Claude Code",
-			description:            "Uses Claude Code with full MCP tool support and allow-listing",
-			experimental:           false,
-			supportsToolsAllowlist: true,
-			supportsHTTPTransport:  true, // Claude supports both stdio and HTTP transport
-			supportsMaxTurns:       true, // Claude supports max-turns feature
-			supportsWebFetch:       true, // Claude has built-in WebFetch support
-			supportsWebSearch:      true, // Claude has built-in WebSearch support
+			id:                      "claude",
+			displayName:             "Claude Code",
+			description:             "Uses Claude Code with full MCP tool support and allow-listing",
+			experimental:            false,
+			supportsToolsAllowlist:  true,
+			supportsHTTPTransport:   true,  // Claude supports both stdio and HTTP transport
+			supportsMaxTurns:        true,  // Claude supports max-turns feature
+			supportsWebFetch:        true,  // Claude has built-in WebFetch support
+			supportsWebSearch:       true,  // Claude has built-in WebSearch support
+			supportsMCPConfigCLIArg: true,  // Claude supports --mcp-config CLI argument
 		},
 	}
 }
@@ -106,7 +108,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add MCP configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
-		claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/gh-aw/mcp-config/mcp-servers.json")
+		// Build MCP config JSON string and pass it via --mcp-config CLI argument
+		mcpConfigJSON := e.buildMCPConfigJSON(workflowData)
+		claudeArgs = append(claudeArgs, "--mcp-config", mcpConfigJSON)
 	}
 
 	// Add allowed tools configuration
@@ -201,10 +205,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Always add GH_AW_PROMPT for agentic workflows
 	stepLines = append(stepLines, "          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt")
 
-	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
-	if HasMCPServers(workflowData) {
-		stepLines = append(stepLines, "          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json")
-	}
+	// Note: GH_AW_MCP_CONFIG is no longer needed since we pass MCP config via --mcp-config CLI argument
 
 	// Set timeout environment variables for Claude Code
 	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeoutSeconds
@@ -621,6 +622,59 @@ func (e *ClaudeEngine) generateAllowedToolsComment(allowedToolsStr string, inden
 	}
 
 	return comment.String()
+}
+
+// buildMCPConfigJSON builds the MCP configuration as a minified JSON string for passing to --mcp-config
+func (e *ClaudeEngine) buildMCPConfigJSON(workflowData *WorkflowData) string {
+	// Collect MCP tools from workflow data
+	var mcpTools []string
+	for toolName, toolValue := range workflowData.Tools {
+		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
+			mcpTools = append(mcpTools, toolName)
+		} else if mcpConfig, ok := toolValue.(map[string]any); ok {
+			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
+				mcpTools = append(mcpTools, toolName)
+			}
+		}
+	}
+
+	// Add safe-outputs if enabled
+	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+		mcpTools = append(mcpTools, "safe-outputs")
+	}
+
+	// Sort for consistent output
+	sort.Strings(mcpTools)
+
+	// Build JSON string using BuildJSONMCPConfigString
+	jsonStr := BuildJSONMCPConfigString(
+		workflowData.Tools,
+		mcpTools,
+		workflowData,
+		JSONMCPConfigOptions{
+			Renderers: MCPToolRenderers{
+				RenderGitHub:           e.renderGitHubClaudeMCPConfig,
+				RenderPlaywright:       e.renderPlaywrightMCPConfig,
+				RenderCacheMemory:      e.renderCacheMemoryMCPConfig,
+				RenderAgenticWorkflows: e.renderAgenticWorkflowsMCPConfig,
+				RenderSafeOutputs:      e.renderSafeOutputsMCPConfig,
+				RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
+					renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
+				},
+				RenderCustomMCPConfig: e.renderClaudeMCPConfig,
+			},
+		},
+	)
+
+	// Minify JSON using json.Compact for safe embedding in command line
+	var compactBuf bytes.Buffer
+	if err := json.Compact(&compactBuf, []byte(jsonStr)); err != nil {
+		// If compacting fails, return the original string
+		// This should not happen with valid JSON
+		return jsonStr
+	}
+
+	return compactBuf.String()
 }
 
 func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {

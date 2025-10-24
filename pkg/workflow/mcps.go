@@ -179,11 +179,15 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("          \n")
 	}
 
-	// Use the engine's RenderMCPConfig method
-	yaml.WriteString("      - name: Setup MCPs\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
-	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
+	// Use the engine's RenderMCPConfig method only if the engine doesn't support CLI argument
+	// For engines that support CLI argument (like Claude), the configuration will be passed
+	// directly to the CLI command instead of being written to a file
+	if !engine.SupportsMCPConfigCLIArg() {
+		yaml.WriteString("      - name: Setup MCPs\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
+		engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
+	}
 }
 
 func getGitHubDockerImageVersion(githubTool any) string {

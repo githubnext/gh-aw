@@ -41,6 +41,9 @@ type CodingAgentEngine interface {
 	// SupportsWebSearch returns true if this engine has built-in support for the web-search tool
 	SupportsWebSearch() bool
 
+	// SupportsMCPConfigCLIArg returns true if this engine supports passing MCP config as CLI argument
+	SupportsMCPConfigCLIArg() bool
+
 	// GetDeclaredOutputFiles returns a list of output files that this engine may produce
 	// These files will be automatically uploaded as artifacts if they exist
 	GetDeclaredOutputFiles() []string
@@ -93,15 +96,16 @@ type ErrorPattern struct {
 
 // BaseEngine provides common functionality for agentic engines
 type BaseEngine struct {
-	id                     string
-	displayName            string
-	description            string
-	experimental           bool
-	supportsToolsAllowlist bool
-	supportsHTTPTransport  bool
-	supportsMaxTurns       bool
-	supportsWebFetch       bool
-	supportsWebSearch      bool
+	id                       string
+	displayName              string
+	description              string
+	experimental             bool
+	supportsToolsAllowlist   bool
+	supportsHTTPTransport    bool
+	supportsMaxTurns         bool
+	supportsWebFetch         bool
+	supportsWebSearch        bool
+	supportsMCPConfigCLIArg  bool
 }
 
 func (e *BaseEngine) GetID() string {
@@ -138,6 +142,10 @@ func (e *BaseEngine) SupportsWebFetch() bool {
 
 func (e *BaseEngine) SupportsWebSearch() bool {
 	return e.supportsWebSearch
+}
+
+func (e *BaseEngine) SupportsMCPConfigCLIArg() bool {
+	return e.supportsMCPConfigCLIArg
 }
 
 // GetDeclaredOutputFiles returns an empty list by default (engines can override)

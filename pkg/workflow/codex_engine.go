@@ -42,15 +42,16 @@ type CodexEngine struct {
 func NewCodexEngine() *CodexEngine {
 	return &CodexEngine{
 		BaseEngine: BaseEngine{
-			id:                     "codex",
-			displayName:            "Codex",
-			description:            "Uses OpenAI Codex CLI with MCP server support",
-			experimental:           true,
-			supportsToolsAllowlist: true,
-			supportsHTTPTransport:  true,  // Codex now supports HTTP transport for remote MCP servers
-			supportsMaxTurns:       false, // Codex does not support max-turns feature
-			supportsWebFetch:       false, // Codex does not have built-in web-fetch support
-			supportsWebSearch:      true,  // Codex has built-in web-search support
+			id:                      "codex",
+			displayName:             "Codex",
+			description:             "Uses OpenAI Codex CLI with MCP server support",
+			experimental:            true,
+			supportsToolsAllowlist:  true,
+			supportsHTTPTransport:   true,   // Codex now supports HTTP transport for remote MCP servers
+			supportsMaxTurns:        false,  // Codex does not support max-turns feature
+			supportsWebFetch:        false,  // Codex does not have built-in web-fetch support
+			supportsWebSearch:       true,   // Codex has built-in web-search support
+			supportsMCPConfigCLIArg: false,  // Codex uses TOML config file, not CLI argument
 		},
 	}
 }

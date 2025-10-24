@@ -1021,54 +1021,6 @@ jobs:
           EOF
           chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
           
-      - name: Setup MCPs
-        run: |
-          mkdir -p /tmp/gh-aw/mcp-config
-          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
-          {
-            "mcpServers": {
-              "github": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_READ_ONLY=1",
-                  "-e",
-                  "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.19.1"
-                ],
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-                }
-              },
-              "playwright": {
-                "command": "npx",
-                "args": [
-                  "@playwright/mcp@latest",
-                  "--output-dir",
-                  "/tmp/gh-aw/mcp-logs/playwright",
-                  "--allowed-origins",
-                  "localhost;localhost:*;127.0.0.1;127.0.0.1:*;githubnext.com;www.githubnext.com"
-                ]
-              },
-              "safe_outputs": {
-                "command": "node",
-                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
-                "env": {
-                  "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }},
-                  "GH_AW_ASSETS_BRANCH": "${{ env.GH_AW_ASSETS_BRANCH }}",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}"
-                }
-              }
-            }
-          }
-          EOF
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1697,14 +1649,55 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat *),Bash(cat),Bash(date *),Bash(date),Bash(echo *),Bash(echo),Bash(gh aw compile *),Bash(grep),Bash(head),Bash(ls *),Bash(ls),Bash(mktemp *),Bash(pwd),Bash(rm *),Bash(sort),Bash(tail),Bash(test *),Bash(uniq),Bash(wc),Bash(yq),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config "{
+  "mcpServers": {
+              "github": {
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-e",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "-e",
+                  "GITHUB_READ_ONLY=1",
+                  "-e",
+                  "GITHUB_TOOLSETS=default",
+                  "ghcr.io/github/github-mcp-server:v0.19.1"
+                ],
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+                }
+              },
+              "playwright": {
+                "command": "npx",
+                "args": [
+                  "@playwright/mcp@latest",
+                  "--output-dir",
+                  "/tmp/gh-aw/mcp-logs/playwright",
+                  "--allowed-origins",
+                  "localhost;localhost:*;127.0.0.1;127.0.0.1:*;githubnext.com;www.githubnext.com"
+                ]
+              },
+              "safe_outputs": {
+                "command": "node",
+                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
+                "env": {
+                  "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }},
+                  "GH_AW_ASSETS_BRANCH": "${{ env.GH_AW_ASSETS_BRANCH }}",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}",
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}"
+                }
+              }
+  }
+}" --allowed-tools "Bash(cat *),Bash(cat),Bash(date *),Bash(date),Bash(echo *),Bash(echo),Bash(gh aw compile *),Bash(grep),Bash(head),Bash(ls *),Bash(ls),Bash(mktemp *),Bash(pwd),Bash(rm *),Bash(sort),Bash(tail),Bash(test *),Bash(uniq),Bash(wc),Bash(yq),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           MCP_TIMEOUT: "120000"
           MCP_TOOL_TIMEOUT: "60000"
           BASH_DEFAULT_TIMEOUT_MS: "60000"

@@ -370,3 +370,71 @@ func RenderJSONMCPConfig(
 		options.PostEOFCommands(yaml)
 	}
 }
+
+// BuildJSONMCPConfigString builds the JSON MCP configuration as a string without file I/O.
+// This is useful for passing MCP configuration directly to CLI tools via arguments.
+//
+// Parameters:
+//   - tools: Map of tool configurations
+//   - mcpTools: Ordered list of MCP tool names to render
+//   - workflowData: Workflow configuration data
+//   - options: JSON MCP config rendering options (ConfigPath is ignored for this function)
+//
+// Returns:
+//   - string: The JSON MCP configuration as a string
+func BuildJSONMCPConfigString(
+	tools map[string]any,
+	mcpTools []string,
+	workflowData *WorkflowData,
+	options JSONMCPConfigOptions,
+) string {
+	var jsonBuilder strings.Builder
+
+	// Build JSON structure
+	jsonBuilder.WriteString("{\n")
+	jsonBuilder.WriteString("  \"mcpServers\": {\n")
+
+	// Filter tools if needed (e.g., Copilot filters out cache-memory)
+	var filteredTools []string
+	for _, toolName := range mcpTools {
+		if options.FilterTool != nil && !options.FilterTool(toolName) {
+			continue
+		}
+		filteredTools = append(filteredTools, toolName)
+	}
+
+	// Process each MCP tool
+	totalServers := len(filteredTools)
+	serverCount := 0
+
+	for _, toolName := range filteredTools {
+		serverCount++
+		isLast := serverCount == totalServers
+
+		switch toolName {
+		case "github":
+			githubTool := tools["github"]
+			options.Renderers.RenderGitHub(&jsonBuilder, githubTool, isLast, workflowData)
+		case "playwright":
+			playwrightTool := tools["playwright"]
+			options.Renderers.RenderPlaywright(&jsonBuilder, playwrightTool, isLast)
+		case "cache-memory":
+			options.Renderers.RenderCacheMemory(&jsonBuilder, isLast, workflowData)
+		case "agentic-workflows":
+			options.Renderers.RenderAgenticWorkflows(&jsonBuilder, isLast)
+		case "safe-outputs":
+			options.Renderers.RenderSafeOutputs(&jsonBuilder, isLast)
+		case "web-fetch":
+			options.Renderers.RenderWebFetch(&jsonBuilder, isLast)
+		default:
+			// Handle custom MCP tools using shared helper
+			HandleCustomMCPToolInSwitch(&jsonBuilder, toolName, tools, isLast, options.Renderers.RenderCustomMCPConfig)
+		}
+	}
+
+	// Close JSON structure
+	jsonBuilder.WriteString("  }\n")
+	jsonBuilder.WriteString("}")
+
+	return jsonBuilder.String()
+}

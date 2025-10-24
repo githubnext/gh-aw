@@ -404,14 +404,19 @@ func TestClaudeEngineWithMCPServers(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// When MCP servers are configured, --mcp-config flag SHOULD be present
-	if !strings.Contains(stepContent, "--mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json") {
+	// When MCP servers are configured, --mcp-config flag SHOULD be present with JSON string
+	if !strings.Contains(stepContent, "--mcp-config") {
 		t.Errorf("Expected --mcp-config in CLI args when MCP servers are configured: %s", stepContent)
 	}
 
-	// When MCP servers are configured, GH_AW_MCP_CONFIG SHOULD be present
-	if !strings.Contains(stepContent, "GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
-		t.Errorf("Expected GH_AW_MCP_CONFIG environment variable when MCP servers are configured: %s", stepContent)
+	// The MCP config should be passed as a JSON string containing "mcpServers"
+	if !strings.Contains(stepContent, "mcpServers") {
+		t.Errorf("Expected JSON MCP config in CLI args when MCP servers are configured: %s", stepContent)
+	}
+
+	// GH_AW_MCP_CONFIG environment variable should NOT be present (we're using CLI arg now)
+	if strings.Contains(stepContent, "GH_AW_MCP_CONFIG:") {
+		t.Errorf("Did not expect GH_AW_MCP_CONFIG environment variable (using CLI arg instead): %s", stepContent)
 	}
 }
 
@@ -438,13 +443,18 @@ func TestClaudeEngineWithSafeOutputs(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// When safe-outputs is configured, --mcp-config flag SHOULD be present
-	if !strings.Contains(stepContent, "--mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json") {
+	// When safe-outputs is configured, --mcp-config flag SHOULD be present with JSON string
+	if !strings.Contains(stepContent, "--mcp-config") {
 		t.Errorf("Expected --mcp-config in CLI args when safe-outputs are configured: %s", stepContent)
 	}
 
-	// When safe-outputs is configured, GH_AW_MCP_CONFIG SHOULD be present
-	if !strings.Contains(stepContent, "GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
-		t.Errorf("Expected GH_AW_MCP_CONFIG environment variable when safe-outputs are configured: %s", stepContent)
+	// The MCP config should be passed as a JSON string containing "mcpServers"
+	if !strings.Contains(stepContent, "mcpServers") {
+		t.Errorf("Expected JSON MCP config in CLI args when safe-outputs are configured: %s", stepContent)
+	}
+
+	// GH_AW_MCP_CONFIG environment variable should NOT be present (we're using CLI arg now)
+	if strings.Contains(stepContent, "GH_AW_MCP_CONFIG:") {
+		t.Errorf("Did not expect GH_AW_MCP_CONFIG environment variable (using CLI arg instead): %s", stepContent)
 	}
 }
