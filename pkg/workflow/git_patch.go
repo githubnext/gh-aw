@@ -16,7 +16,7 @@ func (c *Compiler) generateGitPatchStep(yaml *strings.Builder) {
 	WriteShellScriptToYAML(yaml, generateGitPatchScript, "          ")
 	yaml.WriteString("      - name: Upload git patch\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact", "v4")))
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: aw.patch\n")
 	yaml.WriteString("          path: /tmp/gh-aw/aw.patch\n")

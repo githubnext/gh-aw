@@ -113,9 +113,9 @@ Create issues based on input.
 
 	// Test specific actions that should be pinned
 	expectedActions := map[string]string{
-		"actions/checkout":        GetActionPin("actions/checkout", "v5"),
-		"actions/github-script":   GetActionPin("actions/github-script", "v8"),
-		"actions/upload-artifact": GetActionPin("actions/upload-artifact", "v4"),
+		"actions/checkout":        GetActionPin("actions/checkout"),
+		"actions/github-script":   GetActionPin("actions/github-script"),
+		"actions/upload-artifact": GetActionPin("actions/upload-artifact"),
 	}
 
 	for actionRepo, expectedRef := range expectedActions {

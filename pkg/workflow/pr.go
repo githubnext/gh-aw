@@ -78,7 +78,7 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 	RenderConditionAsIf(yaml, condition, "          ")
 
 	// Use actions/github-script instead of shell script
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", "v8")))
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 

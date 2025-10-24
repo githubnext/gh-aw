@@ -352,7 +352,7 @@ func generateSetupStep(runtime *Runtime, version string) GitHubActionStep {
 	}
 
 	// Use SHA-pinned action reference for security
-	actionRef := GetActionPin(runtime.ActionRepo, runtime.ActionVersion)
+	actionRef := GetActionPin(runtime.ActionRepo)
 
 	step := GitHubActionStep{
 		fmt.Sprintf("      - name: Setup %s", runtime.Name),
