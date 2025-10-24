@@ -143,9 +143,9 @@ func TestClaudeEngineWithOIDC(t *testing.T) {
 		t.Error("Expected OIDC setup step to use actions/github-script@v8")
 	}
 
-	// Verify revoke step has if: always()
-	if !strings.Contains(stepsStr, "if: always()") {
-		t.Error("Expected OIDC revoke step to have 'if: always()' condition")
+	// Verify revoke step has refined always condition
+	if !strings.Contains(stepsStr, "if: always() && steps.setup_oidc_token.outputs.token != ''") {
+		t.Error("Expected OIDC revoke step to have 'if: always() && steps.setup_oidc_token.outputs.token != ''' condition")
 	}
 }
 
