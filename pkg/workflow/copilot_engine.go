@@ -393,7 +393,7 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	// For Copilot engine, MCP config is now passed via --additional-mcp-config flag
 	// instead of creating a config file. This method is kept for compatibility but does nothing.
 	// The actual MCP config is built in GetExecutionSteps via buildMCPConfigJSON
-	
+
 	copilotLog.Printf("Copilot engine uses --additional-mcp-config flag, skipping file-based config generation")
 }
 
@@ -616,7 +616,7 @@ func (e *CopilotEngine) buildCustomMCPServerJSON(toolName string, toolConfig map
 	case "stdio":
 		server.Command = mcpConfig.Command
 		server.Args = mcpConfig.Args
-		
+
 		// Build env map with inlined secrets
 		if len(mcpConfig.Env) > 0 || len(headerSecrets) > 0 {
 			server.Env = make(map[string]string)
@@ -627,7 +627,7 @@ func (e *CopilotEngine) buildCustomMCPServerJSON(toolName string, toolConfig map
 
 	case "http":
 		server.URL = mcpConfig.URL
-		
+
 		// Build headers with inlined secrets
 		if len(mcpConfig.Headers) > 0 {
 			server.Headers = make(map[string]string)
@@ -636,7 +636,7 @@ func (e *CopilotEngine) buildCustomMCPServerJSON(toolName string, toolConfig map
 				server.Headers[k] = v
 			}
 		}
-		
+
 		// Add env for passthrough (not needed for inline config, but keep for consistency)
 		if len(headerSecrets) > 0 {
 			if server.Env == nil {
@@ -658,94 +658,6 @@ func (e *CopilotEngine) buildCustomMCPServerJSON(toolName string, toolConfig map
 	}
 
 	return server, nil
-}
-
-
-// renderGitHubCopilotMCPConfig generates the GitHub MCP server configuration for Copilot CLI
-// Supports both local (Docker) and remote (hosted) modes
-func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
-	githubType := getGitHubType(githubTool)
-	readOnly := getGitHubReadOnly(githubTool)
-	toolsets := getGitHubToolsets(githubTool)
-	allowedTools := getGitHubAllowedTools(githubTool)
-
-	yaml.WriteString("              \"github\": {\n")
-
-	// Check if remote mode is enabled (type: remote)
-	if githubType == "remote" {
-		// Render remote configuration using shared helper
-		RenderGitHubMCPRemoteConfig(yaml, GitHubMCPRemoteOptions{
-			ReadOnly:           readOnly,
-			Toolsets:           toolsets,
-			AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
-			IncludeToolsField:  true, // Copilot uses tools field
-			AllowedTools:       allowedTools,
-			IncludeEnvSection:  true, // Copilot uses env section for passthrough
-		})
-	} else {
-		// Local mode - use Docker-based GitHub MCP server (default)
-		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
-		customArgs := getGitHubCustomArgs(githubTool)
-
-		RenderGitHubMCPDockerConfig(yaml, GitHubMCPDockerOptions{
-			ReadOnly:           readOnly,
-			Toolsets:           toolsets,
-			DockerImageVersion: githubDockerImageVersion,
-			CustomArgs:         customArgs,
-			IncludeTypeField:   true, // Copilot includes "type": "local" field
-			AllowedTools:       allowedTools,
-			EffectiveToken:     "", // Copilot uses env passthrough
-		})
-	}
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
-}
-
-// renderPlaywrightCopilotMCPConfig generates the Playwright MCP server configuration for Copilot CLI
-// Uses the shared helper with Copilot-specific options
-func (e *CopilotEngine) renderPlaywrightCopilotMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
-	renderPlaywrightMCPConfigWithOptions(yaml, playwrightTool, isLast, true, true)
-}
-
-// renderSafeOutputsCopilotMCPConfig generates the Safe Outputs MCP server configuration for Copilot CLI
-// Uses the shared helper with Copilot-specific options
-func (e *CopilotEngine) renderSafeOutputsCopilotMCPConfig(yaml *strings.Builder, isLast bool) {
-	renderSafeOutputsMCPConfigWithOptions(yaml, isLast, true)
-}
-
-// renderAgenticWorkflowsCopilotMCPConfig generates the Agentic Workflows MCP server configuration for Copilot CLI
-// Uses the shared helper with Copilot-specific options
-func (e *CopilotEngine) renderAgenticWorkflowsCopilotMCPConfig(yaml *strings.Builder, isLast bool) {
-	renderAgenticWorkflowsMCPConfigWithOptions(yaml, isLast, true)
-}
-
-// renderCopilotMCPConfig generates custom MCP server configuration for Copilot CLI
-func (e *CopilotEngine) renderCopilotMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
-	// Use the shared renderer with copilot-specific requirements
-	renderer := MCPConfigRenderer{
-		Format:                "json",
-		IndentLevel:           "                ",
-		RequiresCopilotFields: true,
-	}
-
-	yaml.WriteString("              \"" + toolName + "\": {\n")
-
-	// Use shared renderer for the server configuration
-	if err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer); err != nil {
-		return err
-	}
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
-
-	return nil
 }
 
 // ParseLogMetrics implements engine-specific log parsing for Copilot CLI

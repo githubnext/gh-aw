@@ -629,100 +629,6 @@ func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
 	}
 }
 
-func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
-	engine := NewCopilotEngine()
-
-	tests := []struct {
-		name         string
-		githubTool   any
-		isLast       bool
-		expectedStrs []string
-	}{
-		{
-			name:       "GitHub MCP with default version",
-			githubTool: nil,
-			isLast:     false,
-			expectedStrs: []string{
-				`"github": {`,
-				`"type": "local",`,
-				`"command": "docker",`,
-				`"args": [`,
-				`"run",`,
-				`"-i",`,
-				`"--rm",`,
-				`"-e",`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN",`,
-				`"ghcr.io/github/github-mcp-server:v0.19.1"`,
-				`"tools": ["*"]`,
-				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
-				`},`,
-			},
-		},
-		{
-			name: "GitHub MCP with custom version",
-			githubTool: map[string]any{
-				"version": "v1.2.3",
-			},
-			isLast: true,
-			expectedStrs: []string{
-				`"github": {`,
-				`"type": "local",`,
-				`"command": "docker",`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN",`,
-				`"ghcr.io/github/github-mcp-server:v1.2.3"`,
-				`"tools": ["*"]`,
-				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
-				`}`,
-			},
-		},
-		{
-			name: "GitHub MCP with allowed tools",
-			githubTool: map[string]any{
-				"allowed": []string{"list_workflows", "get_repository"},
-			},
-			isLast: true,
-			expectedStrs: []string{
-				`"github": {`,
-				`"type": "local",`,
-				`"tools": [`,
-				`"list_workflows"`,
-				`"get_repository"`,
-				`]`,
-				`}`,
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var yaml strings.Builder
-			workflowData := &WorkflowData{}
-			var _ *WorkflowData = workflowData
-			engine.renderGitHubCopilotMCPConfig(&yaml, tt.githubTool, tt.isLast)
-			output := yaml.String()
-
-			for _, expected := range tt.expectedStrs {
-				if !strings.Contains(output, expected) {
-					t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, output)
-				}
-			}
-
-			// Verify proper ending based on isLast
-			if tt.isLast {
-				if !strings.HasSuffix(strings.TrimSpace(output), "}") {
-					t.Errorf("Expected output to end with '}' when isLast=true, got:\n%s", output)
-				}
-			} else {
-				if !strings.HasSuffix(strings.TrimSpace(output), "},") {
-					t.Errorf("Expected output to end with '},' when isLast=false, got:\n%s", output)
-				}
-			}
-		})
-	}
-}
-
 func TestCopilotEngineRenderMCPConfigWithGitHub(t *testing.T) {
 	engine := NewCopilotEngine()
 
@@ -1002,7 +908,7 @@ func TestCopilotEngineExecutionStepsWithCustomAddDirArgs(t *testing.T) {
 
 func TestCopilotEngineMCPConfigJSON(t *testing.T) {
 	engine := NewCopilotEngine()
-	
+
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		Tools: map[string]any{
@@ -1020,41 +926,40 @@ func TestCopilotEngineMCPConfigJSON(t *testing.T) {
 			},
 		},
 	}
-	
+
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
-	
+
 	if len(steps) != 1 {
 		t.Fatalf("Expected 1 step, got %d", len(steps))
 	}
-	
+
 	stepContent := strings.Join([]string(steps[0]), "\n")
-	
+
 	// Verify --additional-mcp-config is present
 	if !strings.Contains(stepContent, "--additional-mcp-config") {
 		t.Errorf("Expected '--additional-mcp-config' flag in execution step:\n%s", stepContent)
 	}
-	
+
 	// Verify the MCP config contains the expected servers
 	if !strings.Contains(stepContent, `"github"`) {
 		t.Errorf("Expected MCP config to contain 'github' server")
 	}
-	
+
 	if !strings.Contains(stepContent, `"playwright"`) {
 		t.Errorf("Expected MCP config to contain 'playwright' server")
 	}
-	
+
 	if !strings.Contains(stepContent, `"safe_outputs"`) {
 		t.Errorf("Expected MCP config to contain 'safe_outputs' server (note: uses underscore, not hyphen)")
 	}
-	
+
 	// Verify the GitHub config has inlined token (not env var reference)
 	if !strings.Contains(stepContent, `"GITHUB_PERSONAL_ACCESS_TOKEN":"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"`) {
 		t.Errorf("Expected GitHub MCP config to have inlined token")
 	}
-	
+
 	// Verify read-only flag is present in the args
 	if !strings.Contains(stepContent, `"--read-only"`) {
 		t.Errorf("Expected GitHub MCP config to contain '--read-only' flag")
 	}
 }
-
