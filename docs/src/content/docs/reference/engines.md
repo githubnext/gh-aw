@@ -149,8 +149,14 @@ Different engines have varying levels of support for advanced features:
 
 Network firewalling allows workflows to restrict outbound network access to specific domains, preventing unauthorized data exfiltration and improving security.
 
-- **GitHub Copilot**: Supports network firewalling via the AWF (Agentic Workflow Firewall) integration
-- **Claude, Codex, Custom**: Do not support network firewalling
+**Engine Support:**
+
+| Engine | Network Firewalling |
+|--------|---------------------|
+| GitHub Copilot | ✓ Supported via AWF integration |
+| Claude | ✗ Not supported |
+| Codex | ✗ Not supported |
+| Custom | ✗ Not supported |
 
 When a workflow specifies network restrictions (via the `network.allowed` field) and uses an engine that doesn't support firewalling:
 - **Normal mode**: A warning is emitted during compilation
@@ -169,7 +175,7 @@ network:
 
 Compiling this workflow will emit:
 ```
-⚠ Selected engine 'claude' does not support network firewalling; workflow specifies network restrictions (allowed-domains). Network may not be sandboxed.
+⚠ Selected engine 'claude' does not support network firewalling; workflow specifies network restrictions (network.allowed). Network may not be sandboxed.
 ```
 
 #### Strict Mode Enforcement

@@ -46,13 +46,13 @@ func (c *Compiler) checkNetworkSupport(engine CodingAgentEngine, networkPermissi
 
 	// Engine does not support firewall, but network restrictions are present
 	message := fmt.Sprintf(
-		"Selected engine '%s' does not support network firewalling; workflow specifies network restrictions (allowed-domains). Network may not be sandboxed.",
+		"Selected engine '%s' does not support network firewalling; workflow specifies network restrictions (network.allowed). Network may not be sandboxed.",
 		engine.GetID(),
 	)
 
 	if c.strictMode {
 		// In strict mode, this is an error
-		return fmt.Errorf("strict mode: engine must support firewall when network restrictions (allowed-domains) are set")
+		return fmt.Errorf("strict mode: engine must support firewall when network restrictions (network.allowed) are set")
 	}
 
 	// In non-strict mode, emit a warning
