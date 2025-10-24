@@ -55,13 +55,6 @@ The YAML frontmatter supports these fields:
 - **`steps:`** - Custom workflow steps (object)
 - **`post-steps:`** - Custom workflow steps to run after AI execution (object)
 
-### Documentation Fields (Silently Ignored)
-
-- **`description:`** - Workflow description (string, for documentation only)
-- **`applyTo:`** - File pattern scope (string, for documentation only)
-
-These fields are ignored during compilation and do not affect workflow behavior. Use them to document workflow purpose and scope.
-
 ### Agentic Workflow Specific Fields
 
 - **`engine:`** - AI processor configuration
