@@ -1344,7 +1344,7 @@ jobs:
           
           ## Creating a Pull Request, Reporting Missing Tools or Functionality
           
-          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **GitHub Agentic Workflows Safe Outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
           **Creating a Pull Request**
           
@@ -1353,11 +1353,11 @@ jobs:
           2. If you haven't done so already, create a local branch using an appropriate unique name
           3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
           4. Do not push your changes. That will be done by the tool.
-          5. Create the pull request with the create-pull-request tool from the safe-outputs MCP
+          5. Create the pull request with the create-pull-request tool from GitHub Agentic Workflows Safe Outputs
           
           **Reporting Missing Tools or Functionality**
           
-          To report a missing tool use the missing-tool tool from the safe-outputs MCP.
+          To report a missing tool use the missing-tool tool from GitHub Agentic Workflows Safe Outputs.
           
           PROMPT_EOF
       - name: Append GitHub context to prompt

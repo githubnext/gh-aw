@@ -2328,15 +2328,15 @@ jobs:
           
           ## Adding a Comment to an Issue or Pull Request, Creating an Issue, Creating a Pull Request, Adding Labels to Issues or Pull Requests, Updating Issues, Pushing Changes to Branch, Uploading Assets, Reporting Missing Tools or Functionality
           
-          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **GitHub Agentic Workflows Safe Outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
           **Adding a Comment to an Issue or Pull Request**
           
-          To add a comment to an issue or pull request, use the add-comments tool from the safe-outputs MCP
+          To add a comment to an issue or pull request, use the add-comments tool from GitHub Agentic Workflows Safe Outputs
           
           **Creating an Issue**
           
-          To create an issue, use the create-issue tool from the safe-outputs MCP
+          To create an issue, use the create-issue tool from GitHub Agentic Workflows Safe Outputs
           
           **Creating a Pull Request**
           
@@ -2345,38 +2345,38 @@ jobs:
           2. If you haven't done so already, create a local branch using an appropriate unique name
           3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
           4. Do not push your changes. That will be done by the tool.
-          5. Create the pull request with the create-pull-request tool from the safe-outputs MCP
+          5. Create the pull request with the create-pull-request tool from GitHub Agentic Workflows Safe Outputs
           
           **Adding Labels to Issues or Pull Requests**
           
-          To add labels to an issue or a pull request, use the add-labels tool from the safe-outputs MCP
+          To add labels to an issue or a pull request, use the add-labels tool from GitHub Agentic Workflows Safe Outputs
           
           **Updating an Issue**
           
-          To udpate an issue, use the update-issue tool from the safe-outputs MCP
+          To udpate an issue, use the update-issue tool from GitHub Agentic Workflows Safe Outputs
           
           **Pushing Changes to Pull Request Branch**
           
           To push changes to the branch of a pull request:
           1. Make any file changes directly in the working directory
           2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
-          3. Push the branch to the repo by using the push-to-pull-request-branch tool from the safe-outputs MCP
+          3. Push the branch to the repo by using the push-to-pull-request-branch tool from GitHub Agentic Workflows Safe Outputs
           
           **Uploading Assets**
           
           To upload files as URL-addressable assets:
-          1. Use the `upload asset` tool from the safe-outputs MCP
+          1. Use the `upload asset` tool from GitHub Agentic Workflows Safe Outputs
           2. Provide the path to the file you want to upload
           3. The tool will copy the file to a staging area and return a GitHub raw content URL
           4. Assets are uploaded to an orphaned git branch after workflow completion
           
           **Reporting Missing Tools or Functionality**
           
-          To report a missing tool use the missing-tool tool from the safe-outputs MCP.
+          To report a missing tool use the missing-tool tool from GitHub Agentic Workflows Safe Outputs.
           
           **Creating a Pull Request Review Comment**
           
-          To create a pull request review comment, use the create-pull-request-review-comment tool from the safe-outputs MCP
+          To create a pull request review comment, use the create-pull-request-review-comment tool from GitHub Agentic Workflows Safe Outputs
           
           PROMPT_EOF
       - name: Append GitHub context to prompt
