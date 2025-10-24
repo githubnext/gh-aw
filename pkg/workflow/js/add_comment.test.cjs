@@ -133,7 +133,7 @@ describe("add_comment.cjs", () => {
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
-  it("should skip when not in issue or PR context", async () => {
+  it("should skip when not in issue or PR context and no branch can be resolved", async () => {
     setAgentOutput({
       items: [
         {
@@ -144,12 +144,14 @@ describe("add_comment.cjs", () => {
     });
     global.context.eventName = "push"; // Not an issue or PR event
 
+    // Ensure no GITHUB_REF or GITHUB_HEAD_REF is set
+    delete process.env.GITHUB_REF;
+    delete process.env.GITHUB_HEAD_REF;
+
     // Execute the script
     await eval(`(async () => { ${createCommentScript} })()`);
 
-    expect(mockCore.info).toHaveBeenCalledWith(
-      'Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation'
-    );
+    expect(mockCore.info).toHaveBeenCalledWith("Could not resolve current branch. Exiting gracefully without commenting.");
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
@@ -749,5 +751,337 @@ describe("add_comment.cjs", () => {
     delete process.env.GH_AW_COMMENT_TARGET;
     delete process.env.GITHUB_AW_COMMENT_DISCUSSION;
     delete global.github.graphql;
+  });
+
+  it("should find and comment on PR when triggered by workflow_dispatch with matching open PR", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "Test comment from workflow_dispatch",
+        },
+      ],
+    });
+
+    // Simulate workflow_dispatch event (non-commentable)
+    global.context.eventName = "workflow_dispatch";
+    delete global.context.payload.issue;
+    delete global.context.payload.pull_request;
+    delete global.context.payload.discussion;
+
+    // Set environment variable for branch
+    process.env.GITHUB_REF = "refs/heads/feature-branch";
+
+    // Mock GitHub API response for searching PRs
+    mockGithub.rest.pulls = {
+      list: vi.fn().mockResolvedValue({
+        data: [
+          {
+            number: 456,
+            html_url: "https://github.com/testowner/testrepo/pull/456",
+            head: { ref: "feature-branch" },
+          },
+        ],
+      }),
+    };
+
+    const mockComment = {
+      id: 789,
+      html_url: "https://github.com/testowner/testrepo/pull/456#issuecomment-789",
+    };
+
+    mockGithub.rest.issues.createComment.mockResolvedValue({
+      data: mockComment,
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify the branch was resolved
+    expect(mockCore.info).toHaveBeenCalledWith("Resolved branch from GITHUB_REF: feature-branch");
+
+    // Verify PR search was called
+    expect(mockGithub.rest.pulls.list).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      state: "open",
+      head: "testowner:feature-branch",
+      per_page: 1,
+    });
+
+    // Verify comment was created on the PR
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      issue_number: 456,
+      body: expect.stringContaining("Test comment from workflow_dispatch"),
+    });
+
+    // Clean up
+    delete process.env.GITHUB_REF;
+    delete mockGithub.rest.pulls;
+  });
+
+  it("should resolve branch from GITHUB_HEAD_REF when available", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "Test comment with GITHUB_HEAD_REF",
+        },
+      ],
+    });
+
+    // Simulate workflow_dispatch event
+    global.context.eventName = "workflow_dispatch";
+    delete global.context.payload.issue;
+    delete global.context.payload.pull_request;
+
+    // Set GITHUB_HEAD_REF (takes precedence over GITHUB_REF)
+    process.env.GITHUB_HEAD_REF = "another-feature-branch";
+    process.env.GITHUB_REF = "refs/heads/main"; // Should be ignored
+
+    // Mock GitHub API response
+    mockGithub.rest.pulls = {
+      list: vi.fn().mockResolvedValue({
+        data: [
+          {
+            number: 999,
+            html_url: "https://github.com/testowner/testrepo/pull/999",
+          },
+        ],
+      }),
+    };
+
+    mockGithub.rest.issues.createComment.mockResolvedValue({
+      data: {
+        id: 111,
+        html_url: "https://github.com/testowner/testrepo/pull/999#issuecomment-111",
+      },
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify GITHUB_HEAD_REF was used
+    expect(mockCore.info).toHaveBeenCalledWith("Resolved branch from GITHUB_HEAD_REF: another-feature-branch");
+
+    // Verify correct branch was used in PR search
+    expect(mockGithub.rest.pulls.list).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      state: "open",
+      head: "testowner:another-feature-branch",
+      per_page: 1,
+    });
+
+    // Clean up
+    delete process.env.GITHUB_HEAD_REF;
+    delete process.env.GITHUB_REF;
+    delete mockGithub.rest.pulls;
+  });
+
+  it("should exit gracefully when no open PR found for branch in non-commentable context", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "Test comment with no PR",
+        },
+      ],
+    });
+
+    // Simulate workflow_dispatch event
+    global.context.eventName = "workflow_dispatch";
+    delete global.context.payload.issue;
+    delete global.context.payload.pull_request;
+
+    // Set environment variable for branch
+    process.env.GITHUB_REF = "refs/heads/no-pr-branch";
+
+    // Mock GitHub API response with no PRs
+    mockGithub.rest.pulls = {
+      list: vi.fn().mockResolvedValue({
+        data: [], // No open PRs
+      }),
+    };
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify the graceful exit message
+    expect(mockCore.info).toHaveBeenCalledWith(
+      "No open pull request found for branch no-pr-branch. Exiting gracefully without commenting."
+    );
+
+    // Verify no comment was created
+    expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+
+    // Clean up
+    delete process.env.GITHUB_REF;
+    delete mockGithub.rest.pulls;
+  });
+
+  it("should exit gracefully when branch cannot be resolved in non-commentable context", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "Test comment without resolvable branch",
+        },
+      ],
+    });
+
+    // Simulate workflow_dispatch event
+    global.context.eventName = "workflow_dispatch";
+    delete global.context.payload.issue;
+    delete global.context.payload.pull_request;
+
+    // Don't set GITHUB_REF or GITHUB_HEAD_REF
+    delete process.env.GITHUB_REF;
+    delete process.env.GITHUB_HEAD_REF;
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify the graceful exit message
+    expect(mockCore.info).toHaveBeenCalledWith("Could not resolve current branch. Exiting gracefully without commenting.");
+
+    // Verify no comment was created
+    expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("should handle target-repo when searching for PRs", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "Test comment with target-repo",
+        },
+      ],
+    });
+
+    // Simulate workflow_dispatch event
+    global.context.eventName = "workflow_dispatch";
+    delete global.context.payload.issue;
+    delete global.context.payload.pull_request;
+
+    // Set environment variables
+    process.env.GITHUB_REF = "refs/heads/fork-branch";
+    process.env.GH_AW_TARGET_REPO_SLUG = "forkowner/forkrepo";
+
+    // Mock GitHub API response
+    mockGithub.rest.pulls = {
+      list: vi.fn().mockResolvedValue({
+        data: [
+          {
+            number: 555,
+            html_url: "https://github.com/testowner/testrepo/pull/555",
+          },
+        ],
+      }),
+    };
+
+    mockGithub.rest.issues.createComment.mockResolvedValue({
+      data: {
+        id: 666,
+        html_url: "https://github.com/testowner/testrepo/pull/555#issuecomment-666",
+      },
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify PR search was called with forkowner prefix
+    expect(mockGithub.rest.pulls.list).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      state: "open",
+      head: "forkowner:fork-branch",
+      per_page: 1,
+    });
+
+    // Clean up
+    delete process.env.GITHUB_REF;
+    delete process.env.GH_AW_TARGET_REPO_SLUG;
+    delete mockGithub.rest.pulls;
+  });
+
+  it("should preserve existing behavior for issue context", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "Test comment in issue context",
+        },
+      ],
+    });
+
+    // Ensure we're in issue context (default)
+    global.context.eventName = "issues";
+    global.context.payload.issue = { number: 123 };
+
+    const mockComment = {
+      id: 456,
+      html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-456",
+    };
+
+    mockGithub.rest.issues.createComment.mockResolvedValue({
+      data: mockComment,
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify comment was created on the issue
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      issue_number: 123,
+      body: expect.stringContaining("Test comment in issue context"),
+    });
+
+    // Verify PR search was NOT called (existing behavior preserved)
+    expect(mockGithub.rest.pulls?.list).toBeUndefined();
+  });
+
+  it("should handle API errors when searching for PRs gracefully", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "add_comment",
+          body: "Test comment with API error",
+        },
+      ],
+    });
+
+    // Simulate workflow_dispatch event
+    global.context.eventName = "workflow_dispatch";
+    delete global.context.payload.issue;
+    delete global.context.payload.pull_request;
+
+    // Set environment variable for branch
+    process.env.GITHUB_REF = "refs/heads/test-branch";
+
+    // Mock GitHub API to throw an error
+    mockGithub.rest.pulls = {
+      list: vi.fn().mockRejectedValue(new Error("API rate limit exceeded")),
+    };
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    // Verify warning was logged
+    expect(mockCore.warning).toHaveBeenCalledWith("Error searching for pull requests: API rate limit exceeded");
+
+    // Verify graceful exit
+    expect(mockCore.info).toHaveBeenCalledWith("No open pull request found for branch test-branch. Exiting gracefully without commenting.");
+
+    // Verify no comment was created
+    expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+
+    // Clean up
+    delete process.env.GITHUB_REF;
+    delete mockGithub.rest.pulls;
   });
 });

@@ -41,6 +41,84 @@ function generateFooter(
 }
 
 /**
+ * Resolve the current branch name from GitHub environment variables
+ * @returns {string|null} Branch name or null if not found
+ */
+function resolveCurrentBranch() {
+  // GITHUB_HEAD_REF is set for pull_request events (the head branch)
+  if (process.env.GITHUB_HEAD_REF) {
+    core.info(`Resolved branch from GITHUB_HEAD_REF: ${process.env.GITHUB_HEAD_REF}`);
+    return process.env.GITHUB_HEAD_REF;
+  }
+
+  // GITHUB_REF is set for other events (e.g., push, workflow_dispatch)
+  // Format: refs/heads/branch-name or refs/tags/tag-name
+  if (process.env.GITHUB_REF) {
+    const ref = process.env.GITHUB_REF;
+    if (ref.startsWith("refs/heads/")) {
+      const branch = ref.replace("refs/heads/", "");
+      core.info(`Resolved branch from GITHUB_REF: ${branch}`);
+      return branch;
+    }
+    core.info(`GITHUB_REF is not a branch: ${ref}`);
+  }
+
+  core.info("Could not resolve current branch from environment");
+  return null;
+}
+
+/**
+ * Find the first open pull request for a given branch
+ * @param {any} github - GitHub REST API instance
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {string} branch - Branch name
+ * @param {string|undefined} targetRepoSlug - Optional target repository in format "owner/repo"
+ * @returns {Promise<{number: number, html_url: string}|null>} PR details or null if not found
+ */
+async function findOpenPullRequestForBranch(github, owner, repo, branch, targetRepoSlug) {
+  try {
+    core.info(`Searching for open pull requests with head branch: ${branch}`);
+
+    // Construct the head parameter
+    // If target repo is specified, use "owner:branch" format
+    // Otherwise, just use the branch name
+    let head = branch;
+    if (targetRepoSlug) {
+      const [targetOwner] = targetRepoSlug.split("/");
+      head = `${targetOwner}:${branch}`;
+      core.info(`Using head parameter with target repo: ${head}`);
+    } else {
+      head = `${owner}:${branch}`;
+      core.info(`Using head parameter: ${head}`);
+    }
+
+    const { data: pullRequests } = await github.rest.pulls.list({
+      owner,
+      repo,
+      state: "open",
+      head,
+      per_page: 1,
+    });
+
+    if (pullRequests.length > 0) {
+      const pr = pullRequests[0];
+      core.info(`Found open pull request #${pr.number}: ${pr.html_url}`);
+      return {
+        number: pr.number,
+        html_url: pr.html_url,
+      };
+    }
+
+    core.info(`No open pull request found for branch: ${branch}`);
+    return null;
+  } catch (error) {
+    core.warning(`Error searching for pull requests: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
+/**
  * Comment on a GitHub Discussion using GraphQL
  * @param {any} github - GitHub REST API instance
  * @param {string} owner - Repository owner
@@ -263,9 +341,34 @@ async function main() {
   }
 
   // Validate context based on target configuration
+  // If not in commentable context and target is "triggering", try to find a PR for the current branch
+  let resolvedPRFromBranch = null;
   if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
-    core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
-    return;
+    core.info('Target is "triggering" but not running in issue, pull request, or discussion context');
+
+    // Try to resolve the current branch and find a PR
+    const currentBranch = resolveCurrentBranch();
+    if (currentBranch) {
+      core.info(`Attempting to find open pull request for branch: ${currentBranch}`);
+      const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
+      resolvedPRFromBranch = await findOpenPullRequestForBranch(
+        github,
+        context.repo.owner,
+        context.repo.repo,
+        currentBranch,
+        targetRepoSlug
+      );
+
+      if (!resolvedPRFromBranch) {
+        core.info(`No open pull request found for branch ${currentBranch}. Exiting gracefully without commenting.`);
+        return;
+      }
+
+      core.info(`Found pull request #${resolvedPRFromBranch.number} for branch ${currentBranch}, will use it as comment target`);
+    } else {
+      core.info("Could not resolve current branch. Exiting gracefully without commenting.");
+      return;
+    }
   }
 
   // Extract triggering context for footer generation
@@ -309,8 +412,13 @@ async function main() {
       }
       commentEndpoint = isDiscussion ? "discussions" : "issues";
     } else {
-      // Default behavior: use triggering issue/PR/discussion
-      if (isIssueContext) {
+      // Default behavior: use triggering issue/PR/discussion or resolved PR from branch
+      if (resolvedPRFromBranch) {
+        // Use the PR we found from the branch
+        itemNumber = resolvedPRFromBranch.number;
+        commentEndpoint = "issues"; // PR comments use the issues API endpoint
+        core.info(`Using resolved PR #${itemNumber} from branch as comment target`);
+      } else if (isIssueContext) {
         itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
         if (context.payload.issue) {
           commentEndpoint = "issues";
