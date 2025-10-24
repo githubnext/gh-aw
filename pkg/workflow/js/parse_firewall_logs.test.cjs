@@ -75,4 +75,53 @@ describe("parse_firewall_logs.cjs", () => {
       expect(sanitizeWorkflowName("MyWorkflow")).toBe("myworkflow");
     });
   });
+
+  describe("generateFirewallSummary", () => {
+    test("should generate summary with blocked requests only", () => {
+      const analysis = {
+        totalRequests: 5,
+        allowedRequests: 3,
+        deniedRequests: 2,
+        allowedDomains: ["api.github.com:443", "api.npmjs.org:443"],
+        deniedDomains: ["blocked.example.com:443", "denied.test.com:443"],
+        requestsByDomain: new Map([
+          ["blocked.example.com:443", { allowed: 0, denied: 1 }],
+          ["denied.test.com:443", { allowed: 0, denied: 1 }],
+        ]),
+      };
+
+      const summary = generateFirewallSummary(analysis);
+
+      // Should focus on blocked requests
+      expect(summary).toContain("🔥 Firewall Blocked Requests");
+      expect(summary).toContain("**2** requests blocked");
+      expect(summary).toContain("**2** unique domains");
+      expect(summary).toContain("40% of total traffic");
+
+      // Should show blocked domains table
+      expect(summary).toContain("🚫 Blocked Domains");
+      expect(summary).toContain("blocked.example.com:443");
+      expect(summary).toContain("denied.test.com:443");
+
+      // Should NOT show allowed domains section
+      expect(summary).not.toContain("✅ Allowed Domains");
+      expect(summary).not.toContain("api.github.com:443");
+    });
+
+    test("should show success message when no blocked requests", () => {
+      const analysis = {
+        totalRequests: 3,
+        allowedRequests: 3,
+        deniedRequests: 0,
+        allowedDomains: ["api.github.com:443"],
+        deniedDomains: [],
+        requestsByDomain: new Map(),
+      };
+
+      const summary = generateFirewallSummary(analysis);
+
+      expect(summary).toContain("✅ **No blocked requests detected**");
+      expect(summary).toContain("All 3 requests were allowed");
+    });
+  });
 });
