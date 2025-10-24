@@ -381,6 +381,9 @@ func BuildMCPConfigJSON(
 // Note: This does NOT validate the JSON because it may contain GitHub Actions expressions
 // like ${{ env.VAR }} which are not valid JSON until evaluated by GitHub Actions.
 // The JSON structure is validated by tests that check the generated workflow output.
+//
+// This function also removes backslash escaping from environment variable references
+// because the CLI argument will be single-quoted, which already prevents shell expansion.
 func validateAndCompactJSON(jsonStr string) (string, error) {
 	// Compact the JSON by removing unnecessary whitespace
 	// We can't use json.Marshal because the content contains GitHub Actions expressions
@@ -402,6 +405,11 @@ func validateAndCompactJSON(jsonStr string) (string, error) {
 		// Track escape sequences
 		if ch == '\\' && !escape {
 			escape = true
+			// Look ahead - if next char is $, skip the backslash (for env var refs)
+			if i+1 < len(jsonStr) && jsonStr[i+1] == '$' && inString {
+				// Skip the backslash - we're in a single-quoted context so no escaping needed
+				continue
+			}
 			compacted.WriteByte(ch)
 			continue
 		}

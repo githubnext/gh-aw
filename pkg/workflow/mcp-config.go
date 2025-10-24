@@ -104,6 +104,7 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 
 	// Use escaped env vars for Copilot, regular for Claude/Custom
 	if includeCopilotFields {
+		// For Copilot heredoc, use backslash escaping
 		yaml.WriteString("                  \"GH_AW_SAFE_OUTPUTS\": \"\\${GH_AW_SAFE_OUTPUTS}\",\n")
 		yaml.WriteString("                  \"GH_AW_SAFE_OUTPUTS_CONFIG\": \"\\${GH_AW_SAFE_OUTPUTS_CONFIG}\",\n")
 		yaml.WriteString("                  \"GH_AW_ASSETS_BRANCH\": \"\\${GH_AW_ASSETS_BRANCH}\",\n")
@@ -248,6 +249,9 @@ type MCPConfigRenderer struct {
 	Format string
 	// RequiresCopilotFields indicates if the engine requires "type" and "tools" fields (true for copilot engine)
 	RequiresCopilotFields bool
+	// EscapeEnvVars indicates if environment variable references should be backslash-escaped
+	// Set to true for heredoc context (\${VAR}), false for CLI argument context (${VAR})
+	EscapeEnvVars bool
 }
 
 // renderSharedMCPConfig generates MCP server configuration for a single tool using shared logic
