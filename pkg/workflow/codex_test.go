@@ -215,12 +215,16 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY") {
 					t.Errorf("Expected lock file to contain prompt printing command but it didn't.\nContent:\n%s", lockContent)
 				}
-				// Check that mcp-config.json is generated (Copilot format)
-				if !strings.Contains(lockContent, "cat > /home/runner/.copilot/mcp-config.json") {
-					t.Errorf("Expected lock file to contain mcp-config.json generation for copilot but it didn't.\nContent:\n%s", lockContent)
+				// Check that --additional-mcp-config argument is used (new format)
+				if !strings.Contains(lockContent, "--additional-mcp-config") {
+					t.Errorf("Expected lock file to contain --additional-mcp-config argument but it didn't.\nContent:\n%s", lockContent)
 				}
 				if !strings.Contains(lockContent, "\"mcpServers\":") {
-					t.Errorf("Expected lock file to contain '\"mcpServers\":' section in mcp-config.json but it didn't.\nContent:\n%s", lockContent)
+					t.Errorf("Expected lock file to contain '\"mcpServers\":' section in MCP config but it didn't.\nContent:\n%s", lockContent)
+				}
+				// Ensure it does NOT contain the old file-based config
+				if strings.Contains(lockContent, "cat > /home/runner/.copilot/mcp-config.json") {
+					t.Errorf("Expected lock file to NOT contain mcp-config.json file generation (should use --additional-mcp-config instead).\nContent:\n%s", lockContent)
 				}
 				// Ensure it does NOT contain codex
 				if strings.Contains(lockContent, "codex exec") {

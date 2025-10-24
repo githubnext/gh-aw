@@ -629,100 +629,6 @@ func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
 	}
 }
 
-func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
-	engine := NewCopilotEngine()
-
-	tests := []struct {
-		name         string
-		githubTool   any
-		isLast       bool
-		expectedStrs []string
-	}{
-		{
-			name:       "GitHub MCP with default version",
-			githubTool: nil,
-			isLast:     false,
-			expectedStrs: []string{
-				`"github": {`,
-				`"type": "local",`,
-				`"command": "docker",`,
-				`"args": [`,
-				`"run",`,
-				`"-i",`,
-				`"--rm",`,
-				`"-e",`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN",`,
-				`"ghcr.io/github/github-mcp-server:v0.19.1"`,
-				`"tools": ["*"]`,
-				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
-				`},`,
-			},
-		},
-		{
-			name: "GitHub MCP with custom version",
-			githubTool: map[string]any{
-				"version": "v1.2.3",
-			},
-			isLast: true,
-			expectedStrs: []string{
-				`"github": {`,
-				`"type": "local",`,
-				`"command": "docker",`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN",`,
-				`"ghcr.io/github/github-mcp-server:v1.2.3"`,
-				`"tools": ["*"]`,
-				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
-				`}`,
-			},
-		},
-		{
-			name: "GitHub MCP with allowed tools",
-			githubTool: map[string]any{
-				"allowed": []string{"list_workflows", "get_repository"},
-			},
-			isLast: true,
-			expectedStrs: []string{
-				`"github": {`,
-				`"type": "local",`,
-				`"tools": [`,
-				`"list_workflows"`,
-				`"get_repository"`,
-				`]`,
-				`}`,
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var yaml strings.Builder
-			workflowData := &WorkflowData{}
-			var _ *WorkflowData = workflowData
-			engine.renderGitHubCopilotMCPConfig(&yaml, tt.githubTool, tt.isLast)
-			output := yaml.String()
-
-			for _, expected := range tt.expectedStrs {
-				if !strings.Contains(output, expected) {
-					t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, output)
-				}
-			}
-
-			// Verify proper ending based on isLast
-			if tt.isLast {
-				if !strings.HasSuffix(strings.TrimSpace(output), "}") {
-					t.Errorf("Expected output to end with '}' when isLast=true, got:\n%s", output)
-				}
-			} else {
-				if !strings.HasSuffix(strings.TrimSpace(output), "},") {
-					t.Errorf("Expected output to end with '},' when isLast=false, got:\n%s", output)
-				}
-			}
-		})
-	}
-}
-
 func TestCopilotEngineRenderMCPConfigWithGitHub(t *testing.T) {
 	engine := NewCopilotEngine()
 
@@ -736,7 +642,7 @@ func TestCopilotEngineRenderMCPConfigWithGitHub(t *testing.T) {
 
 	// Test GetExecutionSteps to verify --additional-mcp-config argument
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
-	
+
 	// Convert steps to a single string for easier searching
 	var output strings.Builder
 	for _, step := range steps {
@@ -749,9 +655,9 @@ func TestCopilotEngineRenderMCPConfigWithGitHub(t *testing.T) {
 	// Verify the --additional-mcp-config argument is present
 	expectedStrs := []string{
 		"--additional-mcp-config",
-		`"github"`,             // JSON content should be in the config
-		`"type": "local"`,      // Parts of the JSON config
-		`"command": "docker"`,  // Parts of the JSON config
+		`"github"`,            // JSON content should be in the config
+		`"type": "local"`,     // Parts of the JSON config
+		`"command": "docker"`, // Parts of the JSON config
 		`ghcr.io/github/github-mcp-server:custom-version`, // Version should be in the JSON
 	}
 
@@ -793,7 +699,7 @@ func TestCopilotEngineRenderMCPConfigWithGitHubAndPlaywright(t *testing.T) {
 
 	// Test GetExecutionSteps to verify --additional-mcp-config argument
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
-	
+
 	// Convert steps to a single string for easier searching
 	var output strings.Builder
 	for _, step := range steps {
@@ -806,12 +712,12 @@ func TestCopilotEngineRenderMCPConfigWithGitHubAndPlaywright(t *testing.T) {
 	// Verify both tools are configured in the --additional-mcp-config argument
 	expectedStrs := []string{
 		"--additional-mcp-config",
-		`"github"`,                  // GitHub tool
-		`"type": "local"`,           // Both tools use local type
-		`"command": "docker"`,       // GitHub uses docker
-		`"command": "npx"`,          // Playwright uses npx
+		`"github"`,                                 // GitHub tool
+		`"type": "local"`,                          // Both tools use local type
+		`"command": "docker"`,                      // GitHub uses docker
+		`"command": "npx"`,                         // Playwright uses npx
 		`ghcr.io/github/github-mcp-server:v0.19.1`, // GitHub default version
-		`"playwright"`,              // Playwright tool
+		`"playwright"`,                             // Playwright tool
 	}
 
 	for _, expected := range expectedStrs {

@@ -80,8 +80,9 @@ Test workflow`
 		t.Error("Main agent job should have --allow-tool arguments")
 	}
 
-	// Test 4: Main agent job should have MCP setup (for comparison)
-	if !strings.Contains(agentSection, "Setup MCPs") {
-		t.Error("Main agent job should have MCP setup step")
+	// Test 4: Main agent job should have MCP config (for comparison)
+	// For Copilot, this means --additional-mcp-config argument instead of Setup MCPs step
+	if !strings.Contains(agentSection, "--additional-mcp-config") && !strings.Contains(agentSection, "Setup MCPs") {
+		t.Error("Main agent job should have MCP configuration (either --additional-mcp-config for Copilot or Setup MCPs step for other engines)")
 	}
 }

@@ -1898,6 +1898,13 @@ jobs:
             "mcpServers": {
               "arxiv": {
                 "type": "local",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "--rm",
+                  "-i",
+                  "mcp/arxiv-mcp-server"
+                ],
                 "tools": [
                   "search_arxiv",
                   "get_paper_details",
@@ -1906,12 +1913,28 @@ jobs:
               },
               "ast-grep": {
                 "type": "local",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "--rm",
+                  "-i",
+                  "mcp/ast-grep:latest"
+                ],
                 "tools": [
                   "*"
                 ]
               },
               "brave-search": {
                 "type": "local",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "--rm",
+                  "-i",
+                  "-e",
+                  "BRAVE_API_KEY",
+                  "docker.io/mcp/brave-search"
+                ],
                 "env": {
                   "BRAVE_API_KEY": "${{ secrets.BRAVE_API_KEY }}"
                 },
@@ -1921,6 +1944,15 @@ jobs:
               },
               "context7": {
                 "type": "local",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "--rm",
+                  "-i",
+                  "-e",
+                  "CONTEXT7_API_KEY",
+                  "mcp/context7"
+                ],
                 "env": {
                   "CONTEXT7_API_KEY": "${{ secrets.CONTEXT7_API_KEY }}"
                 },
@@ -1987,10 +2019,7 @@ jobs:
               },
               "gh-aw": {
                 "type": "http",
-                "url": "http://localhost:8765",
-                "tools": [
-                  "*"
-                ]
+                "url": "http://localhost:8765"
               },
               "github": {
                 "type": "local",
@@ -2009,10 +2038,7 @@ jobs:
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-                },
-                "tools": [
-                  "*"
-                ]
+                }
               },
               "markitdown": {
                 "type": "local",
@@ -2023,9 +2049,14 @@ jobs:
               },
               "memory": {
                 "type": "local",
+                "command": "docker",
                 "args": [
+                  "run",
+                  "--rm",
+                  "-i",
                   "-v",
-                  "/tmp/gh-aw/cache-memory:/app/dist"
+                  "/tmp/gh-aw/cache-memory:/app/dist",
+                  "mcp/memory"
                 ],
                 "tools": [
                   "store_memory",
@@ -2043,6 +2074,15 @@ jobs:
               },
               "notion": {
                 "type": "local",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "--rm",
+                  "-i",
+                  "-e",
+                  "NOTION_API_TOKEN",
+                  "mcp/notion"
+                ],
                 "env": {
                   "NOTION_API_TOKEN": "${{ secrets.NOTION_API_TOKEN }}"
                 },
@@ -2062,10 +2102,7 @@ jobs:
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
                   "GH_AW_SAFE_OUTPUTS_CONFIG": "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"notion-add-comment\":{\"description\":\"Add a comment to a Notion page\",\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"}},\"output\":\"Comment added to Notion successfully!\"},\"post-to-slack-channel\":{\"description\":\"Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, \\u003equote, and links \\u003curl|text\\u003e. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set.\",\"inputs\":{\"message\":{\"description\":\"The message to post (max 200 characters, supports Slack markdown)\",\"required\":true,\"type\":\"string\"}},\"output\":\"Message posted to Slack successfully!\"}}"
-                },
-                "tools": [
-                  "*"
-                ]
+                }
               },
               "sentry": {
                 "type": "local",

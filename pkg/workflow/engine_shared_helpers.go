@@ -322,7 +322,7 @@ func GenerateJSONMCPConfigString(
 	filterTool func(string) bool,
 ) string {
 	var jsonBuilder strings.Builder
-	
+
 	jsonBuilder.WriteString("{\n")
 	jsonBuilder.WriteString("  \"mcpServers\": {\n")
 
@@ -388,16 +388,16 @@ func RenderJSONMCPConfig(
 ) {
 	// Generate JSON config string
 	jsonConfig := GenerateJSONMCPConfigString(tools, mcpTools, workflowData, options.Renderers, options.FilterTool)
-	
+
 	// Write config file header
 	yaml.WriteString(fmt.Sprintf("          cat > %s << EOF\n", options.ConfigPath))
-	
+
 	// Write the JSON with proper indentation (add 10 spaces for YAML heredoc)
 	lines := strings.Split(jsonConfig, "\n")
 	for _, line := range lines {
 		yaml.WriteString("          " + line + "\n")
 	}
-	
+
 	yaml.WriteString("          EOF\n")
 
 	// Add any post-EOF commands (e.g., debug output for Copilot)

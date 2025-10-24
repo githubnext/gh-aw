@@ -2300,6 +2300,15 @@ jobs:
             "mcpServers": {
               "brave-search": {
                 "type": "local",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "--rm",
+                  "-i",
+                  "-e",
+                  "BRAVE_API_KEY",
+                  "docker.io/mcp/brave-search"
+                ],
                 "env": {
                   "BRAVE_API_KEY": "${{ secrets.BRAVE_API_KEY }}"
                 },
@@ -2324,10 +2333,7 @@ jobs:
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-                },
-                "tools": [
-                  "*"
-                ]
+                }
               },
               "safe-outputs": {
                 "type": "local",
@@ -2338,10 +2344,7 @@ jobs:
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
                   "GH_AW_SAFE_OUTPUTS_CONFIG": "{\"add_comment\":{\"max\":1},\"missing_tool\":{}}"
-                },
-                "tools": [
-                  "*"
-                ]
+                }
               }
             }
           }' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log

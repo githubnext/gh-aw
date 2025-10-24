@@ -183,7 +183,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Only emit the Setup MCPs step if the engine actually writes MCP config content
 	mcpConfigBuilder := &strings.Builder{}
 	engine.RenderMCPConfig(mcpConfigBuilder, tools, mcpTools, workflowData)
-	
+
 	if mcpConfigBuilder.Len() > 0 {
 		yaml.WriteString("      - name: Setup MCPs\n")
 		yaml.WriteString("        run: |\n")

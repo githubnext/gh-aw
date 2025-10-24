@@ -218,13 +218,20 @@ This is a test workflow for GitHub remote mode configuration.
 					if tt.expectedURL != "" && !strings.Contains(lockContent, tt.expectedURL) {
 						t.Errorf("Expected URL %s but didn't find it in:\n%s", tt.expectedURL, lockContent)
 					}
-					// For Copilot engine, check for new ${} syntax
+					// For Copilot engine, check for inlined secret syntax (new approach)
+					// Note: Secrets are now inlined directly in the JSON and get redacted to ******
 					if tt.engineType == "copilot" {
-						if !strings.Contains(lockContent, `"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`) {
-							t.Errorf("Expected Authorization header with ${GITHUB_PERSONAL_ACCESS_TOKEN} syntax but didn't find it in:\n%s", lockContent)
+						// Check that Authorization header exists (value will be redacted)
+						if !strings.Contains(lockContent, `"Authorization":`) {
+							t.Errorf("Expected Authorization header but didn't find it in:\n%s", lockContent)
 						}
-						if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`) {
-							t.Errorf("Expected env section with GITHUB_PERSONAL_ACCESS_TOKEN passthrough but didn't find it in:\n%s", lockContent)
+						// The secret value will be redacted to ****** in the lock file
+						// We can check that it's either the redacted value or has the structure
+						hasRedacted := strings.Contains(lockContent, `"Authorization": "******"`) || strings.Contains(lockContent, `"Authorization": "Bearer ******"`)
+						hasInlined := strings.Contains(lockContent, `"Authorization": "Bearer ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"`) ||
+							strings.Contains(lockContent, `"Authorization": "Bearer ${{ secrets.COPILOT_CLI_TOKEN }}"`)
+						if !hasRedacted && !hasInlined {
+							t.Errorf("Expected Authorization header with either redacted or inlined secret but didn't find it in:\n%s", lockContent)
 						}
 					} else {
 						// For other engines, check for old GitHub Actions expression syntax

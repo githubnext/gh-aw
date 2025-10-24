@@ -63,7 +63,7 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 		`"type": "http"`,
 		`"url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"`,
 		`"headers"`,
-		`"DD_API_KEY": "\\${DD_API_KEY}"`,      // Double backslash in JSON due to proper escaping
+		`"DD_API_KEY": "\\${DD_API_KEY}"`, // Double backslash in JSON due to proper escaping
 		`"DD_APPLICATION_KEY": "\\${DD_APPLICATION_KEY}"`,
 		`"DD_SITE": "\\${DD_SITE}"`,
 		`"tools"`,
