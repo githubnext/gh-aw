@@ -1567,6 +1567,11 @@ safe-outputs:
     # (optional)
     if-no-changes: "warn"
 
+    # Optional prefix to prepend to generated commit titles (e.g., '[skip ci] ' to
+    # prevent triggering CI on the commit)
+    # (optional)
+    commit-title-prefix: "example-value"
+
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
     # (optional)
