@@ -132,7 +132,7 @@ const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
 
 <script>
   // Create and show error modal
-  function showErrorModal(errorMessage: string) {
+  function showErrorModal(errorMessage) {
     // Create modal overlay
     const overlay = document.createElement('div');
     overlay.className = 'error-modal-overlay';
@@ -172,7 +172,7 @@ const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
     });
     
     // Close on Escape key
-    const handleEscape = (e: KeyboardEvent) => {
+    const handleEscape = (e) => {
       if (e.key === 'Escape') {
         closeModal();
         document.removeEventListener('keydown', handleEscape);
@@ -182,7 +182,7 @@ const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
   }
   
   // Escape HTML to prevent XSS
-  function escapeHtml(text: string): string {
+  function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
