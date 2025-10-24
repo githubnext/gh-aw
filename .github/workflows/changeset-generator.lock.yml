@@ -1967,6 +1967,210 @@ jobs:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
+      - name: Setup OIDC token
+        id: setup_oidc_token
+        if: secrets.ANTHROPIC_API_KEY != ''
+        uses: actions/github-script@v8
+        env:
+          GH_AW_OIDC_AUDIENCE: claude-code-github-action
+          GH_AW_OIDC_EXCHANGE_URL: https://api.anthropic.com/api/github/github-app-token-exchange
+          GH_AW_OIDC_ENV_VAR_NAME: ANTHROPIC_API_KEY
+          GH_AW_OIDC_FALLBACK_ENV_VAR: ANTHROPIC_API_KEY
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        with:
+          script: |
+            async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 1000) {
+
+              let lastError;
+
+              for (let i = 0; i < maxRetries; i++) {
+
+                try {
+
+                  return await fn();
+
+                } catch (error) {
+
+                  lastError = error;
+
+                  if (i < maxRetries - 1) {
+
+                    const delay = initialDelay * Math.pow(2, i);
+
+                    core.info(`Retry ${i + 1}/${maxRetries} after ${delay}ms...`);
+
+                    await new Promise(resolve => setTimeout(resolve, delay));
+
+                  }
+
+                }
+
+              }
+
+              throw lastError;
+
+            }
+
+            async function getOidcToken(audience) {
+
+              try {
+
+                core.info(`Requesting OIDC token with audience: ${audience}`);
+
+                const oidcToken = await core.getIDToken(audience);
+
+                core.info("OIDC token successfully obtained");
+
+                return oidcToken;
+
+              } catch (error) {
+
+                core.error(`Failed to get OIDC token: ${error instanceof Error ? error.message : String(error)}`);
+
+                throw new Error("Could not fetch an OIDC token. Did you remember to add `id-token: write` to your workflow permissions?");
+
+              }
+
+            }
+
+            async function exchangeForAppToken(oidcToken, exchangeUrl) {
+
+              core.info(`Exchanging OIDC token at: ${exchangeUrl}`);
+
+              const response = await fetch(exchangeUrl, {
+
+                method: "POST",
+
+                headers: {
+
+                  Authorization: `Bearer ${oidcToken}`,
+
+                },
+
+              });
+
+              if (!response.ok) {
+
+                let responseJson;
+
+                try {
+
+                  responseJson = await response.json();
+
+                } catch {
+
+                  responseJson = {};
+
+                }
+
+                const errorCode = responseJson.error?.details?.error_code;
+
+                if (errorCode === "workflow_not_found_on_default_branch") {
+
+                  const message = responseJson.message ?? responseJson.error?.message ?? "Workflow validation failed";
+
+                  core.warning(`Skipping action due to workflow validation: ${message}`);
+
+                  core.info(
+
+                    "Action skipped due to workflow validation error. This is expected when adding workflows to new repositories or on PRs with workflow changes. If you're seeing this, your workflow will begin working once you merge your PR."
+
+                  );
+
+                  core.setOutput("skipped_due_to_workflow_validation_mismatch", "true");
+
+                  return;
+
+                }
+
+                const errorMessage = responseJson?.error?.message ?? "Unknown error";
+
+                core.error(`App token exchange failed: ${response.status} ${response.statusText} - ${errorMessage}`);
+
+                throw new Error(errorMessage);
+
+              }
+
+              const appTokenData = await response.json();
+
+              const appToken = appTokenData.token || appTokenData.app_token;
+
+              if (!appToken) {
+
+                throw new Error("App token not found in response");
+
+              }
+
+              core.info("App token successfully obtained");
+
+              return appToken;
+
+            }
+
+            async function main() {
+
+              try {
+
+                const audience = process.env.GH_AW_OIDC_AUDIENCE;
+
+                const exchangeUrl = process.env.GH_AW_OIDC_EXCHANGE_URL;
+
+                const envVarName = process.env.GH_AW_OIDC_ENV_VAR_NAME;
+
+                const fallbackEnvVar = process.env.GH_AW_OIDC_FALLBACK_ENV_VAR;
+
+                if (!audience || !exchangeUrl || !envVarName) {
+
+                  core.setFailed("Missing required OIDC configuration (audience, exchange_url, or env_var_name)");
+
+                  return;
+
+                }
+
+                const fallbackToken = fallbackEnvVar ? process.env[fallbackEnvVar] : null;
+
+                if (fallbackToken) {
+
+                  core.info(`Using provided token from ${fallbackEnvVar} for authentication`);
+
+                  core.setOutput("token", fallbackToken);
+
+                  core.setOutput("token_source", "fallback");
+
+                  core.exportVariable(envVarName, fallbackToken);
+
+                  return;
+
+                }
+
+                const oidcToken = await retryWithBackoff(() => getOidcToken(audience));
+
+                const appToken = await retryWithBackoff(() => exchangeForAppToken(oidcToken, exchangeUrl));
+
+                core.info(`Setting token in environment variable: ${envVarName}`);
+
+                core.setOutput("token", appToken);
+
+                core.setOutput("token_source", "oidc");
+
+                core.exportVariable(envVarName, appToken);
+
+                core.setOutput("oidc_token_obtained", "true");
+
+              } catch (error) {
+
+                core.setFailed(
+
+                  `Failed to setup token: ${error instanceof Error ? error.message : String(error)}\n\nIf you instead wish to use a custom token, provide it via the fallback environment variable.`
+
+                );
+
+              }
+
+            }
+
+            await main();
+
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -2066,7 +2270,7 @@ jobs:
           # Execute Claude Code CLI with prompt from file
           claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(/tmp/gh-aw/jqschema.sh),Bash(cat),Bash(date),Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep),Bash(head),Bash(jq *),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ steps.setup_oidc_token.outputs.token }}
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
@@ -2083,6 +2287,84 @@ jobs:
           rm -rf .claude/hooks/network_permissions.py || true
           rm -rf .claude/hooks || true
           rm -rf .claude || true
+      - name: Revoke OIDC token
+        id: revoke_oidc_token
+        if: always() && steps.setup_oidc_token.outputs.token != ''
+        uses: actions/github-script@v8
+        env:
+          GH_AW_OIDC_REVOKE_URL: https://api.anthropic.com/api/github/github-app-token-revoke
+          GH_AW_OIDC_TOKEN_OBTAINED: ${{ steps.setup_oidc_token.outputs.oidc_token_obtained }}
+          GH_AW_OIDC_TOKEN: ${{ steps.setup_oidc_token.outputs.token }}
+        with:
+          script: |
+            async function main() {
+
+              try {
+
+                const revokeUrl = process.env.GH_AW_OIDC_REVOKE_URL;
+
+                const tokenObtained = process.env.GH_AW_OIDC_TOKEN_OBTAINED;
+
+                const token = process.env.GH_AW_OIDC_TOKEN;
+
+                if (tokenObtained !== "true") {
+
+                  core.info("No OIDC token to revoke (token from fallback or not obtained)");
+
+                  return;
+
+                }
+
+                if (!revokeUrl) {
+
+                  core.info("No token revoke URL configured, skipping revocation");
+
+                  return;
+
+                }
+
+                if (!token) {
+
+                  core.warning("No token available for revocation");
+
+                  return;
+
+                }
+
+                core.info(`Revoking token at: ${revokeUrl}`);
+
+                const response = await fetch(revokeUrl, {
+
+                  method: "POST",
+
+                  headers: {
+
+                    Authorization: `Bearer ${token}`,
+
+                  },
+
+                });
+
+                if (!response.ok) {
+
+                  core.warning(`Token revocation failed: ${response.status} ${response.statusText}`);
+
+                  return;
+
+                }
+
+                core.info("Token successfully revoked");
+
+              } catch (error) {
+
+                core.warning(`Failed to revoke token: ${error instanceof Error ? error.message : String(error)}`);
+
+              }
+
+            }
+
+            await main();
+
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@v8
@@ -3909,6 +4191,210 @@ jobs:
           node-version: '24'
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code@2.0.25
+      - name: Setup OIDC token
+        id: setup_oidc_token
+        if: secrets.ANTHROPIC_API_KEY != ''
+        uses: actions/github-script@v8
+        env:
+          GH_AW_OIDC_AUDIENCE: claude-code-github-action
+          GH_AW_OIDC_EXCHANGE_URL: https://api.anthropic.com/api/github/github-app-token-exchange
+          GH_AW_OIDC_ENV_VAR_NAME: ANTHROPIC_API_KEY
+          GH_AW_OIDC_FALLBACK_ENV_VAR: ANTHROPIC_API_KEY
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        with:
+          script: |
+            async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 1000) {
+
+              let lastError;
+
+              for (let i = 0; i < maxRetries; i++) {
+
+                try {
+
+                  return await fn();
+
+                } catch (error) {
+
+                  lastError = error;
+
+                  if (i < maxRetries - 1) {
+
+                    const delay = initialDelay * Math.pow(2, i);
+
+                    core.info(`Retry ${i + 1}/${maxRetries} after ${delay}ms...`);
+
+                    await new Promise(resolve => setTimeout(resolve, delay));
+
+                  }
+
+                }
+
+              }
+
+              throw lastError;
+
+            }
+
+            async function getOidcToken(audience) {
+
+              try {
+
+                core.info(`Requesting OIDC token with audience: ${audience}`);
+
+                const oidcToken = await core.getIDToken(audience);
+
+                core.info("OIDC token successfully obtained");
+
+                return oidcToken;
+
+              } catch (error) {
+
+                core.error(`Failed to get OIDC token: ${error instanceof Error ? error.message : String(error)}`);
+
+                throw new Error("Could not fetch an OIDC token. Did you remember to add `id-token: write` to your workflow permissions?");
+
+              }
+
+            }
+
+            async function exchangeForAppToken(oidcToken, exchangeUrl) {
+
+              core.info(`Exchanging OIDC token at: ${exchangeUrl}`);
+
+              const response = await fetch(exchangeUrl, {
+
+                method: "POST",
+
+                headers: {
+
+                  Authorization: `Bearer ${oidcToken}`,
+
+                },
+
+              });
+
+              if (!response.ok) {
+
+                let responseJson;
+
+                try {
+
+                  responseJson = await response.json();
+
+                } catch {
+
+                  responseJson = {};
+
+                }
+
+                const errorCode = responseJson.error?.details?.error_code;
+
+                if (errorCode === "workflow_not_found_on_default_branch") {
+
+                  const message = responseJson.message ?? responseJson.error?.message ?? "Workflow validation failed";
+
+                  core.warning(`Skipping action due to workflow validation: ${message}`);
+
+                  core.info(
+
+                    "Action skipped due to workflow validation error. This is expected when adding workflows to new repositories or on PRs with workflow changes. If you're seeing this, your workflow will begin working once you merge your PR."
+
+                  );
+
+                  core.setOutput("skipped_due_to_workflow_validation_mismatch", "true");
+
+                  return;
+
+                }
+
+                const errorMessage = responseJson?.error?.message ?? "Unknown error";
+
+                core.error(`App token exchange failed: ${response.status} ${response.statusText} - ${errorMessage}`);
+
+                throw new Error(errorMessage);
+
+              }
+
+              const appTokenData = await response.json();
+
+              const appToken = appTokenData.token || appTokenData.app_token;
+
+              if (!appToken) {
+
+                throw new Error("App token not found in response");
+
+              }
+
+              core.info("App token successfully obtained");
+
+              return appToken;
+
+            }
+
+            async function main() {
+
+              try {
+
+                const audience = process.env.GH_AW_OIDC_AUDIENCE;
+
+                const exchangeUrl = process.env.GH_AW_OIDC_EXCHANGE_URL;
+
+                const envVarName = process.env.GH_AW_OIDC_ENV_VAR_NAME;
+
+                const fallbackEnvVar = process.env.GH_AW_OIDC_FALLBACK_ENV_VAR;
+
+                if (!audience || !exchangeUrl || !envVarName) {
+
+                  core.setFailed("Missing required OIDC configuration (audience, exchange_url, or env_var_name)");
+
+                  return;
+
+                }
+
+                const fallbackToken = fallbackEnvVar ? process.env[fallbackEnvVar] : null;
+
+                if (fallbackToken) {
+
+                  core.info(`Using provided token from ${fallbackEnvVar} for authentication`);
+
+                  core.setOutput("token", fallbackToken);
+
+                  core.setOutput("token_source", "fallback");
+
+                  core.exportVariable(envVarName, fallbackToken);
+
+                  return;
+
+                }
+
+                const oidcToken = await retryWithBackoff(() => getOidcToken(audience));
+
+                const appToken = await retryWithBackoff(() => exchangeForAppToken(oidcToken, exchangeUrl));
+
+                core.info(`Setting token in environment variable: ${envVarName}`);
+
+                core.setOutput("token", appToken);
+
+                core.setOutput("token_source", "oidc");
+
+                core.exportVariable(envVarName, appToken);
+
+                core.setOutput("oidc_token_obtained", "true");
+
+              } catch (error) {
+
+                core.setFailed(
+
+                  `Failed to setup token: ${error instanceof Error ? error.message : String(error)}\n\nIf you instead wish to use a custom token, provide it via the fallback environment variable.`
+
+                );
+
+              }
+
+            }
+
+            await main();
+
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -3935,7 +4421,7 @@ jobs:
           # Execute Claude Code CLI with prompt from file
           claude --print --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ steps.setup_oidc_token.outputs.token }}
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
@@ -3944,6 +4430,84 @@ jobs:
           MCP_TOOL_TIMEOUT: "60000"
           BASH_DEFAULT_TIMEOUT_MS: "60000"
           BASH_MAX_TIMEOUT_MS: "60000"
+      - name: Revoke OIDC token
+        id: revoke_oidc_token
+        if: always() && steps.setup_oidc_token.outputs.token != ''
+        uses: actions/github-script@v8
+        env:
+          GH_AW_OIDC_REVOKE_URL: https://api.anthropic.com/api/github/github-app-token-revoke
+          GH_AW_OIDC_TOKEN_OBTAINED: ${{ steps.setup_oidc_token.outputs.oidc_token_obtained }}
+          GH_AW_OIDC_TOKEN: ${{ steps.setup_oidc_token.outputs.token }}
+        with:
+          script: |
+            async function main() {
+
+              try {
+
+                const revokeUrl = process.env.GH_AW_OIDC_REVOKE_URL;
+
+                const tokenObtained = process.env.GH_AW_OIDC_TOKEN_OBTAINED;
+
+                const token = process.env.GH_AW_OIDC_TOKEN;
+
+                if (tokenObtained !== "true") {
+
+                  core.info("No OIDC token to revoke (token from fallback or not obtained)");
+
+                  return;
+
+                }
+
+                if (!revokeUrl) {
+
+                  core.info("No token revoke URL configured, skipping revocation");
+
+                  return;
+
+                }
+
+                if (!token) {
+
+                  core.warning("No token available for revocation");
+
+                  return;
+
+                }
+
+                core.info(`Revoking token at: ${revokeUrl}`);
+
+                const response = await fetch(revokeUrl, {
+
+                  method: "POST",
+
+                  headers: {
+
+                    Authorization: `Bearer ${token}`,
+
+                  },
+
+                });
+
+                if (!response.ok) {
+
+                  core.warning(`Token revocation failed: ${response.status} ${response.statusText}`);
+
+                  return;
+
+                }
+
+                core.info("Token successfully revoked");
+
+              } catch (error) {
+
+                core.warning(`Failed to revoke token: ${error instanceof Error ? error.message : String(error)}`);
+
+              }
+
+            }
+
+            await main();
+
       - name: Parse threat detection results
         uses: actions/github-script@v8
         with:

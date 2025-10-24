@@ -166,19 +166,28 @@ func TestClaudeEngineWithoutOIDC(t *testing.T) {
 		stepsStr += strings.Join(step, "\n") + "\n"
 	}
 
-	// Verify OIDC setup step is NOT present
-	if strings.Contains(stepsStr, "Setup OIDC token") {
-		t.Error("Expected OIDC setup step to NOT be present when OIDC is not configured")
+	// Verify OIDC setup step IS present (Claude has OIDC enabled by default)
+	if !strings.Contains(stepsStr, "Setup OIDC token") {
+		t.Error("Expected OIDC setup step to be present - Claude has OIDC enabled by default")
 	}
 
-	// Verify OIDC revoke step is NOT present
-	if strings.Contains(stepsStr, "Revoke OIDC token") {
-		t.Error("Expected OIDC revoke step to NOT be present when OIDC is not configured")
+	// Verify OIDC revoke step IS present (Claude has OIDC enabled by default)
+	if !strings.Contains(stepsStr, "Revoke OIDC token") {
+		t.Error("Expected OIDC revoke step to be present - Claude has OIDC enabled by default")
 	}
 
-	// Verify token uses direct secret
-	if !strings.Contains(stepsStr, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
-		t.Error("Expected ANTHROPIC_API_KEY to use direct secret when OIDC is not configured")
+	// Verify token uses OIDC token from setup step
+	if !strings.Contains(stepsStr, "ANTHROPIC_API_KEY: ${{ steps.setup_oidc_token.outputs.token }}") {
+		t.Error("Expected ANTHROPIC_API_KEY to use OIDC token from setup step - Claude has OIDC enabled by default")
+	}
+
+	// Verify default OIDC configuration values
+	if !strings.Contains(stepsStr, "GH_AW_OIDC_AUDIENCE: claude-code-github-action") {
+		t.Error("Expected default OIDC audience for Claude")
+	}
+
+	if !strings.Contains(stepsStr, "GH_AW_OIDC_EXCHANGE_URL: https://api.anthropic.com/api/github/github-app-token-exchange") {
+		t.Error("Expected default OIDC exchange URL for Claude")
 	}
 }
 

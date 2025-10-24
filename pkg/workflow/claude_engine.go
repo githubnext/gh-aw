@@ -84,11 +84,19 @@ func (e *ClaudeEngine) GetVersionCommand() string {
 }
 
 // GetOIDCConfig returns the OIDC configuration for Claude engine
+// Claude has OIDC enabled by default with Anthropic's token exchange endpoint
 func (e *ClaudeEngine) GetOIDCConfig(workflowData *WorkflowData) *OIDCConfig {
+	// If explicit OIDC config is provided, use it
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.OIDC != nil && workflowData.EngineConfig.OIDC.TokenExchangeURL != "" {
 		return workflowData.EngineConfig.OIDC
 	}
-	return nil
+
+	// Return default OIDC configuration for Claude
+	return &OIDCConfig{
+		Audience:         "claude-code-github-action",
+		TokenExchangeURL: "https://api.anthropic.com/api/github/github-app-token-exchange",
+		TokenRevokeURL:   "https://api.anthropic.com/api/github/github-app-token-revoke",
+	}
 }
 
 // GetTokenEnvVarName returns the environment variable name for Claude's authentication token
@@ -101,9 +109,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Handle custom steps if they exist in engine config
 	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
 
-	// Add OIDC setup step if OIDC is configured
-	if HasOIDCConfig(workflowData.EngineConfig) {
-		oidcSetupStep := GenerateOIDCSetupStep(workflowData.EngineConfig.OIDC, e)
+	// Add OIDC setup step - Claude has OIDC enabled by default
+	oidcConfig := e.GetOIDCConfig(workflowData)
+	if oidcConfig != nil {
+		oidcSetupStep := GenerateOIDCSetupStep(oidcConfig, e)
 		steps = append(steps, oidcSetupStep)
 	}
 
@@ -211,7 +220,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add Anthropic API key - if OIDC is configured, use the token from the setup step
 	// Otherwise, use the secret directly
-	if HasOIDCConfig(workflowData.EngineConfig) {
+	if oidcConfig != nil {
 		stepLines = append(stepLines, "          ANTHROPIC_API_KEY: ${{ steps.setup_oidc_token.outputs.token }}")
 	} else {
 		stepLines = append(stepLines, "          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}")
@@ -292,9 +301,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		steps = append(steps, cleanupStep)
 	}
 
-	// Add OIDC revoke step if OIDC is configured
-	if HasOIDCConfig(workflowData.EngineConfig) {
-		oidcRevokeStep := GenerateOIDCRevokeStep(workflowData.EngineConfig.OIDC)
+	// Add OIDC revoke step - Claude has OIDC enabled by default
+	if oidcConfig != nil {
+		oidcRevokeStep := GenerateOIDCRevokeStep(oidcConfig)
 		steps = append(steps, oidcRevokeStep)
 	}
 
