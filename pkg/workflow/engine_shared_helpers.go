@@ -301,6 +301,128 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	}
 }
 
+
+
+// BuildMCPConfigJSON generates MCP configuration as a compact JSON string.
+// This function reuses the existing renderers but captures the JSON content
+// instead of writing it to a heredoc file.
+//
+// Parameters:
+//   - tools: Map of tool configurations
+//   - mcpTools: Ordered list of MCP tool names to render
+//   - workflowData: Workflow configuration data  
+//   - options: JSON MCP config rendering options
+//
+// Returns:
+//   - string: The MCP config as a compact JSON string (single line, minimized)
+//   - error: Error if JSON generation or validation fails
+func BuildMCPConfigJSON(
+	tools map[string]any,
+	mcpTools []string,
+	workflowData *WorkflowData,
+	options JSONMCPConfigOptions,
+) (string, error) {
+	var json strings.Builder
+	
+	// Start building JSON structure (matching the indentation used in heredoc)
+	// The heredoc in RenderJSONMCPConfig uses 10 spaces base + 2 for each level
+	json.WriteString("          {\n")                   // Base indent (10 spaces)
+	json.WriteString("            \"mcpServers\": {\n") // +2 spaces (12 total)
+
+	// Filter tools if needed (e.g., Copilot filters out cache-memory)
+	var filteredTools []string
+	for _, toolName := range mcpTools {
+		if options.FilterTool != nil && !options.FilterTool(toolName) {
+			continue
+		}
+		filteredTools = append(filteredTools, toolName)
+	}
+
+	// Process each MCP tool (reusing existing renderers)
+	// Renderers expect to write at 14+ spaces indentation
+	totalServers := len(filteredTools)
+	serverCount := 0
+
+	for _, toolName := range filteredTools {
+		serverCount++
+		isLast := serverCount == totalServers
+
+		switch toolName {
+		case "github":
+			githubTool := tools["github"]
+			options.Renderers.RenderGitHub(&json, githubTool, isLast, workflowData)
+		case "playwright":
+			playwrightTool := tools["playwright"]
+			options.Renderers.RenderPlaywright(&json, playwrightTool, isLast)
+		case "cache-memory":
+			options.Renderers.RenderCacheMemory(&json, isLast, workflowData)
+		case "agentic-workflows":
+			options.Renderers.RenderAgenticWorkflows(&json, isLast)
+		case "safe-outputs":
+			options.Renderers.RenderSafeOutputs(&json, isLast)
+		case "web-fetch":
+			options.Renderers.RenderWebFetch(&json, isLast)
+		default:
+			// Handle custom MCP tools using shared helper
+			HandleCustomMCPToolInSwitch(&json, toolName, tools, isLast, options.Renderers.RenderCustomMCPConfig)
+		}
+	}
+
+	// Close JSON structure
+	json.WriteString("            }\n")  // Closing mcpServers (12 spaces)
+	json.WriteString("          }\n")    // Closing root (10 spaces)
+	
+	// Validate and compact the JSON using encoding/json
+	jsonStr := json.String()
+	return validateAndCompactJSON(jsonStr)
+}
+
+// validateAndCompactJSON compacts JSON string for CLI argument passing.
+// Note: This does NOT validate the JSON because it may contain GitHub Actions expressions
+// like ${{ env.VAR }} which are not valid JSON until evaluated by GitHub Actions.
+// The JSON structure is validated by tests that check the generated workflow output.
+func validateAndCompactJSON(jsonStr string) (string, error) {
+	// Compact the JSON by removing unnecessary whitespace
+	// We can't use json.Marshal because the content contains GitHub Actions expressions
+	
+	var compacted strings.Builder
+	var inString bool
+	var escape bool
+	
+	for i := 0; i < len(jsonStr); i++ {
+		ch := jsonStr[i]
+		
+		// Track string state to preserve spaces inside strings
+		if ch == '"' && !escape {
+			inString = !inString
+			compacted.WriteByte(ch)
+			continue
+		}
+		
+		// Track escape sequences
+		if ch == '\\' && !escape {
+			escape = true
+			compacted.WriteByte(ch)
+			continue
+		}
+		
+		if escape {
+			escape = false
+			compacted.WriteByte(ch)
+			continue
+		}
+		
+		// Skip whitespace outside of strings
+		if !inString && (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r') {
+			continue
+		}
+		
+		compacted.WriteByte(ch)
+	}
+	
+	return compacted.String(), nil
+}
+
 // RenderJSONMCPConfig renders MCP configuration in JSON format with the common mcpServers structure.
 // This shared function extracts the duplicate pattern from Claude, Copilot, and Custom engines.
 //

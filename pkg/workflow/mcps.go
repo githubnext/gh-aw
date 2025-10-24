@@ -36,6 +36,34 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 	return false
 }
 
+// GetMCPToolsList returns the list of MCP tools configured for the workflow.
+// This is used for building MCP configurations in engines.
+func GetMCPToolsList(tools map[string]any, safeOutputs *SafeOutputsConfig) []string {
+	var mcpTools []string
+
+	for toolName, toolValue := range tools {
+		// Standard MCP tools
+		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
+			mcpTools = append(mcpTools, toolName)
+		} else if mcpConfig, ok := toolValue.(map[string]any); ok {
+			// Check if it's explicitly marked as MCP type in the new format
+			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
+				mcpTools = append(mcpTools, toolName)
+			}
+		}
+	}
+
+	// Check if safe-outputs is enabled and add to MCP tools
+	if HasSafeOutputsEnabled(safeOutputs) {
+		mcpTools = append(mcpTools, "safe-outputs")
+	}
+
+	// Sort tools to ensure stable code generation
+	sort.Strings(mcpTools)
+
+	return mcpTools
+}
+
 // generateMCPSetup generates the MCP server configuration setup
 func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
 	// Collect tools that need MCP server configuration

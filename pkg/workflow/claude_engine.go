@@ -105,8 +105,34 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Add MCP configuration only if there are MCP servers
+	mcpConfigJSON := ""
 	if HasMCPServers(workflowData) {
-		claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/gh-aw/mcp-config/mcp-servers.json")
+		// Build MCP config JSON for CLI argument
+		mcpConfig, err := BuildMCPConfigJSON(
+			workflowData.Tools,
+			GetMCPToolsList(workflowData.Tools, workflowData.SafeOutputs),
+			workflowData,
+			JSONMCPConfigOptions{
+				Renderers: MCPToolRenderers{
+					RenderGitHub:           e.renderGitHubClaudeMCPConfig,
+					RenderPlaywright:       e.renderPlaywrightMCPConfig,
+					RenderCacheMemory:      e.renderCacheMemoryMCPConfig,
+					RenderAgenticWorkflows: e.renderAgenticWorkflowsMCPConfig,
+					RenderSafeOutputs:      e.renderSafeOutputsMCPConfig,
+					RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
+						renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
+					},
+					RenderCustomMCPConfig: e.renderClaudeMCPConfig,
+				},
+			},
+		)
+		if err != nil {
+			// Log error and continue without MCP config
+			fmt.Printf("Error building MCP config JSON: %v\n", err)
+		} else {
+			mcpConfigJSON = mcpConfig
+			claudeArgs = append(claudeArgs, "--mcp-config", mcpConfigJSON)
+		}
 	}
 
 	// Add allowed tools configuration
@@ -200,11 +226,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Always add GH_AW_PROMPT for agentic workflows
 	stepLines = append(stepLines, "          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt")
-
-	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
-	if HasMCPServers(workflowData) {
-		stepLines = append(stepLines, "          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json")
-	}
 
 	// Set timeout environment variables for Claude Code
 	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeoutSeconds
@@ -624,21 +645,8 @@ func (e *ClaudeEngine) generateAllowedToolsComment(allowedToolsStr string, inden
 }
 
 func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	// Use shared JSON MCP config renderer
-	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
-		ConfigPath: "/tmp/gh-aw/mcp-config/mcp-servers.json",
-		Renderers: MCPToolRenderers{
-			RenderGitHub:           e.renderGitHubClaudeMCPConfig,
-			RenderPlaywright:       e.renderPlaywrightMCPConfig,
-			RenderCacheMemory:      e.renderCacheMemoryMCPConfig,
-			RenderAgenticWorkflows: e.renderAgenticWorkflowsMCPConfig,
-			RenderSafeOutputs:      e.renderSafeOutputsMCPConfig,
-			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
-				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
-			},
-			RenderCustomMCPConfig: e.renderClaudeMCPConfig,
-		},
-	})
+	// Claude engine now receives MCP config via --mcp-config CLI argument instead of file
+	// No file generation needed - the JSON config is built in GetExecutionSteps and passed directly
 }
 
 // renderGitHubClaudeMCPConfig generates the GitHub MCP server configuration

@@ -159,6 +159,44 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, workflowData.EngineConfig.Args...)
 	}
 
+	// Add MCP configuration only if there are MCP servers
+	if HasMCPServers(workflowData) {
+		// Build MCP config JSON for CLI argument
+		mcpConfig, err := BuildMCPConfigJSON(
+			workflowData.Tools,
+			GetMCPToolsList(workflowData.Tools, workflowData.SafeOutputs),
+			workflowData,
+			JSONMCPConfigOptions{
+				Renderers: MCPToolRenderers{
+					RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+						e.renderGitHubCopilotMCPConfig(yaml, githubTool, isLast)
+					},
+					RenderPlaywright:       e.renderPlaywrightCopilotMCPConfig,
+					RenderCacheMemory: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
+						// Cache-memory is not used for Copilot (filtered out)
+					},
+					RenderAgenticWorkflows: e.renderAgenticWorkflowsCopilotMCPConfig,
+					RenderSafeOutputs:      e.renderSafeOutputsCopilotMCPConfig,
+					RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
+						renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
+					},
+					RenderCustomMCPConfig: e.renderCopilotMCPConfig,
+				},
+				FilterTool: func(toolName string) bool {
+					// Filter out cache-memory for Copilot
+					// Cache-memory is handled as a simple file share, not an MCP server
+					return toolName != "cache-memory"
+				},
+			},
+		)
+		if err != nil {
+			// Log error and continue without MCP config
+			fmt.Printf("Error building MCP config JSON: %v\n", err)
+		} else {
+			copilotArgs = append(copilotArgs, "--additional-mcp-config", mcpConfig)
+		}
+	}
+
 	// Add prompt argument - inline for firewall, variable for non-firewall
 	if isFeatureEnabled("firewall", workflowData) {
 		copilotArgs = append(copilotArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
@@ -234,11 +272,6 @@ COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 
 	// Always add GH_AW_PROMPT for agentic workflows
 	env["GH_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
-
-	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
-	if HasMCPServers(workflowData) {
-		env["GH_AW_MCP_CONFIG"] = "/home/runner/.copilot/mcp-config.json"
-	}
 
 	if hasGitHubTool(workflowData.Tools) {
 		githubTool := workflowData.Tools["github"]
@@ -347,44 +380,8 @@ func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionS
 }
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	// Create the directory first
-	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
-
-	// Use shared JSON MCP config renderer with Copilot-specific options
-	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
-		ConfigPath: "/home/runner/.copilot/mcp-config.json",
-		Renderers: MCPToolRenderers{
-			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
-				e.renderGitHubCopilotMCPConfig(yaml, githubTool, isLast)
-			},
-			RenderPlaywright: e.renderPlaywrightCopilotMCPConfig,
-			RenderCacheMemory: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
-				// Cache-memory is not used for Copilot (filtered out)
-			},
-			RenderAgenticWorkflows: e.renderAgenticWorkflowsCopilotMCPConfig,
-			RenderSafeOutputs:      e.renderSafeOutputsCopilotMCPConfig,
-			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
-				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
-			},
-			RenderCustomMCPConfig: e.renderCopilotMCPConfig,
-		},
-		FilterTool: func(toolName string) bool {
-			// Filter out cache-memory for Copilot
-			// Cache-memory is handled as a simple file share, not an MCP server
-			return toolName != "cache-memory"
-		},
-		PostEOFCommands: func(yaml *strings.Builder) {
-			// Add debug output
-			yaml.WriteString("          echo \"-------START MCP CONFIG-----------\"\n")
-			yaml.WriteString("          cat /home/runner/.copilot/mcp-config.json\n")
-			yaml.WriteString("          echo \"-------END MCP CONFIG-----------\"\n")
-			yaml.WriteString("          echo \"-------/home/runner/.copilot-----------\"\n")
-			yaml.WriteString("          find /home/runner/.copilot\n")
-		},
-	})
-	//GITHUB_COPILOT_CLI_MODE
-	yaml.WriteString("          echo \"HOME: $HOME\"\n")
-	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")
+	// Copilot engine now receives MCP config via --additional-mcp-config CLI argument instead of file
+	// No file generation needed - the JSON config is built in GetExecutionSteps and passed directly
 }
 
 // renderGitHubCopilotMCPConfig generates the GitHub MCP server configuration for Copilot CLI

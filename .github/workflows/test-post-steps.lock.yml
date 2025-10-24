@@ -126,42 +126,6 @@ jobs:
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          mkdir -p /home/runner/.copilot
-          cat > /home/runner/.copilot/mcp-config.json << EOF
-          {
-            "mcpServers": {
-              "github": {
-                "type": "local",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_READ_ONLY=1",
-                  "-e",
-                  "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.19.1"
-                ],
-                "tools": [
-                  "get_repository"
-                ],
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
-                }
-              }
-            }
-          }
-          EOF
-          echo "-------START MCP CONFIG-----------"
-          cat /home/runner/.copilot/mcp-config.json
-          echo "-------END MCP CONFIG-----------"
-          echo "-------/home/runner/.copilot-----------"
-          find /home/runner/.copilot
-          echo "HOME: $HOME"
-          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -374,7 +338,6 @@ jobs:
           copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(get_repository)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
