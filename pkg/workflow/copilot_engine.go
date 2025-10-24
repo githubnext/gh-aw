@@ -877,11 +877,7 @@ func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionS
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	// For Copilot CLI, MCP config is passed via --additional-mcp-config argument instead of file
 	// This method is now a no-op since the config is handled in GetExecutionSteps
-	// We still keep debug output for troubleshooting
-	
-	yaml.WriteString("          # MCP configuration will be passed via --additional-mcp-config argument\n")
-	yaml.WriteString("          echo \"HOME: $HOME\"\n")
-	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")
+	// No setup step is needed
 }
 
 // renderGitHubCopilotMCPConfig generates the GitHub MCP server configuration for Copilot CLI
