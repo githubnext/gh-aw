@@ -573,8 +573,10 @@ func (e *CopilotEngine) buildSafeOutputsMCPServerJSON() MCPServerJSON {
 		Command: "node",
 		Args:    []string{"/tmp/gh-aw/safe-outputs/mcp-server.cjs"},
 		Env: map[string]string{
-			"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
-			"GH_AW_SAFE_OUTPUTS_CONFIG": "${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}",
+			"GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
+			// Don't use toJSON() here - the env var is already a JSON string that will be
+			// properly quoted by json.Marshal() when building the --additional-mcp-config argument
+			"GH_AW_SAFE_OUTPUTS_CONFIG": "${{ env.GH_AW_SAFE_OUTPUTS_CONFIG }}",
 			"GH_AW_ASSETS_BRANCH":       "${{ env.GH_AW_ASSETS_BRANCH }}",
 			"GH_AW_ASSETS_MAX_SIZE_KB":  "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}",
 			"GH_AW_ASSETS_ALLOWED_EXTS": "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}",
