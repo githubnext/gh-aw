@@ -76,7 +76,6 @@ steps:
       echo "Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)"
 
 timeout_minutes: 15
-strict: true
 
 ---
 
