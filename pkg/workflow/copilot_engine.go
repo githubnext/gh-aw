@@ -612,8 +612,15 @@ func (e *CopilotEngine) buildCustomMCPConfig(toolName string, toolConfig map[str
 	
 	// Check the type field
 	mcpType, _ := toolConfig["type"].(string)
+	
+	// If no type is specified, try to infer it from other fields
 	if mcpType == "" {
-		mcpType = "local" // default to local
+		// If URL is present, it's an HTTP server
+		if _, hasURL := toolConfig["url"]; hasURL {
+			mcpType = "http"
+		} else {
+			mcpType = "local" // default to local
+		}
 	}
 	config["type"] = mcpType
 	

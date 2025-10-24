@@ -369,8 +369,6 @@ jobs:
           copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool svelte --allow-tool 'svelte(get-documentation)' --allow-tool 'svelte(list-sections)' --allow-tool 'svelte(playground-link)' --allow-tool 'svelte(svelte-autofixer)' --allow-tool 'svelte(svelte_definition)' --additional-mcp-config '{
             "mcpServers": {
               "github": {
-                "type": "local",
-                "command": "docker",
                 "args": [
                   "run",
                   "-i",
@@ -383,21 +381,25 @@ jobs:
                   "GITHUB_TOOLSETS=default",
                   "ghcr.io/github/github-mcp-server:v0.19.1"
                 ],
-                "tools": ["*"],
+                "command": "docker",
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
-                }
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}"
+                },
+                "tools": [
+                  "*"
+                ],
+                "type": "local"
               },
               "svelte": {
-                "type": "http",
-                "url": "https://mcp.svelte.dev/mcp",
                 "tools": [
                   "list-sections",
                   "get-documentation",
                   "svelte-autofixer",
                   "playground-link",
                   "svelte_definition"
-                ]
+                ],
+                "type": "http",
+                "url": "https://mcp.svelte.dev/mcp"
               }
             }
           }' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log

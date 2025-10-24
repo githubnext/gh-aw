@@ -1146,8 +1146,6 @@ jobs:
           copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool notion --allow-tool 'notion(get_database)' --allow-tool 'notion(get_page)' --allow-tool 'notion(query_database)' --allow-tool 'notion(search_pages)' --allow-tool safe_outputs --additional-mcp-config '{
             "mcpServers": {
               "github": {
-                "type": "local",
-                "command": "docker",
                 "args": [
                   "run",
                   "-i",
@@ -1160,44 +1158,43 @@ jobs:
                   "GITHUB_TOOLSETS=default",
                   "ghcr.io/github/github-mcp-server:v0.19.1"
                 ],
-                "tools": ["*"],
+                "command": "docker",
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
-                }
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}"
+                },
+                "tools": [
+                  "*"
+                ],
+                "type": "local"
               },
               "notion": {
-                "type": "local",
-                "command": "docker",
+                "env": {
+                  "NOTION_API_TOKEN": "${{ secrets.NOTION_API_TOKEN }}"
+                },
                 "tools": [
                   "search_pages",
                   "get_page",
                   "get_database",
                   "query_database"
                 ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "NOTION_API_TOKEN",
-                  "mcp/notion"
-                ],
-                "env": {
-                  "NOTION_API_TOKEN": "${{ secrets.NOTION_API_TOKEN }}"
-                }
+                "type": "local"
               },
-              "safe_outputs": {
-                "type": "local",
+              "safe-outputs": {
+                "args": [
+                  "/tmp/gh-aw/safe-outputs/mcp-server.cjs"
+                ],
                 "command": "node",
-                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
-                "tools": ["*"],
                 "env": {
-                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\${GH_AW_SAFE_OUTPUTS_CONFIG}",
-                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}"
-                }
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "\\${GH_AW_ASSETS_ALLOWED_EXTS}",
+                  "GH_AW_ASSETS_BRANCH": "\\${GH_AW_ASSETS_BRANCH}",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "\\${GH_AW_ASSETS_MAX_SIZE_KB}",
+                  "GH_AW_SAFE_OUTPUTS": "\\${GH_AW_SAFE_OUTPUTS}",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\\${GH_AW_SAFE_OUTPUTS_CONFIG}"
+                },
+                "tools": [
+                  "*"
+                ],
+                "type": "local"
               }
             }
           }' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log

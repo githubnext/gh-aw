@@ -1153,8 +1153,6 @@ jobs:
           copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(get_issue)' --allow-tool 'github(search_issues)' --allow-tool safe_outputs --additional-mcp-config '{
             "mcpServers": {
               "github": {
-                "type": "local",
-                "command": "docker",
                 "args": [
                   "run",
                   "-i",
@@ -1167,26 +1165,32 @@ jobs:
                   "GITHUB_TOOLSETS=default",
                   "ghcr.io/github/github-mcp-server:v0.19.1"
                 ],
+                "command": "docker",
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}"
+                },
                 "tools": [
                   "search_issues",
                   "get_issue"
                 ],
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
-                }
+                "type": "local"
               },
-              "safe_outputs": {
-                "type": "local",
+              "safe-outputs": {
+                "args": [
+                  "/tmp/gh-aw/safe-outputs/mcp-server.cjs"
+                ],
                 "command": "node",
-                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
-                "tools": ["*"],
                 "env": {
-                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\${GH_AW_SAFE_OUTPUTS_CONFIG}",
-                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}"
-                }
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "\\${GH_AW_ASSETS_ALLOWED_EXTS}",
+                  "GH_AW_ASSETS_BRANCH": "\\${GH_AW_ASSETS_BRANCH}",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "\\${GH_AW_ASSETS_MAX_SIZE_KB}",
+                  "GH_AW_SAFE_OUTPUTS": "\\${GH_AW_SAFE_OUTPUTS}",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\\${GH_AW_SAFE_OUTPUTS_CONFIG}"
+                },
+                "tools": [
+                  "*"
+                ],
+                "type": "local"
               }
             }
           }' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log

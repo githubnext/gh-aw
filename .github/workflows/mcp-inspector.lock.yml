@@ -1903,77 +1903,48 @@ jobs:
           copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool arxiv --allow-tool 'arxiv(get_paper_details)' --allow-tool 'arxiv(get_paper_pdf)' --allow-tool 'arxiv(search_arxiv)' --allow-tool ast-grep --allow-tool 'ast-grep(*)' --allow-tool brave-search --allow-tool 'brave-search(*)' --allow-tool context7 --allow-tool 'context7(get-library-docs)' --allow-tool 'context7(resolve-library-id)' --allow-tool datadog --allow-tool 'datadog(get_datadog_metric)' --allow-tool 'datadog(search_datadog_dashboards)' --allow-tool 'datadog(search_datadog_metrics)' --allow-tool 'datadog(search_datadog_slos)' --allow-tool deepwiki --allow-tool 'deepwiki(ask_question)' --allow-tool 'deepwiki(read_wiki_contents)' --allow-tool 'deepwiki(read_wiki_structure)' --allow-tool fabric-rti --allow-tool 'fabric-rti(get_eventstream)' --allow-tool 'fabric-rti(get_eventstream_definition)' --allow-tool 'fabric-rti(kusto_get_entities_schema)' --allow-tool 'fabric-rti(kusto_get_function_schema)' --allow-tool 'fabric-rti(kusto_get_shots)' --allow-tool 'fabric-rti(kusto_get_table_schema)' --allow-tool 'fabric-rti(kusto_known_services)' --allow-tool 'fabric-rti(kusto_list_databases)' --allow-tool 'fabric-rti(kusto_list_tables)' --allow-tool 'fabric-rti(kusto_query)' --allow-tool 'fabric-rti(kusto_sample_function_data)' --allow-tool 'fabric-rti(kusto_sample_table_data)' --allow-tool 'fabric-rti(list_eventstreams)' --allow-tool gh-aw --allow-tool github --allow-tool markitdown --allow-tool 'markitdown(*)' --allow-tool memory --allow-tool 'memory(delete_memory)' --allow-tool 'memory(list_memories)' --allow-tool 'memory(retrieve_memory)' --allow-tool 'memory(store_memory)' --allow-tool microsoftdocs --allow-tool 'microsoftdocs(*)' --allow-tool notion --allow-tool 'notion(get_database)' --allow-tool 'notion(get_page)' --allow-tool 'notion(query_database)' --allow-tool 'notion(search_pages)' --allow-tool safe_outputs --allow-tool sentry --allow-tool 'sentry(analyze_issue_with_seer)' --allow-tool 'sentry(find_dsns)' --allow-tool 'sentry(find_organizations)' --allow-tool 'sentry(find_projects)' --allow-tool 'sentry(find_releases)' --allow-tool 'sentry(find_teams)' --allow-tool 'sentry(get_doc)' --allow-tool 'sentry(get_event_attachment)' --allow-tool 'sentry(get_issue_details)' --allow-tool 'sentry(get_trace_details)' --allow-tool 'sentry(search_docs requires SENTRY_OPENAI_API_KEY)' --allow-tool 'sentry(search_events)' --allow-tool 'sentry(search_issues)' --allow-tool 'sentry(whoami)' --allow-tool serena --allow-tool 'serena(*)' --allow-tool tavily --allow-tool 'tavily(*)' --add-dir /tmp/gh-aw/cache-memory/ --additional-mcp-config '{
             "mcpServers": {
               "arxiv": {
-                "type": "local",
-                "command": "docker",
                 "tools": [
                   "search_arxiv",
                   "get_paper_details",
                   "get_paper_pdf"
                 ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "mcp/arxiv-mcp-server"
-                ]
+                "type": "local"
               },
               "ast-grep": {
-                "type": "local",
-                "command": "docker",
                 "tools": [
                   "*"
                 ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "mcp/ast-grep:latest"
-                ]
+                "type": "local"
               },
               "brave-search": {
-                "type": "local",
-                "command": "docker",
+                "env": {
+                  "BRAVE_API_KEY": "${{ secrets.BRAVE_API_KEY }}"
+                },
                 "tools": [
                   "*"
                 ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "BRAVE_API_KEY",
-                  "docker.io/mcp/brave-search"
-                ],
-                "env": {
-                  "BRAVE_API_KEY": "${{ secrets.BRAVE_API_KEY }}"
-                }
+                "type": "local"
               },
               "context7": {
-                "type": "local",
-                "command": "docker",
+                "env": {
+                  "CONTEXT7_API_KEY": "${{ secrets.CONTEXT7_API_KEY }}"
+                },
                 "tools": [
                   "get-library-docs",
                   "resolve-library-id"
                 ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "CONTEXT7_API_KEY",
-                  "mcp/context7"
-                ],
-                "env": {
-                  "CONTEXT7_API_KEY": "${{ secrets.CONTEXT7_API_KEY }}"
-                }
+                "type": "local"
               },
               "datadog": {
-                "type": "http",
-                "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
+                "env": {
+                  "DD_API_KEY": "\\${DD_API_KEY}",
+                  "DD_APPLICATION_KEY": "\\${DD_APPLICATION_KEY}",
+                  "DD_SITE": "\\${DD_SITE}"
+                },
                 "headers": {
-                  "DD_API_KEY": "\${DD_API_KEY}",
-                  "DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}",
-                  "DD_SITE": "\${DD_SITE}"
+                  "DD_API_KEY": "\\${DD_API_KEY}",
+                  "DD_APPLICATION_KEY": "\\${DD_APPLICATION_KEY}",
+                  "DD_SITE": "\\${DD_SITE}"
                 },
                 "tools": [
                   "search_datadog_dashboards",
@@ -1981,24 +1952,28 @@ jobs:
                   "search_datadog_metrics",
                   "get_datadog_metric"
                 ],
-                "env": {
-                  "DD_API_KEY": "\${DD_API_KEY}",
-                  "DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}",
-                  "DD_SITE": "\${DD_SITE}"
-                }
+                "type": "http",
+                "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
               },
               "deepwiki": {
-                "type": "http",
-                "url": "https://mcp.deepwiki.com/sse",
                 "tools": [
                   "read_wiki_structure",
                   "read_wiki_contents",
                   "ask_question"
-                ]
+                ],
+                "type": "http",
+                "url": "https://mcp.deepwiki.com/sse"
               },
               "fabric-rti": {
-                "type": "local",
+                "args": [
+                  "microsoft-fabric-rti-mcp"
+                ],
                 "command": "uvx",
+                "env": {
+                  "AZURE_CLIENT_ID": "${{ secrets.AZURE_CLIENT_ID }}",
+                  "AZURE_CLIENT_SECRET": "${{ secrets.AZURE_CLIENT_SECRET }}",
+                  "AZURE_TENANT_ID": "${{ secrets.AZURE_TENANT_ID }}"
+                },
                 "tools": [
                   "kusto_known_services",
                   "kusto_query",
@@ -2014,25 +1989,16 @@ jobs:
                   "get_eventstream",
                   "get_eventstream_definition"
                 ],
-                "args": [
-                  "microsoft-fabric-rti-mcp"
-                ],
-                "env": {
-                  "AZURE_CLIENT_ID": "${{ secrets.AZURE_CLIENT_ID }}",
-                  "AZURE_CLIENT_SECRET": "${{ secrets.AZURE_CLIENT_SECRET }}",
-                  "AZURE_TENANT_ID": "${{ secrets.AZURE_TENANT_ID }}"
-                }
+                "type": "local"
               },
               "gh-aw": {
-                "type": "http",
-                "url": "http://localhost:8765",
                 "tools": [
                   "*"
-                ]
+                ],
+                "type": "http",
+                "url": "http://localhost:8765"
               },
               "github": {
-                "type": "local",
-                "command": "docker",
                 "args": [
                   "run",
                   "-i",
@@ -2045,80 +2011,81 @@ jobs:
                   "GITHUB_TOOLSETS=default",
                   "ghcr.io/github/github-mcp-server:v0.19.1"
                 ],
-                "tools": ["*"],
+                "command": "docker",
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
-                }
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}"
+                },
+                "tools": [
+                  "*"
+                ],
+                "type": "local"
               },
               "markitdown": {
-                "type": "local",
                 "command": "markitdown-mcp",
                 "tools": [
                   "*"
-                ]
+                ],
+                "type": "local"
               },
               "memory": {
-                "type": "local",
-                "command": "docker",
+                "args": [
+                  "-v",
+                  "/tmp/gh-aw/cache-memory:/app/dist"
+                ],
                 "tools": [
                   "store_memory",
                   "retrieve_memory",
                   "list_memories",
                   "delete_memory"
                 ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-v",
-                  "/tmp/gh-aw/cache-memory:/app/dist",
-                  "mcp/memory"
-                ]
+                "type": "local"
               },
               "microsoftdocs": {
-                "type": "http",
-                "url": "https://learn.microsoft.com/api/mcp",
                 "tools": [
                   "*"
-                ]
+                ],
+                "type": "http",
+                "url": "https://learn.microsoft.com/api/mcp"
               },
               "notion": {
-                "type": "local",
-                "command": "docker",
+                "env": {
+                  "NOTION_API_TOKEN": "${{ secrets.NOTION_API_TOKEN }}"
+                },
                 "tools": [
                   "search_pages",
                   "get_page",
                   "get_database",
                   "query_database"
                 ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "NOTION_API_TOKEN",
-                  "mcp/notion"
-                ],
-                "env": {
-                  "NOTION_API_TOKEN": "${{ secrets.NOTION_API_TOKEN }}"
-                }
+                "type": "local"
               },
-              "safe_outputs": {
-                "type": "local",
+              "safe-outputs": {
+                "args": [
+                  "/tmp/gh-aw/safe-outputs/mcp-server.cjs"
+                ],
                 "command": "node",
-                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
-                "tools": ["*"],
                 "env": {
-                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\${GH_AW_SAFE_OUTPUTS_CONFIG}",
-                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}"
-                }
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "\\${GH_AW_ASSETS_ALLOWED_EXTS}",
+                  "GH_AW_ASSETS_BRANCH": "\\${GH_AW_ASSETS_BRANCH}",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "\\${GH_AW_ASSETS_MAX_SIZE_KB}",
+                  "GH_AW_SAFE_OUTPUTS": "\\${GH_AW_SAFE_OUTPUTS}",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\\${GH_AW_SAFE_OUTPUTS_CONFIG}"
+                },
+                "tools": [
+                  "*"
+                ],
+                "type": "local"
               },
               "sentry": {
-                "type": "local",
+                "args": [
+                  "@sentry/mcp-server@latest"
+                ],
                 "command": "npx",
+                "env": {
+                  "OPENAI_API_KEY": "${{ secrets.SENTRY_OPENAI_API_KEY }}",
+                  "SENTRY_ACCESS_TOKEN": "${{ secrets.SENTRY_ACCESS_TOKEN }}",
+                  "SENTRY_HOST": "${{ env.SENTRY_HOST }}"
+                },
                 "tools": [
                   "whoami",
                   "find_organizations",
@@ -2135,21 +2102,9 @@ jobs:
                   "search_docs requires SENTRY_OPENAI_API_KEY",
                   "get_doc"
                 ],
-                "args": [
-                  "@sentry/mcp-server@latest"
-                ],
-                "env": {
-                  "OPENAI_API_KEY": "${{ secrets.SENTRY_OPENAI_API_KEY }}",
-                  "SENTRY_ACCESS_TOKEN": "${{ secrets.SENTRY_ACCESS_TOKEN }}",
-                  "SENTRY_HOST": "${{ env.SENTRY_HOST }}"
-                }
+                "type": "local"
               },
               "serena": {
-                "type": "local",
-                "command": "uvx",
-                "tools": [
-                  "*"
-                ],
                 "args": [
                   "--from",
                   "git+https://github.com/oraios/serena",
@@ -2159,20 +2114,25 @@ jobs:
                   "codex",
                   "--project",
                   "${{ github.workspace }}"
-                ]
+                ],
+                "command": "uvx",
+                "tools": [
+                  "*"
+                ],
+                "type": "local"
               },
               "tavily": {
-                "type": "http",
-                "url": "https://mcp.tavily.com/mcp/",
+                "env": {
+                  "TAVILY_API_KEY": "\\${TAVILY_API_KEY}"
+                },
                 "headers": {
-                  "Authorization": "Bearer \${TAVILY_API_KEY}"
+                  "Authorization": "Bearer \\${TAVILY_API_KEY}"
                 },
                 "tools": [
                   "*"
                 ],
-                "env": {
-                  "TAVILY_API_KEY": "\${TAVILY_API_KEY}"
-                }
+                "type": "http",
+                "url": "https://mcp.tavily.com/mcp/"
               }
             }
           }' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
