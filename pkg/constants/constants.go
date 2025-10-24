@@ -323,6 +323,9 @@ var PriorityJobFields = []string{"name", "runs-on", "needs", "if", "permissions"
 // Fields appear in this order first, followed by remaining fields alphabetically
 var PriorityWorkflowFields = []string{"on", "permissions", "if", "network", "imports", "safe-outputs", "steps"}
 
+// IgnoredFrontmatterFields are fields that should be silently ignored during frontmatter validation
+var IgnoredFrontmatterFields = []string{"description", "applyTo"}
+
 func GetWorkflowDir() string {
 	return filepath.Join(".github", "workflows")
 }
