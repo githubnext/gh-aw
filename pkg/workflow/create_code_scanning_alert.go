@@ -54,7 +54,7 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 	// Add step to upload SARIF artifact
 	steps = append(steps, "      - name: Upload SARIF artifact\n")
 	steps = append(steps, "        if: steps.create_code_scanning_alert.outputs.sarif_file\n")
-	steps = append(steps, "        uses: actions/upload-artifact@v4\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact", "v4")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          name: code-scanning-alert.sarif\n")
 	steps = append(steps, "          path: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}\n")

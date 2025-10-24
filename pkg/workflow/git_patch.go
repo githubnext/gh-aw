@@ -1,6 +1,9 @@
 package workflow
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // generateGitPatchStep generates a step that creates and uploads a git patch of changes
 func (c *Compiler) generateGitPatchStep(yaml *strings.Builder) {
@@ -13,7 +16,7 @@ func (c *Compiler) generateGitPatchStep(yaml *strings.Builder) {
 	WriteShellScriptToYAML(yaml, generateGitPatchScript, "          ")
 	yaml.WriteString("      - name: Upload git patch\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact", "v4")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: aw.patch\n")
 	yaml.WriteString("          path: /tmp/gh-aw/aw.patch\n")

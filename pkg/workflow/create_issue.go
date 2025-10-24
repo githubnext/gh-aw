@@ -122,7 +122,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		// Add checkout step for gh CLI to work
 		steps = append(steps, "      - name: Checkout repository for gh CLI\n")
 		steps = append(steps, "        if: steps.create_issue.outputs.issue_number != ''\n")
-		steps = append(steps, "        uses: actions/checkout@v5\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout", "v5")))
 
 		// Get the effective GitHub token to use for gh CLI
 		var safeOutputsToken string

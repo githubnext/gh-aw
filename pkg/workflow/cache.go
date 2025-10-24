@@ -233,7 +233,7 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 		}
 
 		fmt.Fprintf(builder, "      - name: %s\n", stepName)
-		builder.WriteString("        uses: actions/cache@v4\n")
+		builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache", "v4")))
 		builder.WriteString("        with:\n")
 
 		// Add required cache parameters
@@ -338,7 +338,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		} else {
 			builder.WriteString(fmt.Sprintf("      - name: Cache memory file share data (%s)\n", cache.ID))
 		}
-		builder.WriteString("        uses: actions/cache@v4\n")
+		builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache", "v4")))
 		builder.WriteString("        with:\n")
 		fmt.Fprintf(builder, "          key: %s\n", cacheKey)
 
@@ -356,7 +356,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		} else {
 			builder.WriteString(fmt.Sprintf("      - name: Upload cache-memory data as artifact (%s)\n", cache.ID))
 		}
-		builder.WriteString("        uses: actions/upload-artifact@v4\n")
+		builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact", "v4")))
 		builder.WriteString("        with:\n")
 		// Always use the new artifact name and path format
 		if useBackwardCompatiblePaths {

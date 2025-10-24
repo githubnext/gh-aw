@@ -179,7 +179,7 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 	// Setup step
 	steps = append(steps, []string{
 		"      - name: Setup threat detection\n",
-		"        uses: actions/github-script@v8\n",
+		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", "v8")),
 		"        env:\n",
 	}...)
 	steps = append(steps, c.buildWorkflowContextEnvVars(data)...)
@@ -368,7 +368,7 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 func (c *Compiler) buildParsingStep() []string {
 	steps := []string{
 		"      - name: Parse threat detection results\n",
-		"        uses: actions/github-script@v8\n",
+		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", "v8")),
 		"        with:\n",
 		"          script: |\n",
 	}
@@ -468,7 +468,7 @@ func (c *Compiler) buildUploadDetectionLogStep() []string {
 	return []string{
 		"      - name: Upload threat detection log\n",
 		"        if: always()\n",
-		"        uses: actions/upload-artifact@v4\n",
+		fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact", "v4")),
 		"        with:\n",
 		"          name: threat-detection.log\n",
 		"          path: /tmp/gh-aw/threat-detection/detection.log\n",

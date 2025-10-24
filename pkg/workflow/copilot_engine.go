@@ -916,7 +916,7 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 	stepLines := []string{
 		"      - name: Upload Firewall Logs",
 		"        if: always()",
-		"        uses: actions/upload-artifact@v4",
+		fmt.Sprintf("        uses: %s", GetActionPin("actions/upload-artifact", "v4")),
 		"        with:",
 		fmt.Sprintf("          name: %s", artifactName),
 		fmt.Sprintf("          path: %s", squidLogsDir),

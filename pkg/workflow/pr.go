@@ -1,6 +1,9 @@
 package workflow
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // generatePRContextPromptStep generates a separate step for PR context instructions
 func (c *Compiler) generatePRContextPromptStep(yaml *strings.Builder, data *WorkflowData) {
@@ -75,7 +78,7 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 	RenderConditionAsIf(yaml, condition, "          ")
 
 	// Use actions/github-script instead of shell script
-	yaml.WriteString("        uses: actions/github-script@v8\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", "v8")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
