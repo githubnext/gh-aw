@@ -301,31 +301,35 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	}
 }
 
-// RenderJSONMCPConfig renders MCP configuration in JSON format with the common mcpServers structure.
-// This shared function extracts the duplicate pattern from Claude, Copilot, and Custom engines.
+// GenerateJSONMCPConfigString generates MCP configuration as a JSON string.
+// This function extracts the JSON generation logic without file creation commands.
+// The JSON uses standard 2-space indentation suitable for command-line arguments.
 //
 // Parameters:
-//   - yaml: The string builder for YAML output
 //   - tools: Map of tool configurations
 //   - mcpTools: Ordered list of MCP tool names to render
 //   - workflowData: Workflow configuration data
-//   - options: JSON MCP config rendering options
-func RenderJSONMCPConfig(
-	yaml *strings.Builder,
+//   - renderers: MCP tool renderers
+//   - filterTool: Optional function to filter tools
+//
+// Returns:
+//   - string: The JSON configuration as a string
+func GenerateJSONMCPConfigString(
 	tools map[string]any,
 	mcpTools []string,
 	workflowData *WorkflowData,
-	options JSONMCPConfigOptions,
-) {
-	// Write config file header
-	yaml.WriteString(fmt.Sprintf("          cat > %s << EOF\n", options.ConfigPath))
-	yaml.WriteString("          {\n")
-	yaml.WriteString("            \"mcpServers\": {\n")
+	renderers MCPToolRenderers,
+	filterTool func(string) bool,
+) string {
+	var jsonBuilder strings.Builder
+	
+	jsonBuilder.WriteString("{\n")
+	jsonBuilder.WriteString("  \"mcpServers\": {\n")
 
 	// Filter tools if needed (e.g., Copilot filters out cache-memory)
 	var filteredTools []string
 	for _, toolName := range mcpTools {
-		if options.FilterTool != nil && !options.FilterTool(toolName) {
+		if filterTool != nil && !filterTool(toolName) {
 			continue
 		}
 		filteredTools = append(filteredTools, toolName)
@@ -342,27 +346,58 @@ func RenderJSONMCPConfig(
 		switch toolName {
 		case "github":
 			githubTool := tools["github"]
-			options.Renderers.RenderGitHub(yaml, githubTool, isLast, workflowData)
+			renderers.RenderGitHub(&jsonBuilder, githubTool, isLast, workflowData)
 		case "playwright":
 			playwrightTool := tools["playwright"]
-			options.Renderers.RenderPlaywright(yaml, playwrightTool, isLast)
+			renderers.RenderPlaywright(&jsonBuilder, playwrightTool, isLast)
 		case "cache-memory":
-			options.Renderers.RenderCacheMemory(yaml, isLast, workflowData)
+			renderers.RenderCacheMemory(&jsonBuilder, isLast, workflowData)
 		case "agentic-workflows":
-			options.Renderers.RenderAgenticWorkflows(yaml, isLast)
+			renderers.RenderAgenticWorkflows(&jsonBuilder, isLast)
 		case "safe-outputs":
-			options.Renderers.RenderSafeOutputs(yaml, isLast)
+			renderers.RenderSafeOutputs(&jsonBuilder, isLast)
 		case "web-fetch":
-			options.Renderers.RenderWebFetch(yaml, isLast)
+			renderers.RenderWebFetch(&jsonBuilder, isLast)
 		default:
 			// Handle custom MCP tools using shared helper
-			HandleCustomMCPToolInSwitch(yaml, toolName, tools, isLast, options.Renderers.RenderCustomMCPConfig)
+			HandleCustomMCPToolInSwitch(&jsonBuilder, toolName, tools, isLast, renderers.RenderCustomMCPConfig)
 		}
 	}
 
-	// Write config file footer
-	yaml.WriteString("            }\n")
-	yaml.WriteString("          }\n")
+	jsonBuilder.WriteString("  }\n")
+	jsonBuilder.WriteString("}")
+
+	return jsonBuilder.String()
+}
+
+// RenderJSONMCPConfig renders MCP configuration in JSON format with the common mcpServers structure.
+// This shared function extracts the duplicate pattern from Claude, Copilot, and Custom engines.
+//
+// Parameters:
+//   - yaml: The string builder for YAML output
+//   - tools: Map of tool configurations
+//   - mcpTools: Ordered list of MCP tool names to render
+//   - workflowData: Workflow configuration data
+//   - options: JSON MCP config rendering options
+func RenderJSONMCPConfig(
+	yaml *strings.Builder,
+	tools map[string]any,
+	mcpTools []string,
+	workflowData *WorkflowData,
+	options JSONMCPConfigOptions,
+) {
+	// Generate JSON config string
+	jsonConfig := GenerateJSONMCPConfigString(tools, mcpTools, workflowData, options.Renderers, options.FilterTool)
+	
+	// Write config file header
+	yaml.WriteString(fmt.Sprintf("          cat > %s << EOF\n", options.ConfigPath))
+	
+	// Write the JSON with proper indentation (add 10 spaces for YAML heredoc)
+	lines := strings.Split(jsonConfig, "\n")
+	for _, line := range lines {
+		yaml.WriteString("          " + line + "\n")
+	}
+	
 	yaml.WriteString("          EOF\n")
 
 	// Add any post-EOF commands (e.g., debug output for Copilot)
