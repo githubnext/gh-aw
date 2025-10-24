@@ -528,7 +528,7 @@ npm warn exec The following package was not found
     it("should truncate long strings appropriately", () => {
       const parseClaudeLog = extractParseFunction();
 
-      const longCommand = "a".repeat(100);
+      const longCommand = "a".repeat(400);
       const logWithLongCommand = JSON.stringify([
         {
           type: "assistant",
