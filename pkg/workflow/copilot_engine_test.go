@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/base64"
 	"os"
 	"path/filepath"
 	"strings"
@@ -809,26 +808,8 @@ func TestCopilotEngineAdditionalMCPConfigArgument(t *testing.T) {
 		t.Errorf("Expected step to contain '--additional-mcp-config', but it didn't.\nStep content:\n%s", stepContent)
 	}
 
-	// Verify the base64-encoded config contains expected JSON structure
-	// Extract the base64 value
-	parts := strings.Split(stepContent, "--additional-mcp-config")
-	if len(parts) < 2 {
-		t.Fatal("Could not find --additional-mcp-config argument")
-	}
-
-	// The base64 value should be the next word after --additional-mcp-config
-	afterFlag := strings.TrimSpace(parts[1])
-	base64Value := strings.Fields(afterFlag)[0]
-
-	// Decode base64
-	decoded, err := base64.StdEncoding.DecodeString(base64Value)
-	if err != nil {
-		t.Fatalf("Failed to decode base64 MCP config: %v", err)
-	}
-
-	decodedStr := string(decoded)
-
-	// Verify JSON structure
+	// Verify the JSON config contains expected structure (no longer base64-encoded)
+	// The JSON is now directly in the command, quoted by shell escaping
 	expectedStrs := []string{
 		`"mcpServers"`,
 		`"github"`,
@@ -839,8 +820,8 @@ func TestCopilotEngineAdditionalMCPConfigArgument(t *testing.T) {
 	}
 
 	for _, expected := range expectedStrs {
-		if !strings.Contains(decodedStr, expected) {
-			t.Errorf("Expected decoded MCP config to contain '%s', but it didn't.\nDecoded config:\n%s", expected, decodedStr)
+		if !strings.Contains(stepContent, expected) {
+			t.Errorf("Expected MCP config to contain '%s', but it didn't.\nStep content:\n%s", expected, stepContent)
 		}
 	}
 
@@ -870,20 +851,20 @@ func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
 	// Get the full command from the execution step
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
-	// Find the line that contains the copilot command
+	// Find the copilot command (may span multiple lines due to multi-line JSON config)
 	// When firewall is disabled, it uses 'copilot' instead of 'npx'
-	lines := strings.Split(stepContent, "\n")
-	var copilotCommand string
-	for _, line := range lines {
-		if strings.Contains(line, "copilot") && strings.Contains(line, "--allow-tool") {
-			copilotCommand = strings.TrimSpace(line)
-			break
-		}
-	}
-
-	if copilotCommand == "" {
+	copilotStartIdx := strings.Index(stepContent, "copilot --")
+	if copilotStartIdx == -1 {
 		t.Fatalf("Could not find copilot command in step content:\n%s", stepContent)
 	}
+	
+	// Find the end of the command (the part with "2>&1 | tee")
+	copilotEndIdx := strings.Index(stepContent[copilotStartIdx:], "2>&1 | tee")
+	if copilotEndIdx == -1 {
+		t.Fatalf("Could not find end of copilot command in step content:\n%s", stepContent)
+	}
+	
+	copilotCommand := stepContent[copilotStartIdx : copilotStartIdx+copilotEndIdx]
 
 	// Verify that GitHub tool arguments are properly single-quoted
 	t.Logf("Generated command: %s", copilotCommand)

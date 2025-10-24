@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/base64"
 	"strings"
 	"testing"
 )
@@ -47,7 +46,7 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 	// Test execution steps to verify --additional-mcp-config contains the MCP config
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/log.txt")
 
-	// Find the execution step and extract the base64-encoded MCP config
+	// Find the execution step
 	var executionStepFound bool
 	var stepContent string
 	for _, step := range steps {
@@ -68,23 +67,8 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 		t.Errorf("Expected step to contain '--additional-mcp-config', but it didn't")
 	}
 
-	// Extract and decode the base64 value
-	parts := strings.Split(stepContent, "--additional-mcp-config")
-	if len(parts) < 2 {
-		t.Fatal("Could not find --additional-mcp-config argument")
-	}
-
-	afterFlag := strings.TrimSpace(parts[1])
-	base64Value := strings.Fields(afterFlag)[0]
-
-	decoded, err := base64.StdEncoding.DecodeString(base64Value)
-	if err != nil {
-		t.Fatalf("Failed to decode base64 MCP config: %v", err)
-	}
-
-	decodedStr := string(decoded)
-
 	// Verify MCP config contains headers with env var references (not secret expressions)
+	// JSON is now directly in the command (quoted), not base64-encoded
 	expectedMCPChecks := []string{
 		`"datadog": {`,
 		`"type": "http"`,
@@ -102,12 +86,20 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 	}
 
 	for _, expected := range expectedMCPChecks {
-		if !strings.Contains(decodedStr, expected) {
-			t.Errorf("Expected MCP config content not found: %q\nActual MCP config:\n%s", expected, decodedStr)
+		if !strings.Contains(stepContent, expected) {
+			t.Errorf("Expected MCP config content not found: %q\nStep content:\n%s", expected, stepContent)
 		}
 	}
 
-	// Verify secret expressions are NOT in MCP config
+	// Extract just the MCP config part (between --additional-mcp-config and the next --)
+	mcpConfigStart := strings.Index(stepContent, "--additional-mcp-config")
+	mcpConfigEnd := strings.Index(stepContent[mcpConfigStart:], "' --")
+	if mcpConfigStart == -1 || mcpConfigEnd == -1 {
+		t.Fatal("Could not extract MCP config from step content")
+	}
+	mcpConfigPart := stepContent[mcpConfigStart : mcpConfigStart+mcpConfigEnd]
+
+	// Verify secret expressions are NOT in the MCP config portion (they should be in env section only)
 	unexpectedMCPChecks := []string{
 		`${{ secrets.DD_API_KEY }}`,
 		`${{ secrets.DD_APPLICATION_KEY }}`,
@@ -115,8 +107,8 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 	}
 
 	for _, unexpected := range unexpectedMCPChecks {
-		if strings.Contains(decodedStr, unexpected) {
-			t.Errorf("Unexpected secret expression in MCP config: %q\nActual MCP config:\n%s", unexpected, decodedStr)
+		if strings.Contains(mcpConfigPart, unexpected) {
+			t.Errorf("Unexpected secret expression in MCP config: %q\nMCP config part:\n%s", unexpected, mcpConfigPart)
 		}
 	}
 
@@ -251,39 +243,23 @@ func TestCopilotEngine_HTTPMCPWithoutSecrets_Integration(t *testing.T) {
 		t.Fatal("Execution step not found")
 	}
 
-	// Extract and decode the base64-encoded MCP config
-	parts := strings.Split(executionStepContent, "--additional-mcp-config")
-	if len(parts) < 2 {
-		t.Fatal("Could not find --additional-mcp-config argument")
-	}
-
-	afterFlag := strings.TrimSpace(parts[1])
-	base64Value := strings.Fields(afterFlag)[0]
-
-	decoded, err := base64.StdEncoding.DecodeString(base64Value)
-	if err != nil {
-		t.Fatalf("Failed to decode base64 MCP config: %v", err)
-	}
-
-	decodedStr := string(decoded)
-
-	// Verify static header is present
-	if !strings.Contains(decodedStr, `"X-Static-Header": "static-value"`) {
-		t.Errorf("Expected static header not found in MCP config:\n%s", decodedStr)
+	// Verify static header is present (JSON is now directly in the command, not base64-encoded)
+	if !strings.Contains(executionStepContent, `"X-Static-Header": "static-value"`) {
+		t.Errorf("Expected static header not found in MCP config:\n%s", executionStepContent)
 	}
 
 	// Verify no env section is added when there are no secrets
-	if strings.Contains(decodedStr, `"custom": {`) && strings.Contains(decodedStr, `"env": {`) {
+	if strings.Contains(executionStepContent, `"custom": {`) && strings.Contains(executionStepContent, `"env": {`) {
 		// Check if env section is specifically for the custom tool (after its opening brace)
-		customIdx := strings.Index(decodedStr, `"custom": {`)
-		nextToolIdx := strings.Index(decodedStr[customIdx+12:], `": {`)
+		customIdx := strings.Index(executionStepContent, `"custom": {`)
+		nextToolIdx := strings.Index(executionStepContent[customIdx+12:], `": {`)
 		if nextToolIdx == -1 {
-			nextToolIdx = len(decodedStr) - customIdx - 12
+			nextToolIdx = len(executionStepContent) - customIdx - 12
 		}
-		customSection := decodedStr[customIdx : customIdx+12+nextToolIdx]
+		customSection := executionStepContent[customIdx : customIdx+12+nextToolIdx]
 
 		if strings.Contains(customSection, `"env": {`) {
-			t.Errorf("Unexpected env section found in MCP config for tool without secrets:\n%s", decodedStr)
+			t.Errorf("Unexpected env section found in MCP config for tool without secrets:\n%s", executionStepContent)
 		}
 	}
 

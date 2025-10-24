@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/base64"
 	"fmt"
 	"sort"
 	"strings"
@@ -127,7 +126,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Add --disable-builtin-mcps to disable built-in MCP servers
 	copilotArgs = append(copilotArgs, "--disable-builtin-mcps")
 
-	// Add --additional-mcp-config with base64-encoded MCP configuration if there are MCP servers
+	// Add --additional-mcp-config with JSON MCP configuration if there are MCP servers
 	if HasMCPServers(workflowData) {
 		// Collect tools that need MCP server configuration
 		var mcpTools []string
@@ -151,14 +150,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Sort tools to ensure stable code generation
 		sort.Strings(mcpTools)
 		
-		// Build and encode MCP configuration
+		// Build MCP configuration JSON
 		mcpConfigJSON := e.buildMCPConfigJSON(workflowData.Tools, mcpTools, workflowData)
 		
-		// Base64 encode the JSON
-		mcpConfigBase64 := base64.StdEncoding.EncodeToString([]byte(mcpConfigJSON))
-		
-		// Add the --additional-mcp-config argument
-		copilotArgs = append(copilotArgs, "--additional-mcp-config", mcpConfigBase64)
+		// Add the --additional-mcp-config argument with JSON (will be quoted by shellEscapeArg)
+		copilotArgs = append(copilotArgs, "--additional-mcp-config", mcpConfigJSON)
 	}
 
 	// Add model if specified (check if Copilot CLI supports this)
