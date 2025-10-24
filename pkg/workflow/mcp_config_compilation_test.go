@@ -18,9 +18,8 @@ engine: claude
 network: defaults
 mcp-servers:
   markitdown:
-    registry: https://api.mcp.github.com/v0/servers/microsoft/markitdown
     command: npx
-    args: ["-y", "@microsoft/markitdown"]
+    args: ["-y", "markitdown-mcp-npx"]
 ---
 
 # Test MCP Servers Configuration
@@ -76,16 +75,11 @@ Please use the markitdown MCP server to convert HTML to markdown.
 			if len(args) != 2 {
 				t.Errorf("Expected 2 args, got %d", len(args))
 			}
-			if args[0] != "-y" || args[1] != "@microsoft/markitdown" {
-				t.Errorf("Expected args ['-y', '@microsoft/markitdown'], got %v", args)
+			if args[0] != "-y" || args[1] != "markitdown-mcp-npx" {
+				t.Errorf("Expected args ['-y', 'markitdown-mcp-npx'], got %v", args)
 			}
 		} else {
 			t.Errorf("Expected args to be array, got %T", markitdownConfig["args"])
-		}
-
-		// Check registry
-		if registry, ok := markitdownConfig["registry"].(string); !ok || registry != "https://api.mcp.github.com/v0/servers/microsoft/markitdown" {
-			t.Errorf("Expected registry URL, got %v", markitdownConfig["registry"])
 		}
 	} else {
 		t.Errorf("Expected markitdown tool to be a map, got %T", markitdownTool)
@@ -107,12 +101,8 @@ Please use the markitdown MCP server to convert HTML to markdown.
 		t.Errorf("Generated YAML does not contain correct npx command")
 	}
 
-	if !strings.Contains(yamlContent, `"@microsoft/markitdown"`) {
+	if !strings.Contains(yamlContent, `"markitdown-mcp-npx"`) {
 		t.Errorf("Generated YAML does not contain correct markitdown package")
-	}
-
-	if !strings.Contains(yamlContent, `"registry": "https://api.mcp.github.com/v0/servers/microsoft/markitdown"`) {
-		t.Errorf("Generated YAML does not contain correct registry URL")
 	}
 }
 
