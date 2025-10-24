@@ -734,33 +734,49 @@ func TestCopilotEngineRenderMCPConfigWithGitHub(t *testing.T) {
 		},
 	}
 
-	mcpTools := []string{"github"}
-	var yaml strings.Builder
-	engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
-	output := yaml.String()
+	// Test GetExecutionSteps to verify --additional-mcp-config argument
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	
+	// Convert steps to a single string for easier searching
+	var output strings.Builder
+	for _, step := range steps {
+		for _, line := range step {
+			output.WriteString(line + "\n")
+		}
+	}
+	outputStr := output.String()
 
-	// Verify the MCP config structure
+	// Verify the --additional-mcp-config argument is present
 	expectedStrs := []string{
-		"mkdir -p /home/runner/.copilot",
-		`cat > /home/runner/.copilot/mcp-config.json << EOF`,
-		`"mcpServers": {`,
-		`"github": {`,
-		`"type": "local",`,
-		`"command": "docker",`,
-		`"ghcr.io/github/github-mcp-server:custom-version"`,
-		`"GITHUB_PERSONAL_ACCESS_TOKEN",`,
-		`"env": {`,
-		`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
-		`"tools": ["*"]`,
-		"EOF",
-		"-------START MCP CONFIG-----------",
-		"cat /home/runner/.copilot/mcp-config.json",
-		"-------END MCP CONFIG-----------",
+		"--additional-mcp-config",
+		`"github"`,             // JSON content should be in the config
+		`"type": "local"`,      // Parts of the JSON config
+		`"command": "docker"`,  // Parts of the JSON config
+		`ghcr.io/github/github-mcp-server:custom-version`, // Version should be in the JSON
 	}
 
 	for _, expected := range expectedStrs {
-		if !strings.Contains(output, expected) {
-			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, output)
+		if !strings.Contains(outputStr, expected) {
+			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, outputStr)
+		}
+	}
+
+	// Verify RenderMCPConfig now just outputs debug info (no file creation)
+	mcpTools := []string{"github"}
+	var mcpOutput strings.Builder
+	engine.RenderMCPConfig(&mcpOutput, workflowData.Tools, mcpTools, workflowData)
+	mcpStr := mcpOutput.String()
+
+	// Should NOT contain file creation commands
+	unwantedStrs := []string{
+		"mkdir -p /home/runner/.copilot",
+		`cat > /home/runner/.copilot/mcp-config.json`,
+		"EOF",
+	}
+
+	for _, unwanted := range unwantedStrs {
+		if strings.Contains(mcpStr, unwanted) {
+			t.Errorf("Did not expect output to contain '%s', but it did.\nFull output:\n%s", unwanted, mcpStr)
 		}
 	}
 }
@@ -775,26 +791,32 @@ func TestCopilotEngineRenderMCPConfigWithGitHubAndPlaywright(t *testing.T) {
 		},
 	}
 
-	mcpTools := []string{"github", "playwright"}
-	var yaml strings.Builder
-	engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
-	output := yaml.String()
+	// Test GetExecutionSteps to verify --additional-mcp-config argument
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	
+	// Convert steps to a single string for easier searching
+	var output strings.Builder
+	for _, step := range steps {
+		for _, line := range step {
+			output.WriteString(line + "\n")
+		}
+	}
+	outputStr := output.String()
 
-	// Verify both tools are configured
+	// Verify both tools are configured in the --additional-mcp-config argument
 	expectedStrs := []string{
-		`"github": {`,
-		`"type": "local",`,
-		`"command": "docker",`,
-		`"ghcr.io/github/github-mcp-server:v0.19.1"`,
-		`},`, // GitHub should NOT be last (comma after closing brace)
-		`"playwright": {`,
-		`"type": "local",`,
-		`"command": "npx",`,
+		"--additional-mcp-config",
+		`"github"`,                  // GitHub tool
+		`"type": "local"`,           // Both tools use local type
+		`"command": "docker"`,       // GitHub uses docker
+		`"command": "npx"`,          // Playwright uses npx
+		`ghcr.io/github/github-mcp-server:v0.19.1`, // GitHub default version
+		`"playwright"`,              // Playwright tool
 	}
 
 	for _, expected := range expectedStrs {
-		if !strings.Contains(output, expected) {
-			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, output)
+		if !strings.Contains(outputStr, expected) {
+			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, outputStr)
 		}
 	}
 }

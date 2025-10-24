@@ -2252,79 +2252,79 @@ jobs:
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
           {
             "mcpServers": {
-              "arxiv": {
-                "type": "stdio",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "mcp/arxiv-mcp-server"
-                ]
-              },
-              "context7": {
-                "type": "stdio",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "CONTEXT7_API_KEY",
-                  "mcp/context7"
-                ],
-                "env": {
-                  "CONTEXT7_API_KEY": "${{ secrets.CONTEXT7_API_KEY }}"
-                }
-              },
-              "deepwiki": {
-                "type": "http",
-                "url": "https://mcp.deepwiki.com/sse"
-              },
-              "github": {
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_READ_ONLY=1",
-                  "-e",
-                  "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.19.1"
-                ],
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-                }
-              },
-              "markitdown": {
-                "type": "stdio",
-                "command": "markitdown-mcp"
-              },
-              "microsoftdocs": {
-                "type": "http",
-                "url": "https://learn.microsoft.com/api/mcp"
-              },
-              "safe_outputs": {
-                "command": "node",
-                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
-                "env": {
-                  "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }},
-                  "GH_AW_ASSETS_BRANCH": "${{ env.GH_AW_ASSETS_BRANCH }}",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}"
-                }
-              },
-              "tavily": {
-                "type": "http",
-                "url": "https://mcp.tavily.com/mcp/",
-                "headers": {
-                  "Authorization": "Bearer ${{ secrets.TAVILY_API_KEY }}"
-                }
-              }
+                        "arxiv": {
+                          "type": "stdio",
+                          "command": "docker",
+                          "args": [
+                            "run",
+                            "--rm",
+                            "-i",
+                            "mcp/arxiv-mcp-server"
+                          ]
+                        },
+                        "context7": {
+                          "type": "stdio",
+                          "command": "docker",
+                          "args": [
+                            "run",
+                            "--rm",
+                            "-i",
+                            "-e",
+                            "CONTEXT7_API_KEY",
+                            "mcp/context7"
+                          ],
+                          "env": {
+                            "CONTEXT7_API_KEY": "${{ secrets.CONTEXT7_API_KEY }}"
+                          }
+                        },
+                        "deepwiki": {
+                          "type": "http",
+                          "url": "https://mcp.deepwiki.com/sse"
+                        },
+                        "github": {
+                          "command": "docker",
+                          "args": [
+                            "run",
+                            "-i",
+                            "--rm",
+                            "-e",
+                            "GITHUB_PERSONAL_ACCESS_TOKEN",
+                            "-e",
+                            "GITHUB_READ_ONLY=1",
+                            "-e",
+                            "GITHUB_TOOLSETS=default",
+                            "ghcr.io/github/github-mcp-server:v0.19.1"
+                          ],
+                          "env": {
+                            "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+                          }
+                        },
+                        "markitdown": {
+                          "type": "stdio",
+                          "command": "markitdown-mcp"
+                        },
+                        "microsoftdocs": {
+                          "type": "http",
+                          "url": "https://learn.microsoft.com/api/mcp"
+                        },
+                        "safe_outputs": {
+                          "command": "node",
+                          "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
+                          "env": {
+                            "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
+                            "GH_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }},
+                            "GH_AW_ASSETS_BRANCH": "${{ env.GH_AW_ASSETS_BRANCH }}",
+                            "GH_AW_ASSETS_MAX_SIZE_KB": "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}",
+                            "GH_AW_ASSETS_ALLOWED_EXTS": "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}"
+                          }
+                        },
+                        "tavily": {
+                          "type": "http",
+                          "url": "https://mcp.tavily.com/mcp/",
+                          "headers": {
+                            "Authorization": "Bearer ${{ secrets.TAVILY_API_KEY }}"
+                          }
+                        }
             }
           }
           EOF
