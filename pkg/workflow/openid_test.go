@@ -121,6 +121,11 @@ func TestClaudeEngineWithOIDC(t *testing.T) {
 		t.Error("Expected OIDC setup step to be present")
 	}
 
+	// Verify setup step has if condition to check for secret
+	if !strings.Contains(stepsStr, "if: secrets.ANTHROPIC_API_KEY != ''") {
+		t.Error("Expected OIDC setup step to have 'if: secrets.ANTHROPIC_API_KEY != ''' condition")
+	}
+
 	// Verify OIDC revoke step is present
 	if !strings.Contains(stepsStr, "Revoke OIDC token") {
 		t.Error("Expected OIDC revoke step to be present")

@@ -99,6 +99,8 @@ func GenerateOIDCSetupStep(oidcConfig *OIDCConfig, engine CodingAgentEngine) Git
 
 	stepLines = append(stepLines, "      - name: Setup OIDC token")
 	stepLines = append(stepLines, "        id: setup_oidc_token")
+	// Only run if the fallback token secret exists (check for non-empty secret)
+	stepLines = append(stepLines, fmt.Sprintf("        if: secrets.%s != ''", engine.GetTokenEnvVarName()))
 	stepLines = append(stepLines, "        uses: actions/github-script@v8")
 	stepLines = append(stepLines, "        env:")
 
