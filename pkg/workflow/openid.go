@@ -13,11 +13,13 @@ type OIDCConfig struct {
 	// TokenRevokeURL is the URL to revoke the app token (optional)
 	TokenRevokeURL string `yaml:"token_revoke_url,omitempty"`
 
-	// EnvVarName is the environment variable name to store the token (defaults to token-specific env var)
-	EnvVarName string `yaml:"env_var_name,omitempty"`
+	// OauthTokenEnvVar is the environment variable name for the OAuth token obtained via OIDC
+	// For Claude: CLAUDE_CODE_OAUTH_TOKEN
+	OauthTokenEnvVar string `yaml:"oauth_token_env_var,omitempty"`
 
-	// FallbackEnvVar is the fallback environment variable to use if OIDC fails
-	FallbackEnvVar string `yaml:"fallback_env_var,omitempty"`
+	// ApiTokenEnvVar is the environment variable name for the API token used as fallback
+	// For Claude: ANTHROPIC_API_KEY
+	ApiTokenEnvVar string `yaml:"api_token_env_var,omitempty"`
 }
 
 // ParseOIDCConfig parses OIDC configuration from engine object
@@ -55,17 +57,17 @@ func ParseOIDCConfig(engineObj map[string]any) *OIDCConfig {
 		}
 	}
 
-	// Extract env_var_name field (optional)
-	if envVarName, hasEnvVarName := oidcObj["env_var_name"]; hasEnvVarName {
-		if envVarNameStr, ok := envVarName.(string); ok {
-			oidcConfig.EnvVarName = envVarNameStr
+	// Extract oauth_token_env_var field (optional)
+	if oauthTokenEnvVar, hasOauthTokenEnvVar := oidcObj["oauth_token_env_var"]; hasOauthTokenEnvVar {
+		if oauthTokenEnvVarStr, ok := oauthTokenEnvVar.(string); ok {
+			oidcConfig.OauthTokenEnvVar = oauthTokenEnvVarStr
 		}
 	}
 
-	// Extract fallback_env_var field (optional)
-	if fallbackEnvVar, hasFallbackEnvVar := oidcObj["fallback_env_var"]; hasFallbackEnvVar {
-		if fallbackEnvVarStr, ok := fallbackEnvVar.(string); ok {
-			oidcConfig.FallbackEnvVar = fallbackEnvVarStr
+	// Extract api_token_env_var field (optional)
+	if apiTokenEnvVar, hasApiTokenEnvVar := oidcObj["api_token_env_var"]; hasApiTokenEnvVar {
+		if apiTokenEnvVarStr, ok := apiTokenEnvVar.(string); ok {
+			oidcConfig.ApiTokenEnvVar = apiTokenEnvVarStr
 		}
 	}
 
@@ -99,8 +101,14 @@ func GenerateOIDCSetupStep(oidcConfig *OIDCConfig, engine CodingAgentEngine) Git
 
 	stepLines = append(stepLines, "      - name: Setup OIDC token")
 	stepLines = append(stepLines, "        id: setup_oidc_token")
-	// Only run if the fallback token secret exists (check for non-empty secret)
-	stepLines = append(stepLines, fmt.Sprintf("        if: secrets.%s != ''", engine.GetTokenEnvVarName()))
+
+	// Determine the API token env var (fallback) - check if secret exists before running
+	apiTokenEnvVar := oidcConfig.ApiTokenEnvVar
+	if apiTokenEnvVar == "" {
+		apiTokenEnvVar = engine.GetTokenEnvVarName()
+	}
+	stepLines = append(stepLines, fmt.Sprintf("        if: secrets.%s != ''", apiTokenEnvVar))
+
 	stepLines = append(stepLines, "        uses: actions/github-script@v8")
 	stepLines = append(stepLines, "        env:")
 
@@ -114,14 +122,17 @@ func GenerateOIDCSetupStep(oidcConfig *OIDCConfig, engine CodingAgentEngine) Git
 		stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_EXCHANGE_URL: %s", oidcConfig.TokenExchangeURL))
 	}
 
-	// Use engine's token environment variable name
-	envVarName := engine.GetTokenEnvVarName()
-	stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_ENV_VAR_NAME: %s", envVarName))
+	// OAuth token environment variable (where OIDC token will be stored)
+	oauthTokenEnvVar := oidcConfig.OauthTokenEnvVar
+	if oauthTokenEnvVar == "" {
+		oauthTokenEnvVar = engine.GetOAuthTokenEnvVarName()
+	}
+	stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_OAUTH_TOKEN_ENV_VAR: %s", oauthTokenEnvVar))
 
-	// Use the same env var as fallback
-	stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_FALLBACK_ENV_VAR: %s", envVarName))
+	// API token environment variable (fallback)
+	stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_API_TOKEN_ENV_VAR: %s", apiTokenEnvVar))
 	// Add the actual fallback secret if it exists
-	stepLines = append(stepLines, fmt.Sprintf("          %s: ${{ secrets.%s }}", envVarName, envVarName))
+	stepLines = append(stepLines, fmt.Sprintf("          %s: ${{ secrets.%s }}", apiTokenEnvVar, apiTokenEnvVar))
 
 	stepLines = append(stepLines, "        with:")
 	stepLines = append(stepLines, "          script: |")

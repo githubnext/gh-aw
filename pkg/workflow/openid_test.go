@@ -15,11 +15,11 @@ func TestOIDCConfigExtraction(t *testing.T) {
 		"engine": map[string]any{
 			"id": "claude",
 			"oidc": map[string]any{
-				"audience":           "test-audience",
-				"token_exchange_url": "https://api.example.com/token-exchange",
-				"token_revoke_url":   "https://api.example.com/token-revoke",
-				"env_var_name":       "TEST_TOKEN",
-				"fallback_env_var":   "TEST_FALLBACK",
+				"audience":            "test-audience",
+				"token_exchange_url":  "https://api.example.com/token-exchange",
+				"token_revoke_url":    "https://api.example.com/token-revoke",
+				"oauth_token_env_var": "TEST_OAUTH_TOKEN",
+				"api_token_env_var":   "TEST_API_TOKEN",
 			},
 		},
 	}
@@ -50,12 +50,12 @@ func TestOIDCConfigExtraction(t *testing.T) {
 		t.Errorf("Expected token revoke URL 'https://api.example.com/token-revoke', got '%s'", config.OIDC.TokenRevokeURL)
 	}
 
-	if config.OIDC.EnvVarName != "TEST_TOKEN" {
-		t.Errorf("Expected env var name 'TEST_TOKEN', got '%s'", config.OIDC.EnvVarName)
+	if config.OIDC.OauthTokenEnvVar != "TEST_OAUTH_TOKEN" {
+		t.Errorf("Expected OAuth token env var 'TEST_OAUTH_TOKEN', got '%s'", config.OIDC.OauthTokenEnvVar)
 	}
 
-	if config.OIDC.FallbackEnvVar != "TEST_FALLBACK" {
-		t.Errorf("Expected fallback env var 'TEST_FALLBACK', got '%s'", config.OIDC.FallbackEnvVar)
+	if config.OIDC.ApiTokenEnvVar != "TEST_API_TOKEN" {
+		t.Errorf("Expected API token env var 'TEST_API_TOKEN', got '%s'", config.OIDC.ApiTokenEnvVar)
 	}
 }
 
@@ -131,9 +131,9 @@ func TestClaudeEngineWithOIDC(t *testing.T) {
 		t.Error("Expected OIDC revoke step to be present")
 	}
 
-	// Verify token is used from OIDC setup step
-	if !strings.Contains(stepsStr, "ANTHROPIC_API_KEY: ${{ steps.setup_oidc_token.outputs.token }}") {
-		t.Error("Expected ANTHROPIC_API_KEY to use token from OIDC setup step")
+	// Verify OAuth token is used from OIDC setup step
+	if !strings.Contains(stepsStr, "CLAUDE_CODE_OAUTH_TOKEN: ${{ steps.setup_oidc_token.outputs.token }}") {
+		t.Error("Expected CLAUDE_CODE_OAUTH_TOKEN to use token from OIDC setup step")
 	}
 
 	// Verify setup step uses github-script
@@ -176,9 +176,9 @@ func TestClaudeEngineWithoutOIDC(t *testing.T) {
 		t.Error("Expected OIDC revoke step to be present - Claude has OIDC enabled by default")
 	}
 
-	// Verify token uses OIDC token from setup step
-	if !strings.Contains(stepsStr, "ANTHROPIC_API_KEY: ${{ steps.setup_oidc_token.outputs.token }}") {
-		t.Error("Expected ANTHROPIC_API_KEY to use OIDC token from setup step - Claude has OIDC enabled by default")
+	// Verify OAuth token uses OIDC token from setup step
+	if !strings.Contains(stepsStr, "CLAUDE_CODE_OAUTH_TOKEN: ${{ steps.setup_oidc_token.outputs.token }}") {
+		t.Error("Expected CLAUDE_CODE_OAUTH_TOKEN to use OAuth token from setup step - Claude has OIDC enabled by default")
 	}
 
 	// Verify default OIDC configuration values

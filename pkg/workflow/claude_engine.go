@@ -99,9 +99,16 @@ func (e *ClaudeEngine) GetOIDCConfig(workflowData *WorkflowData) *OIDCConfig {
 	}
 }
 
-// GetTokenEnvVarName returns the environment variable name for Claude's authentication token
+// GetTokenEnvVarName returns the environment variable name for Claude's API key authentication
+// This is used as the fallback when OIDC authentication is not available
 func (e *ClaudeEngine) GetTokenEnvVarName() string {
 	return "ANTHROPIC_API_KEY"
+}
+
+// GetOAuthTokenEnvVarName returns the environment variable name for Claude's OAuth token
+// This is used for OIDC-obtained tokens
+func (e *ClaudeEngine) GetOAuthTokenEnvVarName() string {
+	return "CLAUDE_CODE_OAUTH_TOKEN"
 }
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude
@@ -218,10 +225,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add environment section - always include environment section for GH_AW_PROMPT
 	stepLines = append(stepLines, "        env:")
 
-	// Add Anthropic API key - if OIDC is configured, use the token from the setup step
-	// Otherwise, use the secret directly
+	// Add authentication token - if OIDC is configured, use OAuth token from setup step
+	// Otherwise, use the API key secret directly
 	if oidcConfig != nil {
-		stepLines = append(stepLines, "          ANTHROPIC_API_KEY: ${{ steps.setup_oidc_token.outputs.token }}")
+		stepLines = append(stepLines, "          CLAUDE_CODE_OAUTH_TOKEN: ${{ steps.setup_oidc_token.outputs.token }}")
 	} else {
 		stepLines = append(stepLines, "          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}")
 	}

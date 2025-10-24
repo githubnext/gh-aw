@@ -118,43 +118,43 @@ async function main() {
     // Get configuration from environment variables
     const audience = process.env.GH_AW_OIDC_AUDIENCE;
     const exchangeUrl = process.env.GH_AW_OIDC_EXCHANGE_URL;
-    const envVarName = process.env.GH_AW_OIDC_ENV_VAR_NAME;
-    const fallbackEnvVar = process.env.GH_AW_OIDC_FALLBACK_ENV_VAR;
+    const oauthTokenEnvVar = process.env.GH_AW_OIDC_OAUTH_TOKEN_ENV_VAR;
+    const apiTokenEnvVar = process.env.GH_AW_OIDC_API_TOKEN_ENV_VAR;
 
-    if (!audience || !exchangeUrl || !envVarName) {
-      core.setFailed("Missing required OIDC configuration (audience, exchange_url, or env_var_name)");
+    if (!audience || !exchangeUrl || !oauthTokenEnvVar || !apiTokenEnvVar) {
+      core.setFailed("Missing required OIDC configuration (audience, exchange_url, oauth_token_env_var, or api_token_env_var)");
       return;
     }
 
-    // Check if token was provided as fallback
-    const fallbackToken = fallbackEnvVar ? process.env[fallbackEnvVar] : null;
+    // Check if API token was provided as fallback
+    const apiToken = process.env[apiTokenEnvVar];
 
-    if (fallbackToken) {
-      core.info(`Using provided token from ${fallbackEnvVar} for authentication`);
-      core.setOutput("token", fallbackToken);
-      core.setOutput("token_source", "fallback");
-      core.exportVariable(envVarName, fallbackToken);
+    if (apiToken) {
+      core.info(`Using provided API token from ${apiTokenEnvVar} for authentication`);
+      core.setOutput("token", apiToken);
+      core.setOutput("token_source", "api_token");
+      core.exportVariable(apiTokenEnvVar, apiToken);
       return;
     }
 
     // Get OIDC token with retry
     const oidcToken = await retryWithBackoff(() => getOidcToken(audience));
 
-    // Exchange OIDC token for app token with retry
-    const appToken = await retryWithBackoff(() => exchangeForAppToken(oidcToken, exchangeUrl));
+    // Exchange OIDC token for OAuth app token with retry
+    const oauthToken = await retryWithBackoff(() => exchangeForAppToken(oidcToken, exchangeUrl));
 
-    // Set the token in the environment for subsequent steps
-    core.info(`Setting token in environment variable: ${envVarName}`);
-    core.setOutput("token", appToken);
-    core.setOutput("token_source", "oidc");
-    core.exportVariable(envVarName, appToken);
+    // Set the OAuth token in the environment for subsequent steps
+    core.info(`Setting OAuth token in environment variable: ${oauthTokenEnvVar}`);
+    core.setOutput("token", oauthToken);
+    core.setOutput("token_source", "oauth");
+    core.exportVariable(oauthTokenEnvVar, oauthToken);
 
     // Also output the token for post-step revocation
     core.setOutput("oidc_token_obtained", "true");
   } catch (error) {
     // Only set failed if we get here - workflow validation errors will return before this
     core.setFailed(
-      `Failed to setup token: ${error instanceof Error ? error.message : String(error)}\n\nIf you instead wish to use a custom token, provide it via the fallback environment variable.`
+      `Failed to setup token: ${error instanceof Error ? error.message : String(error)}\n\nIf you instead wish to use an API token, provide it via the ${apiTokenEnvVar} secret.`
     );
   }
 }

@@ -75,9 +75,16 @@ type CodingAgentEngine interface {
 	// Returns nil if the engine does not support OIDC or OIDC is not configured
 	GetOIDCConfig(workflowData *WorkflowData) *OIDCConfig
 
-	// GetTokenEnvVarName returns the environment variable name for authentication tokens
-	// Used by OIDC token setup to determine where to store the obtained token
+	// GetTokenEnvVarName returns the environment variable name for API key authentication tokens
+	// For Claude: ANTHROPIC_API_KEY (used as fallback when OIDC fails)
+	// For Copilot: GITHUB_TOKEN
+	// For Codex: OPENAI_API_KEY
 	GetTokenEnvVarName() string
+
+	// GetOAuthTokenEnvVarName returns the environment variable name for OAuth tokens obtained via OIDC
+	// For Claude: CLAUDE_CODE_OAUTH_TOKEN
+	// For other engines: typically same as GetTokenEnvVarName()
+	GetOAuthTokenEnvVarName() string
 }
 
 // ErrorPattern represents a regex pattern for extracting error information from logs
@@ -168,10 +175,16 @@ func (e *BaseEngine) GetOIDCConfig(workflowData *WorkflowData) *OIDCConfig {
 	return nil
 }
 
-// GetTokenEnvVarName returns the default token environment variable name
+// GetTokenEnvVarName returns the default API token environment variable name
 // Engines should override this to return engine-specific values
 func (e *BaseEngine) GetTokenEnvVarName() string {
 	return "GITHUB_TOKEN"
+}
+
+// GetOAuthTokenEnvVarName returns the default OAuth token environment variable name
+// By default, uses the same as API token. Engines can override for different OAuth token variables.
+func (e *BaseEngine) GetOAuthTokenEnvVarName() string {
+	return e.GetTokenEnvVarName()
 }
 
 // GetLogFileForParsing returns the default log file path for parsing

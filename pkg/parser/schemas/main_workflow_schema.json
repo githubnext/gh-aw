@@ -2991,13 +2991,13 @@
                   "type": "string",
                   "description": "URL endpoint to revoke the app token after workflow execution (optional)"
                 },
-                "env_var_name": {
+                "oauth_token_env_var": {
                   "type": "string",
-                  "description": "Environment variable name to store the token. Defaults to engine-specific variable (e.g., ANTHROPIC_API_KEY for Claude)"
+                  "description": "Environment variable name for OAuth token obtained via OIDC. For Claude: CLAUDE_CODE_OAUTH_TOKEN. Defaults to engine-specific variable."
                 },
-                "fallback_env_var": {
+                "api_token_env_var": {
                   "type": "string",
-                  "description": "Fallback environment variable to use if OIDC token acquisition fails. Typically references a secret (e.g., ${{ secrets.ANTHROPIC_API_KEY }})"
+                  "description": "Environment variable name for API key used as fallback. For Claude: ANTHROPIC_API_KEY. Defaults to engine-specific variable."
                 }
               },
               "required": ["token_exchange_url"],
