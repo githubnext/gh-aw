@@ -1637,19 +1637,19 @@ jobs:
           
           ## Adding a Comment to an Issue or Pull Request, Creating an Issue, Reporting Missing Tools or Functionality
           
-          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **GitHub Agentic Workflows Safe Outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
           **Adding a Comment to an Issue or Pull Request**
           
-          To add a comment to an issue or pull request, use the add-comments tool from GitHub Agentic Workflows Safe Outputs
+          To add a comment to an issue or pull request, use the add-comments tool from safeoutputs
           
           **Creating an Issue**
           
-          To create an issue, use the create-issue tool from GitHub Agentic Workflows Safe Outputs
+          To create an issue, use the create-issue tool from safeoutputs
           
           **Reporting Missing Tools or Functionality**
           
-          To report a missing tool use the missing-tool tool from GitHub Agentic Workflows Safe Outputs.
+          To report a missing tool use the missing-tool tool from safeoutputs.
           
           PROMPT_EOF
       - name: Append GitHub context to prompt

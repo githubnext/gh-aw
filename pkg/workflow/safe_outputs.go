@@ -3,6 +3,8 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // formatSafeOutputsRunsOn formats the runs-on value from SafeOutputsConfig for job output
@@ -123,27 +125,27 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 
 	yaml.WriteString("\n")
 	yaml.WriteString("          \n")
-	yaml.WriteString("          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **GitHub Agentic Workflows Safe Outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.\n")
+	yaml.WriteString(fmt.Sprintf("          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **%s** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.\n", constants.SafeOutputsMCPServerID))
 	yaml.WriteString("          \n")
 
 	if safeOutputs.AddComments != nil {
 		yaml.WriteString("          **Adding a Comment to an Issue or Pull Request**\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString("          To add a comment to an issue or pull request, use the add-comments tool from GitHub Agentic Workflows Safe Outputs\n")
+		yaml.WriteString(fmt.Sprintf("          To add a comment to an issue or pull request, use the add-comments tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 
 	if safeOutputs.CreateIssues != nil {
 		yaml.WriteString("          **Creating an Issue**\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString("          To create an issue, use the create-issue tool from GitHub Agentic Workflows Safe Outputs\n")
+		yaml.WriteString(fmt.Sprintf("          To create an issue, use the create-issue tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 
 	if safeOutputs.CreateAgentTasks != nil {
 		yaml.WriteString("          **Creating an Agent Task**\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString("          To create a GitHub Copilot agent task, use the create-agent-task tool from GitHub Agentic Workflows Safe Outputs\n")
+		yaml.WriteString(fmt.Sprintf("          To create a GitHub Copilot agent task, use the create-agent-task tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 
@@ -155,21 +157,21 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          2. If you haven't done so already, create a local branch using an appropriate unique name\n")
 		yaml.WriteString("          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
 		yaml.WriteString("          4. Do not push your changes. That will be done by the tool.\n")
-		yaml.WriteString("          5. Create the pull request with the create-pull-request tool from GitHub Agentic Workflows Safe Outputs\n")
+		yaml.WriteString(fmt.Sprintf("          5. Create the pull request with the create-pull-request tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 
 	if safeOutputs.AddLabels != nil {
 		yaml.WriteString("          **Adding Labels to Issues or Pull Requests**\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString("          To add labels to an issue or a pull request, use the add-labels tool from GitHub Agentic Workflows Safe Outputs\n")
+		yaml.WriteString(fmt.Sprintf("          To add labels to an issue or a pull request, use the add-labels tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 
 	if safeOutputs.UpdateIssues != nil {
 		yaml.WriteString("          **Updating an Issue**\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString("          To udpate an issue, use the update-issue tool from GitHub Agentic Workflows Safe Outputs\n")
+		yaml.WriteString(fmt.Sprintf("          To udpate an issue, use the update-issue tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 
@@ -179,14 +181,14 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          To push changes to the branch of a pull request:\n")
 		yaml.WriteString("          1. Make any file changes directly in the working directory\n")
 		yaml.WriteString("          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.\n")
-		yaml.WriteString("          3. Push the branch to the repo by using the push-to-pull-request-branch tool from GitHub Agentic Workflows Safe Outputs\n")
+		yaml.WriteString(fmt.Sprintf("          3. Push the branch to the repo by using the push-to-pull-request-branch tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 
 	if safeOutputs.CreateCodeScanningAlerts != nil {
 		yaml.WriteString("          **Creating Code Scanning Alert**\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString("          To create code scanning alert use the create-code-scanning-alert tool from GitHub Agentic Workflows Safe Outputs\n")
+		yaml.WriteString(fmt.Sprintf("          To create code scanning alert use the create-code-scanning-alert tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 
@@ -194,7 +196,7 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          **Uploading Assets**\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          To upload files as URL-addressable assets:\n")
-		yaml.WriteString("          1. Use the `upload asset` tool from GitHub Agentic Workflows Safe Outputs\n")
+		yaml.WriteString(fmt.Sprintf("          1. Use the `upload asset` tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          2. Provide the path to the file you want to upload\n")
 		yaml.WriteString("          3. The tool will copy the file to a staging area and return a GitHub raw content URL\n")
 		yaml.WriteString("          4. Assets are uploaded to an orphaned git branch after workflow completion\n")
@@ -205,14 +207,14 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 	if safeOutputs.MissingTool != nil {
 		yaml.WriteString("          **Reporting Missing Tools or Functionality**\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString("          To report a missing tool use the missing-tool tool from GitHub Agentic Workflows Safe Outputs.\n")
+		yaml.WriteString(fmt.Sprintf("          To report a missing tool use the missing-tool tool from %s.\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 
 	if safeOutputs.CreatePullRequestReviewComments != nil {
 		yaml.WriteString("          **Creating a Pull Request Review Comment**\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString("          To create a pull request review comment, use the create-pull-request-review-comment tool from GitHub Agentic Workflows Safe Outputs\n")
+		yaml.WriteString(fmt.Sprintf("          To create a pull request review comment, use the create-pull-request-review-comment tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 }

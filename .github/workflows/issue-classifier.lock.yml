@@ -1780,15 +1780,15 @@ jobs:
           
           ## Adding Labels to Issues or Pull Requests, Reporting Missing Tools or Functionality
           
-          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **GitHub Agentic Workflows Safe Outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
           **Adding Labels to Issues or Pull Requests**
           
-          To add labels to an issue or a pull request, use the add-labels tool from GitHub Agentic Workflows Safe Outputs
+          To add labels to an issue or a pull request, use the add-labels tool from safeoutputs
           
           **Reporting Missing Tools or Functionality**
           
-          To report a missing tool use the missing-tool tool from GitHub Agentic Workflows Safe Outputs.
+          To report a missing tool use the missing-tool tool from safeoutputs.
           
           PROMPT_EOF
       - name: Append GitHub context to prompt
