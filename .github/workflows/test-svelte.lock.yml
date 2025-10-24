@@ -773,9 +773,61 @@ jobs:
                 return `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`;
               }
             }
+            function scanForToolErrors(logContent) {
+              const toolErrors = new Map();
+              const lines = logContent.split("\n");
+              const recentToolCalls = [];
+              const MAX_RECENT_TOOLS = 10;
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.includes('"tool_calls":') && !line.includes('\\"tool_calls\\"')) {
+                  for (let j = i + 1; j < Math.min(i + 30, lines.length); j++) {
+                    const nextLine = lines[j];
+                    const idMatch = nextLine.match(/"id":\s*"([^"]+)"/);
+                    const nameMatch = nextLine.match(/"name":\s*"([^"]+)"/) && !nextLine.includes('\\"name\\"');
+                    if (idMatch) {
+                      const toolId = idMatch[1];
+                      for (let k = j; k < Math.min(j + 10, lines.length); k++) {
+                        const nameLine = lines[k];
+                        const funcNameMatch = nameLine.match(/"name":\s*"([^"]+)"/);
+                        if (funcNameMatch && !nameLine.includes('\\"name\\"')) {
+                          const toolName = funcNameMatch[1];
+                          recentToolCalls.unshift({ id: toolId, name: toolName });
+                          if (recentToolCalls.length > MAX_RECENT_TOOLS) {
+                            recentToolCalls.pop();
+                          }
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+                const errorMatch = line.match(/\[ERROR\].*(?:Tool execution failed|Permission denied|Resource not accessible|Error executing tool)/i);
+                if (errorMatch) {
+                  const toolNameMatch = line.match(/Tool execution failed:\s*([^\s]+)/i);
+                  const toolIdMatch = line.match(/tool_call_id:\s*([^\s]+)/i);
+                  if (toolNameMatch) {
+                    const toolName = toolNameMatch[1];
+                    toolErrors.set(toolName, true);
+                    const matchingTool = recentToolCalls.find(t => t.name === toolName);
+                    if (matchingTool) {
+                      toolErrors.set(matchingTool.id, true);
+                    }
+                  } else if (toolIdMatch) {
+                    toolErrors.set(toolIdMatch[1], true);
+                  } else if (recentToolCalls.length > 0) {
+                    const lastTool = recentToolCalls[0];
+                    toolErrors.set(lastTool.id, true);
+                    toolErrors.set(lastTool.name, true);
+                  }
+                }
+              }
+              return toolErrors;
+            }
             function parseDebugLogFormat(logContent) {
               const entries = [];
               const lines = logContent.split("\n");
+              const toolErrors = scanForToolErrors(logContent);
               let model = "unknown";
               let sessionId = null;
               let modelInfo = null;
@@ -928,6 +980,8 @@ jobs:
                                   for (const toolCall of message.tool_calls) {
                                     if (toolCall.function) {
                                       let toolName = toolCall.function.name;
+                                      const originalToolName = toolName; 
+                                      const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
                                       let args = {};
                                       if (toolName.startsWith("github-")) {
                                         toolName = "mcp__github__" + toolName.substring(7);
@@ -939,18 +993,18 @@ jobs:
                                       } catch (e) {
                                         args = {};
                                       }
-                                      const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
                                       content.push({
                                         type: "tool_use",
                                         id: toolId,
                                         name: toolName,
                                         input: args,
                                       });
+                                      const hasError = toolErrors.has(toolId) || toolErrors.has(originalToolName);
                                       toolResults.push({
                                         type: "tool_result",
                                         tool_use_id: toolId,
-                                        content: "", 
-                                        is_error: false, 
+                                        content: hasError ? "Permission denied or tool execution failed" : "", 
+                                        is_error: hasError, 
                                       });
                                     }
                                   }
@@ -1028,6 +1082,8 @@ jobs:
                           for (const toolCall of message.tool_calls) {
                             if (toolCall.function) {
                               let toolName = toolCall.function.name;
+                              const originalToolName = toolName;
+                              const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
                               let args = {};
                               if (toolName.startsWith("github-")) {
                                 toolName = "mcp__github__" + toolName.substring(7);
@@ -1039,18 +1095,18 @@ jobs:
                               } catch (e) {
                                 args = {};
                               }
-                              const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
                               content.push({
                                 type: "tool_use",
                                 id: toolId,
                                 name: toolName,
                                 input: args,
                               });
+                              const hasError = toolErrors.has(toolId) || toolErrors.has(originalToolName);
                               toolResults.push({
                                 type: "tool_result",
                                 tool_use_id: toolId,
-                                content: "", 
-                                is_error: false, 
+                                content: hasError ? "Permission denied or tool execution failed" : "",
+                                is_error: hasError,
                               });
                             }
                           }
