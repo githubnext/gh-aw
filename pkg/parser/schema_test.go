@@ -1313,9 +1313,9 @@ func TestValidateMainWorkflowWithIgnoredFields(t *testing.T) {
 		{
 			name: "invalid frontmatter with ignored fields - other validation should still work",
 			frontmatter: map[string]any{
-				"on":           "push",
-				"description":  "Test workflow",
-				"applyTo":      "some-target",
+				"on":            "push",
+				"description":   "Test workflow",
+				"applyTo":       "some-target",
 				"invalid_field": "should-fail",
 			},
 			wantErr:     true,
