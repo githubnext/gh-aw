@@ -97,7 +97,7 @@ func TestRenderSafeOutputsMCPConfigShared(t *testing.T) {
 			wantContains: []string{
 				`"safeoutputs": {`,
 				`"command": "node"`,
-				`"/tmp/gh-aw/safe-outputs/mcp-server.cjs"`,
+				`"/tmp/gh-aw/safeoutputs/mcp-server.cjs"`,
 				`"GH_AW_SAFE_OUTPUTS"`,
 				`"GH_AW_SAFE_OUTPUTS_CONFIG"`,
 				`"GH_AW_ASSETS_BRANCH"`,

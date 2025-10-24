@@ -3,7 +3,7 @@
 
 const { spawn } = require("child_process");
 const path = require("path");
-const serverPath = path.join("/tmp/gh-aw/safe-outputs/mcp-server.cjs");
+const serverPath = path.join("/tmp/gh-aw/safeoutputs/mcp-server.cjs");
 const { GH_AW_SAFE_OUTPUTS_TOOL_CALLS } = process.env;
 function parseJsonl(input) {
   if (!input) return [];

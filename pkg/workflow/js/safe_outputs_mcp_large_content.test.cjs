@@ -139,7 +139,7 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
           expect(responseObj.description).not.toBe("generated content large!");
 
           // Verify file was created
-          const expectedFilePath = path.join("/tmp/gh-aw/safe-outputs", responseObj.filename);
+          const expectedFilePath = path.join("/tmp/gh-aw/safeoutputs", responseObj.filename);
           expect(fs.existsSync(expectedFilePath)).toBe(true);
 
           // Verify file content
@@ -382,7 +382,7 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
           expect(responseObj.description).toContain("id, name, data"); // Should list keys
 
           // Verify file was created with JSON extension
-          const expectedFilePath = path.join("/tmp/gh-aw/safe-outputs", responseObj.filename);
+          const expectedFilePath = path.join("/tmp/gh-aw/safeoutputs", responseObj.filename);
           expect(fs.existsSync(expectedFilePath)).toBe(true);
 
           // Verify content is valid JSON
@@ -508,7 +508,7 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
           expect(responseObj.description).toBe("text content");
 
           // Verify file was created with .json extension
-          const expectedFilePath = path.join("/tmp/gh-aw/safe-outputs", responseObj.filename);
+          const expectedFilePath = path.join("/tmp/gh-aw/safeoutputs", responseObj.filename);
           expect(fs.existsSync(expectedFilePath)).toBe(true);
 
           // Verify content is preserved
