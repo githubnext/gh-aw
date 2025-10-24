@@ -181,12 +181,16 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY") {
 					t.Errorf("Expected lock file to contain prompt printing command but it didn't.\nContent:\n%s", lockContent)
 				}
-				// Check that mcp-servers.json is generated (not config.toml)
-				if !strings.Contains(lockContent, "cat > /tmp/gh-aw/mcp-config/mcp-servers.json") {
-					t.Errorf("Expected lock file to contain mcp-servers.json generation for claude but it didn't.\nContent:\n%s", lockContent)
+				// Check that MCP config is passed via CLI argument (not file)
+				if !strings.Contains(lockContent, "--mcp-config") {
+					t.Errorf("Expected lock file to contain --mcp-config CLI argument but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "\"mcpServers\":") {
-					t.Errorf("Expected lock file to contain '\"mcpServers\":' section in mcp-servers.json but it didn't.\nContent:\n%s", lockContent)
+				if !strings.Contains(lockContent, "mcpServers") {
+					t.Errorf("Expected lock file to contain 'mcpServers' in CLI argument JSON but it didn't.\nContent:\n%s", lockContent)
+				}
+				// Ensure it does NOT contain file-based MCP config generation
+				if strings.Contains(lockContent, "cat > /tmp/gh-aw/mcp-config/mcp-servers.json") {
+					t.Errorf("Did not expect lock file to contain mcp-servers.json file generation for claude (using CLI arg instead).\nContent:\n%s", lockContent)
 				}
 				// Ensure it does NOT contain codex
 				if strings.Contains(lockContent, "codex exec") {
