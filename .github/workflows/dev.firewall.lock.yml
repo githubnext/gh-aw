@@ -902,7 +902,7 @@ jobs:
 
             }
 
-            if (require.main === module) {
+            if (typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module)) {
 
               main();
 

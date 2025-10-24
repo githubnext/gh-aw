@@ -240,7 +240,7 @@ if (typeof module !== "undefined" && module.exports) {
   };
 }
 
-// Only run main if not being imported
-if (require.main === module) {
+// Run main when executed directly (not when imported as a module)
+if (typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module)) {
   main();
 }
