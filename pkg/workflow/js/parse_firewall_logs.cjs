@@ -128,7 +128,7 @@ function parseFirewallLogLine(line) {
 
   // Validate domain format (should be domain:port or "-")
   const domain = fields[2];
-  if (domain !== "-" && !/^[a-zA-Z0-9.-]+:\d+$/.test(domain)) {
+  if (domain !== "-" && !/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*:\d+$/.test(domain)) {
     return null;
   }
 
@@ -205,13 +205,7 @@ function generateFirewallSummary(analysis) {
   const validDeniedDomains = deniedDomains.filter(domain => domain !== "-");
 
   // Calculate denied requests from valid domains only
-  let validDeniedRequests = 0;
-  for (const domain of validDeniedDomains) {
-    const stats = requestsByDomain.get(domain);
-    if (stats) {
-      validDeniedRequests += stats.denied;
-    }
-  }
+  const validDeniedRequests = validDeniedDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
 
   // Show blocked requests if any exist
   if (validDeniedRequests > 0) {
