@@ -78,6 +78,11 @@ func TestValidateExpressionSafety(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "allowed_github_event_workflow_run_head_branch",
+			content:     "Head branch: ${{ github.event.workflow_run.head_branch }}",
+			expectError: false,
+		},
+		{
 			name:        "allowed_github_event_workflow_run_run_number",
 			content:     "Run number: ${{ github.event.workflow_run.run_number }}",
 			expectError: false,
