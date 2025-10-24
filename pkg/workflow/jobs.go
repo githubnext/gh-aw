@@ -253,7 +253,17 @@ func (jm *JobManager) renderJob(job *Job) string {
 		sort.Strings(envKeys)
 
 		for _, key := range envKeys {
-			yaml.WriteString(fmt.Sprintf("      %s: %s\n", key, job.Env[key]))
+			value := job.Env[key]
+			// If value looks like JSON (starts with { or [), quote it as a string
+			// to prevent YAML from parsing it as an object
+			if strings.HasPrefix(value, "{") || strings.HasPrefix(value, "[") {
+				// Use single quotes to avoid shell escaping issues
+				// Escape any single quotes in the value
+				escapedValue := strings.ReplaceAll(value, "'", "''")
+				yaml.WriteString(fmt.Sprintf("      %s: '%s'\n", key, escapedValue))
+			} else {
+				yaml.WriteString(fmt.Sprintf("      %s: %s\n", key, value))
+			}
 		}
 	}
 

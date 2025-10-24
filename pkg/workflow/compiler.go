@@ -2013,8 +2013,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// Set GH_AW_SAFE_OUTPUTS_CONFIG with the safe outputs configuration
 		safeOutputConfig := generateSafeOutputsConfig(data)
 		if safeOutputConfig != "" {
-			// The JSON string needs to be properly quoted for YAML
-			env["GH_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
+			// Store the JSON string as-is - the YAML marshaller will handle quoting
+			// Don't use %q here as it adds backslash escapes which YAML treats as literal characters
+			env["GH_AW_SAFE_OUTPUTS_CONFIG"] = safeOutputConfig
 		}
 
 		// Add asset-related environment variables if upload-assets is configured
@@ -2872,7 +2873,10 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	// Pass the safe-outputs configuration for validation
 	safeOutputConfig := generateSafeOutputsConfig(data)
 	if safeOutputConfig != "" {
-		fmt.Fprintf(yaml, "          GH_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
+		// Write the JSON value with single quotes to prevent YAML from parsing it as an object
+		// Escape any single quotes in the JSON by doubling them
+		escapedConfig := strings.ReplaceAll(safeOutputConfig, "'", "''")
+		fmt.Fprintf(yaml, "          GH_AW_SAFE_OUTPUTS_CONFIG: '%s'\n", escapedConfig)
 	}
 
 	// Add allowed domains configuration for sanitization

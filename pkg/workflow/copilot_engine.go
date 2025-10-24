@@ -574,7 +574,7 @@ func (e *CopilotEngine) buildSafeOutputsMCPServerJSON() MCPServerJSON {
 		Args:    []string{"/tmp/gh-aw/safe-outputs/mcp-server.cjs"},
 		Env: map[string]string{
 			"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
-			"GH_AW_SAFE_OUTPUTS_CONFIG": "${{ env.GH_AW_SAFE_OUTPUTS_CONFIG }}",
+			"GH_AW_SAFE_OUTPUTS_CONFIG": "${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}",
 			"GH_AW_ASSETS_BRANCH":       "${{ env.GH_AW_ASSETS_BRANCH }}",
 			"GH_AW_ASSETS_MAX_SIZE_KB":  "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}",
 			"GH_AW_ASSETS_ALLOWED_EXTS": "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}",
