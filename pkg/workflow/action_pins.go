@@ -1,5 +1,7 @@
 package workflow
 
+import "strings"
+
 // ActionPin represents a pinned GitHub Action with its commit SHA
 type ActionPin struct {
 	Repo    string // e.g., "actions/checkout"
@@ -104,4 +106,77 @@ func GetActionPin(actionRepo string) string {
 	}
 	// If no pin exists, return empty string to signal that this action is not pinned
 	return ""
+}
+
+// ApplyActionPinToStep applies SHA pinning to a step map if it contains a "uses" field
+// with a pinned action. Returns a modified copy of the step map with pinned references.
+// If the step doesn't use an action or the action is not pinned, returns the original map.
+func ApplyActionPinToStep(stepMap map[string]any) map[string]any {
+	// Check if step has a "uses" field
+	uses, hasUses := stepMap["uses"]
+	if !hasUses {
+		return stepMap
+	}
+
+	// Extract uses value as string
+	usesStr, ok := uses.(string)
+	if !ok {
+		return stepMap
+	}
+
+	// Extract action repo from uses field (remove @version or @ref)
+	actionRepo := extractActionRepo(usesStr)
+	if actionRepo == "" {
+		return stepMap
+	}
+
+	// Check if this action has a pin
+	pinnedRef := GetActionPin(actionRepo)
+	if pinnedRef == "" {
+		// No pin available for this action, return original step
+		return stepMap
+	}
+
+	// Create a copy of the step map with the pinned reference
+	result := make(map[string]any)
+	for k, v := range stepMap {
+		if k == "uses" {
+			result[k] = pinnedRef
+		} else {
+			result[k] = v
+		}
+	}
+
+	return result
+}
+
+// extractActionRepo extracts the action repository from a uses string
+// For example:
+//   - "actions/checkout@v4" -> "actions/checkout"
+//   - "actions/setup-node@v5" -> "actions/setup-node"
+//   - "github/codeql-action/upload-sarif@v3" -> "github/codeql-action/upload-sarif"
+//   - "actions/checkout" -> "actions/checkout"
+func extractActionRepo(uses string) string {
+	// Split on @ to separate repo from version/ref
+	idx := strings.Index(uses, "@")
+	if idx == -1 {
+		// No @ found, return the whole string
+		return uses
+	}
+	// Return everything before the @
+	return uses[:idx]
+}
+
+// ApplyActionPinsToSteps applies SHA pinning to a slice of step maps
+// Returns a new slice with pinned references
+func ApplyActionPinsToSteps(steps []any) []any {
+	result := make([]any, len(steps))
+	for i, step := range steps {
+		if stepMap, ok := step.(map[string]any); ok {
+			result[i] = ApplyActionPinToStep(stepMap)
+		} else {
+			result[i] = step
+		}
+	}
+	return result
 }

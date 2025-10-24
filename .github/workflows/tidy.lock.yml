@@ -430,18 +430,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       - name: Set up Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           cache: npm
           cache-dependency-path: pkg/workflow/js/package-lock.json
           node-version: "24"
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
         with:
           cache: true
           go-version-file: go.mod
       - name: Dev dependencies
         run: make deps-dev
+
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -5082,12 +5083,25 @@ jobs:
                   if (commitTitlePrefix) {
                     core.info(`Prepending commit title prefix: "${commitTitlePrefix}"`);
                     let patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                    let normalizedPrefix = commitTitlePrefix;
+                    if (normalizedPrefix.startsWith("[") && normalizedPrefix.includes("]")) {
+                      const bracketContent = normalizedPrefix.match(/^\[([^\]]+)\]/);
+                      if (bracketContent) {
+                        const afterBracket = commitTitlePrefix.substring(commitTitlePrefix.indexOf("]") + 1);
+                        normalizedPrefix = bracketContent[1] + ":";
+                        if (afterBracket) {
+                          normalizedPrefix += afterBracket;
+                        } else {
+                          normalizedPrefix += " ";
+                        }
+                      }
+                    }
                     patchContent = patchContent.replace(
                       /^Subject: (?:\[PATCH\] )?(.*)$/gm,
-                      (match, title) => `Subject: [PATCH] ${commitTitlePrefix}${title}`
+                      (match, title) => `Subject: [PATCH] ${normalizedPrefix}${title}`
                     );
                     fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
-                    core.info("Patch modified with commit title prefix");
+                    core.info(`Patch modified with commit title prefix (normalized to: "${normalizedPrefix}")`);
                   }
                   await exec.exec("git am /tmp/gh-aw/aw.patch");
                   core.info("Patch applied successfully");

@@ -3,65 +3,27 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mcp/gh-aw.md
-#     - shared/mcp/serena.md
-#     - shared/mcp/tavily.md
-#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
 #   activation["activation"]
-#   add_comment["add_comment"]
 #   agent["agent"]
-#   create_pull_request["create_pull_request"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   pre_activation["pre_activation"]
-#   update_reaction["update_reaction"]
+#   push_to_pull_request_branch["push_to_pull_request_branch"]
 #   pre_activation --> activation
-#   agent --> add_comment
-#   create_pull_request --> add_comment
-#   detection --> add_comment
 #   activation --> agent
-#   agent --> create_pull_request
-#   detection --> create_pull_request
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
-#   agent --> update_reaction
-#   activation --> update_reaction
-#   create_pull_request --> update_reaction
-#   add_comment --> update_reaction
-#   missing_tool --> update_reaction
+#   agent --> push_to_pull_request_branch
+#   detection --> push_to_pull_request_branch
 # ```
 
-name: "Q"
+name: "Mergefest"
 "on":
-  discussion:
-    types:
-    - created
-    - edited
-  discussion_comment:
-    types:
-    - created
-    - edited
   issue_comment:
-    types:
-    - created
-    - edited
-  issues:
-    types:
-    - opened
-    - edited
-    - reopened
-  pull_request:
-    types:
-    - opened
-    - edited
-    - reopened
-  pull_request_review_comment:
     types:
     - created
     - edited
@@ -69,24 +31,19 @@ name: "Q"
 permissions:
   actions: read
   contents: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
 
-run-name: "Q"
+run-name: "Mergefest"
 
 jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/q')) ||
-      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/q')) && (github.event.issue.pull_request == null)) ||
-      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/q')) && (github.event.issue.pull_request != null)) ||
-      (github.event_name == 'pull_request_review_comment') && (contains(github.event.comment.body, '/q')) ||
-      (github.event_name == 'pull_request') && (contains(github.event.pull_request.body, '/q')) ||
-      (github.event_name == 'discussion') &&
-      (contains(github.event.discussion.body, '/q')) || (github.event_name == 'discussion_comment') &&
-      (contains(github.event.comment.body, '/q')))
+      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/mergefest')) &&
+      (github.event.issue.pull_request != null)))
     runs-on: ubuntu-latest
     permissions:
       discussions: write
@@ -97,7 +54,6 @@ jobs:
       comment_repo: ${{ steps.react.outputs.comment-repo }}
       comment_url: ${{ steps.react.outputs.comment-url }}
       reaction_id: ${{ steps.react.outputs.reaction-id }}
-      text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -114,176 +70,14 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
           fi
-      - name: Compute current body text
-        id: compute-text
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        with:
-          script: |
-            function sanitizeContent(content) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
-              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-              const allowedDomains = allowedDomainsEnv
-                ? allowedDomainsEnv
-                    .split(",")
-                    .map(d => d.trim())
-                    .filter(d => d)
-                : defaultAllowedDomains;
-              let sanitized = content;
-              sanitized = neutralizeMentions(sanitized);
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = convertXmlTagsToParentheses(sanitized);
-              sanitized = sanitizeUrlProtocols(sanitized);
-              sanitized = sanitizeUrlDomains(sanitized);
-              const maxLength = 524288;
-              if (sanitized.length > maxLength) {
-                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-              }
-              const lines = sanitized.split("\n");
-              const maxLines = 65000;
-              if (lines.length > maxLines) {
-                sanitized = lines.slice(0, maxLines).join("\n") + "\n[Content truncated due to line count]";
-              }
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = neutralizeBotTriggers(sanitized);
-              return sanitized.trim();
-              function convertXmlTagsToParentheses(s) {
-                if (!s || typeof s !== "string") {
-                  return s;
-                }
-                return (
-                  s
-                    .replace(/<\/?[a-zA-Z][a-zA-Z0-9\-_:]*(?:\s[^>]*|\/)?>/g, match => {
-                      const innerContent = match.slice(1, -1);
-                      return `(${innerContent})`;
-                    })
-                    .replace(/<!--[\s\S]*?-->/g, match => {
-                      const innerContent = match.slice(4, -3); 
-                      return `(!--${innerContent}--)`;
-                    })
-                    .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, match => {
-                      const innerContent = match.slice(9, -3); 
-                      return `(![CDATA[${innerContent}]])`;
-                    })
-                    .replace(/<\?[\s\S]*?\?>/g, match => {
-                      const innerContent = match.slice(2, -2); 
-                      return `(?${innerContent}?)`;
-                    })
-                    .replace(/<!DOCTYPE[^>]*>/gi, match => {
-                      const innerContent = match.slice(9, -1); 
-                      return `(!DOCTYPE${innerContent})`;
-                    })
-                );
-              }
-              function sanitizeUrlDomains(s) {
-                s = s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
-                  const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
-                  const isAllowed = allowedDomains.some(allowedDomain => {
-                    const normalizedAllowed = allowedDomain.toLowerCase();
-                    return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
-                  });
-                  return isAllowed ? match : "(redacted)";
-                });
-                return s;
-              }
-              function sanitizeUrlProtocols(s) {
-                return s.replace(/\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
-                  return protocol.toLowerCase() === "https" ? match : "(redacted)";
-                });
-              }
-              function neutralizeMentions(s) {
-                return s.replace(
-                  /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                  (_m, p1, p2) => `${p1}\`@${p2}\``
-                );
-              }
-              function neutralizeBotTriggers(s) {
-                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-              }
-            }
-            async function main() {
-              let text = "";
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                owner: owner,
-                repo: repo,
-                username: actor,
-              });
-              const permission = repoPermission.data.permission;
-              core.info(`Repository permission level: ${permission}`);
-              if (permission !== "admin" && permission !== "maintain") {
-                core.setOutput("text", "");
-                return;
-              }
-              switch (context.eventName) {
-                case "issues":
-                  if (context.payload.issue) {
-                    const title = context.payload.issue.title || "";
-                    const body = context.payload.issue.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "pull_request":
-                  if (context.payload.pull_request) {
-                    const title = context.payload.pull_request.title || "";
-                    const body = context.payload.pull_request.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "pull_request_target":
-                  if (context.payload.pull_request) {
-                    const title = context.payload.pull_request.title || "";
-                    const body = context.payload.pull_request.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "issue_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                  }
-                  break;
-                case "pull_request_review_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                  }
-                  break;
-                case "pull_request_review":
-                  if (context.payload.review) {
-                    text = context.payload.review.body || "";
-                  }
-                  break;
-                case "discussion":
-                  if (context.payload.discussion) {
-                    const title = context.payload.discussion.title || "";
-                    const body = context.payload.discussion.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "discussion_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                  }
-                  break;
-                default:
-                  text = "";
-                  break;
-              }
-              const sanitizedText = sanitizeContent(text);
-              core.info(`text: ${sanitizedText}`);
-              core.setOutput("text", sanitizedText);
-            }
-            await main();
-      - name: Add rocket reaction to the triggering item
+      - name: Add eyes reaction to the triggering item
         id: react
         if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
-          GH_AW_REACTION: rocket
-          GH_AW_COMMAND: q
-          GH_AW_WORKFLOW_NAME: "Q"
+          GH_AW_REACTION: eyes
+          GH_AW_COMMAND: mergefest
+          GH_AW_WORKFLOW_NAME: "Mergefest"
         with:
           script: |
             async function main() {
@@ -608,463 +402,29 @@ jobs:
             }
             await main();
 
-  add_comment:
-    needs:
-      - agent
-      - create_pull_request
-      - detection
-    if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'add_comment'))) && (((github.event.issue.number) ||
-      (github.event.pull_request.number)) || (github.event.discussion.number))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      comment_id: ${{ steps.add_comment.outputs.comment_id }}
-      comment_url: ${{ steps.add_comment.outputs.comment_url }}
-    steps:
-      - name: Debug agent outputs
-        env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
-        run: |
-          echo "Output: $AGENT_OUTPUT"
-          echo "Output types: $AGENT_OUTPUT_TYPES"
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
-      - name: Add Issue Comment
-        id: add_comment
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Q"
-          GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
-          GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            function generateFooter(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
-              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
-              if (triggeringIssueNumber) {
-                footer += ` for #${triggeringIssueNumber}`;
-              } else if (triggeringPRNumber) {
-                footer += ` for #${triggeringPRNumber}`;
-              } else if (triggeringDiscussionNumber) {
-                footer += ` for discussion #${triggeringDiscussionNumber}`;
-              }
-              if (workflowSource && workflowSourceURL) {
-                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
-              }
-              footer += "\n";
-              return footer;
-            }
-            async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
-              const { repository } = await github.graphql(
-                `
-                query($owner: String!, $repo: String!, $num: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    discussion(number: $num) { 
-                      id 
-                      url
-                    }
-                  }
-                }`,
-                { owner, repo, num: discussionNumber }
-              );
-              if (!repository || !repository.discussion) {
-                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
-              }
-              const discussionId = repository.discussion.id;
-              const discussionUrl = repository.discussion.url;
-              let result;
-              if (replyToId) {
-                result = await github.graphql(
-                  `
-                  mutation($dId: ID!, $body: String!, $replyToId: ID!) {
-                    addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
-                      comment { 
-                        id 
-                        body 
-                        createdAt 
-                        url
-                      }
-                    }
-                  }`,
-                  { dId: discussionId, body: message, replyToId }
-                );
-              } else {
-                result = await github.graphql(
-                  `
-                  mutation($dId: ID!, $body: String!) {
-                    addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-                      comment { 
-                        id 
-                        body 
-                        createdAt 
-                        url
-                      }
-                    }
-                  }`,
-                  { dId: discussionId, body: message }
-                );
-              }
-              const comment = result.addDiscussionComment.comment;
-              return {
-                id: comment.id,
-                html_url: comment.url,
-                discussion_url: discussionUrl,
-              };
-            }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return;
-              }
-              let outputContent;
-              try {
-                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const commentItems = validatedOutput.items.filter( item => item.type === "add_comment");
-              if (commentItems.length === 0) {
-                core.info("No add-comment items found in agent output");
-                return;
-              }
-              core.info(`Found ${commentItems.length} add-comment item(s)`);
-              function getRepositoryUrl() {
-                const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
-                if (targetRepoSlug) {
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  return `${githubServer}/${targetRepoSlug}`;
-                } else if (context.payload.repository) {
-                  return context.payload.repository.html_url;
-                } else {
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
-                }
-              }
-              function getTargetNumber(item) {
-                return item.item_number;
-              }
-              const commentTarget = process.env.GH_AW_COMMENT_TARGET || "triggering";
-              core.info(`Comment target configuration: ${commentTarget}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment";
-              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
-              const isDiscussion = isDiscussionContext || isDiscussionExplicit;
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-                summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
-                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
-                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
-                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
-                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
-                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
-                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-                if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
-                  summaryContent += "#### Related Items\n\n";
-                  if (createdIssueUrl && createdIssueNumber) {
-                    summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
-                  }
-                  if (createdDiscussionUrl && createdDiscussionNumber) {
-                    summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
-                  }
-                  if (createdPullRequestUrl && createdPullRequestNumber) {
-                    summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
-                  }
-                  summaryContent += "\n";
-                }
-                for (let i = 0; i < commentItems.length; i++) {
-                  const item = commentItems[i];
-                  summaryContent += `### Comment ${i + 1}\n`;
-                  const targetNumber = getTargetNumber(item);
-                  if (targetNumber) {
-                    const repoUrl = getRepositoryUrl();
-                    if (isDiscussion) {
-                      const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
-                      summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
-                    } else {
-                      const issueUrl = `${repoUrl}/issues/${targetNumber}`;
-                      summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
-                    }
-                  } else {
-                    if (isDiscussion) {
-                      summaryContent += `**Target:** Current discussion\n\n`;
-                    } else {
-                      summaryContent += `**Target:** Current issue/PR\n\n`;
-                    }
-                  }
-                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Comment creation preview written to step summary");
-                return;
-              }
-              if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
-                core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
-                return;
-              }
-              const triggeringIssueNumber =
-                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-              const triggeringPRNumber =
-                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
-              const triggeringDiscussionNumber = context.payload?.discussion?.number;
-              const createdComments = [];
-              for (let i = 0; i < commentItems.length; i++) {
-                const commentItem = commentItems[i];
-                core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
-                let itemNumber;
-                let commentEndpoint;
-                if (commentTarget === "*") {
-                  const targetNumber = getTargetNumber(commentItem);
-                  if (targetNumber) {
-                    itemNumber = parseInt(targetNumber, 10);
-                    if (isNaN(itemNumber) || itemNumber <= 0) {
-                      core.info(`Invalid target number specified: ${targetNumber}`);
-                      continue;
-                    }
-                    commentEndpoint = isDiscussion ? "discussions" : "issues";
-                  } else {
-                    core.info(`Target is "*" but no number specified in comment item`);
-                    continue;
-                  }
-                } else if (commentTarget && commentTarget !== "triggering") {
-                  itemNumber = parseInt(commentTarget, 10);
-                  if (isNaN(itemNumber) || itemNumber <= 0) {
-                    core.info(`Invalid target number in target configuration: ${commentTarget}`);
-                    continue;
-                  }
-                  commentEndpoint = isDiscussion ? "discussions" : "issues";
-                } else {
-                  if (isIssueContext) {
-                    itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
-                    if (context.payload.issue) {
-                      commentEndpoint = "issues";
-                    } else {
-                      core.info("Issue context detected but no issue found in payload");
-                      continue;
-                    }
-                  } else if (isPRContext) {
-                    itemNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
-                    if (context.payload.pull_request) {
-                      commentEndpoint = "issues"; 
-                    } else {
-                      core.info("Pull request context detected but no pull request found in payload");
-                      continue;
-                    }
-                  } else if (isDiscussionContext) {
-                    itemNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
-                    if (context.payload.discussion) {
-                      commentEndpoint = "discussions"; 
-                    } else {
-                      core.info("Discussion context detected but no discussion found in payload");
-                      continue;
-                    }
-                  }
-                }
-                if (!itemNumber) {
-                  core.info("Could not determine issue, pull request, or discussion number");
-                  continue;
-                }
-                let body = commentItem.body.trim();
-                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
-                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
-                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
-                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
-                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
-                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-                let hasReferences = false;
-                let referencesSection = "\n\n#### Related Items\n\n";
-                if (createdIssueUrl && createdIssueNumber) {
-                  referencesSection += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
-                  hasReferences = true;
-                }
-                if (createdDiscussionUrl && createdDiscussionNumber) {
-                  referencesSection += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
-                  hasReferences = true;
-                }
-                if (createdPullRequestUrl && createdPullRequestNumber) {
-                  referencesSection += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
-                  hasReferences = true;
-                }
-                if (hasReferences) {
-                  body += referencesSection;
-                }
-                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-                const runId = context.runId;
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                body += generateFooter(
-                  workflowName,
-                  runUrl,
-                  workflowSource,
-                  workflowSourceURL,
-                  triggeringIssueNumber,
-                  triggeringPRNumber,
-                  triggeringDiscussionNumber
-                );
-                try {
-                  let comment;
-                  if (commentEndpoint === "discussions") {
-                    core.info(`Creating comment on discussion #${itemNumber}`);
-                    core.info(`Comment content length: ${body.length}`);
-                    let replyToId;
-                    if (context.eventName === "discussion_comment" && context.payload?.comment?.node_id) {
-                      replyToId = context.payload.comment.node_id;
-                      core.info(`Creating threaded reply to comment ${replyToId}`);
-                    }
-                    comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body, replyToId);
-                    core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
-                    comment.discussion_url = comment.discussion_url;
-                  } else {
-                    core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
-                    core.info(`Comment content length: ${body.length}`);
-                    const { data: restComment } = await github.rest.issues.createComment({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      issue_number: itemNumber,
-                      body: body,
-                    });
-                    comment = restComment;
-                    core.info("Created comment #" + comment.id + ": " + comment.html_url);
-                  }
-                  createdComments.push(comment);
-                  if (i === commentItems.length - 1) {
-                    core.setOutput("comment_id", comment.id);
-                    core.setOutput("comment_url", comment.html_url);
-                  }
-                } catch (error) {
-                  core.error(`✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
-                  throw error;
-                }
-              }
-              if (createdComments.length > 0) {
-                let summaryContent = "\n\n## GitHub Comments\n";
-                for (const comment of createdComments) {
-                  summaryContent += `- Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully created ${createdComments.length} comment(s)`);
-              return createdComments;
-            }
-            await main();
-
   agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
+      pull-requests: read
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{}}"
+      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"missing_tool\":{},\"push_to_pull_request_branch\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.12'
-      - name: Setup uv
-        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081
-      - name: Set up Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
-        with:
-          cache: true
-          go-version-file: go.mod
-      - name: Install dependencies
-        run: make deps-dev
-      - name: Install binary as 'gh-aw'
-        run: make build
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Start MCP server
-        run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Wait a moment for server to start\nsleep 2\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"MCP server failed to start\"\n  exit 1\nfi\n\necho \"MCP server started successfully with PID $MCP_PID\"\n"
-      - name: Verify uv
-        run: uv --version
-      - name: Install Go language service
-        run: go install golang.org/x/tools/gopls@latest
-      - name: Check gopls version
-        run: gopls version
+      - name: Setup git configuration
+        run: "git config user.name \"github-actions[bot]\"\ngit config user.email \"github-actions[bot]@users.noreply.github.com\"\n\n# Create .gitignore to exclude workflow YAML files\ncat > /tmp/merge-gitignore << 'EOF'\n# Exclude all .yml files in .github/workflows/\n.github/workflows/*.yml\nEOF"
 
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: |
-          mkdir -p /tmp/gh-aw/cache-memory
-          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
-          echo "This folder provides persistent file storage across workflow runs"
-          echo "LLMs and agentic tools can freely read and write files in this directory"
-      - name: Cache memory file share data
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            memory-${{ github.workflow }}-
-            memory-
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -1133,7 +493,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":1},"create_pull_request":{},"missing_tool":{}}
+          {"missing_tool":{},"push_to_pull_request_branch":{}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1905,13 +1265,6 @@ jobs:
           cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
-              "gh-aw": {
-                "type": "http",
-                "url": "http://localhost:8765",
-                "tools": [
-                  "*"
-                ]
-              },
               "github": {
                 "type": "local",
                 "command": "docker",
@@ -1924,7 +1277,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=default",
+                  "GITHUB_TOOLSETS=pull_requests,repos",
                   "ghcr.io/github/github-mcp-server:v0.19.1"
                 ],
                 "tools": ["*"],
@@ -1944,36 +1297,6 @@ jobs:
                   "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
                   "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}"
                 }
-              },
-              "serena": {
-                "type": "local",
-                "command": "uvx",
-                "tools": [
-                  "*"
-                ],
-                "args": [
-                  "--from",
-                  "git+https://github.com/oraios/serena",
-                  "serena",
-                  "start-mcp-server",
-                  "--context",
-                  "codex",
-                  "--project",
-                  "${{ github.workspace }}"
-                ]
-              },
-              "tavily": {
-                "type": "http",
-                "url": "https://mcp.tavily.com/mcp/",
-                "headers": {
-                  "Authorization": "Bearer \${TAVILY_API_KEY}"
-                },
-                "tools": [
-                  "*"
-                ],
-                "env": {
-                  "TAVILY_API_KEY": "\${TAVILY_API_KEY}"
-                }
               }
             }
           }
@@ -1992,330 +1315,299 @@ jobs:
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
+          # Mergefest - Merge Main into Pull Request Branch
           
-          
-          ## Serena configuration
-          
-          The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
-          
-          
-          
-          
-          
-          # Q - Agentic Workflow Optimizer
-          
-          You are Q, the quartermaster of agentic workflows - an expert system that improves, optimizes, and fixes agentic workflows. Like your namesake from James Bond, you provide agents with the best tools and configurations for their missions.
+          You are the Mergefest agent - responsible for merging the main branch into the current pull request branch when invoked with the `/mergefest` command.
           
           ## Mission
           
-          When invoked with the `/q` command in an issue or pull request comment, analyze the current context and improve the agentic workflows in this repository by:
+          When invoked with `/mergefest` in a pull request comment, merge the main branch into the pull request branch while ensuring that no `.yml` files under `.github/workflows/` are committed during the merge process.
           
-          1. **Investigating workflow performance** using live logs and audits
-          2. **Identifying missing tools** and permission issues
-          3. **Detecting inefficiencies** through excessive repetitive MCP calls
-          4. **Extracting common patterns** and generating reusable workflow steps
-          5. **Creating a pull request** with optimized workflow configurations
-          
-          <current_context>
           ## Current Context
           
           - **Repository**: ${{ github.repository }}
-          - **Triggering Content**: "${{ needs.activation.outputs.text }}"
-          - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
+          - **Pull Request Number**: ${{ github.event.pull_request.number }}
           - **Triggered by**: @${{ github.actor }}
-          </current_context>
           
-          ## Investigation Protocol
+          ## Task
           
-          ### Phase 0: Setup and Context Analysis
+          Your task is to perform an informed merge of the main branch into the pull request branch:
           
-          **DO NOT ATTEMPT TO USE GH AW DIRECTLY** - it is not authenticated. Use the MCP server instead.
+          ### 1. Get Pull Request Information
           
-          1. **Verify MCP Server**: Run the `status` tool of `gh-aw` MCP server to verify configuration
-          2. **Analyze Trigger Context**: Parse the triggering content to understand what needs improvement:
-             - Is a specific workflow mentioned?
-             - Are there error messages or issues described?
-             - Is this a general optimization request?
-          3. **Identify Target Workflows**: Determine which workflows to analyze (specific ones or all)
+          First, retrieve the full pull request details to get branch names:
           
-          ### Phase 1: Gather Live Data
-          
-          **NEVER EVER make up logs or data - always pull from live sources.**
-          
-          Use the gh-aw MCP server tools to gather real data:
-          
-          1. **Download Recent Logs**:
-             ```
-             Use the `logs` tool from gh-aw MCP server:
-             - Workflow name: (specific workflow or empty for all)
-             - Count: 10-20 recent runs
-             - Start date: "-7d" (last week)
-             - Parse: true (to get structured output)
-             ```
-             Logs will be downloaded to `/tmp/gh-aw/aw-mcp/logs`
-          
-          2. **Review Audit Information**:
-             ```
-             Use the `audit` tool for specific problematic runs:
-             - Run ID: (from logs analysis)
-             ```
-             Audits will be saved to `/tmp/gh-aw/aw-mcp/logs`
-          
-          3. **Analyze Log Data**: Review the downloaded logs to identify:
-             - **Missing Tools**: Tools requested but not available
-             - **Permission Errors**: Failed operations due to insufficient permissions
-             - **Repetitive Patterns**: Same MCP calls made multiple times
-             - **Performance Issues**: High token usage, excessive turns, timeouts
-             - **Error Patterns**: Recurring failures and their causes
-          
-          ### Phase 2: Deep Analysis with Serena
-          
-          Use Serena's code analysis capabilities to:
-          
-          1. **Examine Workflow Files**: Read and analyze workflow markdown files in `.github/workflows/`
-          2. **Identify Common Patterns**: Look for repeated code or configurations across workflows
-          3. **Extract Reusable Steps**: Find workflow steps that appear in multiple places
-          4. **Detect Configuration Issues**: Spot missing imports, incorrect tools, or suboptimal settings
-          
-          ### Phase 3: Research Solutions
-          
-          Use Tavily to research:
-          
-          1. **Best Practices**: Search for "GitHub Actions agentic workflow best practices"
-          2. **Tool Documentation**: Look up documentation for missing or misconfigured tools
-          3. **Performance Optimization**: Find strategies for reducing token usage and improving efficiency
-          4. **Error Resolutions**: Research solutions for identified error patterns
-          
-          ### Phase 4: Workflow Improvements
-          
-          Based on your analysis, make targeted improvements to workflow files:
-          
-          #### 4.1 Add Missing Tools
-          
-          If logs show missing tool reports:
-          - Add the tools to the appropriate workflow frontmatter
-          - Ensure proper MCP server configuration
-          - Add shared imports if the tool has a standard configuration
-          
-          Example:
-          ```yaml
-          tools:
-            github:
-              allowed: 
-                - get_issue
-                - list_commits
-                - create_issue_comment
+          Use GitHub tools:
+          ```
+          Use pull_request_read with method "get" to get PR details including:
+          - head.ref (the PR branch name)
+          - base.ref (the base branch, usually main)
+          - state (to verify PR is open)
           ```
           
-          #### 4.2 Fix Permission Issues
+          Store the branch names for use in subsequent git commands.
           
-          If logs show permission errors:
-          - Add required permissions to workflow frontmatter
-          - Use safe-outputs for write operations when appropriate
-          - Ensure minimal necessary permissions
+          ### 2. Validate the Pull Request
           
-          Example:
-          ```yaml
-          permissions:
-            contents: read
-            issues: write
-            actions: read
+          Before starting the merge:
+          - Verify the PR is open (state == "open")
+          - Confirm the PR is not already merged or closed
+          - Check that the PR branch exists and is accessible
+          
+          ### 3. Fetch Latest Changes
+          
+          Fetch the latest changes from both branches (use branch names from step 1):
+          
+          ```bash
+          # Fetch all branches
+          git fetch origin
+          
+          # Get the current branch name
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          
+          # Ensure we're on the PR branch (use the head.ref from PR details)
+          # PR_BRANCH will be the value from pull_request_read
+          git checkout <PR_BRANCH>
+          git pull origin <PR_BRANCH>
+          
+          # Fetch main branch (or base branch from PR details)
+          git fetch origin <BASE_BRANCH>
           ```
           
-          #### 4.3 Optimize Repetitive Operations
+          Replace <PR_BRANCH> and <BASE_BRANCH> with the actual values from the GitHub API response.
           
-          If logs show excessive repetitive MCP calls:
-          - Extract common patterns into workflow steps
-          - Use cache-memory to store and reuse data
-          - Add shared configuration files for repeated setups
+          ### 4. Analyze Repository Structure
           
-          Example of creating a shared setup:
-          ```yaml
-          imports:
-            - shared/mcp/common-tools.md
+          Before merging, analyze the repository to make an informed merge decision:
+          
+          ```bash
+          # Use the base branch from PR details (e.g., origin/main)
+          # Check for workflow files that might have conflicts
+          git diff --name-only origin/<BASE_BRANCH>...HEAD | grep -E '\.github/workflows/.*\.yml$' || true
+          
+          # Check overall diff statistics
+          git diff --stat origin/<BASE_BRANCH>...HEAD
+          
+          # Check if there are any existing .yml files in workflows that we need to be careful with
+          ls -la .github/workflows/*.yml 2>/dev/null || true
           ```
           
-          #### 4.4 Extract Common Execution Pathways
+          Replace <BASE_BRANCH> with the actual base branch name from the GitHub API response.
           
-          If multiple workflows share similar logic:
-          - Create new shared configuration files in `.github/workflows/shared/`
-          - Extract common prompts or instructions
-          - Add imports to workflows to use shared configs
+          ### 5. Configure Git to Ignore Workflow YML Files
           
-          #### 4.5 Improve Workflow Configuration
+          Set up git to never stage or commit `.yml` files in `.github/workflows/`:
           
-          General optimizations:
-          - Add `timeout_minutes` to prevent runaway costs
-          - Set appropriate `max-turns` in engine config
-          - Add `stop-after` for time-limited workflows
-          - Enable `strict: true` for better validation
-          - Use `cache-memory: true` for persistent state
+          ```bash
+          # Add .github/workflows/*.yml to .git/info/exclude (local gitignore)
+          echo ".github/workflows/*.yml" >> .git/info/exclude
           
-          ### Phase 5: Validate Changes
+          # Also create a temporary .gitignore for this merge operation
+          cat > .github/workflows/.gitignore << 'EOF'
+          *.yml
+          EOF
+          ```
           
-          **CRITICAL**: Use the gh-aw MCP server to validate all changes:
+          ### 6. Perform the Merge
           
-          1. **Compile Modified Workflows**:
+          Execute the merge from the base branch (typically main) into the PR branch:
+          
+          ```bash
+          # Use the base branch name from PR details
+          # Attempt the merge
+          git merge origin/<BASE_BRANCH> --no-edit -m "Merge <BASE_BRANCH> into <PR_BRANCH>"
+          
+          # Check merge status
+          MERGE_STATUS=$?
+          
+          if [ $MERGE_STATUS -eq 0 ]; then
+            echo "✅ Merge completed successfully"
+          else
+            echo "⚠️ Merge conflicts detected - need manual resolution"
+            git status
+          fi
+          ```
+          
+          ### 7. Handle Merge Conflicts
+          
+          If there are merge conflicts:
+          
+          1. **Identify conflicted files**:
+          ```bash
+          git status --short | grep '^UU' || git status --short | grep '^AA' || true
+          ```
+          
+          2. **For `.yml` files in `.github/workflows/`**:
+             - NEVER attempt to resolve these conflicts automatically
+             - Use the PR head version (ours):
+             ```bash
+             git checkout --ours .github/workflows/*.yml 2>/dev/null || true
+             git add .github/workflows/*.yml 2>/dev/null || true
              ```
-             Use the `compile` tool from gh-aw MCP server:
-             - Workflow: (name of modified workflow)
-             ```
+          
+          3. **For `.lock.yml` files in `.github/workflows/`**:
+             - These are compiled workflow files that can be regenerated
+             - Accept the merge and then recompile:
+             ```bash
+             # Check if there are any .lock.yml conflicts
+             LOCK_CONFLICTS=$(git status --short | grep '\.lock\.yml$' || true)
              
-          2. **Check Compilation Output**: Ensure no errors or warnings
-          3. **Validate Syntax**: Confirm the workflow is syntactically correct
-          4. **Review Generated YAML**: Check that .lock.yml files are properly generated
+             if [ -n "$LOCK_CONFLICTS" ]; then
+               echo "📋 Detected .lock.yml conflicts, will regenerate after merge"
+               # Accept the incoming changes (theirs) for lock files
+               git checkout --theirs .github/workflows/*.lock.yml 2>/dev/null || true
+               git add .github/workflows/*.lock.yml 2>/dev/null || true
+             fi
+             ```
           
-          ### Phase 6: Create Pull Request
+          4. **For other conflicts**:
+             - Analyze the conflicts using git tools
+             - Use your knowledge of the repository structure to make informed decisions
+             - For documentation files, prefer newer/main branch version
+             - For code files, attempt to merge intelligently or keep both versions with markers
+             - When in doubt, keep the PR version and document the conflict
           
-          Create a pull request with your improvements using the safe-outputs MCP server:
+          5. **Complete the merge**:
+          ```bash
+          git merge --continue || git commit --no-edit -m "Resolve merge conflicts from main"
+          ```
           
-          1. **Use Safe-Outputs for PR Creation**:
-             - Use the `create-pull-request` tool from the safe-outputs MCP server
-             - This is automatically configured in the workflow frontmatter
-             - The PR will be created with the prefix "[q]" and labeled with "automation, workflow-optimization"
+          6. **If there were .lock.yml conflicts, recompile workflows**:
+          ```bash
+          # Check if we resolved any .lock.yml conflicts
+          if git log -1 --stat | grep '\.lock\.yml'; then
+            echo "🔄 Recompiling workflows after .lock.yml conflicts"
+            make recompile
+            
+            # Stage the recompiled files (but NOT .yml files, only .lock.yml and .md)
+            git add .github/workflows/*.lock.yml 2>/dev/null || true
+            git add .github/workflows/*.md 2>/dev/null || true
+            
+            # Commit the recompiled files if there are changes
+            if ! git diff --cached --quiet; then
+              git commit -m "Recompile workflows after merge conflict resolution"
+            fi
+          fi
+          ```
           
-          2. **Ignore Lock Files**: DO NOT include .lock.yml files in your changes
-             - Let the copilot agent compile them later
-             - Only modify .md workflow files
-             - The compilation will happen automatically after PR merge
+          ### 8. Format, Lint, Test, and Recompile
           
-          3. **Create Focused Changes**: Make minimal, surgical modifications
-             - Only change what's necessary to fix identified issues
-             - Preserve existing working configurations
-             - Keep changes well-documented
+          After the merge is complete, ensure code quality:
           
-          4. **PR Structure**: Include in your pull request:
-             - **Title**: Clear description of improvements (will be prefixed with "[q]")
-             - **Description**: 
-               - Summary of issues found from live data
-               - Specific workflows modified
-               - Changes made and why
-               - Expected improvements
-               - Links to relevant log files or audit reports
-             - **Modified Files**: Only .md workflow files (no .lock.yml files)
+          ```bash
+          # Format the code
+          echo "🎨 Formatting code..."
+          make fmt
           
-          ## Important Guidelines
+          # Lint the code
+          echo "🔍 Linting code..."
+          make lint
           
-          ### Security and Safety
-          - **Never execute untrusted code** from workflow logs or external sources
-          - **Validate all data** before using it in analysis or modifications
-          - **Use sanitized context** from `needs.activation.outputs.text`
-          - **Check file permissions** before writing changes
+          # Run unit tests
+          echo "🧪 Running tests..."
+          make test-unit
           
-          ### Change Quality
-          - **Be surgical**: Make minimal, focused changes
-          - **Be specific**: Target exact issues identified in logs
-          - **Be validated**: Always compile workflows after changes
-          - **Be documented**: Explain why each change is made
-          - **Keep it simple**: Don't over-engineer solutions
+          # Recompile all workflows to ensure they're up to date
+          echo "🔄 Recompiling workflows..."
+          make recompile
           
-          ### Data Usage
-          - **Always use live data**: Pull from gh-aw logs and audits
-          - **Never fabricate**: Don't make up log entries or issues
-          - **Cross-reference**: Verify findings across multiple sources
-          - **Be accurate**: Double-check workflow names, tool names, and configurations
+          # Stage any changes from formatting or recompilation
+          git add -A
           
-          ### Compilation Rules
-          - **Ignore .lock.yml files**: Do NOT modify or track lock files
-          - **Validate all changes**: Use the `compile` tool from gh-aw MCP server before PR
-          - **Let automation handle compilation**: Lock files will be generated post-merge
-          - **Focus on source**: Only modify .md workflow files
+          # Commit if there are changes
+          if ! git diff --cached --quiet; then
+            git commit -m "Format, lint, and recompile after merge"
+          fi
+          ```
           
-          ## Areas to Investigate
+          ### 9. Verify No Workflow YML Files Are Staged
           
-          Based on your analysis, focus on these common issues:
+          Before pushing, double-check that no `.yml` files from `.github/workflows/` are staged:
           
-          ### Missing Tools
-          - Check logs for "missing tool" reports
-          - Add tools to workflow configurations
-          - Ensure proper MCP server setup
-          - Add shared imports for standard tools
+          ```bash
+          # List all staged files
+          STAGED_FILES=$(git diff --cached --name-only)
           
-          ### Permission Problems
-          - Identify permission-denied errors in logs
-          - Add minimal necessary permissions
-          - Use safe-outputs for write operations
-          - Follow principle of least privilege
+          # Check for any .yml files in workflows directory
+          WORKFLOW_YMLS=$(echo "$STAGED_FILES" | grep -E '^\.github/workflows/.*\.yml$' || true)
           
-          ### Performance Issues
-          - Detect excessive repetitive MCP calls
-          - Identify high token usage patterns
-          - Find workflows with many turns
-          - Spot timeout issues
+          if [ -n "$WORKFLOW_YMLS" ]; then
+            echo "⚠️ WARNING: Workflow .yml files are staged, removing them"
+            echo "$WORKFLOW_YMLS" | while read file; do
+              git reset HEAD "$file"
+              echo "Unstaged: $file"
+            done
+          fi
           
-          ### Common Patterns
-          - Extract repeated workflow steps
-          - Create shared configuration files
-          - Identify reusable prompt templates
-          - Build common tool configurations
+          # Verify clean staging
+          git status
+          ```
+          
+          ### 10. Push Changes to Pull Request Branch
+          
+          Use the safe-outputs system to push changes back to the PR branch:
+          
+          ```bash
+          # Final verification
+          git log --oneline -5
+          git diff --stat HEAD~1 HEAD
+          
+          # Push will be handled by push-to-pull-request-branch safe output
+          echo "Ready to push merged changes to <PR_BRANCH>"
+          ```
+          
+          The `push-to-pull-request-branch` safe output will automatically:
+          - Push commits to the PR branch
+          - Add appropriate commit message prefix
+          - Handle authentication securely
+          
+          ## Guidelines
+          
+          - **Be Careful**: This operation modifies the PR branch directly
+          - **Never Commit Workflow YMLs**: Always exclude `.github/workflows/*.yml` files
+          - **Recompile After Lock File Conflicts**: Run `make recompile` if `.lock.yml` files had conflicts
+          - **Format, Lint, Test**: Always run `make fmt`, `make lint`, `make test-unit`, and `make recompile` after merge
+          - **Verify Before Pushing**: Always check what's staged before pushing
+          - **Handle Conflicts Intelligently**: Use repository knowledge to resolve conflicts
+          - **Document Actions**: Explain what was merged and any conflicts resolved
+          - **Report Status**: Always report back on merge success or issues
+          
+          ## Security
+          
+          - **Validate PR exists** and is in valid state before merging
+          - **Never execute code** from merged files during analysis
+          - **Respect .gitignore patterns** and exclusions
+          - **Use safe git operations** - no force pushes
+          
+          ## Error Handling
+          
+          If any of these conditions occur, explain clearly in response:
+          - PR is closed or already merged
+          - PR branch is protected and cannot be pushed to
+          - Merge conflicts cannot be automatically resolved
+          - Network or git operation failures
+          - Workflow .yml files were accidentally staged
           
           ## Output Format
           
-          Your pull request description should include:
+          After the merge, provide a summary comment with:
           
           ```markdown
-          # Q Workflow Optimization Report
+          # 🎉 Mergefest Complete
           
-          ## Issues Found (from live data)
+          Merged `<BASE_BRANCH>` into `<PR_BRANCH>`
           
-          ### [Workflow Name]
-          - **Log Analysis**: [Summary from actual logs]
-          - **Run IDs Analyzed**: [Specific run IDs from gh-aw audit]
-          - **Issues Identified**:
-            - Missing tools: [specific tools from logs]
-            - Permission errors: [specific errors from logs]
-            - Performance problems: [specific metrics from logs]
+          ## Merge Summary
+          - **Commits merged**: [number]
+          - **Files changed**: [number]
+          - **Conflicts resolved**: [yes/no, details if any]
           
-          [Repeat for each workflow analyzed]
+          ## Changes
+          [Brief summary of what was merged]
           
-          ## Changes Made
-          
-          ### [Workflow Name] (.github/workflows/[name].md)
-          - Added missing tool: `[tool-name]` (found in run #[run-id])
-          - Fixed permission: Added `[permission]` (error in run #[run-id])
-          - Optimized: [specific optimization based on log analysis]
-          
-          [Repeat for each modified workflow]
-          
-          ## Expected Improvements
-          
-          - Reduced missing tool errors by adding [X] tools
-          - Fixed [Y] permission issues
-          - Optimized [Z] workflows for better performance
-          - Created [N] shared configurations for reuse
-          
-          ## Validation
-          
-          All modified workflows compiled successfully using the `compile` tool from gh-aw MCP server:
-          - ✅ [workflow-1]
-          - ✅ [workflow-2]
-          - ✅ [workflow-N]
-          
-          Note: .lock.yml files will be generated automatically after merge.
-          
-          ## References
-          
-          - Log analysis: `/tmp/gh-aw/aw-mcp/logs/`
-          - Audit reports: [specific audit files]
-          - Run IDs investigated: [list of run IDs]
+          ## Notes
+          [Any important notes about the merge, conflicts, or excluded files]
           ```
-          
-          ## Success Criteria
-          
-          A successful Q mission:
-          - ✅ Uses live data from gh-aw logs and audits (no fabricated data)
-          - ✅ Identifies specific issues with evidence from logs
-          - ✅ Makes minimal, targeted improvements to workflows
-          - ✅ Validates all changes using the `compile` tool from gh-aw MCP server
-          - ✅ Creates PR with only .md files (no .lock.yml files)
-          - ✅ Provides clear documentation of changes and rationale
-          - ✅ Follows security best practices
-          
-          ## Remember
-          
-          You are Q - the expert who provides agents with the best tools for their missions. Make workflows more effective, efficient, and reliable based on real data. Keep changes minimal and well-validated. Let the automation handle lock file compilation.
-          
-          Begin your investigation now. Gather live data, analyze it thoroughly, make targeted improvements, validate your changes, and create a pull request with your optimizations.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -2382,31 +1674,6 @@ jobs:
           **Do NOT** attempt to edit files outside these directories as you do not have the necessary permissions.
           
           PROMPT_EOF
-      - name: Append cache memory instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
-          
-          ---
-          
-          ## Cache Folder Available
-          
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
-          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2415,22 +1682,16 @@ jobs:
           
           ---
           
-          ## Adding a Comment to an Issue or Pull Request, Creating a Pull Request, Reporting Missing Tools or Functionality
+          ## Pushing Changes to Branch, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
-          **Adding a Comment to an Issue or Pull Request**
+          **Pushing Changes to Pull Request Branch**
           
-          To add a comment to an issue or pull request, use the add-comments tool from safeoutputs
-          
-          **Creating a Pull Request**
-          
-          To create a pull request:
+          To push changes to the branch of a pull request:
           1. Make any file changes directly in the working directory
-          2. If you haven't done so already, create a local branch using an appropriate unique name
-          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
-          4. Do not push your changes. That will be done by the tool.
-          5. Create the pull request with the create-pull-request tool from safeoutputs
+          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
+          3. Push the branch to the repo by using the push-to-pull-request-branch tool from safeoutputs
           
           **Reporting Missing Tools or Functionality**
           
@@ -2566,7 +1827,7 @@ jobs:
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Q",
+              workflow_name: "Mergefest",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -2597,54 +1858,63 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool gh-aw
         # --allow-tool github
         # --allow-tool safeoutputs
-        # --allow-tool serena
-        # --allow-tool serena(*)
         # --allow-tool shell(cat)
         # --allow-tool shell(date)
         # --allow-tool shell(echo)
+        # --allow-tool shell(git add)
         # --allow-tool shell(git add:*)
+        # --allow-tool shell(git branch)
         # --allow-tool shell(git branch:*)
+        # --allow-tool shell(git checkout)
         # --allow-tool shell(git checkout:*)
+        # --allow-tool shell(git commit)
         # --allow-tool shell(git commit:*)
+        # --allow-tool shell(git config)
+        # --allow-tool shell(git diff)
+        # --allow-tool shell(git fetch)
+        # --allow-tool shell(git log)
+        # --allow-tool shell(git merge)
         # --allow-tool shell(git merge:*)
+        # --allow-tool shell(git pull)
+        # --allow-tool shell(git reset)
+        # --allow-tool shell(git rev-parse)
         # --allow-tool shell(git rm:*)
         # --allow-tool shell(git status)
         # --allow-tool shell(git switch:*)
         # --allow-tool shell(grep)
         # --allow-tool shell(head)
         # --allow-tool shell(ls)
+        # --allow-tool shell(make fmt)
+        # --allow-tool shell(make lint)
+        # --allow-tool shell(make recompile)
+        # --allow-tool shell(make test-unit)
         # --allow-tool shell(pwd)
         # --allow-tool shell(sort)
         # --allow-tool shell(tail)
         # --allow-tool shell(uniq)
         # --allow-tool shell(wc)
         # --allow-tool shell(yq)
-        # --allow-tool tavily
-        # --allow-tool tavily(*)
         # --allow-tool write
-        timeout-minutes: 15
+        timeout-minutes: 10
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
-          mkdir -p /tmp/gh-aw/cache-memory/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool gh-aw --allow-tool github --allow-tool safeoutputs --allow-tool serena --allow-tool 'serena(*)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git config)' --allow-tool 'shell(git diff)' --allow-tool 'shell(git fetch)' --allow-tool 'shell(git log)' --allow-tool 'shell(git merge)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git pull)' --allow-tool 'shell(git reset)' --allow-tool 'shell(git rev-parse)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(make fmt)' --allow-tool 'shell(make lint)' --allow-tool 'shell(make recompile)' --allow-tool 'shell(make test-unit)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"missing_tool\":{},\"push_to_pull_request_branch\":{}}"
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
-          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           XDG_CONFIG_HOME: /home/runner
       - name: Redact secrets in logs
         if: always()
@@ -2757,11 +2027,10 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,TAVILY_API_KEY'
+          GH_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SECRET_TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -2774,8 +2043,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{}}"
-          GH_AW_COMMAND: q
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"missing_tool\":{},\"push_to_pull_request_branch\":{}}"
+          GH_AW_COMMAND: mergefest
         with:
           script: |
             async function main() {
@@ -4763,485 +4032,6 @@ jobs:
           path: /tmp/gh-aw/aw.patch
           if-no-files-found: ignore
 
-  create_pull_request:
-    needs:
-      - agent
-      - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
-      fallback_used: ${{ steps.create_pull_request.outputs.fallback_used }}
-      issue_number: ${{ steps.create_pull_request.outputs.issue_number }}
-      issue_url: ${{ steps.create_pull_request.outputs.issue_url }}
-      pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
-      pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
-    steps:
-      - name: Download patch artifact
-        continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/
-      - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          fetch-depth: 0
-      - name: Configure Git credentials
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "${{ github.workflow }}"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
-      - name: Create Pull Request
-        id: create_pull_request
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_ID: "agent"
-          GH_AW_WORKFLOW_NAME: "Q"
-          GH_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GH_AW_PR_TITLE_PREFIX: "[q] "
-          GH_AW_PR_LABELS: "automation,workflow-optimization"
-          GH_AW_PR_DRAFT: "false"
-          GH_AW_PR_IF_NO_CHANGES: "warn"
-          GH_AW_MAX_PATCH_SIZE: 1024
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require("fs");
-            const crypto = require("crypto");
-            function generatePatchPreview(patchContent) {
-              if (!patchContent || !patchContent.trim()) {
-                return "";
-              }
-              const lines = patchContent.split("\n");
-              const maxLines = 500;
-              const maxChars = 2000;
-              let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
-              const lineTruncated = lines.length > maxLines;
-              const charTruncated = preview.length > maxChars;
-              if (charTruncated) {
-                preview = preview.slice(0, maxChars);
-              }
-              const truncated = lineTruncated || charTruncated;
-              const summary = truncated
-                ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
-                : `Show patch (${lines.length} lines)`;
-              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
-            }
-            async function main() {
-              core.setOutput("pull_request_number", "");
-              core.setOutput("pull_request_url", "");
-              core.setOutput("issue_number", "");
-              core.setOutput("issue_url", "");
-              core.setOutput("branch_name", "");
-              core.setOutput("fallback_used", "");
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const workflowId = process.env.GH_AW_WORKFLOW_ID;
-              if (!workflowId) {
-                throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
-              }
-              const baseBranch = process.env.GH_AW_BASE_BRANCH;
-              if (!baseBranch) {
-                throw new Error("GH_AW_BASE_BRANCH environment variable is required");
-              }
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
-              let outputContent = "";
-              if (agentOutputFile.trim() !== "") {
-                try {
-                  outputContent = fs.readFileSync(agentOutputFile, "utf8");
-                } catch (error) {
-                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                  return;
-                }
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-              }
-              const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
-              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                const message = "No patch file found - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (no patch file)");
-                  return;
-                }
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-              if (patchContent.includes("Failed to generate patch")) {
-                const message = "Patch file contains error message - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (patch error)");
-                  return;
-                }
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              const isEmpty = !patchContent || !patchContent.trim();
-              if (!isEmpty) {
-                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
-                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
-                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
-                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
-                if (patchSizeKb > maxSizeKb) {
-                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-                  if (isStaged) {
-                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                    summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
-                    summaryContent += `**Message:** ${message}\n\n`;
-                    await core.summary.addRaw(summaryContent).write();
-                    core.info("📝 Pull request creation preview written to step summary (patch size error)");
-                    return;
-                  }
-                  throw new Error(message);
-                }
-                core.info("Patch size validation passed");
-              }
-              if (isEmpty && !isStaged) {
-                const message = "Patch file is empty - no changes to apply (noop operation)";
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to push - failing as configured by if-no-changes: error");
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              if (!isEmpty) {
-                core.info("Patch content validation passed");
-              } else {
-                core.info("Patch file is empty - processing noop operation");
-              }
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
-                return;
-              }
-              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
-              if (!pullRequestItem) {
-                core.warning("No create-pull-request item found in agent output");
-                return;
-              }
-              core.info(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
-                summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
-                summaryContent += `**Base:** ${baseBranch}\n\n`;
-                if (pullRequestItem.body) {
-                  summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
-                }
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  if (patchStats.trim()) {
-                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-                  } else {
-                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
-                  }
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Pull request creation preview written to step summary");
-                return;
-              }
-              let title = pullRequestItem.title.trim();
-              let bodyLines = pullRequestItem.body.split("\n");
-              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
-              if (!title) {
-                title = "Agent Output";
-              }
-              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
-              if (titlePrefix && !title.startsWith(titlePrefix)) {
-                title = titlePrefix + title;
-              }
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const runId = context.runId;
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-              const body = bodyLines.join("\n").trim();
-              const labelsEnv = process.env.GH_AW_PR_LABELS;
-              const labels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map( label => label.trim())
-                    .filter( label => label)
-                : [];
-              const draftEnv = process.env.GH_AW_PR_DRAFT;
-              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
-              core.info(`Creating pull request with title: ${title}`);
-              core.info(`Labels: ${JSON.stringify(labels)}`);
-              core.info(`Draft: ${draft}`);
-              core.info(`Body length: ${body.length}`);
-              const randomHex = crypto.randomBytes(8).toString("hex");
-              if (!branchName) {
-                core.info("No branch name provided in JSONL, generating unique branch name");
-                branchName = `${workflowId}-${randomHex}`;
-              } else {
-                branchName = `${branchName}-${randomHex}`;
-                core.info(`Using branch name from JSONL with added salt: ${branchName}`);
-              }
-              core.info(`Generated branch name: ${branchName}`);
-              core.info(`Base branch: ${baseBranch}`);
-              core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
-              await exec.exec("git fetch origin");
-              await exec.exec(`git checkout ${baseBranch}`);
-              core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
-              await exec.exec(`git checkout -b ${branchName}`);
-              core.info(`Created new branch from base: ${branchName}`);
-              if (!isEmpty) {
-                core.info("Applying patch...");
-                await exec.exec("git am /tmp/gh-aw/aw.patch");
-                core.info("Patch applied successfully");
-                try {
-                  let remoteBranchExists = false;
-                  try {
-                    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-                    if (stdout.trim()) {
-                      remoteBranchExists = true;
-                    }
-                  } catch (checkError) {
-                    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                  }
-                  if (remoteBranchExists) {
-                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-                    const extraHex = crypto.randomBytes(4).toString("hex");
-                    const oldBranch = branchName;
-                    branchName = `${branchName}-${extraHex}`;
-                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-                    core.info(`Renamed branch to ${branchName}`);
-                  }
-                  await exec.exec(`git push origin ${branchName}`);
-                  core.info("Changes pushed to branch");
-                } catch (pushError) {
-                  core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
-                  core.warning("Git push operation failed - creating fallback issue instead of pull request");
-                  const runId = context.runId;
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  const runUrl = context.payload.repository
-                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                  let patchPreview = "";
-                  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                    const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                    patchPreview = generatePatchPreview(patchContent);
-                  }
-                  const fallbackBody = `${body}
-            ---
-            > [!NOTE]
-            > This was originally intended as a pull request, but the git push operation failed.
-            >
-            > **Workflow Run:** [View run details and download patch artifact](${runUrl})
-            >
-            > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
-            To apply the patch locally:
-            \`\`\`sh
-            # Download the artifact from the workflow run ${runUrl}
-            # (Use GitHub MCP tools if gh CLI is not available)
-            gh run download ${runId} -n aw.patch
-            # Apply the patch
-            git am aw.patch
-            \`\`\`
-            ${patchPreview}`;
-                  try {
-                    const { data: issue } = await github.rest.issues.create({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      title: title,
-                      body: fallbackBody,
-                      labels: labels,
-                    });
-                    core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                    core.setOutput("branch_name", branchName);
-                    core.setOutput("fallback_used", "true");
-                    core.setOutput("push_failed", "true");
-                    await core.summary
-                      .addRaw(
-                        `
-            ## Push Failure Fallback
-            - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
-            - **Fallback Issue:** [#${issue.number}](${issue.html_url})
-            - **Patch Artifact:** Available in workflow run artifacts
-            - **Note:** Push failed, created issue as fallback
-            `
-                      )
-                      .write();
-                    return;
-                  } catch (issueError) {
-                    core.setFailed(
-                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                    );
-                    return;
-                  }
-                }
-              } else {
-                core.info("Skipping patch application (empty patch)");
-                const message = "No changes to apply - noop operation completed successfully";
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to apply - failing as configured by if-no-changes: error");
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              try {
-                const { data: pullRequest } = await github.rest.pulls.create({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  title: title,
-                  body: body,
-                  head: branchName,
-                  base: baseBranch,
-                  draft: draft,
-                });
-                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
-                if (labels.length > 0) {
-                  await github.rest.issues.addLabels({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: pullRequest.number,
-                    labels: labels,
-                  });
-                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
-                }
-                core.setOutput("pull_request_number", pullRequest.number);
-                core.setOutput("pull_request_url", pullRequest.html_url);
-                core.setOutput("branch_name", branchName);
-                await core.summary
-                  .addRaw(
-                    `
-            ## Pull Request
-            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
-            - **Branch**: \`${branchName}\`
-            - **Base Branch**: \`${baseBranch}\`
-            `
-                  )
-                  .write();
-              } catch (prError) {
-                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
-                core.info("Falling back to creating an issue instead");
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const branchUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/tree/${branchName}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
-                let patchPreview = "";
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  patchPreview = generatePatchPreview(patchContent);
-                }
-                const fallbackBody = `${body}
-            ---
-            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
-            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
-            You can manually create a pull request from the branch if needed.${patchPreview}`;
-                try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: fallbackBody,
-                    labels: labels,
-                  });
-                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                  core.setOutput("issue_number", issue.number);
-                  core.setOutput("issue_url", issue.html_url);
-                  core.setOutput("branch_name", branchName);
-                  core.setOutput("fallback_used", "true");
-                  await core.summary
-                    .addRaw(
-                      `
-            ## Fallback Issue Created
-            - **Issue**: [#${issue.number}](${issue.html_url})
-            - **Branch**: [\`${branchName}\`](${branchUrl})
-            - **Base Branch**: \`${baseBranch}\`
-            - **Note**: Pull request creation failed, created issue as fallback
-            `
-                    )
-                    .write();
-                } catch (issueError) {
-                  core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                  );
-                  return;
-                }
-              }
-            }
-            await main();
-      - name: Checkout repository for gh CLI
-        if: steps.create_pull_request.outputs.pull_request_url != ''
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-      - name: Add copilot as reviewer
-        if: steps.create_pull_request.outputs.pull_request_number != ''
-        env:
-          GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}
-        run: |
-          gh api --method POST /repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers \
-            -f 'reviewers[]=copilot-pull-request-reviewer[bot]'
-
   detection:
     needs: agent
     runs-on: ubuntu-latest
@@ -5274,7 +4064,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
-          WORKFLOW_NAME: "Q"
+          WORKFLOW_NAME: "Mergefest"
           WORKFLOW_DESCRIPTION: "No description provided"
         with:
           script: |
@@ -5602,16 +4392,7 @@ jobs:
 
   pre_activation:
     if: >
-      (github.event_name == 'issues') && (contains(github.event.issue.body, '/q')) || (github.event_name == 'issue_comment') &&
-      ((contains(github.event.comment.body, '/q')) && (github.event.issue.pull_request == null)) ||
-      (github.event_name == 'issue_comment') &&
-      ((contains(github.event.comment.body, '/q')) && (github.event.issue.pull_request != null)) ||
-      (github.event_name == 'pull_request_review_comment') &&
-      (contains(github.event.comment.body, '/q')) || (github.event_name == 'pull_request') &&
-      (contains(github.event.pull_request.body, '/q')) ||
-      (github.event_name == 'discussion') && (contains(github.event.discussion.body, '/q')) ||
-      (github.event_name == 'discussion_comment') &&
-      (contains(github.event.comment.body, '/q'))
+      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/mergefest')) && (github.event.issue.pull_request != null))
     runs-on: ubuntu-latest
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
@@ -5694,7 +4475,7 @@ jobs:
         id: check_command_position
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
-          GH_AW_COMMAND: q
+          GH_AW_COMMAND: mergefest
         with:
           script: |
             async function main() {
@@ -5746,34 +4527,40 @@ jobs:
             }
             await main();
 
-  update_reaction:
+  push_to_pull_request_branch:
     needs:
       - agent
-      - activation
-      - create_pull_request
-      - add_comment
-      - missing_tool
+      - detection
     if: >
-      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!(contains(needs.agent.outputs.output_types, 'add_comment')))) &&
-      (!(contains(needs.agent.outputs.output_types, 'create_pull_request')))) && (!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')))
+      ((always()) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&
+      (((github.event.issue.number) &&
+      (github.event.issue.pull_request)) || (github.event.pull_request))
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
+      contents: write
+      issues: read
+      pull-requests: read
+    timeout-minutes: 10
+    outputs:
+      branch_name: ${{ steps.push_to_pull_request_branch.outputs.branch_name }}
+      commit_sha: ${{ steps.push_to_pull_request_branch.outputs.commit_sha }}
+      push_url: ${{ steps.push_to_pull_request_branch.outputs.push_url }}
     steps:
-      - name: Debug job inputs
-        env:
-          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
-          AGENT_CONCLUSION: ${{ needs.agent.result }}
+      - name: Download patch artifact
+        continue-on-error: true
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: aw.patch
+          path: /tmp/gh-aw/
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          fetch-depth: 0
+      - name: Configure Git credentials
         run: |
-          echo "Comment ID: $COMMENT_ID"
-          echo "Comment Repo: $COMMENT_REPO"
-          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
-          echo "Agent Conclusion: $AGENT_CONCLUSION"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
+          echo "Git configured with standard GitHub Actions identity"
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
@@ -5785,100 +4572,301 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find /tmp/gh-aw/safeoutputs/ -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
-      - name: Update reaction comment with completion status
-        id: update_reaction
+      - name: Push to Branch
+        id: push_to_pull_request_branch
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Q"
-          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_TOKEN: ${{ github.token }}
+          GH_AW_PUSH_IF_NO_CHANGES: "warn"
+          GH_AW_COMMIT_TITLE_PREFIX: "[mergefest] "
+          GH_AW_MAX_PATCH_SIZE: 1024
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            const fs = require("fs");
             async function main() {
-              const commentId = process.env.GH_AW_COMMENT_ID;
-              const commentRepo = process.env.GH_AW_COMMENT_REPO;
-              const runUrl = process.env.GH_AW_RUN_URL;
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
-              core.info(`Comment ID: ${commentId}`);
-              core.info(`Comment Repo: ${commentRepo}`);
-              core.info(`Run URL: ${runUrl}`);
-              core.info(`Workflow Name: ${workflowName}`);
-              core.info(`Agent Conclusion: ${agentConclusion}`);
-              if (!commentId) {
-                core.info("No comment ID found, skipping comment update");
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
+              if (agentOutputFile.trim() === "") {
+                core.info("Agent output content is empty");
                 return;
               }
-              if (!runUrl) {
-                core.setFailed("Run URL is required");
-                return;
-              }
-              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
-              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
-              core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              let statusEmoji = "❌";
-              let statusText = "failed";
-              let message;
-              if (agentConclusion === "success") {
-                statusEmoji = "✅";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) completed successfully.`;
-              } else if (agentConclusion === "cancelled") {
-                statusEmoji = "🚫";
-                statusText = "was cancelled";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              } else if (agentConclusion === "skipped") {
-                statusEmoji = "⏭️";
-                statusText = "was skipped";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              } else if (agentConclusion === "timed_out") {
-                statusEmoji = "⏱️";
-                statusText = "timed out";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              } else {
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              }
-              const isDiscussionComment = commentId.startsWith("DC_");
+              let outputContent;
               try {
-                if (isDiscussionComment) {
-                  const result = await github.graphql(
-                    `
-                    mutation($commentId: ID!, $body: String!) {
-                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
-                        comment {
-                          id
-                          url
-                        }
-                      }
-                    }`,
-                    { commentId: commentId, body: message }
-                  );
-                  const comment = result.updateDiscussionComment.comment;
-                  core.info(`Successfully updated discussion comment`);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return;
+              }
+              const target = process.env.GH_AW_PUSH_TARGET || "triggering";
+              const ifNoChanges = process.env.GH_AW_PUSH_IF_NO_CHANGES || "warn";
+              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                const message = "No patch file found - cannot push without changes";
+                switch (ifNoChanges) {
+                  case "error":
+                    core.setFailed(message);
+                    return;
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.info(message);
+                    return;
+                }
+              }
+              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+              if (patchContent.includes("Failed to generate patch")) {
+                const message = "Patch file contains error message - cannot push without changes";
+                switch (ifNoChanges) {
+                  case "error":
+                    core.setFailed(message);
+                    return;
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.info(message);
+                    return;
+                }
+              }
+              const isEmpty = !patchContent || !patchContent.trim();
+              if (!isEmpty) {
+                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
+                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
+                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+                if (patchSizeKb > maxSizeKb) {
+                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+                  core.setFailed(message);
+                  return;
+                }
+                core.info("Patch size validation passed");
+              }
+              if (isEmpty) {
+                const message = "Patch file is empty - no changes to apply (noop operation)";
+                switch (ifNoChanges) {
+                  case "error":
+                    core.setFailed("No changes to push - failing as configured by if-no-changes: error");
+                    return;
+                  case "ignore":
+                    break;
+                  case "warn":
+                  default:
+                    core.info(message);
+                    break;
+                }
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              if (!isEmpty) {
+                core.info("Patch content validation passed");
+              }
+              core.info(`Target configuration: ${target}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return;
+              }
+              const pushItem = validatedOutput.items.find( item => item.type === "push_to_pull_request_branch");
+              if (!pushItem) {
+                core.info("No push-to-pull-request-branch item found in agent output");
+                return;
+              }
+              core.info("Found push-to-pull-request-branch item");
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
+                summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
+                summaryContent += `**Target:** ${target}\n\n`;
+                if (pushItem.commit_message) {
+                  summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
+                }
+                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                  if (patchStats.trim()) {
+                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+                  } else {
+                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
+                  }
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Push to PR branch preview written to step summary");
+                return;
+              }
+              if (target !== "*" && target !== "triggering") {
+                const pullNumber = parseInt(target, 10);
+                if (isNaN(pullNumber)) {
+                  core.setFailed('Invalid target configuration: must be "triggering", "*", or a valid pull request number');
+                  return;
+                }
+              }
+              let pullNumber;
+              if (target === "triggering") {
+                pullNumber = context.payload?.pull_request?.number || context.payload?.issue?.number;
+                if (!pullNumber) {
+                  core.setFailed('push-to-pull-request-branch with target "triggering" requires pull request context');
+                  return;
+                }
+              } else if (target === "*") {
+                if (pushItem.pull_number) {
+                  pullNumber = parseInt(pushItem.pull_number, 10);
+                }
+              } else {
+                pullNumber = parseInt(target, 10);
+              }
+              let branchName;
+              let prTitle = "";
+              let prLabels = [];
+              try {
+                const prInfoRes = await exec.getExecOutput(`gh`, [
+                  `pr`,
+                  `view`,
+                  `${pullNumber}`,
+                  `--json`,
+                  `headRefName,title,labels`,
+                  `--jq`,
+                  `{headRefName, title, labels: (.labels // [] | map(.name))}`,
+                ]);
+                if (prInfoRes.exitCode === 0) {
+                  const prData = JSON.parse(prInfoRes.stdout.trim());
+                  branchName = prData.headRefName;
+                  prTitle = prData.title || "";
+                  prLabels = prData.labels || [];
                 } else {
-                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    body: message,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully updated comment`);
-                  core.info(`Comment ID: ${response.data.id}`);
-                  core.info(`Comment URL: ${response.data.html_url}`);
+                  throw new Error("No PR data found");
                 }
               } catch (error) {
-                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
+                core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
+                core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
+                return;
               }
+              core.info(`Target branch: ${branchName}`);
+              core.info(`PR title: ${prTitle}`);
+              core.info(`PR labels: ${prLabels.join(", ")}`);
+              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
+              if (titlePrefix && !prTitle.startsWith(titlePrefix)) {
+                core.setFailed(`Pull request title "${prTitle}" does not start with required prefix "${titlePrefix}"`);
+                return;
+              }
+              const requiredLabelsStr = process.env.GH_AW_PR_LABELS;
+              if (requiredLabelsStr) {
+                const requiredLabels = requiredLabelsStr.split(",").map(label => label.trim());
+                const missingLabels = requiredLabels.filter(label => !prLabels.includes(label));
+                if (missingLabels.length > 0) {
+                  core.setFailed(`Pull request is missing required labels: ${missingLabels.join(", ")}. Current labels: ${prLabels.join(", ")}`);
+                  return;
+                }
+              }
+              if (titlePrefix) {
+                core.info(`✓ Title prefix validation passed: "${titlePrefix}"`);
+              }
+              if (requiredLabelsStr) {
+                core.info(`✓ Labels validation passed: ${requiredLabelsStr}`);
+              }
+              const hasChanges = !isEmpty;
+              core.info(`Switching to branch: ${branchName}`);
+              try {
+                await exec.exec("git fetch origin");
+                try {
+                  await exec.exec(`git rev-parse --verify origin/${branchName}`);
+                  await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
+                  core.info(`Checked out existing branch from origin: ${branchName}`);
+                } catch (originError) {
+                  core.setFailed(
+                    `Branch ${branchName} does not exist on origin, can't push to it: ${originError instanceof Error ? originError.message : String(originError)}`
+                  );
+                  return;
+                }
+              } catch (error) {
+                core.setFailed(`Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!isEmpty) {
+                core.info("Applying patch...");
+                try {
+                  const commitTitlePrefix = process.env.GH_AW_COMMIT_TITLE_PREFIX;
+                  if (commitTitlePrefix) {
+                    core.info(`Prepending commit title prefix: "${commitTitlePrefix}"`);
+                    let patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                    let normalizedPrefix = commitTitlePrefix;
+                    if (normalizedPrefix.startsWith("[") && normalizedPrefix.includes("]")) {
+                      const bracketContent = normalizedPrefix.match(/^\[([^\]]+)\]/);
+                      if (bracketContent) {
+                        const afterBracket = commitTitlePrefix.substring(commitTitlePrefix.indexOf("]") + 1);
+                        normalizedPrefix = bracketContent[1] + ":";
+                        if (afterBracket) {
+                          normalizedPrefix += afterBracket;
+                        } else {
+                          normalizedPrefix += " ";
+                        }
+                      }
+                    }
+                    patchContent = patchContent.replace(
+                      /^Subject: (?:\[PATCH\] )?(.*)$/gm,
+                      (match, title) => `Subject: [PATCH] ${normalizedPrefix}${title}`
+                    );
+                    fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
+                    core.info(`Patch modified with commit title prefix (normalized to: "${normalizedPrefix}")`);
+                  }
+                  await exec.exec("git am /tmp/gh-aw/aw.patch");
+                  core.info("Patch applied successfully");
+                  await exec.exec(`git push origin ${branchName}`);
+                  core.info(`Changes committed and pushed to branch: ${branchName}`);
+                } catch (error) {
+                  core.error(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
+                  core.setFailed("Failed to apply patch");
+                  return;
+                }
+              } else {
+                core.info("Skipping patch application (empty patch)");
+                const message = "No changes to apply - noop operation completed successfully";
+                switch (ifNoChanges) {
+                  case "error":
+                    core.setFailed("No changes to apply - failing as configured by if-no-changes: error");
+                    return;
+                  case "ignore":
+                    break;
+                  case "warn":
+                  default:
+                    core.info(message);
+                    break;
+                }
+              }
+              const commitShaRes = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
+              if (commitShaRes.exitCode !== 0) throw new Error("Failed to get commit SHA");
+              const commitSha = commitShaRes.stdout.trim();
+              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+              const pushUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/tree/${branchName}`
+                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+              core.setOutput("branch_name", branchName);
+              core.setOutput("commit_sha", commitSha);
+              core.setOutput("push_url", pushUrl);
+              const summaryTitle = hasChanges ? "Push to Branch" : "Push to Branch (No Changes)";
+              const summaryContent = hasChanges
+                ? `
+            ## ${summaryTitle}
+            - **Branch**: \`${branchName}\`
+            - **Commit**: [${commitSha.substring(0, 7)}](${pushUrl})
+            - **URL**: [${pushUrl}](${pushUrl})
+            `
+                : `
+            ## ${summaryTitle}
+            - **Branch**: \`${branchName}\`
+            - **Status**: No changes to apply (noop operation)
+            - **URL**: [${pushUrl}](${pushUrl})
+            `;
+              await core.summary.addRaw(summaryContent).write();
             }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
+            await main();
 

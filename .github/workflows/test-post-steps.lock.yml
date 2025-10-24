@@ -1635,7 +1635,7 @@ jobs:
           echo "This step runs after the AI agent completes"
       - if: always()
         name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: ignore
           name: post-steps-test-results
@@ -1643,4 +1643,5 @@ jobs:
           retention-days: 1
       - name: Final Summary
         run: "echo \"## Post-Steps Test Summary\" >> $GITHUB_STEP_SUMMARY\necho \"✅ All post-steps executed successfully\" >> $GITHUB_STEP_SUMMARY\necho \"This validates the post-steps indentation fix\" >> $GITHUB_STEP_SUMMARY\n"
+
 
