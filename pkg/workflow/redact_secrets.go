@@ -92,17 +92,3 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 		yaml.WriteString(fmt.Sprintf("          SECRET_%s: ${{ secrets.%s }}\n", escapedSecretName, secretName))
 	}
 }
-
-// validateSecretReferences validates that secret references are valid
-func validateSecretReferences(secrets []string) error {
-	// Secret names must be valid environment variable names
-	secretNamePattern := regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
-
-	for _, secret := range secrets {
-		if !secretNamePattern.MatchString(secret) {
-			return fmt.Errorf("invalid secret name: %s", secret)
-		}
-	}
-
-	return nil
-}

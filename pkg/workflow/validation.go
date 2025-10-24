@@ -1,14 +1,18 @@
 package workflow
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
+	"github.com/goccy/go-yaml"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 var validationLog = logger.New("workflow:validation")
@@ -193,4 +197,76 @@ func collectPackagesFromWorkflow(
 	}
 
 	return packages
+}
+
+// validateGitHubActionsSchema validates the generated YAML content against the GitHub Actions workflow schema
+func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
+	// Convert YAML to any for JSON conversion
+	var workflowData any
+	if err := yaml.Unmarshal([]byte(yamlContent), &workflowData); err != nil {
+		return fmt.Errorf("failed to parse YAML for schema validation: %w", err)
+	}
+
+	// Convert to JSON for schema validation
+	jsonData, err := json.Marshal(workflowData)
+	if err != nil {
+		return fmt.Errorf("failed to convert YAML to JSON for validation: %w", err)
+	}
+
+	// Parse the embedded schema
+	var schemaDoc any
+	if err := json.Unmarshal([]byte(githubWorkflowSchema), &schemaDoc); err != nil {
+		return fmt.Errorf("failed to parse embedded GitHub Actions schema: %w", err)
+	}
+
+	// Create compiler and add the schema as a resource
+	loader := jsonschema.NewCompiler()
+	schemaURL := "https://json.schemastore.org/github-workflow.json"
+	if err := loader.AddResource(schemaURL, schemaDoc); err != nil {
+		return fmt.Errorf("failed to add schema resource: %w", err)
+	}
+
+	// Compile the schema
+	schema, err := loader.Compile(schemaURL)
+	if err != nil {
+		return fmt.Errorf("failed to compile GitHub Actions schema: %w", err)
+	}
+
+	// Validate the JSON data against the schema
+	var jsonObj any
+	if err := json.Unmarshal(jsonData, &jsonObj); err != nil {
+		return fmt.Errorf("failed to unmarshal JSON for validation: %w", err)
+	}
+
+	if err := schema.Validate(jsonObj); err != nil {
+		return fmt.Errorf("GitHub Actions schema validation failed: %w", err)
+	}
+
+	return nil
+}
+
+// validateNoDuplicateCacheIDs checks for duplicate cache IDs and returns an error if found
+func validateNoDuplicateCacheIDs(caches []CacheMemoryEntry) error {
+	seen := make(map[string]bool)
+	for _, cache := range caches {
+		if seen[cache.ID] {
+			return fmt.Errorf("duplicate cache-memory ID '%s' found. Each cache must have a unique ID", cache.ID)
+		}
+		seen[cache.ID] = true
+	}
+	return nil
+}
+
+// validateSecretReferences validates that secret references are valid
+func validateSecretReferences(secrets []string) error {
+	// Secret names must be valid environment variable names
+	secretNamePattern := regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
+
+	for _, secret := range secrets {
+		if !secretNamePattern.MatchString(secret) {
+			return fmt.Errorf("invalid secret name: %s", secret)
+		}
+	}
+
+	return nil
 }
