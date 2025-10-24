@@ -1037,9 +1037,17 @@ jobs:
           
           Create `.github/instructions/dictation.instructions.md` with:
           - Title: Fix text-to-speech errors in dictated text
-          - Project Glossary: ~100 terms, alphabetically sorted, one per line
           - Technical Context: Brief description of gh-aw
           - Fix Speech-to-Text Errors: Common misrecognitions → correct terms
+          - Project Glossary: ~100 terms, alphabetically sorted, one per line
+          - Guidelines: General instructions as follows
+          
+          ```markdown
+          You do not have enough background information to plan or provide code examples.
+          - do NOT generate code examples
+          - do NOT plan steps
+          - focus on fixing speech-to-text errors only
+          ```
           
           ### 3. Create Pull Request
           
