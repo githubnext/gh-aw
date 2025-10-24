@@ -97,9 +97,9 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	// Check for safe-outputs configuration first (built-in MCP)
 	if safeOutputsSection, hasSafeOutputs := frontmatter["safe-outputs"]; hasSafeOutputs {
 		// Apply server filter if specified
-		if serverFilter == "" || strings.Contains("safe-outputs", strings.ToLower(serverFilter)) {
+		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID, strings.ToLower(serverFilter)) {
 			config := MCPServerConfig{
-				Name: "safe-outputs",
+				Name: constants.SafeOutputsMCPServerID,
 				Type: "stdio",
 				// Command and args will be set up dynamically when the server is started
 				Command: "node",
@@ -143,11 +143,11 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 	// Check for top-level safe-jobs configuration
 	if safeJobsSection, hasSafeJobs := frontmatter["safe-jobs"]; hasSafeJobs {
 		// Apply server filter if specified
-		if serverFilter == "" || strings.Contains("safe-outputs", strings.ToLower(serverFilter)) {
+		if serverFilter == "" || strings.Contains(constants.SafeOutputsMCPServerID, strings.ToLower(serverFilter)) {
 			// Find existing safe-outputs config or create new one
 			var config *MCPServerConfig
 			for i := range configs {
-				if configs[i].Name == "safe-outputs" {
+				if configs[i].Name == constants.SafeOutputsMCPServerID {
 					config = &configs[i]
 					break
 				}
@@ -155,7 +155,7 @@ func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) (
 
 			if config == nil {
 				newConfig := MCPServerConfig{
-					Name:    "safe-outputs",
+					Name:    constants.SafeOutputsMCPServerID,
 					Type:    "stdio",
 					Command: "node",
 					Env:     make(map[string]string),
