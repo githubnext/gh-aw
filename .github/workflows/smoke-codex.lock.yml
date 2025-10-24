@@ -135,7 +135,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.47.0
+        run: npm install -g @openai/codex@0.48.0
       - name: Downloading container images
         run: |
           set -e
@@ -3049,7 +3049,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.47.0
+        run: npm install -g @openai/codex@0.48.0
       - name: Run Codex
         run: |
           set -o pipefail
