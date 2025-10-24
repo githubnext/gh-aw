@@ -227,7 +227,7 @@ func TestHasMCPConfigDetection(t *testing.T) {
 			name: "inferred stdio from command",
 			config: map[string]any{
 				"command": "npx",
-				"args":    []any{"-y", "@microsoft/markitdown"},
+				"args":    []any{"-y", "markitdown-mcp-npx"},
 			},
 			expected: true,
 			mcpType:  "stdio",
@@ -259,9 +259,8 @@ func TestHasMCPConfigDetection(t *testing.T) {
 		{
 			name: "markitdown-like config",
 			config: map[string]any{
-				"registry": "https://api.mcp.github.com/v0/servers/microsoft/markitdown",
-				"command":  "npx",
-				"args":     []any{"-y", "@microsoft/markitdown"},
+				"command": "npx",
+				"args":    []any{"-y", "markitdown-mcp-npx"},
 			},
 			expected: true,
 			mcpType:  "stdio",
