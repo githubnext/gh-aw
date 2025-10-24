@@ -13,9 +13,12 @@ safe-outputs:
   push-to-pull-request-branch:
     commit-title-prefix: "[skip-ci] "
 timeout_minutes: 10
-strict: true
 features:
   firewall: true
+tools:
+  bash:
+    - "*"
+  edit:
 imports:
   - shared/changeset-format.md
   - shared/jqschema.md
