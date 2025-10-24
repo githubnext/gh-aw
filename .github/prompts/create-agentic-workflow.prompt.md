@@ -116,8 +116,8 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
 
     - After completing the workflow, inform the user:
       - The workflow has been created and compiled successfully.
-      - The action URL is https://github.com/<owner>/<repo>/actions/workflows/<workflow file name> (fix url)
-      - They can edit and recompile using `gh aw compile --watch`
+      - Print a link to the github.com action landing page (The action URL template is https://github.com/[repo_owner]/[repo_name]/actions/workflows/[workflow_file_name].lock.yml) 
+      - They can **edit and recompile** using `gh aw compile --watch`
 
 ## Guidelines
 
