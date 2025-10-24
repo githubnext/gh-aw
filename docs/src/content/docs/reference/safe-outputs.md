@@ -113,6 +113,40 @@ safe-outputs:
 
 The agentic part of your workflow should describe the comment(s) it wants posted.
 
+#### Comment Target Resolution
+
+When `target: "triggering"` (the default), the comment target is determined based on the workflow event:
+
+- **For commentable events** (issue, pull_request, discussion): Comments are posted on the triggering item
+- **For non-commentable events** (workflow_dispatch, push, schedule): The workflow automatically:
+  1. Resolves the current branch from `GITHUB_REF` or `GITHUB_HEAD_REF`
+  2. Searches for the first open pull request with a matching head branch
+  3. Posts the comment to that pull request if found
+  4. Exits gracefully (no error) if no matching pull request is found
+
+This enables workflows triggered by `workflow_dispatch`, scheduled runs, or push events to automatically find and comment on the relevant pull request for the current branch.
+
+**Example - Comment on PR from workflow_dispatch:**
+
+```aw wrap
+---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+engine: copilot
+safe-outputs:
+  add-comment:
+---
+
+# Branch Analysis
+
+Analyze the current branch and post a summary comment on the pull request.
+```
+
+When this workflow runs via `workflow_dispatch` on a feature branch, it will automatically find the open PR for that branch and post the comment there.
+
 ### Automatic Cross-Referencing Between Safe Outputs
 
 When `add-comment` is used together with `create-issue`, `create-discussion`, or `create-pull-request` in the same workflow, the comment automatically includes a "Related Items" section with links to the created items.
