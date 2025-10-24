@@ -9,7 +9,10 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var claudeLog = logger.New("workflow:claude_engine")
 
 // ClaudeEngine represents the Claude Code agentic engine
 type ClaudeEngine struct {
@@ -33,6 +36,8 @@ func NewClaudeEngine() *ClaudeEngine {
 }
 
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
+	claudeLog.Printf("Generating installation steps for Claude engine: workflow=%s", workflowData.Name)
+
 	var steps []GitHubActionStep
 
 	// Add secret validation step
@@ -85,6 +90,8 @@ func (e *ClaudeEngine) GetVersionCommand() string {
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude
 func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
+	claudeLog.Printf("Generating execution steps for Claude engine: workflow=%s", workflowData.Name)
+
 	// Handle custom steps if they exist in engine config
 	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
 

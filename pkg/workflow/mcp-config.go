@@ -6,8 +6,11 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
+
+var mcpLog = logger.New("workflow:mcp-config")
 
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
@@ -253,9 +256,12 @@ type MCPConfigRenderer struct {
 // renderSharedMCPConfig generates MCP server configuration for a single tool using shared logic
 // This function handles the common logic for rendering MCP configurations across different engines
 func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, renderer MCPConfigRenderer) error {
+	mcpLog.Printf("Rendering MCP config for tool: %s, format: %s", toolName, renderer.Format)
+
 	// Get MCP configuration in the new format
 	mcpConfig, err := getMCPConfig(toolConfig, toolName)
 	if err != nil {
+		mcpLog.Printf("Failed to parse MCP config for tool %s: %v", toolName, err)
 		return fmt.Errorf("failed to parse MCP config for tool '%s': %w", toolName, err)
 	}
 
@@ -713,6 +719,8 @@ func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 
 // getMCPConfig extracts MCP configuration from a tool config and returns a structured MCPServerConfig
 func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServerConfig, error) {
+	mcpLog.Printf("Extracting MCP config for tool: %s", toolName)
+
 	config := MapToolConfig(toolConfig)
 	result := &parser.MCPServerConfig{
 		Name:    toolName,
@@ -896,11 +904,14 @@ func hasMCPConfig(toolConfig map[string]any) (bool, string) {
 
 // validateMCPConfigs validates all MCP configurations in the tools section using JSON schema
 func ValidateMCPConfigs(tools map[string]any) error {
+	mcpLog.Printf("Validating MCP configurations for %d tools", len(tools))
+
 	for toolName, toolConfig := range tools {
 		if config, ok := toolConfig.(map[string]any); ok {
 			// Extract raw MCP configuration (without transformation)
 			mcpConfig, err := getRawMCPConfig(config)
 			if err != nil {
+				mcpLog.Printf("Invalid MCP configuration for tool %s: %v", toolName, err)
 				return fmt.Errorf("tool '%s' has invalid MCP configuration: %w", toolName, err)
 			}
 
@@ -909,12 +920,16 @@ func ValidateMCPConfigs(tools map[string]any) error {
 				continue
 			}
 
+			mcpLog.Printf("Validating MCP requirements for tool: %s", toolName)
+
 			// Validate MCP configuration requirements (before transformation)
 			if err := validateMCPRequirements(toolName, mcpConfig, config); err != nil {
 				return err
 			}
 		}
 	}
+
+	mcpLog.Print("MCP configuration validation completed successfully")
 	return nil
 }
 

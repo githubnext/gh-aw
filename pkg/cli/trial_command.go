@@ -12,10 +12,13 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
+
+var trialLog = logger.New("cli:trial_command")
 
 // WorkflowTrialResult represents the result of running a single workflow trial
 type WorkflowTrialResult struct {
@@ -222,6 +225,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 			return fmt.Errorf("invalid --host-repo specification '%s': %w", hostRepoSpec, err)
 		}
 		hostRepoSlug = hostRepo.RepoSlug
+		trialLog.Printf("Using specified host repository: %s", hostRepoSlug)
 	} else {
 		// Use default trial repo with current username
 		username, err := getCurrentGitHubUsername()
@@ -229,6 +233,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 			return fmt.Errorf("failed to get GitHub username for default trial repo: %w", err)
 		}
 		hostRepoSlug = fmt.Sprintf("%s/gh-aw-trial", username)
+		trialLog.Printf("Using default host repository: %s", hostRepoSlug)
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Host repository (default): %s", hostRepoSlug)))
 	}
 
@@ -240,12 +245,14 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 	}
 
 	// Step 2: Create or reuse host repository
+	trialLog.Printf("Ensuring trial repository exists: %s", hostRepoSlug)
 	if err := ensureTrialRepository(hostRepoSlug, cloneRepoSlug, forceDeleteHostRepo, verbose); err != nil {
 		return fmt.Errorf("failed to ensure host repository: %w", err)
 	}
 
 	// Step 2.5: Create secret tracker
 	secretTracker := NewTrialSecretTracker(hostRepoSlug)
+	trialLog.Print("Created secret tracker for trial")
 
 	// Set up secret cleanup to always run on exit
 	defer func() {
@@ -274,12 +281,15 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 	runAllTrials := func() error {
 		// Generate a unique datetime-ID for this trial session
 		dateTimeID := fmt.Sprintf("%s-%d", time.Now().Format("20060102-150405"), time.Now().UnixNano()%1000000)
+		trialLog.Printf("Starting trial run: dateTimeID=%s", dateTimeID)
 
 		// Step 3: Clone host repository to local temp directory
+		trialLog.Printf("Cloning trial host repository: %s", hostRepoSlug)
 		tempDir, err := cloneTrialHostRepository(hostRepoSlug, verbose)
 		if err != nil {
 			return fmt.Errorf("failed to clone host repository: %w", err)
 		}
+		trialLog.Printf("Cloned repository to: %s", tempDir)
 		defer func() {
 			if err := os.RemoveAll(tempDir); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup local temp directory: %v", err)))
