@@ -84,7 +84,7 @@ func (e *CodexEngine) GetVersionCommand() string {
 
 // GetOIDCConfig returns the OIDC configuration for Codex engine
 func (e *CodexEngine) GetOIDCConfig(workflowData *WorkflowData) *OIDCConfig {
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.OIDC != nil && workflowData.EngineConfig.OIDC.Enabled {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.OIDC != nil && workflowData.EngineConfig.OIDC.TokenExchangeURL != "" {
 		return workflowData.EngineConfig.OIDC
 	}
 	return nil

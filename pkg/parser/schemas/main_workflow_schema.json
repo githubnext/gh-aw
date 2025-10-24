@@ -2977,19 +2977,15 @@
             },
             "oidc": {
               "type": "object",
-              "description": "OpenID Connect authentication configuration for agentic engines. When enabled, the workflow will use OIDC to obtain tokens with PAT fallback support.",
+              "description": "OpenID Connect authentication configuration for agentic engines. When configured, the workflow will use OIDC to obtain tokens with PAT fallback support.",
               "properties": {
-                "enabled": {
-                  "type": "boolean",
-                  "description": "Enable OIDC authentication for this engine"
-                },
                 "audience": {
                   "type": "string",
                   "description": "OIDC audience identifier (e.g., 'claude-code-github-action'). Defaults to engine-specific audience if not specified."
                 },
                 "token_exchange_url": {
                   "type": "string",
-                  "description": "URL endpoint to exchange OIDC token for an app token (required when OIDC is enabled)"
+                  "description": "URL endpoint to exchange OIDC token for an app token (required for OIDC authentication)"
                 },
                 "token_revoke_url": {
                   "type": "string",
@@ -3004,7 +3000,7 @@
                   "description": "Fallback environment variable to use if OIDC token acquisition fails. Typically references a secret (e.g., ${{ secrets.ANTHROPIC_API_KEY }})"
                 }
               },
-              "required": ["enabled"],
+              "required": ["token_exchange_url"],
               "additionalProperties": false
             }
           },

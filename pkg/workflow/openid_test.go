@@ -15,7 +15,6 @@ func TestOIDCConfigExtraction(t *testing.T) {
 		"engine": map[string]any{
 			"id": "claude",
 			"oidc": map[string]any{
-				"enabled":            true,
 				"audience":           "test-audience",
 				"token_exchange_url": "https://api.example.com/token-exchange",
 				"token_revoke_url":   "https://api.example.com/token-revoke",
@@ -37,10 +36,6 @@ func TestOIDCConfigExtraction(t *testing.T) {
 
 	if config.OIDC == nil {
 		t.Fatal("Expected OIDC config to be non-nil")
-	}
-
-	if !config.OIDC.Enabled {
-		t.Error("Expected OIDC to be enabled")
 	}
 
 	if config.OIDC.Audience != "test-audience" {
@@ -67,7 +62,6 @@ func TestOIDCConfigExtraction(t *testing.T) {
 func TestOIDCConfigDefaults(t *testing.T) {
 	// Test with minimal OIDC configuration
 	oidcConfig := &OIDCConfig{
-		Enabled:          true,
 		TokenExchangeURL: "https://api.example.com/exchange",
 	}
 
@@ -106,7 +100,6 @@ func TestClaudeEngineWithOIDC(t *testing.T) {
 		EngineConfig: &EngineConfig{
 			ID: "claude",
 			OIDC: &OIDCConfig{
-				Enabled:          true,
 				Audience:         "claude-code-github-action",
 				TokenExchangeURL: "https://api.anthropic.com/api/github/github-app-token-exchange",
 				TokenRevokeURL:   "https://api.anthropic.com/api/github/github-app-token-revoke",
@@ -198,17 +191,17 @@ func TestHasOIDCConfig(t *testing.T) {
 		t.Error("Expected HasOIDCConfig to return false when OIDC is nil")
 	}
 
-	// Test with OIDC disabled
+	// Test with OIDC but no token_exchange_url
 	config.OIDC = &OIDCConfig{
-		Enabled: false,
+		Audience: "test-audience",
 	}
 	if HasOIDCConfig(config) {
-		t.Error("Expected HasOIDCConfig to return false when OIDC is disabled")
+		t.Error("Expected HasOIDCConfig to return false when token_exchange_url is not set")
 	}
 
-	// Test with OIDC enabled
-	config.OIDC.Enabled = true
+	// Test with OIDC and token_exchange_url
+	config.OIDC.TokenExchangeURL = "https://api.example.com/exchange"
 	if !HasOIDCConfig(config) {
-		t.Error("Expected HasOIDCConfig to return true when OIDC is enabled")
+		t.Error("Expected HasOIDCConfig to return true when token_exchange_url is set")
 	}
 }

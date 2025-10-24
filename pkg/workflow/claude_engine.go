@@ -85,7 +85,7 @@ func (e *ClaudeEngine) GetVersionCommand() string {
 
 // GetOIDCConfig returns the OIDC configuration for Claude engine
 func (e *ClaudeEngine) GetOIDCConfig(workflowData *WorkflowData) *OIDCConfig {
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.OIDC != nil && workflowData.EngineConfig.OIDC.Enabled {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.OIDC != nil && workflowData.EngineConfig.OIDC.TokenExchangeURL != "" {
 		return workflowData.EngineConfig.OIDC
 	}
 	return nil

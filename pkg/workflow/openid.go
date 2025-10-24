@@ -4,9 +4,6 @@ import "fmt"
 
 // OIDCConfig represents OpenID Connect authentication configuration for agentic engines
 type OIDCConfig struct {
-	// Enabled indicates whether OIDC authentication is enabled
-	Enabled bool `yaml:"enabled,omitempty"`
-
 	// Audience is the OIDC audience identifier (e.g., "claude-code-github-action")
 	Audience string `yaml:"audience,omitempty"`
 
@@ -36,13 +33,6 @@ func ParseOIDCConfig(engineObj map[string]any) *OIDCConfig {
 	}
 
 	oidcConfig := &OIDCConfig{}
-
-	// Extract enabled field (defaults to false)
-	if enabled, hasEnabled := oidcObj["enabled"]; hasEnabled {
-		if enabledBool, ok := enabled.(bool); ok {
-			oidcConfig.Enabled = enabledBool
-		}
-	}
 
 	// Extract audience field
 	if audience, hasAudience := oidcObj["audience"]; hasAudience {
@@ -83,8 +73,9 @@ func ParseOIDCConfig(engineObj map[string]any) *OIDCConfig {
 }
 
 // HasOIDCConfig checks if the engine has OIDC configuration
+// OIDC is considered enabled if token_exchange_url is present
 func HasOIDCConfig(config *EngineConfig) bool {
-	return config != nil && config.OIDC != nil && config.OIDC.Enabled
+	return config != nil && config.OIDC != nil && config.OIDC.TokenExchangeURL != ""
 }
 
 // GetOIDCAudience returns the OIDC audience identifier, with a default based on engine
