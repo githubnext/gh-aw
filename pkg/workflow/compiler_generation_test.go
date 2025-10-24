@@ -129,9 +129,9 @@ func TestConvertStepToYAML(t *testing.T) {
 			name: "step with name and uses",
 			stepMap: map[string]any{
 				"name": "Checkout Code",
-				"uses": "actions/checkout@v5",
+				"uses": "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
 			},
-			expected: "      - name: Checkout Code\n        uses: actions/checkout@v5\n",
+			expected: "      - name: Checkout Code\n        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8\n",
 			hasError: false,
 		},
 		{

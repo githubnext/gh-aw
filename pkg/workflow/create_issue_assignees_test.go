@@ -81,9 +81,9 @@ func TestCreateIssueJobWithAssignees(t *testing.T) {
 		t.Error("Expected GH_TOKEN environment variable to be set with proper token expression")
 	}
 
-	// Verify that checkout uses actions/checkout@v5
-	if !strings.Contains(stepsContent, "uses: actions/checkout@v5") {
-		t.Error("Expected checkout to use actions/checkout@v5")
+	// Verify that checkout uses actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+	if !strings.Contains(stepsContent, "uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8") {
+		t.Error("Expected checkout to use actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8")
 	}
 }
 

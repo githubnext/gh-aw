@@ -1916,7 +1916,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3`,
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8`,
 			wantErr: false,
 		},
 		{
@@ -4331,7 +4331,7 @@ func TestCustomStepsIndentation(t *testing.T) {
 			name: "standard_2_space_indentation",
 			stepsYAML: `steps:
   - name: Checkout code
-    uses: actions/checkout@v5
+    uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
   - name: Set up Go
     uses: actions/setup-go@v5
     with:
@@ -4343,7 +4343,7 @@ func TestCustomStepsIndentation(t *testing.T) {
 			name: "odd_3_space_indentation",
 			stepsYAML: `steps:
    - name: Odd indent
-     uses: actions/checkout@v5
+     uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
      with:
        param: value`,
 			description: "3-space indentation should be normalized to standard format",

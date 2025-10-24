@@ -420,7 +420,7 @@ func TestCustomEngineConvertStepToYAMLWithSection(t *testing.T) {
 	// Test step with 'with' section to ensure keys are sorted
 	stepMap := map[string]any{
 		"name": "Test step with sorted with section",
-		"uses": "actions/checkout@v4",
+		"uses": "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
 		"with": map[string]any{
 			"zebra": "value-z",
 			"alpha": "value-a",
