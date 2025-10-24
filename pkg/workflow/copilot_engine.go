@@ -448,18 +448,138 @@ func (e *CopilotEngine) generateMCPConfigJSONProper(tools map[string]any, mcpToo
 		}
 	}
 	
-	// Create the top-level config structure
-	config := MCPConfig{
-		MCPServers: mcpServers,
+	// Build JSON with ordered fields using custom marshaling
+	var result strings.Builder
+	result.WriteString("{\n")
+	result.WriteString("  \"mcpServers\": {\n")
+	
+	// Sort server names for consistent output
+	serverNames := make([]string, 0, len(mcpServers))
+	for name := range mcpServers {
+		serverNames = append(serverNames, name)
+	}
+	sort.Strings(serverNames)
+	
+	for i, serverName := range serverNames {
+		serverConfig := mcpServers[serverName]
+		result.WriteString("    \"")
+		result.WriteString(serverName)
+		result.WriteString("\": ")
+		
+		// Marshal this server's config with ordered fields
+		serverJSON, err := marshalMCPServerConfigOrdered(serverConfig)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal config for %s: %w", serverName, err)
+		}
+		
+		// Indent the server config (it comes without indentation)
+		indentedConfig := indentJSON(serverJSON, "    ")
+		result.WriteString(indentedConfig)
+		
+		if i < len(serverNames)-1 {
+			result.WriteString(",")
+		}
+		result.WriteString("\n")
 	}
 	
-	// Marshal to JSON with proper indentation for readability
-	jsonBytes, err := json.MarshalIndent(config, "", "  ")
+	result.WriteString("  }\n")
+	result.WriteString("}")
+	
+	return result.String(), nil
+}
+
+// marshalMCPServerConfigOrdered marshals a single MCP server config with prioritized field ordering
+func marshalMCPServerConfigOrdered(config any) (string, error) {
+	configMap, ok := config.(map[string]any)
+	if !ok {
+		// Fallback to regular marshaling if not a map
+		bytes, err := json.Marshal(config)
+		return string(bytes), err
+	}
+	
+	// Define the priority order for fields
+	fieldOrder := []string{"type", "command", "args", "url", "headers", "env", "tools"}
+	
+	var result strings.Builder
+	result.WriteString("{\n")
+	
+	writtenFields := make(map[string]bool)
+	firstField := true
+	
+	// Write fields in priority order
+	for _, fieldName := range fieldOrder {
+		if value, exists := configMap[fieldName]; exists {
+			if !firstField {
+				result.WriteString(",\n")
+			}
+			firstField = false
+			
+			// Marshal the field name and value
+			fieldJSON, err := marshalJSONField(fieldName, value, "  ")
+			if err != nil {
+				return "", err
+			}
+			result.WriteString(fieldJSON)
+			writtenFields[fieldName] = true
+		}
+	}
+	
+	// Write any remaining fields not in priority order (alphabetically)
+	remainingFields := make([]string, 0)
+	for fieldName := range configMap {
+		if !writtenFields[fieldName] {
+			remainingFields = append(remainingFields, fieldName)
+		}
+	}
+	sort.Strings(remainingFields)
+	
+	for _, fieldName := range remainingFields {
+		if !firstField {
+			result.WriteString(",\n")
+		}
+		firstField = false
+		
+		fieldJSON, err := marshalJSONField(fieldName, configMap[fieldName], "  ")
+		if err != nil {
+			return "", err
+		}
+		result.WriteString(fieldJSON)
+	}
+	
+	result.WriteString("\n}")
+	return result.String(), nil
+}
+
+// marshalJSONField marshals a single JSON field (key: value)
+func marshalJSONField(key string, value any, indent string) (string, error) {
+	var result strings.Builder
+	result.WriteString(indent)
+	result.WriteString("\"")
+	result.WriteString(key)
+	result.WriteString("\": ")
+	
+	// Marshal the value
+	valueBytes, err := json.MarshalIndent(value, indent, "  ")
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal MCP config to JSON: %w", err)
+		return "", err
 	}
 	
-	return string(jsonBytes), nil
+	// Remove the extra indentation that MarshalIndent adds at the start
+	valueStr := strings.TrimPrefix(string(valueBytes), indent)
+	result.WriteString(valueStr)
+	
+	return result.String(), nil
+}
+
+// indentJSON adds indentation to each line of a JSON string (except the first line)
+func indentJSON(jsonStr string, indent string) string {
+	lines := strings.Split(jsonStr, "\n")
+	for i, line := range lines {
+		if i > 0 && line != "" {  // Skip first line, only indent subsequent lines
+			lines[i] = indent + line
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // buildGitHubMCPConfig builds the GitHub MCP server configuration as a map
