@@ -67,7 +67,7 @@ jobs:
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
     env:
-      GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
+      GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
@@ -277,17 +277,17 @@ jobs:
           docker pull ghcr.io/github/github-mcp-server:v0.19.1
       - name: Setup Safe Outputs Collector MCP
         run: |
-          mkdir -p /tmp/gh-aw/safe-outputs
-          cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
+          mkdir -p /tmp/gh-aw/safeoutputs
+          cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
           {"create_issue":{"max":1},"missing_tool":{}}
           EOF
-          cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
+          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
             const { execSync } = require("child_process");
             const encoder = new TextEncoder();
-            const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
+            const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
             const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
@@ -306,7 +306,7 @@ jobs:
             const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
-              const defaultConfigPath = "/tmp/gh-aw/safe-outputs/config.json";
+              const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
               debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
               try {
                 if (fs.existsSync(defaultConfigPath)) {
@@ -339,7 +339,7 @@ jobs:
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
-            const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
+            const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
             if (!process.env.GH_AW_SAFE_OUTPUTS) {
               debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
               const outputDir = path.dirname(outputFile);
@@ -446,7 +446,7 @@ jobs:
               }
             }
             function writeLargeContentToFile(content) {
-              const logsDir = "/tmp/gh-aw/safe-outputs";
+              const logsDir = "/tmp/gh-aw/safeoutputs";
               if (!fs.existsSync(logsDir)) {
                 fs.mkdirSync(logsDir, { recursive: true });
               }
@@ -547,7 +547,7 @@ jobs:
               if (!allowedExts.includes(ext)) {
                 throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
               }
-              const assetsDir = "/tmp/gh-aw/safe-outputs/assets";
+              const assetsDir = "/tmp/gh-aw/safeoutputs/assets";
               if (!fs.existsSync(assetsDir)) {
                 fs.mkdirSync(assetsDir, { recursive: true });
               }
@@ -1042,7 +1042,7 @@ jobs:
             process.stdin.resume();
             debug(`listening...`);
           EOF
-          chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
+          chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
       - name: Setup MCPs
         run: |
@@ -1068,9 +1068,9 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
                 }
               },
-              "safe_outputs": {
+              "safeoutputs": {
                 "command": "node",
-                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
+                "args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"],
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
                   "GH_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }},
@@ -1384,15 +1384,15 @@ jobs:
           
           ## Creating an Issue, Reporting Missing Tools or Functionality
           
-          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
           **Creating an Issue**
           
-          To create an issue, use the create-issue tool from the safe-outputs MCP
+          To create an issue, use the create-issue tool from safeoutputs
           
           **Reporting Missing Tools or Functionality**
           
-          To report a missing tool use the missing-tool tool from the safe-outputs MCP.
+          To report a missing tool use the missing-tool tool from safeoutputs.
           
           PROMPT_EOF
       - name: Append GitHub context to prompt
@@ -2968,7 +2968,7 @@ jobs:
                 .replace(/\s+/g, " ") 
                 .trim(); 
               formatted = formatted.replace(/`/g, "\\`");
-              const maxLength = 80;
+              const maxLength = 300;
               if (formatted.length > maxLength) {
                 formatted = formatted.substring(0, maxLength) + "...";
               }
@@ -3253,12 +3253,12 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: agent_output.json
-          path: /tmp/gh-aw/safe-outputs/
+          path: /tmp/gh-aw/safeoutputs/
       - name: Setup agent output environment variable
         run: |
-          mkdir -p /tmp/gh-aw/safe-outputs/
-          find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find /tmp/gh-aw/safeoutputs/ -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
       - name: Create Output Issue
         id: create_issue
         uses: actions/github-script@v8
@@ -3802,12 +3802,12 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: agent_output.json
-          path: /tmp/gh-aw/safe-outputs/
+          path: /tmp/gh-aw/safeoutputs/
       - name: Setup agent output environment variable
         run: |
-          mkdir -p /tmp/gh-aw/safe-outputs/
-          find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find /tmp/gh-aw/safeoutputs/ -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@v8

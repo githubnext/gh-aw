@@ -5,7 +5,7 @@ import "fmt"
 // ArtifactDownloadConfig holds configuration for building artifact download steps
 type ArtifactDownloadConfig struct {
 	ArtifactName string // Name of the artifact to download (e.g., "agent_output.json", "prompt.txt")
-	DownloadPath string // Path where artifact will be downloaded (e.g., "/tmp/gh-aw/safe-outputs/")
+	DownloadPath string // Path where artifact will be downloaded (e.g., "/tmp/gh-aw/safeoutputs/")
 	SetupEnvStep bool   // Whether to add environment variable setup step
 	EnvVarName   string // Environment variable name to set (e.g., "GH_AW_AGENT_OUTPUT")
 	StepName     string // Optional custom step name (defaults to "Download {artifact} artifact")

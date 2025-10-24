@@ -2008,7 +2008,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		env = make(map[string]string)
 
 		// Set GH_AW_SAFE_OUTPUTS to fixed path
-		env["GH_AW_SAFE_OUTPUTS"] = "/tmp/gh-aw/safe-outputs/outputs.jsonl"
+		env["GH_AW_SAFE_OUTPUTS"] = "/tmp/gh-aw/safeoutputs/outputs.jsonl"
 
 		// Set GH_AW_SAFE_OUTPUTS_CONFIG with the safe outputs configuration
 		safeOutputConfig := generateSafeOutputsConfig(data)
@@ -2251,14 +2251,14 @@ func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFileFull st
 
 func (c *Compiler) generateUploadAssets(yaml *strings.Builder) {
 	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload safe outputs assets", []string{"/tmp/gh-aw/safe-outputs/assets/"})
+	c.stepOrderTracker.RecordArtifactUpload("Upload safe outputs assets", []string{"/tmp/gh-aw/safeoutputs/assets/"})
 
 	yaml.WriteString("      - name: Upload safe outputs assets\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: safe-outputs-assets\n")
-	yaml.WriteString("          path: /tmp/gh-aw/safe-outputs/assets/\n")
+	yaml.WriteString("          path: /tmp/gh-aw/safeoutputs/assets/\n")
 	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 

@@ -37,7 +37,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
     delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
 
     // Create default directories
-    const defaultOutputDir = "/tmp/gh-aw/safe-outputs";
+    const defaultOutputDir = "/tmp/gh-aw/safeoutputs";
     if (!fs.existsSync(defaultOutputDir)) {
       fs.mkdirSync(defaultOutputDir, { recursive: true });
     }
@@ -92,9 +92,9 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
         clearTimeout(timeout);
 
         // Check that default paths are mentioned in debug output
-        expect(stderr).toContain("GH_AW_SAFE_OUTPUTS not set, using default: /tmp/gh-aw/safe-outputs/outputs.jsonl");
+        expect(stderr).toContain("GH_AW_SAFE_OUTPUTS not set, using default: /tmp/gh-aw/safeoutputs/outputs.jsonl");
         expect(stderr).toContain(
-          "GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: /tmp/gh-aw/safe-outputs/config.json"
+          "GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: /tmp/gh-aw/safeoutputs/config.json"
         );
 
         resolve();
@@ -108,7 +108,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
     delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
 
     // Create default config file
-    const defaultConfigDir = "/tmp/gh-aw/safe-outputs";
+    const defaultConfigDir = "/tmp/gh-aw/safeoutputs";
     const defaultConfigFile = path.join(defaultConfigDir, "config.json");
 
     if (!fs.existsSync(defaultConfigDir)) {
@@ -172,7 +172,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
         }
 
         // Check that config was read from file
-        expect(stderr).toContain("Reading config from file: /tmp/gh-aw/safe-outputs/config.json");
+        expect(stderr).toContain("Reading config from file: /tmp/gh-aw/safeoutputs/config.json");
         expect(stderr).toContain("Successfully parsed config from file with 2 configuration keys");
         expect(stderr).toContain("Final processed config:");
         expect(stderr).toContain("create_issue");
@@ -188,7 +188,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
     delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
 
     // Ensure default config file does not exist
-    const defaultConfigFile = "/tmp/gh-aw/safe-outputs/config.json";
+    const defaultConfigFile = "/tmp/gh-aw/safeoutputs/config.json";
     if (fs.existsSync(defaultConfigFile)) {
       fs.unlinkSync(defaultConfigFile);
     }
@@ -238,7 +238,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
         clearTimeout(timeout);
 
         // Check that empty config is used when file doesn't exist
-        expect(stderr).toContain("Config file does not exist at: /tmp/gh-aw/safe-outputs/config.json");
+        expect(stderr).toContain("Config file does not exist at: /tmp/gh-aw/safeoutputs/config.json");
         expect(stderr).toContain("Using minimal default configuration");
         expect(stderr).toContain("Final processed config: {}");
 

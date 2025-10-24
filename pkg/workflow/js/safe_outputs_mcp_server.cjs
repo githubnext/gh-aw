@@ -7,7 +7,7 @@ const crypto = require("crypto");
 const { execSync } = require("child_process");
 
 const encoder = new TextEncoder();
-const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
+const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
 const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
 
 /**
@@ -64,7 +64,7 @@ let safeOutputsConfigRaw;
 
 if (!configEnv) {
   // Default config file path
-  const defaultConfigPath = "/tmp/gh-aw/safe-outputs/config.json";
+  const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
   debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
 
   try {
@@ -102,7 +102,7 @@ const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw
 debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
 
 // Handle GH_AW_SAFE_OUTPUTS with default fallback
-const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
+const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
 if (!process.env.GH_AW_SAFE_OUTPUTS) {
   debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
   // Ensure the directory exists
@@ -246,7 +246,7 @@ function generateCompactSchema(content) {
  * @returns {Object} Object with filename and description
  */
 function writeLargeContentToFile(content) {
-  const logsDir = "/tmp/gh-aw/safe-outputs";
+  const logsDir = "/tmp/gh-aw/safeoutputs";
 
   // Ensure directory exists
   if (!fs.existsSync(logsDir)) {
@@ -395,7 +395,7 @@ const uploadAssetHandler = args => {
   }
 
   // Create assets directory
-  const assetsDir = "/tmp/gh-aw/safe-outputs/assets";
+  const assetsDir = "/tmp/gh-aw/safeoutputs/assets";
   if (!fs.existsSync(assetsDir)) {
     fs.mkdirSync(assetsDir, { recursive: true });
   }

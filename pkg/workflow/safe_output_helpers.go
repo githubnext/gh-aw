@@ -85,7 +85,7 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 func buildAgentOutputDownloadSteps() []string {
 	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName: "agent_output.json", // Use constant value directly to avoid import cycle
-		DownloadPath: "/tmp/gh-aw/safe-outputs/",
+		DownloadPath: "/tmp/gh-aw/safeoutputs/",
 		SetupEnvStep: true,
 		EnvVarName:   "GH_AW_AGENT_OUTPUT",
 		StepName:     "Download agent output artifact",

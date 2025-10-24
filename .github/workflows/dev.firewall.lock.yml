@@ -384,9 +384,9 @@ jobs:
           COPILOT_LOGS_DIR=$(ls -td /tmp/copilot-logs-* 2>/dev/null | head -1)
           if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
             echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/.copilot/logs/"
-            mkdir -p /tmp/gh-aw/.copilot/logs/
-            mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/.copilot/logs/ || true
-            rmdir "$COPILOT_LOGS_DIR" || true
+            sudo mkdir -p /tmp/gh-aw/.copilot/logs/
+            sudo mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/.copilot/logs/ || true
+            sudo rmdir "$COPILOT_LOGS_DIR" || true
           fi
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -534,7 +534,7 @@ jobs:
             sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-dev-firewall/ || true
             sudo chmod -R a+r /tmp/gh-aw/squid-logs-dev-firewall/ || true
           fi
-      - name: Upload Squid logs
+      - name: Upload Firewall Logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -1393,7 +1393,7 @@ jobs:
               if (!command) return "";
               let formatted = command.replace(/\n/g, " ").replace(/\r/g, " ").replace(/\t/g, " ").replace(/\s+/g, " ").trim();
               formatted = formatted.replace(/`/g, "\\`");
-              const maxLength = 80;
+              const maxLength = 300;
               if (formatted.length > maxLength) {
                 formatted = formatted.substring(0, maxLength) + "...";
               }

@@ -160,22 +160,22 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          mkdir -p /tmp/gh-aw/safe-outputs\n")
+		yaml.WriteString("          mkdir -p /tmp/gh-aw/safeoutputs\n")
 
 		// Write the safe-outputs configuration to config.json
 		if safeOutputConfig != "" {
-			yaml.WriteString("          cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'\n")
+			yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'\n")
 			yaml.WriteString("          " + safeOutputConfig + "\n")
 			yaml.WriteString("          EOF\n")
 		}
 
-		yaml.WriteString("          cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'\n")
+		yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'\n")
 		// Embed the safe-outputs MCP server script
 		for _, line := range FormatJavaScriptForYAML(safeOutputsMCPServerScript) {
 			yaml.WriteString(line)
 		}
 		yaml.WriteString("          EOF\n")
-		yaml.WriteString("          chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs\n")
+		yaml.WriteString("          chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs\n")
 		yaml.WriteString("          \n")
 	}
 

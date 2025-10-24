@@ -507,7 +507,7 @@ func GetLogParserScript(name string) string {
 	}
 }
 
-// GetSafeOutputsMCPServerScript returns the JavaScript content for the safe-outputs MCP server
+// GetSafeOutputsMCPServerScript returns the JavaScript content for the GitHub Agentic Workflows Safe Outputs MCP server
 func GetSafeOutputsMCPServerScript() string {
 	return safeOutputsMCPServerScript
 }

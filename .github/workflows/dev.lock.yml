@@ -1354,7 +1354,7 @@ jobs:
               if (!command) return "";
               let formatted = command.replace(/\n/g, " ").replace(/\r/g, " ").replace(/\t/g, " ").replace(/\s+/g, " ").trim();
               formatted = formatted.replace(/`/g, "\\`");
-              const maxLength = 80;
+              const maxLength = 300;
               if (formatted.length > maxLength) {
                 formatted = formatted.substring(0, maxLength) + "...";
               }

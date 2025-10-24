@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestAgentTaskWorkflowCompilation(t *testing.T) {
@@ -172,7 +174,7 @@ func TestAgentTaskPromptSection(t *testing.T) {
 		t.Error("Prompt section missing create-agent-task tool reference")
 	}
 
-	if !strings.Contains(prompt, "safe-outputs") {
-		t.Error("Prompt section missing safe-outputs MCP reference")
+	if !strings.Contains(prompt, constants.SafeOutputsMCPServerID) {
+		t.Error("Prompt section missing safeoutputs MCP reference")
 	}
 }

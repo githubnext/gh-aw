@@ -95,9 +95,9 @@ func TestRenderSafeOutputsMCPConfigShared(t *testing.T) {
 			name:   "safe outputs config not last",
 			isLast: false,
 			wantContains: []string{
-				`"safe_outputs": {`,
+				`"safeoutputs": {`,
 				`"command": "node"`,
-				`"/tmp/gh-aw/safe-outputs/mcp-server.cjs"`,
+				`"/tmp/gh-aw/safeoutputs/mcp-server.cjs"`,
 				`"GH_AW_SAFE_OUTPUTS"`,
 				`"GH_AW_SAFE_OUTPUTS_CONFIG"`,
 				`"GH_AW_ASSETS_BRANCH"`,
@@ -110,7 +110,7 @@ func TestRenderSafeOutputsMCPConfigShared(t *testing.T) {
 			name:   "safe outputs config is last",
 			isLast: true,
 			wantContains: []string{
-				`"safe_outputs": {`,
+				`"safeoutputs": {`,
 				`"command": "node"`,
 				`"GH_AW_SAFE_OUTPUTS"`,
 			},
