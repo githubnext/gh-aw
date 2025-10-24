@@ -46,8 +46,9 @@ Generate a comprehensive daily report of all rejected domains across all agentic
 ### Step 2: Collect Recent Workflow Runs
 
 For each firewall-enabled workflow:
-1. Get the last 10 workflow runs from the past 7 days
+1. Get up to 10 workflow runs that occurred within the past 7 days (if there are fewer than 10 runs in that window, include all available; if there are more, include only the most recent 10)
 2. Download the firewall logs artifact (named `squid-logs-{workflow-name}`) from each run
+   - **Note:** `{workflow-name}` refers to the workflow file name (e.g., `dev.firewall`), not the display name. Any special characters or spaces in the file name are preserved as-is in the artifact name. For example, if the workflow file is `dev.firewall.md`, the artifact will be named `squid-logs-dev.firewall`.
 3. Store the run ID, workflow name, and timestamp for tracking
 
 ### Step 3: Parse and Analyze Firewall Logs
