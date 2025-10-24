@@ -1,6 +1,7 @@
 package workflow_test
 
 import (
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"strings"
@@ -63,14 +64,45 @@ This is a test workflow.
 
 	workflowData := string(lockFileContent)
 
-	// Verify that the compiled workflow contains the imported tool
-	if !strings.Contains(workflowData, "custom-mcp") {
-		t.Error("Expected compiled workflow to contain custom-mcp from imported file")
-	}
-
-	// Verify the MCP URL is present
-	if !strings.Contains(workflowData, "https://example.com/mcp") {
-		t.Error("Expected compiled workflow to contain MCP URL from imported file")
+	// Verify that the compiled workflow contains the imported tool (either in base64-encoded MCP config for Copilot or directly)
+	// For Copilot engine, MCP config is base64-encoded in --additional-mcp-config argument
+	if strings.Contains(workflowData, "--additional-mcp-config") {
+		// Extract and decode base64 MCP config
+		parts := strings.Split(workflowData, "--additional-mcp-config")
+		if len(parts) < 2 {
+			t.Fatal("Found --additional-mcp-config but couldn't extract value")
+		}
+		
+		// Extract base64 value (next word after --additional-mcp-config)
+		afterFlag := strings.TrimSpace(parts[1])
+		base64Value := strings.Fields(afterFlag)[0]
+		
+		decoded, err := base64.StdEncoding.DecodeString(base64Value)
+		if err != nil {
+			t.Fatalf("Failed to decode base64 MCP config: %v", err)
+		}
+		
+		decodedStr := string(decoded)
+		
+		// Verify the MCP config contains the imported tool
+		if !strings.Contains(decodedStr, "custom-mcp") {
+			t.Error("Expected decoded MCP config to contain custom-mcp from imported file")
+		}
+		
+		// Verify the MCP URL is present
+		if !strings.Contains(decodedStr, "https://example.com/mcp") {
+			t.Error("Expected decoded MCP config to contain MCP URL from imported file")
+		}
+	} else {
+		// For other engines, check directly in workflow data
+		if !strings.Contains(workflowData, "custom-mcp") {
+			t.Error("Expected compiled workflow to contain custom-mcp from imported file")
+		}
+		
+		// Verify the MCP URL is present
+		if !strings.Contains(workflowData, "https://example.com/mcp") {
+			t.Error("Expected compiled workflow to contain MCP URL from imported file")
+		}
 	}
 }
 
@@ -142,21 +174,44 @@ This is a test workflow with multiple imports.
 
 	workflowData := string(lockFileContent)
 
+	// Helper function to check for content in MCP config (either base64-encoded for Copilot or directly)
+	checkMCPContent := func(workflowData, needle string) bool {
+		// For Copilot engine, MCP config is base64-encoded in --additional-mcp-config argument
+		if strings.Contains(workflowData, "--additional-mcp-config") {
+			parts := strings.Split(workflowData, "--additional-mcp-config")
+			if len(parts) < 2 {
+				return false
+			}
+			
+			afterFlag := strings.TrimSpace(parts[1])
+			base64Value := strings.Fields(afterFlag)[0]
+			
+			decoded, err := base64.StdEncoding.DecodeString(base64Value)
+			if err != nil {
+				return false
+			}
+			
+			return strings.Contains(string(decoded), needle)
+		}
+		// For other engines, check directly
+		return strings.Contains(workflowData, needle)
+	}
+
 	// Verify that the compiled workflow contains both imported tools
-	if !strings.Contains(workflowData, "tool1") {
+	if !checkMCPContent(workflowData, "tool1") {
 		t.Error("Expected compiled workflow to contain tool1 from first import")
 	}
 
-	if !strings.Contains(workflowData, "tool2") {
+	if !checkMCPContent(workflowData, "tool2") {
 		t.Error("Expected compiled workflow to contain tool2 from second import")
 	}
 
 	// Verify both URLs are present
-	if !strings.Contains(workflowData, "https://example1.com/mcp") {
+	if !checkMCPContent(workflowData, "https://example1.com/mcp") {
 		t.Error("Expected compiled workflow to contain URL from first import")
 	}
 
-	if !strings.Contains(workflowData, "https://example2.com/mcp") {
+	if !checkMCPContent(workflowData, "https://example2.com/mcp") {
 		t.Error("Expected compiled workflow to contain URL from second import")
 	}
 }
@@ -215,18 +270,41 @@ This is a test workflow with imported MCP server.
 
 	workflowData := string(lockFileContent)
 
+	// Helper function to check for content in MCP config (either base64-encoded for Copilot or directly)
+	checkMCPContent := func(workflowData, needle string) bool {
+		// For Copilot engine, MCP config is base64-encoded in --additional-mcp-config argument
+		if strings.Contains(workflowData, "--additional-mcp-config") {
+			parts := strings.Split(workflowData, "--additional-mcp-config")
+			if len(parts) < 2 {
+				return false
+			}
+			
+			afterFlag := strings.TrimSpace(parts[1])
+			base64Value := strings.Fields(afterFlag)[0]
+			
+			decoded, err := base64.StdEncoding.DecodeString(base64Value)
+			if err != nil {
+				return false
+			}
+			
+			return strings.Contains(string(decoded), needle)
+		}
+		// For other engines, check directly
+		return strings.Contains(workflowData, needle)
+	}
+
 	// Verify that the compiled workflow contains the imported MCP server
-	if !strings.Contains(workflowData, "tavily") {
+	if !checkMCPContent(workflowData, "tavily") {
 		t.Error("Expected compiled workflow to contain tavily MCP server from imported file")
 	}
 
 	// Verify the MCP URL is present
-	if !strings.Contains(workflowData, "https://mcp.tavily.com/mcp") {
+	if !checkMCPContent(workflowData, "https://mcp.tavily.com/mcp") {
 		t.Error("Expected compiled workflow to contain Tavily MCP URL from imported file")
 	}
 
 	// Verify it's configured as an HTTP MCP server
-	if !strings.Contains(workflowData, `"type": "http"`) {
+	if !checkMCPContent(workflowData, `"type": "http"`) {
 		t.Error("Expected tavily to be configured as HTTP MCP server")
 	}
 }
