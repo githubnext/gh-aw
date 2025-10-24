@@ -90,6 +90,15 @@ func TestAgenticWorkflowsMCPConfigGeneration(t *testing.T) {
 			e.engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
 			result := yaml.String()
 
+			// Copilot engine uses --additional-mcp-config instead of file-based config
+			// So RenderMCPConfig is a no-op for Copilot
+			if e.name == "Copilot" {
+				if result != "" {
+					t.Errorf("Expected Copilot RenderMCPConfig to be empty (no-op), got: %s", result)
+				}
+				return
+			}
+
 			// Verify the MCP config contains agentic-workflows
 			if !strings.Contains(result, "agentic_workflows") {
 				t.Errorf("Expected MCP config to contain 'agentic_workflows', got: %s", result)

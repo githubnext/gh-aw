@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -12,6 +13,22 @@ import (
 var copilotLog = logger.New("workflow:copilot_engine")
 
 const logsFolder = "/tmp/gh-aw/.copilot/logs/"
+
+// MCPConfigJSON represents the top-level MCP configuration for JSON marshalling
+type MCPConfigJSON struct {
+	MCPServers map[string]MCPServerJSON `json:"mcpServers"`
+}
+
+// MCPServerJSON represents a single MCP server configuration for JSON marshalling
+type MCPServerJSON struct {
+	Type    string            `json:"type,omitempty"`
+	Command string            `json:"command,omitempty"`
+	Args    []string          `json:"args,omitempty"`
+	Env     map[string]string `json:"env,omitempty"`
+	Tools   []string          `json:"tools,omitempty"`
+	URL     string            `json:"url,omitempty"`
+	Headers map[string]string `json:"headers,omitempty"`
+}
 
 // CopilotEngine represents the GitHub Copilot CLI agentic engine
 type CopilotEngine struct {
@@ -159,9 +176,44 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, "--allow-all-paths")
 	}
 
-	// Add custom args from engine configuration before the prompt
+	// Add custom args from engine configuration before the MCP config and prompt
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
 		copilotArgs = append(copilotArgs, workflowData.EngineConfig.Args...)
+	}
+
+	// Build and add --additional-mcp-config if there are MCP servers
+	// This replaces the file-based MCP config approach
+	if HasMCPServers(workflowData) {
+		// Collect MCP tools (same logic as RenderMCPConfig)
+		var mcpTools []string
+		for toolName, toolValue := range workflowData.Tools {
+			if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
+				mcpTools = append(mcpTools, toolName)
+			} else if mcpConfig, ok := toolValue.(map[string]any); ok {
+				if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
+					mcpTools = append(mcpTools, toolName)
+				}
+			}
+		}
+
+		// Add safe-outputs if enabled
+		if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+			mcpTools = append(mcpTools, "safe-outputs")
+		}
+
+		// Sort for deterministic output
+		sort.Strings(mcpTools)
+
+		// Build MCP config JSON
+		mcpConfigStruct, err := e.buildMCPConfigJSON(workflowData.Tools, mcpTools, workflowData)
+		if err == nil && len(mcpConfigStruct.MCPServers) > 0 {
+			mcpConfigJSON, err := json.Marshal(mcpConfigStruct)
+			if err == nil {
+				// Add --additional-mcp-config with the JSON string
+				// Using single quotes to wrap the JSON string for shell safety
+				copilotArgs = append(copilotArgs, "--additional-mcp-config", fmt.Sprintf("'%s'", string(mcpConfigJSON)))
+			}
+		}
 	}
 
 	// Add prompt argument - inline for firewall, variable for non-firewall
@@ -240,18 +292,9 @@ COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 	// Always add GH_AW_PROMPT for agentic workflows
 	env["GH_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
 
-	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
-	if HasMCPServers(workflowData) {
-		env["GH_AW_MCP_CONFIG"] = "/home/runner/.copilot/mcp-config.json"
-	}
+	// Note: GH_AW_MCP_CONFIG is no longer needed as we use --additional-mcp-config flag
 
-	if hasGitHubTool(workflowData.Tools) {
-		githubTool := workflowData.Tools["github"]
-		customGitHubToken := getGitHubToken(githubTool)
-		// Use effective token with precedence: custom > top-level > default
-		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
-		env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
-	}
+	// Note: GITHUB_MCP_SERVER_TOKEN is no longer needed as tokens are inlined in the MCP config
 
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
@@ -277,14 +320,7 @@ COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 		}
 	}
 
-	// Add HTTP MCP header secrets to env for passthrough
-	headerSecrets := collectHTTPMCPHeaderSecrets(workflowData.Tools)
-	for varName, secretExpr := range headerSecrets {
-		// Only add if not already in env
-		if _, exists := env[varName]; !exists {
-			env[varName] = secretExpr
-		}
-	}
+	// Note: HTTP MCP header secrets are no longer added to env as they are inlined in the MCP config
 
 	// Generate the step for Copilot CLI execution
 	stepName := "Execute GitHub Copilot CLI"
@@ -354,45 +390,276 @@ func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionS
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	copilotLog.Printf("Rendering MCP config for Copilot engine: mcpTools=%d", len(mcpTools))
 
-	// Create the directory first
-	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
-
-	// Use shared JSON MCP config renderer with Copilot-specific options
-	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
-		ConfigPath: "/home/runner/.copilot/mcp-config.json",
-		Renderers: MCPToolRenderers{
-			RenderGitHub: func(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
-				e.renderGitHubCopilotMCPConfig(yaml, githubTool, isLast)
-			},
-			RenderPlaywright: e.renderPlaywrightCopilotMCPConfig,
-			RenderCacheMemory: func(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
-				// Cache-memory is not used for Copilot (filtered out)
-			},
-			RenderAgenticWorkflows: e.renderAgenticWorkflowsCopilotMCPConfig,
-			RenderSafeOutputs:      e.renderSafeOutputsCopilotMCPConfig,
-			RenderWebFetch: func(yaml *strings.Builder, isLast bool) {
-				renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
-			},
-			RenderCustomMCPConfig: e.renderCopilotMCPConfig,
-		},
-		FilterTool: func(toolName string) bool {
-			// Filter out cache-memory for Copilot
-			// Cache-memory is handled as a simple file share, not an MCP server
-			return toolName != "cache-memory"
-		},
-		PostEOFCommands: func(yaml *strings.Builder) {
-			// Add debug output
-			yaml.WriteString("          echo \"-------START MCP CONFIG-----------\"\n")
-			yaml.WriteString("          cat /home/runner/.copilot/mcp-config.json\n")
-			yaml.WriteString("          echo \"-------END MCP CONFIG-----------\"\n")
-			yaml.WriteString("          echo \"-------/home/runner/.copilot-----------\"\n")
-			yaml.WriteString("          find /home/runner/.copilot\n")
-		},
-	})
-	//GITHUB_COPILOT_CLI_MODE
-	yaml.WriteString("          echo \"HOME: $HOME\"\n")
-	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")
+	// For Copilot engine, MCP config is now passed via --additional-mcp-config flag
+	// instead of creating a config file. This method is kept for compatibility but does nothing.
+	// The actual MCP config is built in GetExecutionSteps via buildMCPConfigJSON
+	
+	copilotLog.Printf("Copilot engine uses --additional-mcp-config flag, skipping file-based config generation")
 }
+
+// buildMCPConfigJSON builds the MCP configuration as a Go struct for JSON marshalling
+// This is used for --additional-mcp-config flag
+func (e *CopilotEngine) buildMCPConfigJSON(tools map[string]any, mcpTools []string, workflowData *WorkflowData) (*MCPConfigJSON, error) {
+	config := &MCPConfigJSON{
+		MCPServers: make(map[string]MCPServerJSON),
+	}
+
+	// Filter tools (same logic as RenderMCPConfig)
+	var filteredTools []string
+	for _, toolName := range mcpTools {
+		if toolName != "cache-memory" {
+			filteredTools = append(filteredTools, toolName)
+		}
+	}
+
+	// Build each MCP server config
+	for _, toolName := range filteredTools {
+		var server MCPServerJSON
+		var err error
+
+		switch toolName {
+		case "github":
+			server, err = e.buildGitHubMCPServerJSON(tools["github"], workflowData)
+		case "playwright":
+			server, err = e.buildPlaywrightMCPServerJSON(tools["playwright"])
+		case "agentic-workflows":
+			server = e.buildAgenticWorkflowsMCPServerJSON()
+		case "safe-outputs":
+			server = e.buildSafeOutputsMCPServerJSON()
+		case "web-fetch":
+			server = buildWebFetchMCPServerJSON()
+		default:
+			// Handle custom MCP tools
+			if toolConfig, ok := tools[toolName].(map[string]any); ok {
+				server, err = e.buildCustomMCPServerJSON(toolName, toolConfig, workflowData)
+			}
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to build MCP config for %s: %w", toolName, err)
+		}
+
+		if server.Command != "" || server.URL != "" {
+			// Convert tool names to use underscores for MCP server names (Copilot CLI convention)
+			// Example: "safe-outputs" -> "safe_outputs", "agentic-workflows" -> "agentic_workflows"
+			mcpServerName := strings.ReplaceAll(toolName, "-", "_")
+			config.MCPServers[mcpServerName] = server
+		}
+	}
+
+	return config, nil
+}
+
+// buildGitHubMCPServerJSON builds the GitHub MCP server configuration for JSON marshalling
+func (e *CopilotEngine) buildGitHubMCPServerJSON(githubTool any, workflowData *WorkflowData) (MCPServerJSON, error) {
+	githubType := getGitHubType(githubTool)
+	readOnly := getGitHubReadOnly(githubTool)
+	toolsetsStr := getGitHubToolsets(githubTool) // Returns comma-separated string
+	allowedTools := getGitHubAllowedTools(githubTool)
+	githubToken := getGitHubToken(githubTool)
+	effectiveToken := getEffectiveGitHubToken(githubToken, workflowData.GitHubToken)
+
+	server := MCPServerJSON{
+		Type: "local",
+	}
+
+	// Check if remote mode is enabled
+	if githubType == "remote" {
+		server.Type = "http"
+		server.URL = "https://api.githubcopilot.com/mcp/"
+		server.Headers = make(map[string]string)
+		// Inline the token directly (no env var passthrough)
+		server.Headers["Authorization"] = fmt.Sprintf("Bearer %s", effectiveToken)
+		if readOnly {
+			server.Headers["X-MCP-Readonly"] = "true"
+		}
+		// Add toolset query parameters if specified
+		if toolsetsStr != "" && toolsetsStr != "default" {
+			server.URL = fmt.Sprintf("%s?toolset=%s", server.URL, toolsetsStr)
+		}
+	} else {
+		// Local mode - use Docker
+		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+		customArgs := getGitHubCustomArgs(githubTool)
+
+		server.Command = "docker"
+		server.Args = []string{"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN"}
+
+		// Add custom args if present
+		if len(customArgs) > 0 {
+			server.Args = append(server.Args, customArgs...)
+		}
+
+		// Add the container image
+		containerImage := "ghcr.io/github/github-mcp-server:" + githubDockerImageVersion
+		server.Args = append(server.Args, containerImage)
+
+		// Add read-only flag if enabled
+		if readOnly {
+			server.Args = append(server.Args, "--read-only")
+		}
+
+		// Add toolsets if specified and not default
+		if toolsetsStr != "" && toolsetsStr != "default" {
+			server.Args = append(server.Args, "--toolset", toolsetsStr)
+		}
+
+		// Add env with inlined token (no passthrough)
+		server.Env = map[string]string{
+			"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveToken,
+		}
+	}
+
+	// Add tools field
+	if len(allowedTools) > 0 {
+		server.Tools = allowedTools
+	} else {
+		server.Tools = []string{"*"}
+	}
+
+	return server, nil
+}
+
+// buildPlaywrightMCPServerJSON builds the Playwright MCP server configuration for JSON marshalling
+func (e *CopilotEngine) buildPlaywrightMCPServerJSON(playwrightTool any) (MCPServerJSON, error) {
+	args := generatePlaywrightDockerArgs(playwrightTool)
+	customArgs := getPlaywrightCustomArgs(playwrightTool)
+
+	playwrightPackage := "@playwright/mcp@latest"
+	if args.ImageVersion != "" && args.ImageVersion != "latest" {
+		playwrightPackage = "@playwright/mcp@" + args.ImageVersion
+	}
+
+	server := MCPServerJSON{
+		Type:    "local",
+		Command: "npx",
+		Args:    []string{playwrightPackage, "--output-dir", "/tmp/gh-aw/mcp-logs/playwright"},
+		Tools:   []string{"*"},
+	}
+
+	if len(args.AllowedDomains) > 0 {
+		server.Args = append(server.Args, "--allowed-origins", strings.Join(args.AllowedDomains, ";"))
+	}
+
+	// Append custom args if present
+	if len(customArgs) > 0 {
+		server.Args = append(server.Args, customArgs...)
+	}
+
+	return server, nil
+}
+
+// buildAgenticWorkflowsMCPServerJSON builds the Agentic Workflows MCP server configuration for JSON marshalling
+func (e *CopilotEngine) buildAgenticWorkflowsMCPServerJSON() MCPServerJSON {
+	return MCPServerJSON{
+		Type:    "local",
+		Command: "gh",
+		Args:    []string{"aw", "mcp-server"},
+		Env: map[string]string{
+			"GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+		},
+		Tools: []string{"*"},
+	}
+}
+
+// buildSafeOutputsMCPServerJSON builds the Safe Outputs MCP server configuration for JSON marshalling
+func (e *CopilotEngine) buildSafeOutputsMCPServerJSON() MCPServerJSON {
+	return MCPServerJSON{
+		Type:    "local",
+		Command: "node",
+		Args:    []string{"/tmp/gh-aw/safe-outputs/mcp-server.cjs"},
+		Env: map[string]string{
+			"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
+			"GH_AW_SAFE_OUTPUTS_CONFIG": "${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}",
+			"GH_AW_ASSETS_BRANCH":       "${{ env.GH_AW_ASSETS_BRANCH }}",
+			"GH_AW_ASSETS_MAX_SIZE_KB":  "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}",
+			"GH_AW_ASSETS_ALLOWED_EXTS": "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}",
+		},
+		Tools: []string{"*"},
+	}
+}
+
+// buildWebFetchMCPServerJSON builds the Web Fetch MCP server configuration for JSON marshalling
+func buildWebFetchMCPServerJSON() MCPServerJSON {
+	return MCPServerJSON{
+		Type:    "local",
+		Command: "npx",
+		Args:    []string{"-y", "@modelcontextprotocol/server-fetch"},
+		Tools:   []string{"*"},
+	}
+}
+
+// buildCustomMCPServerJSON builds a custom MCP server configuration for JSON marshalling
+func (e *CopilotEngine) buildCustomMCPServerJSON(toolName string, toolConfig map[string]any, workflowData *WorkflowData) (MCPServerJSON, error) {
+	// Get MCP configuration
+	mcpConfig, err := getMCPConfig(toolConfig, toolName)
+	if err != nil {
+		return MCPServerJSON{}, err
+	}
+
+	// Extract secrets from headers for HTTP MCP tools
+	var headerSecrets map[string]string
+	if mcpConfig.Type == "http" {
+		headerSecrets = extractSecretsFromHeaders(mcpConfig.Headers)
+	}
+
+	server := MCPServerJSON{
+		Type: mcpConfig.Type,
+	}
+
+	// Convert "stdio" to "local" for Copilot CLI
+	if server.Type == "stdio" {
+		server.Type = "local"
+	}
+
+	switch mcpConfig.Type {
+	case "stdio":
+		server.Command = mcpConfig.Command
+		server.Args = mcpConfig.Args
+		
+		// Build env map with inlined secrets
+		if len(mcpConfig.Env) > 0 || len(headerSecrets) > 0 {
+			server.Env = make(map[string]string)
+			for k, v := range mcpConfig.Env {
+				server.Env[k] = v
+			}
+		}
+
+	case "http":
+		server.URL = mcpConfig.URL
+		
+		// Build headers with inlined secrets
+		if len(mcpConfig.Headers) > 0 {
+			server.Headers = make(map[string]string)
+			for k, v := range mcpConfig.Headers {
+				// Inline secrets directly (no env var replacement)
+				server.Headers[k] = v
+			}
+		}
+		
+		// Add env for passthrough (not needed for inline config, but keep for consistency)
+		if len(headerSecrets) > 0 {
+			if server.Env == nil {
+				server.Env = make(map[string]string)
+			}
+			for varName, secretExpr := range headerSecrets {
+				if _, exists := server.Env[varName]; !exists {
+					server.Env[varName] = secretExpr
+				}
+			}
+		}
+	}
+
+	// Add tools field
+	if len(mcpConfig.Allowed) > 0 {
+		server.Tools = mcpConfig.Allowed
+	} else {
+		server.Tools = []string{"*"}
+	}
+
+	return server, nil
+}
+
 
 // renderGitHubCopilotMCPConfig generates the GitHub MCP server configuration for Copilot CLI
 // Supports both local (Docker) and remote (hosted) modes

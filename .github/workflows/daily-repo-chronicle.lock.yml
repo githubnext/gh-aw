@@ -917,62 +917,6 @@ jobs:
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          mkdir -p /home/runner/.copilot
-          cat > /home/runner/.copilot/mcp-config.json << EOF
-          {
-            "mcpServers": {
-              "github": {
-                "type": "local",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_READ_ONLY=1",
-                  "-e",
-                  "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.19.1"
-                ],
-                "tools": [
-                  "list_pull_requests",
-                  "list_issues",
-                  "list_commits",
-                  "get_pull_request",
-                  "get_issue",
-                  "search_issues",
-                  "search_pull_requests",
-                  "list_discussions"
-                ],
-                "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
-                }
-              },
-              "safe_outputs": {
-                "type": "local",
-                "command": "node",
-                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
-                "tools": ["*"],
-                "env": {
-                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\${GH_AW_SAFE_OUTPUTS_CONFIG}",
-                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}"
-                }
-              }
-            }
-          }
-          EOF
-          echo "-------START MCP CONFIG-----------"
-          cat /home/runner/.copilot/mcp-config.json
-          echo "-------END MCP CONFIG-----------"
-          echo "-------/home/runner/.copilot-----------"
-          find /home/runner/.copilot
-          echo "HOME: $HOME"
-          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1252,14 +1196,12 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(get_issue)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_pull_requests)' --allow-tool safe_outputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(get_issue)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_pull_requests)' --allow-tool safe_outputs --additional-mcp-config '{"mcpServers":{"github":{"type":"local","command":"docker","args":["run","-i","--rm","-e","GITHUB_PERSONAL_ACCESS_TOKEN","ghcr.io/github/github-mcp-server:v0.19.1","--read-only"],"env":{"GITHUB_PERSONAL_ACCESS_TOKEN":"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"},"tools":["list_pull_requests","list_issues","list_commits","get_pull_request","get_issue","search_issues","search_pull_requests","list_discussions"]},"safe_outputs":{"type":"local","command":"node","args":["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],"env":{"GH_AW_ASSETS_ALLOWED_EXTS":"${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}","GH_AW_ASSETS_BRANCH":"${{ env.GH_AW_ASSETS_BRANCH }}","GH_AW_ASSETS_MAX_SIZE_KB":"${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}","GH_AW_SAFE_OUTPUTS":"${{ env.GH_AW_SAFE_OUTPUTS }}","GH_AW_SAFE_OUTPUTS_CONFIG":"${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}"},"tools":["*"]}}}' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
           XDG_CONFIG_HOME: /home/runner

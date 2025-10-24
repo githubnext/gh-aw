@@ -211,20 +211,27 @@ This is a test workflow for GitHub remote mode configuration.
 						t.Errorf("Expected no Docker command but found it in:\n%s", lockContent)
 					}
 				} else {
-					// Check for JSON format
-					if !strings.Contains(lockContent, `"type": "http"`) {
-						t.Errorf("Expected HTTP configuration but didn't find 'type: http' in:\n%s", lockContent)
+					// Check for JSON format or inline MCP config in command
+					// For Copilot, the MCP config is now in --additional-mcp-config flag
+					if tt.engineType == "copilot" {
+						// Check for inline JSON in --additional-mcp-config
+						if !strings.Contains(lockContent, `"type":"http"`) {
+							t.Errorf("Expected HTTP configuration in --additional-mcp-config but didn't find 'type:http' in:\n%s", lockContent)
+						}
+					} else {
+						// For other engines, check for file-based JSON config
+						if !strings.Contains(lockContent, `"type": "http"`) {
+							t.Errorf("Expected HTTP configuration but didn't find 'type: http' in:\n%s", lockContent)
+						}
 					}
 					if tt.expectedURL != "" && !strings.Contains(lockContent, tt.expectedURL) {
 						t.Errorf("Expected URL %s but didn't find it in:\n%s", tt.expectedURL, lockContent)
 					}
-					// For Copilot engine, check for new ${} syntax
+					// For Copilot engine, check for inlined token (not env var passthrough)
 					if tt.engineType == "copilot" {
-						if !strings.Contains(lockContent, `"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`) {
-							t.Errorf("Expected Authorization header with ${GITHUB_PERSONAL_ACCESS_TOKEN} syntax but didn't find it in:\n%s", lockContent)
-						}
-						if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`) {
-							t.Errorf("Expected env section with GITHUB_PERSONAL_ACCESS_TOKEN passthrough but didn't find it in:\n%s", lockContent)
+						// The token is now inlined in the MCP config JSON, not using env var passthrough
+						if !strings.Contains(lockContent, `"Authorization":"Bearer ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"`) {
+							t.Errorf("Expected Authorization header with inlined token but didn't find it in:\n%s", lockContent)
 						}
 					} else {
 						// For other engines, check for old GitHub Actions expression syntax
@@ -236,8 +243,16 @@ This is a test workflow for GitHub remote mode configuration.
 					}
 					// Check for X-MCP-Readonly header if this is a read-only test
 					if strings.Contains(tt.name, "read-only") {
-						if !strings.Contains(lockContent, `"X-MCP-Readonly": "true"`) {
-							t.Errorf("Expected X-MCP-Readonly header but didn't find it in:\n%s", lockContent)
+						// For Copilot, check for inline JSON format
+						if tt.engineType == "copilot" {
+							if !strings.Contains(lockContent, `"X-MCP-Readonly":"true"`) {
+								t.Errorf("Expected X-MCP-Readonly header in inline config but didn't find it in:\n%s", lockContent)
+							}
+						} else {
+							// For other engines, check for file-based JSON format
+							if !strings.Contains(lockContent, `"X-MCP-Readonly": "true"`) {
+								t.Errorf("Expected X-MCP-Readonly header but didn't find it in:\n%s", lockContent)
+							}
 						}
 					}
 					// Should NOT contain Docker configuration

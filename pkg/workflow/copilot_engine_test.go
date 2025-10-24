@@ -739,29 +739,10 @@ func TestCopilotEngineRenderMCPConfigWithGitHub(t *testing.T) {
 	engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
 	output := yaml.String()
 
-	// Verify the MCP config structure
-	expectedStrs := []string{
-		"mkdir -p /home/runner/.copilot",
-		`cat > /home/runner/.copilot/mcp-config.json << EOF`,
-		`"mcpServers": {`,
-		`"github": {`,
-		`"type": "local",`,
-		`"command": "docker",`,
-		`"ghcr.io/github/github-mcp-server:custom-version"`,
-		`"GITHUB_PERSONAL_ACCESS_TOKEN",`,
-		`"env": {`,
-		`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
-		`"tools": ["*"]`,
-		"EOF",
-		"-------START MCP CONFIG-----------",
-		"cat /home/runner/.copilot/mcp-config.json",
-		"-------END MCP CONFIG-----------",
-	}
-
-	for _, expected := range expectedStrs {
-		if !strings.Contains(output, expected) {
-			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, output)
-		}
+	// RenderMCPConfig for Copilot engine should now be a no-op
+	// The MCP config is passed via --additional-mcp-config flag in GetExecutionSteps
+	if output != "" {
+		t.Errorf("Expected RenderMCPConfig to be empty (no-op), but got:\n%s", output)
 	}
 }
 
@@ -780,22 +761,10 @@ func TestCopilotEngineRenderMCPConfigWithGitHubAndPlaywright(t *testing.T) {
 	engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
 	output := yaml.String()
 
-	// Verify both tools are configured
-	expectedStrs := []string{
-		`"github": {`,
-		`"type": "local",`,
-		`"command": "docker",`,
-		`"ghcr.io/github/github-mcp-server:v0.19.1"`,
-		`},`, // GitHub should NOT be last (comma after closing brace)
-		`"playwright": {`,
-		`"type": "local",`,
-		`"command": "npx",`,
-	}
-
-	for _, expected := range expectedStrs {
-		if !strings.Contains(output, expected) {
-			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, output)
-		}
+	// RenderMCPConfig for Copilot engine should now be a no-op
+	// The MCP config is passed via --additional-mcp-config flag in GetExecutionSteps
+	if output != "" {
+		t.Errorf("Expected RenderMCPConfig to be empty (no-op), but got:\n%s", output)
 	}
 }
 
@@ -1030,3 +999,62 @@ func TestCopilotEngineExecutionStepsWithCustomAddDirArgs(t *testing.T) {
 		t.Errorf("Expected '--add-dir /custom/path/' in copilot args")
 	}
 }
+
+func TestCopilotEngineMCPConfigJSON(t *testing.T) {
+	engine := NewCopilotEngine()
+	
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Tools: map[string]any{
+			"github": map[string]any{
+				"version":   "custom-version",
+				"read-only": true,
+			},
+			"playwright": nil,
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: 1,
+				},
+			},
+		},
+	}
+	
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+	
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	
+	// Verify --additional-mcp-config is present
+	if !strings.Contains(stepContent, "--additional-mcp-config") {
+		t.Errorf("Expected '--additional-mcp-config' flag in execution step:\n%s", stepContent)
+	}
+	
+	// Verify the MCP config contains the expected servers
+	if !strings.Contains(stepContent, `"github"`) {
+		t.Errorf("Expected MCP config to contain 'github' server")
+	}
+	
+	if !strings.Contains(stepContent, `"playwright"`) {
+		t.Errorf("Expected MCP config to contain 'playwright' server")
+	}
+	
+	if !strings.Contains(stepContent, `"safe_outputs"`) {
+		t.Errorf("Expected MCP config to contain 'safe_outputs' server (note: uses underscore, not hyphen)")
+	}
+	
+	// Verify the GitHub config has inlined token (not env var reference)
+	if !strings.Contains(stepContent, `"GITHUB_PERSONAL_ACCESS_TOKEN":"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"`) {
+		t.Errorf("Expected GitHub MCP config to have inlined token")
+	}
+	
+	// Verify read-only flag is present in the args
+	if !strings.Contains(stepContent, `"--read-only"`) {
+		t.Errorf("Expected GitHub MCP config to contain '--read-only' flag")
+	}
+}
+
