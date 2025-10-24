@@ -102,6 +102,7 @@ var AllowedExpressions = []string{
 	"github.event.workflow_run.conclusion",
 	"github.event.workflow_run.html_url",
 	"github.event.workflow_run.head_sha",
+	"github.event.workflow_run.head_branch",
 	"github.event.workflow_run.run_number",
 	"github.event.workflow_run.event",
 	"github.event.workflow_run.status",
