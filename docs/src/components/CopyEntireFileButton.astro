@@ -209,13 +209,31 @@ const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
           if (navigator.clipboard && window.isSecureContext) {
             await navigator.clipboard.writeText(text);
           } else {
-            // Fallback
+            // Fallback for older browsers and iOS Safari
             const textarea = document.createElement('textarea');
             textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.top = '-9999px';
+            
+            // Make textarea visible but off-screen for iOS Safari compatibility
+            // iOS Safari requires the element to be visible and in the viewport
+            textarea.style.position = 'absolute';
+            textarea.style.left = '-9999px';
+            textarea.style.top = (window.pageYOffset || document.documentElement.scrollTop) + 'px';
+            textarea.style.fontSize = '12pt'; // Prevent iOS zoom on focus
+            textarea.setAttribute('readonly', ''); // Prevent iOS keyboard from showing
+            
             document.body.appendChild(textarea);
-            textarea.select();
+            
+            // iOS Safari requires focus and setSelectionRange
+            textarea.focus();
+            
+            // Try setSelectionRange first (works better on iOS)
+            if (textarea.setSelectionRange) {
+              textarea.setSelectionRange(0, text.length);
+            } else {
+              // Fallback to select() for older browsers
+              textarea.select();
+            }
+            
             document.execCommand('copy');
             document.body.removeChild(textarea);
           }
