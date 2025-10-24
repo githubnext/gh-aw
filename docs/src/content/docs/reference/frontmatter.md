@@ -121,18 +121,9 @@ Enables enhanced validation for production workflows, enforcing security constra
 strict: true  # Enable (default: false)
 ```
 
-**Strict mode enforces:**
-1. No write permissions for `contents`, `issues`, or `pull-requests` (use `safe-outputs` instead)
-2. Explicit network configuration required
-3. No wildcard `*` in `network.allowed`
-4. Network configuration for custom MCP servers with containers
-5. Engine must support network firewalling when network restrictions are specified
+Strict mode enforces: (1) no write permissions for `contents`, `issues`, or `pull-requests` (use `safe-outputs` instead), (2) explicit network configuration required, (3) no wildcard `*` in `network.allowed`, (4) network configuration for custom MCP servers with containers.
 
 Enable with `strict: true` in frontmatter or `gh aw compile --strict` (CLI flag applies to all workflows and takes precedence). Use for production workflows requiring enhanced security validation or security policy compliance.
-
-:::note
-In strict mode, workflows with network restrictions (via `network.allowed`) must use an engine that supports firewalling (currently only Copilot). See [Engine Capabilities](/gh-aw/reference/engines/#engine-capabilities) for details.
-:::
 
 ### AI Engine (`engine:`)
 
