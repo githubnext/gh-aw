@@ -24,6 +24,10 @@ tools:
     - "git commit"
     - "git config"
     - "git branch"
+    - "make recompile"
+    - "make fmt"
+    - "make lint"
+    - "make test-unit"
     - "cat"
     - "echo"
     - "ls"
@@ -179,19 +183,82 @@ git status --short | grep '^UU' || git status --short | grep '^AA' || true
    git add .github/workflows/*.yml 2>/dev/null || true
    ```
 
-3. **For other conflicts**:
+3. **For `.lock.yml` files in `.github/workflows/`**:
+   - These are compiled workflow files that can be regenerated
+   - Accept the merge and then recompile:
+   ```bash
+   # Check if there are any .lock.yml conflicts
+   LOCK_CONFLICTS=$(git status --short | grep '\.lock\.yml$' || true)
+   
+   if [ -n "$LOCK_CONFLICTS" ]; then
+     echo "📋 Detected .lock.yml conflicts, will regenerate after merge"
+     # Accept the incoming changes (theirs) for lock files
+     git checkout --theirs .github/workflows/*.lock.yml 2>/dev/null || true
+     git add .github/workflows/*.lock.yml 2>/dev/null || true
+   fi
+   ```
+
+4. **For other conflicts**:
    - Analyze the conflicts using git tools
    - Use your knowledge of the repository structure to make informed decisions
    - For documentation files, prefer newer/main branch version
    - For code files, attempt to merge intelligently or keep both versions with markers
    - When in doubt, keep the PR version and document the conflict
 
-4. **Complete the merge**:
+5. **Complete the merge**:
 ```bash
 git merge --continue || git commit --no-edit -m "Resolve merge conflicts from main"
 ```
 
-### 8. Verify No Workflow YML Files Are Staged
+6. **If there were .lock.yml conflicts, recompile workflows**:
+```bash
+# Check if we resolved any .lock.yml conflicts
+if git log -1 --stat | grep '\.lock\.yml'; then
+  echo "🔄 Recompiling workflows after .lock.yml conflicts"
+  make recompile
+  
+  # Stage the recompiled files (but NOT .yml files, only .lock.yml and .md)
+  git add .github/workflows/*.lock.yml 2>/dev/null || true
+  git add .github/workflows/*.md 2>/dev/null || true
+  
+  # Commit the recompiled files if there are changes
+  if ! git diff --cached --quiet; then
+    git commit -m "Recompile workflows after merge conflict resolution"
+  fi
+fi
+```
+
+### 8. Format, Lint, Test, and Recompile
+
+After the merge is complete, ensure code quality:
+
+```bash
+# Format the code
+echo "🎨 Formatting code..."
+make fmt
+
+# Lint the code
+echo "🔍 Linting code..."
+make lint
+
+# Run unit tests
+echo "🧪 Running tests..."
+make test-unit
+
+# Recompile all workflows to ensure they're up to date
+echo "🔄 Recompiling workflows..."
+make recompile
+
+# Stage any changes from formatting or recompilation
+git add -A
+
+# Commit if there are changes
+if ! git diff --cached --quiet; then
+  git commit -m "Format, lint, and recompile after merge"
+fi
+```
+
+### 9. Verify No Workflow YML Files Are Staged
 
 Before pushing, double-check that no `.yml` files from `.github/workflows/` are staged:
 
@@ -214,7 +281,7 @@ fi
 git status
 ```
 
-### 9. Push Changes to Pull Request Branch
+### 10. Push Changes to Pull Request Branch
 
 Use the safe-outputs system to push changes back to the PR branch:
 
@@ -236,6 +303,8 @@ The `push-to-pull-request-branch` safe output will automatically:
 
 - **Be Careful**: This operation modifies the PR branch directly
 - **Never Commit Workflow YMLs**: Always exclude `.github/workflows/*.yml` files
+- **Recompile After Lock File Conflicts**: Run `make recompile` if `.lock.yml` files had conflicts
+- **Format, Lint, Test**: Always run `make fmt`, `make lint`, `make test-unit`, and `make recompile` after merge
 - **Verify Before Pushing**: Always check what's staged before pushing
 - **Handle Conflicts Intelligently**: Use repository knowledge to resolve conflicts
 - **Document Actions**: Explain what was merged and any conflicts resolved
