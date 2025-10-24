@@ -158,7 +158,7 @@ func GenerateOIDCRevokeStep(oidcConfig *OIDCConfig) GitHubActionStep {
 
 	stepLines = append(stepLines, "      - name: Revoke OIDC token")
 	stepLines = append(stepLines, "        id: revoke_oidc_token")
-	stepLines = append(stepLines, "        if: always() && steps.setup_oidc_token.outputs.token != ''")
+	stepLines = append(stepLines, "        if: always() && steps.setup_oidc_token.outputs.token_source == 'oauth'")
 	stepLines = append(stepLines, "        uses: actions/github-script@v8")
 	stepLines = append(stepLines, "        env:")
 

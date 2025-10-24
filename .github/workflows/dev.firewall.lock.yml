@@ -584,7 +584,822 @@ jobs:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
         with:
           script: |
-            function main() {              const fs = require("fs");              const path = require("path");              try {                const logPath = process.env.GH_AW_AGENT_OUTPUT;                if (!logPath) {                  core.info("No agent log file specified");                  return;                }                if (!fs.existsSync(logPath)) {                  core.info(`Log path not found: ${logPath}`);                  return;                }                let content = "";                const stat = fs.statSync(logPath);                if (stat.isDirectory()) {                  const files = fs.readdirSync(logPath);                  const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));                  if (logFiles.length === 0) {                    core.info(`No log files found in directory: ${logPath}`);                    return;                  }                  logFiles.sort();                  for (const file of logFiles) {                    const filePath = path.join(logPath, file);                    const fileContent = fs.readFileSync(filePath, "utf8");                    content += fileContent;                    if (content.length > 0 && !content.endsWith("\n")) {                      content += "\n";                    }                  }                } else {                  content = fs.readFileSync(logPath, "utf8");                }                const parsedLog = parseCopilotLog(content);                if (parsedLog) {                  core.info(parsedLog);                  core.summary.addRaw(parsedLog).write();                  core.info("Copilot log parsed successfully");                } else {                  core.error("Failed to parse Copilot log");                }              } catch (error) {                core.setFailed(error instanceof Error ? error : String(error));              }            }            function extractPremiumRequestCount(logContent) {              const patterns = [                /premium\s+requests?\s+consumed:?\s*(\d+)/i,                /(\d+)\s+premium\s+requests?\s+consumed/i,                /consumed\s+(\d+)\s+premium\s+requests?/i,              ];              for (const pattern of patterns) {                const match = logContent.match(pattern);                if (match && match[1]) {                  const count = parseInt(match[1], 10);                  if (!isNaN(count) && count > 0) {                    return count;                  }                }              }              return 1;            }            function parseCopilotLog(logContent) {              try {                let logEntries;                try {                  logEntries = JSON.parse(logContent);                  if (!Array.isArray(logEntries)) {                    throw new Error("Not a JSON array");                  }                } catch (jsonArrayError) {                  const debugLogEntries = parseDebugLogFormat(logContent);                  if (debugLogEntries && debugLogEntries.length > 0) {                    logEntries = debugLogEntries;                  } else {                    logEntries = [];                    const lines = logContent.split("\n");                    for (const line of lines) {                      const trimmedLine = line.trim();                      if (trimmedLine === "") {                        continue;                       }                      if (trimmedLine.startsWith("[{")) {                        try {                          const arrayEntries = JSON.parse(trimmedLine);                          if (Array.isArray(arrayEntries)) {                            logEntries.push(...arrayEntries);                            continue;                          }                        } catch (arrayParseError) {                          continue;                        }                      }                      if (!trimmedLine.startsWith("{")) {                        continue;                      }                      try {                        const jsonEntry = JSON.parse(trimmedLine);                        logEntries.push(jsonEntry);                      } catch (jsonLineError) {                        continue;                      }                    }                  }                }                if (!Array.isArray(logEntries) || logEntries.length === 0) {                  return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";                }                const toolUsePairs = new Map();                 for (const entry of logEntries) {                  if (entry.type === "user" && entry.message?.content) {                    for (const content of entry.message.content) {                      if (content.type === "tool_result" && content.tool_use_id) {                        toolUsePairs.set(content.tool_use_id, content);                      }                    }                  }                }                let markdown = "";                const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");                if (initEntry) {                  markdown += "## 🚀 Initialization\n\n";                  markdown += formatInitializationSummary(initEntry);                  markdown += "\n";                }                markdown += "\n## 🤖 Reasoning\n\n";                for (const entry of logEntries) {                  if (entry.type === "assistant" && entry.message?.content) {                    for (const content of entry.message.content) {                      if (content.type === "text" && content.text) {                        const text = content.text.trim();                        if (text && text.length > 0) {                          markdown += text + "\n\n";                        }                      } else if (content.type === "tool_use") {                        const toolResult = toolUsePairs.get(content.id);                        const toolMarkdown = formatToolUseWithDetails(content, toolResult);                        if (toolMarkdown) {                          markdown += toolMarkdown;                        }                      }                    }                  }                }                markdown += "## 🤖 Commands and Tools\n\n";                const commandSummary = [];                 for (const entry of logEntries) {                  if (entry.type === "assistant" && entry.message?.content) {                    for (const content of entry.message.content) {                      if (content.type === "tool_use") {                        const toolName = content.name;                        const input = content.input || {};                        if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {                          continue;                        }                        const toolResult = toolUsePairs.get(content.id);                        let statusIcon = "❓";                        if (toolResult) {                          statusIcon = toolResult.is_error === true ? "❌" : "✅";                        }                        if (toolName === "Bash") {                          const formattedCommand = formatBashCommand(input.command || "");                          commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);                        } else if (toolName.startsWith("mcp__")) {                          const mcpName = formatMcpName(toolName);                          commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);                        } else {                          commandSummary.push(`* ${statusIcon} ${toolName}`);                        }                      }                    }                  }                }                if (commandSummary.length > 0) {                  for (const cmd of commandSummary) {                    markdown += `${cmd}\n`;                  }                } else {                  markdown += "No commands or tools used.\n";                }                markdown += "\n## 📊 Information\n\n";                const lastEntry = logEntries[logEntries.length - 1];                if (lastEntry && (lastEntry.num_turns || lastEntry.duration_ms || lastEntry.total_cost_usd || lastEntry.usage)) {                  if (lastEntry.num_turns) {                    markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;                  }                  if (lastEntry.duration_ms) {                    const durationSec = Math.round(lastEntry.duration_ms / 1000);                    const minutes = Math.floor(durationSec / 60);                    const seconds = durationSec % 60;                    markdown += `**Duration:** ${minutes}m ${seconds}s\n\n`;                  }                  if (lastEntry.total_cost_usd) {                    markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;                  }                  const isPremiumModel =                    initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;                  if (isPremiumModel) {                    const premiumRequestCount = extractPremiumRequestCount(logContent);                    markdown += `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;                  }                  if (lastEntry.usage) {                    const usage = lastEntry.usage;                    if (usage.input_tokens || usage.output_tokens) {                      markdown += `**Token Usage:**\n`;                      if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;                      if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;                      if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;                      if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;                      markdown += "\n";                    }                  }                }                return markdown;              } catch (error) {                const errorMessage = error instanceof Error ? error.message : String(error);                return `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`;              }            }            function parseDebugLogFormat(logContent) {              const entries = [];              const lines = logContent.split("\n");              let model = "unknown";              let sessionId = null;              let modelInfo = null;              let tools = [];              const modelMatch = logContent.match(/Starting Copilot CLI: ([\d.]+)/);              if (modelMatch) {                sessionId = `copilot-${modelMatch[1]}-${Date.now()}`;              }              const gotModelInfoIndex = logContent.indexOf("[DEBUG] Got model info: {");              if (gotModelInfoIndex !== -1) {                const jsonStart = logContent.indexOf("{", gotModelInfoIndex);                if (jsonStart !== -1) {                  let braceCount = 0;                  let inString = false;                  let escapeNext = false;                  let jsonEnd = -1;                  for (let i = jsonStart; i < logContent.length; i++) {                    const char = logContent[i];                    if (escapeNext) {                      escapeNext = false;                      continue;                    }                    if (char === "\\") {                      escapeNext = true;                      continue;                    }                    if (char === '"' && !escapeNext) {                      inString = !inString;                      continue;                    }                    if (inString) continue;                    if (char === "{") {                      braceCount++;                    } else if (char === "}") {                      braceCount--;                      if (braceCount === 0) {                        jsonEnd = i + 1;                        break;                      }                    }                  }                  if (jsonEnd !== -1) {                    const modelInfoJson = logContent.substring(jsonStart, jsonEnd);                    try {                      modelInfo = JSON.parse(modelInfoJson);                    } catch (e) {                    }                  }                }              }              const toolsIndex = logContent.indexOf("[DEBUG] Tools:");              if (toolsIndex !== -1) {                const afterToolsLine = logContent.indexOf("\n", toolsIndex);                let toolsStart = logContent.indexOf("[DEBUG] [", afterToolsLine);                if (toolsStart !== -1) {                  toolsStart = logContent.indexOf("[", toolsStart + 7);                 }                if (toolsStart !== -1) {                  let bracketCount = 0;                  let inString = false;                  let escapeNext = false;                  let toolsEnd = -1;                  for (let i = toolsStart; i < logContent.length; i++) {                    const char = logContent[i];                    if (escapeNext) {                      escapeNext = false;                      continue;                    }                    if (char === "\\") {                      escapeNext = true;                      continue;                    }                    if (char === '"' && !escapeNext) {                      inString = !inString;                      continue;                    }                    if (inString) continue;                    if (char === "[") {                      bracketCount++;                    } else if (char === "]") {                      bracketCount--;                      if (bracketCount === 0) {                        toolsEnd = i + 1;                        break;                      }                    }                  }                  if (toolsEnd !== -1) {                    let toolsJson = logContent.substring(toolsStart, toolsEnd);                    toolsJson = toolsJson.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /gm, "");                    try {                      const toolsArray = JSON.parse(toolsJson);                      if (Array.isArray(toolsArray)) {                        tools = toolsArray                          .map(tool => {                            if (tool.type === "function" && tool.function && tool.function.name) {                              let name = tool.function.name;                              if (name.startsWith("github-")) {                                name = "mcp__github__" + name.substring(7);                              } else if (name.startsWith("safe_outputs-")) {                                name = name;                               }                              return name;                            }                            return null;                          })                          .filter(name => name !== null);                      }                    } catch (e) {                    }                  }                }              }              let inDataBlock = false;              let currentJsonLines = [];              let turnCount = 0;              for (let i = 0; i < lines.length; i++) {                const line = lines[i];                if (line.includes("[DEBUG] data:")) {                  inDataBlock = true;                  currentJsonLines = [];                  continue;                }                if (inDataBlock) {                  const hasTimestamp = line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z /);                  if (hasTimestamp) {                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");                    const isJsonContent = /^[{\[}\]"]/.test(cleanLine) || cleanLine.trim().startsWith('"');                    if (!isJsonContent) {                      if (currentJsonLines.length > 0) {                        try {                          const jsonStr = currentJsonLines.join("\n");                          const jsonData = JSON.parse(jsonStr);                          if (jsonData.model) {                            model = jsonData.model;                          }                          if (jsonData.choices && Array.isArray(jsonData.choices)) {                            for (const choice of jsonData.choices) {                              if (choice.message) {                                const message = choice.message;                                const content = [];                                const toolResults = [];                                 if (message.content && message.content.trim()) {                                  content.push({                                    type: "text",                                    text: message.content,                                  });                                }                                if (message.tool_calls && Array.isArray(message.tool_calls)) {                                  for (const toolCall of message.tool_calls) {                                    if (toolCall.function) {                                      let toolName = toolCall.function.name;                                      let args = {};                                      if (toolName.startsWith("github-")) {                                        toolName = "mcp__github__" + toolName.substring(7);                                      } else if (toolName === "bash") {                                        toolName = "Bash";                                      }                                      try {                                        args = JSON.parse(toolCall.function.arguments);                                      } catch (e) {                                        args = {};                                      }                                      const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;                                      content.push({                                        type: "tool_use",                                        id: toolId,                                        name: toolName,                                        input: args,                                      });                                      toolResults.push({                                        type: "tool_result",                                        tool_use_id: toolId,                                        content: "",                                         is_error: false,                                       });                                    }                                  }                                }                                if (content.length > 0) {                                  entries.push({                                    type: "assistant",                                    message: { content },                                  });                                  turnCount++;                                  if (toolResults.length > 0) {                                    entries.push({                                      type: "user",                                      message: { content: toolResults },                                    });                                  }                                }                              }                            }                            if (jsonData.usage) {                              if (!entries._accumulatedUsage) {                                entries._accumulatedUsage = {                                  input_tokens: 0,                                  output_tokens: 0,                                };                              }                              if (jsonData.usage.prompt_tokens) {                                entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;                              }                              if (jsonData.usage.completion_tokens) {                                entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;                              }                              entries._lastResult = {                                type: "result",                                num_turns: turnCount,                                usage: entries._accumulatedUsage,                              };                            }                          }                        } catch (e) {                        }                      }                      inDataBlock = false;                      currentJsonLines = [];                      continue;                     } else if (hasTimestamp && isJsonContent) {                      currentJsonLines.push(cleanLine);                    }                  } else {                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");                    currentJsonLines.push(cleanLine);                  }                }              }              if (inDataBlock && currentJsonLines.length > 0) {                try {                  const jsonStr = currentJsonLines.join("\n");                  const jsonData = JSON.parse(jsonStr);                  if (jsonData.model) {                    model = jsonData.model;                  }                  if (jsonData.choices && Array.isArray(jsonData.choices)) {                    for (const choice of jsonData.choices) {                      if (choice.message) {                        const message = choice.message;                        const content = [];                        const toolResults = [];                         if (message.content && message.content.trim()) {                          content.push({                            type: "text",                            text: message.content,                          });                        }                        if (message.tool_calls && Array.isArray(message.tool_calls)) {                          for (const toolCall of message.tool_calls) {                            if (toolCall.function) {                              let toolName = toolCall.function.name;                              let args = {};                              if (toolName.startsWith("github-")) {                                toolName = "mcp__github__" + toolName.substring(7);                              } else if (toolName === "bash") {                                toolName = "Bash";                              }                              try {                                args = JSON.parse(toolCall.function.arguments);                              } catch (e) {                                args = {};                              }                              const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;                              content.push({                                type: "tool_use",                                id: toolId,                                name: toolName,                                input: args,                              });                              toolResults.push({                                type: "tool_result",                                tool_use_id: toolId,                                content: "",                                 is_error: false,                               });                            }                          }                        }                        if (content.length > 0) {                          entries.push({                            type: "assistant",                            message: { content },                          });                          turnCount++;                          if (toolResults.length > 0) {                            entries.push({                              type: "user",                              message: { content: toolResults },                            });                          }                        }                      }                    }                    if (jsonData.usage) {                      if (!entries._accumulatedUsage) {                        entries._accumulatedUsage = {                          input_tokens: 0,                          output_tokens: 0,                        };                      }                      if (jsonData.usage.prompt_tokens) {                        entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;                      }                      if (jsonData.usage.completion_tokens) {                        entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;                      }                      entries._lastResult = {                        type: "result",                        num_turns: turnCount,                        usage: entries._accumulatedUsage,                      };                    }                  }                } catch (e) {                }              }              if (entries.length > 0) {                const initEntry = {                  type: "system",                  subtype: "init",                  session_id: sessionId,                  model: model,                  tools: tools,                 };                if (modelInfo) {                  initEntry.model_info = modelInfo;                }                entries.unshift(initEntry);                if (entries._lastResult) {                  entries.push(entries._lastResult);                  delete entries._lastResult;                }              }              return entries;            }            function formatInitializationSummary(initEntry) {              let markdown = "";              if (initEntry.model) {                markdown += `**Model:** ${initEntry.model}\n\n`;              }              if (initEntry.model_info) {                const modelInfo = initEntry.model_info;                if (modelInfo.name) {                  markdown += `**Model Name:** ${modelInfo.name}`;                  if (modelInfo.vendor) {                    markdown += ` (${modelInfo.vendor})`;                  }                  markdown += "\n\n";                }                if (modelInfo.billing) {                  const billing = modelInfo.billing;                  if (billing.is_premium === true) {                    markdown += `**Premium Model:** Yes`;                    if (billing.multiplier && billing.multiplier !== 1) {                      markdown += ` (${billing.multiplier}x cost multiplier)`;                    }                    markdown += "\n";                    if (billing.restricted_to && Array.isArray(billing.restricted_to) && billing.restricted_to.length > 0) {                      markdown += `**Required Plans:** ${billing.restricted_to.join(", ")}\n`;                    }                    markdown += "\n";                  } else if (billing.is_premium === false) {                    markdown += `**Premium Model:** No\n\n`;                  }                }              }              if (initEntry.session_id) {                markdown += `**Session ID:** ${initEntry.session_id}\n\n`;              }              if (initEntry.cwd) {                const cleanCwd = initEntry.cwd.replace(/^\/home\/runner\/work\/[^\/]+\/[^\/]+/, ".");                markdown += `**Working Directory:** ${cleanCwd}\n\n`;              }              if (initEntry.mcp_servers && Array.isArray(initEntry.mcp_servers)) {                markdown += "**MCP Servers:**\n";                for (const server of initEntry.mcp_servers) {                  const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "❓";                  markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;                }                markdown += "\n";              }              if (initEntry.tools && Array.isArray(initEntry.tools)) {                markdown += "**Available Tools:**\n";                const categories = {                  Core: [],                  "File Operations": [],                  "Git/GitHub": [],                  MCP: [],                  Other: [],                };                for (const tool of initEntry.tools) {                  if (["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(tool)) {                    categories["Core"].push(tool);                  } else if (["Read", "Edit", "MultiEdit", "Write", "LS", "Grep", "Glob", "NotebookEdit"].includes(tool)) {                    categories["File Operations"].push(tool);                  } else if (tool.startsWith("mcp__github__")) {                    categories["Git/GitHub"].push(formatMcpName(tool));                  } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {                    categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);                  } else {                    categories["Other"].push(tool);                  }                }                for (const [category, tools] of Object.entries(categories)) {                  if (tools.length > 0) {                    markdown += `- **${category}:** ${tools.length} tools\n`;                    if (tools.length <= 5) {                      markdown += `  - ${tools.join(", ")}\n`;                    } else {                      markdown += `  - ${tools.slice(0, 3).join(", ")}, and ${tools.length - 3} more\n`;                    }                  }                }                markdown += "\n";              }              return markdown;            }            function estimateTokens(text) {              if (!text) return 0;              return Math.ceil(text.length / 4);            }            function formatDuration(ms) {              if (!ms || ms <= 0) return "";              const seconds = Math.round(ms / 1000);              if (seconds < 60) {                return `${seconds}s`;              }              const minutes = Math.floor(seconds / 60);              const remainingSeconds = seconds % 60;              if (remainingSeconds === 0) {                return `${minutes}m`;              }              return `${minutes}m ${remainingSeconds}s`;            }            function formatToolUseWithDetails(toolUse, toolResult) {              const toolName = toolUse.name;              const input = toolUse.input || {};              if (toolName === "TodoWrite") {                return "";              }              function getStatusIcon() {                if (toolResult) {                  return toolResult.is_error === true ? "❌" : "✅";                }                return "❓";               }              const statusIcon = getStatusIcon();              let summary = "";              let details = "";              if (toolResult && toolResult.content) {                if (typeof toolResult.content === "string") {                  details = toolResult.content;                } else if (Array.isArray(toolResult.content)) {                  details = toolResult.content.map(c => (typeof c === "string" ? c : c.text || "")).join("\n");                }              }              const inputText = JSON.stringify(input);              const outputText = details;              const totalTokens = estimateTokens(inputText) + estimateTokens(outputText);              let metadata = "";              if (toolResult && toolResult.duration_ms) {                metadata += ` <code>${formatDuration(toolResult.duration_ms)}</code>`;              }              if (totalTokens > 0) {                metadata += ` <code>~${totalTokens}t</code>`;              }              switch (toolName) {                case "Bash":                  const command = input.command || "";                  const description = input.description || "";                  const formattedCommand = formatBashCommand(command);                  if (description) {                    summary = `${statusIcon} ${description}: <code>${formattedCommand}</code>${metadata}`;                  } else {                    summary = `${statusIcon} <code>${formattedCommand}</code>${metadata}`;                  }                  break;                case "Read":                  const filePath = input.file_path || input.path || "";                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");                  summary = `${statusIcon} Read <code>${relativePath}</code>${metadata}`;                  break;                case "Write":                case "Edit":                case "MultiEdit":                  const writeFilePath = input.file_path || input.path || "";                  const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");                  summary = `${statusIcon} Write <code>${writeRelativePath}</code>${metadata}`;                  break;                case "Grep":                case "Glob":                  const query = input.query || input.pattern || "";                  summary = `${statusIcon} Search for <code>${truncateString(query, 80)}</code>${metadata}`;                  break;                case "LS":                  const lsPath = input.path || "";                  const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");                  summary = `${statusIcon} LS: ${lsRelativePath || lsPath}${metadata}`;                  break;                default:                  if (toolName.startsWith("mcp__")) {                    const mcpName = formatMcpName(toolName);                    const params = formatMcpParameters(input);                    summary = `${statusIcon} ${mcpName}(${params})${metadata}`;                  } else {                    const keys = Object.keys(input);                    if (keys.length > 0) {                      const mainParam = keys.find(k => ["query", "command", "path", "file_path", "content"].includes(k)) || keys[0];                      const value = String(input[mainParam] || "");                      if (value) {                        summary = `${statusIcon} ${toolName}: ${truncateString(value, 100)}${metadata}`;                      } else {                        summary = `${statusIcon} ${toolName}${metadata}`;                      }                    } else {                      summary = `${statusIcon} ${toolName}${metadata}`;                    }                  }              }              if (details && details.trim()) {                let detailsContent = "";                const inputKeys = Object.keys(input);                if (inputKeys.length > 0) {                  detailsContent += "**Parameters:**\n\n";                  detailsContent += "``````json\n";                  detailsContent += JSON.stringify(input, null, 2);                  detailsContent += "\n``````\n\n";                }                detailsContent += "**Response:**\n\n";                detailsContent += "``````\n";                detailsContent += details;                detailsContent += "\n``````";                return `<details>\n<summary>${summary}</summary>\n\n${detailsContent}\n</details>\n\n`;              } else {                return `${summary}\n\n`;              }            }            function formatMcpName(toolName) {              if (toolName.startsWith("mcp__")) {                const parts = toolName.split("__");                if (parts.length >= 3) {                  const provider = parts[1];                  const method = parts.slice(2).join("_");                  return `${provider}::${method}`;                }              }              return toolName;            }            function formatMcpParameters(input) {              const keys = Object.keys(input);              if (keys.length === 0) return "";              const paramStrs = [];              for (const key of keys.slice(0, 4)) {                const value = String(input[key] || "");                paramStrs.push(`${key}: ${truncateString(value, 40)}`);              }              if (keys.length > 4) {                paramStrs.push("...");              }              return paramStrs.join(", ");            }            function formatBashCommand(command) {              if (!command) return "";              let formatted = command.replace(/\n/g, " ").replace(/\r/g, " ").replace(/\t/g, " ").replace(/\s+/g, " ").trim();              formatted = formatted.replace(/`/g, "\\`");              const maxLength = 80;              if (formatted.length > maxLength) {                formatted = formatted.substring(0, maxLength) + "...";              }              return formatted;            }            function truncateString(str, maxLength) {              if (!str) return "";              if (str.length <= maxLength) return str;              return str.substring(0, maxLength) + "...";            }            if (typeof module !== "undefined" && module.exports) {              module.exports = {                parseCopilotLog,                extractPremiumRequestCount,                formatInitializationSummary,                formatToolUseWithDetails,                formatBashCommand,                truncateString,                formatMcpName,                formatMcpParameters,                estimateTokens,                formatDuration,              };            }            main();      - name: Upload Agent Stdio
+            function main() {
+              const fs = require("fs");
+              const path = require("path");
+              try {
+                const logPath = process.env.GH_AW_AGENT_OUTPUT;
+                if (!logPath) {
+                  core.info("No agent log file specified");
+                  return;
+                }
+                if (!fs.existsSync(logPath)) {
+                  core.info(`Log path not found: ${logPath}`);
+                  return;
+                }
+                let content = "";
+                const stat = fs.statSync(logPath);
+                if (stat.isDirectory()) {
+                  const files = fs.readdirSync(logPath);
+                  const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
+                  if (logFiles.length === 0) {
+                    core.info(`No log files found in directory: ${logPath}`);
+                    return;
+                  }
+                  logFiles.sort();
+                  for (const file of logFiles) {
+                    const filePath = path.join(logPath, file);
+                    const fileContent = fs.readFileSync(filePath, "utf8");
+                    content += fileContent;
+                    if (content.length > 0 && !content.endsWith("\n")) {
+                      content += "\n";
+                    }
+                  }
+                } else {
+                  content = fs.readFileSync(logPath, "utf8");
+                }
+                const parsedLog = parseCopilotLog(content);
+                if (parsedLog) {
+                  core.info(parsedLog);
+                  core.summary.addRaw(parsedLog).write();
+                  core.info("Copilot log parsed successfully");
+                } else {
+                  core.error("Failed to parse Copilot log");
+                }
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            function extractPremiumRequestCount(logContent) {
+              const patterns = [
+                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
+                /(\d+)\s+premium\s+requests?\s+consumed/i,
+                /consumed\s+(\d+)\s+premium\s+requests?/i,
+              ];
+              for (const pattern of patterns) {
+                const match = logContent.match(pattern);
+                if (match && match[1]) {
+                  const count = parseInt(match[1], 10);
+                  if (!isNaN(count) && count > 0) {
+                    return count;
+                  }
+                }
+              }
+              return 1;
+            }
+            function parseCopilotLog(logContent) {
+              try {
+                let logEntries;
+                try {
+                  logEntries = JSON.parse(logContent);
+                  if (!Array.isArray(logEntries)) {
+                    throw new Error("Not a JSON array");
+                  }
+                } catch (jsonArrayError) {
+                  const debugLogEntries = parseDebugLogFormat(logContent);
+                  if (debugLogEntries && debugLogEntries.length > 0) {
+                    logEntries = debugLogEntries;
+                  } else {
+                    logEntries = [];
+                    const lines = logContent.split("\n");
+                    for (const line of lines) {
+                      const trimmedLine = line.trim();
+                      if (trimmedLine === "") {
+                        continue; 
+                      }
+                      if (trimmedLine.startsWith("[{")) {
+                        try {
+                          const arrayEntries = JSON.parse(trimmedLine);
+                          if (Array.isArray(arrayEntries)) {
+                            logEntries.push(...arrayEntries);
+                            continue;
+                          }
+                        } catch (arrayParseError) {
+                          continue;
+                        }
+                      }
+                      if (!trimmedLine.startsWith("{")) {
+                        continue;
+                      }
+                      try {
+                        const jsonEntry = JSON.parse(trimmedLine);
+                        logEntries.push(jsonEntry);
+                      } catch (jsonLineError) {
+                        continue;
+                      }
+                    }
+                  }
+                }
+                if (!Array.isArray(logEntries) || logEntries.length === 0) {
+                  return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";
+                }
+                const toolUsePairs = new Map(); 
+                for (const entry of logEntries) {
+                  if (entry.type === "user" && entry.message?.content) {
+                    for (const content of entry.message.content) {
+                      if (content.type === "tool_result" && content.tool_use_id) {
+                        toolUsePairs.set(content.tool_use_id, content);
+                      }
+                    }
+                  }
+                }
+                let markdown = "";
+                const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+                if (initEntry) {
+                  markdown += "## 🚀 Initialization\n\n";
+                  markdown += formatInitializationSummary(initEntry);
+                  markdown += "\n";
+                }
+                markdown += "\n## 🤖 Reasoning\n\n";
+                for (const entry of logEntries) {
+                  if (entry.type === "assistant" && entry.message?.content) {
+                    for (const content of entry.message.content) {
+                      if (content.type === "text" && content.text) {
+                        const text = content.text.trim();
+                        if (text && text.length > 0) {
+                          markdown += text + "\n\n";
+                        }
+                      } else if (content.type === "tool_use") {
+                        const toolResult = toolUsePairs.get(content.id);
+                        const toolMarkdown = formatToolUseWithDetails(content, toolResult);
+                        if (toolMarkdown) {
+                          markdown += toolMarkdown;
+                        }
+                      }
+                    }
+                  }
+                }
+                markdown += "## 🤖 Commands and Tools\n\n";
+                const commandSummary = []; 
+                for (const entry of logEntries) {
+                  if (entry.type === "assistant" && entry.message?.content) {
+                    for (const content of entry.message.content) {
+                      if (content.type === "tool_use") {
+                        const toolName = content.name;
+                        const input = content.input || {};
+                        if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
+                          continue;
+                        }
+                        const toolResult = toolUsePairs.get(content.id);
+                        let statusIcon = "❓";
+                        if (toolResult) {
+                          statusIcon = toolResult.is_error === true ? "❌" : "✅";
+                        }
+                        if (toolName === "Bash") {
+                          const formattedCommand = formatBashCommand(input.command || "");
+                          commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
+                        } else if (toolName.startsWith("mcp__")) {
+                          const mcpName = formatMcpName(toolName);
+                          commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
+                        } else {
+                          commandSummary.push(`* ${statusIcon} ${toolName}`);
+                        }
+                      }
+                    }
+                  }
+                }
+                if (commandSummary.length > 0) {
+                  for (const cmd of commandSummary) {
+                    markdown += `${cmd}\n`;
+                  }
+                } else {
+                  markdown += "No commands or tools used.\n";
+                }
+                markdown += "\n## 📊 Information\n\n";
+                const lastEntry = logEntries[logEntries.length - 1];
+                if (lastEntry && (lastEntry.num_turns || lastEntry.duration_ms || lastEntry.total_cost_usd || lastEntry.usage)) {
+                  if (lastEntry.num_turns) {
+                    markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
+                  }
+                  if (lastEntry.duration_ms) {
+                    const durationSec = Math.round(lastEntry.duration_ms / 1000);
+                    const minutes = Math.floor(durationSec / 60);
+                    const seconds = durationSec % 60;
+                    markdown += `**Duration:** ${minutes}m ${seconds}s\n\n`;
+                  }
+                  if (lastEntry.total_cost_usd) {
+                    markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
+                  }
+                  const isPremiumModel =
+                    initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+                  if (isPremiumModel) {
+                    const premiumRequestCount = extractPremiumRequestCount(logContent);
+                    markdown += `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
+                  }
+                  if (lastEntry.usage) {
+                    const usage = lastEntry.usage;
+                    if (usage.input_tokens || usage.output_tokens) {
+                      markdown += `**Token Usage:**\n`;
+                      if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
+                      if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
+                      if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
+                      if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
+                      markdown += "\n";
+                    }
+                  }
+                }
+                return markdown;
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                return `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`;
+              }
+            }
+            function parseDebugLogFormat(logContent) {
+              const entries = [];
+              const lines = logContent.split("\n");
+              let model = "unknown";
+              let sessionId = null;
+              let modelInfo = null;
+              let tools = [];
+              const modelMatch = logContent.match(/Starting Copilot CLI: ([\d.]+)/);
+              if (modelMatch) {
+                sessionId = `copilot-${modelMatch[1]}-${Date.now()}`;
+              }
+              const gotModelInfoIndex = logContent.indexOf("[DEBUG] Got model info: {");
+              if (gotModelInfoIndex !== -1) {
+                const jsonStart = logContent.indexOf("{", gotModelInfoIndex);
+                if (jsonStart !== -1) {
+                  let braceCount = 0;
+                  let inString = false;
+                  let escapeNext = false;
+                  let jsonEnd = -1;
+                  for (let i = jsonStart; i < logContent.length; i++) {
+                    const char = logContent[i];
+                    if (escapeNext) {
+                      escapeNext = false;
+                      continue;
+                    }
+                    if (char === "\\") {
+                      escapeNext = true;
+                      continue;
+                    }
+                    if (char === '"' && !escapeNext) {
+                      inString = !inString;
+                      continue;
+                    }
+                    if (inString) continue;
+                    if (char === "{") {
+                      braceCount++;
+                    } else if (char === "}") {
+                      braceCount--;
+                      if (braceCount === 0) {
+                        jsonEnd = i + 1;
+                        break;
+                      }
+                    }
+                  }
+                  if (jsonEnd !== -1) {
+                    const modelInfoJson = logContent.substring(jsonStart, jsonEnd);
+                    try {
+                      modelInfo = JSON.parse(modelInfoJson);
+                    } catch (e) {
+                    }
+                  }
+                }
+              }
+              const toolsIndex = logContent.indexOf("[DEBUG] Tools:");
+              if (toolsIndex !== -1) {
+                const afterToolsLine = logContent.indexOf("\n", toolsIndex);
+                let toolsStart = logContent.indexOf("[DEBUG] [", afterToolsLine);
+                if (toolsStart !== -1) {
+                  toolsStart = logContent.indexOf("[", toolsStart + 7); 
+                }
+                if (toolsStart !== -1) {
+                  let bracketCount = 0;
+                  let inString = false;
+                  let escapeNext = false;
+                  let toolsEnd = -1;
+                  for (let i = toolsStart; i < logContent.length; i++) {
+                    const char = logContent[i];
+                    if (escapeNext) {
+                      escapeNext = false;
+                      continue;
+                    }
+                    if (char === "\\") {
+                      escapeNext = true;
+                      continue;
+                    }
+                    if (char === '"' && !escapeNext) {
+                      inString = !inString;
+                      continue;
+                    }
+                    if (inString) continue;
+                    if (char === "[") {
+                      bracketCount++;
+                    } else if (char === "]") {
+                      bracketCount--;
+                      if (bracketCount === 0) {
+                        toolsEnd = i + 1;
+                        break;
+                      }
+                    }
+                  }
+                  if (toolsEnd !== -1) {
+                    let toolsJson = logContent.substring(toolsStart, toolsEnd);
+                    toolsJson = toolsJson.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /gm, "");
+                    try {
+                      const toolsArray = JSON.parse(toolsJson);
+                      if (Array.isArray(toolsArray)) {
+                        tools = toolsArray
+                          .map(tool => {
+                            if (tool.type === "function" && tool.function && tool.function.name) {
+                              let name = tool.function.name;
+                              if (name.startsWith("github-")) {
+                                name = "mcp__github__" + name.substring(7);
+                              } else if (name.startsWith("safe_outputs-")) {
+                                name = name; 
+                              }
+                              return name;
+                            }
+                            return null;
+                          })
+                          .filter(name => name !== null);
+                      }
+                    } catch (e) {
+                    }
+                  }
+                }
+              }
+              let inDataBlock = false;
+              let currentJsonLines = [];
+              let turnCount = 0;
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.includes("[DEBUG] data:")) {
+                  inDataBlock = true;
+                  currentJsonLines = [];
+                  continue;
+                }
+                if (inDataBlock) {
+                  const hasTimestamp = line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z /);
+                  if (hasTimestamp) {
+                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
+                    const isJsonContent = /^[{\[}\]"]/.test(cleanLine) || cleanLine.trim().startsWith('"');
+                    if (!isJsonContent) {
+                      if (currentJsonLines.length > 0) {
+                        try {
+                          const jsonStr = currentJsonLines.join("\n");
+                          const jsonData = JSON.parse(jsonStr);
+                          if (jsonData.model) {
+                            model = jsonData.model;
+                          }
+                          if (jsonData.choices && Array.isArray(jsonData.choices)) {
+                            for (const choice of jsonData.choices) {
+                              if (choice.message) {
+                                const message = choice.message;
+                                const content = [];
+                                const toolResults = []; 
+                                if (message.content && message.content.trim()) {
+                                  content.push({
+                                    type: "text",
+                                    text: message.content,
+                                  });
+                                }
+                                if (message.tool_calls && Array.isArray(message.tool_calls)) {
+                                  for (const toolCall of message.tool_calls) {
+                                    if (toolCall.function) {
+                                      let toolName = toolCall.function.name;
+                                      let args = {};
+                                      if (toolName.startsWith("github-")) {
+                                        toolName = "mcp__github__" + toolName.substring(7);
+                                      } else if (toolName === "bash") {
+                                        toolName = "Bash";
+                                      }
+                                      try {
+                                        args = JSON.parse(toolCall.function.arguments);
+                                      } catch (e) {
+                                        args = {};
+                                      }
+                                      const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
+                                      content.push({
+                                        type: "tool_use",
+                                        id: toolId,
+                                        name: toolName,
+                                        input: args,
+                                      });
+                                      toolResults.push({
+                                        type: "tool_result",
+                                        tool_use_id: toolId,
+                                        content: "", 
+                                        is_error: false, 
+                                      });
+                                    }
+                                  }
+                                }
+                                if (content.length > 0) {
+                                  entries.push({
+                                    type: "assistant",
+                                    message: { content },
+                                  });
+                                  turnCount++;
+                                  if (toolResults.length > 0) {
+                                    entries.push({
+                                      type: "user",
+                                      message: { content: toolResults },
+                                    });
+                                  }
+                                }
+                              }
+                            }
+                            if (jsonData.usage) {
+                              if (!entries._accumulatedUsage) {
+                                entries._accumulatedUsage = {
+                                  input_tokens: 0,
+                                  output_tokens: 0,
+                                };
+                              }
+                              if (jsonData.usage.prompt_tokens) {
+                                entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
+                              }
+                              if (jsonData.usage.completion_tokens) {
+                                entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
+                              }
+                              entries._lastResult = {
+                                type: "result",
+                                num_turns: turnCount,
+                                usage: entries._accumulatedUsage,
+                              };
+                            }
+                          }
+                        } catch (e) {
+                        }
+                      }
+                      inDataBlock = false;
+                      currentJsonLines = [];
+                      continue; 
+                    } else if (hasTimestamp && isJsonContent) {
+                      currentJsonLines.push(cleanLine);
+                    }
+                  } else {
+                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
+                    currentJsonLines.push(cleanLine);
+                  }
+                }
+              }
+              if (inDataBlock && currentJsonLines.length > 0) {
+                try {
+                  const jsonStr = currentJsonLines.join("\n");
+                  const jsonData = JSON.parse(jsonStr);
+                  if (jsonData.model) {
+                    model = jsonData.model;
+                  }
+                  if (jsonData.choices && Array.isArray(jsonData.choices)) {
+                    for (const choice of jsonData.choices) {
+                      if (choice.message) {
+                        const message = choice.message;
+                        const content = [];
+                        const toolResults = []; 
+                        if (message.content && message.content.trim()) {
+                          content.push({
+                            type: "text",
+                            text: message.content,
+                          });
+                        }
+                        if (message.tool_calls && Array.isArray(message.tool_calls)) {
+                          for (const toolCall of message.tool_calls) {
+                            if (toolCall.function) {
+                              let toolName = toolCall.function.name;
+                              let args = {};
+                              if (toolName.startsWith("github-")) {
+                                toolName = "mcp__github__" + toolName.substring(7);
+                              } else if (toolName === "bash") {
+                                toolName = "Bash";
+                              }
+                              try {
+                                args = JSON.parse(toolCall.function.arguments);
+                              } catch (e) {
+                                args = {};
+                              }
+                              const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
+                              content.push({
+                                type: "tool_use",
+                                id: toolId,
+                                name: toolName,
+                                input: args,
+                              });
+                              toolResults.push({
+                                type: "tool_result",
+                                tool_use_id: toolId,
+                                content: "", 
+                                is_error: false, 
+                              });
+                            }
+                          }
+                        }
+                        if (content.length > 0) {
+                          entries.push({
+                            type: "assistant",
+                            message: { content },
+                          });
+                          turnCount++;
+                          if (toolResults.length > 0) {
+                            entries.push({
+                              type: "user",
+                              message: { content: toolResults },
+                            });
+                          }
+                        }
+                      }
+                    }
+                    if (jsonData.usage) {
+                      if (!entries._accumulatedUsage) {
+                        entries._accumulatedUsage = {
+                          input_tokens: 0,
+                          output_tokens: 0,
+                        };
+                      }
+                      if (jsonData.usage.prompt_tokens) {
+                        entries._accumulatedUsage.input_tokens += jsonData.usage.prompt_tokens;
+                      }
+                      if (jsonData.usage.completion_tokens) {
+                        entries._accumulatedUsage.output_tokens += jsonData.usage.completion_tokens;
+                      }
+                      entries._lastResult = {
+                        type: "result",
+                        num_turns: turnCount,
+                        usage: entries._accumulatedUsage,
+                      };
+                    }
+                  }
+                } catch (e) {
+                }
+              }
+              if (entries.length > 0) {
+                const initEntry = {
+                  type: "system",
+                  subtype: "init",
+                  session_id: sessionId,
+                  model: model,
+                  tools: tools, 
+                };
+                if (modelInfo) {
+                  initEntry.model_info = modelInfo;
+                }
+                entries.unshift(initEntry);
+                if (entries._lastResult) {
+                  entries.push(entries._lastResult);
+                  delete entries._lastResult;
+                }
+              }
+              return entries;
+            }
+            function formatInitializationSummary(initEntry) {
+              let markdown = "";
+              if (initEntry.model) {
+                markdown += `**Model:** ${initEntry.model}\n\n`;
+              }
+              if (initEntry.model_info) {
+                const modelInfo = initEntry.model_info;
+                if (modelInfo.name) {
+                  markdown += `**Model Name:** ${modelInfo.name}`;
+                  if (modelInfo.vendor) {
+                    markdown += ` (${modelInfo.vendor})`;
+                  }
+                  markdown += "\n\n";
+                }
+                if (modelInfo.billing) {
+                  const billing = modelInfo.billing;
+                  if (billing.is_premium === true) {
+                    markdown += `**Premium Model:** Yes`;
+                    if (billing.multiplier && billing.multiplier !== 1) {
+                      markdown += ` (${billing.multiplier}x cost multiplier)`;
+                    }
+                    markdown += "\n";
+                    if (billing.restricted_to && Array.isArray(billing.restricted_to) && billing.restricted_to.length > 0) {
+                      markdown += `**Required Plans:** ${billing.restricted_to.join(", ")}\n`;
+                    }
+                    markdown += "\n";
+                  } else if (billing.is_premium === false) {
+                    markdown += `**Premium Model:** No\n\n`;
+                  }
+                }
+              }
+              if (initEntry.session_id) {
+                markdown += `**Session ID:** ${initEntry.session_id}\n\n`;
+              }
+              if (initEntry.cwd) {
+                const cleanCwd = initEntry.cwd.replace(/^\/home\/runner\/work\/[^\/]+\/[^\/]+/, ".");
+                markdown += `**Working Directory:** ${cleanCwd}\n\n`;
+              }
+              if (initEntry.mcp_servers && Array.isArray(initEntry.mcp_servers)) {
+                markdown += "**MCP Servers:**\n";
+                for (const server of initEntry.mcp_servers) {
+                  const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "❓";
+                  markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
+                }
+                markdown += "\n";
+              }
+              if (initEntry.tools && Array.isArray(initEntry.tools)) {
+                markdown += "**Available Tools:**\n";
+                const categories = {
+                  Core: [],
+                  "File Operations": [],
+                  "Git/GitHub": [],
+                  MCP: [],
+                  Other: [],
+                };
+                for (const tool of initEntry.tools) {
+                  if (["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(tool)) {
+                    categories["Core"].push(tool);
+                  } else if (["Read", "Edit", "MultiEdit", "Write", "LS", "Grep", "Glob", "NotebookEdit"].includes(tool)) {
+                    categories["File Operations"].push(tool);
+                  } else if (tool.startsWith("mcp__github__")) {
+                    categories["Git/GitHub"].push(formatMcpName(tool));
+                  } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
+                    categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
+                  } else {
+                    categories["Other"].push(tool);
+                  }
+                }
+                for (const [category, tools] of Object.entries(categories)) {
+                  if (tools.length > 0) {
+                    markdown += `- **${category}:** ${tools.length} tools\n`;
+                    if (tools.length <= 5) {
+                      markdown += `  - ${tools.join(", ")}\n`;
+                    } else {
+                      markdown += `  - ${tools.slice(0, 3).join(", ")}, and ${tools.length - 3} more\n`;
+                    }
+                  }
+                }
+                markdown += "\n";
+              }
+              return markdown;
+            }
+            function estimateTokens(text) {
+              if (!text) return 0;
+              return Math.ceil(text.length / 4);
+            }
+            function formatDuration(ms) {
+              if (!ms || ms <= 0) return "";
+              const seconds = Math.round(ms / 1000);
+              if (seconds < 60) {
+                return `${seconds}s`;
+              }
+              const minutes = Math.floor(seconds / 60);
+              const remainingSeconds = seconds % 60;
+              if (remainingSeconds === 0) {
+                return `${minutes}m`;
+              }
+              return `${minutes}m ${remainingSeconds}s`;
+            }
+            function formatToolUseWithDetails(toolUse, toolResult) {
+              const toolName = toolUse.name;
+              const input = toolUse.input || {};
+              if (toolName === "TodoWrite") {
+                return "";
+              }
+              function getStatusIcon() {
+                if (toolResult) {
+                  return toolResult.is_error === true ? "❌" : "✅";
+                }
+                return "❓"; 
+              }
+              const statusIcon = getStatusIcon();
+              let summary = "";
+              let details = "";
+              if (toolResult && toolResult.content) {
+                if (typeof toolResult.content === "string") {
+                  details = toolResult.content;
+                } else if (Array.isArray(toolResult.content)) {
+                  details = toolResult.content.map(c => (typeof c === "string" ? c : c.text || "")).join("\n");
+                }
+              }
+              const inputText = JSON.stringify(input);
+              const outputText = details;
+              const totalTokens = estimateTokens(inputText) + estimateTokens(outputText);
+              let metadata = "";
+              if (toolResult && toolResult.duration_ms) {
+                metadata += ` <code>${formatDuration(toolResult.duration_ms)}</code>`;
+              }
+              if (totalTokens > 0) {
+                metadata += ` <code>~${totalTokens}t</code>`;
+              }
+              switch (toolName) {
+                case "Bash":
+                  const command = input.command || "";
+                  const description = input.description || "";
+                  const formattedCommand = formatBashCommand(command);
+                  if (description) {
+                    summary = `${statusIcon} ${description}: <code>${formattedCommand}</code>${metadata}`;
+                  } else {
+                    summary = `${statusIcon} <code>${formattedCommand}</code>${metadata}`;
+                  }
+                  break;
+                case "Read":
+                  const filePath = input.file_path || input.path || "";
+                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
+                  summary = `${statusIcon} Read <code>${relativePath}</code>${metadata}`;
+                  break;
+                case "Write":
+                case "Edit":
+                case "MultiEdit":
+                  const writeFilePath = input.file_path || input.path || "";
+                  const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
+                  summary = `${statusIcon} Write <code>${writeRelativePath}</code>${metadata}`;
+                  break;
+                case "Grep":
+                case "Glob":
+                  const query = input.query || input.pattern || "";
+                  summary = `${statusIcon} Search for <code>${truncateString(query, 80)}</code>${metadata}`;
+                  break;
+                case "LS":
+                  const lsPath = input.path || "";
+                  const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
+                  summary = `${statusIcon} LS: ${lsRelativePath || lsPath}${metadata}`;
+                  break;
+                default:
+                  if (toolName.startsWith("mcp__")) {
+                    const mcpName = formatMcpName(toolName);
+                    const params = formatMcpParameters(input);
+                    summary = `${statusIcon} ${mcpName}(${params})${metadata}`;
+                  } else {
+                    const keys = Object.keys(input);
+                    if (keys.length > 0) {
+                      const mainParam = keys.find(k => ["query", "command", "path", "file_path", "content"].includes(k)) || keys[0];
+                      const value = String(input[mainParam] || "");
+                      if (value) {
+                        summary = `${statusIcon} ${toolName}: ${truncateString(value, 100)}${metadata}`;
+                      } else {
+                        summary = `${statusIcon} ${toolName}${metadata}`;
+                      }
+                    } else {
+                      summary = `${statusIcon} ${toolName}${metadata}`;
+                    }
+                  }
+              }
+              if (details && details.trim()) {
+                let detailsContent = "";
+                const inputKeys = Object.keys(input);
+                if (inputKeys.length > 0) {
+                  detailsContent += "**Parameters:**\n\n";
+                  detailsContent += "``````json\n";
+                  detailsContent += JSON.stringify(input, null, 2);
+                  detailsContent += "\n``````\n\n";
+                }
+                detailsContent += "**Response:**\n\n";
+                detailsContent += "``````\n";
+                detailsContent += details;
+                detailsContent += "\n``````";
+                return `<details>\n<summary>${summary}</summary>\n\n${detailsContent}\n</details>\n\n`;
+              } else {
+                return `${summary}\n\n`;
+              }
+            }
+            function formatMcpName(toolName) {
+              if (toolName.startsWith("mcp__")) {
+                const parts = toolName.split("__");
+                if (parts.length >= 3) {
+                  const provider = parts[1];
+                  const method = parts.slice(2).join("_");
+                  return `${provider}::${method}`;
+                }
+              }
+              return toolName;
+            }
+            function formatMcpParameters(input) {
+              const keys = Object.keys(input);
+              if (keys.length === 0) return "";
+              const paramStrs = [];
+              for (const key of keys.slice(0, 4)) {
+                const value = String(input[key] || "");
+                paramStrs.push(`${key}: ${truncateString(value, 40)}`);
+              }
+              if (keys.length > 4) {
+                paramStrs.push("...");
+              }
+              return paramStrs.join(", ");
+            }
+            function formatBashCommand(command) {
+              if (!command) return "";
+              let formatted = command.replace(/\n/g, " ").replace(/\r/g, " ").replace(/\t/g, " ").replace(/\s+/g, " ").trim();
+              formatted = formatted.replace(/`/g, "\\`");
+              const maxLength = 80;
+              if (formatted.length > maxLength) {
+                formatted = formatted.substring(0, maxLength) + "...";
+              }
+              return formatted;
+            }
+            function truncateString(str, maxLength) {
+              if (!str) return "";
+              if (str.length <= maxLength) return str;
+              return str.substring(0, maxLength) + "...";
+            }
+            if (typeof module !== "undefined" && module.exports) {
+              module.exports = {
+                parseCopilotLog,
+                extractPremiumRequestCount,
+                formatInitializationSummary,
+                formatToolUseWithDetails,
+                formatBashCommand,
+                truncateString,
+                formatMcpName,
+                formatMcpParameters,
+                estimateTokens,
+                formatDuration,
+              };
+            }
+            main();
+      - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -602,4 +1417,231 @@ jobs:
           GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"id\":\"\",\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"id\":\"\",\"pattern\":\"(?:command not found|not found):\\\\s*(.+)|(.+):\\\\s*(?:command not found|not found)\",\"level_group\":0,\"message_group\":0,\"description\":\"Shell command not found error\"},{\"id\":\"\",\"pattern\":\"Cannot find module\\\\s+['\\\"](.+)['\\\"]\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"id\":\"\",\"pattern\":\"Permission denied and could not request permission from user\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied warning (user interaction required)\"}]"
         with:
           script: |
-            function main() {              const fs = require("fs");              const path = require("path");              core.info("Starting validate_errors.cjs script");              const startTime = Date.now();              try {                const logPath = process.env.GH_AW_AGENT_OUTPUT;                if (!logPath) {                  throw new Error("GH_AW_AGENT_OUTPUT environment variable is required");                }                core.info(`Log path: ${logPath}`);                if (!fs.existsSync(logPath)) {                  core.info(`Log path not found: ${logPath}`);                  core.info("No logs to validate - skipping error validation");                  return;                }                const patterns = getErrorPatternsFromEnv();                if (patterns.length === 0) {                  throw new Error("GH_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");                }                core.info(`Loaded ${patterns.length} error patterns`);                core.info(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);                let content = "";                const stat = fs.statSync(logPath);                if (stat.isDirectory()) {                  const files = fs.readdirSync(logPath);                  const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));                  if (logFiles.length === 0) {                    core.info(`No log files found in directory: ${logPath}`);                    return;                  }                  core.info(`Found ${logFiles.length} log files in directory`);                  logFiles.sort();                  for (const file of logFiles) {                    const filePath = path.join(logPath, file);                    const fileContent = fs.readFileSync(filePath, "utf8");                    core.info(`Reading log file: ${file} (${fileContent.length} bytes)`);                    content += fileContent;                    if (content.length > 0 && !content.endsWith("\n")) {                      content += "\n";                    }                  }                } else {                  content = fs.readFileSync(logPath, "utf8");                  core.info(`Read single log file (${content.length} bytes)`);                }                core.info(`Total log content size: ${content.length} bytes, ${content.split("\n").length} lines`);                const hasErrors = validateErrors(content, patterns);                const elapsedTime = Date.now() - startTime;                core.info(`Error validation completed in ${elapsedTime}ms`);                if (hasErrors) {                  core.error("Errors detected in agent logs - continuing workflow step (not failing for now)");                } else {                  core.info("Error validation completed successfully");                }              } catch (error) {                console.debug(error);                core.error(`Error validating log: ${error instanceof Error ? error.message : String(error)}`);              }            }            function getErrorPatternsFromEnv() {              const patternsEnv = process.env.GH_AW_ERROR_PATTERNS;              if (!patternsEnv) {                throw new Error("GH_AW_ERROR_PATTERNS environment variable is required");              }              try {                const patterns = JSON.parse(patternsEnv);                if (!Array.isArray(patterns)) {                  throw new Error("GH_AW_ERROR_PATTERNS must be a JSON array");                }                return patterns;              } catch (e) {                throw new Error(`Failed to parse GH_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);              }            }            function shouldSkipLine(line) {              const GITHUB_ACTIONS_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s+/;              if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "GH_AW_ERROR_PATTERNS:").test(line)) {                return true;              }              if (/^\s+GH_AW_ERROR_PATTERNS:\s*\[/.test(line)) {                return true;              }              if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "env:").test(line)) {                return true;              }              return false;            }            function validateErrors(logContent, patterns) {              const lines = logContent.split("\n");              let hasErrors = false;              const MAX_ITERATIONS_PER_LINE = 10000;               const ITERATION_WARNING_THRESHOLD = 1000;               const MAX_TOTAL_ERRORS = 100;               const MAX_LINE_LENGTH = 10000;               const TOP_SLOW_PATTERNS_COUNT = 5;               core.info(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);              const validationStartTime = Date.now();              let totalMatches = 0;              let patternStats = [];              for (let patternIndex = 0; patternIndex < patterns.length; patternIndex++) {                const pattern = patterns[patternIndex];                const patternStartTime = Date.now();                let patternMatches = 0;                let regex;                try {                  regex = new RegExp(pattern.pattern, "g");                  core.info(`Pattern ${patternIndex + 1}/${patterns.length}: ${pattern.description || "Unknown"} - regex: ${pattern.pattern}`);                } catch (e) {                  core.error(`invalid error regex pattern: ${pattern.pattern}`);                  continue;                }                for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {                  const line = lines[lineIndex];                  if (shouldSkipLine(line)) {                    continue;                  }                  if (line.length > MAX_LINE_LENGTH) {                    continue;                  }                  if (totalMatches >= MAX_TOTAL_ERRORS) {                    core.warning(`Stopping error validation after finding ${totalMatches} matches (max: ${MAX_TOTAL_ERRORS})`);                    break;                  }                  let match;                  let iterationCount = 0;                  let lastIndex = -1;                  while ((match = regex.exec(line)) !== null) {                    iterationCount++;                    if (regex.lastIndex === lastIndex) {                      core.error(`Infinite loop detected at line ${lineIndex + 1}! Pattern: ${pattern.pattern}, lastIndex stuck at ${lastIndex}`);                      core.error(`Line content (truncated): ${truncateString(line, 200)}`);                      break;                     }                    lastIndex = regex.lastIndex;                    if (iterationCount === ITERATION_WARNING_THRESHOLD) {                      core.warning(                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`                      );                      core.warning(`Line content (truncated): ${truncateString(line, 200)}`);                    }                    if (iterationCount > MAX_ITERATIONS_PER_LINE) {                      core.error(`Maximum iteration limit (${MAX_ITERATIONS_PER_LINE}) exceeded at line ${lineIndex + 1}! Pattern: ${pattern.pattern}`);                      core.error(`Line content (truncated): ${truncateString(line, 200)}`);                      core.error(`This likely indicates a problematic regex pattern. Skipping remaining matches on this line.`);                      break;                     }                    const level = extractLevel(match, pattern);                    const message = extractMessage(match, pattern, line);                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;                    if (level.toLowerCase() === "error") {                      core.error(errorMessage);                      hasErrors = true;                    } else {                      core.warning(errorMessage);                    }                    patternMatches++;                    totalMatches++;                  }                  if (iterationCount > 100) {                    core.info(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);                  }                }                const patternElapsed = Date.now() - patternStartTime;                patternStats.push({                  description: pattern.description || "Unknown",                  pattern: pattern.pattern.substring(0, 50) + (pattern.pattern.length > 50 ? "..." : ""),                  matches: patternMatches,                  timeMs: patternElapsed,                });                if (patternElapsed > 5000) {                  core.warning(`Pattern "${pattern.description}" took ${patternElapsed}ms to process (${patternMatches} matches)`);                }                if (totalMatches >= MAX_TOTAL_ERRORS) {                  core.warning(`Stopping pattern processing after finding ${totalMatches} matches (max: ${MAX_TOTAL_ERRORS})`);                  break;                }              }              const validationElapsed = Date.now() - validationStartTime;              core.info(`Validation summary: ${totalMatches} total matches found in ${validationElapsed}ms`);              patternStats.sort((a, b) => b.timeMs - a.timeMs);              const topSlow = patternStats.slice(0, TOP_SLOW_PATTERNS_COUNT);              if (topSlow.length > 0 && topSlow[0].timeMs > 1000) {                core.info(`Top ${TOP_SLOW_PATTERNS_COUNT} slowest patterns:`);                topSlow.forEach((stat, idx) => {                  core.info(`  ${idx + 1}. "${stat.description}" - ${stat.timeMs}ms (${stat.matches} matches)`);                });              }              core.info(`Error validation completed. Errors found: ${hasErrors}`);              return hasErrors;            }            function extractLevel(match, pattern) {              if (pattern.level_group && pattern.level_group > 0 && match[pattern.level_group]) {                return match[pattern.level_group];              }              const fullMatch = match[0];              if (fullMatch.toLowerCase().includes("error")) {                return "error";              } else if (fullMatch.toLowerCase().includes("warn")) {                return "warning";              }              return "unknown";            }            function extractMessage(match, pattern, fullLine) {              if (pattern.message_group && pattern.message_group > 0 && match[pattern.message_group]) {                return match[pattern.message_group].trim();              }              return match[0] || fullLine.trim();            }            function truncateString(str, maxLength) {              if (!str) return "";              if (str.length <= maxLength) return str;              return str.substring(0, maxLength) + "...";            }            if (typeof module !== "undefined" && module.exports) {              module.exports = {                validateErrors,                extractLevel,                extractMessage,                getErrorPatternsFromEnv,                truncateString,                shouldSkipLine,              };            }            if (typeof module === "undefined" || require.main === module) {              main();            }
+            function main() {
+              const fs = require("fs");
+              const path = require("path");
+              core.info("Starting validate_errors.cjs script");
+              const startTime = Date.now();
+              try {
+                const logPath = process.env.GH_AW_AGENT_OUTPUT;
+                if (!logPath) {
+                  throw new Error("GH_AW_AGENT_OUTPUT environment variable is required");
+                }
+                core.info(`Log path: ${logPath}`);
+                if (!fs.existsSync(logPath)) {
+                  core.info(`Log path not found: ${logPath}`);
+                  core.info("No logs to validate - skipping error validation");
+                  return;
+                }
+                const patterns = getErrorPatternsFromEnv();
+                if (patterns.length === 0) {
+                  throw new Error("GH_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
+                }
+                core.info(`Loaded ${patterns.length} error patterns`);
+                core.info(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
+                let content = "";
+                const stat = fs.statSync(logPath);
+                if (stat.isDirectory()) {
+                  const files = fs.readdirSync(logPath);
+                  const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
+                  if (logFiles.length === 0) {
+                    core.info(`No log files found in directory: ${logPath}`);
+                    return;
+                  }
+                  core.info(`Found ${logFiles.length} log files in directory`);
+                  logFiles.sort();
+                  for (const file of logFiles) {
+                    const filePath = path.join(logPath, file);
+                    const fileContent = fs.readFileSync(filePath, "utf8");
+                    core.info(`Reading log file: ${file} (${fileContent.length} bytes)`);
+                    content += fileContent;
+                    if (content.length > 0 && !content.endsWith("\n")) {
+                      content += "\n";
+                    }
+                  }
+                } else {
+                  content = fs.readFileSync(logPath, "utf8");
+                  core.info(`Read single log file (${content.length} bytes)`);
+                }
+                core.info(`Total log content size: ${content.length} bytes, ${content.split("\n").length} lines`);
+                const hasErrors = validateErrors(content, patterns);
+                const elapsedTime = Date.now() - startTime;
+                core.info(`Error validation completed in ${elapsedTime}ms`);
+                if (hasErrors) {
+                  core.error("Errors detected in agent logs - continuing workflow step (not failing for now)");
+                } else {
+                  core.info("Error validation completed successfully");
+                }
+              } catch (error) {
+                console.debug(error);
+                core.error(`Error validating log: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            function getErrorPatternsFromEnv() {
+              const patternsEnv = process.env.GH_AW_ERROR_PATTERNS;
+              if (!patternsEnv) {
+                throw new Error("GH_AW_ERROR_PATTERNS environment variable is required");
+              }
+              try {
+                const patterns = JSON.parse(patternsEnv);
+                if (!Array.isArray(patterns)) {
+                  throw new Error("GH_AW_ERROR_PATTERNS must be a JSON array");
+                }
+                return patterns;
+              } catch (e) {
+                throw new Error(`Failed to parse GH_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);
+              }
+            }
+            function shouldSkipLine(line) {
+              const GITHUB_ACTIONS_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s+/;
+              if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "GH_AW_ERROR_PATTERNS:").test(line)) {
+                return true;
+              }
+              if (/^\s+GH_AW_ERROR_PATTERNS:\s*\[/.test(line)) {
+                return true;
+              }
+              if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "env:").test(line)) {
+                return true;
+              }
+              return false;
+            }
+            function validateErrors(logContent, patterns) {
+              const lines = logContent.split("\n");
+              let hasErrors = false;
+              const MAX_ITERATIONS_PER_LINE = 10000; 
+              const ITERATION_WARNING_THRESHOLD = 1000; 
+              const MAX_TOTAL_ERRORS = 100; 
+              const MAX_LINE_LENGTH = 10000; 
+              const TOP_SLOW_PATTERNS_COUNT = 5; 
+              core.info(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
+              const validationStartTime = Date.now();
+              let totalMatches = 0;
+              let patternStats = [];
+              for (let patternIndex = 0; patternIndex < patterns.length; patternIndex++) {
+                const pattern = patterns[patternIndex];
+                const patternStartTime = Date.now();
+                let patternMatches = 0;
+                let regex;
+                try {
+                  regex = new RegExp(pattern.pattern, "g");
+                  core.info(`Pattern ${patternIndex + 1}/${patterns.length}: ${pattern.description || "Unknown"} - regex: ${pattern.pattern}`);
+                } catch (e) {
+                  core.error(`invalid error regex pattern: ${pattern.pattern}`);
+                  continue;
+                }
+                for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+                  const line = lines[lineIndex];
+                  if (shouldSkipLine(line)) {
+                    continue;
+                  }
+                  if (line.length > MAX_LINE_LENGTH) {
+                    continue;
+                  }
+                  if (totalMatches >= MAX_TOTAL_ERRORS) {
+                    core.warning(`Stopping error validation after finding ${totalMatches} matches (max: ${MAX_TOTAL_ERRORS})`);
+                    break;
+                  }
+                  let match;
+                  let iterationCount = 0;
+                  let lastIndex = -1;
+                  while ((match = regex.exec(line)) !== null) {
+                    iterationCount++;
+                    if (regex.lastIndex === lastIndex) {
+                      core.error(`Infinite loop detected at line ${lineIndex + 1}! Pattern: ${pattern.pattern}, lastIndex stuck at ${lastIndex}`);
+                      core.error(`Line content (truncated): ${truncateString(line, 200)}`);
+                      break; 
+                    }
+                    lastIndex = regex.lastIndex;
+                    if (iterationCount === ITERATION_WARNING_THRESHOLD) {
+                      core.warning(
+                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
+                      );
+                      core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
+                    }
+                    if (iterationCount > MAX_ITERATIONS_PER_LINE) {
+                      core.error(`Maximum iteration limit (${MAX_ITERATIONS_PER_LINE}) exceeded at line ${lineIndex + 1}! Pattern: ${pattern.pattern}`);
+                      core.error(`Line content (truncated): ${truncateString(line, 200)}`);
+                      core.error(`This likely indicates a problematic regex pattern. Skipping remaining matches on this line.`);
+                      break; 
+                    }
+                    const level = extractLevel(match, pattern);
+                    const message = extractMessage(match, pattern, line);
+                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;
+                    if (level.toLowerCase() === "error") {
+                      core.error(errorMessage);
+                      hasErrors = true;
+                    } else {
+                      core.warning(errorMessage);
+                    }
+                    patternMatches++;
+                    totalMatches++;
+                  }
+                  if (iterationCount > 100) {
+                    core.info(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);
+                  }
+                }
+                const patternElapsed = Date.now() - patternStartTime;
+                patternStats.push({
+                  description: pattern.description || "Unknown",
+                  pattern: pattern.pattern.substring(0, 50) + (pattern.pattern.length > 50 ? "..." : ""),
+                  matches: patternMatches,
+                  timeMs: patternElapsed,
+                });
+                if (patternElapsed > 5000) {
+                  core.warning(`Pattern "${pattern.description}" took ${patternElapsed}ms to process (${patternMatches} matches)`);
+                }
+                if (totalMatches >= MAX_TOTAL_ERRORS) {
+                  core.warning(`Stopping pattern processing after finding ${totalMatches} matches (max: ${MAX_TOTAL_ERRORS})`);
+                  break;
+                }
+              }
+              const validationElapsed = Date.now() - validationStartTime;
+              core.info(`Validation summary: ${totalMatches} total matches found in ${validationElapsed}ms`);
+              patternStats.sort((a, b) => b.timeMs - a.timeMs);
+              const topSlow = patternStats.slice(0, TOP_SLOW_PATTERNS_COUNT);
+              if (topSlow.length > 0 && topSlow[0].timeMs > 1000) {
+                core.info(`Top ${TOP_SLOW_PATTERNS_COUNT} slowest patterns:`);
+                topSlow.forEach((stat, idx) => {
+                  core.info(`  ${idx + 1}. "${stat.description}" - ${stat.timeMs}ms (${stat.matches} matches)`);
+                });
+              }
+              core.info(`Error validation completed. Errors found: ${hasErrors}`);
+              return hasErrors;
+            }
+            function extractLevel(match, pattern) {
+              if (pattern.level_group && pattern.level_group > 0 && match[pattern.level_group]) {
+                return match[pattern.level_group];
+              }
+              const fullMatch = match[0];
+              if (fullMatch.toLowerCase().includes("error")) {
+                return "error";
+              } else if (fullMatch.toLowerCase().includes("warn")) {
+                return "warning";
+              }
+              return "unknown";
+            }
+            function extractMessage(match, pattern, fullLine) {
+              if (pattern.message_group && pattern.message_group > 0 && match[pattern.message_group]) {
+                return match[pattern.message_group].trim();
+              }
+              return match[0] || fullLine.trim();
+            }
+            function truncateString(str, maxLength) {
+              if (!str) return "";
+              if (str.length <= maxLength) return str;
+              return str.substring(0, maxLength) + "...";
+            }
+            if (typeof module !== "undefined" && module.exports) {
+              module.exports = {
+                validateErrors,
+                extractLevel,
+                extractMessage,
+                getErrorPatternsFromEnv,
+                truncateString,
+                shouldSkipLine,
+              };
+            }
+            if (typeof module === "undefined" || require.main === module) {
+              main();
+            }
+

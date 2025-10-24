@@ -424,7 +424,7 @@ func FormatJavaScriptForYAML(script string) []string {
 	for _, line := range scriptLines {
 		// Skip empty lines when inlining to YAML
 		if strings.TrimSpace(line) != "" {
-			formattedLines = append(formattedLines, fmt.Sprintf("            %s", line))
+			formattedLines = append(formattedLines, fmt.Sprintf("            %s\n", line))
 		}
 	}
 	return formattedLines

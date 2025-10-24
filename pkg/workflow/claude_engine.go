@@ -223,10 +223,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add environment section - always include environment section for GH_AW_PROMPT
 	stepLines = append(stepLines, "        env:")
 
-	// Add authentication token - if OIDC is configured, use OAuth token from setup step
-	// Otherwise, use the API key secret directly
+	// Add authentication token - if OIDC is configured, use OAuth token from setup step OR fall back to API key
+	// The OIDC setup step outputs the token regardless of whether it came from OIDC or API key fallback
+	// We need to set ANTHROPIC_API_KEY to either the OIDC token OR the secret API key
 	if oidcConfig != nil {
-		stepLines = append(stepLines, "          CLAUDE_CODE_OAUTH_TOKEN: ${{ steps.setup_oidc_token.outputs.token }}")
+		stepLines = append(stepLines, "          ANTHROPIC_API_KEY: ${{ steps.setup_oidc_token.outputs.token || secrets.ANTHROPIC_API_KEY }}")
 	} else {
 		stepLines = append(stepLines, "          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}")
 	}
