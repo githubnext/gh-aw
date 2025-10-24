@@ -683,6 +683,15 @@ env: "example-value"
 # Feature flags to enable experimental or optional features in the workflow. Each
 # feature is specified as a key with a boolean value.
 # (optional)
+#
+# Available features:
+#   firewall: Enable AWF (Agent Workflow Firewall) for network egress control
+#             with domain allowlisting. Currently only supported for the Copilot
+#             engine. AWF is sourced from https://github.com/githubnext/gh-aw-firewall
+#
+# Example:
+#   features:
+#     firewall: true
 features:
   {}
 
