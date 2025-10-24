@@ -383,6 +383,8 @@ jobs:
             'npx -y @github/copilot@0.0.349 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool github --additional-mcp-config '{
             "mcpServers": {
               "github": {
+                "type": "local",
+                "command": "docker",
                 "args": [
                   "run",
                   "-i",
@@ -395,14 +397,12 @@ jobs:
                   "GITHUB_TOOLSETS=default",
                   "ghcr.io/github/github-mcp-server:v0.19.1"
                 ],
-                "command": "docker",
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}"
                 },
                 "tools": [
                   "*"
-                ],
-                "type": "local"
+                ]
               }
             }
           }' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' \

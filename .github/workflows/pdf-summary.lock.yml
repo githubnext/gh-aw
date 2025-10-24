@@ -2285,6 +2285,8 @@ jobs:
           copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool markitdown --allow-tool 'markitdown(*)' --allow-tool safe_outputs --add-dir /tmp/gh-aw/cache-memory/ --additional-mcp-config '{
             "mcpServers": {
               "github": {
+                "type": "local",
+                "command": "docker",
                 "args": [
                   "run",
                   "-i",
@@ -2297,27 +2299,26 @@ jobs:
                   "GITHUB_TOOLSETS=default",
                   "ghcr.io/github/github-mcp-server:v0.19.1"
                 ],
-                "command": "docker",
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}"
                 },
                 "tools": [
                   "*"
-                ],
-                "type": "local"
+                ]
               },
               "markitdown": {
+                "type": "local",
                 "command": "markitdown-mcp",
                 "tools": [
                   "*"
-                ],
-                "type": "local"
+                ]
               },
               "safe-outputs": {
+                "type": "local",
+                "command": "node",
                 "args": [
                   "/tmp/gh-aw/safe-outputs/mcp-server.cjs"
                 ],
-                "command": "node",
                 "env": {
                   "GH_AW_ASSETS_ALLOWED_EXTS": "\\${GH_AW_ASSETS_ALLOWED_EXTS}",
                   "GH_AW_ASSETS_BRANCH": "\\${GH_AW_ASSETS_BRANCH}",
@@ -2327,8 +2328,7 @@ jobs:
                 },
                 "tools": [
                   "*"
-                ],
-                "type": "local"
+                ]
               }
             }
           }' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log

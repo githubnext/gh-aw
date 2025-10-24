@@ -2556,13 +2556,15 @@ jobs:
           copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool gh-aw --allow-tool github --allow-tool safe_outputs --allow-tool serena --allow-tool 'serena(*)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --additional-mcp-config '{
             "mcpServers": {
               "gh-aw": {
+                "type": "http",
+                "url": "http://localhost:8765",
                 "tools": [
                   "*"
-                ],
-                "type": "http",
-                "url": "http://localhost:8765"
+                ]
               },
               "github": {
+                "type": "local",
+                "command": "docker",
                 "args": [
                   "run",
                   "-i",
@@ -2575,20 +2577,19 @@ jobs:
                   "GITHUB_TOOLSETS=default",
                   "ghcr.io/github/github-mcp-server:v0.19.1"
                 ],
-                "command": "docker",
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}"
                 },
                 "tools": [
                   "*"
-                ],
-                "type": "local"
+                ]
               },
               "safe-outputs": {
+                "type": "local",
+                "command": "node",
                 "args": [
                   "/tmp/gh-aw/safe-outputs/mcp-server.cjs"
                 ],
-                "command": "node",
                 "env": {
                   "GH_AW_ASSETS_ALLOWED_EXTS": "\\${GH_AW_ASSETS_ALLOWED_EXTS}",
                   "GH_AW_ASSETS_BRANCH": "\\${GH_AW_ASSETS_BRANCH}",
@@ -2598,10 +2599,11 @@ jobs:
                 },
                 "tools": [
                   "*"
-                ],
-                "type": "local"
+                ]
               },
               "serena": {
+                "type": "local",
+                "command": "uvx",
                 "args": [
                   "--from",
                   "git+https://github.com/oraios/serena",
@@ -2612,24 +2614,22 @@ jobs:
                   "--project",
                   "${{ github.workspace }}"
                 ],
-                "command": "uvx",
                 "tools": [
                   "*"
-                ],
-                "type": "local"
+                ]
               },
               "tavily": {
-                "env": {
-                  "TAVILY_API_KEY": "\\${TAVILY_API_KEY}"
-                },
+                "type": "http",
+                "url": "https://mcp.tavily.com/mcp/",
                 "headers": {
                   "Authorization": "Bearer \\${TAVILY_API_KEY}"
                 },
+                "env": {
+                  "TAVILY_API_KEY": "\\${TAVILY_API_KEY}"
+                },
                 "tools": [
                   "*"
-                ],
-                "type": "http",
-                "url": "https://mcp.tavily.com/mcp/"
+                ]
               }
             }
           }' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log

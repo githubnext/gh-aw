@@ -274,17 +274,21 @@ COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 	env["GH_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
 
 	// Note: GH_AW_MCP_CONFIG is no longer needed since we pass MCP config via --additional-mcp-config
+	// Note: GITHUB_MCP_SERVER_TOKEN is no longer needed since it's inlined in the MCP config
+	// Note: Safe-output env vars are no longer needed since they're inlined in the MCP config
 
-	if hasGitHubTool(workflowData.Tools) {
-		githubTool := workflowData.Tools["github"]
-		customGitHubToken := getGitHubToken(githubTool)
-		// Use effective token with precedence: custom > top-level > default
-		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
-		env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
+	// Add GH_AW_SAFE_OUTPUTS if SafeOutputs is configured (needed for the execution step itself, not MCP)
+	if workflowData.SafeOutputs != nil {
+		env["GH_AW_SAFE_OUTPUTS"] = "${{ env.GH_AW_SAFE_OUTPUTS }}"
+		
+		// Add staged flag if specified
+		if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
+			env["GH_AW_SAFE_OUTPUTS_STAGED"] = "true"
+		}
+		if workflowData.TrialMode && workflowData.TrialLogicalRepo != "" {
+			env["GH_AW_TARGET_REPO_SLUG"] = workflowData.TrialLogicalRepo
+		}
 	}
-
-	// Add GH_AW_SAFE_OUTPUTS if output is needed
-	applySafeOutputEnvToMap(env, workflowData)
 
 	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
 	if workflowData.ToolsStartupTimeout > 0 {
@@ -427,7 +431,7 @@ func (e *CopilotEngine) generateMCPConfigJSONProper(tools map[string]any, mcpToo
 		case "agentic-workflows":
 			serverConfig = e.buildAgenticWorkflowsMCPConfig()
 		case "safe-outputs":
-			serverConfig = e.buildSafeOutputsMCPConfig()
+			serverConfig = e.buildSafeOutputsMCPConfig(workflowData)
 		case "web-fetch":
 			serverConfig = e.buildWebFetchMCPConfig()
 		default:
@@ -589,6 +593,10 @@ func (e *CopilotEngine) buildGitHubMCPConfig(githubTool any, workflowData *Workf
 	toolsets := getGitHubToolsets(githubTool)
 	allowedTools := getGitHubAllowedTools(githubTool)
 	
+	// Get the effective GitHub token (inlined directly in MCP config)
+	customGitHubToken := getGitHubToken(githubTool)
+	effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
+	
 	config := make(map[string]any)
 	
 	if githubType == "remote" {
@@ -613,9 +621,9 @@ func (e *CopilotEngine) buildGitHubMCPConfig(githubTool any, workflowData *Workf
 			config["tools"] = []string{"*"}
 		}
 		
-		// Add env section for passthrough
+		// Inline the token directly in env (no passthrough needed)
 		config["env"] = map[string]string{
-			"GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}",
+			"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveToken,
 		}
 	} else {
 		// Local mode - use Docker-based GitHub MCP server
@@ -650,9 +658,9 @@ func (e *CopilotEngine) buildGitHubMCPConfig(githubTool any, workflowData *Workf
 			config["tools"] = []string{"*"}
 		}
 		
-		// Add env section
+		// Inline the token directly in env (no passthrough needed)
 		config["env"] = map[string]string{
-			"GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}",
+			"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveToken,
 		}
 	}
 	
@@ -693,26 +701,36 @@ func (e *CopilotEngine) buildAgenticWorkflowsMCPConfig() map[string]any {
 	config["command"] = "gh"
 	config["args"] = []string{"aw", "mcp-server"}
 	config["tools"] = []string{"*"}
+	// Inline GITHUB_TOKEN directly (no passthrough needed)
 	config["env"] = map[string]string{
-		"GITHUB_TOKEN": "\\${GITHUB_TOKEN}",
+		"GITHUB_TOKEN": "${{ secrets.COPILOT_CLI_TOKEN  }}",
 	}
 	return config
 }
 
 // buildSafeOutputsMCPConfig builds the Safe Outputs MCP server configuration as a map
-func (e *CopilotEngine) buildSafeOutputsMCPConfig() map[string]any {
+func (e *CopilotEngine) buildSafeOutputsMCPConfig(workflowData *WorkflowData) map[string]any {
 	config := make(map[string]any)
 	config["type"] = "local"
 	config["command"] = "node"
 	config["args"] = []string{"/tmp/gh-aw/safe-outputs/mcp-server.cjs"}
 	config["tools"] = []string{"*"}
-	config["env"] = map[string]string{
-		"GH_AW_SAFE_OUTPUTS":        "\\${GH_AW_SAFE_OUTPUTS}",
-		"GH_AW_SAFE_OUTPUTS_CONFIG": "\\${GH_AW_SAFE_OUTPUTS_CONFIG}",
-		"GH_AW_ASSETS_BRANCH":       "\\${GH_AW_ASSETS_BRANCH}",
-		"GH_AW_ASSETS_MAX_SIZE_KB":  "\\${GH_AW_ASSETS_MAX_SIZE_KB}",
-		"GH_AW_ASSETS_ALLOWED_EXTS": "\\${GH_AW_ASSETS_ALLOWED_EXTS}",
+	
+	// Inline all safe-output env vars directly (no passthrough needed)
+	envVars := make(map[string]string)
+	envVars["GH_AW_SAFE_OUTPUTS"] = "${{ env.GH_AW_SAFE_OUTPUTS }}"
+	
+	safeOutputConfig := generateSafeOutputsConfig(workflowData)
+	envVars["GH_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
+	
+	// Add branch name if upload assets is configured
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UploadAssets != nil {
+		envVars["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", workflowData.SafeOutputs.UploadAssets.BranchName)
+		envVars["GH_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
+		envVars["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ","))
 	}
+	
+	config["env"] = envVars
 	return config
 }
 

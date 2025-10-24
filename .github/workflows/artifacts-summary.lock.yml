@@ -1229,6 +1229,8 @@ jobs:
           copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool safe_outputs --additional-mcp-config '{
             "mcpServers": {
               "github": {
+                "type": "local",
+                "command": "docker",
                 "args": [
                   "run",
                   "-i",
@@ -1241,7 +1243,6 @@ jobs:
                   "GITHUB_TOOLSETS=default",
                   "ghcr.io/github/github-mcp-server:v0.19.1"
                 ],
-                "command": "docker",
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}"
                 },
@@ -1249,14 +1250,14 @@ jobs:
                   "list_workflows",
                   "list_workflow_runs",
                   "list_workflow_run_artifacts"
-                ],
-                "type": "local"
+                ]
               },
               "safe-outputs": {
+                "type": "local",
+                "command": "node",
                 "args": [
                   "/tmp/gh-aw/safe-outputs/mcp-server.cjs"
                 ],
-                "command": "node",
                 "env": {
                   "GH_AW_ASSETS_ALLOWED_EXTS": "\\${GH_AW_ASSETS_ALLOWED_EXTS}",
                   "GH_AW_ASSETS_BRANCH": "\\${GH_AW_ASSETS_BRANCH}",
@@ -1266,8 +1267,7 @@ jobs:
                 },
                 "tools": [
                   "*"
-                ],
-                "type": "local"
+                ]
               }
             }
           }' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
