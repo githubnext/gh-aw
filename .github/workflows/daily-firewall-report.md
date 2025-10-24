@@ -11,7 +11,7 @@ permissions:
 
 safe-outputs:
   create-discussion:
-    category: "firewall-reports"
+    category: "audits"
     max: 1
 
 tools:
@@ -120,7 +120,7 @@ Based on the analysis, provide:
 
 Create a new GitHub discussion with:
 - **Title**: "Daily Firewall Report - [Today's Date]"
-- **Category**: firewall-reports
+- **Category**: audits
 - **Body**: The complete markdown report generated in Step 5
 
 ## Notes
@@ -132,4 +132,4 @@ Create a new GitHub discussion with:
 
 ## Expected Output
 
-A GitHub discussion in the "firewall-reports" category containing a comprehensive daily firewall analysis report.
+A GitHub discussion in the "audits" category containing a comprehensive daily firewall analysis report.
