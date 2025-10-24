@@ -62,7 +62,7 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 	// Add step to upload SARIF to GitHub Code Scanning
 	steps = append(steps, "      - name: Upload SARIF to GitHub Security\n")
 	steps = append(steps, "        if: steps.create_code_scanning_alert.outputs.sarif_file\n")
-	steps = append(steps, "        uses: github/codeql-action/upload-sarif@v3\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("github/codeql-action/upload-sarif", "v3")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          sarif_file: ${{ steps.create_code_scanning_alert.outputs.sarif_file }}\n")
 

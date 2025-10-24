@@ -85,6 +85,13 @@ var actionPins = map[string]ActionPin{
 		Version: "v5",
 		SHA:     "e58605a9b6da7c637471fab8847a5e5a6b8df081", // v5
 	},
+
+	// GitHub Actions
+	"github/codeql-action/upload-sarif@v3": {
+		Repo:    "github/codeql-action/upload-sarif",
+		Version: "v3",
+		SHA:     "562257dc84ee23987d348302b161ee561898ec02", // v3
+	},
 }
 
 // GetActionPin returns the pinned action reference for a given action@version

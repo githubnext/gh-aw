@@ -2778,7 +2778,7 @@ func (c *Compiler) generateAgentVersionCapture(yaml *strings.Builder, engine Cod
 // generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
-	yaml.WriteString("        uses: actions/github-script@v8\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script", "v8")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const fs = require('fs');\n")
