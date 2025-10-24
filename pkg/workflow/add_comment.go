@@ -98,16 +98,10 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	}
 
 	var jobCondition = BuildSafeOutputType("add_comment", data.SafeOutputs.AddComments.Min)
-	if data.SafeOutputs.AddComments != nil && data.SafeOutputs.AddComments.Target == "" {
-		eventCondition := buildOr(
-			buildOr(
-				BuildPropertyAccess("github.event.issue.number"),
-				BuildPropertyAccess("github.event.pull_request.number"),
-			),
-			BuildPropertyAccess("github.event.discussion.number"),
-		)
-		jobCondition = buildAnd(jobCondition, eventCondition)
-	}
+	// Note: We no longer require github.event.issue.number, github.event.pull_request.number,
+	// or github.event.discussion.number when Target == "" because the add_comment script can now
+	// find an open PR for the current branch when triggered by non-commentable events like workflow_dispatch.
+	// The script will gracefully exit if no suitable target is found.
 
 	// Build the needs list - always depend on mainJobName, and conditionally on the other jobs
 	needs := []string{mainJobName}
