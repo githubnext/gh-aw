@@ -24,14 +24,17 @@ describe("parse_firewall_logs.cjs", () => {
 
     const scriptPath = path.join(process.cwd(), "parse_firewall_logs.cjs");
     const scriptContent = fs.readFileSync(scriptPath, "utf8");
-    const scriptForTesting = scriptContent.replace("if (require.main === module) {", "if (false) {").replace(
-      "// Export for testing",
-      `global.testParseFirewallLogLine = parseFirewallLogLine;
+    // Update pattern to match the actual main block check in parse_firewall_logs.cjs
+    const scriptForTesting = scriptContent
+      .replace(/if \(typeof module === "undefined".*?\) \{[\s\S]*?main\(\);[\s\S]*?\}/g, "// main() execution disabled for testing")
+      .replace(
+        "// Export for testing",
+        `global.testParseFirewallLogLine = parseFirewallLogLine;
         global.testIsRequestAllowed = isRequestAllowed;
         global.testGenerateFirewallSummary = generateFirewallSummary;
         global.testSanitizeWorkflowName = sanitizeWorkflowName;
         // Export for testing`
-    );
+      );
 
     eval(scriptForTesting);
 
