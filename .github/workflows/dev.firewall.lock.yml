@@ -418,9 +418,9 @@ jobs:
           COPILOT_LOGS_DIR=$(ls -td /tmp/copilot-logs-* 2>/dev/null | head -1)
           if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
             echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/.copilot/logs/"
-            mkdir -p /tmp/gh-aw/.copilot/logs/
-            mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/.copilot/logs/ || true
-            rmdir "$COPILOT_LOGS_DIR" || true
+            sudo mkdir -p /tmp/gh-aw/.copilot/logs/
+            sudo mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/.copilot/logs/ || true
+            sudo rmdir "$COPILOT_LOGS_DIR" || true
           fi
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
