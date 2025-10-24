@@ -1,11 +1,14 @@
 ---
 on:
   schedule:
-    - cron: "0 15 * * 1-5"  # 7 AM PST (3 PM UTC), weekdays only
+    - cron: "0 16 * * 1-5"  # 8 AM PST (4 PM UTC), weekdays only
   workflow_dispatch:
 permissions:
   contents: read
   actions: read
+  issues: read
+  pull-requests: read
+  discussions: read
 engine: copilot
 tools:
   github:
@@ -17,10 +20,10 @@ tools:
       - get_issue
       - search_issues
       - search_pull_requests
+      - list_discussions
 safe-outputs:
   create-discussion:
     title-prefix: "📰 "
-    max: 1
 ---
 
 # The Daily Repository Chronicle
