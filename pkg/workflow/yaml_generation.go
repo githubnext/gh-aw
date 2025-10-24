@@ -908,6 +908,3 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          if-no-files-found: warn\n")
 
 }
-
-// validateHTTPTransportSupport validates that HTTP MCP servers are only used with engines that support HTTP transport
-
