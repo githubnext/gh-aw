@@ -1211,7 +1211,7 @@ jobs:
         # --allow-tool github(list_workflow_run_artifacts)
         # --allow-tool github(list_workflow_runs)
         # --allow-tool github(list_workflows)
-        # --allow-tool safe_outputs
+        # --allow-tool safe-outputs
         timeout-minutes: 15
         run: |
           set -o pipefail
@@ -1220,7 +1220,7 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool safe_outputs --additional-mcp-config '{
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool safe-outputs --additional-mcp-config '{
             "mcpServers": {
               "github": {
                 "type": "local",
