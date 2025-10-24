@@ -8,7 +8,7 @@ if: github.event.pull_request.base.ref == github.event.repository.default_branch
 permissions:
   contents: read
   pull-requests: read
-engine: claude
+engine: copilot
 safe-outputs:
   push-to-pull-request-branch:
     commit-title-prefix: "[skip-ci] "
