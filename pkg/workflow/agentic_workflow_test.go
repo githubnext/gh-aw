@@ -83,6 +83,21 @@ func TestAgenticWorkflowsMCPConfigGeneration(t *testing.T) {
 				},
 			}
 
+			// For Copilot, RenderMCPConfig is now empty (config is in --additional-mcp-config)
+			// Skip this test for Copilot or check GetExecutionSteps instead
+			if e.name == "Copilot" {
+				// Test that RenderMCPConfig produces no output for Copilot
+				var yaml strings.Builder
+				mcpTools := []string{"agentic-workflows"}
+				e.engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
+				result := yaml.String()
+				
+				if result != "" {
+					t.Errorf("Expected Copilot RenderMCPConfig to produce no output, got: %s", result)
+				}
+				return
+			}
+
 			// Generate MCP config
 			var yaml strings.Builder
 			mcpTools := []string{"agentic-workflows"}
