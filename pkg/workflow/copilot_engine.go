@@ -1,11 +1,14 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 const logsFolder = "/tmp/gh-aw/.copilot/logs/"
@@ -152,6 +155,15 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		
 		// Build MCP configuration JSON
 		mcpConfigJSON := e.buildMCPConfigJSON(workflowData.Tools, mcpTools, workflowData)
+		
+		// Validate that the generated JSON is valid
+		var jsonTest interface{}
+		if err := json.Unmarshal([]byte(mcpConfigJSON), &jsonTest); err != nil {
+			// Log error but continue - this is a validation warning, not a fatal error
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Generated MCP config JSON is invalid: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("MCP config JSON:"))
+			fmt.Fprintln(os.Stderr, mcpConfigJSON)
+		}
 		
 		// Add the --additional-mcp-config argument with JSON (will be quoted by shellEscapeArg)
 		copilotArgs = append(copilotArgs, "--additional-mcp-config", mcpConfigJSON)
@@ -463,7 +475,8 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 			AuthorizationValue: "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}",
 			IncludeToolsField:  true, // Copilot uses tools field
 			AllowedTools:       allowedTools,
-			IncludeEnvSection:  true, // Copilot uses env section for passthrough
+			IncludeEnvSection:  true,  // Copilot uses env section for passthrough
+			EscapeDollarInEnv:  false, // Don't escape $ for inline JSON
 		})
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
@@ -478,6 +491,7 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 			IncludeTypeField:   true, // Copilot includes "type": "local" field
 			AllowedTools:       allowedTools,
 			EffectiveToken:     "", // Copilot uses env passthrough
+			EscapeDollarInEnv:  false, // Don't escape $ for inline JSON
 		})
 	}
 

@@ -2550,7 +2550,80 @@ jobs:
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/cache-memory/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --additional-mcp-config ewogICJtY3BTZXJ2ZXJzIjogewogICAgImdoLWF3IjogewogICAgICAidHlwZSI6ICJodHRwIiwKICAgICAgInVybCI6ICJodHRwOi8vbG9jYWxob3N0Ojg3NjUiLAogICAgICAidG9vbHMiOiBbCiAgICAgICAgIioiCiAgICAgIF0KICAgIH0sCiAgICAiZ2l0aHViIjogewogICAgICAidHlwZSI6ICJsb2NhbCIsCiAgICAgICJjb21tYW5kIjogImRvY2tlciIsCiAgICAgICJhcmdzIjogWwogICAgICAgICJydW4iLAogICAgICAgICItaSIsCiAgICAgICAgIi0tcm0iLAogICAgICAgICItZSIsCiAgICAgICAgIkdJVEhVQl9QRVJTT05BTF9BQ0NFU1NfVE9LRU4iLAogICAgICAgICItZSIsCiAgICAgICAgIkdJVEhVQl9SRUFEX09OTFk9MSIsCiAgICAgICAgIi1lIiwKICAgICAgICAiR0lUSFVCX1RPT0xTRVRTPWRlZmF1bHQiLAogICAgICAgICJnaGNyLmlvL2dpdGh1Yi9naXRodWItbWNwLXNlcnZlcjp2MC4xOS4xIgogICAgICBdLAogICAgICAidG9vbHMiOiBbIioiXSwKICAgICAgImVudiI6IHsKICAgICAgICAiR0lUSFVCX1BFUlNPTkFMX0FDQ0VTU19UT0tFTiI6ICJcJHtHSVRIVUJfTUNQX1NFUlZFUl9UT0tFTn0iCiAgICAgIH0KICAgIH0sCiAgICAic2FmZV9vdXRwdXRzIjogewogICAgICAidHlwZSI6ICJsb2NhbCIsCiAgICAgICJjb21tYW5kIjogIm5vZGUiLAogICAgICAiYXJncyI6IFsiL3RtcC9naC1hdy9zYWZlLW91dHB1dHMvbWNwLXNlcnZlci5janMiXSwKICAgICAgInRvb2xzIjogWyIqIl0sCiAgICAgICJlbnYiOiB7CiAgICAgICAgIkdIX0FXX1NBRkVfT1VUUFVUUyI6ICJcJHtHSF9BV19TQUZFX09VVFBVVFN9IiwKICAgICAgICAiR0hfQVdfU0FGRV9PVVRQVVRTX0NPTkZJRyI6ICJcJHtHSF9BV19TQUZFX09VVFBVVFNfQ09ORklHfSIsCiAgICAgICAgIkdIX0FXX0FTU0VUU19CUkFOQ0giOiAiXCR7R0hfQVdfQVNTRVRTX0JSQU5DSH0iLAogICAgICAgICJHSF9BV19BU1NFVFNfTUFYX1NJWkVfS0IiOiAiXCR7R0hfQVdfQVNTRVRTX01BWF9TSVpFX0tCfSIsCiAgICAgICAgIkdIX0FXX0FTU0VUU19BTExPV0VEX0VYVFMiOiAiXCR7R0hfQVdfQVNTRVRTX0FMTE9XRURfRVhUU30iCiAgICAgIH0KICAgIH0sCiAgICAic2VyZW5hIjogewogICAgICAidHlwZSI6ICJsb2NhbCIsCiAgICAgICJjb21tYW5kIjogInV2eCIsCiAgICAgICJ0b29scyI6IFsKICAgICAgICAiKiIKICAgICAgXSwKICAgICAgImFyZ3MiOiBbCiAgICAgICAgIi0tZnJvbSIsCiAgICAgICAgImdpdCtodHRwczovL2dpdGh1Yi5jb20vb3JhaW9zL3NlcmVuYSIsCiAgICAgICAgInNlcmVuYSIsCiAgICAgICAgInN0YXJ0LW1jcC1zZXJ2ZXIiLAogICAgICAgICItLWNvbnRleHQiLAogICAgICAgICJjb2RleCIsCiAgICAgICAgIi0tcHJvamVjdCIsCiAgICAgICAgIiR7eyBnaXRodWIud29ya3NwYWNlIH19IgogICAgICBdCiAgICB9LAogICAgInRhdmlseSI6IHsKICAgICAgInR5cGUiOiAiaHR0cCIsCiAgICAgICJ1cmwiOiAiaHR0cHM6Ly9tY3AudGF2aWx5LmNvbS9tY3AvIiwKICAgICAgImhlYWRlcnMiOiB7CiAgICAgICAgIkF1dGhvcml6YXRpb24iOiAiQmVhcmVyIFwke1RBVklMWV9BUElfS0VZfSIKICAgICAgfSwKICAgICAgInRvb2xzIjogWwogICAgICAgICIqIgogICAgICBdLAogICAgICAiZW52IjogewogICAgICAgICJUQVZJTFlfQVBJX0tFWSI6ICJcJHtUQVZJTFlfQVBJX0tFWX0iCiAgICAgIH0KICAgIH0KICB9Cn0= --allow-tool gh-aw --allow-tool github --allow-tool safe_outputs --allow-tool serena --allow-tool 'serena(*)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --additional-mcp-config '{
+            "mcpServers": {
+              "gh-aw": {
+                "type": "http",
+                "url": "http://localhost:8765",
+                "tools": [
+                  "*"
+                ]
+              },
+              "github": {
+                "type": "local",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-e",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "-e",
+                  "GITHUB_READ_ONLY=1",
+                  "-e",
+                  "GITHUB_TOOLSETS=default",
+                  "ghcr.io/github/github-mcp-server:v0.19.1"
+                ],
+                "tools": ["*"],
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_MCP_SERVER_TOKEN}"
+                }
+              },
+              "safe_outputs": {
+                "type": "local",
+                "command": "node",
+                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
+                "tools": ["*"],
+                "env": {
+                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\${GH_AW_SAFE_OUTPUTS_CONFIG}",
+                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}"
+                }
+              },
+              "serena": {
+                "type": "local",
+                "command": "uvx",
+                "tools": [
+                  "*"
+                ],
+                "args": [
+                  "--from",
+                  "git+https://github.com/oraios/serena",
+                  "serena",
+                  "start-mcp-server",
+                  "--context",
+                  "codex",
+                  "--project",
+                  "${{ github.workspace }}"
+                ]
+              },
+              "tavily": {
+                "type": "http",
+                "url": "https://mcp.tavily.com/mcp/",
+                "headers": {
+                  "Authorization": "Bearer \${TAVILY_API_KEY}"
+                },
+                "tools": [
+                  "*"
+                ],
+                "env": {
+                  "TAVILY_API_KEY": "\${TAVILY_API_KEY}"
+                }
+              }
+            }
+          }' --allow-tool gh-aw --allow-tool github --allow-tool safe_outputs --allow-tool serena --allow-tool 'serena(*)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt

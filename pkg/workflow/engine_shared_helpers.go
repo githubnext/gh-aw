@@ -154,6 +154,8 @@ type GitHubMCPDockerOptions struct {
 	AllowedTools []string
 	// EffectiveToken is the GitHub token to use (Claude uses this, Copilot uses env passthrough)
 	EffectiveToken string
+	// EscapeDollarInEnv controls whether to escape $ in env values (true for heredoc, false for inline JSON)
+	EscapeDollarInEnv bool
 }
 
 // RenderGitHubMCPDockerConfig renders the GitHub MCP server configuration for Docker (local mode).
@@ -216,7 +218,12 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 		yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"", options.EffectiveToken))
 	} else {
 		// Copilot uses env passthrough
-		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_MCP_SERVER_TOKEN}\"")
+		// Escape dollar sign for heredoc, but not for inline JSON
+		if options.EscapeDollarInEnv {
+			yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_MCP_SERVER_TOKEN}\"")
+		} else {
+			yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${GITHUB_MCP_SERVER_TOKEN}\"")
+		}
 	}
 	yaml.WriteString("\n")
 	yaml.WriteString("                }\n")
@@ -238,6 +245,8 @@ type GitHubMCPRemoteOptions struct {
 	AllowedTools []string
 	// IncludeEnvSection indicates whether to include the env section (Copilot needs it, Claude doesn't)
 	IncludeEnvSection bool
+	// EscapeDollarInEnv controls whether to escape $ in env values (true for heredoc, false for inline JSON)
+	EscapeDollarInEnv bool
 }
 
 // RenderGitHubMCPRemoteConfig renders the GitHub MCP server configuration for remote (hosted) mode.
@@ -296,7 +305,12 @@ func RenderGitHubMCPRemoteConfig(yaml *strings.Builder, options GitHubMCPRemoteO
 	// Add env section if needed (Copilot uses this, Claude doesn't)
 	if options.IncludeEnvSection {
 		yaml.WriteString("                \"env\": {\n")
-		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_MCP_SERVER_TOKEN}\"\n")
+		// Escape dollar sign for heredoc, but not for inline JSON
+		if options.EscapeDollarInEnv {
+			yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_MCP_SERVER_TOKEN}\"\n")
+		} else {
+			yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${GITHUB_MCP_SERVER_TOKEN}\"\n")
+		}
 		yaml.WriteString("                }\n")
 	}
 }

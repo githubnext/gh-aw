@@ -51,6 +51,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				IncludeTypeField:   true,
 				AllowedTools:       []string{"create_issue", "get_issue"},
 				EffectiveToken:     "",
+				EscapeDollarInEnv:  false, // Copilot uses inline JSON, no escape needed
 			},
 			expected: []string{
 				`"type": "local"`,
@@ -58,7 +59,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				`"tools": [`,
 				`"create_issue"`,
 				`"get_issue"`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_MCP_SERVER_TOKEN}"`,
 			},
 			notFound: []string{
 				`"GITHUB_READ_ONLY=1"`,
@@ -108,6 +109,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				IncludeTypeField:   true,
 				AllowedTools:       nil,
 				EffectiveToken:     "",
+				EscapeDollarInEnv:  false, // Copilot uses inline JSON
 			},
 			expected: []string{
 				`"type": "local"`,

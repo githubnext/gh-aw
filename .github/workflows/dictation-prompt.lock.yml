@@ -1251,7 +1251,46 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --additional-mcp-config ewogICJtY3BTZXJ2ZXJzIjogewogICAgImdpdGh1YiI6IHsKICAgICAgInR5cGUiOiAibG9jYWwiLAogICAgICAiY29tbWFuZCI6ICJkb2NrZXIiLAogICAgICAiYXJncyI6IFsKICAgICAgICAicnVuIiwKICAgICAgICAiLWkiLAogICAgICAgICItLXJtIiwKICAgICAgICAiLWUiLAogICAgICAgICJHSVRIVUJfUEVSU09OQUxfQUNDRVNTX1RPS0VOIiwKICAgICAgICAiLWUiLAogICAgICAgICJHSVRIVUJfUkVBRF9PTkxZPTEiLAogICAgICAgICItZSIsCiAgICAgICAgIkdJVEhVQl9UT09MU0VUUz1kZWZhdWx0IiwKICAgICAgICAiZ2hjci5pby9naXRodWIvZ2l0aHViLW1jcC1zZXJ2ZXI6djAuMTkuMSIKICAgICAgXSwKICAgICAgInRvb2xzIjogWwogICAgICAgICJnZXRfZmlsZV9jb250ZW50cyIsCiAgICAgICAgInNlYXJjaF9jb2RlIgogICAgICBdLAogICAgICAiZW52IjogewogICAgICAgICJHSVRIVUJfUEVSU09OQUxfQUNDRVNTX1RPS0VOIjogIlwke0dJVEhVQl9NQ1BfU0VSVkVSX1RPS0VOfSIKICAgICAgfQogICAgfSwKICAgICJzYWZlX291dHB1dHMiOiB7CiAgICAgICJ0eXBlIjogImxvY2FsIiwKICAgICAgImNvbW1hbmQiOiAibm9kZSIsCiAgICAgICJhcmdzIjogWyIvdG1wL2doLWF3L3NhZmUtb3V0cHV0cy9tY3Atc2VydmVyLmNqcyJdLAogICAgICAidG9vbHMiOiBbIioiXSwKICAgICAgImVudiI6IHsKICAgICAgICAiR0hfQVdfU0FGRV9PVVRQVVRTIjogIlwke0dIX0FXX1NBRkVfT1VUUFVUU30iLAogICAgICAgICJHSF9BV19TQUZFX09VVFBVVFNfQ09ORklHIjogIlwke0dIX0FXX1NBRkVfT1VUUFVUU19DT05GSUd9IiwKICAgICAgICAiR0hfQVdfQVNTRVRTX0JSQU5DSCI6ICJcJHtHSF9BV19BU1NFVFNfQlJBTkNIfSIsCiAgICAgICAgIkdIX0FXX0FTU0VUU19NQVhfU0laRV9LQiI6ICJcJHtHSF9BV19BU1NFVFNfTUFYX1NJWkVfS0J9IiwKICAgICAgICAiR0hfQVdfQVNTRVRTX0FMTE9XRURfRVhUUyI6ICJcJHtHSF9BV19BU1NFVFNfQUxMT1dFRF9FWFRTfSIKICAgICAgfQogICAgfQogIH0KfQ== --allow-all-tools --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --additional-mcp-config '{
+            "mcpServers": {
+              "github": {
+                "type": "local",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-e",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "-e",
+                  "GITHUB_READ_ONLY=1",
+                  "-e",
+                  "GITHUB_TOOLSETS=default",
+                  "ghcr.io/github/github-mcp-server:v0.19.1"
+                ],
+                "tools": [
+                  "get_file_contents",
+                  "search_code"
+                ],
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_MCP_SERVER_TOKEN}"
+                }
+              },
+              "safe_outputs": {
+                "type": "local",
+                "command": "node",
+                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
+                "tools": ["*"],
+                "env": {
+                  "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
+                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\${GH_AW_SAFE_OUTPUTS_CONFIG}",
+                  "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}"
+                }
+              }
+            }
+          }' --allow-all-tools --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt

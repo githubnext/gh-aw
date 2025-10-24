@@ -664,6 +664,7 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 			IncludeToolsField:  false, // Claude doesn't use tools field
 			AllowedTools:       nil,
 			IncludeEnvSection:  false, // Claude doesn't use env section
+			EscapeDollarInEnv:  true,  // Escape $ for heredoc file writing
 		})
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
@@ -681,6 +682,7 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 			IncludeTypeField:   false, // Claude doesn't include "type" field
 			AllowedTools:       nil,   // Claude doesn't use tools field
 			EffectiveToken:     effectiveToken,
+			EscapeDollarInEnv:  true, // Escape $ for heredoc file writing
 		})
 	}
 
