@@ -22,9 +22,7 @@ function main() {
     }
 
     // Find all access.log files
-    const files = fs
-      .readdirSync(squidLogsDir)
-      .filter((file) => file.endsWith(".log"));
+    const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
 
     if (files.length === 0) {
       core.info(`No firewall log files found in: ${squidLogsDir}`);
@@ -46,7 +44,7 @@ function main() {
       core.info(`Parsing firewall log: ${file}`);
 
       const content = fs.readFileSync(filePath, "utf8");
-      const lines = content.split("\n").filter((line) => line.trim());
+      const lines = content.split("\n").filter(line => line.trim());
 
       for (const line of lines) {
         const entry = parseFirewallLogLine(line);
@@ -144,20 +142,11 @@ function isRequestAllowed(decision, status) {
   }
 
   // Check decision field
-  if (
-    decision.includes("TCP_TUNNEL") ||
-    decision.includes("TCP_HIT") ||
-    decision.includes("TCP_MISS")
-  ) {
+  if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
     return true;
   }
 
-  if (
-    decision.includes("NONE_NONE") ||
-    decision.includes("TCP_DENIED") ||
-    statusCode === 403 ||
-    statusCode === 407
-  ) {
+  if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
     return false;
   }
 
@@ -171,14 +160,7 @@ function isRequestAllowed(decision, status) {
  * @returns {string} Markdown formatted summary
  */
 function generateFirewallSummary(analysis) {
-  const {
-    totalRequests,
-    allowedRequests,
-    deniedRequests,
-    allowedDomains,
-    deniedDomains,
-    requestsByDomain,
-  } = analysis;
+  const { totalRequests, allowedRequests, deniedRequests, allowedDomains, deniedDomains, requestsByDomain } = analysis;
 
   let summary = "# 🔥 Firewall Activity Summary\n\n";
 

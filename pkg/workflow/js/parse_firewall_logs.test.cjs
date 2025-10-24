@@ -21,19 +21,17 @@ describe("parse_firewall_logs.cjs", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     const scriptPath = path.join(process.cwd(), "parse_firewall_logs.cjs");
     const scriptContent = fs.readFileSync(scriptPath, "utf8");
-    const scriptForTesting = scriptContent
-      .replace("if (require.main === module) {", "if (false) {")
-      .replace(
-        "// Export for testing",
-        `global.testParseFirewallLogLine = parseFirewallLogLine;
+    const scriptForTesting = scriptContent.replace("if (require.main === module) {", "if (false) {").replace(
+      "// Export for testing",
+      `global.testParseFirewallLogLine = parseFirewallLogLine;
         global.testIsRequestAllowed = isRequestAllowed;
         global.testGenerateFirewallSummary = generateFirewallSummary;
         global.testSanitizeWorkflowName = sanitizeWorkflowName;
-        // Export for testing`,
-      );
+        // Export for testing`
+    );
 
     eval(scriptForTesting);
 
@@ -45,7 +43,8 @@ describe("parse_firewall_logs.cjs", () => {
 
   describe("parseFirewallLogLine", () => {
     test("should parse valid firewall log line", () => {
-      const line = '1761332530.474 172.30.0.20:35288 api.enterprise.githubcopilot.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.enterprise.githubcopilot.com:443 "-"';
+      const line =
+        '1761332530.474 172.30.0.20:35288 api.enterprise.githubcopilot.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.enterprise.githubcopilot.com:443 "-"';
       const result = parseFirewallLogLine(line);
       expect(result).not.toBeNull();
       expect(result.timestamp).toBe("1761332530.474");

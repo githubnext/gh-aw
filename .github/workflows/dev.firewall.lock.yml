@@ -604,11 +604,7 @@ jobs:
 
                 }
 
-                const files = fs
-
-                  .readdirSync(squidLogsDir)
-
-                  .filter((file) => file.endsWith(".log"));
+                const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
 
                 if (files.length === 0) {
 
@@ -640,7 +636,7 @@ jobs:
 
                   const content = fs.readFileSync(filePath, "utf8");
 
-                  const lines = content.split("\n").filter((line) => line.trim());
+                  const lines = content.split("\n").filter(line => line.trim());
 
                   for (const line of lines) {
 
@@ -774,31 +770,13 @@ jobs:
 
               }
 
-              if (
-
-                decision.includes("TCP_TUNNEL") ||
-
-                decision.includes("TCP_HIT") ||
-
-                decision.includes("TCP_MISS")
-
-              ) {
+              if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
 
                 return true;
 
               }
 
-              if (
-
-                decision.includes("NONE_NONE") ||
-
-                decision.includes("TCP_DENIED") ||
-
-                statusCode === 403 ||
-
-                statusCode === 407
-
-              ) {
+              if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
 
                 return false;
 
@@ -810,21 +788,7 @@ jobs:
 
             function generateFirewallSummary(analysis) {
 
-              const {
-
-                totalRequests,
-
-                allowedRequests,
-
-                deniedRequests,
-
-                allowedDomains,
-
-                deniedDomains,
-
-                requestsByDomain,
-
-              } = analysis;
+              const { totalRequests, allowedRequests, deniedRequests, allowedDomains, deniedDomains, requestsByDomain } = analysis;
 
               let summary = "# 🔥 Firewall Activity Summary\n\n";
 
