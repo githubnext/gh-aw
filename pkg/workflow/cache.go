@@ -28,18 +28,6 @@ func generateDefaultCacheKey(cacheID string) string {
 	return fmt.Sprintf("memory-%s-${{ github.workflow }}-${{ github.run_id }}", cacheID)
 }
 
-// validateNoDuplicateCacheIDs checks for duplicate cache IDs and returns an error if found
-func validateNoDuplicateCacheIDs(caches []CacheMemoryEntry) error {
-	seen := make(map[string]bool)
-	for _, cache := range caches {
-		if seen[cache.ID] {
-			return fmt.Errorf("duplicate cache-memory ID '%s' found. Each cache must have a unique ID", cache.ID)
-		}
-		seen[cache.ID] = true
-	}
-	return nil
-}
-
 // extractCacheMemoryConfig extracts cache-memory configuration from tools section
 func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryConfig, error) {
 	cacheMemoryValue, exists := tools["cache-memory"]

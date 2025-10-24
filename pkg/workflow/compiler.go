@@ -16,7 +16,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 	"github.com/goccy/go-yaml"
-	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 var log = logger.New("workflow:compiler")
@@ -418,52 +417,6 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			fmt.Println(console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
 		}
 	}
-	return nil
-}
-
-// validateGitHubActionsSchema validates the generated YAML content against the GitHub Actions workflow schema
-func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
-	// Convert YAML to any for JSON conversion
-	var workflowData any
-	if err := yaml.Unmarshal([]byte(yamlContent), &workflowData); err != nil {
-		return fmt.Errorf("failed to parse YAML for schema validation: %w", err)
-	}
-
-	// Convert to JSON for schema validation
-	jsonData, err := json.Marshal(workflowData)
-	if err != nil {
-		return fmt.Errorf("failed to convert YAML to JSON for validation: %w", err)
-	}
-
-	// Parse the embedded schema
-	var schemaDoc any
-	if err := json.Unmarshal([]byte(githubWorkflowSchema), &schemaDoc); err != nil {
-		return fmt.Errorf("failed to parse embedded GitHub Actions schema: %w", err)
-	}
-
-	// Create compiler and add the schema as a resource
-	loader := jsonschema.NewCompiler()
-	schemaURL := "https://json.schemastore.org/github-workflow.json"
-	if err := loader.AddResource(schemaURL, schemaDoc); err != nil {
-		return fmt.Errorf("failed to add schema resource: %w", err)
-	}
-
-	// Compile the schema
-	schema, err := loader.Compile(schemaURL)
-	if err != nil {
-		return fmt.Errorf("failed to compile GitHub Actions schema: %w", err)
-	}
-
-	// Validate the JSON data against the schema
-	var jsonObj any
-	if err := json.Unmarshal(jsonData, &jsonObj); err != nil {
-		return fmt.Errorf("failed to unmarshal JSON for validation: %w", err)
-	}
-
-	if err := schema.Validate(jsonObj); err != nil {
-		return fmt.Errorf("GitHub Actions schema validation failed: %w", err)
-	}
-
 	return nil
 }
 
