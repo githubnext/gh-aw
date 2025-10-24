@@ -204,7 +204,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
-			expected: []string{"--allow-tool", "safe_outputs"},
+			expected: []string{"--allow-tool", "safeoutputs"},
 		},
 		{
 			name: "mixed tools",
@@ -230,7 +230,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
-			expected: []string{"--allow-tool", "safe_outputs", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
+			expected: []string{"--allow-tool", "safeoutputs", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
 		},
 		{
 			name:  "safe outputs with safe_outputs config",
@@ -238,7 +238,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
 			},
-			expected: []string{"--allow-tool", "safe_outputs"},
+			expected: []string{"--allow-tool", "safeoutputs"},
 		},
 		{
 			name:  "safe outputs with safe jobs",
@@ -248,7 +248,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 					"my-job": {Name: "test job"},
 				},
 			},
-			expected: []string{"--allow-tool", "safe_outputs"},
+			expected: []string{"--allow-tool", "safeoutputs"},
 		},
 		{
 			name:  "safe outputs with both safe_outputs and safe jobs",
@@ -259,7 +259,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 					"my-job": {Name: "test job"},
 				},
 			},
-			expected: []string{"--allow-tool", "safe_outputs"},
+			expected: []string{"--allow-tool", "safeoutputs"},
 		},
 		{
 			name: "github tool with allowed tools",

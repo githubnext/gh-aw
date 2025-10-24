@@ -158,7 +158,7 @@ jobs:
             const crypto = require("crypto");
             const { execSync } = require("child_process");
             const encoder = new TextEncoder();
-            const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
+            const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
             const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
@@ -942,7 +942,7 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
               },
-              "safe_outputs": {
+              "safeoutputs": {
                 "type": "local",
                 "command": "node",
                 "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
@@ -1216,7 +1216,7 @@ jobs:
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
-        # --allow-tool safe_outputs
+        # --allow-tool safeoutputs
         # --allow-tool tavily
         # --allow-tool tavily(*)
         timeout-minutes: 10
@@ -1227,7 +1227,7 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safe_outputs --allow-tool tavily --allow-tool 'tavily(*)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool tavily --allow-tool 'tavily(*)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json

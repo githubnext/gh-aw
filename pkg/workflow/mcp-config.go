@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
@@ -88,7 +89,7 @@ func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
 
 // renderSafeOutputsMCPConfigWithOptions generates the Safe Outputs MCP server configuration with engine-specific options
 func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool) {
-	yaml.WriteString("              \"safe_outputs\": {\n")
+	yaml.WriteString("              \"" + constants.SafeOutputsMCPServerID + "\": {\n")
 
 	// Add type field for Copilot
 	if includeCopilotFields {
@@ -198,7 +199,7 @@ func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 // renderSafeOutputsMCPConfigTOML generates the Safe Outputs MCP server configuration in TOML format for Codex
 func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers.safe_outputs]\n")
+	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + "]\n")
 	yaml.WriteString("          command = \"node\"\n")
 	yaml.WriteString("          args = [\n")
 	yaml.WriteString("            \"/tmp/gh-aw/safe-outputs/mcp-server.cjs\",\n")

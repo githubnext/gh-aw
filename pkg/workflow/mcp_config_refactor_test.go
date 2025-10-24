@@ -116,7 +116,7 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 			isLast:               true,
 			includeCopilotFields: true,
 			expectedContent: []string{
-				`"safe_outputs": {`,
+				`"safeoutputs": {`,
 				`"type": "local"`,
 				`"command": "node"`,
 				`"args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"]`,
@@ -135,7 +135,7 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 			isLast:               false,
 			includeCopilotFields: false,
 			expectedContent: []string{
-				`"safe_outputs": {`,
+				`"safeoutputs": {`,
 				`"command": "node"`,
 				`"args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"]`,
 				`"GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}"`,
@@ -308,7 +308,7 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 	result := output.String()
 
 	expectedContent := []string{
-		`[mcp_servers.safe_outputs]`,
+		`[mcp_servers.safeoutputs]`,
 		`command = "node"`,
 		`args = [`,
 		`"/tmp/gh-aw/safe-outputs/mcp-server.cjs"`,

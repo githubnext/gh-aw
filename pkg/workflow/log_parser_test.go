@@ -167,7 +167,7 @@ func TestParseClaudeLogInitialization(t *testing.T) {
     "tools": ["Task", "Bash", "Read", "mcp__github__search_issues", "mcp__github__create_issue"],
     "mcp_servers": [
       {"name": "github", "status": "connected"},
-      {"name": "safe_outputs", "status": "failed"}
+      {"name": "safeoutputs", "status": "failed"}
     ],
     "model": "claude-sonnet-4-20250514",
     "slash_commands": ["help", "status", "config"]
@@ -203,8 +203,8 @@ func TestParseClaudeLogInitialization(t *testing.T) {
 	if !strings.Contains(result, "✅ github (connected)") {
 		t.Error("Expected Claude log output to show github server as connected")
 	}
-	if !strings.Contains(result, "❌ safe_outputs (failed)") {
-		t.Error("Expected Claude log output to show safe_outputs server as failed")
+	if !strings.Contains(result, "❌ safeoutputs (failed)") {
+		t.Error("Expected Claude log output to show safeoutputs server as failed")
 	}
 
 	// Verify tools section

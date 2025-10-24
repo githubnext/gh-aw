@@ -7,7 +7,7 @@ const crypto = require("crypto");
 const { execSync } = require("child_process");
 
 const encoder = new TextEncoder();
-const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
+const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
 const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
 
 /**

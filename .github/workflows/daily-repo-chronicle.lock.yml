@@ -157,7 +157,7 @@ jobs:
             const crypto = require("crypto");
             const { execSync } = require("child_process");
             const encoder = new TextEncoder();
-            const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
+            const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
             const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
@@ -950,7 +950,7 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
               },
-              "safe_outputs": {
+              "safeoutputs": {
                 "type": "local",
                 "command": "node",
                 "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
@@ -1243,7 +1243,7 @@ jobs:
         # --allow-tool github(list_pull_requests)
         # --allow-tool github(search_issues)
         # --allow-tool github(search_pull_requests)
-        # --allow-tool safe_outputs
+        # --allow-tool safeoutputs
         timeout-minutes: 20
         run: |
           set -o pipefail
@@ -1252,7 +1252,7 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(get_issue)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_pull_requests)' --allow-tool safe_outputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(get_issue)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_pull_requests)' --allow-tool safeoutputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
