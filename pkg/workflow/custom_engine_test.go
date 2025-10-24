@@ -129,7 +129,7 @@ func TestCustomEngineGetExecutionStepsWithIdAndContinueOnError(t *testing.T) {
 				"name":              "Setup with ID",
 				"id":                "setup-step",
 				"continue-on-error": true,
-				"uses":              "actions/setup-node@v4",
+				"uses":              "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
 				"with": map[string]any{
 					"node-version": "18",
 				},
@@ -199,7 +199,7 @@ func TestCustomEngineGetExecutionStepsWithSteps(t *testing.T) {
 		Steps: []map[string]any{
 			{
 				"name": "Setup Node.js",
-				"uses": "actions/setup-node@v4",
+				"uses": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
 				"with": map[string]any{
 					"node-version": "18",
 				},
@@ -229,8 +229,8 @@ func TestCustomEngineGetExecutionStepsWithSteps(t *testing.T) {
 		if !strings.Contains(firstStepContent, "name: Setup Node.js") {
 			t.Errorf("Expected first step to contain 'name: Setup Node.js', got:\n%s", firstStepContent)
 		}
-		if !strings.Contains(firstStepContent, "uses: actions/setup-node@v4") {
-			t.Errorf("Expected first step to contain 'uses: actions/setup-node@v4', got:\n%s", firstStepContent)
+		if !strings.Contains(firstStepContent, "uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020") {
+			t.Errorf("Expected first step to contain 'uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020', got:\n%s", firstStepContent)
 		}
 	}
 
@@ -420,7 +420,7 @@ func TestCustomEngineConvertStepToYAMLWithSection(t *testing.T) {
 	// Test step with 'with' section to ensure keys are sorted
 	stepMap := map[string]any{
 		"name": "Test step with sorted with section",
-		"uses": "actions/checkout@v4",
+		"uses": "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
 		"with": map[string]any{
 			"zebra": "value-z",
 			"alpha": "value-a",

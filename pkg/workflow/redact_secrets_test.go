@@ -134,8 +134,8 @@ Test workflow for secret redaction.
 	}
 
 	// Verify the redaction step uses actions/github-script
-	if !strings.Contains(lockStr, "uses: actions/github-script@v8") {
-		t.Error("Expected redaction step to use actions/github-script@v8")
+	if !strings.Contains(lockStr, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
+		t.Error("Expected redaction step to use actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd")
 	}
 
 	// Verify the redaction step runs with if: always()

@@ -26,7 +26,7 @@ steps:
 # Test workflow`,
 			expectSetup: []string{
 				"Setup Node.js",
-				"actions/setup-node@v4",
+				"actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
 				"node-version: '24'",
 			},
 		},
@@ -43,7 +43,7 @@ steps:
 # Test workflow`,
 			expectSetup: []string{
 				"Setup Python",
-				"actions/setup-python@v5",
+				"actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
 				"python-version: '3.12'",
 			},
 		},
@@ -60,7 +60,7 @@ steps:
 # Test workflow`,
 			expectSetup: []string{
 				"Setup uv",
-				"astral-sh/setup-uv@v5",
+				"astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081",
 			},
 		},
 		{
@@ -88,7 +88,7 @@ on: push
 engine: copilot
 steps:
   - name: Setup Node.js
-    uses: actions/setup-node@v4
+    uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
     with:
       node-version: '20'
   - name: Install
@@ -118,7 +118,7 @@ mcp-servers:
 # Test workflow`,
 			expectSetup: []string{
 				"Setup Python",
-				"actions/setup-python@v5",
+				"actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
 			},
 		},
 		{
@@ -236,7 +236,7 @@ on: push
 engine: copilot
 steps:
   - name: Setup Python
-    uses: actions/setup-python@v5
+    uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
     with:
       python-version: '3.9'
   - name: Run script

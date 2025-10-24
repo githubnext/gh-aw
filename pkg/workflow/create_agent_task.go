@@ -53,7 +53,7 @@ func (c *Compiler) buildCreateOutputAgentTaskJob(data *WorkflowData, mainJobName
 
 	// Step 1: Checkout repository for gh CLI to work
 	steps = append(steps, "      - name: Checkout repository for gh CLI\n")
-	steps = append(steps, "        uses: actions/checkout@v5\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 
 	// Build custom environment variables specific to create-agent-task
 	var customEnvVars []string

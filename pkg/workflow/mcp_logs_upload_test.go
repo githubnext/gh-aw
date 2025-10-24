@@ -66,8 +66,8 @@ Please navigate to example.com and take a screenshot.
 		t.Error("Expected 'Upload MCP logs' step to be in generated workflow")
 	}
 
-	// Verify the upload step uses actions/upload-artifact@v4
-	if !strings.Contains(lockContentStr, "uses: actions/upload-artifact@v4") {
+	// Verify the upload step uses actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+	if !strings.Contains(lockContentStr, "uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02") {
 		t.Error("Expected upload-artifact action to be used for MCP logs upload step")
 	}
 
@@ -177,8 +177,8 @@ This workflow does not use Playwright but should still have MCP logs upload.
 		t.Error("Expected 'mcp-logs' artifact even when Playwright is not used")
 	}
 
-	// Verify the upload step uses actions/upload-artifact@v4
-	if !strings.Contains(lockContentStr, "uses: actions/upload-artifact@v4") {
+	// Verify the upload step uses actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+	if !strings.Contains(lockContentStr, "uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02") {
 		t.Error("Expected upload-artifact action to be used for MCP logs upload step")
 	}
 

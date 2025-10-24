@@ -161,7 +161,7 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Check startup message
-      expect(serverOutput).toContain("safeoutputs");
+      expect(serverOutput).toContain("[safeoutputs]");
       expect(serverOutput).toContain("ready on stdio");
       console.log("✅ Server started successfully with output:", serverOutput.trim());
 

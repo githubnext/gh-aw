@@ -222,16 +222,16 @@ func TestContainsCheckout(t *testing.T) {
 			expected:    false,
 		},
 		{
-			name: "contains actions/checkout@v5",
+			name: "contains actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
 			customSteps: `steps:
   - name: Checkout
-    uses: actions/checkout@v5`,
+    uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8`,
 			expected: true,
 		},
 		{
-			name: "contains actions/checkout@v4",
+			name: "contains actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
 			customSteps: `steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
     with:
       token: ${{ secrets.GITHUB_TOKEN }}`,
 			expected: true,
@@ -240,7 +240,7 @@ func TestContainsCheckout(t *testing.T) {
 			name: "contains different action",
 			customSteps: `steps:
   - name: Setup Node
-    uses: actions/setup-node@v4
+    uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
     with:
       node-version: '18'`,
 			expected: false,
@@ -249,9 +249,9 @@ func TestContainsCheckout(t *testing.T) {
 			name: "mixed steps with checkout",
 			customSteps: `steps:
   - name: Checkout repository
-    uses: actions/checkout@v5
+    uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
   - name: Setup Node
-    uses: actions/setup-node@v4`,
+    uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020`,
 			expected: true,
 		},
 		{
@@ -266,7 +266,7 @@ func TestContainsCheckout(t *testing.T) {
 			customSteps: `steps:
   - name: Custom step
     run: echo "before checkout"
-  - uses: actions/checkout@v5
+  - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
   - name: After checkout
     run: echo "done"`,
 			expected: true,
@@ -294,19 +294,19 @@ func TestContainsCheckout(t *testing.T) {
 			name: "checkout action in quotes",
 			customSteps: `steps:
   - name: Checkout
-    uses: "actions/checkout@v5"`,
+    uses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8"`,
 			expected: true,
 		},
 		{
 			name: "checkout action in single quotes",
 			customSteps: `steps:
-  - uses: 'actions/checkout@v4'`,
+  - uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8'`,
 			expected: true,
 		},
 		{
 			name: "checkout with extra whitespace",
 			customSteps: `steps:
-  - uses:   actions/checkout@v5   `,
+  - uses:   actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8   `,
 			expected: true,
 		},
 		{
@@ -314,29 +314,29 @@ func TestContainsCheckout(t *testing.T) {
 			customSteps: `steps:
   - name: Checkout
     uses: >
-      actions/checkout@v5`,
+      actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8`,
 			expected: true,
 		},
 		{
 			name: "checkout in run command (should not match)",
 			customSteps: `steps:
   - name: Echo checkout
-    run: echo "actions/checkout@v5"`,
+    run: echo "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8"`,
 			expected: true, // Current implementation does simple string match
 		},
 		{
 			name: "checkout in comment (should not match)",
 			customSteps: `steps:
   - name: Setup
-    uses: actions/setup-node@v4
-    # TODO: add actions/checkout@v5`,
+    uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+    # TODO: add actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8`,
 			expected: true, // Current implementation does simple string match
 		},
 		{
 			name: "similar but not checkout action",
 			customSteps: `steps:
   - uses: actions/cache@v3
-  - uses: my-actions/checkout@v1`,
+  - uses: my-actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8`,
 			expected: true, // Current implementation matches substring
 		},
 		{
@@ -344,20 +344,20 @@ func TestContainsCheckout(t *testing.T) {
 			customSteps: `steps:
   - name: Checkout code
     uses: |
-      actions/checkout@v5`,
+      actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8`,
 			expected: true,
 		},
 		{
 			name: "malformed YAML with checkout",
 			customSteps: `steps
-  - uses: actions/checkout@v5`,
+  - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8`,
 			expected: true, // Still detects the string
 		},
 		{
 			name: "checkout with complex parameters",
 			customSteps: `steps:
   - name: Checkout repository
-    uses: actions/checkout@v5
+    uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
     with:
       fetch-depth: 0
       token: ${{ secrets.GITHUB_TOKEN }}
@@ -367,10 +367,10 @@ func TestContainsCheckout(t *testing.T) {
 		{
 			name: "multiple checkouts",
 			customSteps: `steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
   - name: Setup
     run: echo "setup"
-  - uses: actions/checkout@v5
+  - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
     with:
       path: subdirectory`,
 			expected: true,
@@ -385,7 +385,7 @@ func TestContainsCheckout(t *testing.T) {
 			name: "checkout in conditional step",
 			customSteps: `steps:
   - if: github.event_name == 'push'
-    uses: actions/checkout@v5`,
+    uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8`,
 			expected: true,
 		},
 		{
@@ -398,7 +398,7 @@ func TestContainsCheckout(t *testing.T) {
   - name: Step 3
     run: echo "third"
   - name: Checkout buried
-    uses: actions/checkout@v5
+    uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
   - name: Step 5
     run: echo "fifth"`,
 			expected: true,
