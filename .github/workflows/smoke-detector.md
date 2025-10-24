@@ -9,6 +9,7 @@ on:
     - Smoke Claude
     - Smoke Codex
     - Smoke Copilot
+    - Smoke Copilot Firewall
     - Smoke Genaiscript
     - Smoke Opencode
   reaction: "eyes"
