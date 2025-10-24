@@ -510,7 +510,7 @@ jobs:
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       - id: check_coverage_steps_file
         name: Check if action.yml exists
         run: |
@@ -525,6 +525,7 @@ jobs:
         if: steps.check_coverage_steps_file.outputs.exists == 'true'
         name: Build the project and produce coverage report, logging to coverage-steps.log
         uses: ./.github/actions/daily-test-improver/coverage-steps
+
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
