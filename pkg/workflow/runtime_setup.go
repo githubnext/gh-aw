@@ -256,6 +256,7 @@ func detectRuntimeFromCommand(cmdLine string, requirements map[string]*RuntimeRe
 // detectFromMCPConfigs scans MCP server configurations for runtime commands
 func detectFromMCPConfigs(tools map[string]any, requirements map[string]*RuntimeRequirement) {
 	for _, tool := range tools {
+		// Handle structured MCP config with command field
 		if toolMap, ok := tool.(map[string]any); ok {
 			if command, exists := toolMap["command"]; exists {
 				if cmdStr, ok := command.(string); ok {
@@ -264,6 +265,10 @@ func detectFromMCPConfigs(tools map[string]any, requirements map[string]*Runtime
 					}
 				}
 			}
+		} else if cmdStr, ok := tool.(string); ok {
+			// Handle string-format MCP tool (e.g., "npx -y package")
+			// Parse the command string to detect runtime
+			detectRuntimeFromCommand(cmdStr, requirements)
 		}
 	}
 }

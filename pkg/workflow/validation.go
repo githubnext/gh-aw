@@ -178,6 +178,7 @@ func collectPackagesFromWorkflow(
 	// Extract from MCP server configurations (if toolCommand is provided)
 	if toolCommand != "" && workflowData.Tools != nil {
 		for _, toolConfig := range workflowData.Tools {
+			// Handle structured MCP config with command and args fields
 			if config, ok := toolConfig.(map[string]any); ok {
 				if command, hasCommand := config["command"]; hasCommand {
 					if cmdStr, ok := command.(string); ok && cmdStr == toolCommand {
@@ -190,6 +191,16 @@ func collectPackagesFromWorkflow(
 								}
 							}
 						}
+					}
+				}
+			} else if cmdStr, ok := toolConfig.(string); ok {
+				// Handle string-format MCP tool (e.g., "npx -y package")
+				// Use the extractor function to parse the command string
+				pkgs := extractor(cmdStr)
+				for _, pkg := range pkgs {
+					if !seen[pkg] {
+						packages = append(packages, pkg)
+						seen[pkg] = true
 					}
 				}
 			}
