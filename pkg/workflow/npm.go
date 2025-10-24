@@ -57,10 +57,16 @@ func extractNpxFromCommands(commands string) []string {
 		words := strings.Fields(line)
 		for i, word := range words {
 			if word == "npx" && i+1 < len(words) {
-				pkg := words[i+1]
-				// Remove any shell operators
-				pkg = strings.TrimRight(pkg, "&|;")
-				packages = append(packages, pkg)
+				// Skip flags and find the first package name
+				for j := i + 1; j < len(words); j++ {
+					pkg := words[j]
+					pkg = strings.TrimRight(pkg, "&|;")
+					// Skip flags (start with - or --)
+					if !strings.HasPrefix(pkg, "-") {
+						packages = append(packages, pkg)
+						break
+					}
+				}
 			}
 		}
 	}

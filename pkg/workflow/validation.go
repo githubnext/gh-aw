@@ -178,18 +178,35 @@ func collectPackagesFromWorkflow(
 	// Extract from MCP server configurations (if toolCommand is provided)
 	if toolCommand != "" && workflowData.Tools != nil {
 		for _, toolConfig := range workflowData.Tools {
+			// Handle structured MCP config with command and args fields
 			if config, ok := toolConfig.(map[string]any); ok {
 				if command, hasCommand := config["command"]; hasCommand {
 					if cmdStr, ok := command.(string); ok && cmdStr == toolCommand {
-						// Extract package from args
+						// Extract package from args, skipping flags
 						if args, hasArgs := config["args"]; hasArgs {
-							if argsSlice, ok := args.([]any); ok && len(argsSlice) > 0 {
-								if pkgStr, ok := argsSlice[0].(string); ok && !seen[pkgStr] {
-									packages = append(packages, pkgStr)
-									seen[pkgStr] = true
+							if argsSlice, ok := args.([]any); ok {
+								for _, arg := range argsSlice {
+									if pkgStr, ok := arg.(string); ok {
+										// Skip flags (arguments starting with - or --)
+										if !strings.HasPrefix(pkgStr, "-") && !seen[pkgStr] {
+											packages = append(packages, pkgStr)
+											seen[pkgStr] = true
+											break // Only take the first non-flag argument
+										}
+									}
 								}
 							}
 						}
+					}
+				}
+			} else if cmdStr, ok := toolConfig.(string); ok {
+				// Handle string-format MCP tool (e.g., "npx -y package")
+				// Use the extractor function to parse the command string
+				pkgs := extractor(cmdStr)
+				for _, pkg := range pkgs {
+					if !seen[pkg] {
+						packages = append(packages, pkg)
+						seen[pkg] = true
 					}
 				}
 			}
