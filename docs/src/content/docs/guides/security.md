@@ -466,10 +466,22 @@ Engine network permissions provide fine-grained control over network access for 
 
 ### Implementation Details
 
+Engine network permissions are implemented differently based on the AI engine:
+
+**Claude Engine:**
 - **Hook-Based Enforcement**: Uses Claude Code's PreToolUse hooks to intercept network requests
 - **Runtime Validation**: Domain checking happens at request time, not compilation time
 - **Error Handling**: Blocked requests receive clear error messages with allowed domains
 - **Performance Impact**: Minimal overhead (~10ms per network request)
+
+**Copilot Engine with AWF:**
+- **Firewall Wrapper**: Uses AWF (Agent Workflow Firewall) from [github.com/githubnext/gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall)
+- **Domain Allowlisting**: Enforces network access at the process level via `--allow-domains` flag
+- **Execution Wrapping**: AWF wraps the entire Copilot CLI execution command
+- **Activity Logging**: All network activity is logged for audit purposes
+- **Feature Flag**: Requires `features.firewall: true` in workflow frontmatter
+
+See [Copilot Engine - Network Firewall](/gh-aw/reference/engines/#network-firewall-awf) for detailed AWF configuration.
 
 ### Best Practices
 

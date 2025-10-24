@@ -50,6 +50,37 @@ gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 The Copilot engine does not have built-in `web-search` support. You can add web search capabilities using third-party MCP servers. See the [Using Web Search](/gh-aw/guides/web-search/) for available options and setup instructions.
 :::
 
+#### Network Firewall (AWF)
+
+The Copilot engine supports an optional network firewall feature using AWF (Agent Workflow Firewall) for network egress control with domain allowlisting. AWF is sourced from [github.com/githubnext/gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall).
+
+Enable the firewall feature in your workflow frontmatter:
+
+```yaml
+features:
+  firewall: true
+
+network:
+  allowed:
+    - defaults
+    - "api.example.com"
+```
+
+When enabled, AWF wraps the Copilot CLI execution and enforces domain-based network access controls, logging all network activity. This provides an additional layer of security for workflows that need strict network access control.
+
+**Firewall Configuration:**
+
+```yaml
+engine:
+  id: copilot
+  firewall:
+    version: "v1.0.0"          # Optional: AWF version (defaults to latest)
+    log_level: "debug"         # Optional: AWF log level (defaults to debug)
+    cleanup_script: "./cleanup.sh"  # Optional: cleanup script path
+```
+
+See the [Network Permissions](/gh-aw/reference/network/) documentation for details on configuring allowed domains.
+
 ### Anthropic Claude Code
 
 Claude Code excels at reasoning, code analysis, and understanding complex contexts.
