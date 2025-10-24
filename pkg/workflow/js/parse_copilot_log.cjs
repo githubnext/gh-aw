@@ -310,26 +310,26 @@ function parseCopilotLog(logContent) {
 function scanForToolErrors(logContent) {
   const toolErrors = new Map();
   const lines = logContent.split("\n");
-  
+
   // Track recent tool calls to associate errors with them
   const recentToolCalls = [];
   const MAX_RECENT_TOOLS = 10;
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    
+
     // Look for tool_calls in data blocks (not in JSON arguments)
     // Only match if it's in a choices/message context
     if (line.includes('"tool_calls":') && !line.includes('\\"tool_calls\\"')) {
       // Next few lines should contain tool call details
       for (let j = i + 1; j < Math.min(i + 30, lines.length); j++) {
         const nextLine = lines[j];
-        
+
         // Extract tool call ID
         const idMatch = nextLine.match(/"id":\s*"([^"]+)"/);
         // Extract function name (not arguments with escaped quotes)
         const nameMatch = nextLine.match(/"name":\s*"([^"]+)"/) && !nextLine.includes('\\"name\\"');
-        
+
         if (idMatch) {
           const toolId = idMatch[1];
           // Keep looking for the name
@@ -348,14 +348,14 @@ function scanForToolErrors(logContent) {
         }
       }
     }
-    
+
     // Look for error messages
     const errorMatch = line.match(/\[ERROR\].*(?:Tool execution failed|Permission denied|Resource not accessible|Error executing tool)/i);
     if (errorMatch) {
       // Try to extract tool name from error line
       const toolNameMatch = line.match(/Tool execution failed:\s*([^\s]+)/i);
       const toolIdMatch = line.match(/tool_call_id:\s*([^\s]+)/i);
-      
+
       if (toolNameMatch) {
         const toolName = toolNameMatch[1];
         toolErrors.set(toolName, true);
@@ -374,7 +374,7 @@ function scanForToolErrors(logContent) {
       }
     }
   }
-  
+
   return toolErrors;
 }
 
@@ -386,7 +386,7 @@ function scanForToolErrors(logContent) {
 function parseDebugLogFormat(logContent) {
   const entries = [];
   const lines = logContent.split("\n");
-  
+
   // First pass: scan for tool errors
   const toolErrors = scanForToolErrors(logContent);
 

@@ -1164,12 +1164,12 @@ More log content
 
       // Should detect the permission error and mark the tool call as failed
       expect(result).toContain("github::create_issue");
-      
+
       // The tool should be marked with ❌ (failed) instead of ✅ (success)
       const commandsSection = result.split("📊 Information")[0];
       expect(commandsSection).toContain("❌");
       expect(commandsSection).toContain("❌ `github::create_issue(...)`");
-      
+
       // Should not show it as successful
       expect(commandsSection).not.toContain("✅ `github::create_issue(...)`");
     });
