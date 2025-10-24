@@ -2991,11 +2991,11 @@
                   "type": "string",
                   "description": "URL endpoint to revoke the app token after workflow execution (optional)"
                 },
-                "oauth_token_env_var": {
+                "oauth-token-env-var": {
                   "type": "string",
                   "description": "Environment variable name for OAuth token obtained via OIDC. For Claude: CLAUDE_CODE_OAUTH_TOKEN. Defaults to engine-specific variable."
                 },
-                "api_token_env_var": {
+                "api-token-env-var": {
                   "type": "string",
                   "description": "Environment variable name for API key used as fallback. For Claude: ANTHROPIC_API_KEY. Defaults to engine-specific variable."
                 }

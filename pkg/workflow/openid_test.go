@@ -15,11 +15,11 @@ func TestOIDCConfigExtraction(t *testing.T) {
 		"engine": map[string]any{
 			"id": "claude",
 			"oidc": map[string]any{
-				"audience":            "test-audience",
-				"token_exchange_url":  "https://api.example.com/token-exchange",
-				"token_revoke_url":    "https://api.example.com/token-revoke",
-				"oauth_token_env_var": "TEST_OAUTH_TOKEN",
-				"api_token_env_var":   "TEST_API_TOKEN",
+				"audience":              "test-audience",
+				"token_exchange_url":    "https://api.example.com/token-exchange",
+				"token_revoke_url":      "https://api.example.com/token-revoke",
+				"oauth-token-env-var":   "TEST_OAUTH_TOKEN",
+				"api-token-env-var":     "TEST_API_TOKEN",
 			},
 		},
 	}
@@ -119,11 +119,6 @@ func TestClaudeEngineWithOIDC(t *testing.T) {
 	// Verify OIDC setup step is present
 	if !strings.Contains(stepsStr, "Setup OIDC token") {
 		t.Error("Expected OIDC setup step to be present")
-	}
-
-	// Verify setup step has if condition to check for secret
-	if !strings.Contains(stepsStr, "if: secrets.ANTHROPIC_API_KEY != ''") {
-		t.Error("Expected OIDC setup step to have 'if: secrets.ANTHROPIC_API_KEY != ''' condition")
 	}
 
 	// Verify OIDC revoke step is present

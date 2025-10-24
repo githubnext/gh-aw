@@ -1831,13 +1831,12 @@ jobs:
           if-no-files-found: warn
       - name: Setup OIDC token
         id: setup_oidc_token
-        if: secrets.ANTHROPIC_API_KEY != ''
         uses: actions/github-script@v8
         env:
           GH_AW_OIDC_AUDIENCE: claude-code-github-action
           GH_AW_OIDC_EXCHANGE_URL: https://api.anthropic.com/api/github/github-app-token-exchange
-          GH_AW_OIDC_ENV_VAR_NAME: ANTHROPIC_API_KEY
-          GH_AW_OIDC_FALLBACK_ENV_VAR: ANTHROPIC_API_KEY
+          GH_AW_OIDC_OAUTH_TOKEN: CLAUDE_CODE_OAUTH_TOKEN
+          GH_AW_OIDC_API_KEY: ANTHROPIC_API_KEY
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
           script: |
@@ -1977,29 +1976,29 @@ jobs:
 
                 const exchangeUrl = process.env.GH_AW_OIDC_EXCHANGE_URL;
 
-                const envVarName = process.env.GH_AW_OIDC_ENV_VAR_NAME;
+                const oauthTokenEnvVar = process.env.GH_AW_OIDC_OAUTH_TOKEN;
 
-                const fallbackEnvVar = process.env.GH_AW_OIDC_FALLBACK_ENV_VAR;
+                const apiTokenEnvVar = process.env.GH_AW_OIDC_API_KEY;
 
-                if (!audience || !exchangeUrl || !envVarName) {
+                if (!audience || !exchangeUrl || !oauthTokenEnvVar || !apiTokenEnvVar) {
 
-                  core.setFailed("Missing required OIDC configuration (audience, exchange_url, or env_var_name)");
+                  core.setFailed("Missing required OIDC configuration (audience, exchange_url, oauth_token, or api_key)");
 
                   return;
 
                 }
 
-                const fallbackToken = fallbackEnvVar ? process.env[fallbackEnvVar] : null;
+                const apiToken = process.env[apiTokenEnvVar];
 
-                if (fallbackToken) {
+                if (apiToken) {
 
-                  core.info(`Using provided token from ${fallbackEnvVar} for authentication`);
+                  core.info(`Using provided API token from ${apiTokenEnvVar} for authentication`);
 
-                  core.setOutput("token", fallbackToken);
+                  core.setOutput("token", apiToken);
 
-                  core.setOutput("token_source", "fallback");
+                  core.setOutput("token_source", "api_token");
 
-                  core.exportVariable(envVarName, fallbackToken);
+                  core.exportVariable(apiTokenEnvVar, apiToken);
 
                   return;
 
@@ -2007,15 +2006,15 @@ jobs:
 
                 const oidcToken = await retryWithBackoff(() => getOidcToken(audience));
 
-                const appToken = await retryWithBackoff(() => exchangeForAppToken(oidcToken, exchangeUrl));
+                const oauthToken = await retryWithBackoff(() => exchangeForAppToken(oidcToken, exchangeUrl));
 
-                core.info(`Setting token in environment variable: ${envVarName}`);
+                core.info(`Setting OAuth token in environment variable: ${oauthTokenEnvVar}`);
 
-                core.setOutput("token", appToken);
+                core.setOutput("token", oauthToken);
 
-                core.setOutput("token_source", "oidc");
+                core.setOutput("token_source", "oauth");
 
-                core.exportVariable(envVarName, appToken);
+                core.exportVariable(oauthTokenEnvVar, oauthToken);
 
                 core.setOutput("oidc_token_obtained", "true");
 
@@ -2023,7 +2022,7 @@ jobs:
 
                 core.setFailed(
 
-                  `Failed to setup token: ${error instanceof Error ? error.message : String(error)}\n\nIf you instead wish to use a custom token, provide it via the fallback environment variable.`
+                  `Failed to setup token: ${error instanceof Error ? error.message : String(error)}\n\nIf you instead wish to use an API token, provide it via the ${apiTokenEnvVar} secret.`
 
                 );
 
@@ -2084,7 +2083,7 @@ jobs:
           # Execute Claude Code CLI with prompt from file
           claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(/tmp/gh-aw/jqschema.sh),Bash(cat),Bash(date),Bash(echo),Bash(find .github -name '*.md'),Bash(find .github -type f -exec cat {} +),Bash(gh pr list *),Bash(gh search prs *),Bash(git diff),Bash(git log --oneline),Bash(grep),Bash(head),Bash(jq *),Bash(ls -la .github),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__get_commit,mcp__github__get_file_contents,mcp__github__list_commits,mcp__github__list_pull_requests,mcp__github__pull_request_read,mcp__github__search_pull_requests" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
-          ANTHROPIC_API_KEY: ${{ steps.setup_oidc_token.outputs.token }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ steps.setup_oidc_token.outputs.token }}
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
@@ -4168,13 +4167,12 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code@2.0.25
       - name: Setup OIDC token
         id: setup_oidc_token
-        if: secrets.ANTHROPIC_API_KEY != ''
         uses: actions/github-script@v8
         env:
           GH_AW_OIDC_AUDIENCE: claude-code-github-action
           GH_AW_OIDC_EXCHANGE_URL: https://api.anthropic.com/api/github/github-app-token-exchange
-          GH_AW_OIDC_ENV_VAR_NAME: ANTHROPIC_API_KEY
-          GH_AW_OIDC_FALLBACK_ENV_VAR: ANTHROPIC_API_KEY
+          GH_AW_OIDC_OAUTH_TOKEN: CLAUDE_CODE_OAUTH_TOKEN
+          GH_AW_OIDC_API_KEY: ANTHROPIC_API_KEY
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
           script: |
@@ -4314,29 +4312,29 @@ jobs:
 
                 const exchangeUrl = process.env.GH_AW_OIDC_EXCHANGE_URL;
 
-                const envVarName = process.env.GH_AW_OIDC_ENV_VAR_NAME;
+                const oauthTokenEnvVar = process.env.GH_AW_OIDC_OAUTH_TOKEN;
 
-                const fallbackEnvVar = process.env.GH_AW_OIDC_FALLBACK_ENV_VAR;
+                const apiTokenEnvVar = process.env.GH_AW_OIDC_API_KEY;
 
-                if (!audience || !exchangeUrl || !envVarName) {
+                if (!audience || !exchangeUrl || !oauthTokenEnvVar || !apiTokenEnvVar) {
 
-                  core.setFailed("Missing required OIDC configuration (audience, exchange_url, or env_var_name)");
+                  core.setFailed("Missing required OIDC configuration (audience, exchange_url, oauth_token, or api_key)");
 
                   return;
 
                 }
 
-                const fallbackToken = fallbackEnvVar ? process.env[fallbackEnvVar] : null;
+                const apiToken = process.env[apiTokenEnvVar];
 
-                if (fallbackToken) {
+                if (apiToken) {
 
-                  core.info(`Using provided token from ${fallbackEnvVar} for authentication`);
+                  core.info(`Using provided API token from ${apiTokenEnvVar} for authentication`);
 
-                  core.setOutput("token", fallbackToken);
+                  core.setOutput("token", apiToken);
 
-                  core.setOutput("token_source", "fallback");
+                  core.setOutput("token_source", "api_token");
 
-                  core.exportVariable(envVarName, fallbackToken);
+                  core.exportVariable(apiTokenEnvVar, apiToken);
 
                   return;
 
@@ -4344,15 +4342,15 @@ jobs:
 
                 const oidcToken = await retryWithBackoff(() => getOidcToken(audience));
 
-                const appToken = await retryWithBackoff(() => exchangeForAppToken(oidcToken, exchangeUrl));
+                const oauthToken = await retryWithBackoff(() => exchangeForAppToken(oidcToken, exchangeUrl));
 
-                core.info(`Setting token in environment variable: ${envVarName}`);
+                core.info(`Setting OAuth token in environment variable: ${oauthTokenEnvVar}`);
 
-                core.setOutput("token", appToken);
+                core.setOutput("token", oauthToken);
 
-                core.setOutput("token_source", "oidc");
+                core.setOutput("token_source", "oauth");
 
-                core.exportVariable(envVarName, appToken);
+                core.exportVariable(oauthTokenEnvVar, oauthToken);
 
                 core.setOutput("oidc_token_obtained", "true");
 
@@ -4360,7 +4358,7 @@ jobs:
 
                 core.setFailed(
 
-                  `Failed to setup token: ${error instanceof Error ? error.message : String(error)}\n\nIf you instead wish to use a custom token, provide it via the fallback environment variable.`
+                  `Failed to setup token: ${error instanceof Error ? error.message : String(error)}\n\nIf you instead wish to use an API token, provide it via the ${apiTokenEnvVar} secret.`
 
                 );
 
@@ -4396,7 +4394,7 @@ jobs:
           # Execute Claude Code CLI with prompt from file
           claude --print --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
-          ANTHROPIC_API_KEY: ${{ steps.setup_oidc_token.outputs.token }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ steps.setup_oidc_token.outputs.token }}
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"

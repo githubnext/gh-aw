@@ -118,11 +118,11 @@ async function main() {
     // Get configuration from environment variables
     const audience = process.env.GH_AW_OIDC_AUDIENCE;
     const exchangeUrl = process.env.GH_AW_OIDC_EXCHANGE_URL;
-    const oauthTokenEnvVar = process.env.GH_AW_OIDC_OAUTH_TOKEN_ENV_VAR;
-    const apiTokenEnvVar = process.env.GH_AW_OIDC_API_TOKEN_ENV_VAR;
+    const oauthTokenEnvVar = process.env.GH_AW_OIDC_OAUTH_TOKEN;
+    const apiTokenEnvVar = process.env.GH_AW_OIDC_API_KEY;
 
     if (!audience || !exchangeUrl || !oauthTokenEnvVar || !apiTokenEnvVar) {
-      core.setFailed("Missing required OIDC configuration (audience, exchange_url, oauth_token_env_var, or api_token_env_var)");
+      core.setFailed("Missing required OIDC configuration (audience, exchange_url, oauth_token, or api_key)");
       return;
     }
 

@@ -15,11 +15,11 @@ type OIDCConfig struct {
 
 	// OauthTokenEnvVar is the environment variable name for the OAuth token obtained via OIDC
 	// For Claude: CLAUDE_CODE_OAUTH_TOKEN
-	OauthTokenEnvVar string `yaml:"oauth_token_env_var,omitempty"`
+	OauthTokenEnvVar string `yaml:"oauth-token-env-var,omitempty"`
 
 	// ApiTokenEnvVar is the environment variable name for the API token used as fallback
 	// For Claude: ANTHROPIC_API_KEY
-	ApiTokenEnvVar string `yaml:"api_token_env_var,omitempty"`
+	ApiTokenEnvVar string `yaml:"api-token-env-var,omitempty"`
 }
 
 // ParseOIDCConfig parses OIDC configuration from engine object
@@ -57,15 +57,15 @@ func ParseOIDCConfig(engineObj map[string]any) *OIDCConfig {
 		}
 	}
 
-	// Extract oauth_token_env_var field (optional)
-	if oauthTokenEnvVar, hasOauthTokenEnvVar := oidcObj["oauth_token_env_var"]; hasOauthTokenEnvVar {
+	// Extract oauth-token-env-var field (optional)
+	if oauthTokenEnvVar, hasOauthTokenEnvVar := oidcObj["oauth-token-env-var"]; hasOauthTokenEnvVar {
 		if oauthTokenEnvVarStr, ok := oauthTokenEnvVar.(string); ok {
 			oidcConfig.OauthTokenEnvVar = oauthTokenEnvVarStr
 		}
 	}
 
-	// Extract api_token_env_var field (optional)
-	if apiTokenEnvVar, hasApiTokenEnvVar := oidcObj["api_token_env_var"]; hasApiTokenEnvVar {
+	// Extract api-token-env-var field (optional)
+	if apiTokenEnvVar, hasApiTokenEnvVar := oidcObj["api-token-env-var"]; hasApiTokenEnvVar {
 		if apiTokenEnvVarStr, ok := apiTokenEnvVar.(string); ok {
 			oidcConfig.ApiTokenEnvVar = apiTokenEnvVarStr
 		}
@@ -101,14 +101,6 @@ func GenerateOIDCSetupStep(oidcConfig *OIDCConfig, engine CodingAgentEngine) Git
 
 	stepLines = append(stepLines, "      - name: Setup OIDC token")
 	stepLines = append(stepLines, "        id: setup_oidc_token")
-
-	// Determine the API token env var (fallback) - check if secret exists before running
-	apiTokenEnvVar := oidcConfig.ApiTokenEnvVar
-	if apiTokenEnvVar == "" {
-		apiTokenEnvVar = engine.GetTokenEnvVarName()
-	}
-	stepLines = append(stepLines, fmt.Sprintf("        if: secrets.%s != ''", apiTokenEnvVar))
-
 	stepLines = append(stepLines, "        uses: actions/github-script@v8")
 	stepLines = append(stepLines, "        env:")
 
@@ -127,10 +119,14 @@ func GenerateOIDCSetupStep(oidcConfig *OIDCConfig, engine CodingAgentEngine) Git
 	if oauthTokenEnvVar == "" {
 		oauthTokenEnvVar = engine.GetOAuthTokenEnvVarName()
 	}
-	stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_OAUTH_TOKEN_ENV_VAR: %s", oauthTokenEnvVar))
+	stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_OAUTH_TOKEN: %s", oauthTokenEnvVar))
 
 	// API token environment variable (fallback)
-	stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_API_TOKEN_ENV_VAR: %s", apiTokenEnvVar))
+	apiTokenEnvVar := oidcConfig.ApiTokenEnvVar
+	if apiTokenEnvVar == "" {
+		apiTokenEnvVar = engine.GetTokenEnvVarName()
+	}
+	stepLines = append(stepLines, fmt.Sprintf("          GH_AW_OIDC_API_KEY: %s", apiTokenEnvVar))
 	// Add the actual fallback secret if it exists
 	stepLines = append(stepLines, fmt.Sprintf("          %s: ${{ secrets.%s }}", apiTokenEnvVar, apiTokenEnvVar))
 
