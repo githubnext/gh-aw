@@ -141,6 +141,55 @@ engine:
       run: npm ci
 ```
 
+## Engine Capabilities
+
+Different engines have varying levels of support for advanced features:
+
+### Network Firewalling
+
+Network firewalling allows workflows to restrict outbound network access to specific domains, preventing unauthorized data exfiltration and improving security.
+
+- **GitHub Copilot**: Supports network firewalling via the AWF (Agentic Workflow Firewall) integration
+- **Claude, Codex, Custom**: Do not support network firewalling
+
+When a workflow specifies network restrictions (via the `network.allowed` field) and uses an engine that doesn't support firewalling:
+- **Normal mode**: A warning is emitted during compilation
+- **Strict mode**: Compilation fails with an error
+
+#### Example Warning
+
+```yaml
+---
+engine: claude
+network:
+  allowed:
+    - api.example.com
+---
+```
+
+Compiling this workflow will emit:
+```
+⚠ Selected engine 'claude' does not support network firewalling; workflow specifies network restrictions (allowed-domains). Network may not be sandboxed.
+```
+
+#### Strict Mode Enforcement
+
+In strict mode, workflows with network restrictions must use an engine that supports firewalling:
+
+```yaml
+---
+strict: true
+engine: copilot  # Must use copilot for network restrictions in strict mode
+network:
+  allowed:
+    - api.example.com
+---
+```
+
+:::caution
+Network restrictions are only enforced when using engines that support firewalling. For maximum security with network restrictions, use the Copilot engine or avoid network restrictions with other engines.
+:::
+
 ## Engine Environment Variables
 
 All engines support custom environment variables through the `env` field:
