@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -178,8 +179,13 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Sort tools to ensure stable code generation
 		sort.Strings(mcpTools)
 
-		// Generate MCP config JSON
-		mcpConfigJSON := e.generateMCPConfigJSON(workflowData.Tools, mcpTools, workflowData)
+		// Generate MCP config JSON using proper JSON marshaling
+		mcpConfigJSON, err := e.generateMCPConfigJSONProper(workflowData.Tools, mcpTools, workflowData)
+		if err != nil {
+			// Fall back to empty config if generation fails
+			// This should not happen in practice, but provides graceful degradation
+			mcpConfigJSON = "{\"mcpServers\":{}}"
+		}
 
 		// Escape JSON for shell and add to arguments
 		escapedJSON := escapeJSONForShell(mcpConfigJSON)
@@ -384,6 +390,313 @@ func escapeJSONForShell(jsonStr string) string {
 	escaped := strings.ReplaceAll(jsonStr, "'", `'\''`)
 	// Wrap in single quotes to prevent shell expansion of $ and other special chars
 	return "'" + escaped + "'"
+}
+
+// MCPConfig represents the top-level MCP configuration structure
+type MCPConfig struct {
+	MCPServers map[string]any `json:"mcpServers"`
+}
+
+// generateMCPConfigJSONProper generates the MCP configuration as a properly marshaled JSON string
+// This uses json.Marshal to ensure proper JSON encoding instead of manual string building
+func (e *CopilotEngine) generateMCPConfigJSONProper(tools map[string]any, mcpTools []string, workflowData *WorkflowData) (string, error) {
+	// Build the MCP servers configuration as a map
+	mcpServers := make(map[string]any)
+	
+	// Filter tools (e.g., exclude cache-memory for Copilot)
+	var filteredTools []string
+	for _, toolName := range mcpTools {
+		if toolName == "cache-memory" {
+			continue // Cache-memory is filtered out for Copilot
+		}
+		filteredTools = append(filteredTools, toolName)
+	}
+	
+	// Process each MCP tool and build its configuration
+	for _, toolName := range filteredTools {
+		var serverConfig map[string]any
+		var err error
+		
+		switch toolName {
+		case "github":
+			githubTool := tools["github"]
+			serverConfig, err = e.buildGitHubMCPConfig(githubTool, workflowData)
+		case "playwright":
+			playwrightTool := tools["playwright"]
+			serverConfig, err = e.buildPlaywrightMCPConfig(playwrightTool)
+		case "agentic-workflows":
+			serverConfig = e.buildAgenticWorkflowsMCPConfig()
+		case "safe-outputs":
+			serverConfig = e.buildSafeOutputsMCPConfig()
+		case "web-fetch":
+			serverConfig = e.buildWebFetchMCPConfig()
+		default:
+			// Handle custom MCP tools
+			if toolConfig, ok := tools[toolName].(map[string]any); ok {
+				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
+					serverConfig, err = e.buildCustomMCPConfig(toolName, toolConfig)
+				}
+			}
+		}
+		
+		if err != nil {
+			return "", fmt.Errorf("failed to build config for %s: %w", toolName, err)
+		}
+		
+		if serverConfig != nil {
+			mcpServers[toolName] = serverConfig
+		}
+	}
+	
+	// Create the top-level config structure
+	config := MCPConfig{
+		MCPServers: mcpServers,
+	}
+	
+	// Marshal to JSON with proper indentation for readability
+	jsonBytes, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal MCP config to JSON: %w", err)
+	}
+	
+	return string(jsonBytes), nil
+}
+
+// buildGitHubMCPConfig builds the GitHub MCP server configuration as a map
+func (e *CopilotEngine) buildGitHubMCPConfig(githubTool any, workflowData *WorkflowData) (map[string]any, error) {
+	githubType := getGitHubType(githubTool)
+	readOnly := getGitHubReadOnly(githubTool)
+	toolsets := getGitHubToolsets(githubTool)
+	allowedTools := getGitHubAllowedTools(githubTool)
+	
+	config := make(map[string]any)
+	
+	if githubType == "remote" {
+		// Remote mode - use hosted GitHub MCP server
+		config["type"] = "http"
+		config["url"] = "https://api.githubcopilot.com/mcp/"
+		
+		headers := make(map[string]string)
+		headers["Authorization"] = "******"
+		if readOnly {
+			headers["X-MCP-Readonly"] = "true"
+		}
+		if toolsets != "" {
+			headers["X-MCP-Toolsets"] = toolsets
+		}
+		config["headers"] = headers
+		
+		// Add tools field
+		if len(allowedTools) > 0 {
+			config["tools"] = allowedTools
+		} else {
+			config["tools"] = []string{"*"}
+		}
+		
+		// Add env section for passthrough
+		config["env"] = map[string]string{
+			"GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}",
+		}
+	} else {
+		// Local mode - use Docker-based GitHub MCP server
+		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+		customArgs := getGitHubCustomArgs(githubTool)
+		
+		config["type"] = "local"
+		config["command"] = "docker"
+		
+		args := []string{
+			"run",
+			"-i",
+			"--rm",
+			"-e",
+			"GITHUB_PERSONAL_ACCESS_TOKEN",
+		}
+		
+		if readOnly {
+			args = append(args, "-e", "GITHUB_READ_ONLY=1")
+		}
+		
+		args = append(args, "-e", fmt.Sprintf("GITHUB_TOOLSETS=%s", toolsets))
+		args = append(args, fmt.Sprintf("ghcr.io/github/github-mcp-server:%s", githubDockerImageVersion))
+		args = append(args, customArgs...)
+		
+		config["args"] = args
+		
+		// Add tools field
+		if len(allowedTools) > 0 {
+			config["tools"] = allowedTools
+		} else {
+			config["tools"] = []string{"*"}
+		}
+		
+		// Add env section
+		config["env"] = map[string]string{
+			"GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}",
+		}
+	}
+	
+	return config, nil
+}
+
+// buildPlaywrightMCPConfig builds the Playwright MCP server configuration as a map
+func (e *CopilotEngine) buildPlaywrightMCPConfig(playwrightTool any) (map[string]any, error) {
+	args := generatePlaywrightDockerArgs(playwrightTool)
+	customArgs := getPlaywrightCustomArgs(playwrightTool)
+	
+	// Determine version to use
+	playwrightPackage := "@playwright/mcp@latest"
+	if args.ImageVersion != "" && args.ImageVersion != "latest" {
+		playwrightPackage = "@playwright/mcp@" + args.ImageVersion
+	}
+	
+	config := make(map[string]any)
+	config["type"] = "local"
+	config["command"] = "npx"
+	
+	cmdArgs := []string{playwrightPackage, "--output-dir", "/tmp/gh-aw/mcp-logs/playwright"}
+	if len(args.AllowedDomains) > 0 {
+		cmdArgs = append(cmdArgs, "--allowed-origins", strings.Join(args.AllowedDomains, ";"))
+	}
+	cmdArgs = append(cmdArgs, customArgs...)
+	
+	config["args"] = cmdArgs
+	config["tools"] = []string{"*"}
+	
+	return config, nil
+}
+
+// buildAgenticWorkflowsMCPConfig builds the Agentic Workflows MCP server configuration as a map
+func (e *CopilotEngine) buildAgenticWorkflowsMCPConfig() map[string]any {
+	config := make(map[string]any)
+	config["type"] = "local"
+	config["command"] = "gh"
+	config["args"] = []string{"aw", "mcp-server"}
+	config["tools"] = []string{"*"}
+	config["env"] = map[string]string{
+		"GITHUB_TOKEN": "\\${GITHUB_TOKEN}",
+	}
+	return config
+}
+
+// buildSafeOutputsMCPConfig builds the Safe Outputs MCP server configuration as a map
+func (e *CopilotEngine) buildSafeOutputsMCPConfig() map[string]any {
+	config := make(map[string]any)
+	config["type"] = "local"
+	config["command"] = "node"
+	config["args"] = []string{"/tmp/gh-aw/safe-outputs/mcp-server.cjs"}
+	config["tools"] = []string{"*"}
+	config["env"] = map[string]string{
+		"GH_AW_SAFE_OUTPUTS":        "\\${GH_AW_SAFE_OUTPUTS}",
+		"GH_AW_SAFE_OUTPUTS_CONFIG": "\\${GH_AW_SAFE_OUTPUTS_CONFIG}",
+		"GH_AW_ASSETS_BRANCH":       "\\${GH_AW_ASSETS_BRANCH}",
+		"GH_AW_ASSETS_MAX_SIZE_KB":  "\\${GH_AW_ASSETS_MAX_SIZE_KB}",
+		"GH_AW_ASSETS_ALLOWED_EXTS": "\\${GH_AW_ASSETS_ALLOWED_EXTS}",
+	}
+	return config
+}
+
+// buildWebFetchMCPConfig builds the Web Fetch MCP server configuration as a map
+func (e *CopilotEngine) buildWebFetchMCPConfig() map[string]any {
+	config := make(map[string]any)
+	config["type"] = "local"
+	config["command"] = "npx"
+	config["args"] = []string{"-y", "@modelcontextprotocol/server-fetch"}
+	config["tools"] = []string{"*"}
+	return config
+}
+
+// buildCustomMCPConfig builds a custom MCP server configuration as a map
+func (e *CopilotEngine) buildCustomMCPConfig(toolName string, toolConfig map[string]any) (map[string]any, error) {
+	config := make(map[string]any)
+	
+	// Check the type field
+	mcpType, _ := toolConfig["type"].(string)
+	if mcpType == "" {
+		mcpType = "local" // default to local
+	}
+	config["type"] = mcpType
+	
+	// Handle different types
+	switch mcpType {
+	case "http":
+		// HTTP MCP server
+		if url, ok := toolConfig["url"].(string); ok {
+			config["url"] = url
+		}
+		
+		// Handle headers
+		if headers, ok := toolConfig["headers"].(map[string]any); ok {
+			headersMap := make(map[string]string)
+			for key, value := range headers {
+				if strValue, ok := value.(string); ok {
+					// Replace secret expressions with env var references
+					replaced := replaceSecretsWithEnvVars(strValue, extractSecretsFromValue(strValue))
+					headersMap[key] = replaced
+				}
+			}
+			config["headers"] = headersMap
+			
+			// Add env section for headers that use secrets
+			envMap := make(map[string]string)
+			for _, value := range headers {
+				if strValue, ok := value.(string); ok {
+					secrets := extractSecretsFromValue(strValue)
+					for varName := range secrets {
+						envMap[varName] = fmt.Sprintf("\\${%s}", varName)
+					}
+				}
+			}
+			if len(envMap) > 0 {
+				config["env"] = envMap
+			}
+		}
+		
+	case "local", "stdio":
+		// Local/stdio MCP server
+		if command, ok := toolConfig["command"].(string); ok {
+			config["command"] = command
+		}
+		
+		// Handle args
+		if args, ok := toolConfig["args"].([]any); ok {
+			argStrings := make([]string, 0, len(args))
+			for _, arg := range args {
+				if strArg, ok := arg.(string); ok {
+					argStrings = append(argStrings, strArg)
+				}
+			}
+			config["args"] = argStrings
+		}
+		
+		// Handle env
+		if env, ok := toolConfig["env"].(map[string]any); ok {
+			envMap := make(map[string]string)
+			for key, value := range env {
+				if strValue, ok := value.(string); ok {
+					envMap[key] = strValue
+				}
+			}
+			config["env"] = envMap
+		}
+	}
+	
+	// Handle allowed tools
+	if allowed, ok := toolConfig["allowed"].([]any); ok {
+		tools := make([]string, 0, len(allowed))
+		for _, tool := range allowed {
+			if strTool, ok := tool.(string); ok {
+				tools = append(tools, strTool)
+			}
+		}
+		config["tools"] = tools
+	} else if allowedStrings, ok := toolConfig["allowed"].([]string); ok {
+		config["tools"] = allowedStrings
+	} else {
+		config["tools"] = []string{"*"}
+	}
+	
+	return config, nil
 }
 
 // GetSquidLogsSteps returns the steps for collecting and uploading Squid logs

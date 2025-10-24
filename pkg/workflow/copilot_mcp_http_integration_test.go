@@ -57,14 +57,15 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 
 	// Verify MCP config JSON contains headers with env var references (not secret expressions)
 	// The JSON is passed as an argument, so check for the content within single quotes
+	// Note: JSON.Marshal properly escapes backslashes, so \${VAR} becomes \\${VAR} in the JSON
 	expectedMCPChecks := []string{
 		`"datadog"`,
 		`"type": "http"`,
 		`"url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"`,
 		`"headers"`,
-		`"DD_API_KEY": "\${DD_API_KEY}"`,      // Single backslash in the JSON
-		`"DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}"`,
-		`"DD_SITE": "\${DD_SITE}"`,
+		`"DD_API_KEY": "\\${DD_API_KEY}"`,      // Double backslash in JSON due to proper escaping
+		`"DD_APPLICATION_KEY": "\\${DD_APPLICATION_KEY}"`,
+		`"DD_SITE": "\\${DD_SITE}"`,
 		`"tools"`,
 		`"search_datadog_dashboards"`,
 		`"env"`,
