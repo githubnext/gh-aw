@@ -65,7 +65,7 @@ func TestGetActionPinReturnsValidSHA(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.repo+"@"+tt.version, func(t *testing.T) {
 			result := GetActionPin(tt.repo, tt.version)
-			
+
 			// Check that the result contains a SHA (40-char hex after @)
 			parts := strings.Split(result, "@")
 			if len(parts) != 2 {

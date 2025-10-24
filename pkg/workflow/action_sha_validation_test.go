@@ -13,7 +13,7 @@ func TestGeneratedWorkflowsUseSHAs(t *testing.T) {
 	// Create a test workflow file
 	testDir := t.TempDir()
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
-	
+
 	workflowContent := `---
 on: push
 engine: copilot
@@ -24,7 +24,7 @@ permissions:
 # Test Workflow
 This is a test workflow to verify SHA pinning.
 `
-	
+
 	err := os.WriteFile(workflowFile, []byte(workflowContent), 0644)
 	if err != nil {
 		t.Fatalf("Failed to write test workflow: %v", err)
@@ -49,7 +49,7 @@ This is a test workflow to verify SHA pinning.
 	// Check that actions are referenced by SHA, not by version tag
 	// Pattern: uses: owner/repo@SHA (40 hex chars)
 	shaPattern := regexp.MustCompile(`uses: ([a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+)@([0-9a-f]{40})`)
-	
+
 	// Pattern: uses: owner/repo@version (should not exist)
 	versionPattern := regexp.MustCompile(`uses: ([a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+)@(v\d+)`)
 
@@ -75,7 +75,7 @@ This is a test workflow to verify SHA pinning.
 func TestCompileWorkflowActionReferences(t *testing.T) {
 	testDir := t.TempDir()
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
-	
+
 	workflowContent := `---
 on:
   issues:
@@ -91,7 +91,7 @@ safe-outputs:
 # Test Workflow
 Create issues based on input.
 `
-	
+
 	err := os.WriteFile(workflowFile, []byte(workflowContent), 0644)
 	if err != nil {
 		t.Fatalf("Failed to write test workflow: %v", err)
@@ -113,9 +113,9 @@ Create issues based on input.
 
 	// Test specific actions that should be pinned
 	expectedActions := map[string]string{
-		"actions/checkout":         GetActionPin("actions/checkout", "v5"),
-		"actions/github-script":    GetActionPin("actions/github-script", "v8"),
-		"actions/upload-artifact":  GetActionPin("actions/upload-artifact", "v4"),
+		"actions/checkout":        GetActionPin("actions/checkout", "v5"),
+		"actions/github-script":   GetActionPin("actions/github-script", "v8"),
+		"actions/upload-artifact": GetActionPin("actions/upload-artifact", "v4"),
 	}
 
 	for actionRepo, expectedRef := range expectedActions {
@@ -137,7 +137,7 @@ Create issues based on input.
 func TestNoVersionTagsInLockFiles(t *testing.T) {
 	testDir := t.TempDir()
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
-	
+
 	workflowContent := `---
 on: push
 engine: copilot
@@ -148,7 +148,7 @@ permissions:
 # Simple Test
 Just a simple test workflow.
 `
-	
+
 	err := os.WriteFile(workflowFile, []byte(workflowContent), 0644)
 	if err != nil {
 		t.Fatalf("Failed to write test workflow: %v", err)
