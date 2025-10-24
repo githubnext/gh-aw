@@ -26,7 +26,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	// Step 1: Download patch artifact
 	steps = append(steps, "      - name: Download patch artifact\n")
 	steps = append(steps, "        continue-on-error: true\n")
-	steps = append(steps, "        uses: actions/download-artifact@v5\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          name: aw.patch\n")
 	steps = append(steps, "          path: /tmp/gh-aw/\n")
@@ -121,7 +121,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 
 func buildCheckoutRepository(steps []string, c *Compiler) []string {
 	steps = append(steps, "      - name: Checkout repository\n")
-	steps = append(steps, "        uses: actions/checkout@v5\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          fetch-depth: 0\n")
 	if c.trialMode {

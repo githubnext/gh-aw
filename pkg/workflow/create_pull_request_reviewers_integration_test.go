@@ -89,8 +89,8 @@ Create a pull request with reviewers.
 	if !strings.Contains(compiledContent, "Checkout repository for gh CLI") {
 		t.Error("Expected checkout step for gh CLI")
 	}
-	if !strings.Contains(compiledContent, "uses: actions/checkout@v5") {
-		t.Error("Expected checkout to use actions/checkout@v5")
+	if !strings.Contains(compiledContent, "uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8") {
+		t.Error("Expected checkout to use actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8")
 	}
 
 	// Verify conditional execution

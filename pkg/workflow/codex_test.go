@@ -107,7 +107,7 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Setup Node.js") {
 					t.Errorf("Expected lock file to contain 'Setup Node.js' step for codex but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "actions/setup-node@v4") {
+				if !strings.Contains(lockContent, "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020") {
 					t.Errorf("Expected lock file to contain Node.js setup action for codex but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that codex installation is present

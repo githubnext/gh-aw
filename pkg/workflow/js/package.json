@@ -21,7 +21,7 @@
     "test:js": "vitest run",
     "test:js-watch": "vitest",
     "test:js-coverage": "vitest run --coverage",
-    "format:cjs": "prettier --write '**/*.cjs' '**/*.mjs' '**/*.ts' || true",
-    "lint:cjs": "prettier --check '**/*.cjs' '**/*.mjs' '**/*.ts'"
+    "format:cjs": "prettier --write '**/*.cjs' '**/*.ts'",
+    "lint:cjs": "prettier --check '**/*.cjs' '**/*.ts'"
   }
 }
