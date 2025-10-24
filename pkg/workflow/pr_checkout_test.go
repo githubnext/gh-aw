@@ -189,8 +189,8 @@ Test workflow without contents read permission.
 
 			// If PR checkout is expected, verify it uses JavaScript
 			if tt.expectPRCheckout {
-				if !strings.Contains(lockStr, "uses: actions/github-script@v8") {
-					t.Error("PR checkout step should use actions/github-script@v8")
+				if !strings.Contains(lockStr, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
+					t.Error("PR checkout step should use actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd")
 				}
 				if !strings.Contains(lockStr, "pullRequest") {
 					t.Error("PR checkout step should reference pullRequest in JavaScript")
@@ -264,8 +264,8 @@ Test workflow with multiple comment triggers.
 	lockStr := string(lockContent)
 
 	// Verify the checkout step uses actions/github-script
-	if !strings.Contains(lockStr, "uses: actions/github-script@v8") {
-		t.Error("Expected PR checkout to use actions/github-script@v8")
+	if !strings.Contains(lockStr, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
+		t.Error("Expected PR checkout to use actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd")
 	}
 
 	// Verify JavaScript code handles PR checkout

@@ -120,7 +120,7 @@ permissions:
   issues: write
 steps:
   - name: Custom checkout
-    uses: actions/checkout@v4
+    uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
     with:
       token: ${{ secrets.CUSTOM_TOKEN }}
   - name: Setup
@@ -217,12 +217,28 @@ engine: claude
 
 			lockContentStr := string(lockContent)
 
-			// Check if checkout step is present
-			hasCheckout := strings.Contains(lockContentStr, "actions/checkout@v5")
+			// For the test case with custom checkout, we need to verify that
+			// only the custom checkout is present, not a default generated one
+			if tt.name == "custom steps with checkout should omit default checkout" {
+				// Check that the custom checkout with token is present
+				hasCustomCheckout := strings.Contains(lockContentStr, "token: ${{ secrets.CUSTOM_TOKEN }}")
+				// Check that there's no "Checkout repository" step (which is the default name)
+				hasDefaultCheckout := strings.Contains(lockContentStr, "name: Checkout repository")
 
-			if hasCheckout != tt.expectedHasCheckout {
-				t.Errorf("%s: Expected hasCheckout=%v, got %v\nLock file content:\n%s",
-					tt.description, tt.expectedHasCheckout, hasCheckout, lockContentStr)
+				if !hasCustomCheckout {
+					t.Errorf("%s: Custom checkout with token not found", tt.description)
+				}
+				if hasDefaultCheckout {
+					t.Errorf("%s: Default checkout step should not be present when custom steps have checkout", tt.description)
+				}
+			} else {
+				// For other test cases, check if checkout step is present
+				hasCheckout := strings.Contains(lockContentStr, "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8")
+
+				if hasCheckout != tt.expectedHasCheckout {
+					t.Errorf("%s: Expected hasCheckout=%v, got %v\nLock file content:\n%s",
+						tt.description, tt.expectedHasCheckout, hasCheckout, lockContentStr)
+				}
 			}
 		})
 	}
@@ -262,7 +278,7 @@ func TestShouldAddCheckoutStep(t *testing.T) {
 		{
 			name:        "contents read permission, custom steps with checkout",
 			permissions: "permissions:\n  contents: read",
-			customSteps: "steps:\n  - uses: actions/checkout@v5",
+			customSteps: "steps:\n  - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
 			expected:    false,
 		},
 		{

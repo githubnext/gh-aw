@@ -160,7 +160,7 @@ func TestDetectFromCustomSteps(t *testing.T) {
 		{
 			name: "detects node even when setup-node exists (filtering happens later)",
 			customSteps: `steps:
-  - uses: actions/setup-node@v4
+  - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
   - run: npm install`,
 			expected: []string{"node"}, // Changed: now detects, filtering happens in DetectRuntimeRequirements
 		},
@@ -265,7 +265,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Node.js",
-				"actions/setup-node@v4",
+				"actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
 				"node-version: '20'",
 			},
 		},
@@ -277,7 +277,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Python",
-				"actions/setup-python@v5",
+				"actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
 				"python-version: '3.11'",
 			},
 		},
@@ -289,7 +289,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup uv",
-				"astral-sh/setup-uv@v5",
+				"astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081",
 			},
 		},
 		{
@@ -300,7 +300,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup .NET",
-				"actions/setup-dotnet@v4",
+				"actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9",
 				"dotnet-version: '8.0'",
 			},
 		},
@@ -312,7 +312,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Java",
-				"actions/setup-java@v4",
+				"actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00",
 				"java-version: '21'",
 				"distribution: temurin",
 			},
@@ -325,7 +325,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Elixir",
-				"erlef/setup-beam@v1",
+				"erlef/setup-beam@3559ac3b631a9560f28817e8e7fdde1638664336",
 				"elixir-version: '1.17'",
 			},
 		},
@@ -337,7 +337,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Haskell",
-				"haskell-actions/setup@v2",
+				"haskell-actions/setup@d5d0f498b388e1a0eab1cd150202f664c5738e35",
 				"ghc-version: '9.10'",
 			},
 		},
@@ -393,7 +393,7 @@ func TestShouldSkipRuntimeSetup(t *testing.T) {
 			name: "never skip - runtime filtering handles existing setup actions",
 			data: &WorkflowData{
 				CustomSteps: `steps:
-  - uses: actions/setup-node@v4
+  - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
   - run: npm install`,
 			},
 			expected: false, // Changed: we no longer skip, we filter instead
@@ -481,7 +481,7 @@ func TestRuntimeFilteringWithExistingSetupActions(t *testing.T) {
 	// Test that runtimes with existing setup actions are filtered out
 	workflowData := &WorkflowData{
 		CustomSteps: `steps:
-  - uses: actions/setup-go@v5
+  - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
     with:
       go-version-file: go.mod
   - run: go build

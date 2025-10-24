@@ -27,7 +27,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	// Step 1: Download patch artifact
 	steps = append(steps, "      - name: Download patch artifact\n")
 	steps = append(steps, "        continue-on-error: true\n")
-	steps = append(steps, "        uses: actions/download-artifact@v5\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          name: aw.patch\n")
 	steps = append(steps, "          path: /tmp/gh-aw/\n")
@@ -98,7 +98,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		// Add checkout step for gh CLI to work
 		steps = append(steps, "      - name: Checkout repository for gh CLI\n")
 		steps = append(steps, "        if: steps.create_pull_request.outputs.pull_request_url != ''\n")
-		steps = append(steps, "        uses: actions/checkout@v5\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 
 		// Get the effective GitHub token to use for gh CLI
 		var safeOutputsToken string
