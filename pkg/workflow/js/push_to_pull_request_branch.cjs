@@ -279,6 +279,27 @@ async function main() {
   if (!isEmpty) {
     core.info("Applying patch...");
     try {
+      // Check if commit title prefix is configured
+      const commitTitlePrefix = process.env.GH_AW_COMMIT_TITLE_PREFIX;
+
+      if (commitTitlePrefix) {
+        core.info(`Prepending commit title prefix: "${commitTitlePrefix}"`);
+
+        // Read the patch file
+        let patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+
+        // Modify Subject lines in the patch to prepend the prefix
+        // Patch format has "Subject: [PATCH] <original title>" or "Subject: <original title>"
+        patchContent = patchContent.replace(
+          /^Subject: (?:\[PATCH\] )?(.*)$/gm,
+          (match, title) => `Subject: [PATCH] ${commitTitlePrefix}${title}`
+        );
+
+        // Write the modified patch back
+        fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
+        core.info("Patch modified with commit title prefix");
+      }
+
       // Patches are created with git format-patch, so use git am to apply them
       await exec.exec("git am /tmp/gh-aw/aw.patch");
       core.info("Patch applied successfully");

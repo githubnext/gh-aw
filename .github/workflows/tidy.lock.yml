@@ -5022,6 +5022,17 @@ jobs:
               if (!isEmpty) {
                 core.info("Applying patch...");
                 try {
+                  const commitTitlePrefix = process.env.GH_AW_COMMIT_TITLE_PREFIX;
+                  if (commitTitlePrefix) {
+                    core.info(`Prepending commit title prefix: "${commitTitlePrefix}"`);
+                    let patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                    patchContent = patchContent.replace(
+                      /^Subject: (?:\[PATCH\] )?(.*)$/gm,
+                      (match, title) => `Subject: [PATCH] ${commitTitlePrefix}${title}`
+                    );
+                    fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
+                    core.info("Patch modified with commit title prefix");
+                  }
                   await exec.exec("git am /tmp/gh-aw/aw.patch");
                   core.info("Patch applied successfully");
                   await exec.exec(`git push origin ${branchName}`);
