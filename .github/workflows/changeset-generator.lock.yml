@@ -4253,7 +4253,6 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_TOKEN: ${{ github.token }}
           GH_AW_PUSH_IF_NO_CHANGES: "warn"
-          GH_AW_PR_TITLE_PREFIX: "[skip-ci] "
           GH_AW_MAX_PATCH_SIZE: 1024
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
