@@ -967,7 +967,7 @@ More log content
     it("should truncate long strings appropriately", () => {
       const parseCopilotLog = extractParseFunction();
 
-      const longCommand = "a".repeat(100);
+      const longCommand = "a".repeat(400);
       const logWithLongCommand = JSON.stringify([
         {
           type: "assistant",

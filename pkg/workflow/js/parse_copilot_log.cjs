@@ -1186,7 +1186,7 @@ function formatBashCommand(command) {
   formatted = formatted.replace(/`/g, "\\`");
 
   // Truncate if too long
-  const maxLength = 80;
+  const maxLength = 300;
   if (formatted.length > maxLength) {
     formatted = formatted.substring(0, maxLength) + "...";
   }
