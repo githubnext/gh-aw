@@ -215,8 +215,8 @@ func TestExtractActionRepo(t *testing.T) {
 // TestApplyActionPinToStep tests the ApplyActionPinToStep function
 func TestApplyActionPinToStep(t *testing.T) {
 	tests := []struct {
-		name        string
-		stepMap     map[string]any
+		name         string
+		stepMap      map[string]any
 		expectPinned bool
 		expectedUses string
 	}{

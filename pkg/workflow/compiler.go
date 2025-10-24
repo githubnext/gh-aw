@@ -781,7 +781,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &importedSteps); err == nil {
 			// Apply action pinning to imported steps
 			importedSteps = ApplyActionPinsToSteps(importedSteps)
-			
+
 			// If there are main workflow steps, parse and merge them
 			if workflowData.CustomSteps != "" {
 				// Parse main workflow steps (format: "steps:\n  - ...")
@@ -791,7 +791,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 						if mainSteps, ok := mainStepsVal.([]any); ok {
 							// Apply action pinning to main steps
 							mainSteps = ApplyActionPinsToSteps(mainSteps)
-							
+
 							// Prepend imported steps to main steps
 							allSteps := append(importedSteps, mainSteps...)
 							// Convert back to YAML with "steps:" wrapper
@@ -820,7 +820,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 				if mainSteps, ok := mainStepsVal.([]any); ok {
 					// Apply action pinning to main steps
 					mainSteps = ApplyActionPinsToSteps(mainSteps)
-					
+
 					// Convert back to YAML with "steps:" wrapper
 					stepsWrapper := map[string]any{"steps": mainSteps}
 					stepsYAML, err := yaml.Marshal(stepsWrapper)
@@ -833,7 +833,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
-	
+
 	// Apply action pinning to post-steps if any
 	if workflowData.PostSteps != "" {
 		var postStepsWrapper map[string]any
@@ -842,7 +842,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 				if postSteps, ok := postStepsVal.([]any); ok {
 					// Apply action pinning to post steps
 					postSteps = ApplyActionPinsToSteps(postSteps)
-					
+
 					// Convert back to YAML with "post-steps:" wrapper
 					stepsWrapper := map[string]any{"post-steps": postSteps}
 					stepsYAML, err := yaml.Marshal(stepsWrapper)
@@ -853,7 +853,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 			}
 		}
 	}
-	
+
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Environment = c.extractTopLevelYAMLSection(result.Frontmatter, "environment")
 	workflowData.Container = c.extractTopLevelYAMLSection(result.Frontmatter, "container")
@@ -2753,7 +2753,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 						if stepMap, ok := step.(map[string]any); ok {
 							// Apply action pinning before converting to YAML
 							stepMap = ApplyActionPinToStep(stepMap)
-							
+
 							stepYAML, err := c.convertStepToYAML(stepMap)
 							if err != nil {
 								return fmt.Errorf("failed to convert step to YAML for job '%s': %w", jobName, err)
