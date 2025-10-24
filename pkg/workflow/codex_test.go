@@ -280,7 +280,7 @@ tools:
 ---`,
 			expectedAI:           "claude",
 			expectConfigToml:     false,
-			expectMcpServersJson: true,
+			expectMcpServersJson: false, // Changed: Claude now passes config via CLI argument, not file
 			expectCodexHome:      false,
 		},
 		{
@@ -306,7 +306,7 @@ tools:
 ---`,
 			expectedAI:           "claude",
 			expectConfigToml:     false,
-			expectMcpServersJson: true,
+			expectMcpServersJson: false, // Changed: Claude now passes config via CLI argument, not file
 			expectCodexHome:      false,
 		},
 		{
@@ -332,7 +332,7 @@ tools:
 ---`,
 			expectedAI:           "claude",
 			expectConfigToml:     false,
-			expectMcpServersJson: true,
+			expectMcpServersJson: false, // Changed: Claude now passes config via CLI argument, not file
 			expectCodexHome:      false,
 		},
 		{

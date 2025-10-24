@@ -210,8 +210,44 @@ This is a test workflow for GitHub remote mode configuration.
 					if strings.Contains(lockContent, `command = "docker"`) {
 						t.Errorf("Expected no Docker command but found it in:\n%s", lockContent)
 					}
+				} else if tt.engineType == "claude" {
+					// Claude passes MCP config as CLI argument, not in a setup step
+					// Check for --mcp-config flag with JSON string
+					if !strings.Contains(lockContent, `--mcp-config`) {
+						t.Errorf("Expected --mcp-config CLI flag but didn't find it in:\n%s", lockContent)
+					}
+					// Check for mcpServers in the JSON config string
+					if !strings.Contains(lockContent, `mcpServers`) {
+						t.Errorf("Expected mcpServers in JSON config but didn't find it in:\n%s", lockContent)
+					}
+					// Check for the expected URL in the JSON
+					if tt.expectedURL != "" && !strings.Contains(lockContent, strings.ReplaceAll(tt.expectedURL, "/", "\\/")) {
+						// Also try without escaped slashes (depends on JSON generation)
+						if !strings.Contains(lockContent, tt.expectedURL) {
+							t.Errorf("Expected URL %s in JSON config but didn't find it in:\n%s", tt.expectedURL, lockContent)
+						}
+					}
+					// Check for Authorization header with token in the JSON
+					if tt.expectedToken != "" {
+						expectedAuthHeader := `"Authorization":"Bearer ` + tt.expectedToken + `"`
+						// Also check without spaces (minified JSON)
+						expectedAuthHeaderMinified := strings.ReplaceAll(expectedAuthHeader, " ", "")
+						if !strings.Contains(lockContent, expectedAuthHeader) && !strings.Contains(lockContent, expectedAuthHeaderMinified) {
+							t.Errorf("Expected Authorization header with token %s in JSON config but didn't find it in:\n%s", tt.expectedToken, lockContent)
+						}
+					}
+					// Check for X-MCP-Readonly header if this is a read-only test
+					if strings.Contains(tt.name, "read-only") {
+						if !strings.Contains(lockContent, `X-MCP-Readonly`) {
+							t.Errorf("Expected X-MCP-Readonly header in JSON config but didn't find it in:\n%s", lockContent)
+						}
+					}
+					// Should NOT contain Docker configuration
+					if strings.Contains(lockContent, `"command":"docker"`) && strings.Contains(lockContent, `"command": "docker"`) {
+						t.Errorf("Expected no Docker command but found it in:\n%s", lockContent)
+					}
 				} else {
-					// Check for JSON format
+					// Check for JSON format (Copilot and other engines)
 					if !strings.Contains(lockContent, `"type": "http"`) {
 						t.Errorf("Expected HTTP configuration but didn't find 'type: http' in:\n%s", lockContent)
 					}
@@ -257,8 +293,13 @@ This is a test workflow for GitHub remote mode configuration.
 					if !strings.Contains(lockContent, `command = "docker"`) {
 						t.Errorf("Expected Docker command but didn't find it in:\n%s", lockContent)
 					}
+				case "claude":
+					// Claude passes MCP config as CLI argument, check for Docker in JSON
+					if !strings.Contains(lockContent, `"command":"docker"`) && !strings.Contains(lockContent, `"command": "docker"`) {
+						t.Errorf("Expected Docker command in JSON config but didn't find it in:\n%s", lockContent)
+					}
 				default:
-					// For Claude, check for Docker command
+					// For other engines, check for Docker command in JSON
 					if !strings.Contains(lockContent, `"command": "docker"`) {
 						t.Errorf("Expected Docker command but didn't find it in:\n%s", lockContent)
 					}
