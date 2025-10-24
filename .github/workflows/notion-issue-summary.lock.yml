@@ -1156,7 +1156,10 @@ jobs:
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-                }
+                },
+                "tools": [
+                  "*"
+                ]
               },
               "notion": {
                 "type": "local",
@@ -1188,7 +1191,10 @@ jobs:
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
                   "GH_AW_SAFE_OUTPUTS_CONFIG": "{\"notion-add-comment\":{\"description\":\"Add a comment to a Notion page\",\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"}},\"output\":\"Comment added to Notion successfully!\"}}"
-                }
+                },
+                "tools": [
+                  "*"
+                ]
               }
             }
           }' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log

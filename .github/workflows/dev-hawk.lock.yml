@@ -1656,7 +1656,10 @@ jobs:
                 ],
                 "env": {
                   "GITHUB_TOKEN": "${{ secrets.COPILOT_CLI_TOKEN }}"
-                }
+                },
+                "tools": [
+                  "*"
+                ]
               },
               "github": {
                 "type": "local",
@@ -1675,7 +1678,10 @@ jobs:
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-                }
+                },
+                "tools": [
+                  "*"
+                ]
               },
               "safe-outputs": {
                 "type": "local",
@@ -1686,7 +1692,10 @@ jobs:
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
                   "GH_AW_SAFE_OUTPUTS_CONFIG": "{\"add_comment\":{\"max\":1,\"target\":\"*\"},\"missing_tool\":{}}"
-                }
+                },
+                "tools": [
+                  "*"
+                ]
               }
             }
           }' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log

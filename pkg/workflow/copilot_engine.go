@@ -585,11 +585,12 @@ func (e *CopilotEngine) buildGitHubMCPConfig(githubTool any, workflowData *Workf
 		}
 		config["headers"] = headers
 
-		// Add tools field - omit if no specific tools to allow all
+		// Add tools field (required in Copilot MCP config schema)
 		if len(allowedTools) > 0 {
 			config["tools"] = allowedTools
+		} else {
+			config["tools"] = []string{"*"} // "*" allows all tools
 		}
-		// Omit tools field when no specific tools (allows all in Copilot CLI)
 
 		// Inline the token directly in env (no passthrough needed)
 		config["env"] = map[string]string{
@@ -621,11 +622,12 @@ func (e *CopilotEngine) buildGitHubMCPConfig(githubTool any, workflowData *Workf
 
 		config["args"] = args
 
-		// Add tools field - omit if no specific tools to allow all
+		// Add tools field (required in Copilot MCP config schema)
 		if len(allowedTools) > 0 {
 			config["tools"] = allowedTools
+		} else {
+			config["tools"] = []string{"*"} // "*" allows all tools
 		}
-		// Omit tools field when no specific tools (allows all in Copilot CLI)
 
 		// Inline the token directly in env (no passthrough needed)
 		config["env"] = map[string]string{
@@ -658,7 +660,8 @@ func (e *CopilotEngine) buildPlaywrightMCPConfig(playwrightTool any) (map[string
 	cmdArgs = append(cmdArgs, customArgs...)
 
 	config["args"] = cmdArgs
-	// Omit tools field to allow all tools (Copilot CLI doesn't recognize ["*"])
+	// Add tools field (required in Copilot MCP config schema)
+	config["tools"] = []string{"*"} // "*" allows all tools
 
 	return config, nil
 }
@@ -669,7 +672,8 @@ func (e *CopilotEngine) buildAgenticWorkflowsMCPConfig() map[string]any {
 	config["type"] = "local"
 	config["command"] = "gh"
 	config["args"] = []string{"aw", "mcp-server"}
-	// Omit tools field to allow all tools (Copilot CLI doesn't recognize ["*"])
+	// Add tools field (required in Copilot MCP config schema)
+	config["tools"] = []string{"*"} // "*" allows all tools
 	// Inline GITHUB_TOKEN directly (no passthrough needed)
 	config["env"] = map[string]string{
 		"GITHUB_TOKEN": "${{ secrets.COPILOT_CLI_TOKEN }}",
@@ -683,7 +687,8 @@ func (e *CopilotEngine) buildSafeOutputsMCPConfig(workflowData *WorkflowData) ma
 	config["type"] = "local"
 	config["command"] = "node"
 	config["args"] = []string{"/tmp/gh-aw/safe-outputs/mcp-server.cjs"}
-	// Omit tools field to allow all tools (Copilot CLI doesn't recognize ["*"])
+	// Add tools field (required in Copilot MCP config schema)
+	config["tools"] = []string{"*"} // "*" allows all tools
 
 	// Inline all safe-output env vars directly (no passthrough needed)
 	envVars := make(map[string]string)
@@ -710,7 +715,8 @@ func (e *CopilotEngine) buildWebFetchMCPConfig() map[string]any {
 	config["type"] = "local"
 	config["command"] = "npx"
 	config["args"] = []string{"-y", "@modelcontextprotocol/server-fetch"}
-	// Omit tools field to allow all tools (Copilot CLI doesn't recognize ["*"])
+	// Add tools field (required in Copilot MCP config schema)
+	config["tools"] = []string{"*"} // "*" allows all tools
 	return config
 }
 
@@ -866,8 +872,10 @@ func (e *CopilotEngine) buildCustomMCPConfig(toolName string, toolConfig map[str
 		config["tools"] = tools
 	} else if allowedStrings, ok := toolConfig["allowed"].([]string); ok {
 		config["tools"] = allowedStrings
+	} else {
+		// Add tools field (required in Copilot MCP config schema)
+		config["tools"] = []string{"*"} // "*" allows all tools
 	}
-	// Omit tools field when no 'allowed' specified (allows all in Copilot CLI)
 
 	return config, nil
 }

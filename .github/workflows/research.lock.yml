@@ -1183,7 +1183,10 @@ jobs:
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-                }
+                },
+                "tools": [
+                  "*"
+                ]
               },
               "safe-outputs": {
                 "type": "local",
@@ -1194,7 +1197,10 @@ jobs:
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
                   "GH_AW_SAFE_OUTPUTS_CONFIG": "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
-                }
+                },
+                "tools": [
+                  "*"
+                ]
               },
               "tavily": {
                 "type": "http",
