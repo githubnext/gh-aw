@@ -60,7 +60,7 @@ func TestCreateIssueSubissueFeature(t *testing.T) {
 	}
 
 	// Test that it logs successful sub-issue linking
-	if !strings.Contains(createIssueScript, "Linked issue #") {
+	if !strings.Contains(createIssueScript, "Successfully linked issue #") {
 		t.Error("Expected create_issue.js to log successful sub-issue linking")
 	}
 }
@@ -130,7 +130,7 @@ Write output to ${{ env.GH_AW_SAFE_OUTPUTS }}.`
 		t.Error("Expected compiled workflow to call github.graphql for sub-issue linking")
 	}
 
-	if !strings.Contains(lockContent, "Linked issue #") {
+	if !strings.Contains(lockContent, "Successfully linked issue #") {
 		t.Error("Expected compiled workflow to log successful sub-issue linking")
 	}
 
