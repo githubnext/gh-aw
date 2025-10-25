@@ -965,10 +965,17 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 		return GitHubActionStep([]string{})
 	}
 
+	// Get the pinned action reference for github-script
+	githubScriptAction := GetActionPin("actions/github-script")
+	if githubScriptAction == "" {
+		// Fallback to version tag if pin not found (should not happen)
+		githubScriptAction = "actions/github-script@v8"
+	}
+
 	stepLines := []string{
 		"      - name: Parse firewall logs for step summary",
 		"        if: always()",
-		"        uses: actions/github-script@v8",
+		fmt.Sprintf("        uses: %s", githubScriptAction),
 		"        with:",
 		"          script: |",
 	}

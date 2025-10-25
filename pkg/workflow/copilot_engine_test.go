@@ -39,7 +39,7 @@ func TestCopilotEngine(t *testing.T) {
 func TestCopilotEngineInstallationSteps(t *testing.T) {
 	engine := NewCopilotEngine()
 
-	// Test with no version (firewall feature disabled by default)
+	// Test with no engine config (firewall not enabled without engine ID)
 	workflowData := &WorkflowData{}
 	steps := engine.GetInstallationSteps(workflowData)
 	// When firewall is disabled: secret validation + Node.js setup + install = 3 steps
@@ -47,19 +47,32 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 		t.Errorf("Expected 3 installation steps (secret validation + Node.js setup + install), got %d", len(steps))
 	}
 
-	// Test with version (firewall feature disabled by default)
-	workflowDataWithVersion := &WorkflowData{
-		EngineConfig: &EngineConfig{Version: "1.0.0"},
+	// Test with copilot engine (firewall enabled by default)
+	workflowDataWithCopilot := &WorkflowData{
+		EngineConfig: &EngineConfig{ID: "copilot"},
 	}
-	stepsWithVersion := engine.GetInstallationSteps(workflowDataWithVersion)
-	// When firewall is disabled: secret validation + Node.js setup + install = 3 steps
-	if len(stepsWithVersion) != 3 {
-		t.Errorf("Expected 3 installation steps with version (secret validation + Node.js setup + install), got %d", len(stepsWithVersion))
+	stepsWithFirewall := engine.GetInstallationSteps(workflowDataWithCopilot)
+	// When firewall is enabled: secret validation + Node.js setup + AWF install + AWF cleanup + Copilot install = 5 steps
+	if len(stepsWithFirewall) != 5 {
+		t.Errorf("Expected 5 installation steps with firewall (secret + Node.js + AWF install + AWF cleanup + Copilot), got %d", len(stepsWithFirewall))
+	}
+
+	// Test with copilot engine but firewall explicitly disabled
+	workflowDataFirewallOff := &WorkflowData{
+		EngineConfig: &EngineConfig{ID: "copilot"},
+		Features:     map[string]bool{"firewall": false},
+	}
+	stepsNoFirewall := engine.GetInstallationSteps(workflowDataFirewallOff)
+	// When firewall is explicitly disabled: secret validation + Node.js setup + install = 3 steps
+	if len(stepsNoFirewall) != 3 {
+		t.Errorf("Expected 3 installation steps with firewall disabled (secret + Node.js + Copilot), got %d", len(stepsNoFirewall))
 	}
 }
 
 func TestCopilotEngineExecutionSteps(t *testing.T) {
 	engine := NewCopilotEngine()
+	
+	// Test without engine config (firewall not enabled without engine ID)
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 	}
@@ -112,6 +125,29 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	}
 	if !strings.Contains(stepContent, "mkdir -p /tmp/gh-aw/.copilot/logs/") {
 		t.Errorf("Expected 'mkdir -p /tmp/gh-aw/.copilot/logs/' command in step content:\n%s", stepContent)
+	}
+	
+	// Test with copilot engine (firewall enabled by default)
+	workflowDataWithCopilot := &WorkflowData{
+		Name:         "test-workflow-firewall",
+		EngineConfig: &EngineConfig{ID: "copilot"},
+	}
+	stepsWithFirewall := engine.GetExecutionSteps(workflowDataWithCopilot, "/tmp/gh-aw/test.log")
+
+	if len(stepsWithFirewall) != 1 {
+		t.Fatalf("Expected 1 step with firewall, got %d", len(stepsWithFirewall))
+	}
+
+	stepContentFirewall := strings.Join([]string(stepsWithFirewall[0]), "\n")
+
+	// When firewall is enabled, should use 'npx' command
+	if !strings.Contains(stepContentFirewall, "npx -y @github/copilot@") {
+		t.Errorf("Expected command to contain 'npx -y @github/copilot@' when firewall is enabled:\n%s", stepContentFirewall)
+	}
+
+	// When firewall is enabled, should use awf wrapper
+	if !strings.Contains(stepContentFirewall, "sudo -E awf") {
+		t.Errorf("Expected command to contain 'sudo -E awf' when firewall is enabled:\n%s", stepContentFirewall)
 	}
 }
 

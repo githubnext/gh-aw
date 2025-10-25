@@ -192,3 +192,213 @@ func TestIsFeatureEnabledWithDataNilWorkflow(t *testing.T) {
 		t.Errorf("isFeatureEnabled(\"firewall\", nil) with env=firewall = %v, want true", result)
 	}
 }
+
+func TestFirewallDefaultEnabledForCopilot(t *testing.T) {
+	// Clear environment to ensure we're testing default behavior
+	os.Unsetenv("GH_AW_FEATURES")
+	defer os.Unsetenv("GH_AW_FEATURES")
+
+	tests := []struct {
+		name         string
+		engineID     string
+		features     map[string]bool
+		expectedFlag bool
+		description  string
+	}{
+		{
+			name:         "copilot engine - firewall enabled by default",
+			engineID:     "copilot",
+			features:     nil,
+			expectedFlag: true,
+			description:  "Firewall should be enabled by default for copilot engine when no features are set",
+		},
+		{
+			name:         "copilot engine - firewall enabled by default with empty features",
+			engineID:     "copilot",
+			features:     map[string]bool{},
+			expectedFlag: true,
+			description:  "Firewall should be enabled by default for copilot engine with empty features map",
+		},
+		{
+			name:         "copilot engine - firewall explicitly enabled",
+			engineID:     "copilot",
+			features:     map[string]bool{"firewall": true},
+			expectedFlag: true,
+			description:  "Firewall should be enabled when explicitly set to true",
+		},
+		{
+			name:         "copilot engine - firewall explicitly disabled",
+			engineID:     "copilot",
+			features:     map[string]bool{"firewall": false},
+			expectedFlag: false,
+			description:  "Firewall should respect explicit disable even for copilot engine",
+		},
+		{
+			name:         "copilot engine - other features don't affect default",
+			engineID:     "copilot",
+			features:     map[string]bool{"some-other-feature": true},
+			expectedFlag: true,
+			description:  "Firewall should still be enabled by default when other features are set",
+		},
+		{
+			name:         "claude engine - firewall NOT enabled by default",
+			engineID:     "claude",
+			features:     nil,
+			expectedFlag: false,
+			description:  "Firewall should NOT be enabled by default for claude engine",
+		},
+		{
+			name:         "claude engine - firewall explicitly enabled",
+			engineID:     "claude",
+			features:     map[string]bool{"firewall": true},
+			expectedFlag: true,
+			description:  "Firewall can be explicitly enabled for claude engine",
+		},
+		{
+			name:         "codex engine - firewall NOT enabled by default",
+			engineID:     "codex",
+			features:     nil,
+			expectedFlag: false,
+			description:  "Firewall should NOT be enabled by default for codex engine",
+		},
+		{
+			name:         "custom engine - firewall NOT enabled by default",
+			engineID:     "custom",
+			features:     nil,
+			expectedFlag: false,
+			description:  "Firewall should NOT be enabled by default for custom engine",
+		},
+		{
+			name:         "nil engine config - firewall not enabled",
+			engineID:     "",
+			features:     nil,
+			expectedFlag: false,
+			description:  "When no engine is configured, firewall should not be enabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var workflowData *WorkflowData
+			if tt.engineID != "" {
+				workflowData = &WorkflowData{
+					EngineConfig: &EngineConfig{
+						ID: tt.engineID,
+					},
+					Features: tt.features,
+				}
+			} else {
+				// Test with nil engine config
+				workflowData = &WorkflowData{
+					Features: tt.features,
+				}
+			}
+
+			result := isFeatureEnabled("firewall", workflowData)
+			if result != tt.expectedFlag {
+				t.Errorf("%s: expected firewall=%v, got %v", tt.description, tt.expectedFlag, result)
+			}
+		})
+	}
+}
+
+func TestFirewallDefaultWithEnvironment(t *testing.T) {
+	tests := []struct {
+		name         string
+		engineID     string
+		features     map[string]bool
+		envValue     string
+		expectedFlag bool
+		description  string
+	}{
+		{
+			name:         "copilot with env disabled - defaults to enabled",
+			engineID:     "copilot",
+			features:     nil,
+			envValue:     "",
+			expectedFlag: true,
+			description:  "Copilot defaults to firewall enabled even without env",
+		},
+		{
+			name:         "copilot with env enabled - stays enabled",
+			engineID:     "copilot",
+			features:     nil,
+			envValue:     "firewall",
+			expectedFlag: true,
+			description:  "Copilot stays enabled when env also enables it",
+		},
+		{
+			name:         "copilot explicitly disabled - respects frontmatter over default",
+			engineID:     "copilot",
+			features:     map[string]bool{"firewall": false},
+			envValue:     "firewall",
+			expectedFlag: false,
+			description:  "Explicit frontmatter disable takes precedence over env and default",
+		},
+		{
+			name:         "claude with env enabled - uses env",
+			engineID:     "claude",
+			features:     nil,
+			envValue:     "firewall",
+			expectedFlag: true,
+			description:  "Non-copilot engines can enable via env",
+		},
+		{
+			name:         "claude with env disabled - stays disabled",
+			engineID:     "claude",
+			features:     nil,
+			envValue:     "",
+			expectedFlag: false,
+			description:  "Non-copilot engines default to disabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variable
+			if tt.envValue != "" {
+				os.Setenv("GH_AW_FEATURES", tt.envValue)
+				defer os.Unsetenv("GH_AW_FEATURES")
+			} else {
+				os.Unsetenv("GH_AW_FEATURES")
+			}
+
+			workflowData := &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: tt.engineID,
+				},
+				Features: tt.features,
+			}
+
+			result := isFeatureEnabled("firewall", workflowData)
+			if result != tt.expectedFlag {
+				t.Errorf("%s: expected firewall=%v, got %v (env=%q)", tt.description, tt.expectedFlag, result, tt.envValue)
+			}
+		})
+	}
+}
+
+func TestOtherFeaturesNotAffectedByCopilotDefault(t *testing.T) {
+	// Clear environment to ensure we're testing default behavior
+	os.Unsetenv("GH_AW_FEATURES")
+	defer os.Unsetenv("GH_AW_FEATURES")
+
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		Features: nil,
+	}
+
+	// Test that other features (not firewall) are not affected by copilot's default
+	result := isFeatureEnabled("some-other-feature", workflowData)
+	if result != false {
+		t.Errorf("Non-firewall features should not be enabled by default for copilot, got %v", result)
+	}
+
+	// Test that firewall is enabled for copilot
+	firewallResult := isFeatureEnabled("firewall", workflowData)
+	if firewallResult != true {
+		t.Errorf("Firewall should be enabled by default for copilot, got %v", firewallResult)
+	}
+}

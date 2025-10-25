@@ -10,6 +10,10 @@ import (
 // Features from frontmatter take precedence over environment variables.
 //
 // If workflowData is nil or has no features, it falls back to checking the environment variable only.
+//
+// Special behavior for the "firewall" feature with copilot engine:
+// - Defaults to true for copilot engine when not explicitly set
+// - Can be explicitly disabled by setting features: { firewall: false }
 func isFeatureEnabled(flag string, workflowData *WorkflowData) bool {
 	flagLower := strings.ToLower(strings.TrimSpace(flag))
 
@@ -23,6 +27,15 @@ func isFeatureEnabled(flag string, workflowData *WorkflowData) bool {
 			if strings.ToLower(key) == flagLower {
 				return enabled
 			}
+		}
+	}
+
+	// Special handling: default firewall to true for copilot engine
+	if flagLower == "firewall" && workflowData != nil && workflowData.EngineConfig != nil {
+		if workflowData.EngineConfig.ID == "copilot" {
+			// Firewall is enabled by default for copilot engine
+			// (only if not explicitly set to false in Features above)
+			return true
 		}
 	}
 
