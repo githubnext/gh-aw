@@ -90,6 +90,9 @@ var redactSecretsScript string
 //go:embed js/notify_comment_error.cjs
 var notifyCommentErrorScript string
 
+//go:embed js/generate_git_patch.cjs
+var generateGitPatchScript string
+
 // removeJavaScriptComments removes JavaScript comments (// and /* */) from code
 // while preserving comments that appear within string literals
 func removeJavaScriptComments(code string) string {

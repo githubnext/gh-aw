@@ -3353,118 +3353,173 @@ jobs:
             }
       - name: Generate git patch
         if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GITHUB_SHA: ${{ github.sha }}
-        run: |
-          # Check current git status
-          echo "Current git status:"
-          git status
-          # Extract branch name from JSONL output
-          BRANCH_NAME=""
-          if [ -f "$GH_AW_SAFE_OUTPUTS" ]; then
-            echo "Checking for branch name in JSONL output..."
-            while IFS= read -r line; do
-              if [ -n "$line" ]; then
-                # Extract branch from create-pull-request line using simple grep and sed
-                # Note: types use underscores (normalized by safe-outputs MCP server)
-                if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create_pull_request"'; then
-                  echo "Found create_pull_request line: $line"
-                  # Extract branch value using sed
-                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-                  if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from create_pull_request: $BRANCH_NAME"
-                    break
-                  fi
-                # Extract branch from push_to_pull_request_branch line using simple grep and sed
-                # Note: types use underscores (normalized by safe-outputs MCP server)
-                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push_to_pull_request_branch"'; then
-                  echo "Found push_to_pull_request_branch line: $line"
-                  # Extract branch value using sed
-                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-                  if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from push_to_pull_request_branch: $BRANCH_NAME"
-                    break
-                  fi
-                fi
-              fi
-            done < "$GH_AW_SAFE_OUTPUTS"
-          fi
-          # Determine which branch to use for patch generation
-          TARGET_BRANCH=""
-          if [ -n "$BRANCH_NAME" ]; then
-            echo "Branch name from safe-outputs: $BRANCH_NAME"
-            # Check if the branch exists locally
-            if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
-              echo "Branch $BRANCH_NAME exists locally"
-              TARGET_BRANCH="$BRANCH_NAME"
-            else
-              echo "Branch $BRANCH_NAME does not exist locally, falling back to current HEAD"
-              # Get the current branch name
-              CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-              if [ "$CURRENT_BRANCH" != "HEAD" ]; then
-                echo "Using current branch: $CURRENT_BRANCH"
-                TARGET_BRANCH="$CURRENT_BRANCH"
-              else
-                echo "Warning: Detached HEAD state, using HEAD directly"
-                TARGET_BRANCH="HEAD"
-              fi
-            fi
-          else
-            echo "No branch name found in safe-outputs, using current branch"
-            # Get the current branch name
-            CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-            if [ "$CURRENT_BRANCH" != "HEAD" ]; then
-              echo "Using current branch: $CURRENT_BRANCH"
-              TARGET_BRANCH="$CURRENT_BRANCH"
-            else
-              echo "Warning: Detached HEAD state, using HEAD directly"
-              TARGET_BRANCH="HEAD"
-            fi
-          fi
-          # Generate patch if we have a target branch
-          if [ -n "$TARGET_BRANCH" ]; then
-            echo "Generating patch for: $TARGET_BRANCH"
-            # Determine the base ref for patch generation
-            if [ "$TARGET_BRANCH" = "HEAD" ]; then
-              # For detached HEAD, use merge-base with default branch
-              DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
-              echo "Default branch: $DEFAULT_BRANCH"
-              git fetch origin $DEFAULT_BRANCH
-              BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH HEAD)
-              echo "Using merge-base as base: $BASE_REF"
-            elif git show-ref --verify --quiet refs/remotes/origin/$TARGET_BRANCH; then
-              echo "Using origin/$TARGET_BRANCH as base for patch generation"
-              BASE_REF="origin/$TARGET_BRANCH"
-            else
-              echo "origin/$TARGET_BRANCH does not exist, using merge-base with default branch"
-              # Get the default branch name
-              DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
-              echo "Default branch: $DEFAULT_BRANCH"
-              # Fetch the default branch to ensure it's available locally
-              git fetch origin $DEFAULT_BRANCH
-              # Find merge base between default branch and current branch
-              BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $TARGET_BRANCH)
-              echo "Using merge-base as base: $BASE_REF"
-            fi
-            # Generate patch from the determined base to the target
-            git format-patch "$BASE_REF".."$TARGET_BRANCH" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from branch" > /tmp/gh-aw/aw.patch
-            echo "Patch file created from: $TARGET_BRANCH (base: $BASE_REF)"
-          else
-            echo "No target branch determined, no patch generation"
-          fi
-          # Show patch info if it exists
-          if [ -f /tmp/gh-aw/aw.patch ]; then
-            ls -la /tmp/gh-aw/aw.patch
-            # Show the first 50 lines of the patch for review
-            echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
-            echo '```diff' >> $GITHUB_STEP_SUMMARY
-            head -500 /tmp/gh-aw/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
-            echo '...' >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
-          fi
+          GH_AW_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        with:
+          script: |
+            function extractBranchFromSafeOutputs(safeOutputsPath) {
+              const fs = require("fs");
+              if (!fs.existsSync(safeOutputsPath)) {
+                return "";
+              }
+              try {
+                const content = fs.readFileSync(safeOutputsPath, "utf8");
+                const lines = content.split("\n");
+                for (const line of lines) {
+                  if (!line.trim()) {
+                    continue;
+                  }
+                  try {
+                    const entry = JSON.parse(line);
+                    if (entry.type === "create_pull_request" || entry.type === "push_to_pull_request_branch") {
+                      if (entry.branch) {
+                        core.info(`Found ${entry.type} line with branch: ${entry.branch}`);
+                        return entry.branch;
+                      }
+                    }
+                  } catch (parseError) {
+                    continue;
+                  }
+                }
+              } catch (readError) {
+                core.warning(`Failed to read safe-outputs file: ${readError instanceof Error ? readError.message : String(readError)}`);
+              }
+              return "";
+            }
+            async function determineTargetBranch(branchFromSafeOutputs) {
+              if (branchFromSafeOutputs) {
+                core.info(`Branch name from safe-outputs: ${branchFromSafeOutputs}`);
+                try {
+                  await exec.exec("git", ["show-ref", "--verify", "--quiet", `refs/heads/${branchFromSafeOutputs}`]);
+                  core.info(`Branch ${branchFromSafeOutputs} exists locally`);
+                  return branchFromSafeOutputs;
+                } catch (error) {
+                  core.info(`Branch ${branchFromSafeOutputs} does not exist locally, falling back to current HEAD`);
+                }
+              } else {
+                core.info("No branch name found in safe-outputs, using current branch");
+              }
+              try {
+                const { stdout } = await exec.getExecOutput("git", ["rev-parse", "--abbrev-ref", "HEAD"]);
+                const currentBranch = stdout.trim();
+                if (currentBranch && currentBranch !== "HEAD") {
+                  core.info(`Using current branch: ${currentBranch}`);
+                  return currentBranch;
+                } else {
+                  core.warning("Detached HEAD state, using HEAD directly");
+                  return "HEAD";
+                }
+              } catch (error) {
+                core.error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`);
+                return "";
+              }
+            }
+            async function determineBaseRef(targetBranch, defaultBranch) {
+              if (targetBranch === "HEAD") {
+                core.info(`Default branch: ${defaultBranch}`);
+                await exec.exec("git", ["fetch", "origin", defaultBranch]);
+                const { stdout } = await exec.getExecOutput("git", ["merge-base", `origin/${defaultBranch}`, "HEAD"]);
+                const baseRef = stdout.trim();
+                core.info(`Using merge-base as base: ${baseRef}`);
+                return baseRef;
+              }
+              try {
+                await exec.exec("git", ["show-ref", "--verify", "--quiet", `refs/remotes/origin/${targetBranch}`]);
+                core.info(`Using origin/${targetBranch} as base for patch generation`);
+                return `origin/${targetBranch}`;
+              } catch (error) {
+                core.info(`origin/${targetBranch} does not exist, using merge-base with default branch`);
+              }
+              core.info(`Default branch: ${defaultBranch}`);
+              await exec.exec("git", ["fetch", "origin", defaultBranch]);
+              const { stdout } = await exec.getExecOutput("git", ["merge-base", `origin/${defaultBranch}`, targetBranch]);
+              const baseRef = stdout.trim();
+              core.info(`Using merge-base as base: ${baseRef}`);
+              return baseRef;
+            }
+            async function generatePatch(baseRef, targetBranch, patchPath) {
+              const fs = require("fs");
+              try {
+                const { stdout, exitCode } = await exec.getExecOutput("git", ["format-patch", `${baseRef}..${targetBranch}`, "--stdout"], {
+                  ignoreReturnCode: true,
+                });
+                if (exitCode === 0 && stdout) {
+                  fs.writeFileSync(patchPath, stdout);
+                  core.info(`Patch file created from: ${targetBranch} (base: ${baseRef})`);
+                  return true;
+                } else {
+                  fs.writeFileSync(patchPath, "Failed to generate patch from branch");
+                  core.warning("Failed to generate patch - git format-patch returned no output or error");
+                  return false;
+                }
+              } catch (error) {
+                const fs = require("fs");
+                fs.writeFileSync(patchPath, "Failed to generate patch from branch");
+                core.error(`Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`);
+                return false;
+              }
+            }
+            async function addPatchToSummary(patchPath) {
+              const fs = require("fs");
+              if (!fs.existsSync(patchPath)) {
+                return;
+              }
+              const stats = fs.statSync(patchPath);
+              core.info(`Patch file size: ${stats.size} bytes`);
+              const patchContent = fs.readFileSync(patchPath, "utf8");
+              const lines = patchContent.split("\n");
+              const previewLines = lines.slice(0, 500);
+              const preview = previewLines.join("\n");
+              let summary = "## Git Patch\n\n";
+              summary += "```diff\n";
+              summary += preview;
+              if (lines.length > 500) {
+                summary += "\n...";
+              }
+              summary += "\n```\n\n";
+              await core.summary.addRaw(summary).write();
+            }
+            async function main() {
+              const fs = require("fs");
+              core.info("Current git status:");
+              await exec.exec("git", ["status"]);
+              const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS || "";
+              const defaultBranch = process.env.GH_AW_DEFAULT_BRANCH || context.payload?.repository?.default_branch || "main";
+              const patchPath = "/tmp/gh-aw/aw.patch";
+              const branchFromSafeOutputs = safeOutputsPath ? extractBranchFromSafeOutputs(safeOutputsPath) : "";
+              const targetBranch = await determineTargetBranch(branchFromSafeOutputs);
+              if (!targetBranch) {
+                core.info("No target branch determined, no patch generation");
+                return;
+              }
+              core.info(`Generating patch for: ${targetBranch}`);
+              const baseRef = await determineBaseRef(targetBranch, defaultBranch);
+              if (!baseRef) {
+                core.error("Failed to determine base ref for patch generation");
+                return;
+              }
+              const success = await generatePatch(baseRef, targetBranch, patchPath);
+              if (success) {
+                await addPatchToSummary(patchPath);
+              }
+            }
+            if (typeof module !== "undefined" && require.main === module) {
+              main().catch(error => {
+                core.setFailed(error instanceof Error ? error.message : String(error));
+              });
+            }
+            if (typeof module !== "undefined" && module.exports) {
+              module.exports = {
+                extractBranchFromSafeOutputs,
+                determineTargetBranch,
+                determineBaseRef,
+                generatePatch,
+                addPatchToSummary,
+                main,
+              };
+            }
       - name: Upload git patch
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

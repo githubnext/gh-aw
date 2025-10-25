@@ -15,9 +15,6 @@ var printPromptSummaryScript string
 //go:embed sh/create_prompt_first.sh
 var createPromptFirstScript string
 
-//go:embed sh/generate_git_patch.sh
-var generateGitPatchScript string
-
 //go:embed sh/capture_agent_version.sh
 var captureAgentVersionScript string
 
