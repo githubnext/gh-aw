@@ -413,6 +413,10 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 			"bash": []any{"echo", "git status"},
 			"edit": nil,
 		},
+		ParsedTools: NewTools(map[string]any{
+			"bash": []any{"echo", "git status"},
+			"edit": nil,
+		}),
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
@@ -496,8 +500,9 @@ func TestCopilotEngineEditToolAddsAllowAllPaths(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowData := &WorkflowData{
-				Name:  "test-workflow",
-				Tools: tt.tools,
+				Name:        "test-workflow",
+				Tools:       tt.tools,
+				ParsedTools: NewTools(tt.tools), // Populate ParsedTools from Tools map
 			}
 			steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 

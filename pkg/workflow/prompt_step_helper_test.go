@@ -195,6 +195,9 @@ func TestGenerateStaticPromptStepIntegration(t *testing.T) {
 			Tools: map[string]any{
 				"edit": true,
 			},
+			ParsedTools: NewTools(map[string]any{
+				"edit": true,
+			}),
 		}
 
 		var yaml strings.Builder
@@ -212,6 +215,9 @@ func TestGenerateStaticPromptStepIntegration(t *testing.T) {
 			Tools: map[string]any{
 				"github": true,
 			},
+			ParsedTools: NewTools(map[string]any{
+				"github": true,
+			}),
 		}
 
 		var yaml strings.Builder
@@ -229,6 +235,9 @@ func TestGenerateStaticPromptStepIntegration(t *testing.T) {
 			Tools: map[string]any{
 				"playwright": true,
 			},
+			ParsedTools: NewTools(map[string]any{
+				"playwright": true,
+			}),
 		}
 
 		var yaml strings.Builder
@@ -246,6 +255,9 @@ func TestGenerateStaticPromptStepIntegration(t *testing.T) {
 			Tools: map[string]any{
 				"github": true,
 			},
+			ParsedTools: NewTools(map[string]any{
+				"github": true,
+			}),
 		}
 
 		var yaml strings.Builder
