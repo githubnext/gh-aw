@@ -62,6 +62,7 @@ type Compiler struct {
 	fileTracker          FileTracker       // Optional file tracker for tracking created files
 	warningCount         int               // Number of warnings encountered during compilation
 	stepOrderTracker     *StepOrderTracker // Tracks step ordering for validation
+	timingTracker        *TimingTracker    // Tracks compilation timing for performance analysis
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -74,6 +75,7 @@ func NewCompiler(verbose bool, engineOverride string, version string) *Compiler 
 		jobManager:       NewJobManager(),
 		engineRegistry:   GetGlobalEngineRegistry(),
 		stepOrderTracker: NewStepOrderTracker(),
+		timingTracker:    NewTimingTracker(verbose),
 	}
 
 	return c
@@ -221,10 +223,17 @@ type SafeOutputsConfig struct {
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
 func (c *Compiler) CompileWorkflow(markdownPath string) error {
+	// Initialize timing tracker
+	c.timingTracker = NewTimingTracker(c.verbose)
+	
 	// Parse the markdown file
-	log.Printf("Parsing workflow file")
-	workflowData, err := c.ParseWorkflowFile(markdownPath)
-	if err != nil {
+	var workflowData *WorkflowData
+	if err := c.timingTracker.TimeStep("Parse Workflow File", func() error {
+		log.Printf("Parsing workflow file")
+		var err error
+		workflowData, err = c.ParseWorkflowFile(markdownPath)
+		return err
+	}); err != nil {
 		// Check if this is already a formatted console error
 		if strings.Contains(err.Error(), ":") && (strings.Contains(err.Error(), "error:") || strings.Contains(err.Error(), "warning:")) {
 			// Already formatted, return as-is
@@ -249,6 +258,9 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 // CompileWorkflowData compiles a workflow from already-parsed WorkflowData
 // This avoids re-parsing when the data has already been parsed
 func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath string) error {
+	// Initialize a new timing tracker for this compilation
+	c.timingTracker = NewTimingTracker(c.verbose)
+	c.timingTracker.StartStep("Compilation Setup")
 
 	// Reset the step order tracker for this compilation
 	c.stepOrderTracker = NewStepOrderTracker()
@@ -257,10 +269,13 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	lockFile := strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
 
 	log.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
+	c.timingTracker.EndStep()
 
 	// Validate expression safety - check that all GitHub Actions expressions are in the allowed list
-	log.Printf("Validating expression safety")
-	if err := validateExpressionSafety(workflowData.MarkdownContent); err != nil {
+	if err := c.timingTracker.TimeStep("Expression Safety Validation", func() error {
+		log.Printf("Validating expression safety")
+		return validateExpressionSafety(workflowData.MarkdownContent)
+	}); err != nil {
 		formattedErr := console.FormatError(console.CompilerError{
 			Position: console.ErrorPosition{
 				File:   markdownPath,
@@ -281,8 +296,12 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// instead of using a shared action file
 
 	// Generate the YAML content
-	yamlContent, err := c.generateYAML(workflowData, markdownPath)
-	if err != nil {
+	var yamlContent string
+	if err := c.timingTracker.TimeStep("YAML Generation", func() error {
+		var err error
+		yamlContent, err = c.generateYAML(workflowData, markdownPath)
+		return err
+	}); err != nil {
 		formattedErr := console.FormatError(console.CompilerError{
 			Position: console.ErrorPosition{
 				File:   markdownPath,
@@ -297,8 +316,12 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 
 	// Validate against GitHub Actions schema (unless skipped)
 	if !c.skipValidation {
-		log.Print("Validating workflow against GitHub Actions schema")
-		if err := c.validateGitHubActionsSchema(yamlContent); err != nil {
+		c.timingTracker.StartStep("Validation")
+
+		if err := c.timingTracker.TimeSubStep("GitHub Actions Schema", func() error {
+			log.Print("Validating workflow against GitHub Actions schema")
+			return c.validateGitHubActionsSchema(yamlContent)
+		}); err != nil {
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
 					File:   markdownPath,
@@ -317,8 +340,10 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		}
 
 		// Validate expression sizes
-		log.Print("Validating expression sizes")
-		if err := c.validateExpressionSizes(yamlContent); err != nil {
+		if err := c.timingTracker.TimeSubStep("Expression Sizes", func() error {
+			log.Print("Validating expression sizes")
+			return c.validateExpressionSizes(yamlContent)
+		}); err != nil {
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
 					File:   markdownPath,
@@ -337,26 +362,31 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		}
 
 		// Validate container images used in MCP configurations
-		log.Print("Validating container images")
-		if err := c.validateContainerImages(workflowData); err != nil {
-			// Treat container image validation failures as warnings, not errors
-			// This is because validation may fail due to auth issues locally (e.g., private registries)
-			formattedWarning := console.FormatError(console.CompilerError{
-				Position: console.ErrorPosition{
-					File:   markdownPath,
-					Line:   1,
-					Column: 1,
-				},
-				Type:    "warning",
-				Message: fmt.Sprintf("container image validation failed: %v", err),
-			})
-			fmt.Fprintln(os.Stderr, formattedWarning)
-			c.IncrementWarningCount()
-		}
+		c.timingTracker.TimeSubStep("Container Images", func() error {
+			log.Print("Validating container images")
+			if err := c.validateContainerImages(workflowData); err != nil {
+				// Treat container image validation failures as warnings, not errors
+				// This is because validation may fail due to auth issues locally (e.g., private registries)
+				formattedWarning := console.FormatError(console.CompilerError{
+					Position: console.ErrorPosition{
+						File:   markdownPath,
+						Line:   1,
+						Column: 1,
+					},
+					Type:    "warning",
+					Message: fmt.Sprintf("container image validation failed: %v", err),
+				})
+				fmt.Fprintln(os.Stderr, formattedWarning)
+				c.IncrementWarningCount()
+			}
+			return nil // Don't fail on container image validation
+		})
 
 		// Validate runtime packages (npx, uv)
-		log.Print("Validating runtime packages")
-		if err := c.validateRuntimePackages(workflowData); err != nil {
+		if err := c.timingTracker.TimeSubStep("Runtime Packages", func() error {
+			log.Print("Validating runtime packages")
+			return c.validateRuntimePackages(workflowData)
+		}); err != nil {
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
 					File:   markdownPath,
@@ -370,8 +400,10 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		}
 
 		// Validate repository features (discussions, issues)
-		log.Print("Validating repository features")
-		if err := c.validateRepositoryFeatures(workflowData); err != nil {
+		if err := c.timingTracker.TimeSubStep("Repository Features", func() error {
+			log.Print("Validating repository features")
+			return c.validateRepositoryFeatures(workflowData)
+		}); err != nil {
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
 					File:   markdownPath,
@@ -383,6 +415,8 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			})
 			return errors.New(formattedErr)
 		}
+
+		c.timingTracker.EndStep()
 	} else if c.verbose {
 		fmt.Println(console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
 		c.IncrementWarningCount()
@@ -392,8 +426,22 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	if c.noEmit {
 		log.Print("Validation completed - no lock file generated (--no-emit enabled)")
 	} else {
-		log.Printf("Writing output to: %s", lockFile)
-		if err := os.WriteFile(lockFile, []byte(yamlContent), 0644); err != nil {
+		if err := c.timingTracker.TimeStep("File Output", func() error {
+			log.Printf("Writing output to: %s", lockFile)
+			if err := os.WriteFile(lockFile, []byte(yamlContent), 0644); err != nil {
+				return fmt.Errorf("failed to write lock file: %w", err)
+			}
+
+			// Validate file size after writing
+			if lockFileInfo, err := os.Stat(lockFile); err == nil {
+				if lockFileInfo.Size() > MaxLockFileSize {
+					lockSize := pretty.FormatFileSize(lockFileInfo.Size())
+					maxSize := pretty.FormatFileSize(MaxLockFileSize)
+					return fmt.Errorf("generated lock file size (%s) exceeds maximum allowed size (%s)", lockSize, maxSize)
+				}
+			}
+			return nil
+		}); err != nil {
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
 					File:   lockFile,
@@ -401,29 +449,14 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 					Column: 1,
 				},
 				Type:    "error",
-				Message: fmt.Sprintf("failed to write lock file: %v", err),
+				Message: err.Error(),
 			})
 			return errors.New(formattedErr)
 		}
-
-		// Validate file size after writing
-		if lockFileInfo, err := os.Stat(lockFile); err == nil {
-			if lockFileInfo.Size() > MaxLockFileSize {
-				lockSize := pretty.FormatFileSize(lockFileInfo.Size())
-				maxSize := pretty.FormatFileSize(MaxLockFileSize)
-				formattedErr := console.FormatError(console.CompilerError{
-					Position: console.ErrorPosition{
-						File:   lockFile,
-						Line:   1,
-						Column: 1,
-					},
-					Type:    "error",
-					Message: fmt.Sprintf("generated lock file size (%s) exceeds maximum allowed size (%s)", lockSize, maxSize),
-				})
-				return errors.New(formattedErr)
-			}
-		}
 	}
+
+	// Print timing summary if verbose mode is enabled
+	c.timingTracker.PrintSummary()
 
 	// Display success message with file size if we generated a lock file
 	if c.noEmit {

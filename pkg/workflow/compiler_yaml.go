@@ -9,16 +9,22 @@ import (
 )
 
 func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, error) {
+	c.timingTracker.StartSubStep("Job Setup")
 	// Reset job manager for this compilation
 	c.jobManager = NewJobManager()
+	c.timingTracker.EndSubStep()
 
 	// Build all jobs
-	if err := c.buildJobs(data, markdownPath); err != nil {
+	if err := c.timingTracker.TimeSubStep("Build Jobs", func() error {
+		return c.buildJobs(data, markdownPath)
+	}); err != nil {
 		return "", fmt.Errorf("failed to build jobs: %w", err)
 	}
 
 	// Validate job dependencies
-	if err := c.jobManager.ValidateDependencies(); err != nil {
+	if err := c.timingTracker.TimeSubStep("Validate Job Dependencies", func() error {
+		return c.jobManager.ValidateDependencies()
+	}); err != nil {
 		return "", fmt.Errorf("job dependency validation failed: %w", err)
 	}
 
@@ -113,14 +119,20 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	}
 
 	// Generate jobs section using JobManager
-	yaml.WriteString(c.jobManager.RenderToYAML())
+	c.timingTracker.TimeSubStep("Generate Jobs YAML", func() error {
+		yaml.WriteString(c.jobManager.RenderToYAML())
+		return nil
+	})
 
 	yamlContent := yaml.String()
 
 	// If we're in non-cloning trial mode and this workflow has issue triggers,
 	// replace github.event.issue.number with inputs.issue_number
 	if c.trialMode && c.hasIssueTrigger(data.On) {
-		yamlContent = c.replaceIssueNumberReferences(yamlContent)
+		c.timingTracker.TimeSubStep("Trial Mode Processing", func() error {
+			yamlContent = c.replaceIssueNumberReferences(yamlContent)
+			return nil
+		})
 	}
 
 	return yamlContent, nil
