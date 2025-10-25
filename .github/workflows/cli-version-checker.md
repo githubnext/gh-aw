@@ -6,9 +6,7 @@ on:
 permissions:
   contents: read
   actions: read
-engine:
-  id: claude
-  max-turns: 75
+engine: copilot
 network: 
    allowed: [defaults, node, "api.github.com", "ghcr.io"]
 imports:
