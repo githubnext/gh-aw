@@ -11,14 +11,16 @@ func TestUpdateReactionJob(t *testing.T) {
 	tests := []struct {
 		name               string
 		addCommentConfig   bool
+		aiReaction         string
 		safeOutputJobNames []string
 		expectJob          bool
 		expectConditions   []string
 		expectNeeds        []string
 	}{
 		{
-			name:               "update_reaction job created when add-comment is configured",
+			name:               "update_reaction job created when add-comment and ai-reaction are configured",
 			addCommentConfig:   true,
+			aiReaction:         "eyes",
 			safeOutputJobNames: []string{"add_comment", "missing_tool"},
 			expectJob:          true,
 			expectConditions: []string{
@@ -34,6 +36,7 @@ func TestUpdateReactionJob(t *testing.T) {
 		{
 			name:               "update_reaction job depends on all safe output jobs",
 			addCommentConfig:   true,
+			aiReaction:         "eyes",
 			safeOutputJobNames: []string{"add_comment", "create_issue", "missing_tool"},
 			expectJob:          true,
 			expectConditions: []string{
@@ -49,7 +52,15 @@ func TestUpdateReactionJob(t *testing.T) {
 		{
 			name:               "update_reaction job not created when add-comment is not configured",
 			addCommentConfig:   false,
+			aiReaction:         "",
 			safeOutputJobNames: []string{},
+			expectJob:          false,
+		},
+		{
+			name:               "update_reaction job not created when add-comment is configured but ai-reaction is not",
+			addCommentConfig:   true,
+			aiReaction:         "",
+			safeOutputJobNames: []string{"add_comment", "missing_tool"},
 			expectJob:          false,
 		},
 	}
@@ -59,7 +70,8 @@ func TestUpdateReactionJob(t *testing.T) {
 			// Create a test workflow
 			compiler := NewCompiler(false, "", "")
 			workflowData := &WorkflowData{
-				Name: "Test Workflow",
+				Name:       "Test Workflow",
+				AIReaction: tt.aiReaction,
 			}
 
 			if tt.addCommentConfig {

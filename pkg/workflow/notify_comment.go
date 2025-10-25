@@ -7,6 +7,7 @@ import (
 )
 
 // buildUpdateReactionJob creates a job that updates the activation comment with workflow completion status
+// This job is only generated when both add-comment and ai-reaction are configured.
 // This job runs when:
 // 1. always() - runs even if agent fails
 // 2. A comment was created in activation job (comment_id exists)
@@ -16,6 +17,12 @@ import (
 func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string, safeOutputJobNames []string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.AddComments == nil {
 		return nil, nil // Only create this job when add-comment is configured
+	}
+
+	// Only create this job when reactions are actually being used (AIReaction is set)
+	// This job updates the activation comment, which is only created when AIReaction is configured
+	if data.AIReaction == "" {
+		return nil, nil // No reaction configured, no comment to update
 	}
 
 	// Build the job steps
