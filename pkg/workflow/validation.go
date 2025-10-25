@@ -357,25 +357,12 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 
 	// Get the repository from the current git context
 	// This will work when running in a git repository
-	var repo string
-	if c.timingTracker != nil && c.timingTracker.verbose {
-		c.timingTracker.StartSubStep("Get Repository Info")
-	}
-
-	var err error
-	repo, err = getCurrentRepository()
+	repo, err := getCurrentRepository()
 	if err != nil {
 		validationLog.Printf("Could not determine repository: %v", err)
 		// Don't fail if we can't determine the repository (e.g., not in a git repo)
 		// This allows validation to pass in non-git environments
-		if c.timingTracker != nil && c.timingTracker.verbose {
-			c.timingTracker.EndSubStep()
-		}
 		return nil
-	}
-
-	if c.timingTracker != nil && c.timingTracker.verbose {
-		c.timingTracker.EndSubStep()
 	}
 
 	validationLog.Printf("Checking repository features for: %s", repo)
@@ -387,18 +374,7 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 			*workflowData.SafeOutputs.AddComments.Discussion)
 
 	if needsDiscussions {
-		var hasDiscussions bool
-		var err error
-
-		if c.timingTracker != nil && c.timingTracker.verbose {
-			c.timingTracker.StartSubStep("Check Discussions API")
-		}
-
-		hasDiscussions, err = checkRepositoryHasDiscussions(repo)
-
-		if c.timingTracker != nil && c.timingTracker.verbose {
-			c.timingTracker.EndSubStep()
-		}
+		hasDiscussions, err := checkRepositoryHasDiscussions(repo)
 
 		if err != nil {
 			// If we can't check, log but don't fail
@@ -427,18 +403,7 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 
 	// Check if issues are enabled when create-issue is configured
 	if workflowData.SafeOutputs.CreateIssues != nil {
-		var hasIssues bool
-		var err error
-
-		if c.timingTracker != nil && c.timingTracker.verbose {
-			c.timingTracker.StartSubStep("Check Issues API")
-		}
-
-		hasIssues, err = checkRepositoryHasIssues(repo)
-
-		if c.timingTracker != nil && c.timingTracker.verbose {
-			c.timingTracker.EndSubStep()
-		}
+		hasIssues, err := checkRepositoryHasIssues(repo)
 
 		if err != nil {
 			// If we can't check, log but don't fail
