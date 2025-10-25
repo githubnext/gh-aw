@@ -3168,12 +3168,59 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       - name: Assign issue to copilot
         if: steps.create_issue.outputs.issue_number != ''
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           ASSIGNEE: "@copilot"
           ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
-        run: |
-          gh issue edit "$ISSUE_NUMBER" --add-assignee "$ASSIGNEE"
+        with:
+          script: |
+            async function main() {
+              const ghToken = process.env.GH_TOKEN;
+              const assignee = process.env.ASSIGNEE;
+              const issueNumber = process.env.ISSUE_NUMBER;
+              if (!ghToken || ghToken.trim() === "") {
+                const docsUrl = "https://githubnext.github.io/gh-aw/";
+                core.setFailed(
+                  `GH_TOKEN environment variable is required but not set. ` +
+                    `This token is needed to assign issues. ` +
+                    `For more information, see: ${docsUrl}`
+                );
+                return;
+              }
+              if (!assignee || assignee.trim() === "") {
+                core.setFailed("ASSIGNEE environment variable is required but not set");
+                return;
+              }
+              if (!issueNumber || issueNumber.trim() === "") {
+                core.setFailed("ISSUE_NUMBER environment variable is required but not set");
+                return;
+              }
+              const trimmedAssignee = assignee.trim();
+              const trimmedIssueNumber = issueNumber.trim();
+              core.info(`Assigning issue #${trimmedIssueNumber} to ${trimmedAssignee}`);
+              try {
+                await exec.exec("gh", ["issue", "edit", trimmedIssueNumber, "--add-assignee", trimmedAssignee], {
+                  env: { ...process.env, GH_TOKEN: ghToken },
+                });
+                core.info(`✅ Successfully assigned issue #${trimmedIssueNumber} to ${trimmedAssignee}`);
+                await core.summary
+                  .addRaw(
+                    `
+            ## Issue Assignment
+            Successfully assigned issue #${trimmedIssueNumber} to \`${trimmedAssignee}\`.
+            `
+                  )
+                  .write();
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to assign issue: ${errorMessage}`);
+                core.setFailed(`Failed to assign issue #${trimmedIssueNumber} to ${trimmedAssignee}: ${errorMessage}`);
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
 
   detection:
     needs: agent
