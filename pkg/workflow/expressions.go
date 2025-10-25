@@ -50,7 +50,21 @@ type NotNode struct {
 }
 
 func (n *NotNode) Render() string {
+	// For simple function calls like cancelled(), render as !cancelled() instead of !(cancelled())
+	// This prevents GitHub Actions from interpreting the extra parentheses as an object structure
+	if _, isFunctionCall := n.Child.(*FunctionCallNode); isFunctionCall {
+		return fmt.Sprintf("!%s", n.Child.Render())
+	}
 	return fmt.Sprintf("!(%s)", n.Child.Render())
+}
+
+// ParenthesesNode wraps a condition in parentheses for proper YAML interpretation
+type ParenthesesNode struct {
+	Child ConditionNode
+}
+
+func (p *ParenthesesNode) Render() string {
+	return fmt.Sprintf("(%s)", p.Child.Render())
 }
 
 // DisjunctionNode represents an OR operation with multiple terms to avoid deep nesting
@@ -331,8 +345,9 @@ func BuildSafeOutputType(outputType string, min int) ConditionNode {
 
 	// If min > 0, only return !cancelled() without the contains check
 	// This is needed to ensure the job runs even with 0 outputs to enforce the minimum constraint
+	// Wrap in parentheses to ensure proper YAML interpretation
 	if min > 0 {
-		return notCancelledFunc
+		return &ParenthesesNode{Child: notCancelledFunc}
 	}
 
 	containsFunc := BuildFunctionCall("contains",

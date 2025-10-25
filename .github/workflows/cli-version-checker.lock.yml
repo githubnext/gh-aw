@@ -1461,35 +1461,6 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool github
-        # --allow-tool safeoutputs
-        # --allow-tool shell(/tmp/gh-aw/jqschema.sh)
-        # --allow-tool shell(cat *)
-        # --allow-tool shell(cat)
-        # --allow-tool shell(claude-code --help)
-        # --allow-tool shell(codex --help)
-        # --allow-tool shell(copilot --help)
-        # --allow-tool shell(date)
-        # --allow-tool shell(echo)
-        # --allow-tool shell(git *)
-        # --allow-tool shell(grep *)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(jq *)
-        # --allow-tool shell(ls *)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(make *)
-        # --allow-tool shell(npm install *)
-        # --allow-tool shell(npm list *)
-        # --allow-tool shell(npm view *)
-        # --allow-tool shell(pwd)
-        # --allow-tool shell(sort)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(uniq)
-        # --allow-tool shell(wc)
-        # --allow-tool shell(yq)
-        # --allow-tool web-fetch
-        # --allow-tool write
         timeout-minutes: 15
         run: |
           set -o pipefail
@@ -1499,7 +1470,7 @@ jobs:
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/cache-memory/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(/tmp/gh-aw/jqschema.sh)' --allow-tool 'shell(cat *)' --allow-tool 'shell(cat)' --allow-tool 'shell(claude-code --help)' --allow-tool 'shell(codex --help)' --allow-tool 'shell(copilot --help)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git *)' --allow-tool 'shell(grep *)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq *)' --allow-tool 'shell(ls *)' --allow-tool 'shell(ls)' --allow-tool 'shell(make *)' --allow-tool 'shell(npm install *)' --allow-tool 'shell(npm list *)' --allow-tool 'shell(npm view *)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool web-fetch --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
@@ -3540,7 +3511,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'create_issue'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_issue'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -4126,7 +4097,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

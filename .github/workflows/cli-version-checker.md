@@ -15,17 +15,7 @@ tools:
   web-fetch:
   cache-memory: true
   bash:
-    - "cat *"
-    - "ls *"
-    - "grep *"
-    - "git *"
-    - "make *"
-    - "npm install *"
-    - "npm view *"
-    - "npm list *"
-    - "claude-code --help"
-    - "copilot --help"
-    - "codex --help"
+    - "*"
   edit:
 safe-outputs:
   create-issue:

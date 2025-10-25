@@ -3884,7 +3884,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -4360,7 +4360,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -4492,7 +4492,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'notion_add_comment'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'notion_add_comment'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -4621,7 +4621,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'post_to_slack_channel'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'post_to_slack_channel'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
