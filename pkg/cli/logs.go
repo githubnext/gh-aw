@@ -421,7 +421,7 @@ Examples:
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
-	logsCmd.Flags().Bool("parse", false, "Run JavaScript parser on agent logs and write markdown to log.md")
+	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing markdown to log.md and firewall.md")
 	logsCmd.Flags().Bool("json", false, "Output logs data as JSON instead of formatted console tables")
 	logsCmd.Flags().Int("timeout", 0, "Maximum time in seconds to spend downloading logs (0 = no timeout)")
 
@@ -649,6 +649,17 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 					logMdPath := filepath.Join(result.LogsPath, "log.md")
 					if _, err := os.Stat(logMdPath); err == nil {
 						fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", run.DatabaseID, logMdPath)))
+					}
+				}
+
+				// Also parse firewall logs if they exist
+				if err := parseFirewallLogs(result.LogsPath, verbose); err != nil {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse firewall logs for run %d: %v", run.DatabaseID, err)))
+				} else {
+					// Show success message if firewall.md was created
+					firewallMdPath := filepath.Join(result.LogsPath, "firewall.md")
+					if _, err := os.Stat(firewallMdPath); err == nil {
+						fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", run.DatabaseID, firewallMdPath)))
 					}
 				}
 			}
@@ -2566,6 +2577,208 @@ require = function(name) {
 	logMdPath := filepath.Join(runDir, "log.md")
 	if err := os.WriteFile(logMdPath, []byte(strings.TrimSpace(string(output))), 0644); err != nil {
 		return fmt.Errorf("failed to write log.md: %w", err)
+	}
+
+	return nil
+}
+
+// parseFirewallLogs runs the JavaScript firewall log parser and writes markdown to firewall.md
+func parseFirewallLogs(runDir string, verbose bool) error {
+	// Get the firewall log parser script
+	jsScript := workflow.GetLogParserScript("parse_firewall_logs")
+	if jsScript == "" {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to get firewall log parser script"))
+		}
+		return nil
+	}
+
+	// Check if squid logs directory exists in the run directory
+	// The logs could be in workflow-logs subdirectory or directly in the run directory
+	squidLogsDir := filepath.Join(runDir, "squid-logs")
+
+	// Also check for squid logs in workflow-logs directory
+	workflowLogsSquidDir := filepath.Join(runDir, "workflow-logs", "squid-logs")
+
+	// Determine which directory to use
+	var logsDir string
+	if dirExists(squidLogsDir) {
+		logsDir = squidLogsDir
+	} else if dirExists(workflowLogsSquidDir) {
+		logsDir = workflowLogsSquidDir
+	} else {
+		// No firewall logs found - this is not an error, just skip parsing
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No firewall logs found in %s, skipping firewall log parsing", filepath.Base(runDir))))
+		}
+		return nil
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found firewall logs in %s", logsDir)))
+	}
+
+	// Create a temporary directory for running the parser
+	tempDir, err := os.MkdirTemp("", "firewall_log_parser")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a Node.js script that mimics the GitHub Actions environment
+	// The firewall parser expects logs in /tmp/gh-aw/squid-logs-{workflow}/
+	// We'll set GITHUB_WORKFLOW to a value that makes the parser look in our temp directory
+	nodeScript := fmt.Sprintf(`
+const fs = require('fs');
+const path = require('path');
+
+// Mock @actions/core for the parser
+const core = {
+	summary: {
+		addRaw: function(content) {
+			this._content = content;
+			return this;
+		},
+		write: function() {
+			console.log(this._content);
+		},
+		_content: ''
+	},
+	setFailed: function(message) {
+		console.error('FAILED:', message);
+		process.exit(1);
+	},
+	info: function(message) {
+		// Silent in CLI mode
+	}
+};
+
+// Set up environment
+// We'll use a custom workflow name that points to our temp directory
+process.env.GITHUB_WORKFLOW = 'temp-workflow';
+
+// Override require to provide our mock
+const originalRequire = require;
+require = function(name) {
+	if (name === '@actions/core') {
+		return core;
+	}
+	return originalRequire.apply(this, arguments);
+};
+
+// Monkey-patch the main function to use our logs directory
+const originalMain = function() {
+  const fs = require("fs");
+  const path = require("path");
+
+  try {
+    // Use our custom logs directory instead of /tmp/gh-aw/squid-logs-*
+    const squidLogsDir = '%s';
+
+    if (!fs.existsSync(squidLogsDir)) {
+      core.info('No firewall logs directory found at: ' + squidLogsDir);
+      return;
+    }
+
+    // Find all .log files
+    const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
+
+    if (files.length === 0) {
+      core.info('No firewall log files found in: ' + squidLogsDir);
+      return;
+    }
+
+    core.info('Found ' + files.length + ' firewall log file(s)');
+
+    // Parse all log files and aggregate results
+    let totalRequests = 0;
+    let allowedRequests = 0;
+    let deniedRequests = 0;
+    const allowedDomains = new Set();
+    const deniedDomains = new Set();
+    const requestsByDomain = new Map();
+
+    for (const file of files) {
+      const filePath = path.join(squidLogsDir, file);
+      core.info('Parsing firewall log: ' + file);
+
+      const content = fs.readFileSync(filePath, "utf8");
+      const lines = content.split("\n").filter(line => line.trim());
+
+      for (const line of lines) {
+        const entry = parseFirewallLogLine(line);
+        if (!entry) {
+          continue;
+        }
+
+        totalRequests++;
+
+        // Determine if request was allowed or denied
+        const isAllowed = isRequestAllowed(entry.decision, entry.status);
+
+        if (isAllowed) {
+          allowedRequests++;
+          allowedDomains.add(entry.domain);
+        } else {
+          deniedRequests++;
+          deniedDomains.add(entry.domain);
+        }
+
+        // Track request count per domain
+        if (!requestsByDomain.has(entry.domain)) {
+          requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
+        }
+        const domainStats = requestsByDomain.get(entry.domain);
+        if (isAllowed) {
+          domainStats.allowed++;
+        } else {
+          domainStats.denied++;
+        }
+      }
+    }
+
+    // Generate step summary
+    const summary = generateFirewallSummary({
+      totalRequests,
+      allowedRequests,
+      deniedRequests,
+      allowedDomains: Array.from(allowedDomains).sort(),
+      deniedDomains: Array.from(deniedDomains).sort(),
+      requestsByDomain,
+    });
+
+    core.summary.addRaw(summary).write();
+    core.info("Firewall log summary generated successfully");
+  } catch (error) {
+    core.setFailed(error instanceof Error ? error : String(error));
+  }
+};
+
+// Execute the parser script to get helper functions
+%s
+
+// Replace main() call with our custom version
+originalMain();
+`, logsDir, jsScript)
+
+	// Write the Node.js script
+	nodeFile := filepath.Join(tempDir, "parser.js")
+	if err := os.WriteFile(nodeFile, []byte(nodeScript), 0644); err != nil {
+		return fmt.Errorf("failed to write node script: %w", err)
+	}
+
+	// Execute the Node.js script
+	cmd := exec.Command("node", "parser.js")
+	cmd.Dir = tempDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to execute firewall parser script: %w\nOutput: %s", err, string(output))
+	}
+
+	// Write the output to firewall.md in the run directory
+	firewallMdPath := filepath.Join(runDir, "firewall.md")
+	if err := os.WriteFile(firewallMdPath, []byte(strings.TrimSpace(string(output))), 0644); err != nil {
+		return fmt.Errorf("failed to write firewall.md: %w", err)
 	}
 
 	return nil
