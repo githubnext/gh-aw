@@ -78,7 +78,7 @@ The `github-token` field **must** use a GitHub Actions secret expression (e.g., 
 
 **Invalid formats:**
 - `ghp_1234567890...` (plaintext token)
-- `${{ env.MY_TOKEN }}` (environment variable)
+- `${{ env.MY_TOKEN }}` (environment variable; not protected like secrets)
 - `my-secret-token` (plaintext string)
 :::
 
