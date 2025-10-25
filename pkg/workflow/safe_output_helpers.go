@@ -75,12 +75,12 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 	} else {
 		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
 	}
-	
+
 	// Add working-directory if specified (required for scripts that execute git commands)
 	if config.WorkingDirectory != "" {
 		steps = append(steps, fmt.Sprintf("          working-directory: %s\n", config.WorkingDirectory))
 	}
-	
+
 	steps = append(steps, "          script: |\n")
 
 	// Add the formatted JavaScript script
