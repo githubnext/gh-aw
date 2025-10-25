@@ -922,7 +922,7 @@
             "read",
             "write"
           ],
-          "description": "Simple permissions string: 'read-all' (all read permissions), 'write-all' (all write permissions), 'read' or 'write' (basic level)"
+          "description": "Simple permissions string: 'read-all' (all read permissions), 'write-all' (⚠️ SECURITY: grants write access to ALL GitHub API scopes), 'read' or 'write' (basic level)"
         },
         {
           "type": "object",
@@ -3041,7 +3041,7 @@
         },
         "command": {
           "type": "string",
-          "description": "Command for stdio MCP connections"
+          "description": "Command for stdio MCP connections. ⚠️ SECURITY: This executes an external process with access to the workflow environment. Only use trusted MCP servers."
         },
         "container": {
           "type": "string",
@@ -3166,7 +3166,7 @@
         },
         "url": {
           "type": "string",
-          "description": "URL for HTTP MCP connections"
+          "description": "URL for HTTP MCP connections. ⚠️ SECURITY: Connects to external network endpoint. Only use trusted MCP servers."
         },
         "headers": {
           "type": "object",

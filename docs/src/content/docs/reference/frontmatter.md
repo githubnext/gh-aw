@@ -98,6 +98,32 @@ permissions: {}
 
 If you specify any permission, unspecified ones are set to `none`.
 
+:::caution[Security: `write-all` Permissions]
+Using `permissions: write-all` grants write access to **ALL** GitHub API scopes, including sensitive operations like modifying code, managing issues, pull requests, discussions, deployments, and security settings. 
+
+**Best practices:**
+- Use granular permissions instead of `write-all` whenever possible
+- Prefer `safe-outputs` for creating issues, comments, and pull requests (requires only read permissions)
+- Only use `write-all` when absolutely necessary and you understand the security implications
+- Consider using `read-all` for workflows that only need to read repository data
+
+**Example of granular permissions:**
+```yaml
+# Recommended: Specific permissions
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+# With safe-outputs (main job only needs read)
+permissions:
+  contents: read
+  actions: read
+safe-outputs:
+  create-issue:
+```
+:::
+
 ### Repository Access Roles (`roles:`)
 
 Controls who can trigger agentic workflows based on repository permission level. Defaults to `[admin, maintainer, write]` for security.

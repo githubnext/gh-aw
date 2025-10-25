@@ -11,6 +11,32 @@ This guide covers using Model Context Protocol (MCP) servers with GitHub Agentic
 
 Model Context Protocol (MCP) is a standardized protocol that allows AI agents to securely connect to external tools, databases, and services. GitHub Agentic Workflows uses MCP to integrate databases and APIs, extend AI capabilities with specialized functionality, maintain standardized security controls, and enable composable workflows by mixing multiple MCP servers.
 
+## Security Considerations
+
+MCP servers execute with access to your workflow environment and can interact with external systems. Follow these security best practices:
+
+:::caution[MCP Server Security]
+**Stdio/Command-based MCP Servers:**
+- Execute external processes with full access to the workflow environment
+- Can access environment variables, secrets, and filesystem
+- Only use trusted MCP servers from verified sources
+- Review source code before using custom or community MCP servers
+
+**HTTP MCP Servers:**
+- Connect to external network endpoints
+- May send workflow data to remote servers
+- Verify the server URL is from a trusted domain
+- Use HTTPS endpoints only for secure communication
+- Consider using `network.allowed` to restrict network access
+
+**Best Practices:**
+- Use the `allowed:` field to restrict MCP server tools to only what's needed
+- Store sensitive credentials in GitHub Secrets, not directly in workflow files
+- Prefer Docker container-based MCP servers for better isolation
+- Use `network.allowed` to limit network egress for container-based servers
+- Regularly audit MCP server configurations and dependencies
+:::
+
 ## Quick Start
 
 ### Basic MCP Configuration
