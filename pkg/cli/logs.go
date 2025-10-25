@@ -60,11 +60,12 @@ type LogMetrics = workflow.LogMetrics
 
 // ProcessedRun represents a workflow run with its associated analysis
 type ProcessedRun struct {
-	Run            WorkflowRun
-	AccessAnalysis *DomainAnalysis
-	MissingTools   []MissingToolReport
-	MCPFailures    []MCPFailureReport
-	JobDetails     []JobInfoWithDuration
+	Run              WorkflowRun
+	AccessAnalysis   *DomainAnalysis
+	FirewallAnalysis *FirewallAnalysis
+	MissingTools     []MissingToolReport
+	MCPFailures      []MCPFailureReport
+	JobDetails       []JobInfoWithDuration
 }
 
 // MissingToolReport represents a missing tool reported by an agentic workflow
@@ -114,16 +115,17 @@ var ErrNoArtifacts = errors.New("no artifacts found for this run")
 // - If the CLI version in the summary doesn't match the current version, the run is reprocessed
 // - This ensures that bug fixes and improvements in log parsing are automatically applied
 type RunSummary struct {
-	CLIVersion     string                `json:"cli_version"`     // CLI version used to process this run
-	RunID          int64                 `json:"run_id"`          // Workflow run database ID
-	ProcessedAt    time.Time             `json:"processed_at"`    // When this summary was created
-	Run            WorkflowRun           `json:"run"`             // Full workflow run metadata
-	Metrics        LogMetrics            `json:"metrics"`         // Extracted log metrics
-	AccessAnalysis *DomainAnalysis       `json:"access_analysis"` // Network access analysis
-	MissingTools   []MissingToolReport   `json:"missing_tools"`   // Missing tool reports
-	MCPFailures    []MCPFailureReport    `json:"mcp_failures"`    // MCP server failures
-	ArtifactsList  []string              `json:"artifacts_list"`  // List of downloaded artifact files
-	JobDetails     []JobInfoWithDuration `json:"job_details"`     // Job execution details
+	CLIVersion       string                `json:"cli_version"`       // CLI version used to process this run
+	RunID            int64                 `json:"run_id"`            // Workflow run database ID
+	ProcessedAt      time.Time             `json:"processed_at"`      // When this summary was created
+	Run              WorkflowRun           `json:"run"`               // Full workflow run metadata
+	Metrics          LogMetrics            `json:"metrics"`           // Extracted log metrics
+	AccessAnalysis   *DomainAnalysis       `json:"access_analysis"`   // Network access analysis
+	FirewallAnalysis *FirewallAnalysis     `json:"firewall_analysis"` // Firewall log analysis
+	MissingTools     []MissingToolReport   `json:"missing_tools"`     // Missing tool reports
+	MCPFailures      []MCPFailureReport    `json:"mcp_failures"`      // MCP server failures
+	ArtifactsList    []string              `json:"artifacts_list"`    // List of downloaded artifact files
+	JobDetails       []JobInfoWithDuration `json:"job_details"`       // Job execution details
 }
 
 // fetchJobStatuses gets job information for a workflow run and counts failed jobs
@@ -222,14 +224,15 @@ func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
 
 // DownloadResult represents the result of downloading artifacts for a single run
 type DownloadResult struct {
-	Run            WorkflowRun
-	Metrics        LogMetrics
-	AccessAnalysis *DomainAnalysis
-	MissingTools   []MissingToolReport
-	MCPFailures    []MCPFailureReport
-	Error          error
-	Skipped        bool
-	LogsPath       string
+	Run              WorkflowRun
+	Metrics          LogMetrics
+	AccessAnalysis   *DomainAnalysis
+	FirewallAnalysis *FirewallAnalysis
+	MissingTools     []MissingToolReport
+	MCPFailures      []MCPFailureReport
+	Error            error
+	Skipped          bool
+	LogsPath         string
 }
 
 // JobInfo represents basic information about a workflow job
@@ -624,10 +627,11 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			}
 
 			processedRun := ProcessedRun{
-				Run:            run,
-				AccessAnalysis: result.AccessAnalysis,
-				MissingTools:   result.MissingTools,
-				MCPFailures:    result.MCPFailures,
+				Run:              run,
+				AccessAnalysis:   result.AccessAnalysis,
+				FirewallAnalysis: result.FirewallAnalysis,
+				MissingTools:     result.MissingTools,
+				MCPFailures:      result.MCPFailures,
 			}
 			processedRuns = append(processedRuns, processedRun)
 			batchProcessed++
@@ -789,12 +793,13 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 			if summary, ok := loadRunSummary(runOutputDir, verbose); ok {
 				// Valid cached summary exists, use it directly
 				result := DownloadResult{
-					Run:            summary.Run,
-					Metrics:        summary.Metrics,
-					AccessAnalysis: summary.AccessAnalysis,
-					MissingTools:   summary.MissingTools,
-					MCPFailures:    summary.MCPFailures,
-					LogsPath:       runOutputDir,
+					Run:              summary.Run,
+					Metrics:          summary.Metrics,
+					AccessAnalysis:   summary.AccessAnalysis,
+					FirewallAnalysis: summary.FirewallAnalysis,
+					MissingTools:     summary.MissingTools,
+					MCPFailures:      summary.MCPFailures,
+					LogsPath:         runOutputDir,
 				}
 				return result
 			}
@@ -836,6 +841,15 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 				}
 				result.AccessAnalysis = accessAnalysis
 
+				// Analyze firewall logs if available
+				firewallAnalysis, firewallErr := analyzeFirewallLogs(runOutputDir, verbose)
+				if firewallErr != nil {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs for run %d: %v", run.DatabaseID, firewallErr)))
+					}
+				}
+				result.FirewallAnalysis = firewallAnalysis
+
 				// Extract missing tools if available
 				missingTools, missingErr := extractMissingToolsFromRun(runOutputDir, run, verbose)
 				if missingErr != nil {
@@ -872,16 +886,17 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 
 				// Create and save run summary
 				summary := &RunSummary{
-					CLIVersion:     GetVersion(),
-					RunID:          run.DatabaseID,
-					ProcessedAt:    time.Now(),
-					Run:            run,
-					Metrics:        metrics,
-					AccessAnalysis: accessAnalysis,
-					MissingTools:   missingTools,
-					MCPFailures:    mcpFailures,
-					ArtifactsList:  artifacts,
-					JobDetails:     jobDetails,
+					CLIVersion:       GetVersion(),
+					RunID:            run.DatabaseID,
+					ProcessedAt:      time.Now(),
+					Run:              run,
+					Metrics:          metrics,
+					AccessAnalysis:   accessAnalysis,
+					FirewallAnalysis: firewallAnalysis,
+					MissingTools:     missingTools,
+					MCPFailures:      mcpFailures,
+					ArtifactsList:    artifacts,
+					JobDetails:       jobDetails,
 				}
 
 				if saveErr := saveRunSummary(runOutputDir, summary, verbose); saveErr != nil {
