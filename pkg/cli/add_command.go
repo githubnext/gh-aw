@@ -681,9 +681,9 @@ func ensureSharedAgenticWorkflowPrompt(verbose bool, skipInstructions bool) erro
 	return ensurePromptFromTemplate("create-shared-agentic-workflow.prompt.md", sharedAgenticWorkflowPromptTemplate, verbose, skipInstructions)
 }
 
-// ensureGettingStartedPrompt ensures that .github/prompts/gh-aw-getting-started.md contains the getting started guide
+// ensureGettingStartedPrompt ensures that .github/prompts/aw-setup.prompt.md contains the getting started guide
 func ensureGettingStartedPrompt(verbose bool, skipInstructions bool) error {
-	return ensurePromptFromTemplate("gh-aw-getting-started.md", gettingStartedPromptTemplate, verbose, skipInstructions)
+	return ensurePromptFromTemplate("aw-setup.prompt.md", gettingStartedPromptTemplate, verbose, skipInstructions)
 }
 
 // checkCleanWorkingDirectory checks if there are uncommitted changes
