@@ -452,23 +452,23 @@ function getCurrentBranch() {
   // GITHUB_REF_NAME is set for all events and contains the branch/tag name
   const ghHeadRef = process.env.GITHUB_HEAD_REF;
   const ghRefName = process.env.GITHUB_REF_NAME;
-  
+
   if (ghHeadRef) {
     debug(`Resolved current branch from GITHUB_HEAD_REF: ${ghHeadRef}`);
     return ghHeadRef;
   }
-  
+
   if (ghRefName) {
     debug(`Resolved current branch from GITHUB_REF_NAME: ${ghRefName}`);
     return ghRefName;
   }
-  
+
   // Priority 2: Fallback to git command with explicit working directory
   const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
   try {
-    const branch = execSync("git rev-parse --abbrev-ref HEAD", { 
+    const branch = execSync("git rev-parse --abbrev-ref HEAD", {
       encoding: "utf8",
-      cwd: cwd 
+      cwd: cwd,
     }).trim();
     debug(`Resolved current branch from git in ${cwd}: ${branch}`);
     return branch;

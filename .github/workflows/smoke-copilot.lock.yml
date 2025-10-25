@@ -441,9 +441,23 @@ jobs:
               };
             };
             function getCurrentBranch() {
+              const ghHeadRef = process.env.GITHUB_HEAD_REF;
+              const ghRefName = process.env.GITHUB_REF_NAME;
+              if (ghHeadRef) {
+                debug(`Resolved current branch from GITHUB_HEAD_REF: ${ghHeadRef}`);
+                return ghHeadRef;
+              }
+              if (ghRefName) {
+                debug(`Resolved current branch from GITHUB_REF_NAME: ${ghRefName}`);
+                return ghRefName;
+              }
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
               try {
-                const branch = execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
-                debug(`Resolved current branch: ${branch}`);
+                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+                  encoding: "utf8",
+                  cwd: cwd,
+                }).trim();
+                debug(`Resolved current branch from git in ${cwd}: ${branch}`);
                 return branch;
               } catch (error) {
                 throw new Error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`);
