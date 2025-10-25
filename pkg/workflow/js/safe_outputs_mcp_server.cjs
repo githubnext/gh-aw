@@ -541,6 +541,10 @@ const ALL_TOOLS = [
           items: { type: "string" },
           description: "Issue labels",
         },
+        parent: {
+          type: "number",
+          description: "Parent issue number to create this issue as a sub-issue of",
+        },
       },
       additionalProperties: false,
     },
