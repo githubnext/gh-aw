@@ -10,7 +10,6 @@ on:
     - Smoke Codex
     - Smoke Copilot
     - Smoke Copilot Firewall
-    - Smoke Genaiscript
     - Smoke Opencode
   reaction: "eyes"
 permissions: read-all

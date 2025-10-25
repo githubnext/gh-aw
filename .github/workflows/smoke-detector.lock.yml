@@ -43,7 +43,6 @@ name: "Smoke Detector - Smoke Test Failure Investigator"
     - Smoke Codex
     - Smoke Copilot
     - Smoke Copilot Firewall
-    - Smoke Genaiscript
     - Smoke Opencode
 
 permissions: read-all
