@@ -219,6 +219,136 @@ Test workflow with ecosystem identifiers.
 	}
 }
 
+// TestManualAllowedDomainsHasPriority tests that manually configured allowed-domains
+// takes precedence over network configuration
+func TestManualAllowedDomainsHasPriority(t *testing.T) {
+	tests := []struct {
+		name             string
+		workflow         string
+		expectedDomains  []string
+		unexpectedDomain string
+	}{
+		{
+			name: "Manual allowed-domains overrides network config",
+			workflow: `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+network:
+  allowed:
+    - example.com
+    - python
+safe-outputs:
+  create-issue:
+  allowed-domains:
+    - manual-domain.com
+    - override.org
+---
+
+# Test Workflow
+
+Test that manual allowed-domains takes precedence.
+`,
+			expectedDomains: []string{
+				"manual-domain.com",
+				"override.org",
+			},
+			// Network domains and Copilot defaults should NOT be included
+			unexpectedDomain: "example.com",
+		},
+		{
+			name: "Empty allowed-domains uses network config",
+			workflow: `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+network:
+  allowed:
+    - example.com
+safe-outputs:
+  create-issue:
+---
+
+# Test Workflow
+
+Test that empty allowed-domains falls back to network config.
+`,
+			expectedDomains: []string{
+				"example.com",
+				"api.github.com", // Copilot default
+			},
+			unexpectedDomain: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a temporary directory for test
+			tmpDir, err := os.MkdirTemp("", "manual-domains-test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir)
+
+			// Create a test workflow file
+			testFile := filepath.Join(tmpDir, "test-workflow.md")
+			if err := os.WriteFile(testFile, []byte(tt.workflow), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// Compile the workflow
+			compiler := NewCompiler(false, "", "test")
+			if err := compiler.CompileWorkflow(testFile); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			// Read the generated lock file
+			lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+			lockContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+
+			lockStr := string(lockContent)
+
+			// Check if GH_AW_ALLOWED_DOMAINS is set
+			if !strings.Contains(lockStr, "GH_AW_ALLOWED_DOMAINS:") {
+				t.Error("Expected GH_AW_ALLOWED_DOMAINS environment variable in lock file")
+			}
+
+			// Extract the GH_AW_ALLOWED_DOMAINS value
+			lines := strings.Split(lockStr, "\n")
+			var domainsLine string
+			for _, line := range lines {
+				if strings.Contains(line, "GH_AW_ALLOWED_DOMAINS:") {
+					domainsLine = line
+					break
+				}
+			}
+
+			if domainsLine == "" {
+				t.Fatal("GH_AW_ALLOWED_DOMAINS not found in lock file")
+			}
+
+			// Check that expected domains are present
+			for _, expectedDomain := range tt.expectedDomains {
+				if !strings.Contains(domainsLine, expectedDomain) {
+					t.Errorf("Expected domain '%s' not found in GH_AW_ALLOWED_DOMAINS.\nLine: %s", expectedDomain, domainsLine)
+				}
+			}
+
+			// Check that unexpected domain is NOT present
+			if tt.unexpectedDomain != "" {
+				if strings.Contains(domainsLine, tt.unexpectedDomain) {
+					t.Errorf("Unexpected domain '%s' found in GH_AW_ALLOWED_DOMAINS.\nLine: %s", tt.unexpectedDomain, domainsLine)
+				}
+			}
+		})
+	}
+}
+
 // TestComputeAllowedDomainsForSanitization tests the computeAllowedDomainsForSanitization function
 func TestComputeAllowedDomainsForSanitization(t *testing.T) {
 	tests := []struct {
