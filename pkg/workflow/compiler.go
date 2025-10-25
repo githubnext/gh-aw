@@ -221,15 +221,6 @@ type SafeOutputsConfig struct {
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
 func (c *Compiler) CompileWorkflow(markdownPath string) error {
-
-	// Reset the step order tracker for this compilation
-	c.stepOrderTracker = NewStepOrderTracker()
-
-	// replace the .md extension by .lock.yml
-	lockFile := strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
-
-	log.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
-
 	// Parse the markdown file
 	log.Printf("Parsing workflow file")
 	workflowData, err := c.ParseWorkflowFile(markdownPath)
@@ -251,6 +242,21 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		})
 		return errors.New(formattedErr)
 	}
+
+	return c.CompileWorkflowData(workflowData, markdownPath)
+}
+
+// CompileWorkflowData compiles a workflow from already-parsed WorkflowData
+// This avoids re-parsing when the data has already been parsed
+func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath string) error {
+
+	// Reset the step order tracker for this compilation
+	c.stepOrderTracker = NewStepOrderTracker()
+
+	// replace the .md extension by .lock.yml
+	lockFile := strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
+
+	log.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
 
 	// Validate expression safety - check that all GitHub Actions expressions are in the allowed list
 	log.Printf("Validating expression safety")
