@@ -187,213 +187,224 @@
       }
     },
     "engine": {
-    "description": "AI engine configuration for included files",
-    "oneOf": [
-      {
-        "type": "string",
-        "enum": [
-          "claude",
-          "codex",
-          "custom"
-        ],
-        "description": "Simple engine name (claude, codex, or custom)"
+      "description": "AI engine configuration for included files",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "claude",
+            "codex",
+            "custom"
+          ],
+          "description": "Simple engine name (claude, codex, or custom)"
+        },
+        {
+          "type": "object",
+          "description": "Extended engine configuration object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "enum": [
+                "claude",
+                "codex",
+                "custom"
+              ],
+              "description": "Agent CLI identifier (claude, codex, or custom)"
+            },
+            "version": {
+              "type": "string",
+              "description": "Optional version of the action"
+            },
+            "model": {
+              "type": "string",
+              "description": "Optional LLM model to use"
+            },
+            "max-turns": {
+              "type": "integer",
+              "description": "Maximum number of chat iterations per run"
+            },
+            "env": {
+              "type": "object",
+              "description": "Custom environment variables to pass to the agentic engine",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "steps": {
+              "type": "array",
+              "description": "Custom GitHub Actions steps (for custom engine)",
+              "items": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "safe-outputs": {
+      "type": "object",
+      "description": "Safe outputs configuration (only jobs allowed in included files)",
+      "properties": {
+        "jobs": {
+          "type": "object",
+          "description": "Custom safe-job definitions",
+          "patternProperties": {
+            "^[a-zA-Z0-9_-]+$": {
+              "$ref": "#/$defs/safe_job"
+            }
+          },
+          "additionalProperties": false
+        }
       },
-      {
-        "type": "object",
-        "description": "Extended engine configuration object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "enum": [
-              "claude",
-              "codex",
-              "custom"
-            ],
-            "description": "Agent CLI identifier (claude, codex, or custom)"
+      "additionalProperties": false
+    },
+    "runtimes": {
+      "type": "object",
+      "description": "Runtime environment version overrides. Allows customizing runtime versions (e.g., Node.js, Python) or defining new runtimes. Merged with main workflow runtimes.",
+      "patternProperties": {
+        "^[a-z][a-z0-9-]*$": {
+          "type": "object",
+          "description": "Runtime configuration object identified by runtime ID (e.g., 'node', 'python', 'go')",
+          "properties": {
+            "version": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Runtime version as a string (e.g., '22', '3.12', 'latest')"
+                },
+                {
+                  "type": "number",
+                  "description": "Runtime version as a number (e.g., 22, 3.12)"
+                }
+              ]
+            },
+            "action-repo": {
+              "type": "string",
+              "description": "GitHub Actions repository for setting up the runtime (e.g., 'actions/setup-node', 'custom/setup-runtime'). Overrides the default setup action."
+            },
+            "action-version": {
+              "type": "string",
+              "description": "Version of the setup action to use (e.g., 'v4', 'v5'). Overrides the default action version."
+            }
           },
-          "version": {
-            "type": "string",
-            "description": "Optional version of the action"
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "network": {
+      "description": "Network permissions configuration for allowed domains",
+      "oneOf": [
+        {
+          "type": "string",
+          "const": "defaults",
+          "description": "Use default network access"
+        },
+        {
+          "type": "object",
+          "description": "Network permissions object",
+          "properties": {
+            "allowed": {
+              "type": "array",
+              "description": "List of allowed domains or ecosystem identifiers",
+              "items": {
+                "type": "string"
+              }
+            }
           },
-          "model": {
-            "type": "string",
-            "description": "Optional LLM model to use"
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "stdio_mcp_tool": {
+      "type": "object",
+      "description": "Stdio MCP tool configuration",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "stdio",
+            "local"
+          ],
+          "description": "MCP connection type for stdio (local is an alias for stdio)"
+        },
+        "registry": {
+          "type": "string",
+          "description": "URI to the installation location when MCP is installed from a registry"
+        },
+        "command": {
+          "type": "string",
+          "description": "Command for stdio MCP connections"
+        },
+        "container": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
+          "description": "Container image for stdio MCP connections (alternative to command)"
+        },
+        "version": {
+          "type": "string",
+          "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
           },
-          "max-turns": {
-            "type": "integer",
-            "description": "Maximum number of chat iterations per run"
-          },
-          "env": {
-            "type": "object",
-            "description": "Custom environment variables to pass to the agentic engine",
-            "additionalProperties": {
+          "description": "Arguments for command or container execution"
+        },
+        "env": {
+          "type": "object",
+          "patternProperties": {
+            "^[A-Z_][A-Z0-9_]*$": {
               "type": "string"
             }
           },
-          "steps": {
-            "type": "array",
-            "description": "Custom GitHub Actions steps (for custom engine)",
-            "items": {
-              "type": "object",
-              "additionalProperties": true
-            }
-          }
+          "additionalProperties": false,
+          "description": "Environment variables for MCP server"
         },
-        "required": [
-          "id"
-        ],
-        "additionalProperties": false
-      }
-    ]
-  },
-  "safe-outputs": {
-    "type": "object",
-    "description": "Safe outputs configuration (only jobs allowed in included files)",
-    "properties": {
-      "jobs": {
-        "type": "object",
-        "description": "Custom safe-job definitions",
-        "patternProperties": {
-          "^[a-zA-Z0-9_-]+$": {
-            "$ref": "#/$defs/safe_job"
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    "additionalProperties": false
-  },
-  "runtimes": {
-    "type": "object",
-    "description": "Runtime environment version overrides. Allows customizing runtime versions (e.g., Node.js, Python) or defining new runtimes. Merged with main workflow runtimes.",
-    "patternProperties": {
-      "^[a-z][a-z0-9-]*$": {
-        "type": "object",
-        "description": "Runtime configuration object identified by runtime ID (e.g., 'node', 'python', 'go')",
-        "properties": {
-          "version": {
-            "oneOf": [
-              {
+        "network": {
+          "type": "object",
+          "properties": {
+            "allowed": {
+              "type": "array",
+              "items": {
                 "type": "string",
-                "description": "Runtime version as a string (e.g., '22', '3.12', 'latest')"
+                "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$",
+                "description": "Allowed domain name"
               },
-              {
-                "type": "number",
-                "description": "Runtime version as a number (e.g., 22, 3.12)"
-              }
-            ]
+              "minItems": 1,
+              "uniqueItems": true,
+              "description": "List of allowed domain names for network access"
+            },
+            "proxy-args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Custom proxy arguments for container-based MCP servers"
+            }
           },
-          "action-repo": {
-            "type": "string",
-            "description": "GitHub Actions repository for setting up the runtime (e.g., 'actions/setup-node', 'custom/setup-runtime'). Overrides the default setup action."
-          },
-          "action-version": {
-            "type": "string",
-            "description": "Version of the setup action to use (e.g., 'v4', 'v5'). Overrides the default action version."
-          }
+          "additionalProperties": false,
+          "description": "Network configuration for container-based MCP servers"
         },
-        "additionalProperties": false
-      }
-    },
-    "additionalProperties": false
-  }
-},
-"additionalProperties": false,
-"$defs": {
-  "stdio_mcp_tool": {
-    "type": "object",
-    "description": "Stdio MCP tool configuration",
-    "properties": {
-      "type": {
-        "type": "string",
-        "enum": [
-          "stdio",
-          "local"
-        ],
-        "description": "MCP connection type for stdio (local is an alias for stdio)"
-      },
-      "registry": {
-        "type": "string",
-        "description": "URI to the installation location when MCP is installed from a registry"
-      },
-      "command": {
-        "type": "string",
-        "description": "Command for stdio MCP connections"
-      },
-      "container": {
-        "type": "string",
-        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
-        "description": "Container image for stdio MCP connections (alternative to command)"
-      },
-      "version": {
-        "type": "string",
-        "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')"
-      },
-      "args": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "description": "Arguments for command or container execution"
-      },
-      "env": {
-        "type": "object",
-        "patternProperties": {
-          "^[A-Z_][A-Z0-9_]*$": {
+        "allowed": {
+          "type": "array",
+          "description": "List of allowed tool functions",
+          "items": {
             "type": "string"
           }
-        },
-        "additionalProperties": false,
-        "description": "Environment variables for MCP server"
-      },
-      "network": {
-        "type": "object",
-        "properties": {
-          "allowed": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$",
-              "description": "Allowed domain name"
-            },
-            "minItems": 1,
-            "uniqueItems": true,
-            "description": "List of allowed domain names for network access"
-          },
-          "proxy-args": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Custom proxy arguments for container-based MCP servers"
-          }
-        },
-        "additionalProperties": false,
-        "description": "Network configuration for container-based MCP servers"
-      },
-      "allowed": {
-        "type": "array",
-        "description": "List of allowed tool functions",
-        "items": {
-          "type": "string"
         }
-      }
-    },
-    "additionalProperties": false,
-    "anyOf": [
-      {
-        "required": [
-          "command"
-        ]
       },
-      {
-        "required": [
-          "container"
-        ]
-      }
-    ],
-    "not": {
-      "allOf": [
+      "additionalProperties": false,
+      "anyOf": [
         {
           "required": [
             "command"
@@ -404,181 +415,201 @@
             "container"
           ]
         }
-      ]
-    },
-    "allOf": [
-      {
-        "if": {
-          "required": [
-            "network"
-          ]
-        },
-        "then": {
-          "required": [
-            "container"
-          ]
-        }
-      }
-    ]
-  },
-  "http_mcp_tool": {
-    "type": "object",
-    "description": "HTTP MCP tool configuration",
-    "properties": {
-      "type": {
-        "type": "string",
-        "const": "http",
-        "description": "MCP connection type for HTTP"
-      },
-      "registry": {
-        "type": "string",
-        "description": "URI to the installation location when MCP is installed from a registry"
-      },
-      "url": {
-        "type": "string",
-        "description": "URL for HTTP MCP connections"
-      },
-      "headers": {
-        "type": "object",
-        "patternProperties": {
-          "^[A-Za-z0-9_-]+$": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": false,
-        "description": "HTTP headers for HTTP MCP connections"
-      },
-      "allowed": {
-        "type": "array",
-        "description": "List of allowed tool functions",
-        "items": {
-          "type": "string"
-        }
-      }
-    },
-    "required": [
-      "url"
-    ],
-    "additionalProperties": false
-  },
-  "safe_job": {
-    "type": "object",
-    "description": "Custom safe-job configuration",
-    "properties": {
-      "name": {
-        "type": "string",
-        "description": "Display name for the job"
-      },
-      "description": {
-        "type": "string",
-        "description": "Description of the safe-job (used in MCP tool registration)"
-      },
-      "runs-on": {
-        "oneOf": [
+      ],
+      "not": {
+        "allOf": [
           {
-            "type": "string",
-            "description": "Runner type (e.g., 'ubuntu-latest')"
+            "required": [
+              "command"
+            ]
           },
           {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Array of runner types"
-          }
-        ],
-        "description": "GitHub Actions runner specification"
-      },
-      "if": {
-        "type": "string",
-        "description": "Conditional execution expression"
-      },
-      "needs": {
-        "oneOf": [
-          {
-            "type": "string",
-            "description": "Single job dependency"
-          },
-          {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Array of job dependencies"
+            "required": [
+              "container"
+            ]
           }
         ]
       },
-      "steps": {
-        "type": "array",
-        "description": "GitHub Actions steps",
-        "items": {
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "network"
+            ]
+          },
+          "then": {
+            "required": [
+              "container"
+            ]
+          }
+        }
+      ]
+    },
+    "http_mcp_tool": {
+      "type": "object",
+      "description": "HTTP MCP tool configuration",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "http",
+          "description": "MCP connection type for HTTP"
+        },
+        "registry": {
+          "type": "string",
+          "description": "URI to the installation location when MCP is installed from a registry"
+        },
+        "url": {
+          "type": "string",
+          "description": "URL for HTTP MCP connections"
+        },
+        "headers": {
           "type": "object",
-          "additionalProperties": true
+          "patternProperties": {
+            "^[A-Za-z0-9_-]+$": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "HTTP headers for HTTP MCP connections"
+        },
+        "allowed": {
+          "type": "array",
+          "description": "List of allowed tool functions",
+          "items": {
+            "type": "string"
+          }
         }
       },
-      "env": {
-        "type": "object",
-        "description": "Environment variables",
-        "additionalProperties": {
-          "type": "string"
-        }
-      },
-      "permissions": {
-        "type": "object",
-        "description": "Job-level permissions",
-        "additionalProperties": {
-          "type": "string"
-        }
-      },
-      "inputs": {
-        "type": "object",
-        "description": "Input parameters for the safe-job (required)",
-        "patternProperties": {
-          "^[a-zA-Z0-9_-]+$": {
-            "type": "object",
-            "properties": {
-              "description": {
-                "type": "string",
-                "description": "Input description"
-              },
-              "required": {
-                "type": "boolean",
-                "description": "Whether the input is required"
-              },
-              "default": {
-                "type": "string",
-                "description": "Default value"
-              },
-              "type": {
-                "type": "string",
-                "enum": ["string", "number", "boolean", "choice"],
-                "description": "Input type"
-              },
-              "options": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "Options for choice type"
-              }
+      "required": [
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "safe_job": {
+      "type": "object",
+      "description": "Custom safe-job configuration",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Display name for the job"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the safe-job (used in MCP tool registration)"
+        },
+        "runs-on": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Runner type (e.g., 'ubuntu-latest')"
             },
-            "additionalProperties": false
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Array of runner types"
+            }
+          ],
+          "description": "GitHub Actions runner specification"
+        },
+        "if": {
+          "type": "string",
+          "description": "Conditional execution expression"
+        },
+        "needs": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Single job dependency"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Array of job dependencies"
+            }
+          ]
+        },
+        "steps": {
+          "type": "array",
+          "description": "GitHub Actions steps",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
           }
         },
-        "minProperties": 1,
-        "additionalProperties": false
+        "env": {
+          "type": "object",
+          "description": "Environment variables",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "permissions": {
+          "type": "object",
+          "description": "Job-level permissions",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "inputs": {
+          "type": "object",
+          "description": "Input parameters for the safe-job (required)",
+          "patternProperties": {
+            "^[a-zA-Z0-9_-]+$": {
+              "type": "object",
+              "properties": {
+                "description": {
+                  "type": "string",
+                  "description": "Input description"
+                },
+                "required": {
+                  "type": "boolean",
+                  "description": "Whether the input is required"
+                },
+                "default": {
+                  "type": "string",
+                  "description": "Default value"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "choice"
+                  ],
+                  "description": "Input type"
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Options for choice type"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "minProperties": 1,
+          "additionalProperties": false
+        },
+        "github-token": {
+          "type": "string",
+          "description": "Custom GitHub token"
+        },
+        "output": {
+          "type": "string",
+          "description": "Custom output message"
+        }
       },
-      "github-token": {
-        "type": "string",
-        "description": "Custom GitHub token"
-      },
-      "output": {
-        "type": "string",
-        "description": "Custom output message"
-      }
-    },
-    "required": ["inputs"],
-    "additionalProperties": false
+      "required": [
+        "inputs"
+      ],
+      "additionalProperties": false
+    }
   }
-}
 }
