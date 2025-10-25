@@ -129,17 +129,7 @@ cat /tmp/gh-aw/cache-memory/cleaned-files.txt 2>/dev/null || echo "No previous c
 
 This will help you avoid re-cleaning files that were recently processed.
 
-### 2. Check Recent PRs
-
-Before selecting a file, check if any documentation files are currently being worked on in open PRs:
-```bash
-# Use the search_pull_requests tool to find open PRs with "docs" label or that modify docs files
-# Avoid using pull_request_read as it can return 48k+ tokens which exceeds the 25k token limit
-```
-
-**IMPORTANT**: Do NOT select a file that is already being modified in an open PR to avoid conflicts.
-
-### 3. Find Documentation Files
+### 2. Find Documentation Files
 
 Scan the `docs/` directory for markdown files, excluding code-generated files:
 ```bash
@@ -160,7 +150,7 @@ Focus on files that were recently modified or are in the `docs/src/content/docs/
 Focus on markdown files in the `docs/` directory that appear in the PR's changed files list.
 {{/if}}
 
-### 4. Select ONE File to Improve
+### 3. Select ONE File to Improve
 
 **IMPORTANT**: Work on only **ONE file at a time** to keep changes small and reviewable.
 
@@ -172,10 +162,9 @@ Choose the file most in need of improvement based on:
 - File size (larger files may have more bloat)
 - Number of bullet points or repetitive patterns
 - **Files NOT in the cleaned-files.txt cache** (avoid duplicating recent work)
-- **Files NOT currently in open PRs** (avoid conflicts)
 - **Files NOT in the exclusion list above** (avoid editing generated files)
 
-### 5. Analyze the File
+### 4. Analyze the File
 
 Read the selected file and identify bloat:
 - Count bullet points - are there excessive lists?
@@ -184,7 +173,7 @@ Read the selected file and identify bloat:
 - Identify verbose or wordy sections
 - Find redundant examples
 
-### 6. Remove Bloat
+### 5. Remove Bloat
 
 Make targeted edits to improve clarity:
 
@@ -212,7 +201,7 @@ Make targeted edits to improve clarity:
 - Keep examples minimal yet complete
 - Use realistic but simple scenarios
 
-### 7. Preserve Essential Content
+### 6. Preserve Essential Content
 
 **DO NOT REMOVE**:
 - Technical accuracy or specific details
@@ -221,7 +210,7 @@ Make targeted edits to improve clarity:
 - Critical warnings or notes
 - Frontmatter metadata
 
-### 8. Update Cache Memory
+### 7. Update Cache Memory
 
 After improving the file, update the cache memory to track the cleanup:
 ```bash
@@ -230,7 +219,7 @@ echo "$(date -u +%Y-%m-%d) - Cleaned: <filename>" >> /tmp/gh-aw/cache-memory/cle
 
 This helps future runs avoid re-cleaning the same files.
 
-### 9. Take Screenshots of Modified Documentation
+### 8. Take Screenshots of Modified Documentation
 
 After making changes to a documentation file, take screenshots of the rendered page in the Astro Starlight website:
 
@@ -269,7 +258,7 @@ If you encounter any blocked domains:
 2. Include this information in the PR description under a "Blocked Domains" section
 3. Example format: "Blocked: fonts.googleapis.com (fonts), cdn.example.com (CSS)"
 
-### 10. Create Pull Request
+### 9. Create Pull Request
 
 After improving ONE file:
 1. Verify your changes preserve all essential information
