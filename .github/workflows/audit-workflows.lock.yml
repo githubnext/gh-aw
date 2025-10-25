@@ -1387,6 +1387,20 @@ jobs:
           |-------------|---------------|-------------------|
           | [server]    | [count]       | [workflows]       |
           
+          ## Firewall Analysis
+          
+          [If firewall logs were collected and analyzed]
+          
+          - **Total Requests**: [NUMBER]
+          - **Allowed Requests**: [NUMBER]
+          - **Denied Requests**: [NUMBER]
+          
+          ### Allowed Domains
+          [List of allowed domains with request counts]
+          
+          ### Denied Domains
+          [List of denied domains with request counts - these may indicate blocked network access attempts]
+          
           ## Performance Metrics
           
           - **Average Token Usage**: [NUMBER]

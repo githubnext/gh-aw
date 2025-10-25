@@ -545,6 +545,36 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 		report.WriteString("\n")
 	}
 
+	// Firewall Analysis
+	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.TotalRequests > 0 {
+		report.WriteString("## Firewall Analysis\n\n")
+		fw := processedRun.FirewallAnalysis
+		report.WriteString(fmt.Sprintf("- **Total Requests**: %d\n", fw.TotalRequests))
+		report.WriteString(fmt.Sprintf("- **Allowed Requests**: %d\n", fw.AllowedRequests))
+		report.WriteString(fmt.Sprintf("- **Denied Requests**: %d\n", fw.DeniedRequests))
+		report.WriteString("\n")
+
+		if len(fw.AllowedDomains) > 0 {
+			report.WriteString("### Allowed Domains\n\n")
+			for _, domain := range fw.AllowedDomains {
+				if stats, ok := fw.RequestsByDomain[domain]; ok {
+					report.WriteString(fmt.Sprintf("- %s (%d requests)\n", domain, stats.Allowed))
+				}
+			}
+			report.WriteString("\n")
+		}
+
+		if len(fw.DeniedDomains) > 0 {
+			report.WriteString("### Denied Domains\n\n")
+			for _, domain := range fw.DeniedDomains {
+				if stats, ok := fw.RequestsByDomain[domain]; ok {
+					report.WriteString(fmt.Sprintf("- %s (%d requests)\n", domain, stats.Denied))
+				}
+			}
+			report.WriteString("\n")
+		}
+	}
+
 	// Missing Tools
 	if len(processedRun.MissingTools) > 0 {
 		report.WriteString("## Missing Tools\n\n")
