@@ -429,7 +429,7 @@ func (e *CopilotEngine) buildMCPConfigJSON(tools map[string]any, mcpTools []stri
 		case "agentic-workflows":
 			server = e.buildAgenticWorkflowsMCPServerJSON()
 		case "safe-outputs":
-			server = e.buildSafeOutputsMCPServerJSON()
+			server = e.buildSafeOutputsMCPServerJSON(workflowData)
 		case "web-fetch":
 			server = buildWebFetchMCPServerJSON()
 		default:
@@ -567,21 +567,34 @@ func (e *CopilotEngine) buildAgenticWorkflowsMCPServerJSON() MCPServerJSON {
 }
 
 // buildSafeOutputsMCPServerJSON builds the Safe Outputs MCP server configuration for JSON marshalling
-func (e *CopilotEngine) buildSafeOutputsMCPServerJSON() MCPServerJSON {
+func (e *CopilotEngine) buildSafeOutputsMCPServerJSON(workflowData *WorkflowData) MCPServerJSON {
+	// Generate the safe outputs config directly instead of using env var reference
+	// This avoids the multi-layer quoting/escaping issues when passing JSON through env vars
+	safeOutputsConfig := generateSafeOutputsConfig(workflowData)
+
+	env := map[string]string{
+		"GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
+	}
+
+	// Only add GH_AW_SAFE_OUTPUTS_CONFIG if there's actual config to pass
+	// Inline the JSON config directly instead of referencing env var
+	if safeOutputsConfig != "" {
+		env["GH_AW_SAFE_OUTPUTS_CONFIG"] = safeOutputsConfig
+	}
+
+	// Add asset-related env vars if upload assets is configured
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UploadAssets != nil {
+		env["GH_AW_ASSETS_BRANCH"] = "${{ env.GH_AW_ASSETS_BRANCH }}"
+		env["GH_AW_ASSETS_MAX_SIZE_KB"] = "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}"
+		env["GH_AW_ASSETS_ALLOWED_EXTS"] = "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}"
+	}
+
 	return MCPServerJSON{
 		Type:    "local",
 		Command: "node",
 		Args:    []string{"/tmp/gh-aw/safe-outputs/mcp-server.cjs"},
-		Env: map[string]string{
-			"GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
-			// Don't use toJSON() here - the env var is already a JSON string that will be
-			// properly quoted by json.Marshal() when building the --additional-mcp-config argument
-			"GH_AW_SAFE_OUTPUTS_CONFIG": "${{ env.GH_AW_SAFE_OUTPUTS_CONFIG }}",
-			"GH_AW_ASSETS_BRANCH":       "${{ env.GH_AW_ASSETS_BRANCH }}",
-			"GH_AW_ASSETS_MAX_SIZE_KB":  "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}",
-			"GH_AW_ASSETS_ALLOWED_EXTS": "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}",
-		},
-		Tools: []string{"*"},
+		Env:     env,
+		Tools:   []string{"*"},
 	}
 }
 
