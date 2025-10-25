@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
+
+var cacheLog = logger.New("workflow:cache")
 
 // CacheMemoryConfig holds configuration for cache-memory functionality
 type CacheMemoryConfig struct {
@@ -35,11 +38,13 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryC
 		return nil, nil
 	}
 
+	cacheLog.Print("Extracting cache-memory configuration from tools")
 	config := &CacheMemoryConfig{}
 
 	// Handle nil value (simple enable with defaults) - same as true
 	// This handles the case where cache-memory: is specified without a value
 	if cacheMemoryValue == nil {
+		cacheLog.Print("Using default cache-memory configuration (nil value)")
 		config.Caches = []CacheMemoryEntry{
 			{
 				ID:  "default",
@@ -51,6 +56,7 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryC
 
 	// Handle boolean value (simple enable/disable)
 	if boolValue, ok := cacheMemoryValue.(bool); ok {
+		cacheLog.Printf("Processing boolean cache-memory configuration: enabled=%v", boolValue)
 		if boolValue {
 			// Create a single default cache entry
 			config.Caches = []CacheMemoryEntry{
@@ -66,6 +72,7 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryC
 
 	// Handle array of cache configurations
 	if cacheArray, ok := cacheMemoryValue.([]any); ok {
+		cacheLog.Printf("Processing array cache-memory configuration: count=%d", len(cacheArray))
 		config.Caches = make([]CacheMemoryEntry, 0, len(cacheArray))
 		for _, item := range cacheArray {
 			if cacheMap, ok := item.(map[string]any); ok {
@@ -133,6 +140,7 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryC
 	// Handle object configuration (single cache, backward compatible)
 	// Convert to array with single entry
 	if configMap, ok := cacheMemoryValue.(map[string]any); ok {
+		cacheLog.Print("Processing object cache-memory configuration")
 		entry := CacheMemoryEntry{
 			ID:  "default",
 			Key: generateDefaultCacheKey("default"),

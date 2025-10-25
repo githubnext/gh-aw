@@ -5,13 +5,18 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
+
+var importsLog = logger.New("workflow:imports")
 
 // MergeTools merges two tools maps, combining allowed arrays when keys coincide
 // Handles newline-separated JSON objects from multiple imports/includes
 func (c *Compiler) MergeTools(topTools map[string]any, includedToolsJSON string) (map[string]any, error) {
+	importsLog.Printf("Merging tools: topTools count=%d", len(topTools))
 	if includedToolsJSON == "" || includedToolsJSON == "{}" {
+		importsLog.Print("No included tools to merge")
 		return topTools, nil
 	}
 
@@ -36,18 +41,22 @@ func (c *Compiler) MergeTools(topTools map[string]any, includedToolsJSON string)
 		// Merge this set of tools
 		merged, err := parser.MergeTools(result, includedTools)
 		if err != nil {
+			importsLog.Printf("Failed to merge tools: %v", err)
 			return nil, fmt.Errorf("failed to merge tools: %w", err)
 		}
 		result = merged
 	}
 
+	importsLog.Printf("Successfully merged tools: final count=%d", len(result))
 	return result, nil
 }
 
 // MergeMCPServers merges mcp-servers from imports with top-level mcp-servers
 // Takes object maps and merges them directly
 func (c *Compiler) MergeMCPServers(topMCPServers map[string]any, importedMCPServersJSON string) (map[string]any, error) {
+	importsLog.Printf("Merging MCP servers: topMCPServers count=%d", len(topMCPServers))
 	if importedMCPServersJSON == "" || importedMCPServersJSON == "{}" {
+		importsLog.Print("No imported MCP servers to merge")
 		return topMCPServers, nil
 	}
 
@@ -78,14 +87,17 @@ func (c *Compiler) MergeMCPServers(topMCPServers map[string]any, importedMCPServ
 		}
 	}
 
+	importsLog.Printf("Successfully merged MCP servers: final count=%d", len(result))
 	return result, nil
 }
 
 // MergeNetworkPermissions merges network permissions from imports with top-level network permissions
 // Combines allowed domains from both sources into a single list
 func (c *Compiler) MergeNetworkPermissions(topNetwork *NetworkPermissions, importedNetworkJSON string) (*NetworkPermissions, error) {
+	importsLog.Print("Merging network permissions")
 	// If no imported network config, return top-level network as-is
 	if importedNetworkJSON == "" || importedNetworkJSON == "{}" {
+		importsLog.Print("No imported network permissions to merge")
 		return topNetwork, nil
 	}
 
@@ -130,5 +142,6 @@ func (c *Compiler) MergeNetworkPermissions(topNetwork *NetworkPermissions, impor
 	// Sort the final domain list for consistent output
 	SortStrings(result.Allowed)
 
+	importsLog.Printf("Successfully merged network permissions: total domains=%d", len(result.Allowed))
 	return result, nil
 }
