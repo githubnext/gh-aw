@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/goccy/go-yaml"
@@ -259,8 +260,10 @@ func TestGenerateDependabotConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	dependabotPath := filepath.Join(tempDir, "dependabot.yml")
 
+	ecosystems := map[string]bool{"npm": true}
+
 	// Test creating new dependabot.yml
-	err := compiler.generateDependabotConfig(dependabotPath, false)
+	err := compiler.generateDependabotConfig(dependabotPath, ecosystems, false)
 	if err != nil {
 		t.Fatalf("failed to generate dependabot.yml: %v", err)
 	}
@@ -320,8 +323,10 @@ func TestGenerateDependabotConfig_PreserveExisting(t *testing.T) {
 	existingData, _ := yaml.Marshal(&existingConfig)
 	os.WriteFile(dependabotPath, existingData, 0644)
 
+	ecosystems := map[string]bool{"npm": true}
+
 	// Try to generate without force - should preserve
-	err := compiler.generateDependabotConfig(dependabotPath, false)
+	err := compiler.generateDependabotConfig(dependabotPath, ecosystems, false)
 	if err != nil {
 		t.Fatalf("failed to check existing dependabot.yml: %v", err)
 	}
@@ -420,4 +425,439 @@ func TestGenerateDependabotManifests_StrictMode(t *testing.T) {
 			t.Logf("npm not available, strict mode error expected: %v", strictErr)
 		}
 	}
+}
+
+// Tests for Python (pip) support
+
+func TestParsePipPackage(t *testing.T) {
+tests := []struct {
+name            string
+pkg             string
+expectedName    string
+expectedVersion string
+}{
+{
+name:            "package with == version",
+pkg:             "requests==2.28.0",
+expectedName:    "requests",
+expectedVersion: "==2.28.0",
+},
+{
+name:            "package with >= version",
+pkg:             "django>=3.2.0",
+expectedName:    "django",
+expectedVersion: ">=3.2.0",
+},
+{
+name:            "package with ~= version",
+pkg:             "flask~=2.0.0",
+expectedName:    "flask",
+expectedVersion: "~=2.0.0",
+},
+{
+name:            "package without version",
+pkg:             "numpy",
+expectedName:    "numpy",
+expectedVersion: "",
+},
+{
+name:            "package with != version",
+pkg:             "pytest!=7.0.0",
+expectedName:    "pytest",
+expectedVersion: "!=7.0.0",
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+dep := parsePipPackage(tt.pkg)
+if dep.Name != tt.expectedName {
+t.Errorf("expected name %q, got %q", tt.expectedName, dep.Name)
+}
+if dep.Version != tt.expectedVersion {
+t.Errorf("expected version %q, got %q", tt.expectedVersion, dep.Version)
+}
+})
+}
+}
+
+func TestCollectPipDependencies(t *testing.T) {
+compiler := NewCompiler(false, "", "test")
+
+tests := []struct {
+name         string
+workflows    []*WorkflowData
+expectedDeps []PipDependency
+}{
+{
+name: "single workflow with pip dependencies",
+workflows: []*WorkflowData{
+{
+CustomSteps: "pip install requests==2.28.0",
+},
+},
+expectedDeps: []PipDependency{
+{Name: "requests", Version: "==2.28.0"},
+},
+},
+{
+name: "multiple workflows with different dependencies",
+workflows: []*WorkflowData{
+{
+CustomSteps: "pip install requests==2.28.0",
+},
+{
+CustomSteps: "pip3 install django>=3.2.0",
+},
+},
+expectedDeps: []PipDependency{
+{Name: "django", Version: ">=3.2.0"},
+{Name: "requests", Version: "==2.28.0"},
+},
+},
+{
+name: "duplicate dependencies use last version",
+workflows: []*WorkflowData{
+{
+CustomSteps: "pip install requests==2.27.0",
+},
+{
+CustomSteps: "pip install requests==2.28.0",
+},
+},
+expectedDeps: []PipDependency{
+{Name: "requests", Version: "==2.28.0"},
+},
+},
+{
+name:         "no pip dependencies",
+workflows:    []*WorkflowData{},
+expectedDeps: []PipDependency{},
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+deps := compiler.collectPipDependencies(tt.workflows)
+if len(deps) != len(tt.expectedDeps) {
+t.Errorf("expected %d dependencies, got %d", len(tt.expectedDeps), len(deps))
+}
+for i, dep := range deps {
+if i >= len(tt.expectedDeps) {
+break
+}
+expected := tt.expectedDeps[i]
+if dep.Name != expected.Name {
+t.Errorf("dependency %d: expected name %q, got %q", i, expected.Name, dep.Name)
+}
+if dep.Version != expected.Version {
+t.Errorf("dependency %d: expected version %q, got %q", i, expected.Version, dep.Version)
+}
+}
+})
+}
+}
+
+func TestGenerateRequirementsTxt(t *testing.T) {
+compiler := NewCompiler(false, "", "test")
+tempDir := t.TempDir()
+requirementsPath := filepath.Join(tempDir, "requirements.txt")
+
+deps := []PipDependency{
+{Name: "requests", Version: "==2.28.0"},
+{Name: "django", Version: ">=3.2.0"},
+}
+
+// Test creating new requirements.txt
+err := compiler.generateRequirementsTxt(requirementsPath, deps, false)
+if err != nil {
+t.Fatalf("failed to generate requirements.txt: %v", err)
+}
+
+// Verify file was created
+if _, err := os.Stat(requirementsPath); os.IsNotExist(err) {
+t.Fatal("requirements.txt was not created")
+}
+
+// Read and verify content
+data, err := os.ReadFile(requirementsPath)
+if err != nil {
+t.Fatalf("failed to read requirements.txt: %v", err)
+}
+
+content := string(data)
+if !strings.Contains(content, "django>=3.2.0") {
+t.Error("requirements.txt should contain django>=3.2.0")
+}
+if !strings.Contains(content, "requests==2.28.0") {
+t.Error("requirements.txt should contain requests==2.28.0")
+}
+}
+
+// Tests for Golang support
+
+func TestParseGoPackage(t *testing.T) {
+tests := []struct {
+name            string
+pkg             string
+expectedPath    string
+expectedVersion string
+}{
+{
+name:            "package with version",
+pkg:             "github.com/user/repo@v1.2.3",
+expectedPath:    "github.com/user/repo",
+expectedVersion: "v1.2.3",
+},
+{
+name:            "package without version",
+pkg:             "github.com/user/repo",
+expectedPath:    "github.com/user/repo",
+expectedVersion: "latest",
+},
+{
+name:            "package with pseudo-version",
+pkg:             "golang.org/x/tools@v0.1.12-0.20220713141851-7464d2807d88",
+expectedPath:    "golang.org/x/tools",
+expectedVersion: "v0.1.12-0.20220713141851-7464d2807d88",
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+dep := parseGoPackage(tt.pkg)
+if dep.Path != tt.expectedPath {
+t.Errorf("expected path %q, got %q", tt.expectedPath, dep.Path)
+}
+if dep.Version != tt.expectedVersion {
+t.Errorf("expected version %q, got %q", tt.expectedVersion, dep.Version)
+}
+})
+}
+}
+
+func TestCollectGoDependencies(t *testing.T) {
+compiler := NewCompiler(false, "", "test")
+
+tests := []struct {
+name         string
+workflows    []*WorkflowData
+expectedDeps []GoDependency
+}{
+{
+name: "single workflow with go install",
+workflows: []*WorkflowData{
+{
+CustomSteps: "go install github.com/user/tool@v1.0.0",
+},
+},
+expectedDeps: []GoDependency{
+{Path: "github.com/user/tool", Version: "v1.0.0"},
+},
+},
+{
+name: "multiple workflows with different dependencies",
+workflows: []*WorkflowData{
+{
+CustomSteps: "go install github.com/user/tool@v1.0.0",
+},
+{
+CustomSteps: "go get golang.org/x/tools@latest",
+},
+},
+expectedDeps: []GoDependency{
+{Path: "github.com/user/tool", Version: "v1.0.0"},
+{Path: "golang.org/x/tools", Version: "latest"},
+},
+},
+{
+name: "duplicate dependencies use last version",
+workflows: []*WorkflowData{
+{
+CustomSteps: "go install github.com/user/tool@v1.0.0",
+},
+{
+CustomSteps: "go install github.com/user/tool@v2.0.0",
+},
+},
+expectedDeps: []GoDependency{
+{Path: "github.com/user/tool", Version: "v2.0.0"},
+},
+},
+{
+name:         "no go dependencies",
+workflows:    []*WorkflowData{},
+expectedDeps: []GoDependency{},
+},
+}
+
+for _, tt := range tests {
+t.Run(tt.name, func(t *testing.T) {
+deps := compiler.collectGoDependencies(tt.workflows)
+if len(deps) != len(tt.expectedDeps) {
+t.Errorf("expected %d dependencies, got %d", len(tt.expectedDeps), len(deps))
+}
+for i, dep := range deps {
+if i >= len(tt.expectedDeps) {
+break
+}
+expected := tt.expectedDeps[i]
+if dep.Path != expected.Path {
+t.Errorf("dependency %d: expected path %q, got %q", i, expected.Path, dep.Path)
+}
+if dep.Version != expected.Version {
+t.Errorf("dependency %d: expected version %q, got %q", i, expected.Version, dep.Version)
+}
+}
+})
+}
+}
+
+func TestGenerateGoMod(t *testing.T) {
+compiler := NewCompiler(false, "", "test")
+tempDir := t.TempDir()
+goModPath := filepath.Join(tempDir, "go.mod")
+
+deps := []GoDependency{
+{Path: "github.com/user/tool", Version: "v1.0.0"},
+{Path: "golang.org/x/tools", Version: "v0.1.0"},
+}
+
+// Test creating new go.mod
+err := compiler.generateGoMod(goModPath, deps, false)
+if err != nil {
+t.Fatalf("failed to generate go.mod: %v", err)
+}
+
+// Verify file was created
+if _, err := os.Stat(goModPath); os.IsNotExist(err) {
+t.Fatal("go.mod was not created")
+}
+
+// Read and verify content
+data, err := os.ReadFile(goModPath)
+if err != nil {
+t.Fatalf("failed to read go.mod: %v", err)
+}
+
+content := string(data)
+if !strings.Contains(content, "module github.com/githubnext/gh-aw-workflows-deps") {
+t.Error("go.mod should contain module declaration")
+}
+if !strings.Contains(content, "require (") {
+t.Error("go.mod should contain require section")
+}
+if !strings.Contains(content, "github.com/user/tool v1.0.0") {
+t.Error("go.mod should contain github.com/user/tool v1.0.0")
+}
+if !strings.Contains(content, "golang.org/x/tools v0.1.0") {
+t.Error("go.mod should contain golang.org/x/tools v0.1.0")
+}
+}
+
+// Tests for multi-ecosystem support
+
+func TestGenerateDependabotConfig_MultipleEcosystems(t *testing.T) {
+compiler := NewCompiler(false, "", "test")
+tempDir := t.TempDir()
+dependabotPath := filepath.Join(tempDir, "dependabot.yml")
+
+ecosystems := map[string]bool{
+"npm":   true,
+"pip":   true,
+"gomod": true,
+}
+
+// Test creating new dependabot.yml with multiple ecosystems
+err := compiler.generateDependabotConfig(dependabotPath, ecosystems, false)
+if err != nil {
+t.Fatalf("failed to generate dependabot.yml: %v", err)
+}
+
+// Verify file was created
+if _, err := os.Stat(dependabotPath); os.IsNotExist(err) {
+t.Fatal("dependabot.yml was not created")
+}
+
+// Read and verify content
+data, err := os.ReadFile(dependabotPath)
+if err != nil {
+t.Fatalf("failed to read dependabot.yml: %v", err)
+}
+
+var config DependabotConfig
+if err := yaml.Unmarshal(data, &config); err != nil {
+t.Fatalf("failed to parse dependabot.yml: %v", err)
+}
+
+// Verify structure
+if config.Version != 2 {
+t.Errorf("expected version 2, got %d", config.Version)
+}
+if len(config.Updates) != 3 {
+t.Fatalf("expected 3 update entries, got %d", len(config.Updates))
+}
+
+// Check that all ecosystems are present
+ecosystemsFound := make(map[string]bool)
+for _, update := range config.Updates {
+ecosystemsFound[update.PackageEcosystem] = true
+if update.Directory != "/.github/workflows" {
+t.Errorf("expected directory '/.github/workflows', got %q", update.Directory)
+}
+if update.Schedule.Interval != "weekly" {
+t.Errorf("expected interval 'weekly', got %q", update.Schedule.Interval)
+}
+}
+
+for ecosystem := range ecosystems {
+if !ecosystemsFound[ecosystem] {
+t.Errorf("ecosystem %q not found in dependabot.yml", ecosystem)
+}
+}
+}
+
+func TestGenerateDependabotManifests_AllEcosystems(t *testing.T) {
+compiler := NewCompiler(true, "", "test")
+tempDir := t.TempDir()
+workflowDir := filepath.Join(tempDir, ".github", "workflows")
+os.MkdirAll(workflowDir, 0755)
+
+// Workflow with npm, pip, and go dependencies
+workflows := []*WorkflowData{
+{
+CustomSteps: `
+npx @playwright/mcp@latest
+pip install requests==2.28.0
+go install github.com/user/tool@v1.0.0
+`,
+},
+}
+
+// This will skip npm install (no npm in test env), but should generate manifest files
+_ = compiler.GenerateDependabotManifests(workflows, workflowDir, false)
+
+// Check that package.json was created
+packageJSONPath := filepath.Join(workflowDir, "package.json")
+if _, err := os.Stat(packageJSONPath); os.IsNotExist(err) {
+t.Error("package.json should be created")
+}
+
+// Check that requirements.txt was created
+requirementsPath := filepath.Join(workflowDir, "requirements.txt")
+if _, err := os.Stat(requirementsPath); os.IsNotExist(err) {
+t.Error("requirements.txt should be created")
+}
+
+// Check that go.mod was created
+goModPath := filepath.Join(workflowDir, "go.mod")
+if _, err := os.Stat(goModPath); os.IsNotExist(err) {
+t.Error("go.mod should be created")
+}
+
+// Check dependabot.yml
+dependabotPath := filepath.Join(tempDir, ".github", "dependabot.yml")
+if _, err := os.Stat(dependabotPath); os.IsNotExist(err) {
+t.Error("dependabot.yml should be created")
+}
 }
