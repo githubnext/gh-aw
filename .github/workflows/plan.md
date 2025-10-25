@@ -3,7 +3,7 @@ name: Plan Command
 on:
   command:
     name: plan
-    events: [issue_comment]
+    events: [issue_comment, discussion_comment]
 permissions:
   contents: read
   actions: read
