@@ -80,7 +80,9 @@ describe("assign_issue.cjs", () => {
       await eval(`(async () => { ${assignIssueScript} })()`);
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_TOKEN environment variable is required but not set"));
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("https://githubnext.github.io/gh-aw/"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining("https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default")
+      );
       expect(mockExec.exec).not.toHaveBeenCalled();
     });
 
@@ -327,7 +329,7 @@ describe("assign_issue.cjs", () => {
       await eval(`(async () => { ${assignIssueScript} })()`);
 
       const failedCall = mockCore.setFailed.mock.calls[0][0];
-      expect(failedCall).toContain("https://githubnext.github.io/gh-aw/");
+      expect(failedCall).toContain("https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default");
     });
   });
 });
