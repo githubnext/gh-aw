@@ -99,7 +99,7 @@ func TestParseFirewallLogLine(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := parseFirewallLogLine(tt.line)
-			
+
 			if tt.expected == nil {
 				if result != nil {
 					t.Errorf("expected nil, got %+v", result)

@@ -15,16 +15,16 @@ import (
 
 // LogsData represents the complete structured data for logs output
 type LogsData struct {
-	Summary           LogsSummary           `json:"summary" console:"title:Workflow Logs Summary"`
-	Runs              []RunData             `json:"runs" console:"title:Workflow Logs Overview"`
-	ToolUsage         []ToolUsageSummary    `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
-	ErrorsAndWarnings []ErrorSummary        `json:"errors_and_warnings,omitempty" console:"title:Errors and Warnings,omitempty"`
-	MissingTools      []MissingToolSummary  `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
-	MCPFailures       []MCPFailureSummary   `json:"mcp_failures,omitempty" console:"title:⚠️  MCP Server Failures,omitempty"`
-	AccessLog         *AccessLogSummary     `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
-	FirewallLog       *FirewallLogSummary   `json:"firewall_log,omitempty" console:"title:🔥 Firewall Log Analysis,omitempty"`
-	Continuation      *ContinuationData     `json:"continuation,omitempty" console:"-"`
-	LogsLocation      string                `json:"logs_location" console:"-"`
+	Summary           LogsSummary          `json:"summary" console:"title:Workflow Logs Summary"`
+	Runs              []RunData            `json:"runs" console:"title:Workflow Logs Overview"`
+	ToolUsage         []ToolUsageSummary   `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
+	ErrorsAndWarnings []ErrorSummary       `json:"errors_and_warnings,omitempty" console:"title:Errors and Warnings,omitempty"`
+	MissingTools      []MissingToolSummary `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
+	MCPFailures       []MCPFailureSummary  `json:"mcp_failures,omitempty" console:"title:⚠️  MCP Server Failures,omitempty"`
+	AccessLog         *AccessLogSummary    `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
+	FirewallLog       *FirewallLogSummary  `json:"firewall_log,omitempty" console:"title:🔥 Firewall Log Analysis,omitempty"`
+	Continuation      *ContinuationData    `json:"continuation,omitempty" console:"-"`
+	LogsLocation      string               `json:"logs_location" console:"-"`
 }
 
 // ContinuationData provides parameters to continue querying when timeout is reached
@@ -108,11 +108,11 @@ type AccessLogSummary struct {
 
 // FirewallLogSummary contains aggregated firewall log data
 type FirewallLogSummary struct {
-	TotalRequests    int                         `json:"total_requests" console:"header:Total Requests"`
-	AllowedRequests  int                         `json:"allowed_requests" console:"header:Allowed"`
-	DeniedRequests   int                         `json:"denied_requests" console:"header:Denied"`
-	AllowedDomains   []string                    `json:"allowed_domains" console:"-"`
-	DeniedDomains    []string                    `json:"denied_domains" console:"-"`
+	TotalRequests    int                           `json:"total_requests" console:"header:Total Requests"`
+	AllowedRequests  int                           `json:"allowed_requests" console:"header:Allowed"`
+	DeniedRequests   int                           `json:"denied_requests" console:"header:Denied"`
+	AllowedDomains   []string                      `json:"allowed_domains" console:"-"`
+	DeniedDomains    []string                      `json:"denied_domains" console:"-"`
 	RequestsByDomain map[string]DomainRequestStats `json:"requests_by_domain,omitempty" console:"-"`
 	ByWorkflow       map[string]*FirewallAnalysis  `json:"by_workflow,omitempty" console:"-"`
 }
