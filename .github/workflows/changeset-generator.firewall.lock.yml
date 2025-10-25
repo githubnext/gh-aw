@@ -31,6 +31,7 @@ name: "Changeset Generator"
   pull_request:
     types:
     - ready_for_review
+  workflow_dispatch: null
 
 permissions:
   contents: read
