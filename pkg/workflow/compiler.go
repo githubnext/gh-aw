@@ -249,7 +249,6 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 // CompileWorkflowData compiles a workflow from already-parsed WorkflowData
 // This avoids re-parsing when the data has already been parsed
 func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath string) error {
-
 	// Reset the step order tracker for this compilation
 	c.stepOrderTracker = NewStepOrderTracker()
 
@@ -411,6 +410,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			if lockFileInfo.Size() > MaxLockFileSize {
 				lockSize := pretty.FormatFileSize(lockFileInfo.Size())
 				maxSize := pretty.FormatFileSize(MaxLockFileSize)
+				err := fmt.Errorf("generated lock file size (%s) exceeds maximum allowed size (%s)", lockSize, maxSize)
 				formattedErr := console.FormatError(console.CompilerError{
 					Position: console.ErrorPosition{
 						File:   lockFile,
@@ -418,7 +418,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 						Column: 1,
 					},
 					Type:    "error",
-					Message: fmt.Sprintf("generated lock file size (%s) exceeds maximum allowed size (%s)", lockSize, maxSize),
+					Message: err.Error(),
 				})
 				return errors.New(formattedErr)
 			}

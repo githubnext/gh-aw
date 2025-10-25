@@ -19,6 +19,37 @@ import (
 
 var validationLog = logger.New("workflow:validation")
 
+// RepositoryFeatures holds cached information about repository capabilities
+type RepositoryFeatures struct {
+	HasDiscussions bool
+	HasIssues      bool
+}
+
+// Global cache for repository features and current repository info
+var (
+	repositoryFeaturesCache  = sync.Map{} // sync.Map is thread-safe and efficient for read-heavy workloads
+	getCurrentRepositoryOnce sync.Once
+	currentRepositoryResult  string
+	currentRepositoryError   error
+)
+
+// ClearRepositoryFeaturesCache clears the repository features cache
+// This is useful for testing or when repository settings might have changed
+func ClearRepositoryFeaturesCache() {
+	// Clear the features cache
+	repositoryFeaturesCache.Range(func(key, value any) bool {
+		repositoryFeaturesCache.Delete(key)
+		return true
+	})
+
+	// Reset the current repository cache
+	getCurrentRepositoryOnce = sync.Once{}
+	currentRepositoryResult = ""
+	currentRepositoryError = nil
+
+	validationLog.Print("Repository features and current repository caches cleared")
+}
+
 // validateExpressionSizes validates that no expression values in the generated YAML exceed GitHub Actions limits
 func (c *Compiler) validateExpressionSizes(yamlContent string) error {
 	validationLog.Print("Validating expression sizes in generated YAML")
@@ -344,6 +375,7 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 
 	if needsDiscussions {
 		hasDiscussions, err := checkRepositoryHasDiscussions(repo)
+
 		if err != nil {
 			// If we can't check, log but don't fail
 			// This could happen due to network issues or auth problems
@@ -372,6 +404,7 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 	// Check if issues are enabled when create-issue is configured
 	if workflowData.SafeOutputs.CreateIssues != nil {
 		hasIssues, err := checkRepositoryHasIssues(repo)
+
 		if err != nil {
 			// If we can't check, log but don't fail
 			validationLog.Printf("Warning: Could not check if issues are enabled: %v", err)
@@ -395,8 +428,24 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 	return nil
 }
 
-// getCurrentRepository gets the current repository from git context
+// getCurrentRepository gets the current repository from git context (with caching)
 func getCurrentRepository() (string, error) {
+	getCurrentRepositoryOnce.Do(func() {
+		currentRepositoryResult, currentRepositoryError = getCurrentRepositoryUncached()
+	})
+
+	if currentRepositoryError != nil {
+		return "", currentRepositoryError
+	}
+
+	validationLog.Printf("Using cached current repository: %s", currentRepositoryResult)
+	return currentRepositoryResult, nil
+}
+
+// getCurrentRepositoryUncached fetches the current repository from gh CLI (no caching)
+func getCurrentRepositoryUncached() (string, error) {
+	validationLog.Print("Fetching current repository from gh CLI")
+
 	// Use gh CLI to get the current repository
 	// This works when in a git repository with GitHub remote
 	stdOut, _, err := gh.Exec("repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner")
@@ -409,11 +458,59 @@ func getCurrentRepository() (string, error) {
 		return "", fmt.Errorf("repository name is empty")
 	}
 
+	validationLog.Printf("Cached current repository: %s", repo)
 	return repo, nil
 }
 
-// checkRepositoryHasDiscussions checks if a repository has discussions enabled
+// getRepositoryFeatures gets repository features with caching to amortize API calls
+func getRepositoryFeatures(repo string) (*RepositoryFeatures, error) {
+	// Check cache first using sync.Map
+	if cached, exists := repositoryFeaturesCache.Load(repo); exists {
+		features := cached.(*RepositoryFeatures)
+		validationLog.Printf("Using cached repository features for: %s", repo)
+		return features, nil
+	}
+
+	validationLog.Printf("Fetching repository features from API for: %s", repo)
+
+	// Fetch from API
+	features := &RepositoryFeatures{}
+
+	// Check discussions
+	hasDiscussions, err := checkRepositoryHasDiscussionsUncached(repo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check discussions: %w", err)
+	}
+	features.HasDiscussions = hasDiscussions
+
+	// Check issues
+	hasIssues, err := checkRepositoryHasIssuesUncached(repo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check issues: %w", err)
+	}
+	features.HasIssues = hasIssues
+
+	// Cache the result using sync.Map's LoadOrStore for atomic caching
+	// This handles the race condition where multiple goroutines might fetch the same repo
+	actual, _ := repositoryFeaturesCache.LoadOrStore(repo, features)
+	actualFeatures := actual.(*RepositoryFeatures)
+
+	validationLog.Printf("Cached repository features for: %s (discussions: %v, issues: %v)", repo, actualFeatures.HasDiscussions, actualFeatures.HasIssues)
+
+	return actualFeatures, nil
+}
+
+// checkRepositoryHasDiscussions checks if a repository has discussions enabled (with caching)
 func checkRepositoryHasDiscussions(repo string) (bool, error) {
+	features, err := getRepositoryFeatures(repo)
+	if err != nil {
+		return false, err
+	}
+	return features.HasDiscussions, nil
+}
+
+// checkRepositoryHasDiscussionsUncached checks if a repository has discussions enabled (no caching)
+func checkRepositoryHasDiscussionsUncached(repo string) (bool, error) {
 	// Use GitHub GraphQL API to check if discussions are enabled
 	// The hasDiscussionsEnabled field is the canonical way to check this
 	query := `query($owner: String!, $name: String!) {
@@ -452,8 +549,17 @@ func checkRepositoryHasDiscussions(repo string) (bool, error) {
 	return response.Data.Repository.HasDiscussionsEnabled, nil
 }
 
-// checkRepositoryHasIssues checks if a repository has issues enabled
+// checkRepositoryHasIssues checks if a repository has issues enabled (with caching)
 func checkRepositoryHasIssues(repo string) (bool, error) {
+	features, err := getRepositoryFeatures(repo)
+	if err != nil {
+		return false, err
+	}
+	return features.HasIssues, nil
+}
+
+// checkRepositoryHasIssuesUncached checks if a repository has issues enabled (no caching)
+func checkRepositoryHasIssuesUncached(repo string) (bool, error) {
 	// Use GitHub REST API to check if issues are enabled
 	// The has_issues field indicates if issues are enabled
 	type RepositoryResponse struct {
