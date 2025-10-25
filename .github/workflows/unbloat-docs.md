@@ -33,13 +33,6 @@ network:
 # Tools configuration
 tools:
   cache-memory: true
-  github:
-    allowed:
-      - get_repository
-      - get_file_contents
-      - list_commits
-      - get_pull_request
-      - search_pull_requests
   edit:
   playwright:
     args: ["--viewport-size", "1920x1080"]
@@ -141,11 +134,7 @@ find docs/src/content/docs -name '*.md' -type f ! -name 'frontmatter-full.md'
 Focus on files that were recently modified or are in the `docs/src/content/docs/samples/` directory.
 
 {{#if ${{ github.event.pull_request.number }}}}
-**Pull Request Context**: Since this workflow is running in the context of PR #${{ github.event.pull_request.number }}, prioritize reviewing the documentation files that were modified in this pull request. Use the GitHub API to get the list of changed files:
-
-```bash
-# Get PR file changes using the get_pull_request tool
-```
+**Pull Request Context**: Since this workflow is running in the context of PR #${{ github.event.pull_request.number }}, prioritize reviewing the documentation files that were modified in this pull request.
 
 Focus on markdown files in the `docs/` directory that appear in the PR's changed files list.
 {{/if}}
