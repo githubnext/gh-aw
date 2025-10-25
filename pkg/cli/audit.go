@@ -287,6 +287,12 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs: %v", err)))
 	}
 
+	// Analyze firewall logs if available
+	firewallAnalysis, err := analyzeFirewallLogs(runOutputDir, verbose)
+	if err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs: %v", err)))
+	}
+
 	// List all artifacts
 	artifacts, err := listArtifacts(runOutputDir)
 	if err != nil && verbose {
@@ -295,10 +301,11 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 
 	// Create processed run for report generation
 	processedRun := ProcessedRun{
-		Run:          run,
-		MissingTools: missingTools,
-		MCPFailures:  mcpFailures,
-		JobDetails:   jobDetails,
+		Run:              run,
+		FirewallAnalysis: firewallAnalysis,
+		MissingTools:     missingTools,
+		MCPFailures:      mcpFailures,
+		JobDetails:       jobDetails,
 	}
 
 	// Build structured audit data
@@ -337,16 +344,17 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 
 	// Save run summary for caching future audit runs
 	summary := &RunSummary{
-		CLIVersion:     GetVersion(),
-		RunID:          run.DatabaseID,
-		ProcessedAt:    time.Now(),
-		Run:            run,
-		Metrics:        metrics,
-		AccessAnalysis: accessAnalysis,
-		MissingTools:   missingTools,
-		MCPFailures:    mcpFailures,
-		ArtifactsList:  artifacts,
-		JobDetails:     jobDetails,
+		CLIVersion:       GetVersion(),
+		RunID:            run.DatabaseID,
+		ProcessedAt:      time.Now(),
+		Run:              run,
+		Metrics:          metrics,
+		AccessAnalysis:   accessAnalysis,
+		FirewallAnalysis: firewallAnalysis,
+		MissingTools:     missingTools,
+		MCPFailures:      mcpFailures,
+		ArtifactsList:    artifacts,
+		JobDetails:       jobDetails,
 	}
 
 	if err := saveRunSummary(runOutputDir, summary, verbose); err != nil {

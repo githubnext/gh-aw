@@ -1,0 +1,372 @@
+package cli
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/console"
+)
+
+// FirewallLogEntry represents a parsed firewall log entry
+// Format: timestamp client_ip:port domain dest_ip:port proto method status decision url user_agent
+type FirewallLogEntry struct {
+	Timestamp   string
+	ClientIPPort string
+	Domain      string
+	DestIPPort  string
+	Proto       string
+	Method      string
+	Status      string
+	Decision    string
+	URL         string
+	UserAgent   string
+}
+
+// FirewallAnalysis represents analysis of firewall logs
+// This mirrors the structure from the JavaScript parser
+type FirewallAnalysis struct {
+	TotalRequests     int
+	AllowedRequests   int
+	DeniedRequests    int
+	AllowedDomains    []string
+	DeniedDomains     []string
+	RequestsByDomain  map[string]DomainRequestStats
+}
+
+// DomainRequestStats tracks request statistics per domain
+type DomainRequestStats struct {
+	Allowed int
+	Denied  int
+}
+
+// parseFirewallLogLine parses a single firewall log line
+// Format: timestamp client_ip:port domain dest_ip:port proto method status decision url user_agent
+// Returns nil if the line is invalid or should be skipped
+func parseFirewallLogLine(line string) *FirewallLogEntry {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+		return nil
+	}
+
+	// Split by whitespace but preserve quoted strings
+	// This regex matches non-whitespace sequences or quoted strings
+	re := regexp.MustCompile(`(?:[^\s"]+|"[^"]*")+`)
+	fields := re.FindAllString(trimmed, -1)
+
+	if len(fields) < 10 {
+		return nil
+	}
+
+	// Validate timestamp format (should be numeric with optional decimal point)
+	timestamp := fields[0]
+	if matched, _ := regexp.MatchString(`^\d+(\.\d+)?$`, timestamp); !matched {
+		return nil
+	}
+
+	// Validate client IP:port format (should be IP:port or "-")
+	clientIPPort := fields[1]
+	if clientIPPort != "-" {
+		if matched, _ := regexp.MatchString(`^[\d.]+:\d+$`, clientIPPort); !matched {
+			return nil
+		}
+	}
+
+	// Validate domain format (should be domain:port or "-")
+	domain := fields[2]
+	if domain != "-" {
+		if matched, _ := regexp.MatchString(`^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*:\d+$`, domain); !matched {
+			return nil
+		}
+	}
+
+	// Validate dest IP:port format (should be IP:port or "-")
+	destIPPort := fields[3]
+	if destIPPort != "-" {
+		if matched, _ := regexp.MatchString(`^[\d.]+:\d+$`, destIPPort); !matched {
+			return nil
+		}
+	}
+
+	// Validate status code (should be numeric or "-")
+	status := fields[6]
+	if status != "-" {
+		if matched, _ := regexp.MatchString(`^\d+$`, status); !matched {
+			return nil
+		}
+	}
+
+	// Validate decision format (should contain ":" or be "-")
+	decision := fields[7]
+	if decision != "-" && !strings.Contains(decision, ":") {
+		return nil
+	}
+
+	// Remove quotes from user agent
+	userAgent := fields[9]
+	userAgent = strings.Trim(userAgent, `"`)
+
+	return &FirewallLogEntry{
+		Timestamp:    timestamp,
+		ClientIPPort: clientIPPort,
+		Domain:       domain,
+		DestIPPort:   destIPPort,
+		Proto:        fields[4],
+		Method:       fields[5],
+		Status:       status,
+		Decision:     decision,
+		URL:          fields[8],
+		UserAgent:    userAgent,
+	}
+}
+
+// isRequestAllowed determines if a request was allowed based on decision and status
+// This mirrors the logic from the JavaScript parser
+func isRequestAllowed(decision, status string) bool {
+	// Check status code first
+	if statusCode, err := strconv.Atoi(status); err == nil {
+		if statusCode == 200 || statusCode == 206 || statusCode == 304 {
+			return true
+		}
+		if statusCode == 403 || statusCode == 407 {
+			return false
+		}
+	}
+
+	// Check decision field
+	if strings.Contains(decision, "TCP_TUNNEL") ||
+		strings.Contains(decision, "TCP_HIT") ||
+		strings.Contains(decision, "TCP_MISS") {
+		return true
+	}
+
+	if strings.Contains(decision, "NONE_NONE") ||
+		strings.Contains(decision, "TCP_DENIED") {
+		return false
+	}
+
+	// Default to denied for safety
+	return false
+}
+
+// parseFirewallLog parses a firewall log file and returns analysis
+func parseFirewallLog(logPath string, verbose bool) (*FirewallAnalysis, error) {
+	file, err := os.Open(logPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open firewall log: %w", err)
+	}
+	defer file.Close()
+
+	analysis := &FirewallAnalysis{
+		AllowedDomains:   []string{},
+		DeniedDomains:    []string{},
+		RequestsByDomain: make(map[string]DomainRequestStats),
+	}
+
+	allowedDomainsSet := make(map[string]bool)
+	deniedDomainsSet := make(map[string]bool)
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		entry := parseFirewallLogLine(line)
+		if entry == nil {
+			continue
+		}
+
+		analysis.TotalRequests++
+
+		// Determine if request was allowed or denied
+		isAllowed := isRequestAllowed(entry.Decision, entry.Status)
+
+		// Extract domain (remove port)
+		domain := entry.Domain
+
+		if isAllowed {
+			analysis.AllowedRequests++
+			if !allowedDomainsSet[domain] {
+				allowedDomainsSet[domain] = true
+			}
+		} else {
+			analysis.DeniedRequests++
+			if !deniedDomainsSet[domain] {
+				deniedDomainsSet[domain] = true
+			}
+		}
+
+		// Track request count per domain
+		stats := analysis.RequestsByDomain[domain]
+		if isAllowed {
+			stats.Allowed++
+		} else {
+			stats.Denied++
+		}
+		analysis.RequestsByDomain[domain] = stats
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading firewall log: %w", err)
+	}
+
+	// Convert sets to sorted slices
+	for domain := range allowedDomainsSet {
+		analysis.AllowedDomains = append(analysis.AllowedDomains, domain)
+	}
+	for domain := range deniedDomainsSet {
+		analysis.DeniedDomains = append(analysis.DeniedDomains, domain)
+	}
+
+	sort.Strings(analysis.AllowedDomains)
+	sort.Strings(analysis.DeniedDomains)
+
+	return analysis, nil
+}
+
+// analyzeFirewallLogs analyzes firewall logs in a run directory
+// Firewall logs are stored in /tmp/gh-aw/squid-logs-{workflow-name}/ during execution
+// and uploaded as artifacts to the logs directory
+func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error) {
+	// Look for firewall logs in the run directory
+	// The logs could be in several locations depending on how they were uploaded
+	
+	// First, check for a squid-logs or firewall-logs directory
+	possibleDirs := []string{
+		filepath.Join(runDir, "squid-logs"),
+		filepath.Join(runDir, "firewall-logs"),
+	}
+
+	for _, logsDir := range possibleDirs {
+		if stat, err := os.Stat(logsDir); err == nil && stat.IsDir() {
+			return analyzeMultipleFirewallLogs(logsDir, verbose)
+		}
+	}
+
+	// Check for individual log files in the run directory
+	files, err := filepath.Glob(filepath.Join(runDir, "*.log"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to find firewall log files: %w", err)
+	}
+
+	// Filter for firewall log files (they typically have "access" or "firewall" in the name)
+	var firewallLogs []string
+	for _, file := range files {
+		basename := filepath.Base(file)
+		if strings.Contains(basename, "firewall") || 
+		   (strings.Contains(basename, "access") && !strings.Contains(basename, "access-")) {
+			firewallLogs = append(firewallLogs, file)
+		}
+	}
+
+	if len(firewallLogs) == 0 {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No firewall logs found in %s", runDir)))
+		}
+		return nil, nil
+	}
+
+	// Parse the first firewall log file found
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Analyzing firewall log: %s", filepath.Base(firewallLogs[0]))))
+	}
+
+	return parseFirewallLog(firewallLogs[0], verbose)
+}
+
+// analyzeMultipleFirewallLogs analyzes multiple firewall log files in a directory
+func analyzeMultipleFirewallLogs(logsDir string, verbose bool) (*FirewallAnalysis, error) {
+	files, err := filepath.Glob(filepath.Join(logsDir, "*.log"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to find firewall log files: %w", err)
+	}
+
+	if len(files) == 0 {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No firewall log files found in %s", logsDir)))
+		}
+		return nil, nil
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Analyzing %d firewall log files from %s", len(files), logsDir)))
+	}
+
+	// Aggregate analysis from all files
+	aggregated := &FirewallAnalysis{
+		AllowedDomains:   []string{},
+		DeniedDomains:    []string{},
+		RequestsByDomain: make(map[string]DomainRequestStats),
+	}
+
+	allAllowedDomains := make(map[string]bool)
+	allDeniedDomains := make(map[string]bool)
+
+	for _, file := range files {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Parsing %s", filepath.Base(file))))
+		}
+
+		analysis, err := parseFirewallLog(file, verbose)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse %s: %v", filepath.Base(file), err)))
+			}
+			continue
+		}
+
+		// Aggregate metrics
+		aggregated.TotalRequests += analysis.TotalRequests
+		aggregated.AllowedRequests += analysis.AllowedRequests
+		aggregated.DeniedRequests += analysis.DeniedRequests
+
+		// Collect unique domains
+		for _, domain := range analysis.AllowedDomains {
+			allAllowedDomains[domain] = true
+		}
+		for _, domain := range analysis.DeniedDomains {
+			allDeniedDomains[domain] = true
+		}
+
+		// Merge request stats by domain
+		for domain, stats := range analysis.RequestsByDomain {
+			existing := aggregated.RequestsByDomain[domain]
+			existing.Allowed += stats.Allowed
+			existing.Denied += stats.Denied
+			aggregated.RequestsByDomain[domain] = existing
+		}
+	}
+
+	// Convert sets to sorted slices
+	for domain := range allAllowedDomains {
+		aggregated.AllowedDomains = append(aggregated.AllowedDomains, domain)
+	}
+	for domain := range allDeniedDomains {
+		aggregated.DeniedDomains = append(aggregated.DeniedDomains, domain)
+	}
+
+	sort.Strings(aggregated.AllowedDomains)
+	sort.Strings(aggregated.DeniedDomains)
+
+	return aggregated, nil
+}
+
+// sanitizeWorkflowName sanitizes a workflow name for use in file paths
+// This mirrors the JavaScript implementation
+func sanitizeWorkflowName(name string) string {
+	name = strings.ToLower(name)
+	name = strings.ReplaceAll(name, ":", "-")
+	name = strings.ReplaceAll(name, "\\", "-")
+	name = strings.ReplaceAll(name, "/", "-")
+	name = strings.ReplaceAll(name, " ", "-")
+	
+	// Replace any other non-alphanumeric characters (except . _ -) with "-"
+	re := regexp.MustCompile(`[^a-z0-9._-]`)
+	name = re.ReplaceAllString(name, "-")
+	
+	return name
+}
