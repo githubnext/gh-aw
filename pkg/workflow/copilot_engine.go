@@ -211,11 +211,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Get allowed domains (copilot defaults + network permissions) with specific ordering
 		allowedDomains := GetCopilotAllowedDomains(workflowData.NetworkPermissions)
 
+		// Properly escape shell arguments using shell helper functions
 		command = fmt.Sprintf(`set -o pipefail
 sudo -E awf --env-all \
   --allow-domains %s \
   --log-level %s \
-  '%s' \
+  %s \
   2>&1 | tee %s
 
 # Move preserved Copilot logs to expected location
@@ -225,7 +226,7 @@ if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   sudo mkdir -p %s
   sudo mv "$COPILOT_LOGS_DIR"/* %s || true
   sudo rmdir "$COPILOT_LOGS_DIR" || true
-fi`, allowedDomains, awfLogLevel, copilotCommand, logFile, logsFolder, logsFolder, logsFolder)
+fi`, shellEscapeArg(allowedDomains), shellEscapeArg(awfLogLevel), copilotCommand, shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder))
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail
