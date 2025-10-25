@@ -703,3 +703,79 @@ This workflow appends a suffix to commit titles.
 		t.Errorf("Generated workflow should contain commit title suffix configuration")
 	}
 }
+
+func TestPushToPullRequestBranchWithWorkingDirectory(t *testing.T) {
+// Create a temporary directory for the test
+tmpDir := t.TempDir()
+
+// Create a test markdown file with push-to-pull-request-branch configuration
+testMarkdown := `---
+on:
+  pull_request:
+    types: [opened]
+safe-outputs:
+  push-to-pull-request-branch:
+---
+
+# Test Push to PR Branch with Working Directory
+
+Test that the push-to-pull-request-branch job includes working-directory configuration.
+`
+
+// Write the test file
+mdFile := filepath.Join(tmpDir, "test-push-working-dir.md")
+if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+t.Fatalf("Failed to write test markdown file: %v", err)
+}
+
+// Create compiler and compile the workflow
+compiler := NewCompiler(false, "", "test")
+
+if err := compiler.CompileWorkflow(mdFile); err != nil {
+t.Fatalf("Failed to compile workflow: %v", err)
+}
+
+// Read the generated .lock.yml file
+lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+lockContent, err := os.ReadFile(lockFile)
+if err != nil {
+t.Fatalf("Failed to read lock file: %v", err)
+}
+
+lockContentStr := string(lockContent)
+
+// Verify that push_to_pull_request_branch job is generated
+if !strings.Contains(lockContentStr, "push_to_pull_request_branch:") {
+t.Errorf("Generated workflow should contain push_to_pull_request_branch job")
+}
+
+// Verify that working-directory is set to ${{ github.workspace }}
+if !strings.Contains(lockContentStr, "working-directory: ${{ github.workspace }}") {
+t.Errorf("Generated workflow should contain working-directory: ${{ github.workspace }}\nGenerated workflow:\n%s", lockContentStr)
+}
+
+// Verify that the working-directory comes after github-token in the with section
+githubTokenIdx := strings.Index(lockContentStr, "github-token:")
+workingDirIdx := strings.Index(lockContentStr, "working-directory:")
+scriptIdx := strings.Index(lockContentStr, "script: |")
+
+if githubTokenIdx == -1 {
+t.Error("github-token not found in generated workflow")
+}
+if workingDirIdx == -1 {
+t.Error("working-directory not found in generated workflow")
+}
+if scriptIdx == -1 {
+t.Error("script section not found in generated workflow")
+}
+
+// Verify order: github-token comes before working-directory, which comes before script
+if githubTokenIdx != -1 && workingDirIdx != -1 && scriptIdx != -1 {
+if githubTokenIdx > workingDirIdx {
+t.Error("github-token should come before working-directory in the 'with' section")
+}
+if workingDirIdx > scriptIdx {
+t.Error("working-directory should come before script in the 'with' section")
+}
+}
+}

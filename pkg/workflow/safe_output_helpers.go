@@ -36,6 +36,10 @@ type GitHubScriptStepConfig struct {
 	// This should be true for Copilot-related operations like creating agent tasks,
 	// assigning copilot to issues, or adding copilot as PR reviewer
 	UseCopilotToken bool
+
+	// WorkingDirectory specifies the working directory for the GitHub Script action
+	// This is necessary for scripts that execute git commands or need to access repository files
+	WorkingDirectory string
 }
 
 // buildGitHubScriptStep creates a GitHub Script step with common scaffolding
@@ -71,6 +75,12 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 	} else {
 		c.addSafeOutputGitHubTokenForConfig(&steps, data, config.Token)
 	}
+	
+	// Add working-directory if specified (required for scripts that execute git commands)
+	if config.WorkingDirectory != "" {
+		steps = append(steps, fmt.Sprintf("          working-directory: %s\n", config.WorkingDirectory))
+	}
+	
 	steps = append(steps, "          script: |\n")
 
 	// Add the formatted JavaScript script
