@@ -124,12 +124,13 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 
 	// Build the GitHub Script step using the common helper
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Upload Assets to Orphaned Branch",
-		StepID:        "upload_assets",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        uploadAssetsScript,
-		Token:         token,
+		StepName:         "Upload Assets to Orphaned Branch",
+		StepID:           "upload_assets",
+		MainJobName:      mainJobName,
+		CustomEnvVars:    customEnvVars,
+		Script:           uploadAssetsScript,
+		Token:            token,
+		WorkingDirectory: "${{ github.workspace }}",
 	})
 	steps = append(steps, scriptSteps...)
 
