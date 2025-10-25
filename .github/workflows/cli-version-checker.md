@@ -17,7 +17,7 @@ imports:
 tools:
   web-fetch:
   cache-memory: true
-  bash:
+  bash: ["*"]
   edit:
 safe-outputs:
   create-issue:
