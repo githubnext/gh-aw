@@ -14,7 +14,6 @@
 #   create_issue["create_issue"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
-#   update_reaction["update_reaction"]
 #   agent --> add_comment
 #   create_issue --> add_comment
 #   detection --> add_comment
@@ -24,11 +23,6 @@
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
-#   agent --> update_reaction
-#   activation --> update_reaction
-#   create_issue --> update_reaction
-#   add_comment --> update_reaction
-#   missing_tool --> update_reaction
 # ```
 
 name: "CI Failure Doctor"
@@ -4512,141 +4506,5 @@ jobs:
             main().catch(error => {
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
-            });
-
-  update_reaction:
-    needs:
-      - agent
-      - activation
-      - create_issue
-      - add_comment
-      - missing_tool
-    if: >
-      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!contains(needs.agent.outputs.output_types, 'add_comment'))) &&
-      (!contains(needs.agent.outputs.output_types, 'create_pull_request'))) && (!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
-    steps:
-      - name: Debug job inputs
-        env:
-          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
-          AGENT_CONCLUSION: ${{ needs.agent.result }}
-        run: |
-          echo "Comment ID: $COMMENT_ID"
-          echo "Comment Repo: $COMMENT_REPO"
-          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
-          echo "Agent Conclusion: $AGENT_CONCLUSION"
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
-      - name: Update reaction comment with completion status
-        id: update_reaction
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
-          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            async function main() {
-              const commentId = process.env.GH_AW_COMMENT_ID;
-              const commentRepo = process.env.GH_AW_COMMENT_REPO;
-              const runUrl = process.env.GH_AW_RUN_URL;
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
-              core.info(`Comment ID: ${commentId}`);
-              core.info(`Comment Repo: ${commentRepo}`);
-              core.info(`Run URL: ${runUrl}`);
-              core.info(`Workflow Name: ${workflowName}`);
-              core.info(`Agent Conclusion: ${agentConclusion}`);
-              if (!commentId) {
-                core.info("No comment ID found, skipping comment update");
-                return;
-              }
-              if (!runUrl) {
-                core.setFailed("Run URL is required");
-                return;
-              }
-              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
-              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
-              core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              let statusEmoji = "❌";
-              let statusText = "failed";
-              let message;
-              if (agentConclusion === "success") {
-                statusEmoji = "✅";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) completed successfully.`;
-              } else if (agentConclusion === "cancelled") {
-                statusEmoji = "🚫";
-                statusText = "was cancelled";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              } else if (agentConclusion === "skipped") {
-                statusEmoji = "⏭️";
-                statusText = "was skipped";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              } else if (agentConclusion === "timed_out") {
-                statusEmoji = "⏱️";
-                statusText = "timed out";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              } else {
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              }
-              const isDiscussionComment = commentId.startsWith("DC_");
-              try {
-                if (isDiscussionComment) {
-                  const result = await github.graphql(
-                    `
-                    mutation($commentId: ID!, $body: String!) {
-                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
-                        comment {
-                          id
-                          url
-                        }
-                      }
-                    }`,
-                    { commentId: commentId, body: message }
-                  );
-                  const comment = result.updateDiscussionComment.comment;
-                  core.info(`Successfully updated discussion comment`);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                } else {
-                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    body: message,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully updated comment`);
-                  core.info(`Comment ID: ${response.data.id}`);
-                  core.info(`Comment URL: ${response.data.html_url}`);
-                }
-              } catch (error) {
-                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
