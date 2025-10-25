@@ -148,22 +148,29 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		}
 
 		for i, assignee := range data.SafeOutputs.CreateIssues.Assignees {
-			// Special handling: "copilot" should be passed as "@copilot" to gh CLI
-			actualAssignee := assignee
+			// Special handling: "copilot" uses the GitHub API with "copilot[bot]"
+			// because gh issue edit --add-assignee does not support @copilot
 			if assignee == "copilot" {
-				actualAssignee = "@copilot"
+				steps = append(steps, fmt.Sprintf("      - name: Assign issue to %s\n", assignee))
+				steps = append(steps, "        if: steps.create_issue.outputs.issue_number != ''\n")
+				steps = append(steps, "        env:\n")
+				steps = append(steps, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
+				steps = append(steps, "          ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}\n")
+				steps = append(steps, "        run: |\n")
+				steps = append(steps, "          gh api --method POST /repos/${{ github.repository }}/issues/$ISSUE_NUMBER/assignees \\\n")
+				steps = append(steps, "            -f 'assignees[]=copilot[bot]'\n")
+			} else {
+				steps = append(steps, fmt.Sprintf("      - name: Assign issue to %s\n", assignee))
+				steps = append(steps, "        if: steps.create_issue.outputs.issue_number != ''\n")
+				steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+				steps = append(steps, "        env:\n")
+				steps = append(steps, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
+				steps = append(steps, fmt.Sprintf("          ASSIGNEE: %q\n", assignee))
+				steps = append(steps, "          ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}\n")
+				steps = append(steps, "        with:\n")
+				steps = append(steps, "          script: |\n")
+				steps = append(steps, FormatJavaScriptForYAML(assignIssueScript)...)
 			}
-
-			steps = append(steps, fmt.Sprintf("      - name: Assign issue to %s\n", assignee))
-			steps = append(steps, "        if: steps.create_issue.outputs.issue_number != ''\n")
-			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-			steps = append(steps, "        env:\n")
-			steps = append(steps, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
-			steps = append(steps, fmt.Sprintf("          ASSIGNEE: %q\n", actualAssignee))
-			steps = append(steps, "          ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}\n")
-			steps = append(steps, "        with:\n")
-			steps = append(steps, "          script: |\n")
-			steps = append(steps, FormatJavaScriptForYAML(assignIssueScript)...)
 
 			// Add a comment after each assignee step except the last
 			if i < len(data.SafeOutputs.CreateIssues.Assignees)-1 {

@@ -221,7 +221,7 @@ func TestCreateIssueJobWithCopilotAssignee(t *testing.T) {
 	// Create a compiler instance
 	c := NewCompiler(false, "", "test")
 
-	// Test with "copilot" as assignee (should be mapped to "@copilot")
+	// Test with "copilot" as assignee (should use GitHub API with copilot[bot])
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
@@ -244,14 +244,23 @@ func TestCreateIssueJobWithCopilotAssignee(t *testing.T) {
 		t.Error("Expected assignee step name to show 'copilot'")
 	}
 
-	// Check that the actual assignee is "@copilot" (gh CLI special value)
-	if !strings.Contains(stepsContent, `ASSIGNEE: "@copilot"`) {
-		t.Error("Expected ASSIGNEE environment variable to be set to '@copilot'")
+	// Check that it uses the GitHub API (not gh issue edit or actions/github-script)
+	if !strings.Contains(stepsContent, "gh api --method POST") {
+		t.Error("Expected GitHub API call for copilot assignee")
 	}
 
-	// Verify that the original "copilot" without @ is NOT used as assignee
-	if strings.Contains(stepsContent, `ASSIGNEE: "copilot"`) && !strings.Contains(stepsContent, `ASSIGNEE: "@copilot"`) {
-		t.Error("Expected 'copilot' to be mapped to '@copilot', not used directly")
+	// Check that it uses the correct API endpoint and bot name
+	if !strings.Contains(stepsContent, "/assignees") {
+		t.Error("Expected /assignees API endpoint")
+	}
+
+	if !strings.Contains(stepsContent, "copilot[bot]") {
+		t.Error("Expected copilot[bot] as the assignee")
+	}
+
+	// Check that ISSUE_NUMBER environment variable is used
+	if !strings.Contains(stepsContent, "ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}") {
+		t.Error("Expected ISSUE_NUMBER to be set from create_issue step output")
 	}
 
 	// Find the assignee step section (after "Assign issue to copilot")
@@ -265,6 +274,16 @@ func TestCreateIssueJobWithCopilotAssignee(t *testing.T) {
 	nextStepIndex := strings.Index(assigneeStepContent[len("Assign issue to copilot"):], "- name:")
 	if nextStepIndex != -1 {
 		assigneeStepContent = assigneeStepContent[:len("Assign issue to copilot")+nextStepIndex]
+	}
+
+	// Verify that gh issue edit is NOT used for copilot within the assignee step
+	if strings.Contains(assigneeStepContent, "gh issue edit") {
+		t.Error("Should not use gh issue edit for copilot assignee")
+	}
+
+	// Verify that actions/github-script is NOT used for copilot within the assignee step
+	if strings.Contains(assigneeStepContent, "actions/github-script") {
+		t.Error("Should not use actions/github-script for copilot assignee")
 	}
 
 	// Verify that GH_TOKEN uses Copilot token precedence without GITHUB_TOKEN fallback in assignee step
