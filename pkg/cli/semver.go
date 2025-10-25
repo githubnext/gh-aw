@@ -6,6 +6,12 @@ import (
 	"strings"
 )
 
+// Pre-compiled regexes for semantic version parsing (performance optimization)
+var (
+	semverPattern      = regexp.MustCompile(`^v?\d+(\.\d+)*(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$`)
+	semverParsePattern = regexp.MustCompile(`^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([a-zA-Z0-9.]+))?`)
+)
+
 // semanticVersion represents a parsed semantic version
 type semanticVersion struct {
 	major int
@@ -18,7 +24,6 @@ type semanticVersion struct {
 // isSemanticVersionTag checks if a ref string looks like a semantic version tag
 func isSemanticVersionTag(ref string) bool {
 	// Match v1.0.0, v1.0, 1.0.0, etc.
-	semverPattern := regexp.MustCompile(`^v?\d+(\.\d+)*(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$`)
 	return semverPattern.MatchString(ref)
 }
 
@@ -28,8 +33,7 @@ func parseVersion(v string) *semanticVersion {
 	v = strings.TrimPrefix(v, "v")
 
 	// Match semantic version pattern
-	re := regexp.MustCompile(`^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([a-zA-Z0-9.]+))?`)
-	matches := re.FindStringSubmatch(v)
+	matches := semverParsePattern.FindStringSubmatch(v)
 	if matches == nil {
 		return nil
 	}

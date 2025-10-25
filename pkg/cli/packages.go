@@ -13,6 +13,11 @@ import (
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
+// Pre-compiled regexes for package processing (performance optimization)
+var (
+	includePattern = regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
+)
+
 // InstallPackage installs agentic workflows from a GitHub repository
 func InstallPackage(repoSpec string, verbose bool) error {
 	if verbose {
@@ -351,8 +356,6 @@ func collectPackageIncludeDependencies(content, packagePath string, verbose bool
 
 // collectPackageIncludesRecursive recursively processes @include directives in package content
 func collectPackageIncludesRecursive(content, baseDir string, dependencies *[]IncludeDependency, seen map[string]bool, verbose bool) error {
-	includePattern := regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
-
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	for scanner.Scan() {
 		line := scanner.Text()
