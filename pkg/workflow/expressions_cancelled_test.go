@@ -29,7 +29,7 @@ func TestBuildSafeOutputTypeWithCancelled(t *testing.T) {
 			outputType: "create_issue",
 			min:        0,
 			expectedContains: []string{
-				"!(cancelled())",
+				"!cancelled()",
 				"contains(needs.agent.outputs.output_types, 'create_issue')",
 			},
 			unexpectedContains: []string{
@@ -37,11 +37,11 @@ func TestBuildSafeOutputTypeWithCancelled(t *testing.T) {
 			},
 		},
 		{
-			name:       "min>0 should use !cancelled() without contains check",
+			name:       "min>0 should use (!cancelled()) without contains check",
 			outputType: "create_issue",
 			min:        1,
 			expectedContains: []string{
-				"!(cancelled())",
+				"(!cancelled())",
 			},
 			unexpectedContains: []string{
 				"always()",
@@ -53,7 +53,7 @@ func TestBuildSafeOutputTypeWithCancelled(t *testing.T) {
 			outputType: "push_to_pull_request_branch",
 			min:        0,
 			expectedContains: []string{
-				"!(cancelled())",
+				"!cancelled()",
 				"contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')",
 			},
 			unexpectedContains: []string{
