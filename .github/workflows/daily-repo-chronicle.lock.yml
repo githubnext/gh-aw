@@ -958,7 +958,10 @@ jobs:
                   "get_issue",
                   "search_issues",
                   "search_pull_requests",
-                  "list_discussions"
+                  "list_discussions",
+                  "list_workflows",
+                  "list_workflow_runs",
+                  "download_workflow_run_artifact"
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
@@ -1018,6 +1021,13 @@ jobs:
           ### 💻 COMMIT CHRONICLES  
           Tell the story through commits - the late-night pushes, the refactoring efforts, the quick fixes. Paint the picture of developer activity.
           
+          ### 🔥 FIREWALL WATCH
+          Report on network security events from the past 24 hours. Check for any firewall-enabled workflows that ran and summarize:
+          - Domains that were blocked or allowed
+          - Notable patterns in network access
+          - Any security insights from the firewall logs
+          If no firewall data is available, briefly note that all was quiet on the security front.
+          
           ### 📈 THE NUMBERS
           End with a brief statistical snapshot, but keep it snappy.
           
@@ -1037,14 +1047,22 @@ jobs:
              - Issues (opened, closed, comments)
              - Commits to main branches
           
-          2. Create a discussion with your newspaper-style report using the `create-discussion` safe output format:
+          2. Collect firewall events from the last 24 hours:
+             - List all workflows in the repository
+             - Identify workflows with firewall feature enabled
+             - Get workflow runs from the past 24 hours
+             - Download firewall logs artifacts (named `squid-logs-{workflow-name}`)
+             - Parse logs to identify blocked and allowed domains
+             - Summarize key security events
+          
+          3. Create a discussion with your newspaper-style report using the `create-discussion` safe output format:
              ```
              TITLE: Repository Chronicle - [Catchy headline from top story]
              
              BODY: Your dramatic newspaper content
              ```
           
-          3. If there's no activity, write a "Quiet Day" edition acknowledging the calm.
+          4. If there's no activity, write a "Quiet Day" edition acknowledging the calm.
           
           Remember: You're a newspaper editor, not a bot. Make it engaging! 📰
           
@@ -1249,15 +1267,30 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
+        # --allow-tool github(download_workflow_run_artifact)
         # --allow-tool github(get_issue)
         # --allow-tool github(get_pull_request)
         # --allow-tool github(list_commits)
         # --allow-tool github(list_discussions)
         # --allow-tool github(list_issues)
         # --allow-tool github(list_pull_requests)
+        # --allow-tool github(list_workflow_runs)
+        # --allow-tool github(list_workflows)
         # --allow-tool github(search_issues)
         # --allow-tool github(search_pull_requests)
         # --allow-tool safeoutputs
+        # --allow-tool shell(cat)
+        # --allow-tool shell(date)
+        # --allow-tool shell(echo)
+        # --allow-tool shell(grep)
+        # --allow-tool shell(head)
+        # --allow-tool shell(ls)
+        # --allow-tool shell(pwd)
+        # --allow-tool shell(sort)
+        # --allow-tool shell(tail)
+        # --allow-tool shell(uniq)
+        # --allow-tool shell(wc)
+        # --allow-tool shell(yq)
         timeout-minutes: 20
         run: |
           set -o pipefail
@@ -1266,7 +1299,7 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(get_issue)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_pull_requests)' --allow-tool safeoutputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_pull_requests)' --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
