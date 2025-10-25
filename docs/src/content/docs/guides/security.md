@@ -249,6 +249,12 @@ Workflows use a hierarchical token precedence system that allows you to configur
 
 This allows you to set a default token for the entire workflow while still allowing specific safe-outputs to use different tokens when needed.
 
+:::tip[Automatic Secret Validation]
+All `github-token` fields are automatically validated during compilation to ensure they use GitHub Actions secret expressions (e.g., `${{ secrets.CUSTOM_PAT }}`). This prevents accidental plaintext secret leakage in workflow files.
+
+If you specify a plaintext token like `ghp_1234...` or use an environment variable like `${{ env.MY_TOKEN }}`, compilation will fail with a clear error message.
+:::
+
 #### Token Configuration Examples
 
 **Top-level token for entire workflow:**

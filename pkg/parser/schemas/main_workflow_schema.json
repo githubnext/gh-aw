@@ -58,7 +58,16 @@
                         {
                           "type": "string",
                           "description": "Single event name or '*' for all events. Use GitHub Actions event names: 'issues', 'issue_comment', 'pull_request_comment', 'pull_request', 'pull_request_review_comment', 'discussion', 'discussion_comment'.",
-                          "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"]
+                          "enum": [
+                            "*",
+                            "issues",
+                            "issue_comment",
+                            "pull_request_comment",
+                            "pull_request",
+                            "pull_request_review_comment",
+                            "discussion",
+                            "discussion_comment"
+                          ]
                         },
                         {
                           "type": "array",
@@ -66,7 +75,16 @@
                           "items": {
                             "type": "string",
                             "description": "GitHub Actions event name.",
-                            "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"]
+                            "enum": [
+                              "*",
+                              "issues",
+                              "issue_comment",
+                              "pull_request_comment",
+                              "pull_request",
+                              "pull_request_review_comment",
+                              "discussion",
+                              "discussion_comment"
+                            ]
                           }
                         }
                       ]
@@ -1279,11 +1297,13 @@
               "description": "The name of the environment configured in the repo"
             },
             "url": {
-              "type": "string", 
+              "type": "string",
               "description": "A deployment URL"
             }
           },
-          "required": ["name"],
+          "required": [
+            "name"
+          ],
           "additionalProperties": false
         }
       ]
@@ -1349,7 +1369,9 @@
               "description": "Additional Docker container options"
             }
           },
-          "required": ["image"],
+          "required": [
+            "image"
+          ],
           "additionalProperties": false
         }
       ]
@@ -1417,7 +1439,9 @@
                 "description": "Additional Docker container options"
               }
             },
-            "required": ["image"],
+            "required": [
+              "image"
+            ],
             "additionalProperties": false
           }
         ]
@@ -1458,7 +1482,9 @@
                 },
                 {
                   "type": "string",
-                  "enum": ["disable"],
+                  "enum": [
+                    "disable"
+                  ],
                   "description": "Disable AWF firewall (triggers warning if allowed != *, error in strict mode if allowed is not * or engine does not support firewall)"
                 },
                 {
@@ -1585,7 +1611,10 @@
                 },
                 "mode": {
                   "type": "string",
-                  "enum": ["local", "remote"],
+                  "enum": [
+                    "local",
+                    "remote"
+                  ],
                   "description": "MCP server mode: 'local' (Docker-based, default) or 'remote' (hosted at api.githubcopilot.com)"
                 },
                 "version": {
@@ -1604,7 +1633,7 @@
                   "description": "Enable read-only mode to restrict GitHub MCP server to read-only operations only"
                 },
                 "github-token": {
-                  "type": "string",
+                  "$ref": "#/$defs/github_token",
                   "description": "Optional custom GitHub token (e.g., '${{ secrets.CUSTOM_PAT }}'). For 'remote' type, defaults to GH_AW_GITHUB_TOKEN if not specified."
                 },
                 "toolset": {
@@ -2033,7 +2062,7 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository issue creation. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
-                  "type": "string",
+                  "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
@@ -2072,7 +2101,7 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository agent task creation. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
-                  "type": "string",
+                  "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
@@ -2124,7 +2153,7 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository discussion creation. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
-                  "type": "string",
+                  "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
@@ -2163,7 +2192,7 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository comments. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
-                  "type": "string",
+                  "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "discussion": {
@@ -2231,7 +2260,7 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository pull request creation. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
-                  "type": "string",
+                  "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
@@ -2278,7 +2307,7 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository PR review comments. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
-                  "type": "string",
+                  "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
@@ -2312,7 +2341,7 @@
                   "description": "Driver name for SARIF tool.driver.name field (default: 'GitHub Agentic Workflows Security Scanner')"
                 },
                 "github-token": {
-                  "type": "string",
+                  "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
@@ -2361,7 +2390,7 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository label addition. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
-                  "type": "string",
+                  "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
@@ -2408,7 +2437,7 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository issue updates. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
-                  "type": "string",
+                  "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
@@ -2463,7 +2492,7 @@
                   "description": "Optional suffix to append to generated commit titles (e.g., ' [skip ci]' to prevent triggering CI on the commit)"
                 },
                 "github-token": {
-                  "type": "string",
+                  "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
@@ -2489,7 +2518,7 @@
                   "maximum": 100
                 },
                 "github-token": {
-                  "type": "string",
+                  "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
@@ -2545,7 +2574,7 @@
                   "maximum": 100
                 },
                 "github-token": {
-                  "type": "string",
+                  "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
@@ -2573,7 +2602,7 @@
           "additionalProperties": false
         },
         "github-token": {
-          "type": "string",
+          "$ref": "#/$defs/github_token",
           "description": "GitHub token to use for safe output jobs. Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}"
         },
         "max-patch-size": {
@@ -2672,7 +2701,7 @@
                   "$ref": "#/properties/permissions"
                 },
                 "github-token": {
-                  "type": "string",
+                  "$ref": "#/$defs/github_token",
                   "description": "GitHub token for this specific job"
                 },
                 "output": {
@@ -2744,14 +2773,14 @@
       "additionalProperties": false
     },
     "roles": {
-      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
+      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
       "oneOf": [
         {
           "type": "string",
           "enum": [
             "all"
           ],
-          "description": "Allow any authenticated user to trigger the workflow (⚠️ disables permission checking entirely - use with caution)"
+          "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
         },
         {
           "type": "array",
@@ -2880,7 +2909,7 @@
       "additionalProperties": false
     },
     "github-token": {
-      "type": "string",
+      "$ref": "#/$defs/github_token",
       "description": "GitHub token expression to use for all steps that require GitHub authentication. Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}. If not specified, defaults to ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}. This value can be overridden by safe-outputs github-token or individual safe-output github-token fields."
     }
   },
@@ -2943,7 +2972,9 @@
                       "description": "Whether to cancel in-progress runs of the same concurrency group. Defaults to false for agentic workflow runs."
                     }
                   },
-                  "required": ["group"],
+                  "required": [
+                    "group"
+                  ],
                   "additionalProperties": false
                 }
               ],
@@ -3190,6 +3221,16 @@
         "url"
       ],
       "additionalProperties": false
+    },
+    "github_token": {
+      "type": "string",
+      "pattern": "^\\$\\{\\{\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*(\\s*\\|\\|\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*)*\\s*\\}\\}$",
+      "description": "GitHub token expression using secrets. Pattern details: `[A-Za-z_][A-Za-z0-9_]*` matches a valid secret name (starts with a letter or underscore, followed by letters, digits, or underscores). The full pattern matches expressions like `${{ secrets.NAME }}` or `${{ secrets.NAME1 || secrets.NAME2 }}`.",
+      "examples": [
+        "${{ secrets.GITHUB_TOKEN }}",
+        "${{ secrets.CUSTOM_PAT }}",
+        "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+      ]
     }
   }
 }
