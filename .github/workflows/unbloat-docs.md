@@ -12,9 +12,6 @@ on:
   
   # Manual trigger for testing
   workflow_dispatch:
-  
-  # Execution deadline (based on avg 6.8min runtime)
-  stop-after: +10m
 
 # Minimal permissions - safe-outputs handles write operations
 permissions:

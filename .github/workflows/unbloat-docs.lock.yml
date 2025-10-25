@@ -3,8 +3,6 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Effective stop-time: 2025-10-25 18:10:05
-#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -5030,7 +5028,7 @@ jobs:
       (github.event.issue.pull_request != null)))) || (!(github.event_name == 'issue_comment'))
     runs-on: ubuntu-latest
     outputs:
-      activated: ${{ ((steps.check_membership.outputs.is_team_member == 'true') && (steps.check_stop_time.outputs.stop_time_ok == 'true')) && (steps.check_command_position.outputs.command_position_ok == 'true') }}
+      activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
     steps:
       - name: Check team membership for command workflow
         id: check_membership
@@ -5104,42 +5102,6 @@ jobs:
                 core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
                 return;
               }
-            }
-            await main();
-      - name: Check stop-time limit
-        id: check_stop_time
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        env:
-          GH_AW_STOP_TIME: 2025-10-25 18:10:05
-          GH_AW_WORKFLOW_NAME: "Documentation Unbloat"
-        with:
-          script: |
-            async function main() {
-              const stopTime = process.env.GH_AW_STOP_TIME;
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME;
-              if (!stopTime) {
-                core.setFailed("Configuration error: GH_AW_STOP_TIME not specified.");
-                return;
-              }
-              if (!workflowName) {
-                core.setFailed("Configuration error: GH_AW_WORKFLOW_NAME not specified.");
-                return;
-              }
-              core.info(`Checking stop-time limit: ${stopTime}`);
-              const stopTimeDate = new Date(stopTime);
-              if (isNaN(stopTimeDate.getTime())) {
-                core.setFailed(`Invalid stop-time format: ${stopTime}. Expected format: YYYY-MM-DD HH:MM:SS`);
-                return;
-              }
-              const currentTime = new Date();
-              core.info(`Current time: ${currentTime.toISOString()}`);
-              core.info(`Stop time: ${stopTimeDate.toISOString()}`);
-              if (currentTime >= stopTimeDate) {
-                core.warning(`⏰ Stop time reached. Workflow execution will be prevented by activation job.`);
-                core.setOutput("stop_time_ok", "false");
-                return;
-              }
-              core.setOutput("stop_time_ok", "true");
             }
             await main();
       - name: Check command position
