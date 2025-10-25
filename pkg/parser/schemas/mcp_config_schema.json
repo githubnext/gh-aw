@@ -21,7 +21,7 @@
     },
     "container": {
       "type": "string",
-      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
       "description": "Container image for stdio MCP connections (alternative to command)"
     },
     "args": {
