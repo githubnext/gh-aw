@@ -8,6 +8,9 @@ permissions:
   contents: read
   actions: read
 engine: copilot
+tools:
+  github:
+    toolset: [default, discussions]
 safe-outputs:
   create-issue:
     title-prefix: "[task] "
