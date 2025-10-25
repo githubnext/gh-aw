@@ -4125,37 +4125,68 @@ jobs:
               fi
             done < "$GH_AW_SAFE_OUTPUTS"
           fi
-          # If no branch or branch doesn't exist, no patch
-          if [ -z "$BRANCH_NAME" ]; then
-            echo "No branch found, no patch generation"
-          fi
-          # If we have a branch name, check if that branch exists and get its diff
+          # Determine which branch to use for patch generation
+          TARGET_BRANCH=""
           if [ -n "$BRANCH_NAME" ]; then
-            echo "Looking for branch: $BRANCH_NAME"
-            # Check if the branch exists
+            echo "Branch name from safe-outputs: $BRANCH_NAME"
+            # Check if the branch exists locally
             if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
-              echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
-              # Check if origin/$BRANCH_NAME exists to use as base
-              if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
-                echo "Using origin/$BRANCH_NAME as base for patch generation"
-                BASE_REF="origin/$BRANCH_NAME"
-              else
-                echo "origin/$BRANCH_NAME does not exist, using merge-base with default branch"
-                # Get the default branch name
-                DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
-                echo "Default branch: $DEFAULT_BRANCH"
-                # Fetch the default branch to ensure it's available locally
-                git fetch origin $DEFAULT_BRANCH
-                # Find merge base between default branch and current branch
-                BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)
-                echo "Using merge-base as base: $BASE_REF"
-              fi
-              # Generate patch from the determined base to the branch
-              git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from branch" > /tmp/gh-aw/aw.patch
-              echo "Patch file created from branch: $BRANCH_NAME (base: $BASE_REF)"
+              echo "Branch $BRANCH_NAME exists locally"
+              TARGET_BRANCH="$BRANCH_NAME"
             else
-              echo "Branch $BRANCH_NAME does not exist, no patch"
+              echo "Branch $BRANCH_NAME does not exist locally, falling back to current HEAD"
+              # Get the current branch name
+              CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+              if [ "$CURRENT_BRANCH" != "HEAD" ]; then
+                echo "Using current branch: $CURRENT_BRANCH"
+                TARGET_BRANCH="$CURRENT_BRANCH"
+              else
+                echo "Warning: Detached HEAD state, using HEAD directly"
+                TARGET_BRANCH="HEAD"
+              fi
             fi
+          else
+            echo "No branch name found in safe-outputs, using current branch"
+            # Get the current branch name
+            CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+            if [ "$CURRENT_BRANCH" != "HEAD" ]; then
+              echo "Using current branch: $CURRENT_BRANCH"
+              TARGET_BRANCH="$CURRENT_BRANCH"
+            else
+              echo "Warning: Detached HEAD state, using HEAD directly"
+              TARGET_BRANCH="HEAD"
+            fi
+          fi
+          # Generate patch if we have a target branch
+          if [ -n "$TARGET_BRANCH" ]; then
+            echo "Generating patch for: $TARGET_BRANCH"
+            # Determine the base ref for patch generation
+            if [ "$TARGET_BRANCH" = "HEAD" ]; then
+              # For detached HEAD, use merge-base with default branch
+              DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+              echo "Default branch: $DEFAULT_BRANCH"
+              git fetch origin $DEFAULT_BRANCH
+              BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH HEAD)
+              echo "Using merge-base as base: $BASE_REF"
+            elif git show-ref --verify --quiet refs/remotes/origin/$TARGET_BRANCH; then
+              echo "Using origin/$TARGET_BRANCH as base for patch generation"
+              BASE_REF="origin/$TARGET_BRANCH"
+            else
+              echo "origin/$TARGET_BRANCH does not exist, using merge-base with default branch"
+              # Get the default branch name
+              DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+              echo "Default branch: $DEFAULT_BRANCH"
+              # Fetch the default branch to ensure it's available locally
+              git fetch origin $DEFAULT_BRANCH
+              # Find merge base between default branch and current branch
+              BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $TARGET_BRANCH)
+              echo "Using merge-base as base: $BASE_REF"
+            fi
+            # Generate patch from the determined base to the target
+            git format-patch "$BASE_REF".."$TARGET_BRANCH" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from branch" > /tmp/gh-aw/aw.patch
+            echo "Patch file created from: $TARGET_BRANCH (base: $BASE_REF)"
+          else
+            echo "No target branch determined, no patch generation"
           fi
           # Show patch info if it exists
           if [ -f /tmp/gh-aw/aw.patch ]; then
