@@ -774,76 +774,76 @@ func TestResolveRelativeDate(t *testing.T) {
 			expected: "2024-01-01",
 		},
 		{
-			name:     "negative 1 day (date only)",
+			name:     "negative 1 day (returns timestamp)",
 			input:    "-1d",
 			baseTime: baseTime,
-			expected: "2024-08-14", // August 14, 2024 (date only, no hours)
+			expected: "2024-08-14T12:00:00Z", // Full timestamp now
 		},
 		{
-			name:     "negative 1 week",
+			name:     "negative 1 week (returns timestamp)",
 			input:    "-1w",
 			baseTime: baseTime,
-			expected: "2024-08-08", // August 8, 2024
+			expected: "2024-08-08T12:00:00Z", // Full timestamp now
 		},
 		{
-			name:     "negative 1 month",
+			name:     "negative 1 month (returns timestamp)",
 			input:    "-1mo",
 			baseTime: baseTime,
-			expected: "2024-07-15", // July 15, 2024
+			expected: "2024-07-15T12:00:00Z", // Full timestamp now
 		},
 		{
-			name:     "positive 3 days",
+			name:     "positive 3 days (returns timestamp)",
 			input:    "+3d",
 			baseTime: baseTime,
-			expected: "2024-08-18", // August 18, 2024
+			expected: "2024-08-18T12:00:00Z", // Full timestamp now
 		},
 		{
-			name:     "complex negative delta (days only)",
+			name:     "complex negative delta (returns timestamp)",
 			input:    "-1mo2w3d",
 			baseTime: baseTime,
-			expected: "2024-06-28", // 1 month before Aug 15 = July 15, then 2 weeks = July 1, then 3 days = June 28
+			expected: "2024-06-28T12:00:00Z", // Full timestamp now
 		},
 		{
 			name:     "negative 24 hours (returns timestamp)",
 			input:    "-24h",
 			baseTime: baseTime,
-			expected: "2024-08-14T12:00:00Z", // Full timestamp preserved
+			expected: "2024-08-14T12:00:00Z",
 		},
 		{
 			name:     "negative 2 hours (returns timestamp)",
 			input:    "-2h",
 			baseTime: baseTime,
-			expected: "2024-08-15T10:00:00Z", // Full timestamp preserved
+			expected: "2024-08-15T10:00:00Z",
 		},
 		{
 			name:     "negative 1 day 12 hours (returns timestamp)",
 			input:    "-1d12h",
 			baseTime: baseTime,
-			expected: "2024-08-14T00:00:00Z", // Full timestamp preserved
+			expected: "2024-08-14T00:00:00Z",
 		},
 		{
 			name:     "negative 30 minutes (returns timestamp)",
 			input:    "-30m",
 			baseTime: baseTime,
-			expected: "2024-08-15T11:30:00Z", // Full timestamp preserved
+			expected: "2024-08-15T11:30:00Z",
 		},
 		{
 			name:     "complex with hours (returns timestamp)",
 			input:    "-2w3d5h",
 			baseTime: baseTime,
-			expected: "2024-07-29T07:00:00Z", // Full timestamp preserved (2 weeks + 3 days + 5 hours = 17 days 5 hours back)
+			expected: "2024-07-29T07:00:00Z",
 		},
 		{
 			name:     "edge case: late evening -24h",
 			input:    "-24h",
 			baseTime: time.Date(2024, 8, 15, 23, 45, 0, 0, time.UTC),
-			expected: "2024-08-14T23:45:00Z", // Precise 24h ago
+			expected: "2024-08-14T23:45:00Z",
 		},
 		{
 			name:     "edge case: early morning -24h",
 			input:    "-24h",
 			baseTime: time.Date(2024, 8, 15, 0, 15, 0, 0, time.UTC),
-			expected: "2024-08-14T00:15:00Z", // Precise 24h ago
+			expected: "2024-08-14T00:15:00Z",
 		},
 		{
 			name:        "invalid relative format",
