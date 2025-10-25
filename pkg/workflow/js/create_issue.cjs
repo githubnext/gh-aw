@@ -253,9 +253,9 @@ async function main() {
           // Link the child issue as a sub-issue of the parent
           core.info(`Executing addSubIssue mutation...`);
           const addSubIssueMutation = `
-            mutation($parentId: ID!, $subIssueId: ID!) {
+            mutation($issueId: ID!, $subIssueId: ID!) {
               addSubIssue(input: {
-                parentId: $parentId,
+                issueId: $issueId,
                 subIssueId: $subIssueId
               }) {
                 subIssue {
@@ -267,7 +267,7 @@ async function main() {
           `;
 
           await github.graphql(addSubIssueMutation, {
-            parentId: parentNodeId,
+            issueId: parentNodeId,
             subIssueId: childNodeId,
           });
 
