@@ -284,7 +284,7 @@ This workflow tests job generation for PR review comments.
 
 		// Verify job condition uses BuildSafeOutputType combined with pull request context
 		expectedConditionParts := []string{
-			"always()",
+			"!cancelled()",
 			"contains(needs.agent.outputs.output_types, 'create_pull_request_review_comment')",
 			"github.event.issue.number",
 			"github.event.issue.pull_request",

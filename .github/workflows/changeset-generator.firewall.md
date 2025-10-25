@@ -3,6 +3,7 @@ name: Changeset Generator
 on:
   pull_request:
     types: [ready_for_review]
+  workflow_dispatch:
   reaction: "rocket"
 if: github.event.pull_request.base.ref == github.event.repository.default_branch
 permissions:

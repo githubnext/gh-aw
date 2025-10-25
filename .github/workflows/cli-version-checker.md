@@ -6,9 +6,7 @@ on:
 permissions:
   contents: read
   actions: read
-engine:
-  id: claude
-  max-turns: 75
+engine: copilot
 network: 
    allowed: [defaults, node, "api.github.com", "ghcr.io"]
 imports:
@@ -17,17 +15,7 @@ tools:
   web-fetch:
   cache-memory: true
   bash:
-    - "cat *"
-    - "ls *"
-    - "grep *"
-    - "git *"
-    - "make *"
-    - "npm install *"
-    - "npm view *"
-    - "npm list *"
-    - "claude-code --help"
-    - "copilot --help"
-    - "codex --help"
+    - "*"
   edit:
 safe-outputs:
   create-issue:
