@@ -9,13 +9,18 @@ import (
 
 // TestCreateIssueSubissueFeature tests that the create_issue.js script includes subissue functionality
 func TestCreateIssueSubissueFeature(t *testing.T) {
-	// Test that the script contains the subissue detection logic
+	// Test that the script contains the subissue detection logic for issues
 	if !strings.Contains(createIssueScript, "context.payload?.issue?.number") {
 		t.Error("Expected create_issue.js to check for parent issue context")
 	}
 
+	// Test that the script contains the subissue detection logic for discussions
+	if !strings.Contains(createIssueScript, "context.payload?.discussion?.number") {
+		t.Error("Expected create_issue.js to check for parent discussion context")
+	}
+
 	// Test that the script modifies the body when in issue context
-	if !strings.Contains(createIssueScript, "Related to #${effectiveParentIssueNumber}") {
+	if !strings.Contains(createIssueScript, "Related to #${effectiveParentNumber}") {
 		t.Error("Expected create_issue.js to add parent issue reference to body")
 	}
 
@@ -24,9 +29,9 @@ func TestCreateIssueSubissueFeature(t *testing.T) {
 		t.Error("Expected create_issue.js to support explicit parent field")
 	}
 
-	// Test that the script uses effectiveParentIssueNumber
-	if !strings.Contains(createIssueScript, "effectiveParentIssueNumber") {
-		t.Error("Expected create_issue.js to use effectiveParentIssueNumber variable")
+	// Test that the script uses effectiveParentNumber
+	if !strings.Contains(createIssueScript, "effectiveParentNumber") {
+		t.Error("Expected create_issue.js to use effectiveParentNumber variable")
 	}
 
 	// Test that the script includes GraphQL sub-issue linking
@@ -55,7 +60,7 @@ func TestCreateIssueSubissueFeature(t *testing.T) {
 	}
 
 	// Test console logging for debugging
-	if !strings.Contains(createIssueScript, "Detected issue context, parent issue") {
+	if !strings.Contains(createIssueScript, "Detected issue or discussion context, parent") {
 		t.Error("Expected create_issue.js to log when issue context is detected")
 	}
 

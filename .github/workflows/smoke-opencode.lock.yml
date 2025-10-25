@@ -2251,6 +2251,8 @@ jobs:
                 return;
               }
               const parentIssueNumber = context.payload?.issue?.number;
+              const parentDiscussionNumber = context.payload?.discussion?.number;
+              const parentNumber = parentIssueNumber || parentDiscussionNumber;
               const triggeringIssueNumber =
                 context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
               const triggeringPRNumber =
@@ -2269,9 +2271,9 @@ jobs:
                 core.info(
                   `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
                 );
-                const effectiveParentIssueNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentIssueNumber;
-                if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
-                  core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
+                const effectiveParentNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentNumber;
+                if (effectiveParentNumber && createIssueItem.parent !== undefined) {
+                  core.info(`Using explicit parent number from item: #${effectiveParentNumber}`);
                 }
                 let labels = [...envLabels];
                 if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
@@ -2294,9 +2296,9 @@ jobs:
                 if (titlePrefix && !title.startsWith(titlePrefix)) {
                   title = titlePrefix + title;
                 }
-                if (effectiveParentIssueNumber) {
-                  core.info("Detected issue context, parent issue #" + effectiveParentIssueNumber);
-                  bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
+                if (effectiveParentNumber) {
+                  core.info("Detected issue or discussion context, parent #" + effectiveParentNumber);
+                  bodyLines.push(`Related to #${effectiveParentNumber}`);
                 }
                 const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
                 const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
@@ -2334,7 +2336,7 @@ jobs:
                   });
                   core.info("Created issue #" + issue.number + ": " + issue.html_url);
                   createdIssues.push(issue);
-                  if (effectiveParentIssueNumber) {
+                  if (effectiveParentNumber) {
                     try {
                       const getIssueNodeIdQuery = `
                         query($owner: String!, $repo: String!, $issueNumber: Int!) {
@@ -2348,7 +2350,7 @@ jobs:
                       const parentResult = await github.graphql(getIssueNodeIdQuery, {
                         owner: context.repo.owner,
                         repo: context.repo.repo,
-                        issueNumber: effectiveParentIssueNumber,
+                        issueNumber: effectiveParentNumber,
                       });
                       const parentNodeId = parentResult.repository.issue.id;
                       const childResult = await github.graphql(getIssueNodeIdQuery, {
@@ -2374,17 +2376,17 @@ jobs:
                         parentId: parentNodeId,
                         subIssueId: childNodeId,
                       });
-                      core.info("Linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
+                      core.info("Linked issue #" + issue.number + " as sub-issue of #" + effectiveParentNumber);
                     } catch (error) {
                       core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
                       try {
                         await github.rest.issues.createComment({
                           owner: context.repo.owner,
                           repo: context.repo.repo,
-                          issue_number: effectiveParentIssueNumber,
+                          issue_number: effectiveParentNumber,
                           body: `Created related issue: #${issue.number}`,
                         });
-                        core.info("Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
+                        core.info("Added comment to parent issue #" + effectiveParentNumber + " (sub-issue linking not available)");
                       } catch (commentError) {
                         core.info(
                           `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
