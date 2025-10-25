@@ -895,6 +895,33 @@ func TestValidateIncludedFileFrontmatterWithSchema(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid frontmatter with bash as boolean true",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"bash": true,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with bash as boolean false",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"bash": false,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with bash as null",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"bash": nil,
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "valid frontmatter with custom MCP tool",
 			frontmatter: map[string]any{
 				"tools": map[string]any{

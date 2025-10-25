@@ -59,6 +59,10 @@
               "description": "Enable bash tool with all shell commands allowed"
             },
             {
+              "type": "boolean",
+              "description": "Enable bash tool - true allows all commands (equivalent to ['*']), false disables the tool"
+            },
+            {
               "type": "array",
               "description": "List of allowed bash commands and patterns (e.g., ['ast-grep:*', 'sg:*'])",
               "items": {
