@@ -629,6 +629,13 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.19.1
+      - name: Install gh-aw extension
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Installing gh-aw extension..."
+          gh extension install githubnext/gh-aw
+          gh aw --version
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1418,6 +1425,13 @@ jobs:
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
           {
             "mcpServers": {
+              "agentic_workflows": {
+                "command": "gh",
+                "args": ["aw", "mcp-server"],
+                "env": {
+                  "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
+                }
+              },
               "gh-aw": {
                 "type": "http",
                 "url": "http://localhost:8765"
@@ -1461,7 +1475,46 @@ jobs:
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
+          This shared configuration enables the **agentic-workflows** MCP tool for workflow introspection and analysis.
           
+          ## Features
+          
+          The agentic-workflows tool provides:
+          
+          - **status**: Show status of workflow files in the repository
+          - **compile**: Compile markdown workflows to YAML
+          - **logs**: Download and analyze workflow run logs
+          - **audit**: Investigate workflow run failures and generate reports
+          
+          ## Usage
+          
+          Import this shared configuration in your workflow:
+          
+          ```yaml
+          imports:
+            - shared/mcp/gh-aw.md
+          ```
+          
+          ## Pre-downloading Logs
+          
+          For better performance, you can pre-download logs before the AI agent runs by also importing:
+          
+          ```yaml
+          imports:
+            - shared/mcp/gh-aw.md
+            - shared/predownload-logs.md
+          ```
+          
+          This will download logs to `/tmp/gh-aw/aw-mcp/logs` before the AI agent starts, making them
+          immediately available for analysis without waiting for downloads during execution.
+          
+          ## How It Works
+          
+          This configuration:
+          1. Builds the gh-aw CLI tool from source
+          2. Starts an HTTP MCP server on localhost:8765
+          3. Configures the agentic-workflows tool to use this server
+          4. Provides AI agents with tools to analyze workflow execution history
           
           # Smoke Detector - Smoke Test Failure Investigator
           
