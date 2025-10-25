@@ -1444,6 +1444,42 @@
                 "type": "string",
                 "description": "Domain name or ecosystem identifier (supports wildcards like '*.example.com' and ecosystem names like 'python', 'node')"
               }
+            },
+            "firewall": {
+              "description": "AWF (Agent Workflow Firewall) configuration for network egress control. Only supported for Copilot engine.",
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Enable AWF with default settings (equivalent to empty object)"
+                },
+                {
+                  "type": "boolean",
+                  "description": "Enable (true) or explicitly disable (false) AWF firewall"
+                },
+                {
+                  "type": "string",
+                  "enum": ["disable"],
+                  "description": "Disable AWF firewall (triggers warning if allowed != *, error in strict mode if allowed is not * or engine does not support firewall)"
+                },
+                {
+                  "type": "object",
+                  "description": "Custom AWF configuration with version and arguments",
+                  "properties": {
+                    "args": {
+                      "type": "array",
+                      "description": "Optional additional arguments to pass to AWF wrapper",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "version": {
+                      "type": "string",
+                      "description": "AWF version to use (empty = latest release)"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
             }
           },
           "additionalProperties": false

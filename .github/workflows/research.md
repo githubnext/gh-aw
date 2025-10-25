@@ -13,7 +13,7 @@ permissions:
 
 engine: copilot
 
-features:
+network:
   firewall: true
 
 imports:
