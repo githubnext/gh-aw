@@ -62,6 +62,16 @@ func InitRepository(verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created /create-shared-agentic-workflow command"))
 	}
 
+	// Write getting started prompt
+	initLog.Print("Writing getting started prompt")
+	if err := ensureGettingStartedPrompt(verbose, false); err != nil {
+		initLog.Printf("Failed to write getting started prompt: %v", err)
+		return fmt.Errorf("failed to write getting started prompt: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created getting started guide"))
+	}
+
 	initLog.Print("Repository initialization completed successfully")
 
 	// Display success message with next steps
