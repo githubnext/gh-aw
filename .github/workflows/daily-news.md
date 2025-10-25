@@ -18,6 +18,8 @@ safe-outputs:
 tools:
   cache-memory:
   edit:
+  bash:
+    - "*"
   web-fetch:
 
 imports:

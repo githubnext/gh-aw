@@ -8,6 +8,8 @@ engine: copilot
 network:
   firewall: true
 tools:
+  edit:
+  bash:
   github:
 safe-outputs:
     staged: true

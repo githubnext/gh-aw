@@ -7,7 +7,11 @@ permissions:
   contents: read
   actions: read
 engine: copilot
+network:
+  firewall: true
 tools:
+  edit:
+  bash:
   github:
     allowed: 
       - list_workflows
