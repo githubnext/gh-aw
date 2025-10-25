@@ -2945,66 +2945,6 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 }
 
-// validateHTTPTransportSupport validates that HTTP MCP servers are only used with engines that support HTTP transport
-func (c *Compiler) validateHTTPTransportSupport(tools map[string]any, engine CodingAgentEngine) error {
-	if engine.SupportsHTTPTransport() {
-		// Engine supports HTTP transport, no validation needed
-		return nil
-	}
-
-	// Engine doesn't support HTTP transport, check for HTTP MCP servers
-	for toolName, toolConfig := range tools {
-		if config, ok := toolConfig.(map[string]any); ok {
-			if hasMcp, mcpType := hasMCPConfig(config); hasMcp && mcpType == "http" {
-				return fmt.Errorf("tool '%s' uses HTTP transport which is not supported by engine '%s' (only stdio transport is supported)", toolName, engine.GetID())
-			}
-		}
-	}
-
-	return nil
-}
-
-// validateMaxTurnsSupport validates that max-turns is only used with engines that support this feature
-func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine CodingAgentEngine) error {
-	// Check if max-turns is specified in the engine config
-	engineSetting, engineConfig := c.ExtractEngineConfig(frontmatter)
-	_ = engineSetting // Suppress unused variable warning
-
-	hasMaxTurns := engineConfig != nil && engineConfig.MaxTurns != ""
-
-	if !hasMaxTurns {
-		// No max-turns specified, no validation needed
-		return nil
-	}
-
-	// max-turns is specified, check if the engine supports it
-	if !engine.SupportsMaxTurns() {
-		return fmt.Errorf("max-turns not supported: engine '%s' does not support the max-turns feature", engine.GetID())
-	}
-
-	// Engine supports max-turns - additional validation could be added here if needed
-	// For now, we rely on JSON schema validation for format checking
-
-	return nil
-}
-
-// validateWebSearchSupport validates that web-search tool is only used with engines that support this feature
-func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingAgentEngine) {
-	// Check if web-search tool is requested
-	_, hasWebSearch := tools["web-search"]
-
-	if !hasWebSearch {
-		// No web-search specified, no validation needed
-		return
-	}
-
-	// web-search is specified, check if the engine supports it
-	if !engine.SupportsWebSearch() {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Engine '%s' does not support the web-search tool. See https://githubnext.github.io/gh-aw/guides/web-search/ for alternatives.", engine.GetID())))
-		c.IncrementWarningCount()
-	}
-}
-
 // parseBaseSafeOutputConfig parses common fields (max, min, github-token) from a config map
 func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *BaseSafeOutputConfig) {
 	// Parse max
