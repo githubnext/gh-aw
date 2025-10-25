@@ -4819,7 +4819,7 @@ jobs:
                     fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
                     core.info(`Patch modified with commit title prefix: "${commitTitlePrefix}"`);
                   }
-                  await exec.exec("git am /tmp/gh-aw/aw.patch");
+                  await exec.exec("git am --keep-non-patch /tmp/gh-aw/aw.patch");
                   core.info("Patch applied successfully");
                   await exec.exec(`git push origin ${branchName}`);
                   core.info(`Changes committed and pushed to branch: ${branchName}`);

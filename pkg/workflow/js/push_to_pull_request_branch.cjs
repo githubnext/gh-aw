@@ -302,7 +302,8 @@ async function main() {
       }
 
       // Patches are created with git format-patch, so use git am to apply them
-      await exec.exec("git am /tmp/gh-aw/aw.patch");
+      // Use --keep-non-patch to preserve subject prefixes like [skip-ci]
+      await exec.exec("git am --keep-non-patch /tmp/gh-aw/aw.patch");
       core.info("Patch applied successfully");
 
       // Push the applied commits to the branch

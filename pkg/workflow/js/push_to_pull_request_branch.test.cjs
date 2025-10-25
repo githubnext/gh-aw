@@ -936,5 +936,28 @@ Subject: Add new feature
       // Check that [PATCH] was added along with the prefix verbatim
       expect(writtenPatch).toContain("Subject: [PATCH] [automated] Add new feature");
     });
+
+    it("should use git am --keep-non-patch to preserve subject prefixes", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+      process.env.GH_AW_COMMIT_TITLE_PREFIX = "[skip-ci] ";
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Execute the script
+      await executeScript();
+
+      // Verify that git am was called with --keep-non-patch flag
+      expect(mockExec.exec).toHaveBeenCalledWith("git am --keep-non-patch /tmp/gh-aw/aw.patch");
+    });
   });
 });
