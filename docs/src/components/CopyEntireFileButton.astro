@@ -130,7 +130,7 @@ const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
   }
 </style>
 
-<script>
+<script is:inline>
   // Create and show error modal
   function showErrorModal(errorMessage) {
     // Create modal overlay
@@ -188,7 +188,8 @@ const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
     return div.innerHTML;
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  // Attach click handlers immediately or wait for DOM
+  function attachCopyHandlers() {
     document.querySelectorAll('.copy-entire-file-btn').forEach((button) => {
       const filepath = button.getAttribute('data-filepath');
       if (!filepath) return;
@@ -201,41 +202,78 @@ const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
           button.setAttribute('disabled', 'true');
           if (btnText) btnText.textContent = 'Copying…';
 
-          const res = await fetch(filepath, { cache: 'no-store' });
-          if (!res.ok) throw new Error(`Failed to fetch file: ${res.status}`);
-          const text = await res.text();
+          let copied = false;
 
-          // Prefer Async Clipboard API
+          // iOS Safari fix: Use ClipboardItem with promise to maintain user gesture context
+          // The fetch happens inside the clipboard write promise, preserving the user interaction context
           if (navigator.clipboard && window.isSecureContext) {
-            await navigator.clipboard.writeText(text);
-          } else {
-            // Fallback for older browsers and iOS Safari
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            
-            // Make textarea visible but off-screen for iOS Safari compatibility
-            // iOS Safari requires the element to be visible and in the viewport
-            textarea.style.position = 'absolute';
-            textarea.style.left = '-9999px';
-            textarea.style.top = (window.pageYOffset || document.documentElement.scrollTop) + 'px';
-            textarea.style.fontSize = '12pt'; // Prevent iOS zoom on focus
-            textarea.setAttribute('readonly', ''); // Prevent iOS keyboard from showing
-            
-            document.body.appendChild(textarea);
-            
-            // iOS Safari requires focus and setSelectionRange
-            textarea.focus();
-            
-            // Try setSelectionRange first (works better on iOS)
-            if (textarea.setSelectionRange) {
-              textarea.setSelectionRange(0, text.length);
-            } else {
-              // Fallback to select() for older browsers
-              textarea.select();
+            try {
+              // Try ClipboardItem approach for iOS Safari (iOS 13.4+)
+              // This maintains user gesture context through async operations
+              if (typeof ClipboardItem !== 'undefined' && navigator.clipboard.write) {
+                const clipboardItem = new ClipboardItem({
+                  'text/plain': fetch(filepath, { cache: 'no-store' })
+                    .then(async res => {
+                      if (!res.ok) throw new Error(`Failed to fetch file: ${res.status}`);
+                      const text = await res.text();
+                      return new Blob([text], { type: 'text/plain' });
+                    })
+                });
+                await navigator.clipboard.write([clipboardItem]);
+                copied = true;
+              }
+            } catch (clipboardItemError) {
+              // ClipboardItem failed, try traditional approach
+              console.warn('ClipboardItem approach failed:', clipboardItemError);
+              copied = false;
             }
-            
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
+          }
+
+          // Traditional approach: fetch then copy
+          if (!copied) {
+            const res = await fetch(filepath, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`Failed to fetch file: ${res.status}`);
+            const text = await res.text();
+
+            if (navigator.clipboard && window.isSecureContext) {
+              try {
+                await navigator.clipboard.writeText(text);
+                copied = true;
+              } catch (clipboardError) {
+                // Clipboard API failed, try textarea fallback
+                console.warn('Clipboard API failed:', clipboardError);
+                copied = false;
+              }
+            }
+
+            // Final fallback using textarea and execCommand
+            if (!copied) {
+              const textarea = document.createElement('textarea');
+              textarea.value = text;
+              
+              // Make textarea visible but off-screen for iOS Safari compatibility
+              textarea.style.position = 'absolute';
+              textarea.style.left = '-9999px';
+              textarea.style.top = (window.pageYOffset || document.documentElement.scrollTop) + 'px';
+              textarea.style.fontSize = '12pt'; // Prevent iOS zoom on focus
+              textarea.setAttribute('readonly', ''); // Prevent iOS keyboard from showing
+              
+              document.body.appendChild(textarea);
+              textarea.focus();
+              
+              if (textarea.setSelectionRange) {
+                textarea.setSelectionRange(0, text.length);
+              } else {
+                textarea.select();
+              }
+              
+              const success = document.execCommand('copy');
+              document.body.removeChild(textarea);
+              
+              if (!success) {
+                throw new Error('execCommand copy failed');
+              }
+            }
           }
 
           if (btnText) btnText.textContent = 'Copied!';
@@ -244,7 +282,7 @@ const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
             if (btnText) btnText.textContent = originalText;
           }, 2000);
         } catch (e) {
-          console.error(e);
+          console.error('Copy error:', e);
           if (btnText) btnText.textContent = 'Error';
           
           // Show error modal
@@ -257,5 +295,12 @@ const id = `copy-btn-${Math.random().toString(36).substr(2, 9)}`;
         }
       });
     });
-  });
+  }
+
+  // Run immediately if DOM is already loaded, otherwise wait
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachCopyHandlers);
+  } else {
+    attachCopyHandlers();
+  }
 </script>
