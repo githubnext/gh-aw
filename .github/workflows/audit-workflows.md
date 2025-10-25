@@ -20,7 +20,6 @@ safe-outputs:
     category: "audits"
     max: 1
 timeout_minutes: 30
-strict: true
 imports:
   - shared/mcp/gh-aw.md
   - shared/jqschema.md

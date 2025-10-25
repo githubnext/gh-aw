@@ -39,7 +39,6 @@ safe-outputs:
   push-to-pull-request-branch:
     commit-title-suffix: " [mergefest]"
 timeout_minutes: 10
-strict: true
 steps:
   - name: Setup git configuration
     run: |
