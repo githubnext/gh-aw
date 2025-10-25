@@ -14,39 +14,25 @@ var copilotLog = logger.New("workflow:copilot_engine")
 const logsFolder = "/tmp/gh-aw/.copilot/logs/"
 
 // isFirewallEnabled checks if AWF firewall is enabled for the workflow
-// Firewall is enabled if:
-// 1. network.firewall is explicitly set to true or an object, OR
-// 2. features.firewall is set to true (backwards compatibility), OR
-// 3. network.firewall is nil/empty object (defaults to enabled)
+// Firewall is enabled if network.firewall is explicitly set to true or an object
 func isFirewallEnabled(workflowData *WorkflowData) bool {
-	// Check new network.firewall configuration
+	// Check network.firewall configuration
 	if workflowData != nil && workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil {
 		return workflowData.NetworkPermissions.Firewall.Enabled
-	}
-
-	// Backwards compatibility: check features.firewall
-	if isFeatureEnabled("firewall", workflowData) {
-		return true
 	}
 
 	return false
 }
 
-// getFirewallConfig returns the firewall configuration from network permissions or engine config
-// Priority: network.firewall > engine.firewall (for backwards compatibility)
+// getFirewallConfig returns the firewall configuration from network permissions
 func getFirewallConfig(workflowData *WorkflowData) *FirewallConfig {
 	if workflowData == nil {
 		return nil
 	}
 
-	// Check new network.firewall configuration first
+	// Check network.firewall configuration
 	if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil {
 		return workflowData.NetworkPermissions.Firewall
-	}
-
-	// Fallback to engine.firewall for backwards compatibility
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil {
-		return workflowData.EngineConfig.Firewall
 	}
 
 	return nil

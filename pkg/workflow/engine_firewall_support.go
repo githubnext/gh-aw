@@ -81,9 +81,7 @@ func (c *Compiler) checkFirewallDisable(engine CodingAgentEngine, networkPermiss
 		hasRestrictions := len(networkPermissions.Allowed) > 0
 
 		if hasRestrictions {
-			message := fmt.Sprintf(
-				"Firewall is disabled but network restrictions are specified (network.allowed). Network may not be properly sandboxed.",
-			)
+			message := "Firewall is disabled but network restrictions are specified (network.allowed). Network may not be properly sandboxed."
 
 			if c.strictMode {
 				// In strict mode, this is an error

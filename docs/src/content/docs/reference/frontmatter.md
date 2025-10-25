@@ -134,16 +134,10 @@ features:
   my-experimental-feature: true
 ```
 
-:::note[Firewall Feature Deprecated]
-The `features.firewall` flag has been deprecated. Use `network.firewall` instead. See [Network Permissions](/gh-aw/reference/network/) for details.
+:::note[Firewall Feature Removed]
+The `features.firewall` flag has been removed. Use `network.firewall` instead. See [Network Permissions](/gh-aw/reference/network/) for details.
 
-**Old format (deprecated):**
-```yaml
-features:
-  firewall: true
-```
-
-**New format (recommended):**
+**Correct format:**
 ```yaml
 network:
   firewall: true
