@@ -364,6 +364,27 @@
           },
           "description": "Arguments for command or container execution"
         },
+        "entrypointArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Arguments to add after the container image (container entrypoint arguments)"
+        },
+        "url": {
+          "type": "string",
+          "description": "URL for HTTP MCP connections"
+        },
+        "headers": {
+          "type": "object",
+          "patternProperties": {
+            "^[A-Za-z0-9_-]+$": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "HTTP headers for HTTP MCP connections"
+        },
         "env": {
           "type": "object",
           "patternProperties": {
