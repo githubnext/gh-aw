@@ -420,293 +420,293 @@ func (c *Compiler) generateDependabotConfig(path string, ecosystems map[string]b
 
 // collectPipDependencies collects all pip dependencies from workflow data
 func (c *Compiler) collectPipDependencies(workflowDataList []*WorkflowData) []PipDependency {
-dependabotLog.Print("Collecting pip dependencies from workflows")
+	dependabotLog.Print("Collecting pip dependencies from workflows")
 
-depMap := make(map[string]string) // package name -> version (last seen)
+	depMap := make(map[string]string) // package name -> version (last seen)
 
-for _, workflowData := range workflowDataList {
-packages := extractPipPackages(workflowData)
-for _, pkg := range packages {
-dep := parsePipPackage(pkg)
-depMap[dep.Name] = dep.Version
-}
-}
+	for _, workflowData := range workflowDataList {
+		packages := extractPipPackages(workflowData)
+		for _, pkg := range packages {
+			dep := parsePipPackage(pkg)
+			depMap[dep.Name] = dep.Version
+		}
+	}
 
-// Convert map to sorted slice
-var deps []PipDependency
-for name, version := range depMap {
-deps = append(deps, PipDependency{
-Name:    name,
-Version: version,
-})
-}
+	// Convert map to sorted slice
+	var deps []PipDependency
+	for name, version := range depMap {
+		deps = append(deps, PipDependency{
+			Name:    name,
+			Version: version,
+		})
+	}
 
-// Sort by name for deterministic output
-sort.Slice(deps, func(i, j int) bool {
-return deps[i].Name < deps[j].Name
-})
+	// Sort by name for deterministic output
+	sort.Slice(deps, func(i, j int) bool {
+		return deps[i].Name < deps[j].Name
+	})
 
-dependabotLog.Printf("Collected %d unique pip dependencies", len(deps))
-return deps
+	dependabotLog.Printf("Collected %d unique pip dependencies", len(deps))
+	return deps
 }
 
 // parsePipPackage parses a pip package string like "requests==2.28.0" into name and version
 func parsePipPackage(pkg string) PipDependency {
-// Handle version specifiers (==, >=, <=, >, <, !=, ~=)
-for _, sep := range []string{"==", ">=", "<=", "!=", "~=", ">", "<"} {
-if idx := strings.Index(pkg, sep); idx > 0 {
-return PipDependency{
-Name:    pkg[:idx],
-Version: pkg[idx:], // Include the separator
-}
-}
-}
+	// Handle version specifiers (==, >=, <=, >, <, !=, ~=)
+	for _, sep := range []string{"==", ">=", "<=", "!=", "~=", ">", "<"} {
+		if idx := strings.Index(pkg, sep); idx > 0 {
+			return PipDependency{
+				Name:    pkg[:idx],
+				Version: pkg[idx:], // Include the separator
+			}
+		}
+	}
 
-// No version specified
-return PipDependency{
-Name:    pkg,
-Version: "",
-}
+	// No version specified
+	return PipDependency{
+		Name:    pkg,
+		Version: "",
+	}
 }
 
 // generateRequirementsTxt creates or updates requirements.txt with dependencies
 func (c *Compiler) generateRequirementsTxt(path string, deps []PipDependency, forceOverwrite bool) error {
-dependabotLog.Printf("Generating requirements.txt at %s", path)
+	dependabotLog.Printf("Generating requirements.txt at %s", path)
 
-// Build requirements map for merging
-reqMap := make(map[string]string)
-for _, dep := range deps {
-if dep.Version != "" {
-reqMap[dep.Name] = dep.Version
-} else {
-reqMap[dep.Name] = ""
-}
-}
+	// Build requirements map for merging
+	reqMap := make(map[string]string)
+	for _, dep := range deps {
+		if dep.Version != "" {
+			reqMap[dep.Name] = dep.Version
+		} else {
+			reqMap[dep.Name] = ""
+		}
+	}
 
-// Check if requirements.txt already exists
-if _, err := os.Stat(path); err == nil {
-// File exists - merge dependencies
-dependabotLog.Print("Existing requirements.txt found, merging dependencies")
+	// Check if requirements.txt already exists
+	if _, err := os.Stat(path); err == nil {
+		// File exists - merge dependencies
+		dependabotLog.Print("Existing requirements.txt found, merging dependencies")
 
-existingData, err := os.ReadFile(path)
-if err != nil {
-return fmt.Errorf("failed to read existing requirements.txt: %w", err)
-}
+		existingData, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to read existing requirements.txt: %w", err)
+		}
 
-// Parse existing requirements
-lines := strings.Split(string(existingData), "\n")
-for _, line := range lines {
-line = strings.TrimSpace(line)
-if line == "" || strings.HasPrefix(line, "#") {
-continue
-}
-dep := parsePipPackage(line)
-// Only add if not already in our new deps
-if _, exists := reqMap[dep.Name]; !exists {
-if dep.Version != "" {
-reqMap[dep.Name] = dep.Version
-} else {
-reqMap[dep.Name] = ""
-}
-}
-}
+		// Parse existing requirements
+		lines := strings.Split(string(existingData), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			dep := parsePipPackage(line)
+			// Only add if not already in our new deps
+			if _, exists := reqMap[dep.Name]; !exists {
+				if dep.Version != "" {
+					reqMap[dep.Name] = dep.Version
+				} else {
+					reqMap[dep.Name] = ""
+				}
+			}
+		}
 
-if c.verbose {
-fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Merging with existing requirements.txt"))
-}
-} else {
-dependabotLog.Print("Creating new requirements.txt")
-}
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Merging with existing requirements.txt"))
+		}
+	} else {
+		dependabotLog.Print("Creating new requirements.txt")
+	}
 
-// Sort dependencies by name
-var sortedNames []string
-for name := range reqMap {
-sortedNames = append(sortedNames, name)
-}
-sort.Strings(sortedNames)
+	// Sort dependencies by name
+	var sortedNames []string
+	for name := range reqMap {
+		sortedNames = append(sortedNames, name)
+	}
+	sort.Strings(sortedNames)
 
-// Build requirements.txt content
-var lines []string
-for _, name := range sortedNames {
-version := reqMap[name]
-if version != "" {
-lines = append(lines, name+version)
-} else {
-lines = append(lines, name)
-}
-}
+	// Build requirements.txt content
+	var lines []string
+	for _, name := range sortedNames {
+		version := reqMap[name]
+		if version != "" {
+			lines = append(lines, name+version)
+		} else {
+			lines = append(lines, name)
+		}
+	}
 
-content := strings.Join(lines, "\n") + "\n"
+	content := strings.Join(lines, "\n") + "\n"
 
-if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-return fmt.Errorf("failed to write requirements.txt: %w", err)
-}
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write requirements.txt: %w", err)
+	}
 
-dependabotLog.Printf("Successfully wrote requirements.txt with %d dependencies", len(reqMap))
-if c.verbose {
-fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Generated requirements.txt with %d dependencies", len(reqMap))))
-}
+	dependabotLog.Printf("Successfully wrote requirements.txt with %d dependencies", len(reqMap))
+	if c.verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Generated requirements.txt with %d dependencies", len(reqMap))))
+	}
 
-// Track the created file
-if c.fileTracker != nil {
-c.fileTracker.TrackCreated(path)
-}
+	// Track the created file
+	if c.fileTracker != nil {
+		c.fileTracker.TrackCreated(path)
+	}
 
-return nil
+	return nil
 }
 
 // collectGoDependencies collects all Go dependencies from workflow data
 func (c *Compiler) collectGoDependencies(workflowDataList []*WorkflowData) []GoDependency {
-dependabotLog.Print("Collecting Go dependencies from workflows")
+	dependabotLog.Print("Collecting Go dependencies from workflows")
 
-depMap := make(map[string]string) // package path -> version (last seen)
+	depMap := make(map[string]string) // package path -> version (last seen)
 
-for _, workflowData := range workflowDataList {
-packages := extractGoPackages(workflowData)
-for _, pkg := range packages {
-dep := parseGoPackage(pkg)
-depMap[dep.Path] = dep.Version
-}
-}
+	for _, workflowData := range workflowDataList {
+		packages := extractGoPackages(workflowData)
+		for _, pkg := range packages {
+			dep := parseGoPackage(pkg)
+			depMap[dep.Path] = dep.Version
+		}
+	}
 
-// Convert map to sorted slice
-var deps []GoDependency
-for path, version := range depMap {
-deps = append(deps, GoDependency{
-Path:    path,
-Version: version,
-})
-}
+	// Convert map to sorted slice
+	var deps []GoDependency
+	for path, version := range depMap {
+		deps = append(deps, GoDependency{
+			Path:    path,
+			Version: version,
+		})
+	}
 
-// Sort by path for deterministic output
-sort.Slice(deps, func(i, j int) bool {
-return deps[i].Path < deps[j].Path
-})
+	// Sort by path for deterministic output
+	sort.Slice(deps, func(i, j int) bool {
+		return deps[i].Path < deps[j].Path
+	})
 
-dependabotLog.Printf("Collected %d unique Go dependencies", len(deps))
-return deps
+	dependabotLog.Printf("Collected %d unique Go dependencies", len(deps))
+	return deps
 }
 
 // parseGoPackage parses a Go package string like "github.com/user/repo@v1.2.3" into path and version
 func parseGoPackage(pkg string) GoDependency {
-// Handle version separator @
-if idx := strings.Index(pkg, "@"); idx > 0 {
-return GoDependency{
-Path:    pkg[:idx],
-Version: pkg[idx+1:],
-}
-}
+	// Handle version separator @
+	if idx := strings.Index(pkg, "@"); idx > 0 {
+		return GoDependency{
+			Path:    pkg[:idx],
+			Version: pkg[idx+1:],
+		}
+	}
 
-// No version specified - will use latest
-return GoDependency{
-Path:    pkg,
-Version: "latest",
-}
+	// No version specified - will use latest
+	return GoDependency{
+		Path:    pkg,
+		Version: "latest",
+	}
 }
 
 // extractGoPackages extracts Go package paths from workflow data
 func extractGoPackages(workflowData *WorkflowData) []string {
-return collectPackagesFromWorkflow(workflowData, extractGoFromCommands, "")
+	return collectPackagesFromWorkflow(workflowData, extractGoFromCommands, "")
 }
 
 // extractGoFromCommands extracts Go package paths from command strings
 func extractGoFromCommands(commands string) []string {
-var packages []string
-lines := strings.Split(commands, "\n")
+	var packages []string
+	lines := strings.Split(commands, "\n")
 
-for _, line := range lines {
-// Look for "go install <package>" or "go get <package>" patterns
-words := strings.Fields(line)
-for i, word := range words {
-if word == "go" && i+1 < len(words) {
-cmd := words[i+1]
-if cmd == "install" || cmd == "get" {
-// Find the package path
-for j := i + 2; j < len(words); j++ {
-pkg := words[j]
-pkg = strings.TrimRight(pkg, "&|;")
-// Skip flags (start with - or --)
-if !strings.HasPrefix(pkg, "-") {
-packages = append(packages, pkg)
-break
-}
-}
-}
-}
-}
-}
+	for _, line := range lines {
+		// Look for "go install <package>" or "go get <package>" patterns
+		words := strings.Fields(line)
+		for i, word := range words {
+			if word == "go" && i+1 < len(words) {
+				cmd := words[i+1]
+				if cmd == "install" || cmd == "get" {
+					// Find the package path
+					for j := i + 2; j < len(words); j++ {
+						pkg := words[j]
+						pkg = strings.TrimRight(pkg, "&|;")
+						// Skip flags (start with - or --)
+						if !strings.HasPrefix(pkg, "-") {
+							packages = append(packages, pkg)
+							break
+						}
+					}
+				}
+			}
+		}
+	}
 
-return packages
+	return packages
 }
 
 // generateGoMod creates or updates go.mod with dependencies
 func (c *Compiler) generateGoMod(path string, deps []GoDependency, forceOverwrite bool) error {
-dependabotLog.Printf("Generating go.mod at %s", path)
+	dependabotLog.Printf("Generating go.mod at %s", path)
 
-// Build module content
-var lines []string
+	// Build module content
+	var lines []string
 
-// Check if go.mod already exists
-if _, err := os.Stat(path); err == nil {
-// File exists - read and preserve module declaration
-dependabotLog.Print("Existing go.mod found, merging dependencies")
+	// Check if go.mod already exists
+	if _, err := os.Stat(path); err == nil {
+		// File exists - read and preserve module declaration
+		dependabotLog.Print("Existing go.mod found, merging dependencies")
 
-existingData, err := os.ReadFile(path)
-if err != nil {
-return fmt.Errorf("failed to read existing go.mod: %w", err)
-}
+		existingData, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to read existing go.mod: %w", err)
+		}
 
-existingLines := strings.Split(string(existingData), "\n")
-// Keep module declaration and go version
-for _, line := range existingLines {
-trimmed := strings.TrimSpace(line)
-if strings.HasPrefix(trimmed, "module ") || strings.HasPrefix(trimmed, "go ") {
-lines = append(lines, line)
-}
-}
+		existingLines := strings.Split(string(existingData), "\n")
+		// Keep module declaration and go version
+		for _, line := range existingLines {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "module ") || strings.HasPrefix(trimmed, "go ") {
+				lines = append(lines, line)
+			}
+		}
 
-if c.verbose {
-fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Merging with existing go.mod"))
-}
-} else {
-// New go.mod
-dependabotLog.Print("Creating new go.mod")
-lines = append(lines, "module github.com/githubnext/gh-aw-workflows-deps")
-lines = append(lines, "")
-lines = append(lines, "go 1.21")
-}
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Merging with existing go.mod"))
+		}
+	} else {
+		// New go.mod
+		dependabotLog.Print("Creating new go.mod")
+		lines = append(lines, "module github.com/githubnext/gh-aw-workflows-deps")
+		lines = append(lines, "")
+		lines = append(lines, "go 1.21")
+	}
 
-// Add require section if we have dependencies
-if len(deps) > 0 {
-lines = append(lines, "")
-lines = append(lines, "require (")
-for _, dep := range deps {
-version := dep.Version
-if version == "latest" || version == "" {
-// For latest, we need to use a placeholder or skip
-// Dependabot will update to actual versions
-version = "v0.0.0"
-}
-lines = append(lines, fmt.Sprintf("\t%s %s", dep.Path, version))
-}
-lines = append(lines, ")")
-}
+	// Add require section if we have dependencies
+	if len(deps) > 0 {
+		lines = append(lines, "")
+		lines = append(lines, "require (")
+		for _, dep := range deps {
+			version := dep.Version
+			if version == "latest" || version == "" {
+				// For latest, we need to use a placeholder or skip
+				// Dependabot will update to actual versions
+				version = "v0.0.0"
+			}
+			lines = append(lines, fmt.Sprintf("\t%s %s", dep.Path, version))
+		}
+		lines = append(lines, ")")
+	}
 
-content := strings.Join(lines, "\n") + "\n"
+	content := strings.Join(lines, "\n") + "\n"
 
-if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-return fmt.Errorf("failed to write go.mod: %w", err)
-}
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write go.mod: %w", err)
+	}
 
-dependabotLog.Printf("Successfully wrote go.mod with %d dependencies", len(deps))
-if c.verbose {
-fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Generated go.mod with %d dependencies", len(deps))))
-}
+	dependabotLog.Printf("Successfully wrote go.mod with %d dependencies", len(deps))
+	if c.verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Generated go.mod with %d dependencies", len(deps))))
+	}
 
-// Track the created file
-if c.fileTracker != nil {
-c.fileTracker.TrackCreated(path)
-}
+	// Track the created file
+	if c.fileTracker != nil {
+		c.fileTracker.TrackCreated(path)
+	}
 
-return nil
+	return nil
 }
