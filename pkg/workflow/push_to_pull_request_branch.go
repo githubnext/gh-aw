@@ -92,17 +92,35 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	}
 
 	safeOutputCondition := BuildSafeOutputType("push_to_pull_request_branch", data.SafeOutputs.PushToPullRequestBranch.Min)
-	issueWithPR := &AndNode{
-		Left:  &ExpressionNode{Expression: "github.event.issue.number"},
-		Right: &ExpressionNode{Expression: "github.event.issue.pull_request"},
+	
+	// Check if workflow has PR or issue triggers in the On field
+	hasPROrIssueTrigger := false
+	if data.On != "" {
+		onLower := strings.ToLower(data.On)
+		if strings.Contains(onLower, "pull_request") || strings.Contains(onLower, "issue") {
+			hasPROrIssueTrigger = true
+		}
 	}
-	baseCondition := &OrNode{
-		Left:  issueWithPR,
-		Right: &ExpressionNode{Expression: "github.event.pull_request"},
-	}
-	jobCondition := &AndNode{
-		Left:  safeOutputCondition,
-		Right: baseCondition,
+	
+	var jobCondition string
+	if hasPROrIssueTrigger {
+		// If workflow has PR/issue triggers, add the context check
+		issueWithPR := &AndNode{
+			Left:  &ExpressionNode{Expression: "github.event.issue.number"},
+			Right: &ExpressionNode{Expression: "github.event.issue.pull_request"},
+		}
+		baseCondition := &OrNode{
+			Left:  issueWithPR,
+			Right: &ExpressionNode{Expression: "github.event.pull_request"},
+		}
+		fullCondition := &AndNode{
+			Left:  safeOutputCondition,
+			Right: baseCondition,
+		}
+		jobCondition = fullCondition.Render()
+	} else {
+		// For other triggers (like workflow_dispatch), just check if safe output exists
+		jobCondition = safeOutputCondition.Render()
 	}
 
 	job := &Job{
