@@ -225,7 +225,7 @@ type SafeOutputsConfig struct {
 func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	// Initialize timing tracker
 	c.timingTracker = NewTimingTracker(c.verbose)
-	
+
 	// Parse the markdown file
 	var workflowData *WorkflowData
 	if err := c.timingTracker.TimeStep("Parse Workflow File", func() error {

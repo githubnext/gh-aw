@@ -21,12 +21,12 @@ type TimingTracker struct {
 
 // TimingStep represents a single timed step in the compilation process
 type TimingStep struct {
-	Name        string
-	StartTime   time.Time
-	EndTime     time.Time
-	Duration    time.Duration
-	SubSteps    []TimingStep
-	currentSub  *TimingStep
+	Name       string
+	StartTime  time.Time
+	EndTime    time.Time
+	Duration   time.Duration
+	SubSteps   []TimingStep
+	currentSub *TimingStep
 }
 
 // NewTimingTracker creates a new timing tracker
@@ -52,7 +52,7 @@ func (t *TimingTracker) StartStep(stepName string) {
 	}
 
 	timingLog.Printf("Starting step: %s", stepName)
-	
+
 	// End the previous step if there is one
 	if t.currentStep != nil {
 		t.EndStep()
@@ -94,7 +94,7 @@ func (t *TimingTracker) EndSubStep() {
 	t.currentStep.currentSub.EndTime = now
 	t.currentStep.currentSub.Duration = now.Sub(t.currentStep.currentSub.StartTime)
 
-	timingLog.Printf("Completed sub-step: %s (took %v)", 
+	timingLog.Printf("Completed sub-step: %s (took %v)",
 		t.currentStep.currentSub.Name, t.currentStep.currentSub.Duration)
 
 	// Add the completed sub-step to the current step
@@ -151,14 +151,14 @@ func (t *TimingTracker) PrintSummary() {
 	for i, step := range t.steps {
 		percentage := float64(step.Duration) / float64(totalDuration) * 100
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-			fmt.Sprintf("%d. %s: %v (%.1f%%)", 
+			fmt.Sprintf("%d. %s: %v (%.1f%%)",
 				i+1, step.Name, formatDuration(step.Duration), percentage)))
 
 		// Print sub-steps if any
 		for j, subStep := range step.SubSteps {
 			subPercentage := float64(subStep.Duration) / float64(step.Duration) * 100
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-				fmt.Sprintf("   %d.%d %s: %v (%.1f%% of step)", 
+				fmt.Sprintf("   %d.%d %s: %v (%.1f%% of step)",
 					i+1, j+1, subStep.Name, formatDuration(subStep.Duration), subPercentage)))
 		}
 	}

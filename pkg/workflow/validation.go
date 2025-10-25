@@ -27,7 +27,7 @@ type RepositoryFeatures struct {
 
 // Global cache for repository features and current repository info
 var (
-	repositoryFeaturesCache = sync.Map{} // sync.Map is thread-safe and efficient for read-heavy workloads
+	repositoryFeaturesCache  = sync.Map{} // sync.Map is thread-safe and efficient for read-heavy workloads
 	getCurrentRepositoryOnce sync.Once
 	currentRepositoryResult  string
 	currentRepositoryError   error
@@ -41,12 +41,12 @@ func ClearRepositoryFeaturesCache() {
 		repositoryFeaturesCache.Delete(key)
 		return true
 	})
-	
+
 	// Reset the current repository cache
 	getCurrentRepositoryOnce = sync.Once{}
 	currentRepositoryResult = ""
 	currentRepositoryError = nil
-	
+
 	validationLog.Print("Repository features and current repository caches cleared")
 }
 
@@ -361,7 +361,7 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 	if c.timingTracker != nil && c.timingTracker.verbose {
 		c.timingTracker.StartSubStep("Get Repository Info")
 	}
-	
+
 	var err error
 	repo, err = getCurrentRepository()
 	if err != nil {
@@ -389,17 +389,17 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 	if needsDiscussions {
 		var hasDiscussions bool
 		var err error
-		
+
 		if c.timingTracker != nil && c.timingTracker.verbose {
 			c.timingTracker.StartSubStep("Check Discussions API")
 		}
-		
+
 		hasDiscussions, err = checkRepositoryHasDiscussions(repo)
-		
+
 		if c.timingTracker != nil && c.timingTracker.verbose {
 			c.timingTracker.EndSubStep()
 		}
-		
+
 		if err != nil {
 			// If we can't check, log but don't fail
 			// This could happen due to network issues or auth problems
@@ -429,17 +429,17 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 	if workflowData.SafeOutputs.CreateIssues != nil {
 		var hasIssues bool
 		var err error
-		
+
 		if c.timingTracker != nil && c.timingTracker.verbose {
 			c.timingTracker.StartSubStep("Check Issues API")
 		}
-		
+
 		hasIssues, err = checkRepositoryHasIssues(repo)
-		
+
 		if c.timingTracker != nil && c.timingTracker.verbose {
 			c.timingTracker.EndSubStep()
 		}
-		
+
 		if err != nil {
 			// If we can't check, log but don't fail
 			validationLog.Printf("Warning: Could not check if issues are enabled: %v", err)
@@ -468,11 +468,11 @@ func getCurrentRepository() (string, error) {
 	getCurrentRepositoryOnce.Do(func() {
 		currentRepositoryResult, currentRepositoryError = getCurrentRepositoryUncached()
 	})
-	
+
 	if currentRepositoryError != nil {
 		return "", currentRepositoryError
 	}
-	
+
 	validationLog.Printf("Using cached current repository: %s", currentRepositoryResult)
 	return currentRepositoryResult, nil
 }
@@ -480,7 +480,7 @@ func getCurrentRepository() (string, error) {
 // getCurrentRepositoryUncached fetches the current repository from gh CLI (no caching)
 func getCurrentRepositoryUncached() (string, error) {
 	validationLog.Print("Fetching current repository from gh CLI")
-	
+
 	// Use gh CLI to get the current repository
 	// This works when in a git repository with GitHub remote
 	stdOut, _, err := gh.Exec("repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner")
@@ -507,31 +507,31 @@ func getRepositoryFeatures(repo string) (*RepositoryFeatures, error) {
 	}
 
 	validationLog.Printf("Fetching repository features from API for: %s", repo)
-	
+
 	// Fetch from API
 	features := &RepositoryFeatures{}
-	
+
 	// Check discussions
 	hasDiscussions, err := checkRepositoryHasDiscussionsUncached(repo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check discussions: %w", err)
 	}
 	features.HasDiscussions = hasDiscussions
-	
-	// Check issues  
+
+	// Check issues
 	hasIssues, err := checkRepositoryHasIssuesUncached(repo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check issues: %w", err)
 	}
 	features.HasIssues = hasIssues
-	
+
 	// Cache the result using sync.Map's LoadOrStore for atomic caching
 	// This handles the race condition where multiple goroutines might fetch the same repo
 	actual, _ := repositoryFeaturesCache.LoadOrStore(repo, features)
 	actualFeatures := actual.(*RepositoryFeatures)
-	
+
 	validationLog.Printf("Cached repository features for: %s (discussions: %v, issues: %v)", repo, actualFeatures.HasDiscussions, actualFeatures.HasIssues)
-	
+
 	return actualFeatures, nil
 }
 
