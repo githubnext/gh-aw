@@ -15,15 +15,16 @@ import (
 
 // AuditData represents the complete structured audit data for a workflow run
 type AuditData struct {
-	Overview        OverviewData        `json:"overview"`
-	Metrics         MetricsData         `json:"metrics"`
-	Jobs            []JobData           `json:"jobs,omitempty"`
-	DownloadedFiles []FileInfo          `json:"downloaded_files"`
-	MissingTools    []MissingToolReport `json:"missing_tools,omitempty"`
-	MCPFailures     []MCPFailureReport  `json:"mcp_failures,omitempty"`
-	Errors          []ErrorInfo         `json:"errors,omitempty"`
-	Warnings        []ErrorInfo         `json:"warnings,omitempty"`
-	ToolUsage       []ToolUsageInfo     `json:"tool_usage,omitempty"`
+	Overview         OverviewData        `json:"overview"`
+	Metrics          MetricsData         `json:"metrics"`
+	Jobs             []JobData           `json:"jobs,omitempty"`
+	DownloadedFiles  []FileInfo          `json:"downloaded_files"`
+	MissingTools     []MissingToolReport `json:"missing_tools,omitempty"`
+	MCPFailures      []MCPFailureReport  `json:"mcp_failures,omitempty"`
+	FirewallAnalysis *FirewallAnalysis   `json:"firewall_analysis,omitempty"`
+	Errors           []ErrorInfo         `json:"errors,omitempty"`
+	Warnings         []ErrorInfo         `json:"warnings,omitempty"`
+	ToolUsage        []ToolUsageInfo     `json:"tool_usage,omitempty"`
 }
 
 // OverviewData contains basic information about the workflow run
@@ -196,15 +197,16 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 	}
 
 	return AuditData{
-		Overview:        overview,
-		Metrics:         metricsData,
-		Jobs:            jobs,
-		DownloadedFiles: downloadedFiles,
-		MissingTools:    processedRun.MissingTools,
-		MCPFailures:     processedRun.MCPFailures,
-		Errors:          errors,
-		Warnings:        warnings,
-		ToolUsage:       toolUsage,
+		Overview:         overview,
+		Metrics:          metricsData,
+		Jobs:             jobs,
+		DownloadedFiles:  downloadedFiles,
+		MissingTools:     processedRun.MissingTools,
+		MCPFailures:      processedRun.MCPFailures,
+		FirewallAnalysis: processedRun.FirewallAnalysis,
+		Errors:           errors,
+		Warnings:         warnings,
+		ToolUsage:        toolUsage,
 	}
 }
 
@@ -372,6 +374,13 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Println()
 	}
 
+	// Firewall Analysis Section
+	if data.FirewallAnalysis != nil && data.FirewallAnalysis.TotalRequests > 0 {
+		fmt.Println(console.FormatInfoMessage("## Firewall Analysis"))
+		fmt.Println()
+		renderFirewallAnalysis(data.FirewallAnalysis)
+	}
+
 	// Tool Usage Section - use new table rendering
 	if len(data.ToolUsage) > 0 {
 		fmt.Println(console.FormatInfoMessage("## Tool Usage"))
@@ -504,6 +513,37 @@ func renderToolUsageTable(toolUsage []ToolUsageInfo) {
 	}
 
 	fmt.Print(console.RenderTable(config))
+}
+
+// renderFirewallAnalysis renders firewall analysis with summary and domain breakdown
+func renderFirewallAnalysis(analysis *FirewallAnalysis) {
+	// Summary statistics
+	fmt.Printf("  Total Requests : %d\n", analysis.TotalRequests)
+	fmt.Printf("  Allowed        : %d\n", analysis.AllowedRequests)
+	fmt.Printf("  Denied         : %d\n", analysis.DeniedRequests)
+	fmt.Println()
+
+	// Allowed domains
+	if len(analysis.AllowedDomains) > 0 {
+		fmt.Println("  Allowed Domains:")
+		for _, domain := range analysis.AllowedDomains {
+			if stats, ok := analysis.RequestsByDomain[domain]; ok {
+				fmt.Printf("    ✓ %s (%d requests)\n", domain, stats.Allowed)
+			}
+		}
+		fmt.Println()
+	}
+
+	// Denied domains
+	if len(analysis.DeniedDomains) > 0 {
+		fmt.Println("  Denied Domains:")
+		for _, domain := range analysis.DeniedDomains {
+			if stats, ok := analysis.RequestsByDomain[domain]; ok {
+				fmt.Printf("    ✗ %s (%d requests)\n", domain, stats.Denied)
+			}
+		}
+		fmt.Println()
+	}
 }
 
 // truncateString truncates a string to maxLen, adding "..." if truncated
