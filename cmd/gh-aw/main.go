@@ -142,6 +142,8 @@ Examples:
 		strict, _ := cmd.Flags().GetBool("strict")
 		trial, _ := cmd.Flags().GetBool("trial")
 		logicalRepo, _ := cmd.Flags().GetString("logical-repo")
+		dependabot, _ := cmd.Flags().GetBool("dependabot")
+		forceOverwrite, _ := cmd.Flags().GetBool("force")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -160,6 +162,8 @@ Examples:
 			TrialMode:            trial,
 			TrialLogicalRepoSlug: logicalRepo,
 			Strict:               strict,
+			Dependabot:           dependabot,
+			ForceOverwrite:       forceOverwrite,
 		}
 		if _, err := cli.CompileWorkflows(config); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -265,6 +269,9 @@ func init() {
 	compileCmd.Flags().Bool("strict", false, "Enable strict mode: require timeout, refuse write permissions, require network configuration")
 	compileCmd.Flags().Bool("trial", false, "Enable trial mode compilation (modifies workflows for trial execution)")
 	compileCmd.Flags().String("logical-repo", "", "Repository to simulate workflow execution against (for trial mode)")
+	compileCmd.Flags().Bool("dependabot", false, "Generate npm package manifest/lockfile and Dependabot config when npm dependencies are detected")
+	compileCmd.Flags().Bool("force", false, "Force overwrite of existing files (e.g., dependabot.yml)")
+	rootCmd.AddCommand(compileCmd)
 
 	// Add flags to remove command
 	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
