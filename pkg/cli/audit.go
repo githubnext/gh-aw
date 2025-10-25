@@ -51,7 +51,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` audit https://github.example.com/owner/repo/actions/runs/1234567890  # Audit from GitHub Enterprise
   ` + constants.CLIExtensionPrefix + ` audit 1234567890 -o ./audit-reports  # Custom output directory
   ` + constants.CLIExtensionPrefix + ` audit 1234567890 -v  # Verbose output
-  ` + constants.CLIExtensionPrefix + ` audit 1234567890 --parse  # Parse agent logs and generate log.md`,
+  ` + constants.CLIExtensionPrefix + ` audit 1234567890 --parse  # Parse agent logs and firewall logs, generating log.md and firewall.md`,
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			runIDOrURL := args[0]
@@ -78,7 +78,7 @@ Examples:
 	// Add flags to audit command
 	auditCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
 	auditCmd.Flags().Bool("json", false, "Output audit report as JSON instead of formatted console tables")
-	auditCmd.Flags().Bool("parse", false, "Run JavaScript parser on agent logs and write markdown to log.md")
+	auditCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing markdown to log.md and firewall.md")
 
 	return auditCmd
 }

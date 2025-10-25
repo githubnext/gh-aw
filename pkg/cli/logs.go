@@ -418,7 +418,7 @@ Examples:
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
-	logsCmd.Flags().Bool("parse", false, "Run JavaScript parser on agent logs and write markdown to log.md")
+	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing markdown to log.md and firewall.md")
 	logsCmd.Flags().Bool("json", false, "Output logs data as JSON instead of formatted console tables")
 	logsCmd.Flags().Int("timeout", 0, "Maximum time in seconds to spend downloading logs (0 = no timeout)")
 
