@@ -9,6 +9,17 @@ import (
 	"time"
 )
 
+// Pre-compiled regexes for performance (avoid recompiling in hot paths)
+var (
+	// Timestamp patterns for log cleanup
+	timestampPattern1 = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(\.\d+)?\s+`)
+	timestampPattern2 = regexp.MustCompile(`^\[\d{2}:\d{2}:\d{2}\]\s+`)
+	timestampPattern3 = regexp.MustCompile(`^\d{2}:\d{2}:\d{2}(\.\d+)?\s+`)
+
+	// Log level pattern for message cleanup
+	logLevelPattern = regexp.MustCompile(`(?i)^\[?(ERROR|WARNING|WARN|INFO|DEBUG)\]?\s*[:-]?\s*`)
+)
+
 // ToolCallInfo represents statistics for a single tool
 type ToolCallInfo struct {
 	Name          string        // Prettified tool name (e.g., "github::search_issues", "bash")
@@ -61,6 +72,8 @@ type LogMetrics struct {
 }
 
 // ExtractFirstMatch extracts the first regex match from a string
+// Note: This function compiles the regex on each call. For frequently-used patterns,
+// consider pre-compiling at package level or caching the compiled regex.
 func ExtractFirstMatch(text, pattern string) string {
 	re := regexp.MustCompile(`(?i)` + pattern)
 	matches := re.FindStringSubmatch(text)
@@ -396,24 +409,13 @@ func extractLevelFromMatch(match []string, pattern ErrorPattern) string {
 // extractErrorMessage extracts a clean error message from a log line
 // Removes timestamps, log level prefixes, and other common noise
 func extractErrorMessage(line string) string {
-	// Remove common timestamp patterns
-	// Examples: "2024-01-01 12:00:00", "[12:00:00]", "12:00:00.123"
-	timestampPatterns := []string{
-		`^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(\.\d+)?\s+`,
-		`^\[\d{2}:\d{2}:\d{2}\]\s+`,
-		`^\d{2}:\d{2}:\d{2}(\.\d+)?\s+`,
-	}
-
+	// Remove common timestamp patterns using pre-compiled regexes
 	cleanedLine := line
-	for _, pattern := range timestampPatterns {
-		re := regexp.MustCompile(pattern)
-		cleanedLine = re.ReplaceAllString(cleanedLine, "")
-	}
+	cleanedLine = timestampPattern1.ReplaceAllString(cleanedLine, "")
+	cleanedLine = timestampPattern2.ReplaceAllString(cleanedLine, "")
+	cleanedLine = timestampPattern3.ReplaceAllString(cleanedLine, "")
 
-	// Remove common log level prefixes (case-insensitive)
-	// Examples: "ERROR:", "[ERROR]", "error -"
-	// Note: WARNING must come before WARN to avoid partial matches
-	logLevelPattern := regexp.MustCompile(`(?i)^\[?(ERROR|WARNING|WARN|INFO|DEBUG)\]?\s*[:-]?\s*`)
+	// Remove common log level prefixes using pre-compiled regex
 	cleanedLine = logLevelPattern.ReplaceAllString(cleanedLine, "")
 
 	// Trim whitespace

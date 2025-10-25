@@ -13,6 +13,12 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 )
 
+// Pre-compiled regexes for firewall log parsing (performance optimization)
+var (
+	firewallLogFieldSplitter = regexp.MustCompile(`(?:[^\s"]+|"[^"]*")+`)
+	sanitizeNamePattern      = regexp.MustCompile(`[^a-z0-9._-]`)
+)
+
 // Firewall Log Parser
 //
 // This package provides a Go implementation of the firewall logs parser that mirrors
@@ -134,8 +140,7 @@ func parseFirewallLogLine(line string) *FirewallLogEntry {
 
 	// Split by whitespace but preserve quoted strings
 	// This regex matches non-whitespace sequences or quoted strings
-	re := regexp.MustCompile(`(?:[^\s"]+|"[^"]*")+`)
-	fields := re.FindAllString(trimmed, -1)
+	fields := firewallLogFieldSplitter.FindAllString(trimmed, -1)
 
 	if len(fields) < 10 {
 		return nil
@@ -443,8 +448,7 @@ func sanitizeWorkflowName(name string) string {
 	name = strings.ReplaceAll(name, " ", "-")
 
 	// Replace any other non-alphanumeric characters (except . _ -) with "-"
-	re := regexp.MustCompile(`[^a-z0-9._-]`)
-	name = re.ReplaceAllString(name, "-")
+	name = sanitizeNamePattern.ReplaceAllString(name, "-")
 
 	return name
 }
