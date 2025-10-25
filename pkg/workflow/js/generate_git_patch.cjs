@@ -1,14 +1,15 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+/** @type {typeof import("fs")} */
+const fs = require("fs");
+
 /**
  * Extract branch name from safe-outputs JSONL file
  * @param {string} safeOutputsPath - Path to the safe-outputs JSONL file
  * @returns {string} Extracted branch name or empty string
  */
 function extractBranchFromSafeOutputs(safeOutputsPath) {
-  const fs = require("fs");
-
   if (!fs.existsSync(safeOutputsPath)) {
     return "";
   }
@@ -128,8 +129,6 @@ async function determineBaseRef(targetBranch, defaultBranch) {
  * @returns {Promise<boolean>} True if patch was generated successfully
  */
 async function generatePatch(baseRef, targetBranch, patchPath) {
-  const fs = require("fs");
-
   try {
     const { stdout, exitCode } = await exec.getExecOutput("git", ["format-patch", `${baseRef}..${targetBranch}`, "--stdout"], {
       ignoreReturnCode: true,
@@ -145,7 +144,6 @@ async function generatePatch(baseRef, targetBranch, patchPath) {
       return false;
     }
   } catch (error) {
-    const fs = require("fs");
     fs.writeFileSync(patchPath, "Failed to generate patch from branch");
     core.error(`Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`);
     return false;
@@ -157,8 +155,6 @@ async function generatePatch(baseRef, targetBranch, patchPath) {
  * @param {string} patchPath - Path to the patch file
  */
 async function addPatchToSummary(patchPath) {
-  const fs = require("fs");
-
   if (!fs.existsSync(patchPath)) {
     return;
   }
@@ -182,12 +178,11 @@ async function addPatchToSummary(patchPath) {
   }
   summary += "\n```\n\n";
 
+  core.info(preview);
   await core.summary.addRaw(summary).write();
 }
 
 async function main() {
-  const fs = require("fs");
-
   // Show current git status
   core.info("Current git status:");
   await exec.exec("git", ["status"]);

@@ -4094,8 +4094,8 @@ jobs:
           GH_AW_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         with:
           script: |
+            const fs = require("fs");
             function extractBranchFromSafeOutputs(safeOutputsPath) {
-              const fs = require("fs");
               if (!fs.existsSync(safeOutputsPath)) {
                 return "";
               }
@@ -4175,7 +4175,6 @@ jobs:
               return baseRef;
             }
             async function generatePatch(baseRef, targetBranch, patchPath) {
-              const fs = require("fs");
               try {
                 const { stdout, exitCode } = await exec.getExecOutput("git", ["format-patch", `${baseRef}..${targetBranch}`, "--stdout"], {
                   ignoreReturnCode: true,
@@ -4190,14 +4189,12 @@ jobs:
                   return false;
                 }
               } catch (error) {
-                const fs = require("fs");
                 fs.writeFileSync(patchPath, "Failed to generate patch from branch");
                 core.error(`Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`);
                 return false;
               }
             }
             async function addPatchToSummary(patchPath) {
-              const fs = require("fs");
               if (!fs.existsSync(patchPath)) {
                 return;
               }
@@ -4214,10 +4211,10 @@ jobs:
                 summary += "\n...";
               }
               summary += "\n```\n\n";
+              core.info(preview);
               await core.summary.addRaw(summary).write();
             }
             async function main() {
-              const fs = require("fs");
               core.info("Current git status:");
               await exec.exec("git", ["status"]);
               const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS || "";
