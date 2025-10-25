@@ -72,19 +72,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       - name: Set up Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           cache: npm
           cache-dependency-path: pkg/workflow/js/package-lock.json
           node-version: "24"
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
         with:
           cache: true
           go-version-file: go.mod
       - name: Install JavaScript dependencies
         run: npm ci
         working-directory: ./pkg/workflow/js
+
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -568,9 +569,23 @@ jobs:
               };
             };
             function getCurrentBranch() {
+              const ghHeadRef = process.env.GITHUB_HEAD_REF;
+              const ghRefName = process.env.GITHUB_REF_NAME;
+              if (ghHeadRef) {
+                debug(`Resolved current branch from GITHUB_HEAD_REF: ${ghHeadRef}`);
+                return ghHeadRef;
+              }
+              if (ghRefName) {
+                debug(`Resolved current branch from GITHUB_REF_NAME: ${ghRefName}`);
+                return ghRefName;
+              }
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
               try {
-                const branch = execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
-                debug(`Resolved current branch: ${branch}`);
+                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+                  encoding: "utf8",
+                  cwd: cwd,
+                }).trim();
+                debug(`Resolved current branch from git in ${cwd}: ${branch}`);
                 return branch;
               } catch (error) {
                 throw new Error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`);

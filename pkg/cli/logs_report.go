@@ -22,6 +22,7 @@ type LogsData struct {
 	MissingTools      []MissingToolSummary `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
 	MCPFailures       []MCPFailureSummary  `json:"mcp_failures,omitempty" console:"title:⚠️  MCP Server Failures,omitempty"`
 	AccessLog         *AccessLogSummary    `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
+	FirewallLog       *FirewallLogSummary  `json:"firewall_log,omitempty" console:"title:🔥 Firewall Log Analysis,omitempty"`
 	Continuation      *ContinuationData    `json:"continuation,omitempty" console:"-"`
 	LogsLocation      string               `json:"logs_location" console:"-"`
 }
@@ -103,6 +104,17 @@ type AccessLogSummary struct {
 	AllowedDomains []string                   `json:"allowed_domains" console:"-"`
 	DeniedDomains  []string                   `json:"denied_domains" console:"-"`
 	ByWorkflow     map[string]*DomainAnalysis `json:"by_workflow,omitempty" console:"-"`
+}
+
+// FirewallLogSummary contains aggregated firewall log data
+type FirewallLogSummary struct {
+	TotalRequests    int                           `json:"total_requests" console:"header:Total Requests"`
+	AllowedRequests  int                           `json:"allowed_requests" console:"header:Allowed"`
+	DeniedRequests   int                           `json:"denied_requests" console:"header:Denied"`
+	AllowedDomains   []string                      `json:"allowed_domains" console:"-"`
+	DeniedDomains    []string                      `json:"denied_domains" console:"-"`
+	RequestsByDomain map[string]DomainRequestStats `json:"requests_by_domain,omitempty" console:"-"`
+	ByWorkflow       map[string]*FirewallAnalysis  `json:"by_workflow,omitempty" console:"-"`
 }
 
 // buildLogsData creates structured logs data from processed runs
@@ -189,6 +201,9 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	// Build access log summary
 	accessLog := buildAccessLogSummary(processedRuns)
 
+	// Build firewall log summary
+	firewallLog := buildFirewallLogSummary(processedRuns)
+
 	absOutputDir, _ := filepath.Abs(outputDir)
 
 	return LogsData{
@@ -199,6 +214,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		MissingTools:      missingTools,
 		MCPFailures:       mcpFailures,
 		AccessLog:         accessLog,
+		FirewallLog:       firewallLog,
 		Continuation:      continuation,
 		LogsLocation:      absOutputDir,
 	}
@@ -400,6 +416,68 @@ func buildAccessLogSummary(processedRuns []ProcessedRun) *AccessLogSummary {
 		AllowedDomains: allowedDomains,
 		DeniedDomains:  deniedDomains,
 		ByWorkflow:     byWorkflow,
+	}
+}
+
+// buildFirewallLogSummary aggregates firewall log data across all runs
+func buildFirewallLogSummary(processedRuns []ProcessedRun) *FirewallLogSummary {
+	allAllowedDomains := make(map[string]bool)
+	allDeniedDomains := make(map[string]bool)
+	allRequestsByDomain := make(map[string]DomainRequestStats)
+	byWorkflow := make(map[string]*FirewallAnalysis)
+	totalRequests := 0
+	allowedRequests := 0
+	deniedRequests := 0
+
+	for _, pr := range processedRuns {
+		if pr.FirewallAnalysis != nil {
+			totalRequests += pr.FirewallAnalysis.TotalRequests
+			allowedRequests += pr.FirewallAnalysis.AllowedRequests
+			deniedRequests += pr.FirewallAnalysis.DeniedRequests
+			byWorkflow[pr.Run.WorkflowName] = pr.FirewallAnalysis
+
+			for _, domain := range pr.FirewallAnalysis.AllowedDomains {
+				allAllowedDomains[domain] = true
+			}
+			for _, domain := range pr.FirewallAnalysis.DeniedDomains {
+				allDeniedDomains[domain] = true
+			}
+
+			// Aggregate request stats by domain
+			for domain, stats := range pr.FirewallAnalysis.RequestsByDomain {
+				existing := allRequestsByDomain[domain]
+				existing.Allowed += stats.Allowed
+				existing.Denied += stats.Denied
+				allRequestsByDomain[domain] = existing
+			}
+		}
+	}
+
+	if totalRequests == 0 {
+		return nil
+	}
+
+	// Convert maps to slices
+	var allowedDomains []string
+	for domain := range allAllowedDomains {
+		allowedDomains = append(allowedDomains, domain)
+	}
+	sort.Strings(allowedDomains)
+
+	var deniedDomains []string
+	for domain := range allDeniedDomains {
+		deniedDomains = append(deniedDomains, domain)
+	}
+	sort.Strings(deniedDomains)
+
+	return &FirewallLogSummary{
+		TotalRequests:    totalRequests,
+		AllowedRequests:  allowedRequests,
+		DeniedRequests:   deniedRequests,
+		AllowedDomains:   allowedDomains,
+		DeniedDomains:    deniedDomains,
+		RequestsByDomain: allRequestsByDomain,
+		ByWorkflow:       byWorkflow,
 	}
 }
 

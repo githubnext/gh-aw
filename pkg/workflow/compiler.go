@@ -362,6 +362,21 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			})
 			return errors.New(formattedErr)
 		}
+
+		// Validate repository features (discussions, issues)
+		log.Print("Validating repository features")
+		if err := c.validateRepositoryFeatures(workflowData); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("repository feature validation failed: %v", err),
+			})
+			return errors.New(formattedErr)
+		}
 	} else if c.verbose {
 		fmt.Println(console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
 		c.IncrementWarningCount()
@@ -527,6 +542,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to process imports from frontmatter: %w", err)
 	}
 
+	// Merge network permissions from imports with top-level network permissions
+	if importsResult.MergedNetwork != "" {
+		networkPermissions, err = c.MergeNetworkPermissions(networkPermissions, importsResult.MergedNetwork)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge network permissions: %w", err)
+		}
+	}
+
 	// Process @include directives to extract engine configurations and check for conflicts
 	includedEngines, err := parser.ExpandIncludesForEngines(result.Markdown, markdownDir)
 	if err != nil {
@@ -585,6 +608,28 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Using experimental engine: %s", agenticEngine.GetDisplayName())))
 		c.IncrementWarningCount()
 	}
+
+	// Save the initial strict mode state again for network support check
+	// (it was restored after validateStrictMode but we need it again)
+	initialStrictModeForNetwork := c.strictMode
+	if !c.strictMode {
+		if strictValue, exists := result.Frontmatter["strict"]; exists {
+			if strictBool, ok := strictValue.(bool); ok && strictBool {
+				c.strictMode = true
+			}
+		}
+	}
+
+	// Check if the engine supports network restrictions when they are defined
+	if err := c.checkNetworkSupport(agenticEngine, networkPermissions); err != nil {
+		// Restore strict mode before returning error
+		c.strictMode = initialStrictModeForNetwork
+		return nil, err
+	}
+
+	// Restore the strict mode state after network check
+	c.strictMode = initialStrictModeForNetwork
+
 	log.Print("Processing tools and includes...")
 
 	// Extract SafeOutputs configuration early so we can use it when applying default tools
@@ -779,6 +824,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		// Parse imported steps from YAML array
 		var importedSteps []any
 		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &importedSteps); err == nil {
+			// Apply action pinning to imported steps
+			importedSteps = ApplyActionPinsToSteps(importedSteps)
+
 			// If there are main workflow steps, parse and merge them
 			if workflowData.CustomSteps != "" {
 				// Parse main workflow steps (format: "steps:\n  - ...")
@@ -786,6 +834,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 				if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err == nil {
 					if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
 						if mainSteps, ok := mainStepsVal.([]any); ok {
+							// Apply action pinning to main steps
+							mainSteps = ApplyActionPinsToSteps(mainSteps)
+
 							// Prepend imported steps to main steps
 							allSteps := append(importedSteps, mainSteps...)
 							// Convert back to YAML with "steps:" wrapper
@@ -806,9 +857,48 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 				}
 			}
 		}
+	} else if workflowData.CustomSteps != "" {
+		// No imported steps, but there are main steps - still apply pinning
+		var mainStepsWrapper map[string]any
+		if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err == nil {
+			if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
+				if mainSteps, ok := mainStepsVal.([]any); ok {
+					// Apply action pinning to main steps
+					mainSteps = ApplyActionPinsToSteps(mainSteps)
+
+					// Convert back to YAML with "steps:" wrapper
+					stepsWrapper := map[string]any{"steps": mainSteps}
+					stepsYAML, err := yaml.Marshal(stepsWrapper)
+					if err == nil {
+						workflowData.CustomSteps = string(stepsYAML)
+					}
+				}
+			}
+		}
 	}
 
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
+
+	// Apply action pinning to post-steps if any
+	if workflowData.PostSteps != "" {
+		var postStepsWrapper map[string]any
+		if err := yaml.Unmarshal([]byte(workflowData.PostSteps), &postStepsWrapper); err == nil {
+			if postStepsVal, hasPostSteps := postStepsWrapper["post-steps"]; hasPostSteps {
+				if postSteps, ok := postStepsVal.([]any); ok {
+					// Apply action pinning to post steps
+					postSteps = ApplyActionPinsToSteps(postSteps)
+
+					// Convert back to YAML with "post-steps:" wrapper
+					stepsWrapper := map[string]any{"post-steps": postSteps}
+					stepsYAML, err := yaml.Marshal(stepsWrapper)
+					if err == nil {
+						workflowData.PostSteps = string(stepsYAML)
+					}
+				}
+			}
+		}
+	}
+
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Environment = c.extractTopLevelYAMLSection(result.Frontmatter, "environment")
 	workflowData.Container = c.extractTopLevelYAMLSection(result.Frontmatter, "container")
@@ -2707,6 +2797,9 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 				if stepsList, ok := steps.([]any); ok {
 					for _, step := range stepsList {
 						if stepMap, ok := step.(map[string]any); ok {
+							// Apply action pinning before converting to YAML
+							stepMap = ApplyActionPinToStep(stepMap)
+
 							stepYAML, err := c.convertStepToYAML(stepMap)
 							if err != nil {
 								return fmt.Errorf("failed to convert step to YAML for job '%s': %w", jobName, err)

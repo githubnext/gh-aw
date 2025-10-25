@@ -98,6 +98,7 @@ type ImportsResult struct {
 	MergedSteps       string   // Merged steps configuration from all imports
 	MergedRuntimes    string   // Merged runtimes configuration from all imports
 	MergedServices    string   // Merged services configuration from all imports
+	MergedNetwork     string   // Merged network configuration from all imports
 	ImportedFiles     []string // List of imported file paths (for manifest)
 }
 
@@ -404,6 +405,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var stepsBuilder strings.Builder
 	var runtimesBuilder strings.Builder
 	var servicesBuilder strings.Builder
+	var networkBuilder strings.Builder
 	var engines []string
 	var safeOutputs []string
 	var processedFiles []string
@@ -500,6 +502,12 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		if err == nil && servicesContent != "" {
 			servicesBuilder.WriteString(servicesContent + "\n")
 		}
+
+		// Extract network from imported file
+		networkContent, err := extractNetworkFromContent(string(content))
+		if err == nil && networkContent != "" && networkContent != "{}" {
+			networkBuilder.WriteString(networkContent + "\n")
+		}
 	}
 
 	return &ImportsResult{
@@ -511,6 +519,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		MergedSteps:       stepsBuilder.String(),
 		MergedRuntimes:    runtimesBuilder.String(),
 		MergedServices:    servicesBuilder.String(),
+		MergedNetwork:     networkBuilder.String(),
 		ImportedFiles:     processedFiles,
 	}, nil
 }
@@ -777,10 +786,10 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 		} else {
 			// For non-workflow files, fall back to relaxed validation with warnings
 			if len(result.Frontmatter) > 0 {
-				// Check for unexpected frontmatter fields (anything other than tools and engine)
+				// Check for unexpected frontmatter fields (anything other than tools, engine, and network)
 				unexpectedFields := make([]string, 0)
 				for key := range result.Frontmatter {
-					if key != "tools" && key != "engine" {
+					if key != "tools" && key != "engine" && key != "network" {
 						unexpectedFields = append(unexpectedFields, key)
 					}
 				}
@@ -792,13 +801,16 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 							filePath, strings.Join(unexpectedFields, ", "))))
 				}
 
-				// Validate the tools and engine sections if present
+				// Validate the tools, engine, and network sections if present
 				filteredFrontmatter := map[string]any{}
 				if tools, hasTools := result.Frontmatter["tools"]; hasTools {
 					filteredFrontmatter["tools"] = tools
 				}
 				if engine, hasEngine := result.Frontmatter["engine"]; hasEngine {
 					filteredFrontmatter["engine"] = engine
+				}
+				if network, hasNetwork := result.Frontmatter["network"]; hasNetwork {
+					filteredFrontmatter["network"] = network
 				}
 				if len(filteredFrontmatter) > 0 {
 					if err := ValidateIncludedFileFrontmatterWithSchemaAndLocation(filteredFrontmatter, filePath); err != nil {
@@ -956,6 +968,11 @@ func extractServicesFromContent(content string) (string, error) {
 	}
 
 	return strings.TrimSpace(string(servicesYAML)), nil
+}
+
+// extractNetworkFromContent extracts network section from frontmatter as JSON string
+func extractNetworkFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "network", "{}")
 }
 
 // extractFrontmatterField extracts a specific field from frontmatter as JSON string

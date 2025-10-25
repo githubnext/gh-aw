@@ -680,23 +680,71 @@ jobs:
 
               }
 
+              const timestamp = fields[0];
+
+              if (!/^\d+(\.\d+)?$/.test(timestamp)) {
+
+                return null;
+
+              }
+
+              const clientIpPort = fields[1];
+
+              if (clientIpPort !== "-" && !/^[\d.]+:\d+$/.test(clientIpPort)) {
+
+                return null;
+
+              }
+
+              const domain = fields[2];
+
+              if (domain !== "-" && !/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*:\d+$/.test(domain)) {
+
+                return null;
+
+              }
+
+              const destIpPort = fields[3];
+
+              if (destIpPort !== "-" && !/^[\d.]+:\d+$/.test(destIpPort)) {
+
+                return null;
+
+              }
+
+              const status = fields[6];
+
+              if (status !== "-" && !/^\d+$/.test(status)) {
+
+                return null;
+
+              }
+
+              const decision = fields[7];
+
+              if (decision !== "-" && !decision.includes(":")) {
+
+                return null;
+
+              }
+
               return {
 
-                timestamp: fields[0],
+                timestamp: timestamp,
 
-                clientIpPort: fields[1],
+                clientIpPort: clientIpPort,
 
-                domain: fields[2],
+                domain: domain,
 
-                destIpPort: fields[3],
+                destIpPort: destIpPort,
 
                 proto: fields[4],
 
                 method: fields[5],
 
-                status: fields[6],
+                status: status,
 
-                decision: fields[7],
+                decision: decision,
 
                 url: fields[8],
 
@@ -738,19 +786,25 @@ jobs:
 
               let summary = "# 🔥 Firewall Blocked Requests\n\n";
 
-              if (deniedRequests > 0) {
+              const validDeniedDomains = deniedDomains.filter(domain => domain !== "-");
 
-                summary += `**${deniedRequests}** request${deniedRequests !== 1 ? "s" : ""} blocked across **${deniedDomains.length}** unique domain${deniedDomains.length !== 1 ? "s" : ""}`;
+              const validDeniedRequests = validDeniedDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
 
-                summary += ` (${totalRequests > 0 ? Math.round((deniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
+              if (validDeniedRequests > 0) {
 
-                summary += "## 🚫 Blocked Domains\n\n";
+                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
+
+                summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
+
+                summary += "<details>\n";
+
+                summary += "<summary>🚫 Blocked Domains (click to expand)</summary>\n\n";
 
                 summary += "| Domain | Blocked Requests |\n";
 
                 summary += "|--------|------------------|\n";
 
-                for (const domain of deniedDomains) {
+                for (const domain of validDeniedDomains) {
 
                   const stats = requestsByDomain.get(domain);
 
@@ -758,7 +812,7 @@ jobs:
 
                 }
 
-                summary += "\n";
+                summary += "\n</details>\n\n";
 
               } else {
 

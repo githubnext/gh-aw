@@ -114,15 +114,51 @@ function parseFirewallLogLine(line) {
     return null;
   }
 
+  // Validate timestamp format (should be numeric with optional decimal point)
+  const timestamp = fields[0];
+  if (!/^\d+(\.\d+)?$/.test(timestamp)) {
+    return null;
+  }
+
+  // Validate client IP:port format (should be IP:port or "-")
+  const clientIpPort = fields[1];
+  if (clientIpPort !== "-" && !/^[\d.]+:\d+$/.test(clientIpPort)) {
+    return null;
+  }
+
+  // Validate domain format (should be domain:port or "-")
+  const domain = fields[2];
+  if (domain !== "-" && !/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*:\d+$/.test(domain)) {
+    return null;
+  }
+
+  // Validate dest IP:port format (should be IP:port or "-")
+  const destIpPort = fields[3];
+  if (destIpPort !== "-" && !/^[\d.]+:\d+$/.test(destIpPort)) {
+    return null;
+  }
+
+  // Validate status code (should be numeric or "-")
+  const status = fields[6];
+  if (status !== "-" && !/^\d+$/.test(status)) {
+    return null;
+  }
+
+  // Validate decision format (should contain ":" or be "-")
+  const decision = fields[7];
+  if (decision !== "-" && !decision.includes(":")) {
+    return null;
+  }
+
   return {
-    timestamp: fields[0],
-    clientIpPort: fields[1],
-    domain: fields[2],
-    destIpPort: fields[3],
+    timestamp: timestamp,
+    clientIpPort: clientIpPort,
+    domain: domain,
+    destIpPort: destIpPort,
     proto: fields[4],
     method: fields[5],
-    status: fields[6],
-    decision: fields[7],
+    status: status,
+    decision: decision,
     url: fields[8],
     userAgent: fields[9] ? fields[9].replace(/^"|"$/g, "") : "-",
   };
@@ -165,20 +201,27 @@ function generateFirewallSummary(analysis) {
 
   let summary = "# 🔥 Firewall Blocked Requests\n\n";
 
-  // Show blocked requests if any exist
-  if (deniedRequests > 0) {
-    summary += `**${deniedRequests}** request${deniedRequests !== 1 ? "s" : ""} blocked across **${deniedDomains.length}** unique domain${deniedDomains.length !== 1 ? "s" : ""}`;
-    summary += ` (${totalRequests > 0 ? Math.round((deniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
+  // Filter out invalid domains (placeholder "-" values)
+  const validDeniedDomains = deniedDomains.filter(domain => domain !== "-");
 
-    summary += "## 🚫 Blocked Domains\n\n";
+  // Calculate denied requests from valid domains only
+  const validDeniedRequests = validDeniedDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
+
+  // Show blocked requests if any exist
+  if (validDeniedRequests > 0) {
+    summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
+    summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
+
+    summary += "<details>\n";
+    summary += "<summary>🚫 Blocked Domains (click to expand)</summary>\n\n";
     summary += "| Domain | Blocked Requests |\n";
     summary += "|--------|------------------|\n";
 
-    for (const domain of deniedDomains) {
+    for (const domain of validDeniedDomains) {
       const stats = requestsByDomain.get(domain);
       summary += `| ${domain} | ${stats.denied} |\n`;
     }
-    summary += "\n";
+    summary += "\n</details>\n\n";
   } else {
     summary += "✅ **No blocked requests detected**\n\n";
     if (totalRequests > 0) {

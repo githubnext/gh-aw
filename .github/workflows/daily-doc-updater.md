@@ -44,7 +44,6 @@ tools:
     - "grep -r '*' docs"
 
 timeout_minutes: 15
-strict: true
 
 ---
 

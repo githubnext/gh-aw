@@ -1658,9 +1658,23 @@ jobs:
               };
             };
             function getCurrentBranch() {
+              const ghHeadRef = process.env.GITHUB_HEAD_REF;
+              const ghRefName = process.env.GITHUB_REF_NAME;
+              if (ghHeadRef) {
+                debug(`Resolved current branch from GITHUB_HEAD_REF: ${ghHeadRef}`);
+                return ghHeadRef;
+              }
+              if (ghRefName) {
+                debug(`Resolved current branch from GITHUB_REF_NAME: ${ghRefName}`);
+                return ghRefName;
+              }
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
               try {
-                const branch = execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
-                debug(`Resolved current branch: ${branch}`);
+                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+                  encoding: "utf8",
+                  cwd: cwd,
+                }).trim();
+                debug(`Resolved current branch from git in ${cwd}: ${branch}`);
                 return branch;
               } catch (error) {
                 throw new Error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`);
@@ -6512,12 +6526,25 @@ jobs:
                   if (commitTitlePrefix) {
                     core.info(`Prepending commit title prefix: "${commitTitlePrefix}"`);
                     let patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                    let normalizedPrefix = commitTitlePrefix;
+                    if (normalizedPrefix.startsWith("[") && normalizedPrefix.includes("]")) {
+                      const bracketContent = normalizedPrefix.match(/^\[([^\]]+)\]/);
+                      if (bracketContent) {
+                        const afterBracket = commitTitlePrefix.substring(commitTitlePrefix.indexOf("]") + 1);
+                        normalizedPrefix = bracketContent[1] + ":";
+                        if (afterBracket) {
+                          normalizedPrefix += afterBracket;
+                        } else {
+                          normalizedPrefix += " ";
+                        }
+                      }
+                    }
                     patchContent = patchContent.replace(
                       /^Subject: (?:\[PATCH\] )?(.*)$/gm,
-                      (match, title) => `Subject: [PATCH] ${commitTitlePrefix}${title}`
+                      (match, title) => `Subject: [PATCH] ${normalizedPrefix}${title}`
                     );
                     fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
-                    core.info("Patch modified with commit title prefix");
+                    core.info(`Patch modified with commit title prefix (normalized to: "${normalizedPrefix}")`);
                   }
                   await exec.exec("git am /tmp/gh-aw/aw.patch");
                   core.info("Patch applied successfully");

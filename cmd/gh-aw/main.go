@@ -124,6 +124,15 @@ var compileCmd = &cobra.Command{
 
 If no files are specified, all markdown files in .github/workflows will be compiled.
 
+The --dependabot flag generates npm package manifests when npm dependencies are detected:
+  - Creates package.json with all npm packages used in workflows
+  - Runs npm install --package-lock-only to generate package-lock.json
+  - Creates .github/dependabot.yml for automatic dependency updates
+  - Requires npm to be installed and available in PATH
+  - Use --force to overwrite existing dependabot.yml
+  - Cannot be used with specific workflow files or custom --workflows-dir
+  - Only processes workflows in the default .github/workflows directory
+
 Examples:
   ` + constants.CLIExtensionPrefix + ` compile                    # Compile all markdown files
   ` + constants.CLIExtensionPrefix + ` compile ci-doctor    # Compile a specific workflow
@@ -131,7 +140,9 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` compile workflow.md        # Compile by file path
   ` + constants.CLIExtensionPrefix + ` compile --workflows-dir custom/workflows  # Compile from custom directory
   ` + constants.CLIExtensionPrefix + ` compile --watch ci-doctor     # Watch and auto-compile
-  ` + constants.CLIExtensionPrefix + ` compile --trial --logical-repo owner/repo  # Compile for trial mode`,
+  ` + constants.CLIExtensionPrefix + ` compile --trial --logical-repo owner/repo  # Compile for trial mode
+  ` + constants.CLIExtensionPrefix + ` compile --dependabot        # Generate Dependabot manifests for npm dependencies
+  ` + constants.CLIExtensionPrefix + ` compile --dependabot --force  # Force overwrite existing dependabot.yml`,
 	Run: func(cmd *cobra.Command, args []string) {
 		engineOverride, _ := cmd.Flags().GetString("engine")
 		validate, _ := cmd.Flags().GetBool("validate")
@@ -142,6 +153,8 @@ Examples:
 		strict, _ := cmd.Flags().GetBool("strict")
 		trial, _ := cmd.Flags().GetBool("trial")
 		logicalRepo, _ := cmd.Flags().GetString("logical-repo")
+		dependabot, _ := cmd.Flags().GetBool("dependabot")
+		forceOverwrite, _ := cmd.Flags().GetBool("force")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -160,6 +173,8 @@ Examples:
 			TrialMode:            trial,
 			TrialLogicalRepoSlug: logicalRepo,
 			Strict:               strict,
+			Dependabot:           dependabot,
+			ForceOverwrite:       forceOverwrite,
 		}
 		if _, err := cli.CompileWorkflows(config); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -265,6 +280,9 @@ func init() {
 	compileCmd.Flags().Bool("strict", false, "Enable strict mode: require timeout, refuse write permissions, require network configuration")
 	compileCmd.Flags().Bool("trial", false, "Enable trial mode compilation (modifies workflows for trial execution)")
 	compileCmd.Flags().String("logical-repo", "", "Repository to simulate workflow execution against (for trial mode)")
+	compileCmd.Flags().Bool("dependabot", false, "Generate npm package manifest/lockfile and Dependabot config when npm dependencies are detected")
+	compileCmd.Flags().Bool("force", false, "Force overwrite of existing files (e.g., dependabot.yml)")
+	rootCmd.AddCommand(compileCmd)
 
 	// Add flags to remove command
 	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
