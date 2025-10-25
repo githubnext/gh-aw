@@ -2078,7 +2078,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 
 			if ifCond, hasIf := configMap["if"]; hasIf {
 				if ifStr, ok := ifCond.(string); ok {
-					job.If = c.extractExpressionFromIfString(ifStr)
+					job.If = wrapIfExpression(c.extractExpressionFromIfString(ifStr))
 				}
 			}
 

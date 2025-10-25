@@ -89,7 +89,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 			commandConditionTree := buildEventAwareCommandCondition(data.Command, data.CommandEvents, hasOtherEvents)
 
 			if data.If == "" {
-				data.If = commandConditionTree.Render()
+				data.If = wrapIfExpression(commandConditionTree.Render())
 			}
 		} else {
 			data.On = `on:

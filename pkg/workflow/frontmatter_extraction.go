@@ -545,6 +545,51 @@ func (c *Compiler) extractExpressionFromIfString(ifString string) string {
 	return ifString
 }
 
+// wrapIfExpression wraps an expression in ${{ }} if it contains operators or is complex.
+// GitHub Actions requires expressions with operators (!, &&, ||) to be wrapped in ${{ }}.
+// Simple function calls like always(), success(), failure(), cancelled() don't need wrapping.
+func wrapIfExpression(expression string) string {
+	if expression == "" {
+		return ""
+	}
+
+	// Check if already wrapped in ${{ }}
+	trimmed := strings.TrimSpace(expression)
+	if strings.HasPrefix(trimmed, "${{") && strings.HasSuffix(trimmed, "}}") {
+		return expression
+	}
+
+	// Simple function calls that don't need wrapping
+	simplePatterns := []string{"always()", "success()", "failure()", "cancelled()"}
+	for _, pattern := range simplePatterns {
+		if trimmed == pattern {
+			return expression
+		}
+	}
+
+	// Check if expression contains operators that require wrapping
+	needsWrapping := strings.Contains(expression, "!") ||
+		strings.Contains(expression, "&&") ||
+		strings.Contains(expression, "||") ||
+		strings.Contains(expression, "==") ||
+		strings.Contains(expression, "!=") ||
+		strings.Contains(expression, "contains(") ||
+		strings.Contains(expression, "startsWith(") ||
+		strings.Contains(expression, "endsWith(") ||
+		strings.Contains(expression, "fromJSON(") ||
+		strings.Contains(expression, "toJSON(") ||
+		strings.Contains(expression, "hashFiles(") ||
+		strings.Contains(expression, "github.") ||
+		strings.Contains(expression, "needs.") ||
+		strings.Contains(expression, "env.")
+
+	if needsWrapping {
+		return fmt.Sprintf("${{ %s }}", expression)
+	}
+
+	return expression
+}
+
 // extractCommandConfig extracts command configuration from frontmatter including name and events
 func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName string, commandEvents []string) {
 	// Check new format: on.command or on.command.name
