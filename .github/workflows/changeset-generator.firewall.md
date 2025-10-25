@@ -14,7 +14,7 @@ safe-outputs:
   push-to-pull-request-branch:
     commit-title-suffix: " [skip-ci]"
 timeout_minutes: 10
-features:
+network:
   firewall: true
 tools:
   bash:

@@ -27,16 +27,9 @@ type EngineConfig struct {
 
 // NetworkPermissions represents network access permissions
 type NetworkPermissions struct {
-	Mode    string   `yaml:"mode,omitempty"`    // "defaults" for default access
-	Allowed []string `yaml:"allowed,omitempty"` // List of allowed domains
-}
-
-// FirewallConfig represents AWF (gh-aw-firewall) configuration for network egress control
-type FirewallConfig struct {
-	Enabled       bool   `yaml:"enabled,omitempty"`        // Always true for copilot by default
-	Version       string `yaml:"version,omitempty"`        // AWF version (empty = latest)
-	LogLevel      string `yaml:"log_level,omitempty"`      // AWF log level (default: "debug")
-	CleanupScript string `yaml:"cleanup_script,omitempty"` // Cleanup script path (default: "./scripts/ci/cleanup.sh")
+	Mode     string          `yaml:"mode,omitempty"`     // "defaults" for default access
+	Allowed  []string        `yaml:"allowed,omitempty"`  // List of allowed domains
+	Firewall *FirewallConfig `yaml:"firewall,omitempty"` // AWF firewall configuration (see firewall.go)
 }
 
 // EngineNetworkConfig combines engine configuration with top-level network permissions

@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 name: Smoke Copilot Firewall
 engine: copilot
-features:
+network:
   firewall: true
 tools:
   github:

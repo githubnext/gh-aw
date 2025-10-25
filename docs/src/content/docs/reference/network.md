@@ -79,10 +79,8 @@ Enable network permissions in your workflow:
 ```yaml
 engine: copilot
 
-features:
-  firewall: true           # Enable AWF enforcement
-
 network:
+  firewall: true           # Enable AWF enforcement
   allowed:
     - defaults             # Basic infrastructure
     - python              # Python ecosystem

@@ -5,6 +5,11 @@ on:
     - cron: "0 9 * * 1-5"
   workflow_dispatch:
 
+engine: copilot
+
+network:
+  firewall: true
+
 safe-outputs:
   create-discussion:
     category: "daily-news"

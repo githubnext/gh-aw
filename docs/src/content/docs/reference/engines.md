@@ -59,10 +59,8 @@ Enable network permissions and firewall in your workflow:
 ```yaml
 engine: copilot
 
-features:
-  firewall: true           # Enable AWF enforcement
-
 network:
+  firewall: true           # Enable AWF enforcement
   allowed:
     - defaults             # Basic infrastructure domains
     - python              # Python ecosystem
@@ -73,16 +71,46 @@ When enabled, AWF wraps the Copilot CLI execution and enforces the configured do
 
 **Advanced Firewall Configuration:**
 
-Additional AWF settings can be configured through the engine configuration:
+Additional AWF settings can be configured through the network configuration:
 
 ```yaml
-engine:
-  id: copilot
+network:
+  allowed:
+    - defaults
+    - python
   firewall:
-    version: "v1.0.0"          # Optional: AWF version (defaults to latest)
-    log_level: "debug"         # Optional: AWF log level (defaults to debug)
-    cleanup_script: "./cleanup.sh"  # Optional: cleanup script path
+    version: "v1.0.0"                    # Optional: AWF version (defaults to latest)
+    args: ["--custom-arg", "value"]      # Optional: additional AWF arguments
 ```
+
+**Firewall Configuration Formats:**
+
+The `firewall` field supports multiple formats:
+
+```yaml
+# Enable with defaults
+network:
+  firewall: true
+
+# Enable with empty object (same as true)
+network:
+  firewall:
+
+# Disable firewall (triggers warning if allowed domains are specified)
+network:
+  allowed: ["example.com"]
+  firewall: "disable"
+
+# Custom configuration with version and arguments
+network:
+  firewall:
+    version: "v0.1.0"
+    args: ["--verbose"]
+```
+
+:::caution
+Using `firewall: "disable"` with `network.allowed` domains will emit a warning in normal mode and an error in strict mode, as the network may not be properly sandboxed.
+:::
 
 See the [Network Permissions](/gh-aw/reference/network/) documentation for details on configuring allowed domains and ecosystem identifiers.
 
