@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/cli/go-gh/v2"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
@@ -286,4 +287,153 @@ func validateSecretReferences(secrets []string) error {
 	}
 
 	return nil
+}
+
+// validateRepositoryFeatures validates that required repository features are enabled
+// when safe-outputs are configured that depend on them (discussions, issues)
+func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error {
+	if workflowData.SafeOutputs == nil {
+		return nil
+	}
+
+	validationLog.Print("Validating repository features for safe-outputs")
+
+	// Get the repository from the current git context
+	// This will work when running in a git repository
+	repo, err := getCurrentRepository()
+	if err != nil {
+		validationLog.Printf("Could not determine repository: %v", err)
+		// Don't fail if we can't determine the repository (e.g., not in a git repo)
+		// This allows validation to pass in non-git environments
+		return nil
+	}
+
+	validationLog.Printf("Checking repository features for: %s", repo)
+
+	// Check if discussions are enabled when create-discussion is configured
+	if workflowData.SafeOutputs.CreateDiscussions != nil {
+		hasDiscussions, err := checkRepositoryHasDiscussions(repo)
+		if err != nil {
+			// If we can't check, log but don't fail
+			// This could happen due to network issues or auth problems
+			validationLog.Printf("Warning: Could not check if discussions are enabled: %v", err)
+			if c.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+					fmt.Sprintf("Could not verify if discussions are enabled: %v", err)))
+			}
+			return nil
+		}
+
+		if !hasDiscussions {
+			return fmt.Errorf("workflow uses safe-outputs.create-discussion but repository %s does not have discussions enabled. Enable discussions in repository settings or remove create-discussion from safe-outputs", repo)
+		}
+
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+				fmt.Sprintf("✓ Repository %s has discussions enabled", repo)))
+		}
+	}
+
+	// Check if issues are enabled when create-issue is configured
+	if workflowData.SafeOutputs.CreateIssues != nil {
+		hasIssues, err := checkRepositoryHasIssues(repo)
+		if err != nil {
+			// If we can't check, log but don't fail
+			validationLog.Printf("Warning: Could not check if issues are enabled: %v", err)
+			if c.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+					fmt.Sprintf("Could not verify if issues are enabled: %v", err)))
+			}
+			return nil
+		}
+
+		if !hasIssues {
+			return fmt.Errorf("workflow uses safe-outputs.create-issue but repository %s does not have issues enabled. Enable issues in repository settings or remove create-issue from safe-outputs", repo)
+		}
+
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+				fmt.Sprintf("✓ Repository %s has issues enabled", repo)))
+		}
+	}
+
+	return nil
+}
+
+// getCurrentRepository gets the current repository from git context
+func getCurrentRepository() (string, error) {
+	// Use gh CLI to get the current repository
+	// This works when in a git repository with GitHub remote
+	stdOut, _, err := gh.Exec("repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner")
+	if err != nil {
+		return "", fmt.Errorf("failed to get current repository: %w", err)
+	}
+
+	repo := strings.TrimSpace(stdOut.String())
+	if repo == "" {
+		return "", fmt.Errorf("repository name is empty")
+	}
+
+	return repo, nil
+}
+
+// checkRepositoryHasDiscussions checks if a repository has discussions enabled
+func checkRepositoryHasDiscussions(repo string) (bool, error) {
+	// Use GitHub GraphQL API to check if discussions are enabled
+	// The hasDiscussionsEnabled field is the canonical way to check this
+	query := `query($owner: String!, $name: String!) {
+		repository(owner: $owner, name: $name) {
+			hasDiscussionsEnabled
+		}
+	}`
+
+	// Split repo into owner and name
+	parts := strings.SplitN(repo, "/", 2)
+	if len(parts) != 2 {
+		return false, fmt.Errorf("invalid repository format: %s (expected owner/repo)", repo)
+	}
+	owner, name := parts[0], parts[1]
+
+	// Execute GraphQL query using gh CLI
+	type GraphQLResponse struct {
+		Data struct {
+			Repository struct {
+				HasDiscussionsEnabled bool `json:"hasDiscussionsEnabled"`
+			} `json:"repository"`
+		} `json:"data"`
+	}
+
+	stdOut, _, err := gh.Exec("api", "graphql", "-f", fmt.Sprintf("query=%s", query),
+		"-f", fmt.Sprintf("owner=%s", owner), "-f", fmt.Sprintf("name=%s", name))
+	if err != nil {
+		return false, fmt.Errorf("failed to query discussions status: %w", err)
+	}
+
+	var response GraphQLResponse
+	if err := json.Unmarshal(stdOut.Bytes(), &response); err != nil {
+		return false, fmt.Errorf("failed to parse GraphQL response: %w", err)
+	}
+
+	return response.Data.Repository.HasDiscussionsEnabled, nil
+}
+
+// checkRepositoryHasIssues checks if a repository has issues enabled
+func checkRepositoryHasIssues(repo string) (bool, error) {
+	// Use GitHub REST API to check if issues are enabled
+	// The has_issues field indicates if issues are enabled
+	type RepositoryResponse struct {
+		HasIssues bool `json:"has_issues"`
+	}
+
+	stdOut, _, err := gh.Exec("api", fmt.Sprintf("repos/%s", repo))
+	if err != nil {
+		return false, fmt.Errorf("failed to query repository: %w", err)
+	}
+
+	var response RepositoryResponse
+	if err := json.Unmarshal(stdOut.Bytes(), &response); err != nil {
+		return false, fmt.Errorf("failed to parse repository response: %w", err)
+	}
+
+	return response.HasIssues, nil
 }
