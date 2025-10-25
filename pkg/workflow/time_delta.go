@@ -8,6 +8,12 @@ import (
 	"time"
 )
 
+// Pre-compiled regexes for time parsing (performance optimization)
+var (
+	timeDeltaPattern = regexp.MustCompile(`(\d+)(mo|w|d|h|m)`)
+	ordinalPattern   = regexp.MustCompile(`\b(\d+)(st|nd|rd|th)\b`)
+)
+
 // TimeDelta represents a time duration that can be added to a base time
 type TimeDelta struct {
 	Hours   int
@@ -46,8 +52,7 @@ func parseTimeDelta(deltaStr string) (*TimeDelta, error) {
 
 	// Parse components using regex
 	// Pattern matches: number followed by mo/w/d/h/m (months, weeks, days, hours, minutes)
-	pattern := regexp.MustCompile(`(\d+)(mo|w|d|h|m)`)
-	matches := pattern.FindAllStringSubmatch(deltaStr, -1)
+	matches := timeDeltaPattern.FindAllStringSubmatch(deltaStr, -1)
 
 	if len(matches) == 0 {
 		return nil, fmt.Errorf("invalid time delta format: +%s. Expected format like +25h, +3d, +1w, +1mo, +1d12h30m", deltaStr)
@@ -203,7 +208,6 @@ func parseAbsoluteDateTime(dateTimeStr string) (string, error) {
 	dateTimeStr = strings.TrimSpace(dateTimeStr)
 
 	// Handle ordinal numbers (1st, 2nd, 3rd, 4th, etc.)
-	ordinalPattern := regexp.MustCompile(`\b(\d+)(st|nd|rd|th)\b`)
 	dateTimeStr = ordinalPattern.ReplaceAllString(dateTimeStr, "$1")
 
 	// Try to parse with each format
