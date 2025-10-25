@@ -124,6 +124,13 @@ var compileCmd = &cobra.Command{
 
 If no files are specified, all markdown files in .github/workflows will be compiled.
 
+The --dependabot flag generates npm package manifests when npm dependencies are detected:
+  - Creates package.json with all npm packages used in workflows
+  - Runs npm install --package-lock-only to generate package-lock.json
+  - Creates .github/dependabot.yml for automatic dependency updates
+  - Requires npm to be installed and available in PATH
+  - Use --force to overwrite existing dependabot.yml
+
 Examples:
   ` + constants.CLIExtensionPrefix + ` compile                    # Compile all markdown files
   ` + constants.CLIExtensionPrefix + ` compile ci-doctor    # Compile a specific workflow
@@ -131,7 +138,9 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` compile workflow.md        # Compile by file path
   ` + constants.CLIExtensionPrefix + ` compile --workflows-dir custom/workflows  # Compile from custom directory
   ` + constants.CLIExtensionPrefix + ` compile --watch ci-doctor     # Watch and auto-compile
-  ` + constants.CLIExtensionPrefix + ` compile --trial --logical-repo owner/repo  # Compile for trial mode`,
+  ` + constants.CLIExtensionPrefix + ` compile --trial --logical-repo owner/repo  # Compile for trial mode
+  ` + constants.CLIExtensionPrefix + ` compile --dependabot        # Generate Dependabot manifests for npm dependencies
+  ` + constants.CLIExtensionPrefix + ` compile --dependabot --force  # Force overwrite existing dependabot.yml`,
 	Run: func(cmd *cobra.Command, args []string) {
 		engineOverride, _ := cmd.Flags().GetString("engine")
 		validate, _ := cmd.Flags().GetBool("validate")
