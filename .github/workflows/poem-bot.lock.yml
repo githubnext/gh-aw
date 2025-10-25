@@ -6575,18 +6575,18 @@ jobs:
               if (!isEmpty) {
                 core.info("Applying patch...");
                 try {
-                  const commitTitlePrefix = process.env.GH_AW_COMMIT_TITLE_PREFIX;
-                  if (commitTitlePrefix) {
-                    core.info(`Prepending commit title prefix: "${commitTitlePrefix}"`);
+                  const commitTitleSuffix = process.env.GH_AW_COMMIT_TITLE_SUFFIX;
+                  if (commitTitleSuffix) {
+                    core.info(`Appending commit title suffix: "${commitTitleSuffix}"`);
                     let patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
                     patchContent = patchContent.replace(
                       /^Subject: (?:\[PATCH\] )?(.*)$/gm,
-                      (match, title) => `Subject: [PATCH] ${commitTitlePrefix}${title}`
+                      (match, title) => `Subject: [PATCH] ${title}${commitTitleSuffix}`
                     );
                     fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
-                    core.info(`Patch modified with commit title prefix: "${commitTitlePrefix}"`);
+                    core.info(`Patch modified with commit title suffix: "${commitTitleSuffix}"`);
                   }
-                  await exec.exec("git am --keep-non-patch /tmp/gh-aw/aw.patch");
+                  await exec.exec("git am /tmp/gh-aw/aw.patch");
                   core.info("Patch applied successfully");
                   await exec.exec(`git push origin ${branchName}`);
                   core.info(`Changes committed and pushed to branch: ${branchName}`);

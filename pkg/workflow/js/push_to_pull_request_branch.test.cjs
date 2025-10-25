@@ -752,13 +752,13 @@ const exec = global.exec;`
     });
   });
 
-  describe("Commit title prefix", () => {
+  describe("Commit title suffix", () => {
     beforeEach(() => {
       // Add writeFileSync to mockFs
       mockFs.writeFileSync = vi.fn();
     });
 
-    it("should preserve bracketed prefix verbatim (for [skip-ci] support)", async () => {
+    it("should append bracketed suffix (for [skip-ci] support)", async () => {
       const validOutput = {
         items: [
           {
@@ -769,7 +769,7 @@ const exec = global.exec;`
       };
 
       setAgentOutput(validOutput);
-      process.env.GH_AW_COMMIT_TITLE_PREFIX = "[skip-ci] ";
+      process.env.GH_AW_COMMIT_TITLE_SUFFIX = " [skip-ci]";
 
       mockFs.existsSync.mockReturnValue(true);
       const originalPatch = `From abc123 Mon Sep 17 00:00:00 2001
@@ -790,12 +790,12 @@ Subject: [PATCH] Add new feature
       expect(mockFs.writeFileSync).toHaveBeenCalled();
       const writtenPatch = mockFs.writeFileSync.mock.calls[0][1];
 
-      // Check that the patch preserves [skip-ci] verbatim (not normalized)
-      expect(writtenPatch).toContain("Subject: [PATCH] [skip-ci] Add new feature");
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('commit title prefix: "[skip-ci] "'));
+      // Check that the patch appends [skip-ci] at the end
+      expect(writtenPatch).toContain("Subject: [PATCH] Add new feature [skip-ci]");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('commit title suffix: " [skip-ci]"'));
     });
 
-    it("should preserve prefix without brackets as-is", async () => {
+    it("should append suffix without brackets as-is", async () => {
       const validOutput = {
         items: [
           {
@@ -806,7 +806,7 @@ Subject: [PATCH] Add new feature
       };
 
       setAgentOutput(validOutput);
-      process.env.GH_AW_COMMIT_TITLE_PREFIX = "chore: ";
+      process.env.GH_AW_COMMIT_TITLE_SUFFIX = " (automated)";
 
       mockFs.existsSync.mockReturnValue(true);
       const originalPatch = `From abc123 Mon Sep 17 00:00:00 2001
@@ -828,11 +828,11 @@ Subject: [PATCH] Add new feature
       const writtenPatch = mockFs.writeFileSync.mock.calls[0][1];
 
       // Check that the patch was modified correctly
-      expect(writtenPatch).toContain("Subject: [PATCH] chore: Add new feature");
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('commit title prefix: "chore: "'));
+      expect(writtenPatch).toContain("Subject: [PATCH] Add new feature (automated)");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('commit title suffix: " (automated)"'));
     });
 
-    it("should preserve prefix with trailing space after brackets", async () => {
+    it("should append suffix with brackets", async () => {
       const validOutput = {
         items: [
           {
@@ -843,7 +843,7 @@ Subject: [PATCH] Add new feature
       };
 
       setAgentOutput(validOutput);
-      process.env.GH_AW_COMMIT_TITLE_PREFIX = "[bot] ";
+      process.env.GH_AW_COMMIT_TITLE_SUFFIX = " [bot]";
 
       mockFs.existsSync.mockReturnValue(true);
       const originalPatch = `From abc123 Mon Sep 17 00:00:00 2001
@@ -864,12 +864,12 @@ Subject: [PATCH] Add new feature
       expect(mockFs.writeFileSync).toHaveBeenCalled();
       const writtenPatch = mockFs.writeFileSync.mock.calls[0][1];
 
-      // Check that the patch preserves the prefix verbatim
-      expect(writtenPatch).toContain("Subject: [PATCH] [bot] Add new feature");
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('commit title prefix: "[bot] "'));
+      // Check that the patch appends the suffix
+      expect(writtenPatch).toContain("Subject: [PATCH] Add new feature [bot]");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('commit title suffix: " [bot]"'));
     });
 
-    it("should not modify patch when no commit title prefix is set", async () => {
+    it("should not modify patch when no commit title suffix is set", async () => {
       const validOutput = {
         items: [
           {
@@ -880,7 +880,7 @@ Subject: [PATCH] Add new feature
       };
 
       setAgentOutput(validOutput);
-      delete process.env.GH_AW_COMMIT_TITLE_PREFIX;
+      delete process.env.GH_AW_COMMIT_TITLE_SUFFIX;
 
       mockFs.existsSync.mockReturnValue(true);
       const originalPatch = `From abc123 Mon Sep 17 00:00:00 2001
@@ -912,7 +912,7 @@ Subject: [PATCH] Add new feature
       };
 
       setAgentOutput(validOutput);
-      process.env.GH_AW_COMMIT_TITLE_PREFIX = "[automated] ";
+      process.env.GH_AW_COMMIT_TITLE_SUFFIX = " [automated]";
 
       mockFs.existsSync.mockReturnValue(true);
       const originalPatch = `From abc123 Mon Sep 17 00:00:00 2001
@@ -933,11 +933,11 @@ Subject: Add new feature
       expect(mockFs.writeFileSync).toHaveBeenCalled();
       const writtenPatch = mockFs.writeFileSync.mock.calls[0][1];
 
-      // Check that [PATCH] was added along with the prefix verbatim
-      expect(writtenPatch).toContain("Subject: [PATCH] [automated] Add new feature");
+      // Check that [PATCH] was added along with the suffix at the end
+      expect(writtenPatch).toContain("Subject: [PATCH] Add new feature [automated]");
     });
 
-    it("should use git am --keep-non-patch to preserve subject prefixes", async () => {
+    it("should use git am without --keep-non-patch flag", async () => {
       const validOutput = {
         items: [
           {
@@ -948,7 +948,7 @@ Subject: Add new feature
       };
 
       setAgentOutput(validOutput);
-      process.env.GH_AW_COMMIT_TITLE_PREFIX = "[skip-ci] ";
+      process.env.GH_AW_COMMIT_TITLE_SUFFIX = " [skip-ci]";
 
       mockFs.existsSync.mockReturnValue(true);
       mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
@@ -956,8 +956,8 @@ Subject: Add new feature
       // Execute the script
       await executeScript();
 
-      // Verify that git am was called with --keep-non-patch flag
-      expect(mockExec.exec).toHaveBeenCalledWith("git am --keep-non-patch /tmp/gh-aw/aw.patch");
+      // Verify that git am was called without --keep-non-patch flag
+      expect(mockExec.exec).toHaveBeenCalledWith("git am /tmp/gh-aw/aw.patch");
     });
   });
 });

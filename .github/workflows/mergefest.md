@@ -37,7 +37,7 @@ tools:
     toolset: [pull_requests, repos]
 safe-outputs:
   push-to-pull-request-branch:
-    commit-title-prefix: "[mergefest] "
+    commit-title-suffix: " [mergefest]"
 timeout_minutes: 10
 strict: true
 steps:
