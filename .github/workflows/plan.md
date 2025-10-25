@@ -23,7 +23,8 @@ You are an expert planning assistant for GitHub Copilot agents. Your task is to 
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Issue/Discussion Number**: ${{ github.event.issue.number || github.event.discussion.number }}
+- **Issue Number**: ${{ github.event.issue.number }}
+- **Discussion Number**: ${{ github.event.discussion.number }}
 - **Content**: 
 
 <content>
@@ -116,7 +117,7 @@ This is needed to secure API endpoints before implementing user-specific feature
 ## Important Notes
 
 - **Maximum 10 sub-issues**: Don't create more than 10 sub-issues even if the work seems larger
-- **Parent Reference**: You must specify the current issue or discussion (#${{ github.event.issue.number || github.event.discussion.number }}) as the parent when creating sub-issues. The system will automatically link them with "Related to #${{ github.event.issue.number || github.event.discussion.number }}" in the issue body.
+- **Parent Reference**: You must specify the current issue (#${{ github.event.issue.number }}) or discussion (#${{ github.event.discussion.number }}) as the parent when creating sub-issues. The system will automatically link them with "Related to #N" in the issue body.
 - **Clear Steps**: Each sub-issue should have clear, actionable steps
 - **No Duplication**: Don't create sub-issues for work that's already done
 - **Prioritize Clarity**: SWE agents need unambiguous instructions
@@ -127,4 +128,4 @@ Review instructions in `.github/instructions/*.instructions.md` if you need guid
 
 ## Begin Planning
 
-Analyze the issue or discussion and create the sub-issues now. Remember to use the safe-outputs mechanism to create each issue. Each sub-issue you create will be automatically linked to the parent #${{ github.event.issue.number || github.event.discussion.number }}.
+Analyze the issue or discussion and create the sub-issues now. Remember to use the safe-outputs mechanism to create each issue. Each sub-issue you create will be automatically linked to the parent (issue #${{ github.event.issue.number }} or discussion #${{ github.event.discussion.number }}).
