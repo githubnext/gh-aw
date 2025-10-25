@@ -160,6 +160,19 @@
               "additionalProperties": true
             }
           ]
+        },
+        "agentic-workflows": {
+          "description": "GitHub Agentic Workflows MCP server for workflow introspection and analysis. Provides tools for checking status, compiling workflows, downloading logs, and auditing runs.",
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "Enable agentic-workflows tool with default settings"
+            },
+            {
+              "type": "null",
+              "description": "Enable agentic-workflows tool with default settings (same as true)"
+            }
+          ]
         }
       },
       "additionalProperties": {

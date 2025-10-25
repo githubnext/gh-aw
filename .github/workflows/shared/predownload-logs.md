@@ -29,22 +29,17 @@ imports:
 
 ## Customization
 
-You can customize the log download by modifying the parameters in your workflow's `steps:` section:
+You can customize the log download by overriding the `steps:` section in your workflow:
 
-```yaml
-steps:
-  - name: Download workflow logs
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      # Download logs for a specific workflow
-      ./gh-aw logs my-workflow --start-date -7d -o /tmp/gh-aw/aw-mcp/logs
-      
-      # Or download logs from the last 30 days
-      ./gh-aw logs --start-date -30d -o /tmp/gh-aw/aw-mcp/logs
-      
-      # Or download logs with specific filters
-      ./gh-aw logs --engine claude --count 50 -o /tmp/gh-aw/aw-mcp/logs
+```bash
+# Download logs for a specific workflow
+./gh-aw logs my-workflow --start-date -7d -o /tmp/gh-aw/aw-mcp/logs
+
+# Or download logs from the last 30 days
+./gh-aw logs --start-date -30d -o /tmp/gh-aw/aw-mcp/logs
+
+# Or download logs with specific filters
+./gh-aw logs --engine claude --count 50 -o /tmp/gh-aw/aw-mcp/logs
 ```
 
 ## Integration with agentic-workflows MCP Tool

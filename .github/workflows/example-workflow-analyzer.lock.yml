@@ -3,6 +3,11 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/mcp/gh-aw.md
+#     - shared/predownload-logs.md
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -71,6 +76,24 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
+        with:
+          cache: true
+          go-version-file: go.mod
+      - name: Install dependencies
+        run: make deps-dev
+      - name: Install binary as 'gh-aw'
+        run: make build
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Start MCP server
+        run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Wait a moment for server to start\nsleep 2\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"MCP server failed to start\"\n  exit 1\nfi\n\necho \"MCP server started successfully with PID $MCP_PID\"\n"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Download workflow logs
+        run: "set -e\necho \"Downloading workflow logs to /tmp/gh-aw/aw-mcp/logs...\"\nmkdir -p /tmp/gh-aw/aw-mcp/logs\n\n# Download logs from the last 7 days by default\n# Modify the parameters as needed for your workflow\n./gh-aw logs --start-date -7d -o /tmp/gh-aw/aw-mcp/logs\n\necho \"Logs downloaded successfully\"\nls -lh /tmp/gh-aw/aw-mcp/logs"
+
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -1051,6 +1074,10 @@ jobs:
                   "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
                 }
               },
+              "gh-aw": {
+                "type": "http",
+                "url": "http://localhost:8765"
+              },
               "github": {
                 "command": "docker",
                 "args": [
@@ -1090,6 +1117,80 @@ jobs:
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
+          This shared configuration enables the **agentic-workflows** MCP tool for workflow introspection and analysis.
+          
+          ## Features
+          
+          The agentic-workflows tool provides:
+          
+          - **status**: Show status of workflow files in the repository
+          - **compile**: Compile markdown workflows to YAML
+          - **logs**: Download and analyze workflow run logs
+          - **audit**: Investigate workflow run failures and generate reports
+          
+          ## Usage
+          
+          Import this shared configuration in your workflow:
+          
+          ```yaml
+          imports:
+            - shared/mcp/gh-aw.md
+          ```
+          
+          ## Pre-downloading Logs
+          
+          For better performance, you can pre-download logs before the AI agent runs by also importing:
+          
+          ```yaml
+          imports:
+            - shared/mcp/gh-aw.md
+            - shared/predownload-logs.md
+          ```
+          
+          This will download logs to `/tmp/gh-aw/aw-mcp/logs` before the AI agent starts, making them
+          immediately available for analysis without waiting for downloads during execution.
+          
+          ## How It Works
+          
+          This configuration:
+          1. Builds the gh-aw CLI tool from source
+          2. Starts an HTTP MCP server on localhost:8765
+          3. Configures the agentic-workflows tool to use this server
+          4. Provides AI agents with tools to analyze workflow execution history
+          
+          This shared configuration pre-downloads workflow logs before the AI agent runs.
+          
+          ## Usage
+          
+          Import this shared configuration in your workflow:
+          
+          ```yaml
+          imports:
+            - shared/predownload-logs.md
+          ```
+          
+          ## Customization
+          
+          You can customize the log download by overriding the `steps:` section in your workflow:
+          
+          ```bash
+          # Download logs for a specific workflow
+          ./gh-aw logs my-workflow --start-date -7d -o /tmp/gh-aw/aw-mcp/logs
+          
+          # Or download logs from the last 30 days
+          ./gh-aw logs --start-date -30d -o /tmp/gh-aw/aw-mcp/logs
+          
+          # Or download logs with specific filters
+          ./gh-aw logs --engine claude --count 50 -o /tmp/gh-aw/aw-mcp/logs
+          ```
+          
+          ## Integration with agentic-workflows MCP Tool
+          
+          When used together with the `agentic-workflows` tool import, the logs are pre-downloaded
+          and available for the AI agent to analyze without needing to download them during execution.
+          
+          This improves performance and reduces the time the AI agent spends waiting for downloads.
+          
           # Weekly Workflow Analysis
           
           Analyze GitHub Actions workflow runs from the past week and identify improvement opportunities.
@@ -1332,13 +1433,65 @@ jobs:
         # - Task
         # - TodoWrite
         # - Write
+        # - mcp__github__download_workflow_run_artifact
+        # - mcp__github__get_code_scanning_alert
+        # - mcp__github__get_commit
+        # - mcp__github__get_dependabot_alert
+        # - mcp__github__get_discussion
+        # - mcp__github__get_discussion_comments
+        # - mcp__github__get_file_contents
+        # - mcp__github__get_issue
+        # - mcp__github__get_issue_comments
+        # - mcp__github__get_job_logs
+        # - mcp__github__get_label
+        # - mcp__github__get_latest_release
+        # - mcp__github__get_me
+        # - mcp__github__get_notification_details
+        # - mcp__github__get_pull_request
+        # - mcp__github__get_pull_request_comments
+        # - mcp__github__get_pull_request_diff
+        # - mcp__github__get_pull_request_files
+        # - mcp__github__get_pull_request_review_comments
+        # - mcp__github__get_pull_request_reviews
+        # - mcp__github__get_pull_request_status
+        # - mcp__github__get_release_by_tag
+        # - mcp__github__get_secret_scanning_alert
+        # - mcp__github__get_tag
         # - mcp__github__get_workflow_run
+        # - mcp__github__get_workflow_run_logs
+        # - mcp__github__get_workflow_run_usage
+        # - mcp__github__list_branches
+        # - mcp__github__list_code_scanning_alerts
+        # - mcp__github__list_commits
+        # - mcp__github__list_dependabot_alerts
+        # - mcp__github__list_discussion_categories
+        # - mcp__github__list_discussions
+        # - mcp__github__list_issue_types
+        # - mcp__github__list_issues
+        # - mcp__github__list_label
+        # - mcp__github__list_notifications
+        # - mcp__github__list_pull_requests
+        # - mcp__github__list_releases
+        # - mcp__github__list_secret_scanning_alerts
+        # - mcp__github__list_starred_repositories
+        # - mcp__github__list_sub_issues
+        # - mcp__github__list_tags
+        # - mcp__github__list_workflow_jobs
+        # - mcp__github__list_workflow_run_artifacts
         # - mcp__github__list_workflow_runs
+        # - mcp__github__list_workflows
+        # - mcp__github__pull_request_read
+        # - mcp__github__search_code
+        # - mcp__github__search_issues
+        # - mcp__github__search_orgs
+        # - mcp__github__search_pull_requests
+        # - mcp__github__search_repositories
+        # - mcp__github__search_users
         timeout-minutes: 10
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__get_workflow_run,mcp__github__list_workflow_runs" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
