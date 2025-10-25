@@ -4,3 +4,11 @@ updates:
   directory: /.github/workflows
   schedule:
     interval: weekly
+- package-ecosystem: pip
+  directory: /.github/workflows
+  schedule:
+    interval: weekly
+- package-ecosystem: gomod
+  directory: /.github/workflows
+  schedule:
+    interval: weekly
