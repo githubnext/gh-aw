@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/cli/go-gh/v2"
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -218,6 +219,44 @@ func collectPackagesFromWorkflow(
 }
 
 // validateGitHubActionsSchema validates the generated YAML content against the GitHub Actions workflow schema
+// Cached compiled schema to avoid recompiling on every validation
+var (
+	compiledSchemaOnce sync.Once
+	compiledSchema     *jsonschema.Schema
+	schemaCompileError error
+)
+
+// getCompiledSchema returns the compiled GitHub Actions schema, compiling it once and caching
+func getCompiledSchema() (*jsonschema.Schema, error) {
+	compiledSchemaOnce.Do(func() {
+		// Parse the embedded schema
+		var schemaDoc any
+		if err := json.Unmarshal([]byte(githubWorkflowSchema), &schemaDoc); err != nil {
+			schemaCompileError = fmt.Errorf("failed to parse embedded GitHub Actions schema: %w", err)
+			return
+		}
+
+		// Create compiler and add the schema as a resource
+		loader := jsonschema.NewCompiler()
+		schemaURL := "https://json.schemastore.org/github-workflow.json"
+		if err := loader.AddResource(schemaURL, schemaDoc); err != nil {
+			schemaCompileError = fmt.Errorf("failed to add schema resource: %w", err)
+			return
+		}
+
+		// Compile the schema once
+		schema, err := loader.Compile(schemaURL)
+		if err != nil {
+			schemaCompileError = fmt.Errorf("failed to compile GitHub Actions schema: %w", err)
+			return
+		}
+
+		compiledSchema = schema
+	})
+
+	return compiledSchema, schemaCompileError
+}
+
 func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 	// Convert YAML to any for JSON conversion
 	var workflowData any
@@ -231,23 +270,10 @@ func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 		return fmt.Errorf("failed to convert YAML to JSON for validation: %w", err)
 	}
 
-	// Parse the embedded schema
-	var schemaDoc any
-	if err := json.Unmarshal([]byte(githubWorkflowSchema), &schemaDoc); err != nil {
-		return fmt.Errorf("failed to parse embedded GitHub Actions schema: %w", err)
-	}
-
-	// Create compiler and add the schema as a resource
-	loader := jsonschema.NewCompiler()
-	schemaURL := "https://json.schemastore.org/github-workflow.json"
-	if err := loader.AddResource(schemaURL, schemaDoc); err != nil {
-		return fmt.Errorf("failed to add schema resource: %w", err)
-	}
-
-	// Compile the schema
-	schema, err := loader.Compile(schemaURL)
+	// Get the cached compiled schema
+	schema, err := getCompiledSchema()
 	if err != nil {
-		return fmt.Errorf("failed to compile GitHub Actions schema: %w", err)
+		return err
 	}
 
 	// Validate the JSON data against the schema
