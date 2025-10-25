@@ -105,12 +105,12 @@ debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
 const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
 if (!process.env.GH_AW_SAFE_OUTPUTS) {
   debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
-  // Ensure the directory exists
-  const outputDir = path.dirname(outputFile);
-  if (!fs.existsSync(outputDir)) {
-    debug(`Creating output directory: ${outputDir}`);
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
+}
+// Always ensure the directory exists, regardless of whether env var is set
+const outputDir = path.dirname(outputFile);
+if (!fs.existsSync(outputDir)) {
+  debug(`Creating output directory: ${outputDir}`);
+  fs.mkdirSync(outputDir, { recursive: true });
 }
 function writeMessage(obj) {
   const json = JSON.stringify(obj);
