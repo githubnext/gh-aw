@@ -333,6 +333,19 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 		} else if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No engine detected (aw_info.json missing or invalid); skipping agent log rendering"))
 		}
+
+		// Also parse firewall logs if they exist
+		if err := parseFirewallLogs(runOutputDir, verbose); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse firewall logs for run %d: %v", runInfo.RunID, err)))
+			}
+		} else {
+			// Show success message if firewall.md was created
+			firewallMdPath := filepath.Join(runOutputDir, "firewall.md")
+			if _, err := os.Stat(firewallMdPath); err == nil {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", runInfo.RunID, firewallMdPath)))
+			}
+		}
 	}
 
 	// Save run summary for caching future audit runs
