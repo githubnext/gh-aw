@@ -17,20 +17,25 @@ args
 assignees
 audit
 bash
+cache
 cache-memory
+category
 chatops
 claude
 codex
 command
 compile
 concurrency
+contents
 copilot
+create-agent-task
+create-code-scanning-alert
 create-discussion
 create-issue
 create-pull-request
+create-pull-request-review-comment
 custom
 defaults
-description
 discussion
 discussion-comment
 draft
@@ -44,16 +49,16 @@ github-token
 if-no-changes
 imports
 issue-comment
+issue_comment
 issueops
 issues
 jobs
 labelops
 labels
 lint
-lock.yml
+lock-yml
 lockfile
 logs
-markdown
 max-concurrency
 max-patch-size
 max-turns
@@ -65,13 +70,15 @@ missing-tool
 mode
 model
 network
+npmjs
 on
-openai
 permissions
 playwright
 post-steps
 pull-request
 pull-request-comment
+pull-request-review-comment
+pull_request
 purge
 push-to-pull-request-branch
 pypi
@@ -81,7 +88,6 @@ recompile
 remote
 retention-days
 reviewers
-roles
 run-name
 runs-on
 safe-outputs
@@ -90,8 +96,7 @@ sarif
 schedule
 secrets
 session
-source
-status
+staged
 steps
 stop-after
 strict
@@ -103,7 +108,6 @@ timeout-minutes
 title-prefix
 toolset
 tools
-trial
 triggers
 update-issue
 verbose
@@ -127,7 +131,7 @@ Replace speech-to-text ambiguities with correct technical terms from the glossar
 - "work flow" → "workflow"
 - "work flows" → "workflows"
 - "front matter" → "frontmatter"
-- "lock file" → "lockfile" or "lock.yml"
+- "lock file" → "lockfile" or "lock-yml"
 - "co-pilot" → "copilot"
 - "safe outputs" → "safe-outputs"
 - "cache memory" → "cache-memory"
@@ -180,3 +184,5 @@ Replace speech-to-text ambiguities with correct technical terms from the glossar
 - "add comment" → "add-comment"
 - "add labels" → "add-labels"
 - "discussion comment" → "discussion-comment"
+- "issue comment" → "issue-comment" or "issue_comment"
+- "pull request" → "pull-request" or "pull_request"

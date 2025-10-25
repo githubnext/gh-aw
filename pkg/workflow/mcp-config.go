@@ -6,8 +6,12 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
+
+var mcpLog = logger.New("workflow:mcp-config")
 
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
@@ -85,7 +89,7 @@ func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
 
 // renderSafeOutputsMCPConfigWithOptions generates the Safe Outputs MCP server configuration with engine-specific options
 func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool) {
-	yaml.WriteString("              \"safe_outputs\": {\n")
+	yaml.WriteString("              \"" + constants.SafeOutputsMCPServerID + "\": {\n")
 
 	// Add type field for Copilot
 	if includeCopilotFields {
@@ -93,7 +97,7 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 	}
 
 	yaml.WriteString("                \"command\": \"node\",\n")
-	yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safe-outputs/mcp-server.cjs\"],\n")
+	yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safeoutputs/mcp-server.cjs\"],\n")
 
 	// Add tools field for Copilot
 	if includeCopilotFields {
@@ -195,10 +199,10 @@ func renderPlaywrightMCPConfigTOML(yaml *strings.Builder, playwrightTool any) {
 // renderSafeOutputsMCPConfigTOML generates the Safe Outputs MCP server configuration in TOML format for Codex
 func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers.safe_outputs]\n")
+	yaml.WriteString("          [mcp_servers." + constants.SafeOutputsMCPServerID + "]\n")
 	yaml.WriteString("          command = \"node\"\n")
 	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"/tmp/gh-aw/safe-outputs/mcp-server.cjs\",\n")
+	yaml.WriteString("            \"/tmp/gh-aw/safeoutputs/mcp-server.cjs\",\n")
 	yaml.WriteString("          ]\n")
 	yaml.WriteString("          env = { \"GH_AW_SAFE_OUTPUTS\" = \"${{ env.GH_AW_SAFE_OUTPUTS }}\", \"GH_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}, \"GH_AW_ASSETS_BRANCH\" = \"${{ env.GH_AW_ASSETS_BRANCH }}\", \"GH_AW_ASSETS_MAX_SIZE_KB\" = \"${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}\", \"GH_AW_ASSETS_ALLOWED_EXTS\" = \"${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}\" }\n")
 }
@@ -253,9 +257,12 @@ type MCPConfigRenderer struct {
 // renderSharedMCPConfig generates MCP server configuration for a single tool using shared logic
 // This function handles the common logic for rendering MCP configurations across different engines
 func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, renderer MCPConfigRenderer) error {
+	mcpLog.Printf("Rendering MCP config for tool: %s, format: %s", toolName, renderer.Format)
+
 	// Get MCP configuration in the new format
 	mcpConfig, err := getMCPConfig(toolConfig, toolName)
 	if err != nil {
+		mcpLog.Printf("Failed to parse MCP config for tool %s: %v", toolName, err)
 		return fmt.Errorf("failed to parse MCP config for tool '%s': %w", toolName, err)
 	}
 
@@ -713,6 +720,8 @@ func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 
 // getMCPConfig extracts MCP configuration from a tool config and returns a structured MCPServerConfig
 func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServerConfig, error) {
+	mcpLog.Printf("Extracting MCP config for tool: %s", toolName)
+
 	config := MapToolConfig(toolConfig)
 	result := &parser.MCPServerConfig{
 		Name:    toolName,
@@ -734,7 +743,6 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		"headers":        true,
 		"registry":       true,
 		"allowed":        true,
-		"network":        true,
 	}
 
 	for key := range toolConfig {
@@ -896,11 +904,14 @@ func hasMCPConfig(toolConfig map[string]any) (bool, string) {
 
 // validateMCPConfigs validates all MCP configurations in the tools section using JSON schema
 func ValidateMCPConfigs(tools map[string]any) error {
+	mcpLog.Printf("Validating MCP configurations for %d tools", len(tools))
+
 	for toolName, toolConfig := range tools {
 		if config, ok := toolConfig.(map[string]any); ok {
 			// Extract raw MCP configuration (without transformation)
 			mcpConfig, err := getRawMCPConfig(config)
 			if err != nil {
+				mcpLog.Printf("Invalid MCP configuration for tool %s: %v", toolName, err)
 				return fmt.Errorf("tool '%s' has invalid MCP configuration: %w", toolName, err)
 			}
 
@@ -909,12 +920,16 @@ func ValidateMCPConfigs(tools map[string]any) error {
 				continue
 			}
 
+			mcpLog.Printf("Validating MCP requirements for tool: %s", toolName)
+
 			// Validate MCP configuration requirements (before transformation)
 			if err := validateMCPRequirements(toolName, mcpConfig, config); err != nil {
 				return err
 			}
 		}
 	}
+
+	mcpLog.Print("MCP configuration validation completed successfully")
 	return nil
 }
 
@@ -927,12 +942,45 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 	// to add custom arguments without triggering custom MCP tool processing logic. Including "args"
 	// would incorrectly classify built-in tools as custom MCP tools, changing their processing behavior
 	// and causing validation errors.
-	mcpFields := []string{"type", "url", "command", "container", "env", "headers", "network"}
+	mcpFields := []string{"type", "url", "command", "container", "env", "headers"}
+
+	// List of all known tool config fields (not just MCP)
+	knownToolFields := map[string]bool{
+		"type":            true,
+		"url":             true,
+		"command":         true,
+		"container":       true,
+		"env":             true,
+		"headers":         true,
+		"version":         true,
+		"args":            true,
+		"entrypointArgs":  true,
+		"proxy-args":      true,
+		"registry":        true,
+		"allowed":         true,
+		"mode":            true, // for github tool
+		"github-token":    true, // for github tool
+		"read-only":       true, // for github tool
+		"toolset":         true, // for github tool
+		"id":              true, // for cache-memory (array notation)
+		"key":             true, // for cache-memory
+		"description":     true, // for cache-memory
+		"retention-days":  true, // for cache-memory
+		"allowed_domains": true, // for playwright tool
+		"allowed-domains": true, // for playwright tool (alternative notation)
+	}
 
 	// Check new format: direct fields in tool config
 	for _, field := range mcpFields {
 		if value, exists := toolConfig[field]; exists {
 			result[field] = value
+		}
+	}
+
+	// Check for unknown fields that might be typos or deprecated (like "network")
+	for field := range toolConfig {
+		if !knownToolFields[field] {
+			return nil, fmt.Errorf("unknown property '%s' in tool configuration", field)
 		}
 	}
 
@@ -976,40 +1024,6 @@ func validateStringProperty(toolName, propertyName string, value any, exists boo
 	return nil
 }
 
-// hasNetworkPermissions checks if a tool configuration has network permissions
-func hasNetworkPermissions(toolConfig map[string]any) (bool, []string) {
-	extract := func(network any) (bool, []string) {
-		networkMap, ok := network.(map[string]any)
-		if !ok {
-			return false, nil
-		}
-		allowed, hasAllowed := networkMap["allowed"]
-		if !hasAllowed {
-			return false, nil
-		}
-		allowedSlice, ok := allowed.([]any)
-		if !ok {
-			return false, nil
-		}
-		var domains []string
-		for _, item := range allowedSlice {
-			if str, ok := item.(string); ok {
-				domains = append(domains, str)
-			}
-		}
-		return len(domains) > 0, domains
-	}
-
-	// Check direct network field at tool level
-	if network, hasNetwork := toolConfig["network"]; hasNetwork {
-		if ok, domains := extract(network); ok {
-			return true, domains
-		}
-	}
-
-	return false, nil
-}
-
 // validateMCPRequirements validates the specific requirements for MCP configuration
 func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConfig map[string]any) error {
 	// Validate 'type' property - allow inference from other fields
@@ -1047,25 +1061,6 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 	// Validate type is one of the supported types
 	if !isMCPType(typeStr) {
 		return fmt.Errorf("tool '%s' mcp configuration 'type' value must be one of: stdio, http, local", toolName)
-	}
-
-	// Validate network permissions usage first
-	hasNetPerms, _ := hasNetworkPermissions(toolConfig)
-	if !hasNetPerms {
-		// Also check if permissions are nested in the mcp config itself
-		hasNetPerms, _ = hasNetworkPermissions(map[string]any{"mcp": mcpConfig})
-	}
-	if hasNetPerms {
-		switch typeStr {
-		case "http":
-			return fmt.Errorf("tool '%s' has network permissions configured, but network egress permissions do not apply to remote 'type: http' servers", toolName)
-		case "stdio":
-			// Network permissions only apply to stdio servers with container
-			_, hasContainer := mcpConfig["container"]
-			if !hasContainer {
-				return fmt.Errorf("tool '%s' has network permissions configured, but network egress permissions only apply to stdio MCP servers that specify a 'container'", toolName)
-			}
-		}
 	}
 
 	// Validate type-specific requirements

@@ -134,11 +134,46 @@ gh aw compile --purge                      # Remove orphaned .lock.yml files
 # Development features
 gh aw compile --watch --verbose            # Auto-recompile on changes
 gh aw compile --workflows-dir custom/      # Custom workflows directory
+
+# Dependency management
+gh aw compile --dependabot                 # Generate dependency manifests
+gh aw compile --dependabot --force         # Force overwrite existing files
 ```
 
 **Strict Mode:**
 
 Enables enhanced security validation requiring timeouts, explicit network configuration, and blocking write permissions. Use `--strict` flag or `strict: true` in frontmatter.
+
+**Repository Feature Validation:**
+
+The compile command validates that workflows using `create-discussion`, `create-issue`, or `add-comment` with discussions are compatible with the target repository. Compilation fails if:
+
+- Workflows use `create-discussion` but the repository doesn't have discussions enabled
+- Workflows use `create-issue` but the repository doesn't have issues enabled
+
+Enable discussions or issues in repository settings, or remove the incompatible safe-outputs from workflows.
+
+**Dependency Manifest Generation:**
+
+The `--dependabot` flag scans workflows for package dependencies and generates manifest files for automated security updates:
+
+- **npm**: Creates `package.json` and `package-lock.json` for packages used with `npx` (requires npm in PATH)
+- **pip**: Creates `requirements.txt` for Python packages installed via `pip install` or `pip3 install`
+- **Go**: Creates `go.mod` for Go packages installed via `go install` or `go get`
+
+The command creates or updates `.github/dependabot.yml` to enable Dependabot monitoring for all detected ecosystems. Existing manifests are merged intelligently to preserve manual entries. Use `--force` to overwrite the Dependabot configuration file if needed.
+
+```bash
+# Scan workflows and generate manifests for detected dependencies
+gh aw compile --dependabot
+
+# Force overwrite of existing dependabot.yml configuration
+gh aw compile --dependabot --force
+```
+
+:::note
+The `--dependabot` flag cannot be used with specific workflow files or custom `--workflows-dir`. It processes all workflows in `.github/workflows/`.
+:::
 
 ## ⚙️ Workflow Operations on GitHub Actions
 
@@ -220,8 +255,8 @@ Metrics include execution duration, token consumption, costs, success/failure ra
 
 **Log Parsing and JSON Output:**
 
-- `--parse`: Generates `log.md` files with tool calls, reasoning, and execution details extracted by engine-specific parsers
-- `--json`: Outputs structured JSON with summary metrics, runs, tool usage, missing tools, MCP failures, and access logs
+- `--parse`: Generates `log.md` and `firewall.md` files with tool calls, reasoning, execution details, and network access patterns extracted by engine-specific parsers
+- `--json`: Outputs structured JSON with summary metrics, runs, tool usage, missing tools, MCP failures, access logs, and firewall analysis
 
 ### Single Run Audit
 
@@ -245,9 +280,9 @@ The audit command accepts workflow run URLs from any repository and GitHub insta
 
 **Options:**
 
-- `--parse`: Generates detailed `log.md` files with tool calls and reasoning extracted by engine-specific parsers
+- `--parse`: Generates detailed `log.md` and `firewall.md` files with tool calls, reasoning, and network access patterns extracted by engine-specific parsers
 
-The audit command checks local cache first (`logs/run-{id}`), then attempts download. On permission errors, it provides MCP server instructions for artifact downloads. Reports include overview, metrics, tool usage, MCP failures, and available artifacts.
+The audit command checks local cache first (`logs/run-{id}`), then attempts download. On permission errors, it provides MCP server instructions for artifact downloads. Reports include overview, metrics, tool usage, MCP failures, firewall analysis, and available artifacts.
 
 ### MCP Server Management
 

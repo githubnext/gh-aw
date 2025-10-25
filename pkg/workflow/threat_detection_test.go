@@ -530,7 +530,7 @@ func TestBuildUploadDetectionLogStep(t *testing.T) {
 	expectedComponents := []string{
 		"name: Upload threat detection log",
 		"if: always()",
-		"uses: actions/upload-artifact@v4",
+		"uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
 		"name: threat-detection.log",
 		"path: /tmp/gh-aw/threat-detection/detection.log",
 		"if-no-files-found: ignore",
@@ -674,7 +674,7 @@ func TestDownloadArtifactStepIncludesPrompt(t *testing.T) {
 	expectedComponents := []string{
 		"name: Download prompt artifact",
 		"continue-on-error: true",
-		"uses: actions/download-artifact@v5",
+		"uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0",
 		"name: prompt.txt",
 		"path: /tmp/gh-aw/threat-detection/",
 	}

@@ -64,7 +64,7 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 
 	yaml.WriteString("      - name: Redact secrets in logs\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/github-script@v8\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
@@ -91,18 +91,4 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 		// to only contain safe characters (uppercase letters, numbers, underscores)
 		yaml.WriteString(fmt.Sprintf("          SECRET_%s: ${{ secrets.%s }}\n", escapedSecretName, secretName))
 	}
-}
-
-// validateSecretReferences validates that secret references are valid
-func validateSecretReferences(secrets []string) error {
-	// Secret names must be valid environment variable names
-	secretNamePattern := regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
-
-	for _, secret := range secrets {
-		if !secretNamePattern.MatchString(secret) {
-			return fmt.Errorf("invalid secret name: %s", secret)
-		}
-	}
-
-	return nil
 }

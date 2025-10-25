@@ -61,8 +61,8 @@ This workflow tests the agentic output collection functionality.
 	lockContent := string(content)
 
 	// Verify GH_AW_SAFE_OUTPUTS is set at job level with fixed path
-	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl") {
-		t.Error("Expected 'GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl' environment variable in generated workflow")
+	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl") {
+		t.Error("Expected 'GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl' environment variable in generated workflow")
 	}
 
 	if !strings.Contains(lockContent, "- name: Ingest agent output") {
@@ -160,8 +160,8 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 	lockContent := string(content)
 
 	// Verify that Codex workflow DOES have GH_AW_SAFE_OUTPUTS functionality at job level
-	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl") {
-		t.Error("Codex workflow should have 'GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl' environment variable (GH_AW_SAFE_OUTPUTS functionality)")
+	if !strings.Contains(lockContent, "GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl") {
+		t.Error("Codex workflow should have 'GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl' environment variable (GH_AW_SAFE_OUTPUTS functionality)")
 	}
 
 	if !strings.Contains(lockContent, "- name: Ingest agent output") {
@@ -445,7 +445,7 @@ func TestEngineOutputCleanupWithMixedPaths(t *testing.T) {
 
 	// Generate the engine output collection manually to test the logic
 	yaml.WriteString("      - name: Upload engine output files\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: agent_outputs\n")
 	yaml.WriteString("          path: |\n")

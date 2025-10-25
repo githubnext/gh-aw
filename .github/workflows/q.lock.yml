@@ -116,7 +116,7 @@ jobs:
           fi
       - name: Compute current body text
         id: compute-text
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
             function sanitizeContent(content) {
@@ -279,7 +279,7 @@ jobs:
       - name: Add rocket reaction to the triggering item
         id: react
         if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_REACTION: rocket
           GH_AW_COMMAND: q
@@ -636,18 +636,18 @@ jobs:
           echo "Output types: $AGENT_OUTPUT_TYPES"
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           name: agent_output.json
-          path: /tmp/gh-aw/safe-outputs/
+          path: /tmp/gh-aw/safeoutputs/
       - name: Setup agent output environment variable
         run: |
-          mkdir -p /tmp/gh-aw/safe-outputs/
-          find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find /tmp/gh-aw/safeoutputs/ -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
       - name: Add Issue Comment
         id: add_comment
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Q"
@@ -1007,22 +1007,22 @@ jobs:
       actions: read
       contents: read
     env:
-      GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
+      GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
       - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
         with:
           cache: true
           go-version-file: go.mod
@@ -1053,7 +1053,7 @@ jobs:
           echo "This folder provides persistent file storage across workflow runs"
           echo "LLMs and agentic tools can freely read and write files in this directory"
       - name: Cache memory file share data
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           key: memory-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
@@ -1061,7 +1061,7 @@ jobs:
             memory-${{ github.workflow }}-
             memory-
       - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: cache-memory
           path: /tmp/gh-aw/cache-memory
@@ -1073,7 +1073,7 @@ jobs:
       - name: Checkout PR branch
         if: |
           github.event.pull_request
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
             async function main() {
@@ -1120,28 +1120,28 @@ jobs:
         env:
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.349
+        run: npm install -g @github/copilot@0.0.350
       - name: Downloading container images
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.19.1
       - name: Setup Safe Outputs Collector MCP
         run: |
-          mkdir -p /tmp/gh-aw/safe-outputs
-          cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
+          mkdir -p /tmp/gh-aw/safeoutputs
+          cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
           {"add_comment":{"max":1},"create_pull_request":{},"missing_tool":{}}
           EOF
-          cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
+          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
             const { execSync } = require("child_process");
             const encoder = new TextEncoder();
-            const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
+            const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
             const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
@@ -1160,7 +1160,7 @@ jobs:
             const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
-              const defaultConfigPath = "/tmp/gh-aw/safe-outputs/config.json";
+              const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
               debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
               try {
                 if (fs.existsSync(defaultConfigPath)) {
@@ -1193,7 +1193,7 @@ jobs:
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
-            const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
+            const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
             if (!process.env.GH_AW_SAFE_OUTPUTS) {
               debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
               const outputDir = path.dirname(outputFile);
@@ -1300,7 +1300,7 @@ jobs:
               }
             }
             function writeLargeContentToFile(content) {
-              const logsDir = "/tmp/gh-aw/safe-outputs";
+              const logsDir = "/tmp/gh-aw/safeoutputs";
               if (!fs.existsSync(logsDir)) {
                 fs.mkdirSync(logsDir, { recursive: true });
               }
@@ -1401,7 +1401,7 @@ jobs:
               if (!allowedExts.includes(ext)) {
                 throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
               }
-              const assetsDir = "/tmp/gh-aw/safe-outputs/assets";
+              const assetsDir = "/tmp/gh-aw/safeoutputs/assets";
               if (!fs.existsSync(assetsDir)) {
                 fs.mkdirSync(assetsDir, { recursive: true });
               }
@@ -1435,9 +1435,23 @@ jobs:
               };
             };
             function getCurrentBranch() {
+              const ghHeadRef = process.env.GITHUB_HEAD_REF;
+              const ghRefName = process.env.GITHUB_REF_NAME;
+              if (ghHeadRef) {
+                debug(`Resolved current branch from GITHUB_HEAD_REF: ${ghHeadRef}`);
+                return ghHeadRef;
+              }
+              if (ghRefName) {
+                debug(`Resolved current branch from GITHUB_REF_NAME: ${ghRefName}`);
+                return ghRefName;
+              }
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
               try {
-                const branch = execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
-                debug(`Resolved current branch: ${branch}`);
+                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+                  encoding: "utf8",
+                  cwd: cwd,
+                }).trim();
+                debug(`Resolved current branch from git in ${cwd}: ${branch}`);
                 return branch;
               } catch (error) {
                 throw new Error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`);
@@ -1896,7 +1910,7 @@ jobs:
             process.stdin.resume();
             debug(`listening...`);
           EOF
-          chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
+          chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
       - name: Setup MCPs
         run: |
@@ -1932,10 +1946,10 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
               },
-              "safe_outputs": {
+              "safeoutputs": {
                 "type": "local",
                 "command": "node",
-                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
+                "args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"],
                 "tools": ["*"],
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
@@ -2417,11 +2431,11 @@ jobs:
           
           ## Adding a Comment to an Issue or Pull Request, Creating a Pull Request, Reporting Missing Tools or Functionality
           
-          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
           **Adding a Comment to an Issue or Pull Request**
           
-          To add a comment to an issue or pull request, use the add-comments tool from the safe-outputs MCP
+          To add a comment to an issue or pull request, use the add-comments tool from safeoutputs
           
           **Creating a Pull Request**
           
@@ -2430,11 +2444,11 @@ jobs:
           2. If you haven't done so already, create a local branch using an appropriate unique name
           3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
           4. Do not push your changes. That will be done by the tool.
-          5. Create the pull request with the create-pull-request tool from the safe-outputs MCP
+          5. Create the pull request with the create-pull-request tool from safeoutputs
           
           **Reporting Missing Tools or Functionality**
           
-          To report a missing tool use the missing-tool tool from the safe-outputs MCP.
+          To report a missing tool use the missing-tool tool from safeoutputs.
           
           PROMPT_EOF
       - name: Append GitHub context to prompt
@@ -2494,7 +2508,7 @@ jobs:
           
           PROMPT_EOF
       - name: Render template conditionals
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         with:
@@ -2542,7 +2556,7 @@ jobs:
           echo "</details>" >> $GITHUB_STEP_SUMMARY
       - name: Upload prompt
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2555,7 +2569,7 @@ jobs:
           echo "AGENT_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
           echo "Agent version: $VERSION_OUTPUT"
       - name: Generate agentic run info
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
             const fs = require('fs');
@@ -2589,7 +2603,7 @@ jobs:
             console.log(JSON.stringify(awInfo, null, 2));
       - name: Upload agentic run info
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
@@ -2599,7 +2613,7 @@ jobs:
         # Copilot CLI tool arguments (sorted):
         # --allow-tool gh-aw
         # --allow-tool github
-        # --allow-tool safe_outputs
+        # --allow-tool safeoutputs
         # --allow-tool serena
         # --allow-tool serena(*)
         # --allow-tool shell(cat)
@@ -2634,7 +2648,7 @@ jobs:
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/cache-memory/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool gh-aw --allow-tool github --allow-tool safe_outputs --allow-tool serena --allow-tool 'serena(*)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool gh-aw --allow-tool github --allow-tool safeoutputs --allow-tool serena --allow-tool 'serena(*)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
@@ -2648,7 +2662,7 @@ jobs:
           XDG_CONFIG_HOME: /home/runner
       - name: Redact secrets in logs
         if: always()
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
             const fs = require("fs");
@@ -2764,14 +2778,14 @@ jobs:
           SECRET_TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
       - name: Upload Safe Outputs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: safe_output.jsonl
           path: ${{ env.GH_AW_SAFE_OUTPUTS }}
           if-no-files-found: warn
       - name: Ingest agent output
         id: collect_output
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{}}"
@@ -3533,13 +3547,13 @@ jobs:
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: agent_output.json
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Upload engine output files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: agent_outputs
           path: |
@@ -3547,14 +3561,14 @@ jobs:
           if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: mcp-logs
           path: /tmp/gh-aw/mcp-logs/
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
         with:
@@ -3779,9 +3793,61 @@ jobs:
                 return `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`;
               }
             }
+            function scanForToolErrors(logContent) {
+              const toolErrors = new Map();
+              const lines = logContent.split("\n");
+              const recentToolCalls = [];
+              const MAX_RECENT_TOOLS = 10;
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.includes('"tool_calls":') && !line.includes('\\"tool_calls\\"')) {
+                  for (let j = i + 1; j < Math.min(i + 30, lines.length); j++) {
+                    const nextLine = lines[j];
+                    const idMatch = nextLine.match(/"id":\s*"([^"]+)"/);
+                    const nameMatch = nextLine.match(/"name":\s*"([^"]+)"/) && !nextLine.includes('\\"name\\"');
+                    if (idMatch) {
+                      const toolId = idMatch[1];
+                      for (let k = j; k < Math.min(j + 10, lines.length); k++) {
+                        const nameLine = lines[k];
+                        const funcNameMatch = nameLine.match(/"name":\s*"([^"]+)"/);
+                        if (funcNameMatch && !nameLine.includes('\\"name\\"')) {
+                          const toolName = funcNameMatch[1];
+                          recentToolCalls.unshift({ id: toolId, name: toolName });
+                          if (recentToolCalls.length > MAX_RECENT_TOOLS) {
+                            recentToolCalls.pop();
+                          }
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+                const errorMatch = line.match(/\[ERROR\].*(?:Tool execution failed|Permission denied|Resource not accessible|Error executing tool)/i);
+                if (errorMatch) {
+                  const toolNameMatch = line.match(/Tool execution failed:\s*([^\s]+)/i);
+                  const toolIdMatch = line.match(/tool_call_id:\s*([^\s]+)/i);
+                  if (toolNameMatch) {
+                    const toolName = toolNameMatch[1];
+                    toolErrors.set(toolName, true);
+                    const matchingTool = recentToolCalls.find(t => t.name === toolName);
+                    if (matchingTool) {
+                      toolErrors.set(matchingTool.id, true);
+                    }
+                  } else if (toolIdMatch) {
+                    toolErrors.set(toolIdMatch[1], true);
+                  } else if (recentToolCalls.length > 0) {
+                    const lastTool = recentToolCalls[0];
+                    toolErrors.set(lastTool.id, true);
+                    toolErrors.set(lastTool.name, true);
+                  }
+                }
+              }
+              return toolErrors;
+            }
             function parseDebugLogFormat(logContent) {
               const entries = [];
               const lines = logContent.split("\n");
+              const toolErrors = scanForToolErrors(logContent);
               let model = "unknown";
               let sessionId = null;
               let modelInfo = null;
@@ -3934,6 +4000,8 @@ jobs:
                                   for (const toolCall of message.tool_calls) {
                                     if (toolCall.function) {
                                       let toolName = toolCall.function.name;
+                                      const originalToolName = toolName; 
+                                      const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
                                       let args = {};
                                       if (toolName.startsWith("github-")) {
                                         toolName = "mcp__github__" + toolName.substring(7);
@@ -3945,18 +4013,18 @@ jobs:
                                       } catch (e) {
                                         args = {};
                                       }
-                                      const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
                                       content.push({
                                         type: "tool_use",
                                         id: toolId,
                                         name: toolName,
                                         input: args,
                                       });
+                                      const hasError = toolErrors.has(toolId) || toolErrors.has(originalToolName);
                                       toolResults.push({
                                         type: "tool_result",
                                         tool_use_id: toolId,
-                                        content: "", 
-                                        is_error: false, 
+                                        content: hasError ? "Permission denied or tool execution failed" : "", 
+                                        is_error: hasError, 
                                       });
                                     }
                                   }
@@ -4034,6 +4102,8 @@ jobs:
                           for (const toolCall of message.tool_calls) {
                             if (toolCall.function) {
                               let toolName = toolCall.function.name;
+                              const originalToolName = toolName;
+                              const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
                               let args = {};
                               if (toolName.startsWith("github-")) {
                                 toolName = "mcp__github__" + toolName.substring(7);
@@ -4045,18 +4115,18 @@ jobs:
                               } catch (e) {
                                 args = {};
                               }
-                              const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
                               content.push({
                                 type: "tool_use",
                                 id: toolId,
                                 name: toolName,
                                 input: args,
                               });
+                              const hasError = toolErrors.has(toolId) || toolErrors.has(originalToolName);
                               toolResults.push({
                                 type: "tool_result",
                                 tool_use_id: toolId,
-                                content: "", 
-                                is_error: false, 
+                                content: hasError ? "Permission denied or tool execution failed" : "",
+                                is_error: hasError,
                               });
                             }
                           }
@@ -4348,7 +4418,7 @@ jobs:
               if (!command) return "";
               let formatted = command.replace(/\n/g, " ").replace(/\r/g, " ").replace(/\t/g, " ").replace(/\s+/g, " ").trim();
               formatted = formatted.replace(/`/g, "\\`");
-              const maxLength = 80;
+              const maxLength = 300;
               if (formatted.length > maxLength) {
                 formatted = formatted.substring(0, maxLength) + "...";
               }
@@ -4376,17 +4446,17 @@ jobs:
             main();
       - name: Upload Agent Stdio
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
-          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"id\":\"\",\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"id\":\"\",\"pattern\":\"(?:command not found|not found):\\\\s*(.+)|(.+):\\\\s*(?:command not found|not found)\",\"level_group\":0,\"message_group\":0,\"description\":\"Shell command not found error\"},{\"id\":\"\",\"pattern\":\"Cannot find module\\\\s+['\\\"](.+)['\\\"]\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"id\":\"\",\"pattern\":\"Permission denied and could not request permission from user\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied warning (user interaction required)\"}]"
+          GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"id\":\"\",\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"id\":\"\",\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"id\":\"\",\"pattern\":\"(?:command not found|not found):\\\\s*(.+)|(.+):\\\\s*(?:command not found|not found)\",\"level_group\":0,\"message_group\":0,\"description\":\"Shell command not found error\"},{\"id\":\"\",\"pattern\":\"Cannot find module\\\\s+['\\\"](.+)['\\\"]\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"id\":\"\",\"pattern\":\"Permission denied and could not request permission from user\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied warning (user interaction required)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized access error (requires error context)\"},{\"id\":\"\",\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden access error (requires error context)\"}]"
         with:
           script: |
             function main() {
@@ -4701,7 +4771,7 @@ jobs:
           fi
       - name: Upload git patch
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: aw.patch
           path: /tmp/gh-aw/aw.patch
@@ -4728,12 +4798,12 @@ jobs:
     steps:
       - name: Download patch artifact
         continue-on-error: true
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           name: aw.patch
           path: /tmp/gh-aw/
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           fetch-depth: 0
       - name: Configure Git credentials
@@ -4743,18 +4813,18 @@ jobs:
           echo "Git configured with standard GitHub Actions identity"
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           name: agent_output.json
-          path: /tmp/gh-aw/safe-outputs/
+          path: /tmp/gh-aw/safeoutputs/
       - name: Setup agent output environment variable
         run: |
-          mkdir -p /tmp/gh-aw/safe-outputs/
-          find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find /tmp/gh-aw/safeoutputs/ -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
       - name: Create Pull Request
         id: create_pull_request
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_ID: "agent"
@@ -5176,7 +5246,7 @@ jobs:
             await main();
       - name: Checkout repository for gh CLI
         if: steps.create_pull_request.outputs.pull_request_url != ''
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       - name: Add copilot as reviewer
         if: steps.create_pull_request.outputs.pull_request_number != ''
         env:
@@ -5194,19 +5264,19 @@ jobs:
     steps:
       - name: Download prompt artifact
         continue-on-error: true
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           name: prompt.txt
           path: /tmp/gh-aw/threat-detection/
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           name: agent_output.json
           path: /tmp/gh-aw/threat-detection/
       - name: Download patch artifact
         continue-on-error: true
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           name: aw.patch
           path: /tmp/gh-aw/threat-detection/
@@ -5216,7 +5286,7 @@ jobs:
         run: |
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
       - name: Setup threat detection
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           WORKFLOW_NAME: "Q"
           WORKFLOW_DESCRIPTION: "No description provided"
@@ -5338,11 +5408,11 @@ jobs:
         env:
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.349
+        run: npm install -g @github/copilot@0.0.350
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -5369,7 +5439,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
           XDG_CONFIG_HOME: /home/runner
       - name: Parse threat detection results
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
             const fs = require('fs');
@@ -5406,7 +5476,7 @@ jobs:
             }
       - name: Upload threat detection log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
@@ -5427,18 +5497,18 @@ jobs:
     steps:
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           name: agent_output.json
-          path: /tmp/gh-aw/safe-outputs/
+          path: /tmp/gh-aw/safeoutputs/
       - name: Setup agent output environment variable
         run: |
-          mkdir -p /tmp/gh-aw/safe-outputs/
-          find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find /tmp/gh-aw/safeoutputs/ -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
       - name: Record Missing Tool
         id: missing_tool
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
         with:
@@ -5562,7 +5632,7 @@ jobs:
     steps:
       - name: Check team membership for command workflow
         id: check_membership
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_REQUIRED_ROLES: admin,maintainer,write
         with:
@@ -5636,7 +5706,7 @@ jobs:
             await main();
       - name: Check command position
         id: check_command_position
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_COMMAND: q
         with:
@@ -5720,18 +5790,18 @@ jobs:
           echo "Agent Conclusion: $AGENT_CONCLUSION"
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           name: agent_output.json
-          path: /tmp/gh-aw/safe-outputs/
+          path: /tmp/gh-aw/safeoutputs/
       - name: Setup agent output environment variable
         run: |
-          mkdir -p /tmp/gh-aw/safe-outputs/
-          find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find /tmp/gh-aw/safeoutputs/ -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
       - name: Update reaction comment with completion status
         id: update_reaction
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}

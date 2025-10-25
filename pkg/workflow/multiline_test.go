@@ -21,7 +21,7 @@ func TestMultilineStringHandling(t *testing.T) {
 			name: "multiline script in with parameters",
 			stepMap: map[string]any{
 				"name": "Test Script",
-				"uses": "actions/github-script@v8",
+				"uses": "actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd",
 				"with": map[string]any{
 					"script": `const fs = require('fs');
 const data = {
@@ -34,7 +34,7 @@ console.log(data);`,
 			},
 			shouldContain: []string{
 				"name: Test Script",
-				"uses: actions/github-script@v8",
+				"uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd",
 				"with:",
 				"script: |-", // goccy/go-yaml uses |- (literal strip scalar)
 				"  const fs = require('fs');",
@@ -51,7 +51,7 @@ console.log(data);`,
 			name: "simple single-line with parameters",
 			stepMap: map[string]any{
 				"name": "Simple Test",
-				"uses": "actions/setup-node@v4",
+				"uses": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
 				"with": map[string]any{
 					"node-version": "18",
 					"cache":        "npm",
@@ -59,7 +59,7 @@ console.log(data);`,
 			},
 			shouldContain: []string{
 				"name: Simple Test",
-				"uses: actions/setup-node@v4",
+				"uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
 				"with:",
 				"node-version: \"18\"", // goccy/go-yaml quotes numeric strings
 				"cache: npm",
@@ -128,7 +128,7 @@ func TestEngineStepSerialization(t *testing.T) {
 
 	stepMap := map[string]any{
 		"name": "Test multiline in engine",
-		"uses": "actions/github-script@v8",
+		"uses": "actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd",
 		"with": map[string]any{
 			"script": `const multiline = 'hello';
 This is a multiline

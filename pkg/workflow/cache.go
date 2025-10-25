@@ -28,18 +28,6 @@ func generateDefaultCacheKey(cacheID string) string {
 	return fmt.Sprintf("memory-%s-${{ github.workflow }}-${{ github.run_id }}", cacheID)
 }
 
-// validateNoDuplicateCacheIDs checks for duplicate cache IDs and returns an error if found
-func validateNoDuplicateCacheIDs(caches []CacheMemoryEntry) error {
-	seen := make(map[string]bool)
-	for _, cache := range caches {
-		if seen[cache.ID] {
-			return fmt.Errorf("duplicate cache-memory ID '%s' found. Each cache must have a unique ID", cache.ID)
-		}
-		seen[cache.ID] = true
-	}
-	return nil
-}
-
 // extractCacheMemoryConfig extracts cache-memory configuration from tools section
 func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryConfig, error) {
 	cacheMemoryValue, exists := tools["cache-memory"]
@@ -245,7 +233,7 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 		}
 
 		fmt.Fprintf(builder, "      - name: %s\n", stepName)
-		builder.WriteString("        uses: actions/cache@v4\n")
+		builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache")))
 		builder.WriteString("        with:\n")
 
 		// Add required cache parameters
@@ -350,7 +338,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		} else {
 			builder.WriteString(fmt.Sprintf("      - name: Cache memory file share data (%s)\n", cache.ID))
 		}
-		builder.WriteString("        uses: actions/cache@v4\n")
+		builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/cache")))
 		builder.WriteString("        with:\n")
 		fmt.Fprintf(builder, "          key: %s\n", cacheKey)
 
@@ -368,7 +356,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		} else {
 			builder.WriteString(fmt.Sprintf("      - name: Upload cache-memory data as artifact (%s)\n", cache.ID))
 		}
-		builder.WriteString("        uses: actions/upload-artifact@v4\n")
+		builder.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 		builder.WriteString("        with:\n")
 		// Always use the new artifact name and path format
 		if useBackwardCompatiblePaths {

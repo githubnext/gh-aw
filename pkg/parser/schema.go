@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
@@ -26,54 +27,91 @@ var includedFileSchema string
 //go:embed schemas/mcp_config_schema.json
 var mcpConfigSchema string
 
+// filterIgnoredFields removes ignored fields from frontmatter without warnings
+func filterIgnoredFields(frontmatter map[string]any) map[string]any {
+	if frontmatter == nil {
+		return nil
+	}
+
+	// Create a copy of the frontmatter map without ignored fields
+	filtered := make(map[string]any)
+	for key, value := range frontmatter {
+		// Skip ignored fields
+		ignored := false
+		for _, ignoredField := range constants.IgnoredFrontmatterFields {
+			if key == ignoredField {
+				ignored = true
+				break
+			}
+		}
+		if !ignored {
+			filtered[key] = value
+		}
+	}
+
+	return filtered
+}
+
 // ValidateMainWorkflowFrontmatterWithSchema validates main workflow frontmatter using JSON schema
 func ValidateMainWorkflowFrontmatterWithSchema(frontmatter map[string]any) error {
 	schemaLog.Print("Validating main workflow frontmatter with schema")
 
+	// Filter out ignored fields before validation
+	filtered := filterIgnoredFields(frontmatter)
+
 	// First run the standard schema validation
-	if err := validateWithSchema(frontmatter, mainWorkflowSchema, "main workflow file"); err != nil {
+	if err := validateWithSchema(filtered, mainWorkflowSchema, "main workflow file"); err != nil {
 		schemaLog.Printf("Schema validation failed for main workflow: %v", err)
 		return err
 	}
 
 	// Then run custom validation for engine-specific rules
-	return validateEngineSpecificRules(frontmatter)
+	return validateEngineSpecificRules(filtered)
 }
 
 // ValidateMainWorkflowFrontmatterWithSchemaAndLocation validates main workflow frontmatter with file location info
 func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string]any, filePath string) error {
+	// Filter out ignored fields before validation
+	filtered := filterIgnoredFields(frontmatter)
+
 	// First run the standard schema validation with location
-	if err := validateWithSchemaAndLocation(frontmatter, mainWorkflowSchema, "main workflow file", filePath); err != nil {
+	if err := validateWithSchemaAndLocation(filtered, mainWorkflowSchema, "main workflow file", filePath); err != nil {
 		return err
 	}
 
 	// Then run custom validation for engine-specific rules
-	return validateEngineSpecificRules(frontmatter)
+	return validateEngineSpecificRules(filtered)
 }
 
 // ValidateIncludedFileFrontmatterWithSchema validates included file frontmatter using JSON schema
 func ValidateIncludedFileFrontmatterWithSchema(frontmatter map[string]any) error {
 	schemaLog.Print("Validating included file frontmatter with schema")
 
+	// Filter out ignored fields before validation
+	filtered := filterIgnoredFields(frontmatter)
+
 	// First run the standard schema validation
-	if err := validateWithSchema(frontmatter, includedFileSchema, "included file"); err != nil {
+	if err := validateWithSchema(filtered, includedFileSchema, "included file"); err != nil {
 		schemaLog.Printf("Schema validation failed for included file: %v", err)
 		return err
 	}
 
 	// Then run custom validation for engine-specific rules
-	return validateEngineSpecificRules(frontmatter)
+	return validateEngineSpecificRules(filtered)
 }
 
 // ValidateIncludedFileFrontmatterWithSchemaAndLocation validates included file frontmatter with file location info
 func ValidateIncludedFileFrontmatterWithSchemaAndLocation(frontmatter map[string]any, filePath string) error {
+	// Filter out ignored fields before validation
+	filtered := filterIgnoredFields(frontmatter)
+
 	// First run the standard schema validation with location
-	if err := validateWithSchemaAndLocation(frontmatter, includedFileSchema, "included file", filePath); err != nil {
+	if err := validateWithSchemaAndLocation(filtered, includedFileSchema, "included file", filePath); err != nil {
 		return err
 	}
 
 	// Then run custom validation for engine-specific rules
-	return validateEngineSpecificRules(frontmatter)
+	return validateEngineSpecificRules(filtered)
 }
 
 // ValidateMCPConfigWithSchema validates MCP configuration using JSON schema
@@ -322,42 +360,10 @@ func min(a, b int) int {
 
 // validateEngineSpecificRules validates engine-specific rules that are not easily expressed in JSON schema
 func validateEngineSpecificRules(frontmatter map[string]any) error {
-	// Check if engine is configured
-	engine, ok := frontmatter["engine"]
-	if !ok {
-		return nil // No engine specified, nothing to validate
-	}
-
-	// Handle string format engine
-	if engineStr, ok := engine.(string); ok {
-		schemaLog.Printf("Validating engine-specific rules for string engine: %s", engineStr)
-		// String format doesn't support permissions, so no validation needed
-		_ = engineStr
-		return nil
-	}
-
-	// Handle object format engine
-	engineMap, ok := engine.(map[string]any)
-	if !ok {
-		return nil // Invalid engine format, but this should be caught by schema validation
-	}
-
-	// Check engine ID
-	engineID, ok := engineMap["id"].(string)
-	if !ok {
-		return nil // Missing or invalid ID, but this should be caught by schema validation
-	}
-
-	schemaLog.Printf("Validating engine-specific rules for engine: %s", engineID)
-
-	// Check if codex engine has permissions configured
-	if engineID == "codex" {
-		if _, hasPermissions := engineMap["permissions"]; hasPermissions {
-			schemaLog.Printf("Codex engine has invalid permissions configuration")
-			return errors.New("engine permissions are not supported for codex engine. Only Claude engine supports permissions configuration")
-		}
-	}
-
+	// Currently no engine-specific validation rules
+	// Network and firewall configuration is handled at the top-level, not under engine
+	// This function is kept as a placeholder for potential future engine-specific validation
+	_ = frontmatter
 	return nil
 }
 

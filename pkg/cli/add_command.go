@@ -11,9 +11,12 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
+
+var addLog = logger.New("cli:add_command")
 
 // NewAddCommand creates the add command
 func NewAddCommand(validateEngine func(string) error) *cobra.Command {
@@ -107,6 +110,8 @@ The --force flag overwrites existing workflow files.`,
 // AddWorkflows adds one or more workflows from components to .github/workflows
 // with optional repository installation and PR creation
 func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, appendText string, createPR bool) error {
+	addLog.Printf("Adding workflows: count=%d, engineOverride=%s, createPR=%v", len(workflows), engineOverride, createPR)
+
 	if len(workflows) == 0 {
 		return fmt.Errorf("at least one workflow name is required")
 	}
@@ -162,22 +167,27 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 			repoWithVersion = fmt.Sprintf("%s@%s", repo, version)
 		}
 
+		addLog.Printf("Installing repository: %s", repoWithVersion)
+
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing repository %s before adding workflows...", repoWithVersion)))
 		}
 
 		// Install as global package (not local) to match the behavior expected
 		if err := InstallPackage(repoWithVersion, verbose); err != nil {
+			addLog.Printf("Failed to install repository %s: %v", repoWithVersion, err)
 			return fmt.Errorf("failed to install repository %s: %w", repoWithVersion, err)
 		}
 	}
 
 	// Handle PR creation workflow
 	if createPR {
+		addLog.Print("Creating workflow with PR")
 		return addWorkflowsWithPR(processedWorkflows, number, verbose, engineOverride, name, force, appendText)
 	}
 
 	// Handle normal workflow addition
+	addLog.Print("Adding workflows normally without PR")
 	return addWorkflowsNormal(processedWorkflows, number, verbose, engineOverride, name, force, appendText)
 }
 

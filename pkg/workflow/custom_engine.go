@@ -45,6 +45,9 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 				stepCopy[k] = v
 			}
 
+			// Apply action pinning if the step uses an action
+			stepCopy = ApplyActionPinToStep(stepCopy)
+
 			// Prepare environment variables to merge
 			envVars := make(map[string]string)
 

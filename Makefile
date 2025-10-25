@@ -183,6 +183,11 @@ recompile: build
 	./$(BINARY_NAME) compile --validate --verbose --purge
 	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate --verbose --purge
 
+# Generate Dependabot manifests for npm dependencies
+.PHONY: dependabot
+dependabot: build
+	./$(BINARY_NAME) compile --dependabot --verbose
+
 # Run development server
 .PHONY: dev
 dev: build
@@ -203,7 +208,7 @@ release: test
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt fmt-cjs lint build test-all recompile generate-schema-docs generate-status-badges
+agent-finish: deps-dev fmt fmt-cjs lint build test-all recompile dependabot generate-schema-docs generate-status-badges
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -229,6 +234,7 @@ help:
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
+	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
 	@echo "  generate-status-badges - Generate workflow status badges documentation page"
 

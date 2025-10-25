@@ -10,7 +10,10 @@
     "preview": "astro preview",
     "astro": "astro",
     "validate-links": "astro build",
-    "generate-status-badges": "cd .. && node scripts/generate-status-badges.js"
+    "generate-status-badges": "cd .. && node scripts/generate-status-badges.js",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.35.2",
@@ -21,6 +24,7 @@
     "starlight-llms-txt": "^0.6.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "starlight-github-alerts": "^0.1.0"
   }
 }

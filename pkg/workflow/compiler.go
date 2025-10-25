@@ -16,7 +16,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 	"github.com/goccy/go-yaml"
-	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 var log = logger.New("workflow:compiler")
@@ -363,6 +362,21 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			})
 			return errors.New(formattedErr)
 		}
+
+		// Validate repository features (discussions, issues)
+		log.Print("Validating repository features")
+		if err := c.validateRepositoryFeatures(workflowData); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("repository feature validation failed: %v", err),
+			})
+			return errors.New(formattedErr)
+		}
 	} else if c.verbose {
 		fmt.Println(console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
 		c.IncrementWarningCount()
@@ -418,52 +432,6 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			fmt.Println(console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
 		}
 	}
-	return nil
-}
-
-// validateGitHubActionsSchema validates the generated YAML content against the GitHub Actions workflow schema
-func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
-	// Convert YAML to any for JSON conversion
-	var workflowData any
-	if err := yaml.Unmarshal([]byte(yamlContent), &workflowData); err != nil {
-		return fmt.Errorf("failed to parse YAML for schema validation: %w", err)
-	}
-
-	// Convert to JSON for schema validation
-	jsonData, err := json.Marshal(workflowData)
-	if err != nil {
-		return fmt.Errorf("failed to convert YAML to JSON for validation: %w", err)
-	}
-
-	// Parse the embedded schema
-	var schemaDoc any
-	if err := json.Unmarshal([]byte(githubWorkflowSchema), &schemaDoc); err != nil {
-		return fmt.Errorf("failed to parse embedded GitHub Actions schema: %w", err)
-	}
-
-	// Create compiler and add the schema as a resource
-	loader := jsonschema.NewCompiler()
-	schemaURL := "https://json.schemastore.org/github-workflow.json"
-	if err := loader.AddResource(schemaURL, schemaDoc); err != nil {
-		return fmt.Errorf("failed to add schema resource: %w", err)
-	}
-
-	// Compile the schema
-	schema, err := loader.Compile(schemaURL)
-	if err != nil {
-		return fmt.Errorf("failed to compile GitHub Actions schema: %w", err)
-	}
-
-	// Validate the JSON data against the schema
-	var jsonObj any
-	if err := json.Unmarshal(jsonData, &jsonObj); err != nil {
-		return fmt.Errorf("failed to unmarshal JSON for validation: %w", err)
-	}
-
-	if err := schema.Validate(jsonObj); err != nil {
-		return fmt.Errorf("GitHub Actions schema validation failed: %w", err)
-	}
-
 	return nil
 }
 
@@ -574,6 +542,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to process imports from frontmatter: %w", err)
 	}
 
+	// Merge network permissions from imports with top-level network permissions
+	if importsResult.MergedNetwork != "" {
+		networkPermissions, err = c.MergeNetworkPermissions(networkPermissions, importsResult.MergedNetwork)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge network permissions: %w", err)
+		}
+	}
+
 	// Process @include directives to extract engine configurations and check for conflicts
 	includedEngines, err := parser.ExpandIncludesForEngines(result.Markdown, markdownDir)
 	if err != nil {
@@ -632,6 +608,28 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Using experimental engine: %s", agenticEngine.GetDisplayName())))
 		c.IncrementWarningCount()
 	}
+
+	// Save the initial strict mode state again for network support check
+	// (it was restored after validateStrictMode but we need it again)
+	initialStrictModeForNetwork := c.strictMode
+	if !c.strictMode {
+		if strictValue, exists := result.Frontmatter["strict"]; exists {
+			if strictBool, ok := strictValue.(bool); ok && strictBool {
+				c.strictMode = true
+			}
+		}
+	}
+
+	// Check if the engine supports network restrictions when they are defined
+	if err := c.checkNetworkSupport(agenticEngine, networkPermissions); err != nil {
+		// Restore strict mode before returning error
+		c.strictMode = initialStrictModeForNetwork
+		return nil, err
+	}
+
+	// Restore the strict mode state after network check
+	c.strictMode = initialStrictModeForNetwork
+
 	log.Print("Processing tools and includes...")
 
 	// Extract SafeOutputs configuration early so we can use it when applying default tools
@@ -826,6 +824,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		// Parse imported steps from YAML array
 		var importedSteps []any
 		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &importedSteps); err == nil {
+			// Apply action pinning to imported steps
+			importedSteps = ApplyActionPinsToSteps(importedSteps)
+
 			// If there are main workflow steps, parse and merge them
 			if workflowData.CustomSteps != "" {
 				// Parse main workflow steps (format: "steps:\n  - ...")
@@ -833,6 +834,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 				if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err == nil {
 					if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
 						if mainSteps, ok := mainStepsVal.([]any); ok {
+							// Apply action pinning to main steps
+							mainSteps = ApplyActionPinsToSteps(mainSteps)
+
 							// Prepend imported steps to main steps
 							allSteps := append(importedSteps, mainSteps...)
 							// Convert back to YAML with "steps:" wrapper
@@ -853,9 +857,48 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 				}
 			}
 		}
+	} else if workflowData.CustomSteps != "" {
+		// No imported steps, but there are main steps - still apply pinning
+		var mainStepsWrapper map[string]any
+		if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err == nil {
+			if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
+				if mainSteps, ok := mainStepsVal.([]any); ok {
+					// Apply action pinning to main steps
+					mainSteps = ApplyActionPinsToSteps(mainSteps)
+
+					// Convert back to YAML with "steps:" wrapper
+					stepsWrapper := map[string]any{"steps": mainSteps}
+					stepsYAML, err := yaml.Marshal(stepsWrapper)
+					if err == nil {
+						workflowData.CustomSteps = string(stepsYAML)
+					}
+				}
+			}
+		}
 	}
 
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
+
+	// Apply action pinning to post-steps if any
+	if workflowData.PostSteps != "" {
+		var postStepsWrapper map[string]any
+		if err := yaml.Unmarshal([]byte(workflowData.PostSteps), &postStepsWrapper); err == nil {
+			if postStepsVal, hasPostSteps := postStepsWrapper["post-steps"]; hasPostSteps {
+				if postSteps, ok := postStepsVal.([]any); ok {
+					// Apply action pinning to post steps
+					postSteps = ApplyActionPinsToSteps(postSteps)
+
+					// Convert back to YAML with "post-steps:" wrapper
+					stepsWrapper := map[string]any{"post-steps": postSteps}
+					stepsYAML, err := yaml.Marshal(stepsWrapper)
+					if err == nil {
+						workflowData.PostSteps = string(stepsYAML)
+					}
+				}
+			}
+		}
+	}
+
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Environment = c.extractTopLevelYAMLSection(result.Frontmatter, "environment")
 	workflowData.Container = c.extractTopLevelYAMLSection(result.Frontmatter, "container")
@@ -974,406 +1017,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 // extractTopLevelYAMLSection extracts a top-level YAML section from the frontmatter map
 // This ensures we only extract keys at the root level, avoiding nested keys with the same name
-func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key string) string {
-	value, exists := frontmatter[key]
-	if !exists {
-		return ""
-	}
-
-	// Convert the value back to YAML format with field ordering
-	var yamlBytes []byte
-	var err error
-
-	// Check if value is a map that we should order alphabetically
-	if valueMap, ok := value.(map[string]any); ok {
-		// Use OrderMapFields for alphabetical sorting (empty priority list = all alphabetical)
-		orderedValue := OrderMapFields(valueMap, []string{})
-		// Wrap the ordered value with the key using MapSlice
-		wrappedData := yaml.MapSlice{{Key: key, Value: orderedValue}}
-		yamlBytes, err = yaml.MarshalWithOptions(wrappedData,
-			yaml.Indent(2),                        // Use 2-space indentation
-			yaml.UseLiteralStyleIfMultiline(true), // Use literal block scalars for multiline strings
-		)
-		if err != nil {
-			return ""
-		}
-	} else {
-		// Use standard marshaling for non-map types
-		yamlBytes, err = yaml.Marshal(map[string]any{key: value})
-		if err != nil {
-			return ""
-		}
-	}
-
-	yamlStr := string(yamlBytes)
-	// Remove the trailing newline
-	yamlStr = strings.TrimSuffix(yamlStr, "\n")
-
-	// Clean up quoted keys - replace "key": with key: at the start of a line
-	// Don't unquote "on" key as it's a YAML boolean keyword and must remain quoted
-	if key != "on" {
-		yamlStr = UnquoteYAMLKey(yamlStr, key)
-	}
-
-	// Special handling for "on" section - comment out draft and fork fields from pull_request
-	if key == "on" {
-		yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr)
-	}
-
-	return yamlStr
-}
-
-// extractPermissions extracts permissions from frontmatter using the permission parser
-func (c *Compiler) extractPermissions(frontmatter map[string]any) string {
-	permissionsValue, exists := frontmatter["permissions"]
-	if !exists {
-		return ""
-	}
-
-	// Check if this is an "all: read" case by using the parser
-	parser := NewPermissionsParserFromValue(permissionsValue)
-
-	// If it's "all: read", use the parser to expand it
-	if parser.hasAll && parser.allLevel == "read" {
-		permissions := parser.ToPermissions()
-		yaml := permissions.RenderToYAML()
-
-		// Adjust indentation from 6 spaces to 2 spaces for workflow-level permissions
-		// RenderToYAML uses 6 spaces for job-level rendering
-		lines := strings.Split(yaml, "\n")
-		for i := 1; i < len(lines); i++ {
-			if strings.HasPrefix(lines[i], "      ") {
-				lines[i] = "  " + lines[i][6:]
-			}
-		}
-		return strings.Join(lines, "\n")
-	}
-
-	// For all other cases, use standard extraction
-	return c.extractTopLevelYAMLSection(frontmatter, "permissions")
-}
-
-// extractIfCondition extracts the if condition from frontmatter, returning just the expression
-// without the "if: " prefix
-func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
-	value, exists := frontmatter["if"]
-	if !exists {
-		return ""
-	}
-
-	// Convert the value to string - it should be just the expression
-	if strValue, ok := value.(string); ok {
-		return c.extractExpressionFromIfString(strValue)
-	}
-
-	return ""
-}
-
-// extractFeatures extracts the features field from frontmatter
-// Returns a map of feature flags (feature name -> enabled)
-func (c *Compiler) extractFeatures(frontmatter map[string]any) map[string]bool {
-	value, exists := frontmatter["features"]
-	if !exists {
-		return nil
-	}
-
-	// Features should be an object with boolean values
-	if featuresMap, ok := value.(map[string]any); ok {
-		result := make(map[string]bool)
-		for key, val := range featuresMap {
-			// Convert value to boolean
-			if boolVal, ok := val.(bool); ok {
-				result[key] = boolVal
-			}
-		}
-		return result
-	}
-
-	return nil
-}
-
-// extractDescription extracts the description field from frontmatter
-func (c *Compiler) extractDescription(frontmatter map[string]any) string {
-	value, exists := frontmatter["description"]
-	if !exists {
-		return ""
-	}
-
-	// Convert the value to string
-	if strValue, ok := value.(string); ok {
-		return strings.TrimSpace(strValue)
-	}
-
-	return ""
-}
-
-// extractSource extracts the source field from frontmatter
-func (c *Compiler) extractSource(frontmatter map[string]any) string {
-	value, exists := frontmatter["source"]
-	if !exists {
-		return ""
-	}
-
-	// Convert the value to string
-	if strValue, ok := value.(string); ok {
-		return strings.TrimSpace(strValue)
-	}
-
-	return ""
-}
-
-// buildSourceURL converts a source string (owner/repo/path@ref) to a GitHub URL
-// For enterprise deployments, the URL will use the GitHub server URL from the workflow context
-func buildSourceURL(source string) string {
-	if source == "" {
-		return ""
-	}
-
-	// Parse the source string: owner/repo/path@ref
-	parts := strings.Split(source, "@")
-	if len(parts) == 0 {
-		return ""
-	}
-
-	pathPart := parts[0] // "owner/repo/path"
-	refPart := "main"    // default ref
-	if len(parts) > 1 {
-		refPart = parts[1]
-	}
-
-	// Build GitHub URL using server URL from GitHub Actions context
-	// The pathPart is "owner/repo/workflows/file.md", we need to convert it to
-	// "${GITHUB_SERVER_URL}/owner/repo/tree/ref/workflows/file.md"
-	pathComponents := strings.SplitN(pathPart, "/", 3)
-	if len(pathComponents) < 3 {
-		return ""
-	}
-
-	owner := pathComponents[0]
-	repo := pathComponents[1]
-	filePath := pathComponents[2]
-
-	// Use github.server_url for enterprise GitHub deployments
-	return fmt.Sprintf("${{ github.server_url }}/%s/%s/tree/%s/%s", owner, repo, refPart, filePath)
-}
-
-// extractSafetyPromptSetting extracts the safety-prompt setting from tools
-// Returns true by default (safety prompt is enabled by default)
-func (c *Compiler) extractSafetyPromptSetting(tools map[string]any) bool {
-	if tools == nil {
-		return true // Default is enabled
-	}
-
-	// Check if safety-prompt is explicitly set in tools
-	if safetyPromptValue, exists := tools["safety-prompt"]; exists {
-		if boolValue, ok := safetyPromptValue.(bool); ok {
-			return boolValue
-		}
-	}
-
-	// Default to true (enabled)
-	return true
-}
-
-// extractToolsTimeout extracts the timeout setting from tools
-// Returns 0 if not set (engines will use their own defaults)
-func (c *Compiler) extractToolsTimeout(tools map[string]any) int {
-	if tools == nil {
-		return 0 // Use engine defaults
-	}
-
-	// Check if timeout is explicitly set in tools
-	if timeoutValue, exists := tools["timeout"]; exists {
-		// Handle different numeric types
-		switch v := timeoutValue.(type) {
-		case int:
-			return v
-		case int64:
-			return int(v)
-		case uint:
-			return int(v)
-		case uint64:
-			return int(v)
-		case float64:
-			return int(v)
-		}
-	}
-
-	// Default to 0 (use engine defaults)
-	return 0
-}
-
-// extractToolsStartupTimeout extracts the startup-timeout setting from tools
-// Returns 0 if not set (engines will use their own defaults)
-func (c *Compiler) extractToolsStartupTimeout(tools map[string]any) int {
-	if tools == nil {
-		return 0 // Use engine defaults
-	}
-
-	// Check if startup-timeout is explicitly set in tools
-	if timeoutValue, exists := tools["startup-timeout"]; exists {
-		// Handle different numeric types
-		switch v := timeoutValue.(type) {
-		case int:
-			return v
-		case int64:
-			return int(v)
-		case uint:
-			return int(v)
-		case uint64:
-			return int(v)
-		case float64:
-			return int(v)
-		}
-	}
-
-	// Default to 0 (use engine defaults)
-	return 0
-}
-
-// extractExpressionFromIfString extracts the expression part from a string that might
-// contain "if: expression" or just "expression", returning just the expression
-func (c *Compiler) extractExpressionFromIfString(ifString string) string {
-	if ifString == "" {
-		return ""
-	}
-
-	// Check if the string starts with "if: " and strip it
-	if strings.HasPrefix(ifString, "if: ") {
-		return strings.TrimSpace(ifString[4:]) // Remove "if: " prefix
-	}
-
-	// Return the string as-is (it's just the expression)
-	return ifString
-}
-
-// commentOutProcessedFieldsInOnSection comments out draft, fork, forks, and names fields in pull_request/issues sections within the YAML string
-// These fields are processed separately by applyPullRequestDraftFilter, applyPullRequestForkFilter, and applyLabelFilter and should be commented for documentation
-func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
-	lines := strings.Split(yamlStr, "\n")
-	var result []string
-	inPullRequest := false
-	inIssues := false
-	inForksArray := false
-
-	for _, line := range lines {
-		// Check if we're entering a pull_request or issues section
-		if strings.Contains(line, "pull_request:") {
-			inPullRequest = true
-			inIssues = false
-			result = append(result, line)
-			continue
-		}
-		if strings.Contains(line, "issues:") {
-			inIssues = true
-			inPullRequest = false
-			result = append(result, line)
-			continue
-		}
-
-		// Check if we're leaving the pull_request or issues section (new top-level key or end of indent)
-		if inPullRequest || inIssues {
-			// If line is not indented or is a new top-level key, we're out of the section
-			if strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
-				inPullRequest = false
-				inIssues = false
-				inForksArray = false
-			}
-		}
-
-		trimmedLine := strings.TrimSpace(line)
-
-		// Check if we're entering the forks array
-		if inPullRequest && strings.HasPrefix(trimmedLine, "forks:") {
-			inForksArray = true
-		}
-
-		// Check if we're leaving the forks array by encountering another top-level field at the same level
-		if inForksArray && inPullRequest && strings.TrimSpace(line) != "" {
-			// Get the indentation of the current line
-			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-
-			// If this is a non-dash line at the same level as the forks field (4 spaces), we're out of the array
-			if lineIndent == 4 && !strings.HasPrefix(trimmedLine, "-") && !strings.HasPrefix(trimmedLine, "forks:") {
-				inForksArray = false
-			}
-		}
-
-		// Determine if we should comment out this line
-		shouldComment := false
-		var commentReason string
-
-		if inPullRequest && strings.Contains(trimmedLine, "draft:") {
-			shouldComment = true
-			commentReason = " # Draft filtering applied via job conditions"
-		} else if inPullRequest && strings.HasPrefix(trimmedLine, "forks:") {
-			shouldComment = true
-			commentReason = " # Fork filtering applied via job conditions"
-		} else if inForksArray && strings.HasPrefix(trimmedLine, "-") {
-			shouldComment = true
-			commentReason = " # Fork filtering applied via job conditions"
-		} else if (inPullRequest || inIssues) && strings.HasPrefix(trimmedLine, "names:") {
-			shouldComment = true
-			commentReason = " # Label filtering applied via job conditions"
-		} else if (inPullRequest || inIssues) && line != "" {
-			// Check if we're in a names array (after "names:" line)
-			// Look back to see if the previous uncommented line was "names:"
-			if len(result) > 0 {
-				for i := len(result) - 1; i >= 0; i-- {
-					prevLine := result[i]
-					prevTrimmed := strings.TrimSpace(prevLine)
-
-					// Skip empty lines
-					if prevTrimmed == "" {
-						continue
-					}
-
-					// If we find "names:", and current line is an array item, comment it
-					if strings.Contains(prevTrimmed, "names:") && strings.Contains(prevTrimmed, "# Label filtering") {
-						if strings.HasPrefix(trimmedLine, "-") {
-							shouldComment = true
-							commentReason = " # Label filtering applied via job conditions"
-						}
-						break
-					}
-
-					// If we find a different field or commented names array item, break
-					if !strings.HasPrefix(prevTrimmed, "#") || !strings.Contains(prevTrimmed, "Label filtering") {
-						break
-					}
-
-					// If it's a commented names array item, continue
-					if strings.HasPrefix(prevTrimmed, "# -") && strings.Contains(prevTrimmed, "Label filtering") {
-						if strings.HasPrefix(trimmedLine, "-") {
-							shouldComment = true
-							commentReason = " # Label filtering applied via job conditions"
-						}
-						continue
-					}
-
-					break
-				}
-			}
-		}
-
-		if shouldComment {
-			// Preserve the original indentation and comment out the line
-			indentation := ""
-			trimmed := strings.TrimLeft(line, " \t")
-			if len(line) > len(trimmed) {
-				indentation = line[:len(line)-len(trimmed)]
-			}
-
-			commentedLine := indentation + "# " + trimmed + commentReason
-			result = append(result, commentedLine)
-		} else {
-			result = append(result, line)
-		}
-	}
-
-	return strings.Join(result, "\n")
-}
-
 // parseOnSection parses the "on" section from frontmatter to extract command triggers, reactions, and other events
 func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *WorkflowData, markdownPath string) error {
 	// Check if "command" is used as a trigger in the "on" section
@@ -1489,41 +1132,6 @@ func (c *Compiler) generateJobName(workflowName string) string {
 	}
 
 	return jobName
-}
-
-// extractCommandConfig extracts command configuration from frontmatter including name and events
-func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName string, commandEvents []string) {
-	// Check new format: on.command or on.command.name
-	if onValue, exists := frontmatter["on"]; exists {
-		if onMap, ok := onValue.(map[string]any); ok {
-			if commandValue, hasCommand := onMap["command"]; hasCommand {
-				// Check if command is a string (shorthand format)
-				if commandStr, ok := commandValue.(string); ok {
-					return commandStr, nil // nil means default (all events)
-				}
-				// Check if command is a map with a name key (object format)
-				if commandMap, ok := commandValue.(map[string]any); ok {
-					var name string
-					var events []string
-
-					if nameValue, hasName := commandMap["name"]; hasName {
-						if nameStr, ok := nameValue.(string); ok {
-							name = nameStr
-						}
-					}
-
-					// Extract events field
-					if eventsValue, hasEvents := commandMap["events"]; hasEvents {
-						events = ParseCommandEvents(eventsValue)
-					}
-
-					return name, events
-				}
-			}
-		}
-	}
-
-	return "", nil
 }
 
 // mergeSafeJobsFromIncludes merges safe-jobs from included files and detects conflicts
@@ -2223,7 +1831,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 		steps = append(steps, "      - name: Check stop-time limit\n")
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckStopTimeStepID))
-		steps = append(steps, "        uses: actions/github-script@v8\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        env:\n")
 		steps = append(steps, fmt.Sprintf("          GH_AW_STOP_TIME: %s\n", data.StopTime))
 		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
@@ -2239,7 +1847,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	if data.Command != "" {
 		steps = append(steps, "      - name: Check command position\n")
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckCommandPositionStepID))
-		steps = append(steps, "        uses: actions/github-script@v8\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        env:\n")
 		steps = append(steps, fmt.Sprintf("          GH_AW_COMMAND: %s\n", data.Command))
 		steps = append(steps, "        with:\n")
@@ -2350,7 +1958,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if data.NeedsTextOutput {
 		steps = append(steps, "      - name: Compute current body text\n")
 		steps = append(steps, "        id: compute-text\n")
-		steps = append(steps, "        uses: actions/github-script@v8\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
 
@@ -2368,7 +1976,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction to the triggering item\n", data.AIReaction))
 		steps = append(steps, "        id: react\n")
 		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
-		steps = append(steps, "        uses: actions/github-script@v8\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 
 		// Add environment variables
 		steps = append(steps, "        env:\n")
@@ -2490,7 +2098,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		env = make(map[string]string)
 
 		// Set GH_AW_SAFE_OUTPUTS to fixed path
-		env["GH_AW_SAFE_OUTPUTS"] = "/tmp/gh-aw/safe-outputs/outputs.jsonl"
+		env["GH_AW_SAFE_OUTPUTS"] = "/tmp/gh-aw/safeoutputs/outputs.jsonl"
 
 		// Set GH_AW_SAFE_OUTPUTS_CONFIG with the safe outputs configuration
 		safeOutputConfig := generateSafeOutputsConfig(data)
@@ -2536,7 +2144,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add checkout step first if needed
 	if needsCheckout {
 		yaml.WriteString("      - name: Checkout repository\n")
-		yaml.WriteString("        uses: actions/checkout@v5\n")
+		yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 		// In trial mode without cloning, checkout the logical repo if specified
 		if c.trialMode {
 			yaml.WriteString("        with:\n")
@@ -2724,7 +2332,7 @@ func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFileFull st
 
 	yaml.WriteString("      - name: Upload Agent Stdio\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: agent-stdio.log\n")
 	fmt.Fprintf(yaml, "          path: %s\n", logFileFull)
@@ -2733,14 +2341,14 @@ func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFileFull st
 
 func (c *Compiler) generateUploadAssets(yaml *strings.Builder) {
 	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload safe outputs assets", []string{"/tmp/gh-aw/safe-outputs/assets/"})
+	c.stepOrderTracker.RecordArtifactUpload("Upload safe outputs assets", []string{"/tmp/gh-aw/safeoutputs/assets/"})
 
 	yaml.WriteString("      - name: Upload safe outputs assets\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: safe-outputs-assets\n")
-	yaml.WriteString("          path: /tmp/gh-aw/safe-outputs/assets/\n")
+	yaml.WriteString("          path: /tmp/gh-aw/safeoutputs/assets/\n")
 	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
@@ -2762,7 +2370,7 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 
 	yaml.WriteString("      - name: Parse agent logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/github-script@v8\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GH_AW_AGENT_OUTPUT: %s\n", logFileForParsing)
 	yaml.WriteString("        with:\n")
@@ -2833,7 +2441,7 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 
 	yaml.WriteString("      - name: Validate agent logs for errors\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/github-script@v8\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GH_AW_AGENT_OUTPUT: %s\n", logFileForValidation)
 
@@ -2861,7 +2469,7 @@ func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
 
 	yaml.WriteString("      - name: Upload agentic run info\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: aw_info.json\n")
 	yaml.WriteString("          path: /tmp/gh-aw/aw_info.json\n")
@@ -2874,7 +2482,7 @@ func (c *Compiler) generateUploadPrompt(yaml *strings.Builder) {
 
 	yaml.WriteString("      - name: Upload prompt\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: prompt.txt\n")
 	yaml.WriteString("          path: /tmp/gh-aw/aw-prompts/prompt.txt\n")
@@ -2882,64 +2490,11 @@ func (c *Compiler) generateUploadPrompt(yaml *strings.Builder) {
 }
 
 func (c *Compiler) generateExtractAccessLogs(yaml *strings.Builder, tools map[string]any) {
-	// Check if any tools require proxy setup
-	var proxyTools []string
-	for toolName, toolConfig := range tools {
-		if toolConfigMap, ok := toolConfig.(map[string]any); ok {
-			needsProxySetup, _ := needsProxy(toolConfigMap)
-			if needsProxySetup {
-				proxyTools = append(proxyTools, toolName)
-			}
-		}
-	}
-
-	// If no proxy tools, no access logs to extract
-	if len(proxyTools) == 0 {
-		return
-	}
-
-	yaml.WriteString("      - name: Extract squid access logs\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, extractSquidLogsSetupScript, "          ")
-
-	// Sort proxy tools for consistent ordering
-	sort.Strings(proxyTools)
-
-	for _, toolName := range proxyTools {
-		// Use template and replace TOOLNAME with actual toolName
-		scriptForTool := strings.ReplaceAll(extractSquidLogPerToolScript, "TOOLNAME", toolName)
-		WriteShellScriptToYAML(yaml, scriptForTool, "          ")
-	}
+	// No proxy tools anymore - network filtering is handled at workflow level
 }
 
 func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[string]any) {
-	// Check if any tools require proxy setup
-	var proxyTools []string
-	for toolName, toolConfig := range tools {
-		if toolConfigMap, ok := toolConfig.(map[string]any); ok {
-			needsProxySetup, _ := needsProxy(toolConfigMap)
-			if needsProxySetup {
-				proxyTools = append(proxyTools, toolName)
-			}
-		}
-	}
-
-	// If no proxy tools, no access logs to upload
-	if len(proxyTools) == 0 {
-		return
-	}
-
-	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload squid access logs", []string{"/tmp/gh-aw/access-logs/"})
-
-	yaml.WriteString("      - name: Upload squid access logs\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: access.log\n")
-	yaml.WriteString("          path: /tmp/gh-aw/access-logs/\n")
-	yaml.WriteString("          if-no-files-found: warn\n")
+	// No proxy tools anymore - network filtering is handled at workflow level
 }
 
 func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder) {
@@ -2948,7 +2503,7 @@ func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder) {
 
 	yaml.WriteString("      - name: Upload MCP logs\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: mcp-logs\n")
 	yaml.WriteString("          path: /tmp/gh-aw/mcp-logs/\n")
@@ -3188,6 +2743,9 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 				if stepsList, ok := steps.([]any); ok {
 					for _, step := range stepsList {
 						if stepMap, ok := step.(map[string]any); ok {
+							// Apply action pinning before converting to YAML
+							stepMap = ApplyActionPinToStep(stepMap)
+
 							stepYAML, err := c.convertStepToYAML(stepMap)
 							if err != nil {
 								return fmt.Errorf("failed to convert step to YAML for job '%s': %w", jobName, err)
@@ -3260,7 +2818,7 @@ func (c *Compiler) generateAgentVersionCapture(yaml *strings.Builder, engine Cod
 // generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
-	yaml.WriteString("        uses: actions/github-script@v8\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	yaml.WriteString("            const fs = require('fs');\n")
@@ -3337,7 +2895,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	yaml.WriteString("      - name: Upload Safe Outputs\n")
 	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 	yaml.WriteString("        with:\n")
 	fmt.Fprintf(yaml, "          name: %s\n", constants.SafeOutputArtifactName)
 	yaml.WriteString("          path: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
@@ -3345,7 +2903,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	yaml.WriteString("      - name: Ingest agent output\n")
 	yaml.WriteString("        id: collect_output\n")
-	yaml.WriteString("        uses: actions/github-script@v8\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 
 	// Add environment variables for JSONL validation
 	yaml.WriteString("        env:\n")
@@ -3379,7 +2937,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 
 	yaml.WriteString("      - name: Upload sanitized agent output\n")
 	yaml.WriteString("        if: always() && env.GH_AW_AGENT_OUTPUT\n")
-	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: agent_output.json\n")
 	yaml.WriteString("          path: ${{ env.GH_AW_AGENT_OUTPUT }}\n")

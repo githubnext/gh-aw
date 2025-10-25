@@ -103,8 +103,8 @@ This is a test workflow that should create an issue and assign it to multiple us
 		t.Error("Expected checkout step for gh CLI in compiled workflow")
 	}
 
-	if !strings.Contains(compiledStr, "uses: actions/checkout@v5") {
-		t.Error("Expected checkout to use actions/checkout@v5 in compiled workflow")
+	if !strings.Contains(compiledStr, "uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8") {
+		t.Error("Expected checkout to use actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 in compiled workflow")
 	}
 
 	// Verify checkout step is conditional on issue creation

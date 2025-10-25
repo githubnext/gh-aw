@@ -1916,7 +1916,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3`,
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8`,
 			wantErr: false,
 		},
 		{
@@ -2494,7 +2494,7 @@ Test workflow with reaction.
 	// Check for reaction-specific content in generated YAML
 	expectedStrings := []string{
 		"GH_AW_REACTION: eyes",
-		"uses: actions/github-script@v8",
+		"uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd",
 	}
 
 	for _, expected := range expectedStrings {
@@ -2648,7 +2648,7 @@ Test workflow with reaction and comment creation.
 	// Check for enhanced reaction functionality in generated YAML
 	expectedStrings := []string{
 		"GH_AW_REACTION: eyes",
-		"uses: actions/github-script@v8",
+		"uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd",
 		"addCommentWithWorkflowLink", // This should be in the new script
 		"runUrl =",                   // This should be in the new script for workflow run URL
 		"Comment endpoint",           // This should be logged in the new script
@@ -3769,7 +3769,7 @@ tools:
 				"# Cache configuration from frontmatter was processed and added to the main job steps",
 				"# Cache configuration from frontmatter processed below",
 				"- name: Cache",
-				"uses: actions/cache@v4",
+				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: node-modules-${{ hashFiles('package-lock.json') }}",
 				"path: node_modules",
 				"restore-keys: node-modules-",
@@ -3808,7 +3808,7 @@ tools:
 				"# Cache configuration from frontmatter processed below",
 				"- name: Cache (node-modules-${{ hashFiles('package-lock.json') }})",
 				"- name: Cache (build-cache-${{ github.sha }})",
-				"uses: actions/cache@v4",
+				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: node-modules-${{ hashFiles('package-lock.json') }}",
 				"key: build-cache-${{ github.sha }}",
 				"path: node_modules",
@@ -3846,7 +3846,7 @@ tools:
 			expectedInLock: []string{
 				"# Cache configuration from frontmatter processed below",
 				"- name: Cache",
-				"uses: actions/cache@v4",
+				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: full-cache-${{ github.sha }}",
 				"path: dist",
 				"restore-keys: |",
@@ -3931,7 +3931,7 @@ post-steps:
   - name: Post AI Step
     run: echo "This runs after AI"
   - name: Another Post Step
-    uses: actions/upload-artifact@v4
+    uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
     with:
       name: test-artifact
       path: test-file.txt
@@ -4331,9 +4331,9 @@ func TestCustomStepsIndentation(t *testing.T) {
 			name: "standard_2_space_indentation",
 			stepsYAML: `steps:
   - name: Checkout code
-    uses: actions/checkout@v5
+    uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
   - name: Set up Go
-    uses: actions/setup-go@v5
+    uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
     with:
       go-version-file: go.mod
       cache: true`,
@@ -4343,7 +4343,7 @@ func TestCustomStepsIndentation(t *testing.T) {
 			name: "odd_3_space_indentation",
 			stepsYAML: `steps:
    - name: Odd indent
-     uses: actions/checkout@v5
+     uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
      with:
        param: value`,
 			description: "3-space indentation should be normalized to standard format",
@@ -4809,17 +4809,14 @@ func TestAccessLogUploadConditional(t *testing.T) {
 			expectSteps: false,
 		},
 		{
-			name: "mcp server with container and network permissions - access log steps generated",
+			name: "mcp server with container - no access log steps (proxy removed)",
 			mcpServers: map[string]any{
 				"fetch": map[string]any{
 					"container": "mcp/fetch",
-					"network": map[string]any{
-						"allowed": []any{"example.com"},
-					},
-					"allowed": []any{"fetch"},
+					"allowed":   []any{"fetch"},
 				},
 			},
-			expectSteps: true,
+			expectSteps: false, // Changed from true - per-tool proxy removed
 		},
 	}
 
@@ -5752,7 +5749,7 @@ post-steps:
   - name: First Post Step
     run: echo "first"
   - name: Second Post Step
-    uses: actions/upload-artifact@v4
+    uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
     with:
       name: test-artifact
       path: test-file.txt
@@ -5889,8 +5886,8 @@ This workflow should generate a step to upload the prompt as an artifact.
 	}
 
 	// Verify the upload step uses the correct action
-	if !strings.Contains(lockYAML, "uses: actions/upload-artifact@v4") {
-		t.Error("Expected 'actions/upload-artifact@v4' action to be used")
+	if !strings.Contains(lockYAML, "uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02") {
+		t.Error("Expected 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' action to be used")
 	}
 
 	// Verify the upload step has the correct artifact name

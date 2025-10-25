@@ -112,6 +112,13 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
      - Constrain `network:` to the minimum required ecosystems/domains.
      - Use sanitized expressions (`${{ needs.activation.outputs.text }}`) instead of raw event text.
 
+6. **Final words**
+
+    - After completing the workflow, inform the user:
+      - The workflow has been created and compiled successfully.
+      - Print a link to the github.com action landing page (The action URL template is https://github.com/[repo_owner]/[repo_name]/actions/workflows/[workflow_file_name].lock.yml) 
+      - They can **edit and recompile** using `gh aw compile --watch`
+
 ## Guidelines
 
 - Only edit the current agentic wokflow file, no other files.

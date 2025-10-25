@@ -52,24 +52,24 @@ Test safe outputs workflow with MCP server integration.
 	yamlStr := string(yamlContent)
 
 	// Check that safe-outputs MCP server file is written
-	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs") {
+	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
 		t.Error("Expected safe-outputs MCP server to be written to temp file")
 	}
 
 	// Check that safe-outputs configuration file is written
-	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safe-outputs/config.json") {
+	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/config.json") {
 		t.Error("Expected safe-outputs configuration to be written to config.json file")
 	}
 
-	// Check that safe_outputs is included in MCP configuration
-	if !strings.Contains(yamlStr, `"safe_outputs": {`) {
-		t.Error("Expected safe_outputs in MCP server configuration")
+	// Check that safeoutputs is included in MCP configuration
+	if !strings.Contains(yamlStr, `"safeoutputs": {`) {
+		t.Error("Expected safeoutputs in MCP server configuration")
 	}
 
 	// Check that the MCP server is configured with correct command
 	if !strings.Contains(yamlStr, `"command": "node"`) ||
-		!strings.Contains(yamlStr, `"/tmp/gh-aw/safe-outputs/mcp-server.cjs"`) {
-		t.Error("Expected safe_outputs MCP server to be configured with node command")
+		!strings.Contains(yamlStr, `"/tmp/gh-aw/safeoutputs/mcp-server.cjs"`) {
+		t.Error("Expected safeoutputs MCP server to be configured with node command")
 	}
 
 	// Check that safe outputs config is properly set
@@ -119,18 +119,18 @@ Test workflow without safe outputs.
 	yamlStr := string(yamlContent)
 
 	// Check that safe-outputs MCP server file is NOT written
-	if strings.Contains(yamlStr, "cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs") {
+	if strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
 		t.Error("Expected safe-outputs MCP server to NOT be written when safe-outputs are disabled")
 	}
 
 	// Check that safe-outputs configuration file is NOT written
-	if strings.Contains(yamlStr, "cat > /tmp/gh-aw/safe-outputs/config.json") {
+	if strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/config.json") {
 		t.Error("Expected safe-outputs configuration to NOT be written when safe-outputs are disabled")
 	}
 
-	// Check that safe_outputs is NOT included in MCP configuration
-	if strings.Contains(yamlStr, `"safe_outputs": {`) {
-		t.Error("Expected safe_outputs to NOT be in MCP server configuration when disabled")
+	// Check that safeoutputs is NOT included in MCP configuration
+	if strings.Contains(yamlStr, `"safeoutputs": {`) {
+		t.Error("Expected safeoutputs to NOT be in MCP server configuration when disabled")
 	}
 
 	t.Log("Safe outputs MCP server disabled test passed")
@@ -178,23 +178,23 @@ Test safe outputs workflow with Codex engine.
 	yamlStr := string(yamlContent)
 
 	// Check that safe-outputs MCP server file is written
-	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs") {
+	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs") {
 		t.Error("Expected safe-outputs MCP server to be written to temp file")
 	}
 
 	// Check that safe-outputs configuration file is written
-	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safe-outputs/config.json") {
+	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/config.json") {
 		t.Error("Expected safe-outputs configuration to be written to config.json file")
 	}
 
-	// Check that safe_outputs is included in TOML configuration for Codex
-	if !strings.Contains(yamlStr, "[mcp_servers.safe_outputs]") {
-		t.Error("Expected safe_outputs in Codex MCP server TOML configuration")
+	// Check that safeoutputs is included in TOML configuration for Codex
+	if !strings.Contains(yamlStr, "[mcp_servers.safeoutputs]") {
+		t.Error("Expected safeoutputs in Codex MCP server TOML configuration")
 	}
 
 	// Check that the MCP server is configured with correct command in TOML format
 	if !strings.Contains(yamlStr, `command = "node"`) {
-		t.Error("Expected safe_outputs MCP server to be configured with node command in TOML")
+		t.Error("Expected safeoutputs MCP server to be configured with node command in TOML")
 	}
 
 	t.Log("Safe outputs MCP server Codex integration test passed")

@@ -51,7 +51,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` audit https://github.example.com/owner/repo/actions/runs/1234567890  # Audit from GitHub Enterprise
   ` + constants.CLIExtensionPrefix + ` audit 1234567890 -o ./audit-reports  # Custom output directory
   ` + constants.CLIExtensionPrefix + ` audit 1234567890 -v  # Verbose output
-  ` + constants.CLIExtensionPrefix + ` audit 1234567890 --parse  # Parse agent logs and generate log.md`,
+  ` + constants.CLIExtensionPrefix + ` audit 1234567890 --parse  # Parse agent logs and firewall logs, generating log.md and firewall.md`,
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			runIDOrURL := args[0]
@@ -78,7 +78,7 @@ Examples:
 	// Add flags to audit command
 	auditCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
 	auditCmd.Flags().Bool("json", false, "Output audit report as JSON instead of formatted console tables")
-	auditCmd.Flags().Bool("parse", false, "Run JavaScript parser on agent logs and write markdown to log.md")
+	auditCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing markdown to log.md and firewall.md")
 
 	return auditCmd
 }
@@ -287,6 +287,12 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze access logs: %v", err)))
 	}
 
+	// Analyze firewall logs if available
+	firewallAnalysis, err := analyzeFirewallLogs(runOutputDir, verbose)
+	if err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to analyze firewall logs: %v", err)))
+	}
+
 	// List all artifacts
 	artifacts, err := listArtifacts(runOutputDir)
 	if err != nil && verbose {
@@ -295,10 +301,11 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 
 	// Create processed run for report generation
 	processedRun := ProcessedRun{
-		Run:          run,
-		MissingTools: missingTools,
-		MCPFailures:  mcpFailures,
-		JobDetails:   jobDetails,
+		Run:              run,
+		FirewallAnalysis: firewallAnalysis,
+		MissingTools:     missingTools,
+		MCPFailures:      mcpFailures,
+		JobDetails:       jobDetails,
 	}
 
 	// Build structured audit data
@@ -333,20 +340,34 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 		} else if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No engine detected (aw_info.json missing or invalid); skipping agent log rendering"))
 		}
+
+		// Also parse firewall logs if they exist
+		if err := parseFirewallLogs(runOutputDir, verbose); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse firewall logs for run %d: %v", runInfo.RunID, err)))
+			}
+		} else {
+			// Show success message if firewall.md was created
+			firewallMdPath := filepath.Join(runOutputDir, "firewall.md")
+			if _, err := os.Stat(firewallMdPath); err == nil {
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed firewall logs for run %d → %s", runInfo.RunID, firewallMdPath)))
+			}
+		}
 	}
 
 	// Save run summary for caching future audit runs
 	summary := &RunSummary{
-		CLIVersion:     GetVersion(),
-		RunID:          run.DatabaseID,
-		ProcessedAt:    time.Now(),
-		Run:            run,
-		Metrics:        metrics,
-		AccessAnalysis: accessAnalysis,
-		MissingTools:   missingTools,
-		MCPFailures:    mcpFailures,
-		ArtifactsList:  artifacts,
-		JobDetails:     jobDetails,
+		CLIVersion:       GetVersion(),
+		RunID:            run.DatabaseID,
+		ProcessedAt:      time.Now(),
+		Run:              run,
+		Metrics:          metrics,
+		AccessAnalysis:   accessAnalysis,
+		FirewallAnalysis: firewallAnalysis,
+		MissingTools:     missingTools,
+		MCPFailures:      mcpFailures,
+		ArtifactsList:    artifacts,
+		JobDetails:       jobDetails,
 	}
 
 	if err := saveRunSummary(runOutputDir, summary, verbose); err != nil {
@@ -522,6 +543,36 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 			report.WriteString(fmt.Sprintf("- **%s**: %s\n", failure.ServerName, failure.Status))
 		}
 		report.WriteString("\n")
+	}
+
+	// Firewall Analysis
+	if processedRun.FirewallAnalysis != nil && processedRun.FirewallAnalysis.TotalRequests > 0 {
+		report.WriteString("## Firewall Analysis\n\n")
+		fw := processedRun.FirewallAnalysis
+		report.WriteString(fmt.Sprintf("- **Total Requests**: %d\n", fw.TotalRequests))
+		report.WriteString(fmt.Sprintf("- **Allowed Requests**: %d\n", fw.AllowedRequests))
+		report.WriteString(fmt.Sprintf("- **Denied Requests**: %d\n", fw.DeniedRequests))
+		report.WriteString("\n")
+
+		if len(fw.AllowedDomains) > 0 {
+			report.WriteString("### Allowed Domains\n\n")
+			for _, domain := range fw.AllowedDomains {
+				if stats, ok := fw.RequestsByDomain[domain]; ok {
+					report.WriteString(fmt.Sprintf("- %s (%d requests)\n", domain, stats.Allowed))
+				}
+			}
+			report.WriteString("\n")
+		}
+
+		if len(fw.DeniedDomains) > 0 {
+			report.WriteString("### Denied Domains\n\n")
+			for _, domain := range fw.DeniedDomains {
+				if stats, ok := fw.RequestsByDomain[domain]; ok {
+					report.WriteString(fmt.Sprintf("- %s (%d requests)\n", domain, stats.Denied))
+				}
+			}
+			report.WriteString("\n")
+		}
 	}
 
 	// Missing Tools

@@ -6,7 +6,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var copilotLog = logger.New("workflow:copilot_engine")
 
 const logsFolder = "/tmp/gh-aw/.copilot/logs/"
 
@@ -27,11 +30,14 @@ func NewCopilotEngine() *CopilotEngine {
 			supportsMaxTurns:       false, // Copilot CLI does not support max-turns feature yet
 			supportsWebFetch:       false, // Copilot CLI does not have built-in web-fetch support
 			supportsWebSearch:      false, // Copilot CLI does not have built-in web-search support
+			supportsFirewall:       true,  // Copilot supports network firewalling via AWF
 		},
 	}
 }
 
 func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
+	copilotLog.Printf("Generating installation steps for Copilot engine: workflow=%s", workflowData.Name)
+
 	var steps []GitHubActionStep
 
 	// Add secret validation step
@@ -214,9 +220,9 @@ sudo -E awf --env-all \
 COPILOT_LOGS_DIR=$(ls -td /tmp/copilot-logs-* 2>/dev/null | head -1)
 if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   echo "Moving Copilot logs from $COPILOT_LOGS_DIR to %s"
-  mkdir -p %s
-  mv "$COPILOT_LOGS_DIR"/* %s || true
-  rmdir "$COPILOT_LOGS_DIR" || true
+  sudo mkdir -p %s
+  sudo mv "$COPILOT_LOGS_DIR"/* %s || true
+  sudo rmdir "$COPILOT_LOGS_DIR" || true
 fi`, allowedDomains, awfLogLevel, copilotCommand, logFile, logsFolder, logsFolder, logsFolder)
 	} else {
 		// Run copilot command without AWF wrapper
@@ -327,6 +333,10 @@ func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubAc
 
 		squidLogsUpload := generateSquidLogsUploadStep(workflowData.Name)
 		steps = append(steps, squidLogsUpload)
+
+		// Add firewall log parsing step to create step summary
+		firewallLogParsing := generateFirewallLogParsingStep(workflowData.Name)
+		steps = append(steps, firewallLogParsing)
 	}
 
 	return steps
@@ -347,6 +357,8 @@ func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionS
 }
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+	copilotLog.Printf("Rendering MCP config for Copilot engine: mcpTools=%d", len(mcpTools))
+
 	// Create the directory first
 	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
 
@@ -560,7 +572,7 @@ func (e *CopilotEngine) parseCopilotToolCallsWithSequence(line string, toolCallM
 		} else if strings.Contains(line, "playwright") {
 			toolName = "playwright"
 		} else if strings.Contains(line, "safe") && strings.Contains(line, "output") {
-			toolName = "safe_outputs"
+			toolName = constants.SafeOutputsMCPServerID
 		}
 
 		if toolName != "" {
@@ -641,7 +653,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	// Handle safe_outputs MCP server - allow all tools if safe outputs are enabled
 	// This includes both safeOutputs config and safeOutputs.Jobs
 	if HasSafeOutputsEnabled(safeOutputs) {
-		args = append(args, "--allow-tool", "safe_outputs")
+		args = append(args, "--allow-tool", constants.SafeOutputsMCPServerID)
 	}
 
 	// Built-in tool names that should be skipped when processing MCP servers
@@ -812,6 +824,31 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			Severity:     "warning",
 			Description:  "Copilot CLI permission denied warning (user interaction required)",
 		},
+		// Permission-related patterns (classified as warnings, not errors)
+		{
+			ID:           "copilot-permission-denied",
+			Pattern:      `(?i)\berror\b.*permission.*denied`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Severity:     "warning",
+			Description:  "Permission denied error (requires error context)",
+		},
+		{
+			ID:           "copilot-unauthorized",
+			Pattern:      `(?i)\berror\b.*unauthorized`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Severity:     "warning",
+			Description:  "Unauthorized access error (requires error context)",
+		},
+		{
+			ID:           "copilot-forbidden",
+			Pattern:      `(?i)\berror\b.*forbidden`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Severity:     "warning",
+			Description:  "Forbidden access error (requires error context)",
+		},
 	}...)
 
 	return patterns
@@ -907,14 +944,38 @@ func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
 	squidLogsDir := fmt.Sprintf("/tmp/gh-aw/squid-logs-%s/", sanitizedName)
 
 	stepLines := []string{
-		"      - name: Upload Squid logs",
+		"      - name: Upload Firewall Logs",
 		"        if: always()",
-		"        uses: actions/upload-artifact@v4",
+		fmt.Sprintf("        uses: %s", GetActionPin("actions/upload-artifact")),
 		"        with:",
 		fmt.Sprintf("          name: %s", artifactName),
 		fmt.Sprintf("          path: %s", squidLogsDir),
 		"          if-no-files-found: ignore",
 	}
+
+	return GitHubActionStep(stepLines)
+}
+
+// generateFirewallLogParsingStep creates a GitHub Actions step to parse firewall logs and create step summary
+func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
+	// Get the firewall log parser script
+	parserScript := GetLogParserScript("parse_firewall_logs")
+	if parserScript == "" {
+		// Return empty step if parser script not found
+		return GitHubActionStep([]string{})
+	}
+
+	stepLines := []string{
+		"      - name: Parse firewall logs for step summary",
+		"        if: always()",
+		"        uses: actions/github-script@v8",
+		"        with:",
+		"          script: |",
+	}
+
+	// Inline the JavaScript code with proper indentation
+	scriptLines := FormatJavaScriptForYAML(parserScript)
+	stepLines = append(stepLines, scriptLines...)
 
 	return GitHubActionStep(stepLines)
 }

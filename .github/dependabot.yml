@@ -1,0 +1,14 @@
+version: 2
+updates:
+- package-ecosystem: npm
+  directory: /.github/workflows
+  schedule:
+    interval: weekly
+- package-ecosystem: pip
+  directory: /.github/workflows
+  schedule:
+    interval: weekly
+- package-ecosystem: gomod
+  directory: /.github/workflows
+  schedule:
+    interval: weekly

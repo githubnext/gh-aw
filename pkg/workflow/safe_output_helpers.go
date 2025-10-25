@@ -49,7 +49,7 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
 	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
-	steps = append(steps, "        uses: actions/github-script@v8\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 
 	// Environment variables section
 	steps = append(steps, "        env:\n")
@@ -85,7 +85,7 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 func buildAgentOutputDownloadSteps() []string {
 	return buildArtifactDownloadSteps(ArtifactDownloadConfig{
 		ArtifactName: "agent_output.json", // Use constant value directly to avoid import cycle
-		DownloadPath: "/tmp/gh-aw/safe-outputs/",
+		DownloadPath: "/tmp/gh-aw/safeoutputs/",
 		SetupEnvStep: true,
 		EnvVarName:   "GH_AW_AGENT_OUTPUT",
 		StepName:     "Download agent output artifact",

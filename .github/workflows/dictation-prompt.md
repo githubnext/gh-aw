@@ -42,6 +42,7 @@ Create a concise dictation instruction file at `.github/instructions/dictation.i
 1. Contains a glossary of approximately 100 project-specific terms extracted from documentation
 2. Provides instructions for fixing speech-to-text errors (ambiguous terms, spacing, hyphenation)
 3. Does NOT include planning guidelines or examples (keep it short and focused on error correction)
+4. Includes guidelines to NOT plan or provide examples, just focus on fixing speech-to-text errors.
 
 ## Task Steps
 

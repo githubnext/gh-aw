@@ -279,6 +279,28 @@ async function main() {
   if (!isEmpty) {
     core.info("Applying patch...");
     try {
+      // Check if commit title suffix is configured
+      const commitTitleSuffix = process.env.GH_AW_COMMIT_TITLE_SUFFIX;
+
+      if (commitTitleSuffix) {
+        core.info(`Appending commit title suffix: "${commitTitleSuffix}"`);
+
+        // Read the patch file
+        let patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+
+        // Modify Subject lines in the patch to append the suffix
+        // Patch format has "Subject: [PATCH] <original title>" or "Subject: <original title>"
+        // Append the suffix at the end of the title to avoid git am stripping brackets
+        patchContent = patchContent.replace(
+          /^Subject: (?:\[PATCH\] )?(.*)$/gm,
+          (match, title) => `Subject: [PATCH] ${title}${commitTitleSuffix}`
+        );
+
+        // Write the modified patch back
+        fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
+        core.info(`Patch modified with commit title suffix: "${commitTitleSuffix}"`);
+      }
+
       // Patches are created with git format-patch, so use git am to apply them
       await exec.exec("git am /tmp/gh-aw/aw.patch");
       core.info("Patch applied successfully");

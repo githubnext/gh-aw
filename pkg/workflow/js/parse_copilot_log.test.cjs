@@ -967,7 +967,7 @@ More log content
     it("should truncate long strings appropriately", () => {
       const parseCopilotLog = extractParseFunction();
 
-      const longCommand = "a".repeat(100);
+      const longCommand = "a".repeat(400);
       const logWithLongCommand = JSON.stringify([
         {
           type: "assistant",
@@ -1106,6 +1106,72 @@ More log content
 
       // Check that tool calls are displayed
       expect(result).toContain("echo test");
+    });
+
+    it("should detect permission denied errors in tool calls from debug logs", () => {
+      const parseCopilotLog = extractParseFunction();
+
+      // Simulating debug log with permission denied error for a tool call
+      const debugLogWithPermissionError = `2025-10-24T16:00:00.000Z [INFO] Starting Copilot CLI: 0.0.350
+2025-10-24T16:00:01.000Z [DEBUG] response (Request-ID test-1):
+2025-10-24T16:00:01.000Z [DEBUG] data:
+{
+  "id": "chatcmpl-1",
+  "model": "claude-sonnet-4",
+  "choices": [{
+    "message": {
+      "role": "assistant",
+      "content": "I'll create an issue for you.",
+      "tool_calls": [
+        {
+          "id": "call_create_issue_123",
+          "type": "function",
+          "function": {
+            "name": "github-create_issue",
+            "arguments": "{\\"title\\":\\"Test Issue\\",\\"body\\":\\"Test body\\"}"
+          }
+        }
+      ]
+    },
+    "finish_reason": "tool_calls"
+  }],
+  "usage": {
+    "prompt_tokens": 100,
+    "completion_tokens": 50
+  }
+}
+2025-10-24T16:00:02.000Z [ERROR] Tool execution failed: github-create_issue
+2025-10-24T16:00:02.000Z [ERROR] Permission denied: Resource not accessible by integration
+2025-10-24T16:00:02.000Z [DEBUG] response (Request-ID test-2):
+2025-10-24T16:00:02.000Z [DEBUG] data:
+{
+  "id": "chatcmpl-2",
+  "model": "claude-sonnet-4",
+  "choices": [{
+    "message": {
+      "role": "assistant",
+      "content": "I encountered a permission error."
+    },
+    "finish_reason": "stop"
+  }],
+  "usage": {
+    "prompt_tokens": 200,
+    "completion_tokens": 10
+  }
+}`;
+
+      const result = parseCopilotLog(debugLogWithPermissionError);
+
+      // Should detect the permission error and mark the tool call as failed
+      expect(result).toContain("github::create_issue");
+
+      // The tool should be marked with ❌ (failed) instead of ✅ (success)
+      const commandsSection = result.split("📊 Information")[0];
+      expect(commandsSection).toContain("❌");
+      expect(commandsSection).toContain("❌ `github::create_issue(...)`");
+
+      // Should not show it as successful
+      expect(commandsSection).not.toContain("✅ `github::create_issue(...)`");
     });
   });
 });

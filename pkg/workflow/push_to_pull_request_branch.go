@@ -8,10 +8,11 @@ import (
 // PushToPullRequestBranchConfig holds configuration for pushing changes to a specific branch from agent output
 type PushToPullRequestBranchConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Target               string   `yaml:"target,omitempty"`        // Target for push-to-pull-request-branch: like add-comment but for pull requests
-	TitlePrefix          string   `yaml:"title-prefix,omitempty"`  // Required title prefix for pull request validation
-	Labels               []string `yaml:"labels,omitempty"`        // Required labels for pull request validation
-	IfNoChanges          string   `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
+	Target               string   `yaml:"target,omitempty"`              // Target for push-to-pull-request-branch: like add-comment but for pull requests
+	TitlePrefix          string   `yaml:"title-prefix,omitempty"`        // Required title prefix for pull request validation
+	Labels               []string `yaml:"labels,omitempty"`              // Required labels for pull request validation
+	IfNoChanges          string   `yaml:"if-no-changes,omitempty"`       // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
+	CommitTitleSuffix    string   `yaml:"commit-title-suffix,omitempty"` // Optional suffix to append to generated commit titles
 }
 
 // buildCreateOutputPushToPullRequestBranchJob creates the push_to_pull_request_branch job
@@ -25,7 +26,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	// Step 1: Download patch artifact
 	steps = append(steps, "      - name: Download patch artifact\n")
 	steps = append(steps, "        continue-on-error: true\n")
-	steps = append(steps, "        uses: actions/download-artifact@v5\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          name: aw.patch\n")
 	steps = append(steps, "          path: /tmp/gh-aw/\n")
@@ -54,6 +55,10 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	if len(data.SafeOutputs.PushToPullRequestBranch.Labels) > 0 {
 		labelsStr := strings.Join(data.SafeOutputs.PushToPullRequestBranch.Labels, ",")
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_LABELS: %q\n", labelsStr))
+	}
+	// Pass the commit title suffix configuration
+	if data.SafeOutputs.PushToPullRequestBranch.CommitTitleSuffix != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMIT_TITLE_SUFFIX: %q\n", data.SafeOutputs.PushToPullRequestBranch.CommitTitleSuffix))
 	}
 	// Pass the maximum patch size configuration
 	maxPatchSize := 1024 // Default value
@@ -116,7 +121,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 
 func buildCheckoutRepository(steps []string, c *Compiler) []string {
 	steps = append(steps, "      - name: Checkout repository\n")
-	steps = append(steps, "        uses: actions/checkout@v5\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          fetch-depth: 0\n")
 	if c.trialMode {
@@ -174,6 +179,13 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 
 			// Parse labels using shared helper
 			pushToBranchConfig.Labels = parseLabelsFromConfig(configMap)
+
+			// Parse commit-title-suffix (optional)
+			if commitTitleSuffix, exists := configMap["commit-title-suffix"]; exists {
+				if commitTitleSuffixStr, ok := commitTitleSuffix.(string); ok {
+					pushToBranchConfig.CommitTitleSuffix = commitTitleSuffixStr
+				}
+			}
 
 			// Parse common base fields
 			c.parseBaseSafeOutputConfig(configMap, &pushToBranchConfig.BaseSafeOutputConfig)

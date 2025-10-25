@@ -39,7 +39,7 @@ This workflow creates an intelligent issue triage system that automatically resp
 
 ## Safe Output Architecture
 
-IssueOps workflows use the `add-comment` safe output to ensure secure comment creation:
+IssueOps workflows use the `add-comment` safe output to ensure secure comment creation with minimal permissions. The main job runs with `contents: read` while comment creation happens in a separate job with `issues: write` permissions, automatically sanitizing AI content and preventing spam:
 
 ```yaml
 safe-outputs:
@@ -48,28 +48,16 @@ safe-outputs:
     target: "triggering"      # Default: comment on the triggering issue/PR
 ```
 
-**Security Benefits**:
-- Main job runs with minimal `contents: read` permissions
-- Comment creation happens in a separate job with appropriate `issues: write` permissions  
-- Automatic sanitization of AI-generated content
-- Built-in limits prevent comment spam
-
 ## Accessing Issue Context
 
-IssueOps workflows have access to sanitized issue content through the `needs.activation.outputs.text` variable:
+IssueOps workflows access sanitized issue content through the `needs.activation.outputs.text` variable, which combines the issue title and description while removing security risks (@mention neutralization, URI filtering, injection protection):
 
 ```yaml
 # In your workflow instructions:
 Analyze this issue: "${{ needs.activation.outputs.text }}"
 ```
 
-The sanitized context provides:
-- Issue title and description combined
-- Filtered content that removes security risks
-- @mention neutralization to prevent unintended notifications
-- URI filtering for trusted domains only
-
-**Security Note**: While sanitization reduces risks, always treat user content as potentially untrusted and design workflows to be resilient against prompt injection attempts.
+**Security Note**: Always treat user content as potentially untrusted and design workflows to be resilient against prompt injection attempts.
 
 ## Common IssueOps Patterns
 
@@ -91,20 +79,13 @@ safe-outputs:
 
 # Bug Report Triage
 
-Analyze new issues to identify bug reports and automatically add appropriate labels.
+Analyze new issues and add appropriate labels based on content:
 
-Look for:
-- Steps to reproduce
-- Expected vs actual behavior  
-- Environment information (OS, browser, version)
-- Error messages or stack traces
+- Bug reports (with repro steps, environment info, error messages) → "bug" label
+- Missing information → also add "needs-info" label
+- Feature requests → "enhancement" label
+- Questions or docs issues → "question" or "documentation" labels
 
-Based on your analysis:
-- If the issue appears to be a bug report, add the "bug" label
-- If it's missing key information, also add the "needs-info" label
-- For feature requests, add the "enhancement" label
-- For questions or documentation issues, use the "question" or "documentation" labels
-
-You can only add labels from the allowed list and a maximum of 2 labels per issue.
+Maximum of 2 labels per issue from the allowed list.
 ```
 

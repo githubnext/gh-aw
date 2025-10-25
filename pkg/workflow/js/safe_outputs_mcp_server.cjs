@@ -7,7 +7,7 @@ const crypto = require("crypto");
 const { execSync } = require("child_process");
 
 const encoder = new TextEncoder();
-const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
+const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
 const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
 
 /**
@@ -64,7 +64,7 @@ let safeOutputsConfigRaw;
 
 if (!configEnv) {
   // Default config file path
-  const defaultConfigPath = "/tmp/gh-aw/safe-outputs/config.json";
+  const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
   debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
 
   try {
@@ -102,7 +102,7 @@ const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw
 debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
 
 // Handle GH_AW_SAFE_OUTPUTS with default fallback
-const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
+const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
 if (!process.env.GH_AW_SAFE_OUTPUTS) {
   debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
   // Ensure the directory exists
@@ -246,7 +246,7 @@ function generateCompactSchema(content) {
  * @returns {Object} Object with filename and description
  */
 function writeLargeContentToFile(content) {
-  const logsDir = "/tmp/gh-aw/safe-outputs";
+  const logsDir = "/tmp/gh-aw/safeoutputs";
 
   // Ensure directory exists
   if (!fs.existsSync(logsDir)) {
@@ -395,7 +395,7 @@ const uploadAssetHandler = args => {
   }
 
   // Create assets directory
-  const assetsDir = "/tmp/gh-aw/safe-outputs/assets";
+  const assetsDir = "/tmp/gh-aw/safeoutputs/assets";
   if (!fs.existsSync(assetsDir)) {
     fs.mkdirSync(assetsDir, { recursive: true });
   }
@@ -447,9 +447,30 @@ const uploadAssetHandler = args => {
  * @returns {string} The current branch name
  */
 function getCurrentBranch() {
+  // Priority 1: Use GitHub Actions environment variables (most reliable in GitHub Actions context)
+  // GITHUB_HEAD_REF is set for pull_request events and contains the source branch name
+  // GITHUB_REF_NAME is set for all events and contains the branch/tag name
+  const ghHeadRef = process.env.GITHUB_HEAD_REF;
+  const ghRefName = process.env.GITHUB_REF_NAME;
+
+  if (ghHeadRef) {
+    debug(`Resolved current branch from GITHUB_HEAD_REF: ${ghHeadRef}`);
+    return ghHeadRef;
+  }
+
+  if (ghRefName) {
+    debug(`Resolved current branch from GITHUB_REF_NAME: ${ghRefName}`);
+    return ghRefName;
+  }
+
+  // Priority 2: Fallback to git command with explicit working directory
+  const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
   try {
-    const branch = execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
-    debug(`Resolved current branch: ${branch}`);
+    const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+      encoding: "utf8",
+      cwd: cwd,
+    }).trim();
+    debug(`Resolved current branch from git in ${cwd}: ${branch}`);
     return branch;
   } catch (error) {
     throw new Error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`);

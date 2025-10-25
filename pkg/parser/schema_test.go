@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
@@ -893,6 +895,33 @@ func TestValidateIncludedFileFrontmatterWithSchema(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid frontmatter with bash as boolean true",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"bash": true,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with bash as boolean false",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"bash": false,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with bash as null",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"bash": nil,
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "valid frontmatter with custom MCP tool",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
@@ -1164,5 +1193,243 @@ timeout_minu tes: 10
 	// The error message should be formatted with location information
 	if !strings.Contains(errorMsg, tempFile) {
 		t.Errorf("Error message should contain file path, got: %s", errorMsg)
+	}
+}
+
+func TestFilterIgnoredFields(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		expected    map[string]any
+	}{
+		{
+			name:        "nil frontmatter",
+			frontmatter: nil,
+			expected:    nil,
+		},
+		{
+			name:        "empty frontmatter",
+			frontmatter: map[string]any{},
+			expected:    map[string]any{},
+		},
+		{
+			name: "frontmatter with description only",
+			frontmatter: map[string]any{
+				"description": "This is a test workflow",
+				"on":          "push",
+			},
+			expected: map[string]any{
+				"on": "push",
+			},
+		},
+		{
+			name: "frontmatter with applyTo only",
+			frontmatter: map[string]any{
+				"applyTo": "some-value",
+				"on":      "push",
+			},
+			expected: map[string]any{
+				"on": "push",
+			},
+		},
+		{
+			name: "frontmatter with both description and applyTo",
+			frontmatter: map[string]any{
+				"description": "This is a test workflow",
+				"applyTo":     "some-value",
+				"on":          "push",
+				"engine":      "claude",
+			},
+			expected: map[string]any{
+				"on":     "push",
+				"engine": "claude",
+			},
+		},
+		{
+			name: "frontmatter with only valid fields",
+			frontmatter: map[string]any{
+				"on":     "push",
+				"engine": "claude",
+			},
+			expected: map[string]any{
+				"on":     "push",
+				"engine": "claude",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filterIgnoredFields(tt.frontmatter)
+
+			if tt.expected == nil {
+				if result != nil {
+					t.Errorf("Expected nil, got %v", result)
+				}
+				return
+			}
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d fields, got %d fields", len(tt.expected), len(result))
+			}
+
+			for key, expectedValue := range tt.expected {
+				if actualValue, ok := result[key]; !ok {
+					t.Errorf("Expected field %q not found in result", key)
+				} else {
+					// For simple types, compare directly
+					// For maps, we need to compare keys (simple check for this test)
+					switch v := expectedValue.(type) {
+					case map[string]any:
+						if actualMap, ok := actualValue.(map[string]any); !ok {
+							t.Errorf("Field %q: expected map, got %T", key, actualValue)
+						} else if len(actualMap) != len(v) {
+							t.Errorf("Field %q: expected map with %d keys, got %d keys", key, len(v), len(actualMap))
+						}
+					default:
+						if actualValue != expectedValue {
+							t.Errorf("Field %q: expected %v, got %v", key, expectedValue, actualValue)
+						}
+					}
+				}
+			}
+
+			// Check that ignored fields are not present
+			for _, ignoredField := range constants.IgnoredFrontmatterFields {
+				if _, ok := result[ignoredField]; ok {
+					t.Errorf("Ignored field %q should not be present in result", ignoredField)
+				}
+			}
+		})
+	}
+}
+
+func TestValidateMainWorkflowWithIgnoredFields(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "valid frontmatter with description field - should be silently ignored",
+			frontmatter: map[string]any{
+				"on":          "push",
+				"description": "This is a test workflow description",
+				"engine":      "claude",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with applyTo field - should be silently ignored",
+			frontmatter: map[string]any{
+				"on":      "push",
+				"applyTo": "some-target",
+				"engine":  "claude",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with both description and applyTo - should be silently ignored",
+			frontmatter: map[string]any{
+				"on":          "push",
+				"description": "Test workflow",
+				"applyTo":     "some-target",
+				"engine":      "claude",
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid frontmatter with ignored fields - other validation should still work",
+			frontmatter: map[string]any{
+				"on":            "push",
+				"description":   "Test workflow",
+				"applyTo":       "some-target",
+				"invalid_field": "should-fail",
+			},
+			wantErr:     true,
+			errContains: "invalid_field",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateMainWorkflowFrontmatterWithSchema(tt.frontmatter)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateMainWorkflowFrontmatterWithSchema() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if err != nil && tt.errContains != "" {
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("Error message should contain %q, got: %v", tt.errContains, err)
+				}
+			}
+		})
+	}
+}
+
+func TestValidateIncludedFileWithIgnoredFields(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "valid included file with description field - should be silently ignored",
+			frontmatter: map[string]any{
+				"description": "This is a shared config",
+				"tools": map[string]any{
+					"github": map[string]any{
+						"allowed": []string{"get_repository"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid included file with applyTo field - should be silently ignored",
+			frontmatter: map[string]any{
+				"applyTo": "some-target",
+				"tools": map[string]any{
+					"github": map[string]any{
+						"allowed": []string{"get_repository"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid included file with both description and applyTo - should be silently ignored",
+			frontmatter: map[string]any{
+				"description": "Shared config",
+				"applyTo":     "some-target",
+				"tools": map[string]any{
+					"github": map[string]any{
+						"allowed": []string{"get_repository"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateIncludedFileFrontmatterWithSchema(tt.frontmatter)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateIncludedFileFrontmatterWithSchema() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if err != nil && tt.errContains != "" {
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("Error message should contain %q, got: %v", tt.errContains, err)
+				}
+			}
+		})
 	}
 }

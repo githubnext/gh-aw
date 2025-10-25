@@ -32,7 +32,7 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				"- name: Setup agent output environment variable",
 				"- name: Test Step",
 				"id: test_step",
-				"uses: actions/github-script@v8",
+				"uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd",
 				"env:",
 				"GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}",
 				"with:",
@@ -61,7 +61,7 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				"- name: Setup agent output environment variable",
 				"- name: Create Issue",
 				"id: create_issue",
-				"uses: actions/github-script@v8",
+				"uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd",
 				"GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}",
 				"GH_AW_ISSUE_TITLE_PREFIX: \"[bot] \"",
 				"GH_AW_ISSUE_LABELS: \"automation,ai\"",
@@ -138,8 +138,8 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 			if !strings.Contains(stepsStr, "id:") {
 				t.Error("Expected step to have 'id:' field")
 			}
-			if !strings.Contains(stepsStr, "uses: actions/github-script@v8") {
-				t.Error("Expected step to use actions/github-script@v8")
+			if !strings.Contains(stepsStr, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
+				t.Error("Expected step to use actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd")
 			}
 			if !strings.Contains(stepsStr, "env:") {
 				t.Error("Expected step to have 'env:' section")
@@ -538,13 +538,13 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 	expectedComponents := []string{
 		"- name: Download agent output artifact",
 		"continue-on-error: true",
-		"uses: actions/download-artifact@v5",
+		"uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0",
 		"name: agent_output.json",
-		"path: /tmp/gh-aw/safe-outputs/",
+		"path: /tmp/gh-aw/safeoutputs/",
 		"- name: Setup agent output environment variable",
-		"mkdir -p /tmp/gh-aw/safe-outputs/",
-		"find /tmp/gh-aw/safe-outputs/ -type f -print",
-		"GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json",
+		"mkdir -p /tmp/gh-aw/safeoutputs/",
+		"find /tmp/gh-aw/safeoutputs/ -type f -print",
+		"GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json",
 	}
 
 	for _, expected := range expectedComponents {
@@ -554,8 +554,8 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 	}
 
 	// Verify mkdir comes before find to ensure directory exists
-	mkdirIdx := strings.Index(stepsStr, "mkdir -p /tmp/gh-aw/safe-outputs/")
-	findIdx := strings.Index(stepsStr, "find /tmp/gh-aw/safe-outputs/")
+	mkdirIdx := strings.Index(stepsStr, "mkdir -p /tmp/gh-aw/safeoutputs/")
+	findIdx := strings.Index(stepsStr, "find /tmp/gh-aw/safeoutputs/")
 
 	if mkdirIdx == -1 {
 		t.Fatal("mkdir command not found in steps")

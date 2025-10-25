@@ -2422,6 +2422,10 @@
                   ],
                   "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
                 },
+                "commit-title-suffix": {
+                  "type": "string",
+                  "description": "Optional suffix to append to generated commit titles (e.g., ' [skip ci]' to prevent triggering CI on the commit)"
+                },
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."

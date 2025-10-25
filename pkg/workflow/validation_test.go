@@ -395,6 +395,26 @@ func TestExtractNpxFromCommands(t *testing.T) {
 			commands: "npx @scope/package@1.0.0",
 			expected: []string{"@scope/package@1.0.0"},
 		},
+		{
+			name:     "npx with -y flag",
+			commands: "npx -y @github/copilot@0.0.350",
+			expected: []string{"@github/copilot@0.0.350"},
+		},
+		{
+			name:     "npx with --yes flag",
+			commands: "npx --yes package-name",
+			expected: []string{"package-name"},
+		},
+		{
+			name:     "npx with multiple flags",
+			commands: "npx -y --quiet @scope/package",
+			expected: []string{"@scope/package"},
+		},
+		{
+			name:     "npx with flags and shell operators",
+			commands: "npx -y pkg1 && npx --yes pkg2",
+			expected: []string{"pkg1", "pkg2"},
+		},
 	}
 
 	for _, tt := range tests {

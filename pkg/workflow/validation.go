@@ -1,14 +1,19 @@
 package workflow
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
+	"github.com/cli/go-gh/v2"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
+	"github.com/goccy/go-yaml"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 var validationLog = logger.New("workflow:validation")
@@ -174,18 +179,35 @@ func collectPackagesFromWorkflow(
 	// Extract from MCP server configurations (if toolCommand is provided)
 	if toolCommand != "" && workflowData.Tools != nil {
 		for _, toolConfig := range workflowData.Tools {
+			// Handle structured MCP config with command and args fields
 			if config, ok := toolConfig.(map[string]any); ok {
 				if command, hasCommand := config["command"]; hasCommand {
 					if cmdStr, ok := command.(string); ok && cmdStr == toolCommand {
-						// Extract package from args
+						// Extract package from args, skipping flags
 						if args, hasArgs := config["args"]; hasArgs {
-							if argsSlice, ok := args.([]any); ok && len(argsSlice) > 0 {
-								if pkgStr, ok := argsSlice[0].(string); ok && !seen[pkgStr] {
-									packages = append(packages, pkgStr)
-									seen[pkgStr] = true
+							if argsSlice, ok := args.([]any); ok {
+								for _, arg := range argsSlice {
+									if pkgStr, ok := arg.(string); ok {
+										// Skip flags (arguments starting with - or --)
+										if !strings.HasPrefix(pkgStr, "-") && !seen[pkgStr] {
+											packages = append(packages, pkgStr)
+											seen[pkgStr] = true
+											break // Only take the first non-flag argument
+										}
+									}
 								}
 							}
 						}
+					}
+				}
+			} else if cmdStr, ok := toolConfig.(string); ok {
+				// Handle string-format MCP tool (e.g., "npx -y package")
+				// Use the extractor function to parse the command string
+				pkgs := extractor(cmdStr)
+				for _, pkg := range pkgs {
+					if !seen[pkg] {
+						packages = append(packages, pkg)
+						seen[pkg] = true
 					}
 				}
 			}
@@ -193,4 +215,234 @@ func collectPackagesFromWorkflow(
 	}
 
 	return packages
+}
+
+// validateGitHubActionsSchema validates the generated YAML content against the GitHub Actions workflow schema
+func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
+	// Convert YAML to any for JSON conversion
+	var workflowData any
+	if err := yaml.Unmarshal([]byte(yamlContent), &workflowData); err != nil {
+		return fmt.Errorf("failed to parse YAML for schema validation: %w", err)
+	}
+
+	// Convert to JSON for schema validation
+	jsonData, err := json.Marshal(workflowData)
+	if err != nil {
+		return fmt.Errorf("failed to convert YAML to JSON for validation: %w", err)
+	}
+
+	// Parse the embedded schema
+	var schemaDoc any
+	if err := json.Unmarshal([]byte(githubWorkflowSchema), &schemaDoc); err != nil {
+		return fmt.Errorf("failed to parse embedded GitHub Actions schema: %w", err)
+	}
+
+	// Create compiler and add the schema as a resource
+	loader := jsonschema.NewCompiler()
+	schemaURL := "https://json.schemastore.org/github-workflow.json"
+	if err := loader.AddResource(schemaURL, schemaDoc); err != nil {
+		return fmt.Errorf("failed to add schema resource: %w", err)
+	}
+
+	// Compile the schema
+	schema, err := loader.Compile(schemaURL)
+	if err != nil {
+		return fmt.Errorf("failed to compile GitHub Actions schema: %w", err)
+	}
+
+	// Validate the JSON data against the schema
+	var jsonObj any
+	if err := json.Unmarshal(jsonData, &jsonObj); err != nil {
+		return fmt.Errorf("failed to unmarshal JSON for validation: %w", err)
+	}
+
+	if err := schema.Validate(jsonObj); err != nil {
+		return fmt.Errorf("GitHub Actions schema validation failed: %w", err)
+	}
+
+	return nil
+}
+
+// validateNoDuplicateCacheIDs checks for duplicate cache IDs and returns an error if found
+func validateNoDuplicateCacheIDs(caches []CacheMemoryEntry) error {
+	seen := make(map[string]bool)
+	for _, cache := range caches {
+		if seen[cache.ID] {
+			return fmt.Errorf("duplicate cache-memory ID '%s' found. Each cache must have a unique ID", cache.ID)
+		}
+		seen[cache.ID] = true
+	}
+	return nil
+}
+
+// validateSecretReferences validates that secret references are valid
+func validateSecretReferences(secrets []string) error {
+	// Secret names must be valid environment variable names
+	secretNamePattern := regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
+
+	for _, secret := range secrets {
+		if !secretNamePattern.MatchString(secret) {
+			return fmt.Errorf("invalid secret name: %s", secret)
+		}
+	}
+
+	return nil
+}
+
+// validateRepositoryFeatures validates that required repository features are enabled
+// when safe-outputs are configured that depend on them (discussions, issues)
+func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error {
+	if workflowData.SafeOutputs == nil {
+		return nil
+	}
+
+	validationLog.Print("Validating repository features for safe-outputs")
+
+	// Get the repository from the current git context
+	// This will work when running in a git repository
+	repo, err := getCurrentRepository()
+	if err != nil {
+		validationLog.Printf("Could not determine repository: %v", err)
+		// Don't fail if we can't determine the repository (e.g., not in a git repo)
+		// This allows validation to pass in non-git environments
+		return nil
+	}
+
+	validationLog.Printf("Checking repository features for: %s", repo)
+
+	// Check if discussions are enabled when create-discussion or add-comment with discussion: true is configured
+	needsDiscussions := workflowData.SafeOutputs.CreateDiscussions != nil ||
+		(workflowData.SafeOutputs.AddComments != nil &&
+			workflowData.SafeOutputs.AddComments.Discussion != nil &&
+			*workflowData.SafeOutputs.AddComments.Discussion)
+
+	if needsDiscussions {
+		hasDiscussions, err := checkRepositoryHasDiscussions(repo)
+		if err != nil {
+			// If we can't check, log but don't fail
+			// This could happen due to network issues or auth problems
+			validationLog.Printf("Warning: Could not check if discussions are enabled: %v", err)
+			if c.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+					fmt.Sprintf("Could not verify if discussions are enabled: %v", err)))
+			}
+			return nil
+		}
+
+		if !hasDiscussions {
+			if workflowData.SafeOutputs.CreateDiscussions != nil {
+				return fmt.Errorf("workflow uses safe-outputs.create-discussion but repository %s does not have discussions enabled. Enable discussions in repository settings or remove create-discussion from safe-outputs", repo)
+			}
+			// For add-comment with discussion: true
+			return fmt.Errorf("workflow uses safe-outputs.add-comment with discussion: true but repository %s does not have discussions enabled. Enable discussions in repository settings or change add-comment configuration", repo)
+		}
+
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+				fmt.Sprintf("✓ Repository %s has discussions enabled", repo)))
+		}
+	}
+
+	// Check if issues are enabled when create-issue is configured
+	if workflowData.SafeOutputs.CreateIssues != nil {
+		hasIssues, err := checkRepositoryHasIssues(repo)
+		if err != nil {
+			// If we can't check, log but don't fail
+			validationLog.Printf("Warning: Could not check if issues are enabled: %v", err)
+			if c.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+					fmt.Sprintf("Could not verify if issues are enabled: %v", err)))
+			}
+			return nil
+		}
+
+		if !hasIssues {
+			return fmt.Errorf("workflow uses safe-outputs.create-issue but repository %s does not have issues enabled. Enable issues in repository settings or remove create-issue from safe-outputs", repo)
+		}
+
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+				fmt.Sprintf("✓ Repository %s has issues enabled", repo)))
+		}
+	}
+
+	return nil
+}
+
+// getCurrentRepository gets the current repository from git context
+func getCurrentRepository() (string, error) {
+	// Use gh CLI to get the current repository
+	// This works when in a git repository with GitHub remote
+	stdOut, _, err := gh.Exec("repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner")
+	if err != nil {
+		return "", fmt.Errorf("failed to get current repository: %w", err)
+	}
+
+	repo := strings.TrimSpace(stdOut.String())
+	if repo == "" {
+		return "", fmt.Errorf("repository name is empty")
+	}
+
+	return repo, nil
+}
+
+// checkRepositoryHasDiscussions checks if a repository has discussions enabled
+func checkRepositoryHasDiscussions(repo string) (bool, error) {
+	// Use GitHub GraphQL API to check if discussions are enabled
+	// The hasDiscussionsEnabled field is the canonical way to check this
+	query := `query($owner: String!, $name: String!) {
+		repository(owner: $owner, name: $name) {
+			hasDiscussionsEnabled
+		}
+	}`
+
+	// Split repo into owner and name
+	parts := strings.SplitN(repo, "/", 2)
+	if len(parts) != 2 {
+		return false, fmt.Errorf("invalid repository format: %s (expected owner/repo)", repo)
+	}
+	owner, name := parts[0], parts[1]
+
+	// Execute GraphQL query using gh CLI
+	type GraphQLResponse struct {
+		Data struct {
+			Repository struct {
+				HasDiscussionsEnabled bool `json:"hasDiscussionsEnabled"`
+			} `json:"repository"`
+		} `json:"data"`
+	}
+
+	stdOut, _, err := gh.Exec("api", "graphql", "-f", fmt.Sprintf("query=%s", query),
+		"-f", fmt.Sprintf("owner=%s", owner), "-f", fmt.Sprintf("name=%s", name))
+	if err != nil {
+		return false, fmt.Errorf("failed to query discussions status: %w", err)
+	}
+
+	var response GraphQLResponse
+	if err := json.Unmarshal(stdOut.Bytes(), &response); err != nil {
+		return false, fmt.Errorf("failed to parse GraphQL response: %w", err)
+	}
+
+	return response.Data.Repository.HasDiscussionsEnabled, nil
+}
+
+// checkRepositoryHasIssues checks if a repository has issues enabled
+func checkRepositoryHasIssues(repo string) (bool, error) {
+	// Use GitHub REST API to check if issues are enabled
+	// The has_issues field indicates if issues are enabled
+	type RepositoryResponse struct {
+		HasIssues bool `json:"has_issues"`
+	}
+
+	stdOut, _, err := gh.Exec("api", fmt.Sprintf("repos/%s", repo))
+	if err != nil {
+		return false, fmt.Errorf("failed to query repository: %w", err)
+	}
+
+	var response RepositoryResponse
+	if err := json.Unmarshal(stdOut.Bytes(), &response); err != nil {
+		return false, fmt.Errorf("failed to parse repository response: %w", err)
+	}
+
+	return response.HasIssues, nil
 }

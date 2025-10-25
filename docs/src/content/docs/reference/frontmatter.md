@@ -22,7 +22,7 @@ tools:
 
 ## Frontmatter Elements
 
-The frontmatter combines standard GitHub Actions properties (`on`, `permissions`, `run-name`, `runs-on`, `timeout_minutes`, `concurrency`, `env`, `environment`, `container`, `services`, `if`, `steps`, `cache`) with GitHub Agentic Workflows-specific elements (`description`, `source`, `github-token`, `imports`, `engine`, `strict`, `roles`, `safe-outputs`, `network`, `tools`, `cache-memory`).
+The frontmatter combines standard GitHub Actions properties (`on`, `permissions`, `run-name`, `runs-on`, `timeout_minutes`, `concurrency`, `env`, `environment`, `container`, `services`, `if`, `steps`, `cache`) with GitHub Agentic Workflows-specific elements (`description`, `source`, `github-token`, `imports`, `engine`, `strict`, `roles`, `features`, `safe-outputs`, `network`, `tools`, `cache-memory`).
 
 ### Trigger Events (`on:`)
 
@@ -124,6 +124,19 @@ strict: true  # Enable (default: false)
 Strict mode enforces: (1) no write permissions for `contents`, `issues`, or `pull-requests` (use `safe-outputs` instead), (2) explicit network configuration required, (3) no wildcard `*` in `network.allowed`, (4) network configuration for custom MCP servers with containers.
 
 Enable with `strict: true` in frontmatter or `gh aw compile --strict` (CLI flag applies to all workflows and takes precedence). Use for production workflows requiring enhanced security validation or security policy compliance.
+
+### Feature Flags (`features:`)
+
+Enable experimental or optional features for your workflow using feature flags. Each feature is a boolean key-value pair.
+
+```yaml
+features:
+  firewall: true  # Enable AWF network firewall for Copilot engine
+```
+
+**Available Features:**
+
+- **`firewall`**: Enable AWF (Agent Workflow Firewall) for network egress control with domain allowlisting. Currently only supported for the Copilot engine. AWF wraps Copilot CLI execution and enforces the `network.allowed` domains. See [Network Permissions](/gh-aw/reference/engines/#network-permissions) for configuration details. AWF is sourced from [github.com/githubnext/gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall).
 
 ### AI Engine (`engine:`)
 

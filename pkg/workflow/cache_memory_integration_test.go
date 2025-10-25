@@ -31,7 +31,7 @@ tools:
 				"# Cache memory file share configuration from frontmatter processed below",
 				"- name: Create cache-memory directory",
 				"- name: Cache memory file share data",
-				"uses: actions/cache@v4",
+				"uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
 				"key: memory-${{ github.workflow }}-${{ github.run_id }}",
 				"path: /tmp/gh-aw/cache-memory",
 				"- name: Upload cache-memory data as artifact",

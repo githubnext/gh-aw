@@ -67,25 +67,25 @@ jobs:
     concurrency:
       group: "gh-aw-codex-${{ github.workflow }}"
     env:
-      GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
+      GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":3},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
         with:
           go-version-file: go.mod
           cache: true
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
       - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081
       - name: Verify uv
         run: uv --version
       - name: Install Go language service
@@ -105,7 +105,7 @@ jobs:
       - name: Checkout PR branch
         if: |
           github.event.pull_request
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
             async function main() {
@@ -157,28 +157,28 @@ jobs:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.47.0
+        run: npm install -g @openai/codex@0.48.0
       - name: Downloading container images
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.19.1
       - name: Setup Safe Outputs Collector MCP
         run: |
-          mkdir -p /tmp/gh-aw/safe-outputs
-          cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
+          mkdir -p /tmp/gh-aw/safeoutputs
+          cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
           {"create_issue":{"max":3},"missing_tool":{}}
           EOF
-          cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
+          cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
             const { execSync } = require("child_process");
             const encoder = new TextEncoder();
-            const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
+            const SERVER_INFO = { name: "safeoutputs", version: "1.0.0" };
             const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
@@ -197,7 +197,7 @@ jobs:
             const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
-              const defaultConfigPath = "/tmp/gh-aw/safe-outputs/config.json";
+              const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
               debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
               try {
                 if (fs.existsSync(defaultConfigPath)) {
@@ -230,7 +230,7 @@ jobs:
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
-            const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
+            const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
             if (!process.env.GH_AW_SAFE_OUTPUTS) {
               debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
               const outputDir = path.dirname(outputFile);
@@ -337,7 +337,7 @@ jobs:
               }
             }
             function writeLargeContentToFile(content) {
-              const logsDir = "/tmp/gh-aw/safe-outputs";
+              const logsDir = "/tmp/gh-aw/safeoutputs";
               if (!fs.existsSync(logsDir)) {
                 fs.mkdirSync(logsDir, { recursive: true });
               }
@@ -438,7 +438,7 @@ jobs:
               if (!allowedExts.includes(ext)) {
                 throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
               }
-              const assetsDir = "/tmp/gh-aw/safe-outputs/assets";
+              const assetsDir = "/tmp/gh-aw/safeoutputs/assets";
               if (!fs.existsSync(assetsDir)) {
                 fs.mkdirSync(assetsDir, { recursive: true });
               }
@@ -472,9 +472,23 @@ jobs:
               };
             };
             function getCurrentBranch() {
+              const ghHeadRef = process.env.GITHUB_HEAD_REF;
+              const ghRefName = process.env.GITHUB_REF_NAME;
+              if (ghHeadRef) {
+                debug(`Resolved current branch from GITHUB_HEAD_REF: ${ghHeadRef}`);
+                return ghHeadRef;
+              }
+              if (ghRefName) {
+                debug(`Resolved current branch from GITHUB_REF_NAME: ${ghRefName}`);
+                return ghRefName;
+              }
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
               try {
-                const branch = execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
-                debug(`Resolved current branch: ${branch}`);
+                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+                  encoding: "utf8",
+                  cwd: cwd,
+                }).trim();
+                debug(`Resolved current branch from git in ${cwd}: ${branch}`);
                 return branch;
               } catch (error) {
                 throw new Error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`);
@@ -933,7 +947,7 @@ jobs:
             process.stdin.resume();
             debug(`listening...`);
           EOF
-          chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
+          chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
       - name: Setup MCPs
         run: |
@@ -963,10 +977,10 @@ jobs:
           [mcp_servers.github.env]
           GITHUB_PERSONAL_ACCESS_TOKEN = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
           
-          [mcp_servers.safe_outputs]
+          [mcp_servers.safeoutputs]
           command = "node"
           args = [
-            "/tmp/gh-aw/safe-outputs/mcp-server.cjs",
+            "/tmp/gh-aw/safeoutputs/mcp-server.cjs",
           ]
           env = { "GH_AW_SAFE_OUTPUTS" = "${{ env.GH_AW_SAFE_OUTPUTS }}", "GH_AW_SAFE_OUTPUTS_CONFIG" = ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}, "GH_AW_ASSETS_BRANCH" = "${{ env.GH_AW_ASSETS_BRANCH }}", "GH_AW_ASSETS_MAX_SIZE_KB" = "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}", "GH_AW_ASSETS_ALLOWED_EXTS" = "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}" }
           
@@ -1273,15 +1287,15 @@ jobs:
           
           ## Creating an Issue, Reporting Missing Tools or Functionality
           
-          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
           **Creating an Issue**
           
-          To create an issue, use the create-issue tool from the safe-outputs MCP
+          To create an issue, use the create-issue tool from safeoutputs
           
           **Reporting Missing Tools or Functionality**
           
-          To report a missing tool use the missing-tool tool from the safe-outputs MCP.
+          To report a missing tool use the missing-tool tool from safeoutputs.
           
           PROMPT_EOF
       - name: Append GitHub context to prompt
@@ -1319,7 +1333,7 @@ jobs:
           
           PROMPT_EOF
       - name: Render template conditionals
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         with:
@@ -1367,7 +1381,7 @@ jobs:
           echo "</details>" >> $GITHUB_STEP_SUMMARY
       - name: Upload prompt
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1380,7 +1394,7 @@ jobs:
           echo "AGENT_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
           echo "Agent version: $VERSION_OUTPUT"
       - name: Generate agentic run info
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
             const fs = require('fs');
@@ -1414,7 +1428,7 @@ jobs:
             console.log(JSON.stringify(awInfo, null, 2));
       - name: Upload agentic run info
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
@@ -1437,7 +1451,7 @@ jobs:
           RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
       - name: Redact secrets in logs
         if: always()
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
             const fs = require("fs");
@@ -1553,14 +1567,14 @@ jobs:
           SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Upload Safe Outputs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: safe_output.jsonl
           path: ${{ env.GH_AW_SAFE_OUTPUTS }}
           if-no-files-found: warn
       - name: Ingest agent output
         id: collect_output
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":3},\"missing_tool\":{}}"
@@ -2321,13 +2335,13 @@ jobs:
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: agent_output.json
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Upload engine output files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: agent_outputs
           path: |
@@ -2335,14 +2349,14 @@ jobs:
           if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: mcp-logs
           path: /tmp/gh-aw/mcp-logs/
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
@@ -2609,14 +2623,14 @@ jobs:
             main();
       - name: Upload Agent Stdio
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
           GH_AW_ERROR_PATTERNS: "[{\"id\":\"\",\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"id\":\"\",\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"id\":\"\",\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"id\":\"\",\"pattern\":\"(ERROR|Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic ERROR messages\"},{\"id\":\"\",\"pattern\":\"(WARNING|Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic WARNING messages\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z)\\\\s+(ERROR)\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"id\":\"\",\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z)\\\\s+(WARN|WARNING)\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"}]"
@@ -2866,18 +2880,18 @@ jobs:
     steps:
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           name: agent_output.json
-          path: /tmp/gh-aw/safe-outputs/
+          path: /tmp/gh-aw/safeoutputs/
       - name: Setup agent output environment variable
         run: |
-          mkdir -p /tmp/gh-aw/safe-outputs/
-          find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find /tmp/gh-aw/safeoutputs/ -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
       - name: Create Output Issue
         id: create_issue
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Duplicate Code Detector"
@@ -3151,7 +3165,7 @@ jobs:
             })();
       - name: Checkout repository for gh CLI
         if: steps.create_issue.outputs.issue_number != ''
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       - name: Assign issue to copilot
         if: steps.create_issue.outputs.issue_number != ''
         env:
@@ -3171,19 +3185,19 @@ jobs:
     steps:
       - name: Download prompt artifact
         continue-on-error: true
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           name: prompt.txt
           path: /tmp/gh-aw/threat-detection/
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           name: agent_output.json
           path: /tmp/gh-aw/threat-detection/
       - name: Download patch artifact
         continue-on-error: true
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           name: aw.patch
           path: /tmp/gh-aw/threat-detection/
@@ -3193,7 +3207,7 @@ jobs:
         run: |
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
       - name: Setup threat detection
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           WORKFLOW_NAME: "Duplicate Code Detector"
           WORKFLOW_DESCRIPTION: "No description provided"
@@ -3320,11 +3334,11 @@ jobs:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.47.0
+        run: npm install -g @openai/codex@0.48.0
       - name: Run Codex
         run: |
           set -o pipefail
@@ -3340,7 +3354,7 @@ jobs:
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
       - name: Parse threat detection results
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
             const fs = require('fs');
@@ -3377,7 +3391,7 @@ jobs:
             }
       - name: Upload threat detection log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
@@ -3398,18 +3412,18 @@ jobs:
     steps:
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           name: agent_output.json
-          path: /tmp/gh-aw/safe-outputs/
+          path: /tmp/gh-aw/safeoutputs/
       - name: Setup agent output environment variable
         run: |
-          mkdir -p /tmp/gh-aw/safe-outputs/
-          find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find /tmp/gh-aw/safeoutputs/ -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
       - name: Record Missing Tool
         id: missing_tool
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
         with:

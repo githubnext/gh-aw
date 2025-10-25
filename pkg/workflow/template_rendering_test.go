@@ -74,7 +74,7 @@ Normal content here.
 		t.Error("Compiled workflow should contain template rendering step")
 	}
 
-	if !strings.Contains(compiledStr, "uses: actions/github-script@v8") {
+	if !strings.Contains(compiledStr, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
 		t.Error("Template rendering step should use github-script action")
 	}
 

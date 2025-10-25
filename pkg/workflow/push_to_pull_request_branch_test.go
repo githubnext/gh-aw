@@ -655,3 +655,51 @@ This workflow validates both PR title prefix and labels.
 		t.Errorf("Generated workflow should contain labels configuration")
 	}
 }
+
+func TestPushToPullRequestBranchWithCommitTitleSuffix(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a test markdown file with commit-title-suffix configuration
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-pull-request-branch:
+    target: "triggering"
+    commit-title-suffix: " [skip ci]"
+---
+
+# Test Push to Branch with Commit Title Suffix
+
+This workflow appends a suffix to commit titles.
+`
+
+	// Write the test file
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-commit-title-suffix.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	// Create compiler and compile the workflow
+	compiler := NewCompiler(false, "", "test")
+
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated .lock.yml file
+	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that commit title suffix configuration is passed correctly
+	if !strings.Contains(lockContentStr, `GH_AW_COMMIT_TITLE_SUFFIX: " [skip ci]"`) {
+		t.Errorf("Generated workflow should contain commit title suffix configuration")
+	}
+}
