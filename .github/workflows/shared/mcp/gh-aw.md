@@ -1,4 +1,6 @@
 ---
+tools:
+  agentic-workflows:
 mcp-servers:
   gh-aw:
     type: http
@@ -32,3 +34,44 @@ steps:
     env:
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 ---
+
+This shared configuration enables the **agentic-workflows** MCP tool for workflow introspection and analysis.
+
+## Features
+
+The agentic-workflows tool provides:
+
+- **status**: Show status of workflow files in the repository
+- **compile**: Compile markdown workflows to YAML
+- **logs**: Download and analyze workflow run logs
+- **audit**: Investigate workflow run failures and generate reports
+
+## Usage
+
+Import this shared configuration in your workflow:
+
+```yaml
+imports:
+  - shared/mcp/gh-aw.md
+```
+
+## Pre-downloading Logs
+
+For better performance, you can pre-download logs before the AI agent runs by also importing:
+
+```yaml
+imports:
+  - shared/mcp/gh-aw.md
+  - shared/predownload-logs.md
+```
+
+This will download logs to `/tmp/gh-aw/aw-mcp/logs` before the AI agent starts, making them
+immediately available for analysis without waiting for downloads during execution.
+
+## How It Works
+
+This configuration:
+1. Builds the gh-aw CLI tool from source
+2. Starts an HTTP MCP server on localhost:8765
+3. Configures the agentic-workflows tool to use this server
+4. Provides AI agents with tools to analyze workflow execution history

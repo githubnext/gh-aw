@@ -11,6 +11,7 @@ roles: [admin, maintainer, write]
 engine: copilot
 imports:
   - shared/mcp/gh-aw.md
+  - shared/predownload-logs.md
   - shared/mcp/serena.md
   - shared/mcp/tavily.md
 tools:

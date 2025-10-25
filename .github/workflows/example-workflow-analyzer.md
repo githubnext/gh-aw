@@ -7,10 +7,9 @@ permissions:
   contents: read
   actions: read
 engine: claude
-tools:
-  agentic-workflows:
-  github:
-    allowed: [get_workflow_run, list_workflow_runs]
+imports:
+  - shared/mcp/gh-aw.md
+  - shared/predownload-logs.md
 safe-outputs:
   create-issue:
     title-prefix: "[workflow-analysis] "

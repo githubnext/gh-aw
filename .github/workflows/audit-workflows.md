@@ -14,7 +14,13 @@ steps:
   - name: Download logs from last 24 hours
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: ./gh-aw logs --start-date -1d -o /tmp/gh-aw/aw-mcp/logs
+    run: |
+      set -e
+      echo "Downloading workflow logs from last 24 hours to /tmp/gh-aw/aw-mcp/logs..."
+      mkdir -p /tmp/gh-aw/aw-mcp/logs
+      ./gh-aw logs --start-date -1d -o /tmp/gh-aw/aw-mcp/logs
+      echo "Logs downloaded successfully"
+      ls -lh /tmp/gh-aw/aw-mcp/logs
 safe-outputs:
   create-discussion:
     category: "audits"
@@ -23,6 +29,7 @@ timeout_minutes: 30
 strict: true
 imports:
   - shared/mcp/gh-aw.md
+  - shared/predownload-logs.md
   - shared/jqschema.md
   - shared/reporting.md
 ---
