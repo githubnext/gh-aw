@@ -234,7 +234,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 					absWorkflowDir = filepath.Join(gitRoot, workflowDir)
 				}
 			}
-			
+
 			if err := compiler.GenerateDependabotManifests(workflowDataList, absWorkflowDir, forceOverwrite); err != nil {
 				if strict {
 					return workflowDataList, fmt.Errorf("failed to generate Dependabot manifests: %w", err)
@@ -398,7 +398,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		if !filepath.IsAbs(absWorkflowDir) {
 			absWorkflowDir = filepath.Join(gitRoot, workflowDir)
 		}
-		
+
 		if err := compiler.GenerateDependabotManifests(workflowDataList, absWorkflowDir, forceOverwrite); err != nil {
 			if strict {
 				return workflowDataList, fmt.Errorf("failed to generate Dependabot manifests: %w", err)

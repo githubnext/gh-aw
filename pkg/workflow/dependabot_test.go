@@ -11,45 +11,45 @@ import (
 
 func TestParseNpmPackage(t *testing.T) {
 	tests := []struct {
-		name           string
-		pkg            string
-		expectedName   string
+		name            string
+		pkg             string
+		expectedName    string
 		expectedVersion string
 	}{
 		{
-			name:           "scoped package with version",
-			pkg:            "@playwright/mcp@latest",
-			expectedName:   "@playwright/mcp",
+			name:            "scoped package with version",
+			pkg:             "@playwright/mcp@latest",
+			expectedName:    "@playwright/mcp",
 			expectedVersion: "latest",
 		},
 		{
-			name:           "scoped package with specific version",
-			pkg:            "@playwright/mcp@1.2.3",
-			expectedName:   "@playwright/mcp",
+			name:            "scoped package with specific version",
+			pkg:             "@playwright/mcp@1.2.3",
+			expectedName:    "@playwright/mcp",
 			expectedVersion: "1.2.3",
 		},
 		{
-			name:           "scoped package without version",
-			pkg:            "@playwright/mcp",
-			expectedName:   "@playwright/mcp",
+			name:            "scoped package without version",
+			pkg:             "@playwright/mcp",
+			expectedName:    "@playwright/mcp",
 			expectedVersion: "latest",
 		},
 		{
-			name:           "non-scoped package with version",
-			pkg:            "playwright@1.0.0",
-			expectedName:   "playwright",
+			name:            "non-scoped package with version",
+			pkg:             "playwright@1.0.0",
+			expectedName:    "playwright",
 			expectedVersion: "1.0.0",
 		},
 		{
-			name:           "non-scoped package without version",
-			pkg:            "playwright",
-			expectedName:   "playwright",
+			name:            "non-scoped package without version",
+			pkg:             "playwright",
+			expectedName:    "playwright",
 			expectedVersion: "latest",
 		},
 		{
-			name:           "package with semver range",
-			pkg:            "react@^18.0.0",
-			expectedName:   "react",
+			name:            "package with semver range",
+			pkg:             "react@^18.0.0",
+			expectedName:    "react",
 			expectedVersion: "^18.0.0",
 		},
 	}
@@ -373,7 +373,7 @@ func TestGenerateDependabotManifests_WithDependencies(t *testing.T) {
 
 	// Note: This will fail npm install, but we can test the package.json generation
 	_ = compiler.GenerateDependabotManifests(workflows, workflowDir, false)
-	
+
 	// In non-strict mode, npm failure is just a warning
 	// Check that package.json was created
 	packageJSONPath := filepath.Join(workflowDir, "package.json")
@@ -385,7 +385,7 @@ func TestGenerateDependabotManifests_WithDependencies(t *testing.T) {
 	data, _ := os.ReadFile(packageJSONPath)
 	var pkgJSON PackageJSON
 	json.Unmarshal(data, &pkgJSON)
-	
+
 	if len(pkgJSON.Dependencies) != 1 {
 		t.Errorf("expected 1 dependency, got %d", len(pkgJSON.Dependencies))
 	}
@@ -410,7 +410,7 @@ func TestGenerateDependabotManifests_StrictMode(t *testing.T) {
 
 	// In strict mode, npm failure should cause an error
 	strictErr := compiler.GenerateDependabotManifests(workflows, workflowDir, false)
-	
+
 	// We expect an error in strict mode when npm install fails
 	// (unless npm is installed and the package is available)
 	// The test validates that strict mode propagates errors correctly

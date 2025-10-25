@@ -105,9 +105,9 @@ func (c *Compiler) GenerateDependabotManifests(workflowDataList []*WorkflowData,
 // collectNpmDependencies collects all npm dependencies from workflow data
 func (c *Compiler) collectNpmDependencies(workflowDataList []*WorkflowData) []NpmDependency {
 	dependabotLog.Print("Collecting npm dependencies from workflows")
-	
+
 	depMap := make(map[string]string) // package name -> version (last seen)
-	
+
 	for _, workflowData := range workflowDataList {
 		packages := extractNpxPackages(workflowData)
 		for _, pkg := range packages {
@@ -154,7 +154,7 @@ func parseNpmPackage(pkg string) NpmDependency {
 			}
 		}
 	}
-	
+
 	// Handle non-scoped packages (package@version)
 	parts := strings.SplitN(pkg, "@", 2)
 	if len(parts) == 2 {
@@ -163,7 +163,7 @@ func parseNpmPackage(pkg string) NpmDependency {
 			Version: parts[1],
 		}
 	}
-	
+
 	// No version specified
 	return NpmDependency{
 		Name:    pkg,
@@ -181,7 +181,7 @@ func (c *Compiler) generatePackageJSON(path string, deps []NpmDependency, forceO
 	if _, err := os.Stat(path); err == nil {
 		// File exists - merge dependencies
 		dependabotLog.Print("Existing package.json found, merging dependencies")
-		
+
 		existingData, err := os.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("failed to read existing package.json: %w", err)
@@ -257,7 +257,7 @@ func (c *Compiler) generatePackageLock(workflowDir string) error {
 	// Run npm install --package-lock-only
 	cmd := exec.Command(npmPath, "install", "--package-lock-only")
 	cmd.Dir = workflowDir
-	
+
 	// Capture output for error reporting
 	output, err := cmd.CombinedOutput()
 	if err != nil {
