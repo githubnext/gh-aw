@@ -124,11 +124,11 @@ var compileCmd = &cobra.Command{
 
 If no files are specified, all markdown files in .github/workflows will be compiled.
 
-The --dependabot flag generates npm package manifests when npm dependencies are detected:
-  - Creates package.json with all npm packages used in workflows
-  - Runs npm install --package-lock-only to generate package-lock.json
-  - Creates .github/dependabot.yml for automatic dependency updates
-  - Requires npm to be installed and available in PATH
+The --dependabot flag generates dependency manifests when dependencies are detected:
+  - For npm: Creates package.json and package-lock.json (requires npm in PATH)
+  - For Python: Creates requirements.txt for pip packages
+  - For Go: Creates go.mod for go install/get packages
+  - Creates .github/dependabot.yml with all detected ecosystems
   - Use --force to overwrite existing dependabot.yml
   - Cannot be used with specific workflow files or custom --workflows-dir
   - Only processes workflows in the default .github/workflows directory
@@ -141,7 +141,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` compile --workflows-dir custom/workflows  # Compile from custom directory
   ` + constants.CLIExtensionPrefix + ` compile --watch ci-doctor     # Watch and auto-compile
   ` + constants.CLIExtensionPrefix + ` compile --trial --logical-repo owner/repo  # Compile for trial mode
-  ` + constants.CLIExtensionPrefix + ` compile --dependabot        # Generate Dependabot manifests for npm dependencies
+  ` + constants.CLIExtensionPrefix + ` compile --dependabot        # Generate Dependabot manifests
   ` + constants.CLIExtensionPrefix + ` compile --dependabot --force  # Force overwrite existing dependabot.yml`,
 	Run: func(cmd *cobra.Command, args []string) {
 		engineOverride, _ := cmd.Flags().GetString("engine")
@@ -280,7 +280,7 @@ func init() {
 	compileCmd.Flags().Bool("strict", false, "Enable strict mode: require timeout, refuse write permissions, require network configuration")
 	compileCmd.Flags().Bool("trial", false, "Enable trial mode compilation (modifies workflows for trial execution)")
 	compileCmd.Flags().String("logical-repo", "", "Repository to simulate workflow execution against (for trial mode)")
-	compileCmd.Flags().Bool("dependabot", false, "Generate npm package manifest/lockfile and Dependabot config when npm dependencies are detected")
+	compileCmd.Flags().Bool("dependabot", false, "Generate dependency manifests (package.json, requirements.txt, go.mod) and Dependabot config when dependencies are detected")
 	compileCmd.Flags().Bool("force", false, "Force overwrite of existing files (e.g., dependabot.yml)")
 	rootCmd.AddCommand(compileCmd)
 
