@@ -23,6 +23,10 @@
 
 name: "Plan Command"
 "on":
+  discussion_comment:
+    types:
+    - created
+    - edited
   issue_comment:
     types:
     - created
@@ -42,7 +46,7 @@ jobs:
     needs: pre_activation
     if: >
       (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/plan')) &&
-      (github.event.issue.pull_request == null)))
+      (github.event.issue.pull_request == null)) || (github.event_name == 'discussion_comment') && (contains(github.event.comment.body, '/plan')))
     runs-on: ubuntu-latest
     permissions:
       discussions: write
@@ -4534,7 +4538,8 @@ jobs:
 
   pre_activation:
     if: >
-      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/plan')) && (github.event.issue.pull_request == null))
+      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/plan')) && (github.event.issue.pull_request == null)) ||
+      (github.event_name == 'discussion_comment') && (contains(github.event.comment.body, '/plan'))
     runs-on: ubuntu-latest
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
