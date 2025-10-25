@@ -13,31 +13,6 @@ var copilotLog = logger.New("workflow:copilot_engine")
 
 const logsFolder = "/tmp/gh-aw/.copilot/logs/"
 
-// isFirewallEnabled checks if AWF firewall is enabled for the workflow
-// Firewall is enabled if network.firewall is explicitly set to true or an object
-func isFirewallEnabled(workflowData *WorkflowData) bool {
-	// Check network.firewall configuration
-	if workflowData != nil && workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil {
-		return workflowData.NetworkPermissions.Firewall.Enabled
-	}
-
-	return false
-}
-
-// getFirewallConfig returns the firewall configuration from network permissions
-func getFirewallConfig(workflowData *WorkflowData) *FirewallConfig {
-	if workflowData == nil {
-		return nil
-	}
-
-	// Check network.firewall configuration
-	if workflowData.NetworkPermissions != nil && workflowData.NetworkPermissions.Firewall != nil {
-		return workflowData.NetworkPermissions.Firewall
-	}
-
-	return nil
-}
-
 // CopilotEngine represents the GitHub Copilot CLI agentic engine
 type CopilotEngine struct {
 	BaseEngine
