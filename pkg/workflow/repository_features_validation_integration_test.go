@@ -150,7 +150,7 @@ Test workflow for discussions validation.
 	compiler := NewCompiler(true, "", "test")
 	compiler.SetNoEmit(true) // Don't write lock file
 
-	err = compiler.CompileFile(workflowPath)
+	err = compiler.CompileWorkflow(workflowPath)
 
 	// Check if discussions are enabled
 	hasDiscussions, checkErr := checkRepositoryHasDiscussions(repo)
