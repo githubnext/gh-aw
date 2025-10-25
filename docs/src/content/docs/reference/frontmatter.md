@@ -68,6 +68,20 @@ The `github-token:` field configures the default GitHub token for the entire wor
 github-token: ${{ secrets.CUSTOM_PAT }}
 ```
 
+:::caution[Secret Expression Required]
+The `github-token` field **must** use a GitHub Actions secret expression (e.g., `${{ secrets.CUSTOM_PAT }}`). Plaintext tokens are rejected during compilation to prevent accidental secret leakage.
+
+**Valid formats:**
+- `${{ secrets.GITHUB_TOKEN }}`
+- `${{ secrets.CUSTOM_PAT }}`
+- `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`
+
+**Invalid formats:**
+- `ghp_1234567890...` (plaintext token)
+- `${{ env.MY_TOKEN }}` (environment variable)
+- `my-secret-token` (plaintext string)
+:::
+
 The token precedence hierarchy allows fine-grained control:
 
 1. **Individual safe-output `github-token`** (highest priority) - e.g., `create-issue.github-token`
