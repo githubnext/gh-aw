@@ -219,9 +219,9 @@ func TestMinConditionInCompiledWorkflow(t *testing.T) {
 		t.Fatalf("Failed to build job: %v", err)
 	}
 
-	// Verify that the condition only contains !cancelled() and not the contains check
-	if !strings.Contains(job.If, "!cancelled()") {
-		t.Error("Expected condition to contain '!cancelled()'")
+	// Verify that the condition only contains (!cancelled()) and not the contains check
+	if !strings.Contains(job.If, "(!cancelled())") {
+		t.Error("Expected condition to contain '(!cancelled())'")
 	}
 	if strings.Contains(job.If, "contains(needs.agent.outputs.output_types, 'missing-tool')") {
 		t.Error("Expected condition NOT to contain contains check when min > 0")
