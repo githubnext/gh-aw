@@ -90,7 +90,7 @@ jobs:
       - create_discussion
       - create_pull_request
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'add_comment'))
+    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'add_comment'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -3916,7 +3916,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
+    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -4165,7 +4165,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -4859,7 +4859,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
+    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

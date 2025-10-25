@@ -74,7 +74,7 @@ jobs:
       - create_issue
       - detection
     if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'add_comment'))) && (((github.event.issue.number) ||
+      ((!(cancelled())) && (contains(needs.agent.outputs.output_types, 'add_comment'))) && (((github.event.issue.number) ||
       (github.event.pull_request.number)) || (github.event.discussion.number))
     runs-on: ubuntu-latest
     permissions:
@@ -3856,7 +3856,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_issue'))
+    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'create_issue'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -4385,7 +4385,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
+    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

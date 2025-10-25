@@ -3261,7 +3261,7 @@ jobs:
 
   notion_add_comment:
     needs: agent
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'notion_add_comment'))
+    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'notion_add_comment'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
