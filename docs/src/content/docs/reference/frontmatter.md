@@ -131,12 +131,24 @@ Enable experimental or optional features for your workflow using feature flags. 
 
 ```yaml
 features:
-  firewall: true  # Enable AWF network firewall for Copilot engine
+  my-experimental-feature: true
 ```
 
-**Available Features:**
+:::note[Firewall Feature Deprecated]
+The `features.firewall` flag has been deprecated. Use `network.firewall` instead. See [Network Permissions](/gh-aw/reference/network/) for details.
 
-- **`firewall`**: Enable AWF (Agent Workflow Firewall) for network egress control with domain allowlisting. Currently only supported for the Copilot engine. AWF wraps Copilot CLI execution and enforces the `network.allowed` domains. See [Network Permissions](/gh-aw/reference/engines/#network-permissions) for configuration details. AWF is sourced from [github.com/githubnext/gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall).
+**Old format (deprecated):**
+```yaml
+features:
+  firewall: true
+```
+
+**New format (recommended):**
+```yaml
+network:
+  firewall: true
+```
+:::
 
 ### AI Engine (`engine:`)
 

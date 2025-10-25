@@ -479,7 +479,7 @@ Engine network permissions are implemented differently based on the AI engine:
 - **Domain Allowlisting**: Enforces network access at the process level via `--allow-domains` flag
 - **Execution Wrapping**: AWF wraps the entire Copilot CLI execution command
 - **Activity Logging**: All network activity is logged for audit purposes
-- **Feature Flag**: Requires `features.firewall: true` in workflow frontmatter
+- **Configuration**: Configure via `network.firewall` in workflow frontmatter
 
 See [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network-permissions) for detailed AWF configuration.
 
