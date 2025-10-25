@@ -2468,12 +2468,10 @@ func (c *Compiler) generateUploadPrompt(yaml *strings.Builder) {
 
 func (c *Compiler) generateExtractAccessLogs(yaml *strings.Builder, tools map[string]any) {
 	// No proxy tools anymore - network filtering is handled at workflow level
-	return
 }
 
 func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[string]any) {
 	// No proxy tools anymore - network filtering is handled at workflow level
-	return
 }
 
 func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder) {

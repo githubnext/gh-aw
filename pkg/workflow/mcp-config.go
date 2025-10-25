@@ -943,7 +943,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 	// would incorrectly classify built-in tools as custom MCP tools, changing their processing behavior
 	// and causing validation errors.
 	mcpFields := []string{"type", "url", "command", "container", "env", "headers"}
-	
+
 	// List of all known tool config fields (not just MCP)
 	knownToolFields := map[string]bool{
 		"type":            true,
@@ -958,16 +958,16 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 		"proxy-args":      true,
 		"registry":        true,
 		"allowed":         true,
-		"mode":            true,  // for github tool
-		"github-token":    true,  // for github tool
-		"read-only":       true,  // for github tool
-		"toolset":         true,  // for github tool
-		"id":              true,  // for cache-memory (array notation)
-		"key":             true,  // for cache-memory
-		"description":     true,  // for cache-memory
-		"retention-days":  true,  // for cache-memory
-		"allowed_domains": true,  // for playwright tool
-		"allowed-domains": true,  // for playwright tool (alternative notation)
+		"mode":            true, // for github tool
+		"github-token":    true, // for github tool
+		"read-only":       true, // for github tool
+		"toolset":         true, // for github tool
+		"id":              true, // for cache-memory (array notation)
+		"key":             true, // for cache-memory
+		"description":     true, // for cache-memory
+		"retention-days":  true, // for cache-memory
+		"allowed_domains": true, // for playwright tool
+		"allowed-domains": true, // for playwright tool (alternative notation)
 	}
 
 	// Check new format: direct fields in tool config
@@ -976,7 +976,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 			result[field] = value
 		}
 	}
-	
+
 	// Check for unknown fields that might be typos or deprecated (like "network")
 	for field := range toolConfig {
 		if !knownToolFields[field] {
