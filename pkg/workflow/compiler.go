@@ -2490,64 +2490,11 @@ func (c *Compiler) generateUploadPrompt(yaml *strings.Builder) {
 }
 
 func (c *Compiler) generateExtractAccessLogs(yaml *strings.Builder, tools map[string]any) {
-	// Check if any tools require proxy setup
-	var proxyTools []string
-	for toolName, toolConfig := range tools {
-		if toolConfigMap, ok := toolConfig.(map[string]any); ok {
-			needsProxySetup, _ := needsProxy(toolConfigMap)
-			if needsProxySetup {
-				proxyTools = append(proxyTools, toolName)
-			}
-		}
-	}
-
-	// If no proxy tools, no access logs to extract
-	if len(proxyTools) == 0 {
-		return
-	}
-
-	yaml.WriteString("      - name: Extract squid access logs\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, extractSquidLogsSetupScript, "          ")
-
-	// Sort proxy tools for consistent ordering
-	sort.Strings(proxyTools)
-
-	for _, toolName := range proxyTools {
-		// Use template and replace TOOLNAME with actual toolName
-		scriptForTool := strings.ReplaceAll(extractSquidLogPerToolScript, "TOOLNAME", toolName)
-		WriteShellScriptToYAML(yaml, scriptForTool, "          ")
-	}
+	// No proxy tools anymore - network filtering is handled at workflow level
 }
 
 func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[string]any) {
-	// Check if any tools require proxy setup
-	var proxyTools []string
-	for toolName, toolConfig := range tools {
-		if toolConfigMap, ok := toolConfig.(map[string]any); ok {
-			needsProxySetup, _ := needsProxy(toolConfigMap)
-			if needsProxySetup {
-				proxyTools = append(proxyTools, toolName)
-			}
-		}
-	}
-
-	// If no proxy tools, no access logs to upload
-	if len(proxyTools) == 0 {
-		return
-	}
-
-	// Record artifact upload for validation
-	c.stepOrderTracker.RecordArtifactUpload("Upload squid access logs", []string{"/tmp/gh-aw/access-logs/"})
-
-	yaml.WriteString("      - name: Upload squid access logs\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/upload-artifact")))
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          name: access.log\n")
-	yaml.WriteString("          path: /tmp/gh-aw/access-logs/\n")
-	yaml.WriteString("          if-no-files-found: warn\n")
+	// No proxy tools anymore - network filtering is handled at workflow level
 }
 
 func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder) {

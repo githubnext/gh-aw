@@ -2,9 +2,6 @@
 mcp-servers:
   arxiv:
     container: "mcp/arxiv-mcp-server"
-    network:
-      allowed:
-        - arxiv.org
     allowed:
       - search_arxiv
       - get_paper_details

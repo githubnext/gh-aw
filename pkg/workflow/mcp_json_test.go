@@ -202,7 +202,7 @@ func TestValidateMCPConfigs(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "new format: stdio with container and network config",
+			name: "new format: stdio with container and network config should fail",
 			tools: map[string]any{
 				"network-server": map[string]any{
 					"type":      "stdio",
@@ -214,7 +214,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 					"allowed": []any{"fetch", "post"},
 				},
 			},
-			wantErr: false,
+			wantErr: true,
+			errMsg:  "unknown property 'network'",
 		},
 		{
 			name: "new format: missing type and no inferrable fields",
@@ -405,39 +406,9 @@ func TestValidateMCPConfigs(t *testing.T) {
 			errMsg:  "missing property 'url'",
 		},
 		{
-			name: "network permissions with HTTP type should fail",
+			name: "network field in tool config should fail (no longer supported)",
 			tools: map[string]any{
-				"httpWithNetPerms": map[string]any{
-					"type": "http",
-					"url":  "https://example.com",
-					"network": map[string]any{
-						"allowed": []any{"example.com"},
-					},
-					"allowed": []any{"tool1"},
-				},
-			},
-			wantErr: true,
-			errMsg:  "network egress permissions do not apply to remote 'type: http' servers",
-		},
-		{
-			name: "network permissions with stdio non-container should fail",
-			tools: map[string]any{
-				"stdioNonContainerWithNetPerms": map[string]any{
-					"type":    "stdio",
-					"command": "python",
-					"network": map[string]any{
-						"allowed": []any{"example.com"},
-					},
-					"allowed": []any{"tool1"},
-				},
-			},
-			wantErr: true,
-			errMsg:  "network egress permissions only apply to stdio MCP servers that specify a 'container'",
-		},
-		{
-			name: "network permissions with stdio container should pass",
-			tools: map[string]any{
-				"stdioContainerWithNetPerms": map[string]any{
+				"toolWithNetworkField": map[string]any{
 					"type":      "stdio",
 					"container": "mcp/fetch",
 					"network": map[string]any{
@@ -446,22 +417,8 @@ func TestValidateMCPConfigs(t *testing.T) {
 					"allowed": []any{"tool1"},
 				},
 			},
-			wantErr: false,
-		},
-		{
-			name: "network permissions in mcp section with HTTP type should fail",
-			tools: map[string]any{
-				"httpWithMcpNetPerms": map[string]any{
-					"type": "http",
-					"url":  "https://example.com",
-					"network": map[string]any{
-						"allowed": []any{"example.com"},
-					},
-					"allowed": []any{"tool1"},
-				},
-			},
 			wantErr: true,
-			errMsg:  "network egress permissions do not apply to remote 'type: http' servers",
+			errMsg:  "unknown property 'network'",
 		},
 	}
 
