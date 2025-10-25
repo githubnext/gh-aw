@@ -310,8 +310,13 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 
 	validationLog.Printf("Checking repository features for: %s", repo)
 
-	// Check if discussions are enabled when create-discussion is configured
-	if workflowData.SafeOutputs.CreateDiscussions != nil {
+	// Check if discussions are enabled when create-discussion or add-comment with discussion: true is configured
+	needsDiscussions := workflowData.SafeOutputs.CreateDiscussions != nil ||
+		(workflowData.SafeOutputs.AddComments != nil &&
+			workflowData.SafeOutputs.AddComments.Discussion != nil &&
+			*workflowData.SafeOutputs.AddComments.Discussion)
+
+	if needsDiscussions {
 		hasDiscussions, err := checkRepositoryHasDiscussions(repo)
 		if err != nil {
 			// If we can't check, log but don't fail
@@ -325,7 +330,11 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 		}
 
 		if !hasDiscussions {
-			return fmt.Errorf("workflow uses safe-outputs.create-discussion but repository %s does not have discussions enabled. Enable discussions in repository settings or remove create-discussion from safe-outputs", repo)
+			if workflowData.SafeOutputs.CreateDiscussions != nil {
+				return fmt.Errorf("workflow uses safe-outputs.create-discussion but repository %s does not have discussions enabled. Enable discussions in repository settings or remove create-discussion from safe-outputs", repo)
+			}
+			// For add-comment with discussion: true
+			return fmt.Errorf("workflow uses safe-outputs.add-comment with discussion: true but repository %s does not have discussions enabled. Enable discussions in repository settings or change add-comment configuration", repo)
 		}
 
 		if c.verbose {

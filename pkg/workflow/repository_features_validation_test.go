@@ -61,6 +61,30 @@ func TestValidateRepositoryFeatures(t *testing.T) {
 			expectError: false, // Will not error if getCurrentRepository fails or API call fails
 			description: "validation will check both features but won't fail on API errors",
 		},
+		{
+			name: "add-comment with discussion: true",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					AddComments: &AddCommentsConfig{
+						Discussion: boolPtr(true),
+					},
+				},
+			},
+			expectError: false, // Will not error if getCurrentRepository fails or API call fails
+			description: "validation will check discussions for add-comment but won't fail on API errors",
+		},
+		{
+			name: "add-comment with discussion: false",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					AddComments: &AddCommentsConfig{
+						Discussion: boolPtr(false),
+					},
+				},
+			},
+			expectError: false,
+			description: "should pass when add-comment targets issues/PRs, not discussions",
+		},
 	}
 
 	for _, tt := range tests {
@@ -76,6 +100,11 @@ func TestValidateRepositoryFeatures(t *testing.T) {
 			}
 		})
 	}
+}
+
+// boolPtr returns a pointer to a boolean value
+func boolPtr(b bool) *bool {
+	return &b
 }
 
 func TestGetCurrentRepository(t *testing.T) {
