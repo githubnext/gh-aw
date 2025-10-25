@@ -61,6 +61,12 @@ func (c *Compiler) validateContainerImages(workflowData *WorkflowData) error {
 		return nil
 	}
 
+	// Skip network-dependent validation if requested
+	if c.skipNetworkChecks {
+		validationLog.Print("Skipping container image validation (network checks disabled)")
+		return nil
+	}
+
 	validationLog.Printf("Validating container images for %d tools", len(workflowData.Tools))
 	var errors []string
 	for toolName, toolConfig := range workflowData.Tools {
@@ -335,6 +341,15 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 	}
 
 	validationLog.Printf("Checking repository features for: %s", repo)
+
+	// Skip network-dependent validation if requested
+	if c.skipNetworkChecks {
+		validationLog.Print("Skipping repository feature checks (network checks disabled)")
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping repository feature validation (--skip-network-checks)"))
+		}
+		return nil
+	}
 
 	// Check if discussions are enabled when create-discussion or add-comment with discussion: true is configured
 	needsDiscussions := workflowData.SafeOutputs.CreateDiscussions != nil ||

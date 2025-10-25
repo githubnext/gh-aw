@@ -96,6 +96,7 @@ type CompileConfig struct {
 	Strict               bool     // Enable strict mode validation
 	Dependabot           bool     // Generate Dependabot manifests for npm dependencies
 	ForceOverwrite       bool     // Force overwrite of existing files (dependabot.yml)
+	SkipNetworkChecks    bool     // Skip network-dependent validations (docker, GitHub API)
 }
 
 // CompilationStats tracks the results of workflow compilation
@@ -168,6 +169,9 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	// Set strict mode if specified
 	compiler.SetStrictMode(strict)
 
+	// Set skip network checks if specified
+	compiler.SetSkipNetworkChecks(config.SkipNetworkChecks)
+
 	// Set trial mode if specified
 	if trialMode {
 		compileLog.Printf("Enabling trial mode: repoSlug=%s", trialLogicalRepoSlug)
@@ -219,6 +223,10 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			compileLog.Printf("Resolved to: %s", resolvedFile)
 
 			// Parse workflow file to get data
+			parseStart := time.Now()
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Parsing workflow file..."))
+			}
 			compileLog.Printf("Parsing workflow file: %s", resolvedFile)
 			workflowData, err := compiler.ParseWorkflowFile(resolvedFile)
 			if err != nil {
@@ -230,8 +238,16 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
 				continue
 			}
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Parsed in %v", time.Since(parseStart))))
+			}
 			workflowDataList = append(workflowDataList, workflowData)
 
+			// Compile workflow
+			compileStart := time.Now()
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling workflow..."))
+			}
 			compileLog.Printf("Starting compilation of %s", resolvedFile)
 			if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose); err != nil {
 				// Always put error on a new line and don't wrap with "failed to compile workflow"
@@ -241,6 +257,9 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				stats.Errors++
 				stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
 				continue
+			}
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Compiled in %v", time.Since(compileStart))))
 			}
 			compiledCount++
 		}
