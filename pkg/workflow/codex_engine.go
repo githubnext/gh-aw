@@ -120,7 +120,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 
 	// Build search parameter if web-search tool is present
 	webSearchParam := ""
-	if _, hasWebSearch := workflowData.Tools["web-search"]; hasWebSearch {
+	if workflowData.ParsedTools != nil && workflowData.ParsedTools.WebSearch != nil {
 		webSearchParam = "--search "
 	}
 

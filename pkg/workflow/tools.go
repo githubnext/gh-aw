@@ -138,6 +138,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	}
 	// Apply default tools
 	data.Tools = c.applyDefaultTools(data.Tools, data.SafeOutputs)
+	// Update ParsedTools to reflect changes made by applyDefaultTools
+	data.ParsedTools = NewTools(data.Tools)
 }
 
 // extractMapFromFrontmatter is a generic helper to extract a map[string]any from frontmatter

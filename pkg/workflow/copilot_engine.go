@@ -157,7 +157,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Add --allow-all-paths when edit tool is enabled to allow write on all paths
 	// See: https://github.com/github/copilot-cli/issues/67#issuecomment-3411256174
-	if _, hasEdit := workflowData.Tools["edit"]; hasEdit {
+	if workflowData.ParsedTools != nil && workflowData.ParsedTools.Edit != nil {
 		copilotArgs = append(copilotArgs, "--allow-all-paths")
 	}
 
@@ -248,9 +248,8 @@ COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 		env["GH_AW_MCP_CONFIG"] = "/home/runner/.copilot/mcp-config.json"
 	}
 
-	if hasGitHubTool(workflowData.Tools) {
-		githubTool := workflowData.Tools["github"]
-		customGitHubToken := getGitHubToken(githubTool)
+	if hasGitHubTool(workflowData.ParsedTools) {
+		customGitHubToken := getGitHubToken(workflowData.Tools["github"])
 		// Use effective token with precedence: custom > top-level > default
 		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
 		env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken

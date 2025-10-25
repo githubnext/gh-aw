@@ -148,10 +148,12 @@ func getGitHubDockerImageVersion(githubTool any) string {
 	return githubDockerImageVersion
 }
 
-// hasGitHubTool checks if the tools map contains a GitHub tool
-func hasGitHubTool(tools map[string]any) bool {
-	_, exists := tools["github"]
-	return exists
+// hasGitHubTool checks if the GitHub tool is configured (using ParsedTools)
+func hasGitHubTool(parsedTools *Tools) bool {
+	if parsedTools == nil {
+		return false
+	}
+	return parsedTools.GitHub != nil
 }
 
 // getGitHubType extracts the mode from GitHub tool configuration (local or remote)
