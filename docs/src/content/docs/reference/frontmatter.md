@@ -136,7 +136,7 @@ features:
 
 **Available Features:**
 
-- **`firewall`**: Enable AWF (Agent Workflow Firewall) for network egress control with domain allowlisting. Currently only supported for the Copilot engine. AWF wraps Copilot CLI execution and enforces the `network.allowed` domains. See [Network Firewall (AWF)](/gh-aw/reference/engines/#network-firewall-awf) for configuration details. AWF is sourced from [github.com/githubnext/gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall).
+- **`firewall`**: Enable AWF (Agent Workflow Firewall) for network egress control with domain allowlisting. Currently only supported for the Copilot engine. AWF wraps Copilot CLI execution and enforces the `network.allowed` domains. See [Network Permissions](/gh-aw/reference/engines/#network-permissions) for configuration details. AWF is sourced from [github.com/githubnext/gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall).
 
 ### AI Engine (`engine:`)
 

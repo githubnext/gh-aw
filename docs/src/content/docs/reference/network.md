@@ -7,7 +7,7 @@ sidebar:
 
 Control network access for AI engines using the top-level `network` field to specify which domains and services your agentic workflows can access during execution.
 
-> **Note**: Network permissions are currently supported by the Claude engine and the Copilot engine (when using the [firewall feature](/gh-aw/reference/engines/#network-firewall-awf)).
+> **Note**: Network permissions are currently supported by the Claude engine and the Copilot engine (when using the [firewall feature](/gh-aw/reference/engines/#network-permissions)).
 
 If no `network:` permission is specified, it defaults to `network: defaults` which allows access to basic infrastructure domains (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources).
 

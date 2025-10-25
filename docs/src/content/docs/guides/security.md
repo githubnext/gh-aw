@@ -481,7 +481,7 @@ Engine network permissions are implemented differently based on the AI engine:
 - **Activity Logging**: All network activity is logged for audit purposes
 - **Feature Flag**: Requires `features.firewall: true` in workflow frontmatter
 
-See [Copilot Engine - Network Firewall](/gh-aw/reference/engines/#network-firewall-awf) for detailed AWF configuration.
+See [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network-permissions) for detailed AWF configuration.
 
 ### Best Practices
 
