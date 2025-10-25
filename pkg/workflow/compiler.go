@@ -362,6 +362,21 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			})
 			return errors.New(formattedErr)
 		}
+
+		// Validate repository features (discussions, issues)
+		log.Print("Validating repository features")
+		if err := c.validateRepositoryFeatures(workflowData); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("repository feature validation failed: %v", err),
+			})
+			return errors.New(formattedErr)
+		}
 	} else if c.verbose {
 		fmt.Println(console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
 		c.IncrementWarningCount()
