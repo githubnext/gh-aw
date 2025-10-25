@@ -506,7 +506,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.350
+        run: npm install -g @github/copilot@0.0.351
       - name: Downloading container images
         run: |
           set -e
@@ -4488,7 +4488,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.350
+        run: npm install -g @github/copilot@0.0.351
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
