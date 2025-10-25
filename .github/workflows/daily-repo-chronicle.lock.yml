@@ -145,6 +145,13 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.19.1
+      - name: Install gh-aw extension
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Installing gh-aw extension..."
+          gh extension install githubnext/gh-aw
+          gh aw --version
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -935,6 +942,15 @@ jobs:
           cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
+              "agentic_workflows": {
+                "type": "local",
+                "command": "gh",
+                "args": ["aw", "mcp-server"],
+                "tools": ["*"],
+                "env": {
+                  "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
+                }
+              },
               "github": {
                 "type": "local",
                 "command": "docker",
@@ -958,10 +974,7 @@ jobs:
                   "get_issue",
                   "search_issues",
                   "search_pull_requests",
-                  "list_discussions",
-                  "list_workflows",
-                  "list_workflow_runs",
-                  "download_workflow_run_artifact"
+                  "list_discussions"
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
@@ -1048,12 +1061,10 @@ jobs:
              - Commits to main branches
           
           2. Collect firewall events from the last 24 hours:
-             - List all workflows in the repository
-             - Identify workflows with firewall feature enabled
-             - Get workflow runs from the past 24 hours
-             - Download firewall logs artifacts (named `squid-logs-{workflow-name}`)
-             - Parse logs to identify blocked and allowed domains
-             - Summarize key security events
+             - Use the `agentic-workflows` tool's `logs` command to download and analyze recent workflow runs
+             - The logs tool automatically includes firewall analysis with blocked/allowed domains and statistics
+             - Focus on workflow runs from the past 24 hours
+             - Extract firewall insights from the analysis results
           
           3. Create a discussion with your newspaper-style report using the `create-discussion` safe output format:
              ```
@@ -1267,30 +1278,15 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool github(download_workflow_run_artifact)
         # --allow-tool github(get_issue)
         # --allow-tool github(get_pull_request)
         # --allow-tool github(list_commits)
         # --allow-tool github(list_discussions)
         # --allow-tool github(list_issues)
         # --allow-tool github(list_pull_requests)
-        # --allow-tool github(list_workflow_runs)
-        # --allow-tool github(list_workflows)
         # --allow-tool github(search_issues)
         # --allow-tool github(search_pull_requests)
         # --allow-tool safeoutputs
-        # --allow-tool shell(cat)
-        # --allow-tool shell(date)
-        # --allow-tool shell(echo)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(pwd)
-        # --allow-tool shell(sort)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(uniq)
-        # --allow-tool shell(wc)
-        # --allow-tool shell(yq)
         timeout-minutes: 20
         run: |
           set -o pipefail
@@ -1299,7 +1295,7 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_pull_requests)' --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(get_issue)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_pull_requests)' --allow-tool safeoutputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json

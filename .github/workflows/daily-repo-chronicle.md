@@ -11,6 +11,7 @@ permissions:
   discussions: read
 engine: copilot
 tools:
+  agentic-workflows:
   github:
     allowed:
       - list_pull_requests
@@ -21,10 +22,6 @@ tools:
       - search_issues
       - search_pull_requests
       - list_discussions
-      - list_workflows
-      - list_workflow_runs
-      - download_workflow_run_artifact
-  bash:
 safe-outputs:
   create-discussion:
     title-prefix: "📰 "
@@ -81,12 +78,10 @@ End with a brief statistical snapshot, but keep it snappy.
    - Commits to main branches
 
 2. Collect firewall events from the last 24 hours:
-   - List all workflows in the repository
-   - Identify workflows with firewall feature enabled
-   - Get workflow runs from the past 24 hours
-   - Download firewall logs artifacts (named `squid-logs-{workflow-name}`)
-   - Parse logs to identify blocked and allowed domains
-   - Summarize key security events
+   - Use the `agentic-workflows` tool's `logs` command to download and analyze recent workflow runs
+   - The logs tool automatically includes firewall analysis with blocked/allowed domains and statistics
+   - Focus on workflow runs from the past 24 hours
+   - Extract firewall insights from the analysis results
 
 3. Create a discussion with your newspaper-style report using the `create-discussion` safe output format:
    ```
