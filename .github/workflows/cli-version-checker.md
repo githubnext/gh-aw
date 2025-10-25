@@ -7,27 +7,17 @@ permissions:
   contents: read
   actions: read
 engine:
-  id: claude
-  max-turns: 75
+  id: copilot
+features:
+  firewall: true
 network: 
-   allowed: [defaults, node, "api.github.com", "ghcr.io"]
+   allowed: [defaults, node]
 imports:
   - shared/jqschema.md
 tools:
   web-fetch:
   cache-memory: true
   bash:
-    - "cat *"
-    - "ls *"
-    - "grep *"
-    - "git *"
-    - "make *"
-    - "npm install *"
-    - "npm view *"
-    - "npm list *"
-    - "claude-code --help"
-    - "copilot --help"
-    - "codex --help"
   edit:
 safe-outputs:
   create-issue:
