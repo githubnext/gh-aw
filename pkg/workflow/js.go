@@ -36,6 +36,9 @@ var collectJSONLOutputScript string
 //go:embed js/add_labels.cjs
 var addLabelsScript string
 
+//go:embed js/assign_issue.cjs
+var assignIssueScript string
+
 //go:embed js/update_issue.cjs
 var updateIssueScript string
 

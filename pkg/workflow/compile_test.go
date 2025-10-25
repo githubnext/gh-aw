@@ -575,7 +575,7 @@ This workflow tests the add_comment job generation.
 
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
 	expectedConditionParts := []string{
-		"always()",
+		"!(cancelled())",
 		"contains(needs.agent.outputs.output_types, 'add_comment')",
 		"github.event.issue.number",
 		"github.event.pull_request.number",
@@ -658,7 +658,7 @@ This workflow tests that issue comment job is skipped for non-issue/PR events.
 
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
 	expectedConditionParts := []string{
-		"always()",
+		"!(cancelled())",
 		"contains(needs.agent.outputs.output_types, 'add_comment')",
 		"github.event.issue.number",
 		"github.event.pull_request.number",
@@ -1144,7 +1144,7 @@ This workflow tests the add_labels job generation.
 
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
 	expectedConditionParts := []string{
-		"always()",
+		"!(cancelled())",
 		"contains(needs.agent.outputs.output_types, 'add_labels')",
 		"github.event.issue.number",
 		"github.event.pull_request.number",
@@ -1231,7 +1231,7 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
 	expectedConditionParts := []string{
-		"always()",
+		"!(cancelled())",
 		"contains(needs.agent.outputs.output_types, 'add_labels')",
 		"github.event.issue.number",
 		"github.event.pull_request.number",
@@ -1320,7 +1320,7 @@ Write your labels to ${{ env.GH_AW_SAFE_OUTPUTS }}, one per line.
 
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
 	expectedConditionParts := []string{
-		"always()",
+		"!(cancelled())",
 		"contains(needs.agent.outputs.output_types, 'add_labels')",
 		"github.event.issue.number",
 		"github.event.pull_request.number",

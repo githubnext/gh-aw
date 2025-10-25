@@ -322,12 +322,17 @@ func BuildNotFromFork() *ComparisonNode {
 }
 
 func BuildSafeOutputType(outputType string, min int) ConditionNode {
-	alwaysFunc := BuildFunctionCall("always")
+	// Use !cancelled() instead of always() to respect workflow cancellation
+	// !cancelled() allows jobs to run when dependencies fail (for error reporting)
+	// but skips them when the workflow is cancelled (desired behavior)
+	notCancelledFunc := &NotNode{
+		Child: BuildFunctionCall("cancelled"),
+	}
 
-	// If min > 0, only return always() without the contains check
+	// If min > 0, only return !cancelled() without the contains check
 	// This is needed to ensure the job runs even with 0 outputs to enforce the minimum constraint
 	if min > 0 {
-		return alwaysFunc
+		return notCancelledFunc
 	}
 
 	containsFunc := BuildFunctionCall("contains",
@@ -335,7 +340,7 @@ func BuildSafeOutputType(outputType string, min int) ConditionNode {
 		BuildStringLiteral(outputType),
 	)
 	return &AndNode{
-		Left:  alwaysFunc,
+		Left:  notCancelledFunc,
 		Right: containsFunc,
 	}
 }

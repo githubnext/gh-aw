@@ -612,7 +612,7 @@ jobs:
       - create_issue
       - create_pull_request
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'add_comment'))
+    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'add_comment'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1006,7 +1006,7 @@ jobs:
       - agent
       - detection
     if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'add_labels'))) && ((github.event.issue.number) ||
+      ((!(cancelled())) && (contains(needs.agent.outputs.output_types, 'add_labels'))) && ((github.event.issue.number) ||
       (github.event.pull_request.number))
     runs-on: ubuntu-latest
     permissions:
@@ -2730,6 +2730,7 @@ jobs:
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create_issue\":{\"max\":2},\"create_pull_request\":{},\"create_pull_request_review_comment\":{\"max\":2},\"missing_tool\":{},\"push_to_pull_request_branch\":{},\"update_issue\":{\"max\":2},\"upload_asset\":{}}"
+          GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
           GH_AW_COMMAND: poem-bot
         with:
           script: |
@@ -4812,7 +4813,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_issue'))
+    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'create_issue'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -5114,7 +5115,7 @@ jobs:
       - agent
       - detection
     if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'create_pull_request_review_comment'))) &&
+      ((!(cancelled())) && (contains(needs.agent.outputs.output_types, 'create_pull_request_review_comment'))) &&
       (((github.event.issue.number) && (github.event.issue.pull_request)) || (github.event.pull_request))
     runs-on: ubuntu-latest
     permissions:
@@ -5420,7 +5421,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -6126,7 +6127,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
+    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -6397,7 +6398,7 @@ jobs:
       - agent
       - detection
     if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&
+      ((!(cancelled())) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&
       (((github.event.issue.number) &&
       (github.event.issue.pull_request)) || (github.event.pull_request))
     runs-on: ubuntu-latest
@@ -6725,7 +6726,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'update_issue'))
+    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'update_issue'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -7081,7 +7082,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
+    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
