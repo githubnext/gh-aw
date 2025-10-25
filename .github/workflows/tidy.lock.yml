@@ -5097,25 +5097,12 @@ jobs:
                   if (commitTitlePrefix) {
                     core.info(`Prepending commit title prefix: "${commitTitlePrefix}"`);
                     let patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                    let normalizedPrefix = commitTitlePrefix;
-                    if (normalizedPrefix.startsWith("[") && normalizedPrefix.includes("]")) {
-                      const bracketContent = normalizedPrefix.match(/^\[([^\]]+)\]/);
-                      if (bracketContent) {
-                        const afterBracket = commitTitlePrefix.substring(commitTitlePrefix.indexOf("]") + 1);
-                        normalizedPrefix = bracketContent[1] + ":";
-                        if (afterBracket) {
-                          normalizedPrefix += afterBracket;
-                        } else {
-                          normalizedPrefix += " ";
-                        }
-                      }
-                    }
                     patchContent = patchContent.replace(
                       /^Subject: (?:\[PATCH\] )?(.*)$/gm,
-                      (match, title) => `Subject: [PATCH] ${normalizedPrefix}${title}`
+                      (match, title) => `Subject: [PATCH] ${commitTitlePrefix}${title}`
                     );
                     fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
-                    core.info(`Patch modified with commit title prefix (normalized to: "${normalizedPrefix}")`);
+                    core.info(`Patch modified with commit title prefix: "${commitTitlePrefix}"`);
                   }
                   await exec.exec("git am /tmp/gh-aw/aw.patch");
                   core.info("Patch applied successfully");

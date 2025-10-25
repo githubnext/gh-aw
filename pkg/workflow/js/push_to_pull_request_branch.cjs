@@ -288,37 +288,17 @@ async function main() {
         // Read the patch file
         let patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
 
-        // Strip brackets from prefix to avoid git am stripping them
-        // git am strips patterns like [PATCH <anything>] from Subject lines
-        // So [skip-ci] would be stripped along with [PATCH]
-        // Convert [prefix] to prefix: for better compatibility
-        let normalizedPrefix = commitTitlePrefix;
-        if (normalizedPrefix.startsWith("[") && normalizedPrefix.includes("]")) {
-          // Extract content between brackets and add colon
-          const bracketContent = normalizedPrefix.match(/^\[([^\]]+)\]/);
-          if (bracketContent) {
-            // Get content after the closing bracket
-            const afterBracket = commitTitlePrefix.substring(commitTitlePrefix.indexOf("]") + 1);
-            // Build normalized prefix: content + colon + any trailing content
-            normalizedPrefix = bracketContent[1] + ":";
-            if (afterBracket) {
-              normalizedPrefix += afterBracket;
-            } else {
-              normalizedPrefix += " ";
-            }
-          }
-        }
-
-        // Modify Subject lines in the patch to prepend the prefix
+        // Modify Subject lines in the patch to prepend the prefix verbatim
         // Patch format has "Subject: [PATCH] <original title>" or "Subject: <original title>"
+        // Insert the prefix after [PATCH] to preserve special syntax like [skip-ci]
         patchContent = patchContent.replace(
           /^Subject: (?:\[PATCH\] )?(.*)$/gm,
-          (match, title) => `Subject: [PATCH] ${normalizedPrefix}${title}`
+          (match, title) => `Subject: [PATCH] ${commitTitlePrefix}${title}`
         );
 
         // Write the modified patch back
         fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
-        core.info(`Patch modified with commit title prefix (normalized to: "${normalizedPrefix}")`);
+        core.info(`Patch modified with commit title prefix: "${commitTitlePrefix}"`);
       }
 
       // Patches are created with git format-patch, so use git am to apply them

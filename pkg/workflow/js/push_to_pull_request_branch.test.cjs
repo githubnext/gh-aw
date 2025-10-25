@@ -758,7 +758,7 @@ const exec = global.exec;`
       mockFs.writeFileSync = vi.fn();
     });
 
-    it("should normalize bracketed prefix to colon format", async () => {
+    it("should preserve bracketed prefix verbatim (for [skip-ci] support)", async () => {
       const validOutput = {
         items: [
           {
@@ -790,9 +790,9 @@ Subject: [PATCH] Add new feature
       expect(mockFs.writeFileSync).toHaveBeenCalled();
       const writtenPatch = mockFs.writeFileSync.mock.calls[0][1];
 
-      // Check that the patch was modified to use skip-ci: instead of [skip-ci]
-      expect(writtenPatch).toContain("Subject: [PATCH] skip-ci: Add new feature");
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('normalized to: "skip-ci: "'));
+      // Check that the patch preserves [skip-ci] verbatim (not normalized)
+      expect(writtenPatch).toContain("Subject: [PATCH] [skip-ci] Add new feature");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('commit title prefix: "[skip-ci] "'));
     });
 
     it("should preserve prefix without brackets as-is", async () => {
@@ -829,10 +829,10 @@ Subject: [PATCH] Add new feature
 
       // Check that the patch was modified correctly
       expect(writtenPatch).toContain("Subject: [PATCH] chore: Add new feature");
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('normalized to: "chore: "'));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('commit title prefix: "chore: "'));
     });
 
-    it("should handle prefix with trailing space after brackets", async () => {
+    it("should preserve prefix with trailing space after brackets", async () => {
       const validOutput = {
         items: [
           {
@@ -864,9 +864,9 @@ Subject: [PATCH] Add new feature
       expect(mockFs.writeFileSync).toHaveBeenCalled();
       const writtenPatch = mockFs.writeFileSync.mock.calls[0][1];
 
-      // Check that the patch was modified correctly with normalized prefix
-      expect(writtenPatch).toContain("Subject: [PATCH] bot: Add new feature");
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('normalized to: "bot: "'));
+      // Check that the patch preserves the prefix verbatim
+      expect(writtenPatch).toContain("Subject: [PATCH] [bot] Add new feature");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('commit title prefix: "[bot] "'));
     });
 
     it("should not modify patch when no commit title prefix is set", async () => {
@@ -933,8 +933,8 @@ Subject: Add new feature
       expect(mockFs.writeFileSync).toHaveBeenCalled();
       const writtenPatch = mockFs.writeFileSync.mock.calls[0][1];
 
-      // Check that [PATCH] was added along with the prefix
-      expect(writtenPatch).toContain("Subject: [PATCH] automated: Add new feature");
+      // Check that [PATCH] was added along with the prefix verbatim
+      expect(writtenPatch).toContain("Subject: [PATCH] [automated] Add new feature");
     });
   });
 });
