@@ -28,7 +28,7 @@ var agenticWorkflowPromptTemplate string
 //go:embed templates/create-shared-agentic-workflow.prompt.md
 var sharedAgenticWorkflowPromptTemplate string
 
-//go:embed templates/aw-setup.prompt.md
+//go:embed templates/setup-agentic-workflows.prompt.md
 var gettingStartedPromptTemplate string
 
 // SetVersionInfo sets the version information for the CLI

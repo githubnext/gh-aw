@@ -52,7 +52,7 @@ func TestEnsureGettingStartedPrompt(t *testing.T) {
 			}
 
 			promptsDir := filepath.Join(tempDir, ".github", "prompts")
-			promptPath := filepath.Join(promptsDir, "aw-setup.prompt.md")
+			promptPath := filepath.Join(promptsDir, "setup-agentic-workflows.prompt.md")
 
 			// Create initial content if specified
 			if tt.existingContent != "" {
@@ -113,7 +113,7 @@ func TestEnsureGettingStartedPrompt_WithSkipInstructionsTrue(t *testing.T) {
 	}
 
 	promptsDir := filepath.Join(tempDir, ".github", "prompts")
-	promptPath := filepath.Join(promptsDir, "aw-setup.prompt.md")
+	promptPath := filepath.Join(promptsDir, "setup-agentic-workflows.prompt.md")
 
 	// Call the function with skipInstructions=true
 	err = ensureGettingStartedPrompt(false, true)
