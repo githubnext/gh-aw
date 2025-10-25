@@ -8,7 +8,12 @@ permissions:
   issues: read
   actions: read
 engine: copilot
+network:
+  firewall: true
 tools:
+  edit:
+  bash:
+    - "*"
   github:
     allowed:
       - search_issues
