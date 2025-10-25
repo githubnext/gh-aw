@@ -800,8 +800,16 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	}
 
 	// Add allowed domains configuration for sanitization
+	// Use manually configured domains if available, otherwise compute from network configuration
+	var domainsStr string
 	if data.SafeOutputs != nil && len(data.SafeOutputs.AllowedDomains) > 0 {
-		domainsStr := strings.Join(data.SafeOutputs.AllowedDomains, ",")
+		// Use manually configured allowed domains
+		domainsStr = strings.Join(data.SafeOutputs.AllowedDomains, ",")
+	} else {
+		// Fall back to computing from network configuration (same as firewall)
+		domainsStr = c.computeAllowedDomainsForSanitization(data)
+	}
+	if domainsStr != "" {
 		fmt.Fprintf(yaml, "          GH_AW_ALLOWED_DOMAINS: %q\n", domainsStr)
 	}
 
