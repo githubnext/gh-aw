@@ -295,8 +295,13 @@ func parseRelativeDate(dateStr string) (*TimeDelta, bool, error) {
 }
 
 // ResolveRelativeDate resolves a relative date string to an absolute date string
-// suitable for use with GitHub CLI (YYYY-MM-DD format).
+// suitable for use with GitHub CLI.
 // If the date string is not relative, it returns the original string.
+//
+// For relative time deltas that include hours or minutes (e.g., -24h, -1d12h),
+// returns a full ISO 8601 timestamp (YYYY-MM-DDTHH:MM:SSZ) for precise filtering.
+// For date-only deltas (e.g., -1d, -1w, -1mo without hours/minutes),
+// returns date-only format (YYYY-MM-DD).
 func ResolveRelativeDate(dateStr string, baseTime time.Time) (string, error) {
 	if dateStr == "" {
 		return "", nil
@@ -323,6 +328,12 @@ func ResolveRelativeDate(dateStr string, baseTime time.Time) (string, error) {
 		absoluteTime = absoluteTime.Add(time.Duration(delta.Hours)*time.Hour + time.Duration(delta.Minutes)*time.Minute)
 	}
 
-	// Format as YYYY-MM-DD for GitHub CLI
+	// If the delta includes hours or minutes, return full ISO 8601 timestamp for precision
+	// This prevents losing time precision when filtering GitHub workflow runs
+	if delta.Hours > 0 || delta.Minutes > 0 {
+		return absoluteTime.Format(time.RFC3339), nil
+	}
+
+	// For date-only deltas (just months, weeks, days), return date format
 	return absoluteTime.Format("2006-01-02"), nil
 }

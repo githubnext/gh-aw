@@ -774,10 +774,10 @@ func TestResolveRelativeDate(t *testing.T) {
 			expected: "2024-01-01",
 		},
 		{
-			name:     "negative 1 day",
+			name:     "negative 1 day (date only)",
 			input:    "-1d",
 			baseTime: baseTime,
-			expected: "2024-08-14", // August 14, 2024
+			expected: "2024-08-14", // August 14, 2024 (date only, no hours)
 		},
 		{
 			name:     "negative 1 week",
@@ -798,16 +798,52 @@ func TestResolveRelativeDate(t *testing.T) {
 			expected: "2024-08-18", // August 18, 2024
 		},
 		{
-			name:     "complex negative delta",
+			name:     "complex negative delta (days only)",
 			input:    "-1mo2w3d",
 			baseTime: baseTime,
 			expected: "2024-06-28", // 1 month before Aug 15 = July 15, then 2 weeks = July 1, then 3 days = June 28
 		},
 		{
-			name:     "negative 2 hours (sub-day)",
+			name:     "negative 24 hours (returns timestamp)",
+			input:    "-24h",
+			baseTime: baseTime,
+			expected: "2024-08-14T12:00:00Z", // Full timestamp preserved
+		},
+		{
+			name:     "negative 2 hours (returns timestamp)",
 			input:    "-2h",
 			baseTime: baseTime,
-			expected: "2024-08-15", // Same day since we only return date part
+			expected: "2024-08-15T10:00:00Z", // Full timestamp preserved
+		},
+		{
+			name:     "negative 1 day 12 hours (returns timestamp)",
+			input:    "-1d12h",
+			baseTime: baseTime,
+			expected: "2024-08-14T00:00:00Z", // Full timestamp preserved
+		},
+		{
+			name:     "negative 30 minutes (returns timestamp)",
+			input:    "-30m",
+			baseTime: baseTime,
+			expected: "2024-08-15T11:30:00Z", // Full timestamp preserved
+		},
+		{
+			name:     "complex with hours (returns timestamp)",
+			input:    "-2w3d5h",
+			baseTime: baseTime,
+			expected: "2024-07-29T07:00:00Z", // Full timestamp preserved (2 weeks + 3 days + 5 hours = 17 days 5 hours back)
+		},
+		{
+			name:     "edge case: late evening -24h",
+			input:    "-24h",
+			baseTime: time.Date(2024, 8, 15, 23, 45, 0, 0, time.UTC),
+			expected: "2024-08-14T23:45:00Z", // Precise 24h ago
+		},
+		{
+			name:     "edge case: early morning -24h",
+			input:    "-24h",
+			baseTime: time.Date(2024, 8, 15, 0, 15, 0, 0, time.UTC),
+			expected: "2024-08-14T00:15:00Z", // Precise 24h ago
 		},
 		{
 			name:        "invalid relative format",
