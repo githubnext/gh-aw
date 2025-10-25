@@ -824,6 +824,31 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			Severity:     "warning",
 			Description:  "Copilot CLI permission denied warning (user interaction required)",
 		},
+		// Permission-related patterns (classified as warnings, not errors)
+		{
+			ID:           "copilot-permission-denied",
+			Pattern:      `(?i)\berror\b.*permission.*denied`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Severity:     "warning",
+			Description:  "Permission denied error (requires error context)",
+		},
+		{
+			ID:           "copilot-unauthorized",
+			Pattern:      `(?i)\berror\b.*unauthorized`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Severity:     "warning",
+			Description:  "Unauthorized access error (requires error context)",
+		},
+		{
+			ID:           "copilot-forbidden",
+			Pattern:      `(?i)\berror\b.*forbidden`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Severity:     "warning",
+			Description:  "Forbidden access error (requires error context)",
+		},
 	}...)
 
 	return patterns
