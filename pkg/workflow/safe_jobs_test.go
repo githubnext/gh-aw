@@ -68,7 +68,7 @@ func TestParseSafeJobsConfig(t *testing.T) {
 	}
 
 	// Test if condition
-	if deployJob.If != "github.event.issue.number" {
+	if deployJob.If != "${{ github.event.issue.number }}" {
 		t.Errorf("Expected if condition to be 'github.event.issue.number', got %s", deployJob.If)
 	}
 
@@ -226,7 +226,7 @@ func TestBuildSafeJobs(t *testing.T) {
 	}
 
 	// Check if condition - should now combine safe output type check with user condition
-	expectedIf := "((!(cancelled())) && (contains(needs.agent.outputs.output_types, 'deploy'))) && (github.event.issue.number)"
+	expectedIf := "${{ ((!(cancelled())) && (contains(needs.agent.outputs.output_types, 'deploy'))) && (github.event.issue.number) }}"
 	if job.If != expectedIf {
 		t.Errorf("Expected if condition to be '%s', got '%s'", expectedIf, job.If)
 	}
@@ -330,7 +330,7 @@ func TestBuildSafeJobsWithoutCustomIfCondition(t *testing.T) {
 	}
 
 	// Check if condition - should only have safe output type check (no custom condition)
-	expectedIf := "(!(cancelled())) && (contains(needs.agent.outputs.output_types, 'notify'))"
+	expectedIf := "${{ (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'notify')) }}"
 	if job.If != expectedIf {
 		t.Errorf("Expected if condition to be '%s', got '%s'", expectedIf, job.If)
 	}
@@ -378,7 +378,7 @@ func TestBuildSafeJobsWithDashesInName(t *testing.T) {
 	}
 
 	// Check if condition - should check for underscore version in output_types
-	expectedIf := "(!(cancelled())) && (contains(needs.agent.outputs.output_types, 'send_notification'))"
+	expectedIf := "${{ (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'send_notification')) }}"
 	if job.If != expectedIf {
 		t.Errorf("Expected if condition to be '%s', got '%s'", expectedIf, job.If)
 	}
