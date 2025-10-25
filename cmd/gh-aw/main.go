@@ -130,6 +130,8 @@ The --dependabot flag generates npm package manifests when npm dependencies are 
   - Creates .github/dependabot.yml for automatic dependency updates
   - Requires npm to be installed and available in PATH
   - Use --force to overwrite existing dependabot.yml
+  - Cannot be used with specific workflow files or custom --workflows-dir
+  - Only processes workflows in the default .github/workflows directory
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` compile                    # Compile all markdown files

@@ -94,6 +94,17 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Track compilation statistics
 	stats := &CompilationStats{}
+
+	// Validate dependabot flag usage
+	if dependabot {
+		if len(markdownFiles) > 0 {
+			return nil, fmt.Errorf("--dependabot flag cannot be used with specific workflow files")
+		}
+		if workflowDir != "" && workflowDir != ".github/workflows" {
+			return nil, fmt.Errorf("--dependabot flag cannot be used with custom --workflows-dir")
+		}
+	}
+
 	// Validate purge flag usage
 	if purge && len(markdownFiles) > 0 {
 		return nil, fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")

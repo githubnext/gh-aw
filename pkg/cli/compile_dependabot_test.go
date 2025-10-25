@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -44,9 +45,9 @@ This workflow uses npx to run Playwright MCP.
 		t.Fatalf("failed to write workflow file: %v", err)
 	}
 
-	// Compile with Dependabot flag
+	// Compile with Dependabot flag (compile all files, not specific ones)
 	config := CompileConfig{
-		MarkdownFiles:  []string{workflowPath},
+		MarkdownFiles:  nil, // Compile all markdown files
 		Verbose:        true,
 		Validate:       false, // Skip validation for faster test
 		WorkflowDir:    ".github/workflows",
@@ -164,9 +165,9 @@ This workflow does not use npm.
 		t.Fatalf("failed to write workflow file: %v", err)
 	}
 
-	// Compile with Dependabot flag
+	// Compile with Dependabot flag (compile all files, not specific ones)
 	config := CompileConfig{
-		MarkdownFiles:  []string{workflowPath},
+		MarkdownFiles:  nil, // Compile all markdown files
 		Verbose:        true,
 		Validate:       false,
 		WorkflowDir:    ".github/workflows",
@@ -244,9 +245,9 @@ steps:
 		t.Fatalf("failed to write workflow file: %v", err)
 	}
 
-	// Compile with Dependabot flag (without force)
+	// Compile with Dependabot flag (without force, compile all files)
 	config := CompileConfig{
-		MarkdownFiles:  []string{workflowPath},
+		MarkdownFiles:  nil, // Compile all markdown files
 		Verbose:        true,
 		Validate:       false,
 		WorkflowDir:    ".github/workflows",
@@ -287,9 +288,10 @@ steps:
 
 // Helper function to initialize a git repo for testing
 func initGitRepo(t *testing.T, dir string) {
-	// Create .git directory to simulate a git repo
-	gitDir := filepath.Join(dir, ".git")
-	if err := os.MkdirAll(gitDir, 0755); err != nil {
-		t.Fatalf("failed to create .git directory: %v", err)
+	// Use exec to run git init to properly initialize the repo
+	cmd := exec.Command("git", "init")
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to initialize git repo: %v", err)
 	}
 }
