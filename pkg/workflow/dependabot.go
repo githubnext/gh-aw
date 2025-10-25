@@ -348,17 +348,8 @@ func (c *Compiler) generateDependabotConfig(path string, ecosystems map[string]b
 
 	// Check if dependabot.yml already exists
 	if _, err := os.Stat(path); err == nil {
-		if !forceOverwrite {
-			// File exists and we're not forcing - preserve it
-			dependabotLog.Print("Existing dependabot.yml found, preserving (use --force to overwrite)")
-			if c.verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Existing dependabot.yml preserved (use compile with --force flag to overwrite)"))
-			}
-			return nil
-		}
-
-		// Force overwrite - read existing config to potentially merge
-		dependabotLog.Print("Existing dependabot.yml found, will overwrite")
+		// File exists - read and merge configuration
+		dependabotLog.Print("Existing dependabot.yml found, merging configuration")
 		existingData, err := os.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("failed to read existing dependabot.yml: %w", err)
@@ -393,6 +384,18 @@ func (c *Compiler) generateDependabotConfig(path string, ecosystems map[string]b
 			entry.Schedule.Interval = "weekly"
 			config.Updates = append(config.Updates, entry)
 		}
+		npmUpdate.Schedule.Interval = "weekly"
+		config.Updates = append(config.Updates, npmUpdate)
+
+		dependabotLog.Print("Added npm ecosystem entry to dependabot.yml")
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Added npm ecosystem to dependabot.yml"))
+		}
+	} else {
+		dependabotLog.Print("npm ecosystem already exists in dependabot.yml")
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("npm ecosystem already configured in dependabot.yml"))
+		}
 	}
 
 	// Write dependabot.yml
@@ -407,7 +410,7 @@ func (c *Compiler) generateDependabotConfig(path string, ecosystems map[string]b
 
 	dependabotLog.Print("Successfully wrote dependabot.yml")
 	if c.verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Generated .github/dependabot.yml"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .github/dependabot.yml"))
 	}
 
 	// Track the created file

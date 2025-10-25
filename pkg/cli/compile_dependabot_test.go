@@ -261,7 +261,7 @@ steps:
 		t.Fatalf("compilation failed: %v", err)
 	}
 
-	// Verify existing dependabot.yml was preserved
+	// Verify existing dependabot.yml was merged (not just preserved)
 	dependabotData, err = os.ReadFile(dependabotPath)
 	if err != nil {
 		t.Fatalf("failed to read dependabot.yml: %v", err)
@@ -274,15 +274,136 @@ steps:
 
 	// Should still have the original pip entry
 	pipFound := false
+	npmFound := false
 	for _, update := range dependabotConfig.Updates {
 		if update.PackageEcosystem == "pip" {
 			pipFound = true
-			break
+		}
+		if update.PackageEcosystem == "npm" && update.Directory == "/.github/workflows" {
+			npmFound = true
 		}
 	}
 
 	if !pipFound {
 		t.Error("existing pip ecosystem should be preserved")
+	}
+
+	if !npmFound {
+		t.Error("npm ecosystem should be added to existing dependabot.yml")
+	}
+
+	// Verify we have both entries
+	if len(dependabotConfig.Updates) != 2 {
+		t.Errorf("expected 2 update entries (pip and npm), got %d", len(dependabotConfig.Updates))
+	}
+}
+
+func TestCompileDependabotMergeExistingNpm(t *testing.T) {
+	// Create temp directory for test
+	tempDir := t.TempDir()
+	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	githubDir := filepath.Join(tempDir, ".github")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("failed to create workflows directory: %v", err)
+	}
+
+	// Change to temp directory
+	origDir, _ := os.Getwd()
+	defer os.Chdir(origDir)
+	os.Chdir(tempDir)
+
+	// Initialize git repo
+	initGitRepo(t, tempDir)
+
+	// Create existing dependabot.yml with npm already configured
+	existingDependabot := workflow.DependabotConfig{
+		Version: 2,
+		Updates: []workflow.DependabotUpdateEntry{
+			{
+				PackageEcosystem: "npm",
+				Directory:        "/.github/workflows",
+			},
+			{
+				PackageEcosystem: "pip",
+				Directory:        "/",
+			},
+		},
+	}
+	existingDependabot.Updates[0].Schedule.Interval = "daily"
+	existingDependabot.Updates[1].Schedule.Interval = "weekly"
+
+	dependabotPath := filepath.Join(githubDir, "dependabot.yml")
+	dependabotData, _ := yaml.Marshal(&existingDependabot)
+	if err := os.WriteFile(dependabotPath, dependabotData, 0644); err != nil {
+		t.Fatalf("failed to write existing dependabot.yml: %v", err)
+	}
+
+	// Create a test workflow with npm dependencies
+	workflowContent := `---
+on: push
+permissions:
+  contents: read
+steps:
+  - run: npx @playwright/mcp@latest --help
+---
+
+# Test Workflow
+`
+	workflowPath := filepath.Join(workflowsDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("failed to write workflow file: %v", err)
+	}
+
+	// Compile with Dependabot flag
+	config := CompileConfig{
+		MarkdownFiles:  nil,
+		Verbose:        true,
+		Validate:       false,
+		WorkflowDir:    ".github/workflows",
+		Dependabot:     true,
+		ForceOverwrite: false,
+		Strict:         false,
+	}
+
+	_, err := CompileWorkflows(config)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+
+	// Verify existing dependabot.yml was not duplicated
+	dependabotData, err = os.ReadFile(dependabotPath)
+	if err != nil {
+		t.Fatalf("failed to read dependabot.yml: %v", err)
+	}
+
+	var dependabotConfig workflow.DependabotConfig
+	if err := yaml.Unmarshal(dependabotData, &dependabotConfig); err != nil {
+		t.Fatalf("failed to parse dependabot.yml: %v", err)
+	}
+
+	// Should still have both entries, but not duplicate npm
+	npmCount := 0
+	pipFound := false
+	for _, update := range dependabotConfig.Updates {
+		if update.PackageEcosystem == "npm" && update.Directory == "/.github/workflows" {
+			npmCount++
+		}
+		if update.PackageEcosystem == "pip" {
+			pipFound = true
+		}
+	}
+
+	if npmCount != 1 {
+		t.Errorf("expected exactly 1 npm entry, got %d", npmCount)
+	}
+
+	if !pipFound {
+		t.Error("existing pip ecosystem should be preserved")
+	}
+
+	// Verify we still have both entries and no duplicates
+	if len(dependabotConfig.Updates) != 2 {
+		t.Errorf("expected 2 update entries (npm and pip), got %d", len(dependabotConfig.Updates))
 	}
 }
 
