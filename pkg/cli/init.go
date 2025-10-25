@@ -78,7 +78,10 @@ func InitRepository(verbose bool) error {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Repository initialized for agentic workflows!"))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("See .github/instructions for Copilot guidance or run "+constants.CLIExtensionPrefix+" add to get started."))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Next steps:"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  • Configure your agent: Open .github/prompts/gh-aw-getting-started.md in Copilot Chat"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  • Create a workflow: Type /create-agentic-workflow in Copilot Chat"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  • Add from catalog: Run "+constants.CLIExtensionPrefix+" add <workflow-name>"))
 	fmt.Fprintln(os.Stderr, "")
 
 	return nil
