@@ -90,7 +90,7 @@ jobs:
       - create_discussion
       - create_pull_request
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'add_comment'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'add_comment'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -3917,7 +3917,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -4166,7 +4166,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -4860,7 +4860,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -4997,8 +4997,8 @@ jobs:
       - add_comment
       - missing_tool
     if: >
-      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!(contains(needs.agent.outputs.output_types, 'add_comment')))) &&
-      (!(contains(needs.agent.outputs.output_types, 'create_pull_request')))) && (!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')))
+      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!contains(needs.agent.outputs.output_types, 'add_comment'))) &&
+      (!contains(needs.agent.outputs.output_types, 'create_pull_request'))) && (!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -612,7 +612,7 @@ jobs:
       - create_issue
       - create_pull_request
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'add_comment'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'add_comment'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1006,7 +1006,7 @@ jobs:
       - agent
       - detection
     if: >
-      ((!(cancelled())) && (contains(needs.agent.outputs.output_types, 'add_labels'))) && ((github.event.issue.number) ||
+      ((!cancelled()) && (contains(needs.agent.outputs.output_types, 'add_labels'))) && ((github.event.issue.number) ||
       (github.event.pull_request.number))
     runs-on: ubuntu-latest
     permissions:
@@ -4730,7 +4730,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'create_issue'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_issue'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -5032,7 +5032,7 @@ jobs:
       - agent
       - detection
     if: >
-      ((!(cancelled())) && (contains(needs.agent.outputs.output_types, 'create_pull_request_review_comment'))) &&
+      ((!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_pull_request_review_comment'))) &&
       (((github.event.issue.number) && (github.event.issue.pull_request)) || (github.event.pull_request))
     runs-on: ubuntu-latest
     permissions:
@@ -5338,7 +5338,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -6044,7 +6044,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -6315,7 +6315,7 @@ jobs:
       - agent
       - detection
     if: >
-      ((!(cancelled())) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&
+      ((!cancelled()) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&
       (((github.event.issue.number) &&
       (github.event.issue.pull_request)) || (github.event.pull_request))
     runs-on: ubuntu-latest
@@ -6643,7 +6643,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'update_issue'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'update_issue'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -6867,8 +6867,8 @@ jobs:
       - missing_tool
       - upload_assets
     if: >
-      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!(contains(needs.agent.outputs.output_types, 'add_comment')))) &&
-      (!(contains(needs.agent.outputs.output_types, 'create_pull_request')))) && (!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')))
+      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!contains(needs.agent.outputs.output_types, 'add_comment'))) &&
+      (!contains(needs.agent.outputs.output_types, 'create_pull_request'))) && (!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -6999,7 +6999,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!(cancelled())) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
