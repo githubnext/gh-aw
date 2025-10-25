@@ -139,15 +139,15 @@ async function main() {
     core.info(
       `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
     );
-    
+
     // Debug logging for parent field
     core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
     core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
-    
+
     // Use the parent field from the item if provided, otherwise fall back to context
     const effectiveParentIssueNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentIssueNumber;
     core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}`);
-    
+
     if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
       core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
     }
@@ -212,10 +212,10 @@ async function main() {
       });
       core.info("Created issue #" + issue.number + ": " + issue.html_url);
       createdIssues.push(issue);
-      
+
       // Debug logging for sub-issue linking
       core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
-      
+
       if (effectiveParentIssueNumber) {
         core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
         try {
