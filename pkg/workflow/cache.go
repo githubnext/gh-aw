@@ -56,7 +56,7 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryC
 
 	// Handle boolean value (simple enable/disable)
 	if boolValue, ok := cacheMemoryValue.(bool); ok {
-		cacheLog.Printf("Processing boolean cache-memory configuration: enabled=%v", boolValue)
+		cacheLog.Printf("Checking boolean cache-memory configuration: enabled=%v", boolValue)
 		if boolValue {
 			// Create a single default cache entry
 			config.Caches = []CacheMemoryEntry{
