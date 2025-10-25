@@ -83,7 +83,7 @@ func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*S
 		// Parse if condition
 		if ifCond, exists := jobConfig["if"]; exists {
 			if ifStr, ok := ifCond.(string); ok {
-				safeJob.If = wrapIfExpression(c.extractExpressionFromIfString(ifStr))
+				safeJob.If = WrapIfExpression(c.extractExpressionFromIfString(ifStr))
 			}
 		}
 
@@ -256,10 +256,10 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 			// If user provided a custom condition, combine it with the safe output type check
 			userConditionStr := c.extractExpressionFromIfString(jobConfig.If)
 			userCondition := &ExpressionNode{Expression: userConditionStr}
-			job.If = wrapIfExpression(buildAnd(safeOutputCondition, userCondition).Render())
+			job.If = WrapIfExpression(buildAnd(safeOutputCondition, userCondition).Render())
 		} else {
 			// Otherwise, just use the safe output type check
-			job.If = wrapIfExpression(safeOutputCondition.Render())
+			job.If = WrapIfExpression(safeOutputCondition.Render())
 		}
 
 		// Build job steps
