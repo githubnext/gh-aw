@@ -3225,7 +3225,7 @@
     "github_token": {
       "type": "string",
       "pattern": "^\\$\\{\\{\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*(\\s*\\|\\|\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*)*\\s*\\}\\}$",
-      "description": "GitHub token expression using secrets (e.g., ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }})",
+      "description": "GitHub token expression using secrets. Pattern details: `[A-Za-z_][A-Za-z0-9_]*` matches a valid secret name (starts with a letter or underscore, followed by letters, digits, or underscores). The full pattern matches expressions like `${{ secrets.NAME }}` or `${{ secrets.NAME1 || secrets.NAME2 }}`.",
       "examples": [
         "${{ secrets.GITHUB_TOKEN }}",
         "${{ secrets.CUSTOM_PAT }}",
