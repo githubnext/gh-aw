@@ -5,6 +5,149 @@ import (
 	"testing"
 )
 
+// TestExtractSafeOutputToken verifies the helper function extracts tokens correctly
+func TestExtractSafeOutputToken(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		accessor     func(*SafeOutputsConfig) string
+		expected     string
+	}{
+		{
+			name: "extract token from CreateIssues config",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					CreateIssues: &CreateIssuesConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{
+							GitHubToken: "${{ secrets.CUSTOM_TOKEN }}",
+						},
+					},
+				},
+			},
+			accessor: func(so *SafeOutputsConfig) string {
+				if so.CreateIssues != nil {
+					return so.CreateIssues.GitHubToken
+				}
+				return ""
+			},
+			expected: "${{ secrets.CUSTOM_TOKEN }}",
+		},
+		{
+			name: "extract token from AddComments config",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					AddComments: &AddCommentsConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{
+							GitHubToken: "${{ secrets.COMMENT_TOKEN }}",
+						},
+					},
+				},
+			},
+			accessor: func(so *SafeOutputsConfig) string {
+				if so.AddComments != nil {
+					return so.AddComments.GitHubToken
+				}
+				return ""
+			},
+			expected: "${{ secrets.COMMENT_TOKEN }}",
+		},
+		{
+			name: "nil SafeOutputs returns empty string",
+			workflowData: &WorkflowData{
+				SafeOutputs: nil,
+			},
+			accessor: func(so *SafeOutputsConfig) string {
+				if so.CreateIssues != nil {
+					return so.CreateIssues.GitHubToken
+				}
+				return ""
+			},
+			expected: "",
+		},
+		{
+			name: "nil config in accessor returns empty string",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					CreateIssues: nil,
+				},
+			},
+			accessor: func(so *SafeOutputsConfig) string {
+				if so.CreateIssues != nil {
+					return so.CreateIssues.GitHubToken
+				}
+				return ""
+			},
+			expected: "",
+		},
+		{
+			name: "empty token string in config",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					CreateIssues: &CreateIssuesConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{
+							GitHubToken: "",
+						},
+					},
+				},
+			},
+			accessor: func(so *SafeOutputsConfig) string {
+				if so.CreateIssues != nil {
+					return so.CreateIssues.GitHubToken
+				}
+				return ""
+			},
+			expected: "",
+		},
+		{
+			name: "extract token from CreateDiscussions config",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					CreateDiscussions: &CreateDiscussionsConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{
+							GitHubToken: "${{ secrets.DISCUSSION_TOKEN }}",
+						},
+					},
+				},
+			},
+			accessor: func(so *SafeOutputsConfig) string {
+				if so.CreateDiscussions != nil {
+					return so.CreateDiscussions.GitHubToken
+				}
+				return ""
+			},
+			expected: "${{ secrets.DISCUSSION_TOKEN }}",
+		},
+		{
+			name: "extract token from CreateAgentTasks config",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					CreateAgentTasks: &CreateAgentTaskConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{
+							GitHubToken: "${{ secrets.AGENT_TASK_TOKEN }}",
+						},
+					},
+				},
+			},
+			accessor: func(so *SafeOutputsConfig) string {
+				if so.CreateAgentTasks != nil {
+					return so.CreateAgentTasks.GitHubToken
+				}
+				return ""
+			},
+			expected: "${{ secrets.AGENT_TASK_TOKEN }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractSafeOutputToken(tt.workflowData, tt.accessor)
+			if result != tt.expected {
+				t.Errorf("Expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
 // TestBuildGitHubScriptStep verifies the common helper function produces correct GitHub Script steps
 func TestBuildGitHubScriptStep(t *testing.T) {
 	compiler := &Compiler{}

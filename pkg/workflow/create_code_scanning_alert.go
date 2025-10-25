@@ -34,11 +34,13 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 	// Pass the workflow filename for rule ID prefix
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_FILENAME: %s\n", workflowFilename))
 
-	// Get token from config
-	var token string
-	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-		token = data.SafeOutputs.CreateCodeScanningAlerts.GitHubToken
-	}
+	// Extract token from config using the centralized helper
+	token := extractSafeOutputToken(data, func(so *SafeOutputsConfig) string {
+		if so.CreateCodeScanningAlerts != nil {
+			return so.CreateCodeScanningAlerts.GitHubToken
+		}
+		return ""
+	})
 
 	// Build the GitHub Script step using the common helper
 	var steps []string

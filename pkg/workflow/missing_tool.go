@@ -21,11 +21,13 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_MAX: %d\n", data.SafeOutputs.MissingTool.Max))
 	}
 
-	// Get token from config
-	var token string
-	if data.SafeOutputs.MissingTool != nil {
-		token = data.SafeOutputs.MissingTool.GitHubToken
-	}
+	// Extract token from config using the centralized helper
+	token := extractSafeOutputToken(data, func(so *SafeOutputsConfig) string {
+		if so.MissingTool != nil {
+			return so.MissingTool.GitHubToken
+		}
+		return ""
+	})
 
 	// Build the GitHub Script step using the common helper
 	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{

@@ -74,11 +74,13 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		data.SafeOutputs.AddComments.TargetRepoSlug,
 	)...)
 
-	// Get token from config
-	var token string
-	if data.SafeOutputs.AddComments != nil {
-		token = data.SafeOutputs.AddComments.GitHubToken
-	}
+	// Extract token from config using the centralized helper
+	token := extractSafeOutputToken(data, func(so *SafeOutputsConfig) string {
+		if so.AddComments != nil {
+			return so.AddComments.GitHubToken
+		}
+		return ""
+	})
 
 	// Build the GitHub Script step using the common helper and append to existing steps
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{

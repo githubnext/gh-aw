@@ -46,11 +46,13 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug,
 	)...)
 
-	// Get token from config
-	var token string
-	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
-		token = data.SafeOutputs.CreatePullRequestReviewComments.GitHubToken
-	}
+	// Extract token from config using the centralized helper
+	token := extractSafeOutputToken(data, func(so *SafeOutputsConfig) string {
+		if so.CreatePullRequestReviewComments != nil {
+			return so.CreatePullRequestReviewComments.GitHubToken
+		}
+		return ""
+	})
 
 	// Build the GitHub Script step using the common helper
 	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{

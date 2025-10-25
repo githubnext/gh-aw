@@ -100,11 +100,13 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		data.SafeOutputs.CreateIssues.TargetRepoSlug,
 	)...)
 
-	// Get token from config
-	var token string
-	if data.SafeOutputs.CreateIssues != nil {
-		token = data.SafeOutputs.CreateIssues.GitHubToken
-	}
+	// Extract token from config using the centralized helper
+	token := extractSafeOutputToken(data, func(so *SafeOutputsConfig) string {
+		if so.CreateIssues != nil {
+			return so.CreateIssues.GitHubToken
+		}
+		return ""
+	})
 
 	// Build the GitHub Script step using the common helper and append to existing steps
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{

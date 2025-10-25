@@ -78,11 +78,13 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		data.SafeOutputs.CreateDiscussions.TargetRepoSlug,
 	)...)
 
-	// Get token from config
-	var token string
-	if data.SafeOutputs.CreateDiscussions != nil {
-		token = data.SafeOutputs.CreateDiscussions.GitHubToken
-	}
+	// Extract token from config using the centralized helper
+	token := extractSafeOutputToken(data, func(so *SafeOutputsConfig) string {
+		if so.CreateDiscussions != nil {
+			return so.CreateDiscussions.GitHubToken
+		}
+		return ""
+	})
 
 	// Build the GitHub Script step using the common helper
 	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{

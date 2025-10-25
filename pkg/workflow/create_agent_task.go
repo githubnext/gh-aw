@@ -75,11 +75,13 @@ func (c *Compiler) buildCreateOutputAgentTaskJob(data *WorkflowData, mainJobName
 		data.SafeOutputs.CreateAgentTasks.TargetRepoSlug,
 	)...)
 
-	// Get token from config
-	var token string
-	if data.SafeOutputs.CreateAgentTasks != nil {
-		token = data.SafeOutputs.CreateAgentTasks.GitHubToken
-	}
+	// Extract token from config using the centralized helper
+	token := extractSafeOutputToken(data, func(so *SafeOutputsConfig) string {
+		if so.CreateAgentTasks != nil {
+			return so.CreateAgentTasks.GitHubToken
+		}
+		return ""
+	})
 
 	// Build the GitHub Script step using the common helper and append to existing steps
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{

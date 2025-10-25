@@ -116,11 +116,13 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 		"", // No target repo for upload assets
 	)...)
 
-	// Get token from config
-	var token string
-	if data.SafeOutputs.UploadAssets != nil {
-		token = data.SafeOutputs.UploadAssets.GitHubToken
-	}
+	// Extract token from config using the centralized helper
+	token := extractSafeOutputToken(data, func(so *SafeOutputsConfig) string {
+		if so.UploadAssets != nil {
+			return so.UploadAssets.GitHubToken
+		}
+		return ""
+	})
 
 	// Build the GitHub Script step using the common helper
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{

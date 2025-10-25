@@ -12,6 +12,27 @@ func normalizeSafeOutputIdentifier(identifier string) string {
 	return strings.ReplaceAll(identifier, "-", "_")
 }
 
+// extractSafeOutputToken extracts the GitHub token from a safe-output config using the provided accessor function.
+// This centralizes the token extraction pattern that was duplicated across all safe-output job builders.
+//
+// The accessor function should return the GitHubToken field from the appropriate safe-output config struct.
+// Returns empty string if the config is nil or if SafeOutputs is nil.
+//
+// Example usage:
+//
+//	token := extractSafeOutputToken(data, func(so *SafeOutputsConfig) string {
+//	    if so.CreateIssues != nil {
+//	        return so.CreateIssues.GitHubToken
+//	    }
+//	    return ""
+//	})
+func extractSafeOutputToken(data *WorkflowData, accessor func(*SafeOutputsConfig) string) string {
+	if data.SafeOutputs == nil {
+		return ""
+	}
+	return accessor(data.SafeOutputs)
+}
+
 // GitHubScriptStepConfig holds configuration for building a GitHub Script step
 type GitHubScriptStepConfig struct {
 	// Step metadata

@@ -67,11 +67,13 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
 
-	// Get token from config
-	var token string
-	if data.SafeOutputs.PushToPullRequestBranch != nil {
-		token = data.SafeOutputs.PushToPullRequestBranch.GitHubToken
-	}
+	// Extract token from config using the centralized helper
+	token := extractSafeOutputToken(data, func(so *SafeOutputsConfig) string {
+		if so.PushToPullRequestBranch != nil {
+			return so.PushToPullRequestBranch.GitHubToken
+		}
+		return ""
+	})
 
 	// Step 4: Push to Branch using buildGitHubScriptStep
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
