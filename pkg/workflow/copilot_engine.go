@@ -295,7 +295,12 @@ COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 
 	// Note: GH_AW_MCP_CONFIG is no longer needed as we use --additional-mcp-config flag
 
-	// Note: GITHUB_MCP_SERVER_TOKEN is no longer needed as tokens are inlined in the MCP config
+	// Add GITHUB_MCP_SERVER_TOKEN for GitHub MCP server token passthrough
+	if _, hasGitHub := workflowData.Tools["github"]; hasGitHub {
+		githubToken := getGitHubToken(workflowData.Tools["github"])
+		effectiveToken := getEffectiveGitHubToken(githubToken, workflowData.GitHubToken)
+		env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
+	}
 
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
@@ -461,8 +466,6 @@ func (e *CopilotEngine) buildGitHubMCPServerJSON(githubTool any, workflowData *W
 	readOnly := getGitHubReadOnly(githubTool)
 	toolsetsStr := getGitHubToolsets(githubTool) // Returns comma-separated string
 	allowedTools := getGitHubAllowedTools(githubTool)
-	githubToken := getGitHubToken(githubTool)
-	effectiveToken := getEffectiveGitHubToken(githubToken, workflowData.GitHubToken)
 
 	server := MCPServerJSON{
 		Type: "local",
@@ -473,14 +476,18 @@ func (e *CopilotEngine) buildGitHubMCPServerJSON(githubTool any, workflowData *W
 		server.Type = "http"
 		server.URL = "https://api.githubcopilot.com/mcp/"
 		server.Headers = make(map[string]string)
-		// Inline the token directly (no env var passthrough)
-		server.Headers["Authorization"] = fmt.Sprintf("Bearer %s", effectiveToken)
+		// Use env var passthrough for token (file-based MCP config syntax)
+		server.Headers["Authorization"] = "Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"
 		if readOnly {
 			server.Headers["X-MCP-Readonly"] = "true"
 		}
 		// Add X-MCP-Toolsets header if toolsets are specified
 		if toolsetsStr != "" {
 			server.Headers["X-MCP-Toolsets"] = toolsetsStr
+		}
+		// Add env section for token passthrough
+		server.Env = map[string]string{
+			"GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}",
 		}
 	} else {
 		// Local mode - use Docker
@@ -509,9 +516,9 @@ func (e *CopilotEngine) buildGitHubMCPServerJSON(githubTool any, workflowData *W
 			server.Args = append(server.Args, "--toolset", toolsetsStr)
 		}
 
-		// Add env with inlined token (no passthrough)
+		// Use env var passthrough for token (file-based MCP config syntax)
 		server.Env = map[string]string{
-			"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveToken,
+			"GITHUB_PERSONAL_ACCESS_TOKEN": "\\${GITHUB_MCP_SERVER_TOKEN}",
 		}
 	}
 

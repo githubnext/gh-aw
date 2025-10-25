@@ -953,9 +953,16 @@ func TestCopilotEngineMCPConfigJSON(t *testing.T) {
 		t.Errorf("Expected MCP config to contain 'safe_outputs' server (note: uses underscore, not hyphen)")
 	}
 
-	// Verify the GitHub config has inlined token (not env var reference)
-	if !strings.Contains(stepContent, `"GITHUB_PERSONAL_ACCESS_TOKEN":"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"`) {
-		t.Errorf("Expected GitHub MCP config to have inlined token")
+	// Verify the GitHub config uses env var passthrough (not inlined token)
+	if !strings.Contains(stepContent, `"GITHUB_PERSONAL_ACCESS_TOKEN":"\\${GITHUB_MCP_SERVER_TOKEN}"`) {
+		t.Errorf("Expected GitHub MCP config to use env var passthrough for token")
+		t.Logf("Step content:\n%s", stepContent)
+	}
+
+	// Verify GITHUB_MCP_SERVER_TOKEN is set in env
+	if !strings.Contains(stepContent, `GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`) {
+		t.Errorf("Expected GITHUB_MCP_SERVER_TOKEN in execution step env")
+		t.Logf("Step content:\n%s", stepContent)
 	}
 
 	// Verify read-only flag is present in the args

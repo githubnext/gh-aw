@@ -227,11 +227,19 @@ This is a test workflow for GitHub remote mode configuration.
 					if tt.expectedURL != "" && !strings.Contains(lockContent, tt.expectedURL) {
 						t.Errorf("Expected URL %s but didn't find it in:\n%s", tt.expectedURL, lockContent)
 					}
-					// For Copilot engine, check for inlined token (not env var passthrough)
+					// For Copilot engine, check for env var passthrough (file-based MCP config syntax)
 					if tt.engineType == "copilot" {
-						// The token is now inlined in the MCP config JSON, not using env var passthrough
-						if !strings.Contains(lockContent, `"Authorization":"Bearer ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"`) {
-							t.Errorf("Expected Authorization header with inlined token but didn't find it in:\n%s", lockContent)
+						// The token now uses env var passthrough: Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}
+						if !strings.Contains(lockContent, `"Authorization":"Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}"`) {
+							t.Errorf("Expected Authorization header with env var passthrough but didn't find it in:\n%s", lockContent)
+						}
+						// Check for env section with GITHUB_MCP_SERVER_TOKEN passthrough
+						if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN":"\\${GITHUB_MCP_SERVER_TOKEN}"`) {
+							t.Errorf("Expected env section with GITHUB_MCP_SERVER_TOKEN passthrough but didn't find it in:\n%s", lockContent)
+						}
+						// Check for GITHUB_MCP_SERVER_TOKEN in step env
+						if !strings.Contains(lockContent, `GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`) {
+							t.Errorf("Expected GITHUB_MCP_SERVER_TOKEN in step env but didn't find it in:\n%s", lockContent)
 						}
 					} else {
 						// For other engines, check for old GitHub Actions expression syntax

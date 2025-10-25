@@ -359,7 +359,7 @@ jobs:
           sudo -E awf --env-all \
             --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org \
             --log-level debug \
-            'npx -y @github/copilot@0.0.350 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool github --allow-tool web-fetch --additional-mcp-config '{"mcpServers":{"github":{"type":"local","command":"docker","args":["run","-i","--rm","-e","GITHUB_PERSONAL_ACCESS_TOKEN","ghcr.io/github/github-mcp-server:v0.19.1","--read-only"],"env":{"GITHUB_PERSONAL_ACCESS_TOKEN":"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"},"tools":["*"]},"web_fetch":{"type":"local","command":"npx","args":["-y","@modelcontextprotocol/server-fetch"],"tools":["*"]}}}' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' \
+            'npx -y @github/copilot@0.0.350 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool github --allow-tool web-fetch --additional-mcp-config '{"mcpServers":{"github":{"type":"local","command":"docker","args":["run","-i","--rm","-e","GITHUB_PERSONAL_ACCESS_TOKEN","ghcr.io/github/github-mcp-server:v0.19.1","--read-only"],"env":{"GITHUB_PERSONAL_ACCESS_TOKEN":"\\${GITHUB_MCP_SERVER_TOKEN}"},"tools":["*"]},"web_fetch":{"type":"local","command":"npx","args":["-y","@modelcontextprotocol/server-fetch"],"tools":["*"]}}}' --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"' \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved Copilot logs to expected location
@@ -373,6 +373,7 @@ jobs:
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
           XDG_CONFIG_HOME: /home/runner
