@@ -70,31 +70,32 @@ Network permissions are enforced differently depending on the AI engine:
 
 The Claude engine uses hook-based enforcement via Claude Code's PreToolUse hooks to intercept network requests. This provides fine-grained control with minimal performance overhead (~10ms per request).
 
-### Copilot Engine with AWF
+### Copilot Engine
 
-The Copilot engine supports network permissions through the optional AWF (Agent Workflow Firewall) feature. AWF is a network firewall wrapper sourced from [github.com/githubnext/gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall) that wraps Copilot CLI execution and enforces domain-based access controls.
+The Copilot engine supports network permissions through AWF (Agent Workflow Firewall). AWF is a network firewall wrapper sourced from [github.com/githubnext/gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall) that wraps Copilot CLI execution and enforces domain-based access controls.
 
-Enable AWF in your workflow:
+Enable network permissions in your workflow:
 
 ```yaml
-features:
-  firewall: true
-
 engine: copilot
+
+features:
+  firewall: true           # Enable AWF enforcement
 
 network:
   allowed:
-    - defaults
-    - "api.example.com"
+    - defaults             # Basic infrastructure
+    - python              # Python ecosystem
+    - "api.example.com"   # Custom domain
 ```
 
-When the firewall feature is enabled, AWF:
+When enabled, AWF:
 - Wraps the Copilot CLI execution command
 - Enforces domain allowlisting using the `--allow-domains` flag
 - Logs all network activity for audit purposes
 - Blocks access to domains not explicitly allowed
 
-See the [Copilot Engine - Network Firewall](/gh-aw/reference/engines/#network-firewall-awf) documentation for detailed AWF configuration options.
+See the [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network-permissions) documentation for detailed AWF configuration options.
 
 ## Best Practices
 
