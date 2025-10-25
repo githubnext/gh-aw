@@ -25,24 +25,28 @@ type RepositoryFeatures struct {
 	HasIssues      bool
 }
 
-// Global cache for repository features to amortize API calls across multiple workflow compilations
+// Global cache for repository features and current repository info
 var (
-	repositoryFeaturesCache = make(map[string]*RepositoryFeatures)
-	repositoryFeaturesMutex = sync.RWMutex{}
-	currentRepositoryCache  = ""
-	currentRepositoryMutex  = sync.RWMutex{}
+	repositoryFeaturesCache = sync.Map{} // sync.Map is thread-safe and efficient for read-heavy workloads
+	getCurrentRepositoryOnce sync.Once
+	currentRepositoryResult  string
+	currentRepositoryError   error
 )
 
 // ClearRepositoryFeaturesCache clears the repository features cache
 // This is useful for testing or when repository settings might have changed
 func ClearRepositoryFeaturesCache() {
-	repositoryFeaturesMutex.Lock()
-	currentRepositoryMutex.Lock()
-	defer repositoryFeaturesMutex.Unlock()
-	defer currentRepositoryMutex.Unlock()
+	// Clear the features cache
+	repositoryFeaturesCache.Range(func(key, value any) bool {
+		repositoryFeaturesCache.Delete(key)
+		return true
+	})
 	
-	repositoryFeaturesCache = make(map[string]*RepositoryFeatures)
-	currentRepositoryCache = ""
+	// Reset the current repository cache
+	getCurrentRepositoryOnce = sync.Once{}
+	currentRepositoryResult = ""
+	currentRepositoryError = nil
+	
 	validationLog.Print("Repository features and current repository caches cleared")
 }
 
@@ -461,26 +465,20 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 
 // getCurrentRepository gets the current repository from git context (with caching)
 func getCurrentRepository() (string, error) {
-	// Check cache first (read lock)
-	currentRepositoryMutex.RLock()
-	if currentRepositoryCache != "" {
-		repo := currentRepositoryCache
-		currentRepositoryMutex.RUnlock()
-		validationLog.Printf("Using cached current repository: %s", repo)
-		return repo, nil
-	}
-	currentRepositoryMutex.RUnlock()
-
-	// Not in cache, acquire write lock and check again (double-checked locking)
-	currentRepositoryMutex.Lock()
-	defer currentRepositoryMutex.Unlock()
+	getCurrentRepositoryOnce.Do(func() {
+		currentRepositoryResult, currentRepositoryError = getCurrentRepositoryUncached()
+	})
 	
-	// Check cache again in case another goroutine populated it
-	if currentRepositoryCache != "" {
-		validationLog.Printf("Using cached current repository: %s", currentRepositoryCache)
-		return currentRepositoryCache, nil
+	if currentRepositoryError != nil {
+		return "", currentRepositoryError
 	}
+	
+	validationLog.Printf("Using cached current repository: %s", currentRepositoryResult)
+	return currentRepositoryResult, nil
+}
 
+// getCurrentRepositoryUncached fetches the current repository from gh CLI (no caching)
+func getCurrentRepositoryUncached() (string, error) {
 	validationLog.Print("Fetching current repository from gh CLI")
 	
 	// Use gh CLI to get the current repository
@@ -495,30 +493,15 @@ func getCurrentRepository() (string, error) {
 		return "", fmt.Errorf("repository name is empty")
 	}
 
-	// Cache the result
-	currentRepositoryCache = repo
 	validationLog.Printf("Cached current repository: %s", repo)
-
 	return repo, nil
 }
 
 // getRepositoryFeatures gets repository features with caching to amortize API calls
 func getRepositoryFeatures(repo string) (*RepositoryFeatures, error) {
-	// Check cache first (read lock)
-	repositoryFeaturesMutex.RLock()
-	if features, exists := repositoryFeaturesCache[repo]; exists {
-		repositoryFeaturesMutex.RUnlock()
-		validationLog.Printf("Using cached repository features for: %s", repo)
-		return features, nil
-	}
-	repositoryFeaturesMutex.RUnlock()
-
-	// Not in cache, acquire write lock and check again (double-checked locking)
-	repositoryFeaturesMutex.Lock()
-	defer repositoryFeaturesMutex.Unlock()
-	
-	// Check cache again in case another goroutine populated it
-	if features, exists := repositoryFeaturesCache[repo]; exists {
+	// Check cache first using sync.Map
+	if cached, exists := repositoryFeaturesCache.Load(repo); exists {
+		features := cached.(*RepositoryFeatures)
 		validationLog.Printf("Using cached repository features for: %s", repo)
 		return features, nil
 	}
@@ -542,11 +525,14 @@ func getRepositoryFeatures(repo string) (*RepositoryFeatures, error) {
 	}
 	features.HasIssues = hasIssues
 	
-	// Cache the result
-	repositoryFeaturesCache[repo] = features
-	validationLog.Printf("Cached repository features for: %s (discussions: %v, issues: %v)", repo, hasDiscussions, hasIssues)
+	// Cache the result using sync.Map's LoadOrStore for atomic caching
+	// This handles the race condition where multiple goroutines might fetch the same repo
+	actual, _ := repositoryFeaturesCache.LoadOrStore(repo, features)
+	actualFeatures := actual.(*RepositoryFeatures)
 	
-	return features, nil
+	validationLog.Printf("Cached repository features for: %s (discussions: %v, issues: %v)", repo, actualFeatures.HasDiscussions, actualFeatures.HasIssues)
+	
+	return actualFeatures, nil
 }
 
 // checkRepositoryHasDiscussions checks if a repository has discussions enabled (with caching)
