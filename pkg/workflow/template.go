@@ -84,7 +84,7 @@ func (c *Compiler) generateTemplateRenderingStep(yaml *strings.Builder, data *Wo
 	hasTemplatePattern := strings.Contains(data.MarkdownContent, "{{#if ")
 
 	// Also check if GitHub tool is enabled (which adds template patterns to the prompt)
-	hasGitHubContext := hasGitHubTool(data.Tools)
+	hasGitHubContext := hasGitHubTool(data.ParsedTools)
 
 	if !hasTemplatePattern && !hasGitHubContext {
 		return

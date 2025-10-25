@@ -5,12 +5,11 @@ import (
 )
 
 // hasEditTool checks if the edit tool is enabled in the tools configuration
-func hasEditTool(tools map[string]any) bool {
-	if tools == nil {
+func hasEditTool(parsedTools *Tools) bool {
+	if parsedTools == nil {
 		return false
 	}
-	_, exists := tools["edit"]
-	return exists
+	return parsedTools.Edit != nil
 }
 
 // generateEditToolPromptStep generates a separate step for edit tool accessibility instructions
@@ -19,5 +18,5 @@ func (c *Compiler) generateEditToolPromptStep(yaml *strings.Builder, data *Workf
 	generateStaticPromptStep(yaml,
 		"Append edit tool accessibility instructions to prompt",
 		editToolPromptText,
-		hasEditTool(data.Tools))
+		hasEditTool(data.ParsedTools))
 }

@@ -1768,75 +1768,6 @@ jobs:
           To report a missing tool use the missing-tool tool from safeoutputs.
           
           PROMPT_EOF
-      - name: Append GitHub context to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
-          
-          ---
-          
-          ## GitHub Context
-          
-          The following GitHub context information is available for this workflow:
-          
-          {{#if ${{ github.repository }} }}
-          - **Repository**: `${{ github.repository }}`
-          {{/if}}
-          {{#if ${{ github.event.issue.number }} }}
-          - **Issue Number**: `#${{ github.event.issue.number }}`
-          {{/if}}
-          {{#if ${{ github.event.discussion.number }} }}
-          - **Discussion Number**: `#${{ github.event.discussion.number }}`
-          {{/if}}
-          {{#if ${{ github.event.pull_request.number }} }}
-          - **Pull Request Number**: `#${{ github.event.pull_request.number }}`
-          {{/if}}
-          {{#if ${{ github.event.comment.id }} }}
-          - **Comment ID**: `${{ github.event.comment.id }}`
-          {{/if}}
-          {{#if ${{ github.run_id }} }}
-          - **Workflow Run ID**: `${{ github.run_id }}`
-          {{/if}}
-          
-          Use this context information to understand the scope of your work.
-          
-          PROMPT_EOF
-      - name: Render template conditionals
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        with:
-          script: |
-            const fs = require("fs");
-            function isTruthy(expr) {
-              const v = expr.trim().toLowerCase();
-              return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
-            }
-            function renderMarkdownTemplate(markdown) {
-              return markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
-            }
-            function main() {
-              try {
-                const promptPath = process.env.GH_AW_PROMPT;
-                if (!promptPath) {
-                  core.setFailed("GH_AW_PROMPT environment variable is not set");
-                  process.exit(1);
-                }
-                const markdown = fs.readFileSync(promptPath, "utf8");
-                const hasConditionals = /{{#if\s+[^}]+}}/.test(markdown);
-                if (!hasConditionals) {
-                  core.info("No conditional blocks found in prompt, skipping template rendering");
-                  process.exit(0);
-                }
-                const rendered = renderMarkdownTemplate(markdown);
-                fs.writeFileSync(promptPath, rendered, "utf8");
-                core.info("Template rendered successfully");
-              } catch (error) {
-                core.setFailed(error instanceof Error ? error.message : String(error));
-              }
-            }
-            main();
       - name: Print prompt to step summary
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1929,7 +1860,6 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_CONFIG: "{\"missing_tool\":{},\"push_to_pull_request_branch\":{}}"
-          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
           XDG_CONFIG_HOME: /home/runner
@@ -2044,10 +1974,8 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          GH_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN'
           SECRET_COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
-          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
-          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
