@@ -103,6 +103,20 @@ mcp-servers:
     allowed: ["*"]
 ```
 
+**npm-based MCP Servers:**
+
+For npm packages used via `npx`, you can automatically track dependencies with Dependabot:
+
+```yaml
+mcp-servers:
+  playwright:
+    command: "npx"
+    args: ["-y", "@playwright/mcp@latest"]
+    allowed: ["*"]
+```
+
+Use `gh aw compile --dependabot` to generate `package.json`, `package-lock.json`, and Dependabot configuration automatically. See [Managing npm Dependencies with Dependabot](/gh-aw/guides/dependabot-npm/).
+
 ### 2. Docker Container MCP Servers
 
 Containerized MCP servers for third-party tools, complex dependencies, and security isolation:

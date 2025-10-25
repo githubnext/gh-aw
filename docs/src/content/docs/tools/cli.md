@@ -140,6 +140,17 @@ gh aw compile --workflows-dir custom/      # Custom workflows directory
 
 Enables enhanced security validation requiring timeouts, explicit network configuration, and blocking write permissions. Use `--strict` flag or `strict: true` in frontmatter.
 
+**Dependabot Integration:**
+
+Generate npm package manifests and Dependabot configuration when npm dependencies are detected:
+
+```bash
+gh aw compile --dependabot        # Generate manifests for npm dependencies
+gh aw compile --dependabot --force  # Force overwrite existing dependabot.yml
+```
+
+Automatically creates `package.json`, `package-lock.json`, and `.github/dependabot.yml` for workflows using npm-based MCP servers. See [Managing npm Dependencies with Dependabot](/gh-aw/guides/dependabot-npm/) for details.
+
 ## ⚙️ Workflow Operations on GitHub Actions
 
 These commands control the execution and state of your compiled agentic workflows within GitHub Actions.
