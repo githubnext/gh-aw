@@ -593,7 +593,7 @@ func (e *CopilotEngine) buildSafeOutputsMCPServerJSON(workflowData *WorkflowData
 	return MCPServerJSON{
 		Type:    "local",
 		Command: "node",
-		Args:    []string{"/tmp/gh-aw/safe-outputs/mcp-server.cjs"},
+		Args:    []string{"/tmp/gh-aw/safeoutputs/mcp-server.cjs"},
 		Env:     env,
 		Tools:   []string{"*"},
 	}
