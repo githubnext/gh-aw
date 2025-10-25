@@ -141,6 +141,8 @@
   "node": [
     "npmjs.org",
     "npmjs.com",
+    "www.npmjs.com",
+    "www.npmjs.org",
     "registry.npmjs.com",
     "registry.npmjs.org",
     "skimdb.npmjs.com",
