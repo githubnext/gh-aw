@@ -8,10 +8,10 @@ import (
 // PushToPullRequestBranchConfig holds configuration for pushing changes to a specific branch from agent output
 type PushToPullRequestBranchConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Target               string   `yaml:"target,omitempty"`             // Target for push-to-pull-request-branch: like add-comment but for pull requests
-	TitlePrefix          string   `yaml:"title-prefix,omitempty"`       // Required title prefix for pull request validation
-	Labels               []string `yaml:"labels,omitempty"`             // Required labels for pull request validation
-	IfNoChanges          string   `yaml:"if-no-changes,omitempty"`      // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
+	Target               string   `yaml:"target,omitempty"`              // Target for push-to-pull-request-branch: like add-comment but for pull requests
+	TitlePrefix          string   `yaml:"title-prefix,omitempty"`        // Required title prefix for pull request validation
+	Labels               []string `yaml:"labels,omitempty"`              // Required labels for pull request validation
+	IfNoChanges          string   `yaml:"if-no-changes,omitempty"`       // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
 	CommitTitleSuffix    string   `yaml:"commit-title-suffix,omitempty"` // Optional suffix to append to generated commit titles
 }
 
