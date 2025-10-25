@@ -5,54 +5,27 @@ sidebar:
   order: 300
 ---
 
-The `gh aw` cli provides a few tools to improve your developer experience in VS Code (or other IDEs).
+The `gh aw` CLI provides tools to improve your developer experience in VS Code and other IDEs.
 
-## Copilot instructions <a id="copilot-instructions"></a>
+## Setup
 
-The `gh aw init` command writes a [custom Copilot instructions file](https://code.visualstudio.com/docs/copilot/copilot-customization) at `.github/instructions/github-agentic-workflows.instructions.md`.
-
-:::tip[Initialize your repository]
-Run `gh aw init` once in your repository to set up Copilot instructions and prompt files:
+Run `gh aw init` once in your repository to configure Copilot integration:
 
 ```sh
 gh aw init
 ```
-:::
 
-The instructions will automatically be imported by Copilot when authoring markdown
-files under the `.github/workflows` folder.
-
-Once configured, you will notice that Copilot Chat will be much more efficient at
-generating Agentic Workflows.
+This creates two files:
+- **Copilot instructions**: `.github/instructions/github-agentic-workflows.instructions.md` - Automatically imported when authoring markdown files under `.github/workflows/`, making Copilot Chat more efficient at generating Agentic Workflows.
+- **Prompt template**: `.github/prompts/create-agentic-workflow.prompt.md` - Enables the `/create-agentic-workflow` command in Copilot Chat.
 
 ## /create-agentic-workflow command <a id="create-agentic-workflow"></a>
 
-The `gh aw init` command also creates a [prompt template](https://code.visualstudio.com/docs/copilot/copilot-customization#_prompt-templates) at `.github/prompts/create-agentic-workflow.prompt.md` that enables the `/create-agentic-workflow` command in GitHub Copilot Chat.
-
-:::tip[Initialize your repository]
-If you haven't already, run `gh aw init` to set up the prompt files:
-
-```sh
-gh aw init
-```
-:::
-
-Once the prompt file is created, you can use `/create-agentic-workflow` in Copilot Chat to interactively design and create agentic workflows with guided assistance for:
-
-- Choosing appropriate triggers (`on:` events)
-- Configuring permissions and security settings
-- Selecting tools and MCP servers
-- Setting up safe outputs and network permissions
-- Following best practices for workflow design
-
-The command provides a conversational interface that helps you build secure, well-structured agentic workflows without needing to memorize the full syntax.
+Use `/create-agentic-workflow` in Copilot Chat to interactively design workflows with guided assistance for trigger selection, permissions, security settings, tool configuration, and best practices. The conversational interface helps you build secure workflows without memorizing syntax.
 
 ## Background Compilation
 
-You can leverage tasks in VS Code to configure a background compilation of Agentic Workflows.
-
-- open or create `.vscode/tasks.json`
-- add or merge the following JSON:
+Configure VS Code to automatically compile workflows when files change. Create or update `.vscode/tasks.json` with:
 
 ```json
 {
@@ -89,8 +62,4 @@ You can leverage tasks in VS Code to configure a background compilation of Agent
 }
 ```
 
-The background compilation should start as soon as you open a Markdown file under `.github/workflows/`. If it does not start, 
-
-- open the command palette (`Ctrl + Shift + P`)
-- type `Tasks: Run Task` to start the task once
-- or type `Tasks: Managed Automatic Tasks` and select `Allow Automatic Tasks` to start it automatically.
+The task starts automatically when you open a Markdown file under `.github/workflows/`. If it doesn't start, use the command palette (`Ctrl + Shift + P`) and run `Tasks: Manage Automatic Tasks` to enable automatic task execution.
