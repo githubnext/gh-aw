@@ -743,7 +743,6 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		"headers":        true,
 		"registry":       true,
 		"allowed":        true,
-		"network":        true,
 	}
 
 	for key := range toolConfig {
@@ -943,12 +942,45 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 	// to add custom arguments without triggering custom MCP tool processing logic. Including "args"
 	// would incorrectly classify built-in tools as custom MCP tools, changing their processing behavior
 	// and causing validation errors.
-	mcpFields := []string{"type", "url", "command", "container", "env", "headers", "network"}
+	mcpFields := []string{"type", "url", "command", "container", "env", "headers"}
+	
+	// List of all known tool config fields (not just MCP)
+	knownToolFields := map[string]bool{
+		"type":            true,
+		"url":             true,
+		"command":         true,
+		"container":       true,
+		"env":             true,
+		"headers":         true,
+		"version":         true,
+		"args":            true,
+		"entrypointArgs":  true,
+		"proxy-args":      true,
+		"registry":        true,
+		"allowed":         true,
+		"mode":            true,  // for github tool
+		"github-token":    true,  // for github tool
+		"read-only":       true,  // for github tool
+		"toolset":         true,  // for github tool
+		"id":              true,  // for cache-memory (array notation)
+		"key":             true,  // for cache-memory
+		"description":     true,  // for cache-memory
+		"retention-days":  true,  // for cache-memory
+		"allowed_domains": true,  // for playwright tool
+		"allowed-domains": true,  // for playwright tool (alternative notation)
+	}
 
 	// Check new format: direct fields in tool config
 	for _, field := range mcpFields {
 		if value, exists := toolConfig[field]; exists {
 			result[field] = value
+		}
+	}
+	
+	// Check for unknown fields that might be typos or deprecated (like "network")
+	for field := range toolConfig {
+		if !knownToolFields[field] {
+			return nil, fmt.Errorf("unknown property '%s' in tool configuration", field)
 		}
 	}
 
@@ -992,40 +1024,6 @@ func validateStringProperty(toolName, propertyName string, value any, exists boo
 	return nil
 }
 
-// hasNetworkPermissions checks if a tool configuration has network permissions
-func hasNetworkPermissions(toolConfig map[string]any) (bool, []string) {
-	extract := func(network any) (bool, []string) {
-		networkMap, ok := network.(map[string]any)
-		if !ok {
-			return false, nil
-		}
-		allowed, hasAllowed := networkMap["allowed"]
-		if !hasAllowed {
-			return false, nil
-		}
-		allowedSlice, ok := allowed.([]any)
-		if !ok {
-			return false, nil
-		}
-		var domains []string
-		for _, item := range allowedSlice {
-			if str, ok := item.(string); ok {
-				domains = append(domains, str)
-			}
-		}
-		return len(domains) > 0, domains
-	}
-
-	// Check direct network field at tool level
-	if network, hasNetwork := toolConfig["network"]; hasNetwork {
-		if ok, domains := extract(network); ok {
-			return true, domains
-		}
-	}
-
-	return false, nil
-}
-
 // validateMCPRequirements validates the specific requirements for MCP configuration
 func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConfig map[string]any) error {
 	// Validate 'type' property - allow inference from other fields
@@ -1063,25 +1061,6 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 	// Validate type is one of the supported types
 	if !isMCPType(typeStr) {
 		return fmt.Errorf("tool '%s' mcp configuration 'type' value must be one of: stdio, http, local", toolName)
-	}
-
-	// Validate network permissions usage first
-	hasNetPerms, _ := hasNetworkPermissions(toolConfig)
-	if !hasNetPerms {
-		// Also check if permissions are nested in the mcp config itself
-		hasNetPerms, _ = hasNetworkPermissions(map[string]any{"mcp": mcpConfig})
-	}
-	if hasNetPerms {
-		switch typeStr {
-		case "http":
-			return fmt.Errorf("tool '%s' has network permissions configured, but network egress permissions do not apply to remote 'type: http' servers", toolName)
-		case "stdio":
-			// Network permissions only apply to stdio servers with container
-			_, hasContainer := mcpConfig["container"]
-			if !hasContainer {
-				return fmt.Errorf("tool '%s' has network permissions configured, but network egress permissions only apply to stdio MCP servers that specify a 'container'", toolName)
-			}
-		}
 	}
 
 	// Validate type-specific requirements
