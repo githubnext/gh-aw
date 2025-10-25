@@ -384,18 +384,6 @@ func (c *Compiler) generateDependabotConfig(path string, ecosystems map[string]b
 			entry.Schedule.Interval = "weekly"
 			config.Updates = append(config.Updates, entry)
 		}
-		npmUpdate.Schedule.Interval = "weekly"
-		config.Updates = append(config.Updates, npmUpdate)
-
-		dependabotLog.Print("Added npm ecosystem entry to dependabot.yml")
-		if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Added npm ecosystem to dependabot.yml"))
-		}
-	} else {
-		dependabotLog.Print("npm ecosystem already exists in dependabot.yml")
-		if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("npm ecosystem already configured in dependabot.yml"))
-		}
 	}
 
 	// Write dependabot.yml
@@ -686,9 +674,11 @@ func (c *Compiler) generateGoMod(path string, deps []GoDependency, forceOverwrit
 		for _, dep := range deps {
 			version := dep.Version
 			if version == "latest" || version == "" {
-				// For latest, we need to use a placeholder or skip
-				// Dependabot will update to actual versions
-				version = "v0.0.0"
+				// Skip dependencies without explicit versions - they should be added manually
+				// or resolved using 'go get' or 'go mod tidy'. Using v0.0.0 as a placeholder
+				// can cause issues with Go module resolution.
+				dependabotLog.Printf("Skipping %s: no version specified (use 'go get %s@latest' to resolve)", dep.Path, dep.Path)
+				continue
 			}
 			lines = append(lines, fmt.Sprintf("\t%s %s", dep.Path, version))
 		}
