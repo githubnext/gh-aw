@@ -755,11 +755,11 @@ jobs:
             const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
             if (!process.env.GH_AW_SAFE_OUTPUTS) {
               debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
-              const outputDir = path.dirname(outputFile);
-              if (!fs.existsSync(outputDir)) {
-                debug(`Creating output directory: ${outputDir}`);
-                fs.mkdirSync(outputDir, { recursive: true });
-              }
+            }
+            const outputDir = path.dirname(outputFile);
+            if (!fs.existsSync(outputDir)) {
+              debug(`Creating output directory: ${outputDir}`);
+              fs.mkdirSync(outputDir, { recursive: true });
             }
             function writeMessage(obj) {
               const json = JSON.stringify(obj);
