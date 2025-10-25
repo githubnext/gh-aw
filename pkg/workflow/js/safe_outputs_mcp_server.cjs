@@ -722,7 +722,7 @@ const ALL_TOOLS = [
   },
   {
     name: "push_to_pull_request_branch",
-    description: "Push changes to a pull request branch",
+    description: "Push changes to a pull request branch. If no branch name is specified, pushes changes from the current branch.",
     inputSchema: {
       type: "object",
       required: ["message"],
