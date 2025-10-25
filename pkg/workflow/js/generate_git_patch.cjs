@@ -222,13 +222,6 @@ async function main() {
   }
 }
 
-// Only run main if this script is being executed directly
-if (typeof module !== "undefined" && require.main === module) {
-  main().catch(error => {
-    core.setFailed(error instanceof Error ? error.message : String(error));
-  });
-}
-
 // Export functions for testing
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
@@ -239,4 +232,11 @@ if (typeof module !== "undefined" && module.exports) {
     addPatchToSummary,
     main,
   };
+}
+
+// Always run main when executed in GitHub Actions (but not during tests)
+if (typeof process !== "undefined" && process.env.NODE_ENV !== "test") {
+  main().catch(error => {
+    core.setFailed(error instanceof Error ? error.message : String(error));
+  });
 }

@@ -3258,11 +3258,6 @@ jobs:
                 await addPatchToSummary(patchPath);
               }
             }
-            if (typeof module !== "undefined" && require.main === module) {
-              main().catch(error => {
-                core.setFailed(error instanceof Error ? error.message : String(error));
-              });
-            }
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
                 extractBranchFromSafeOutputs,
@@ -3272,6 +3267,11 @@ jobs:
                 addPatchToSummary,
                 main,
               };
+            }
+            if (typeof process !== "undefined" && process.env.NODE_ENV !== "test") {
+              main().catch(error => {
+                core.setFailed(error instanceof Error ? error.message : String(error));
+              });
             }
       - name: Upload git patch
         if: always()
