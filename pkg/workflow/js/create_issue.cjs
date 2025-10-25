@@ -117,10 +117,7 @@ async function main() {
     core.info("📝 Issue creation preview written to step summary");
     return;
   }
-  // Extract parent number from issue or discussion context
   const parentIssueNumber = context.payload?.issue?.number;
-  const parentDiscussionNumber = context.payload?.discussion?.number;
-  const parentNumber = parentIssueNumber || parentDiscussionNumber;
 
   // Extract triggering context for footer generation
   const triggeringIssueNumber =
@@ -143,9 +140,9 @@ async function main() {
       `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
     );
     // Use the parent field from the item if provided, otherwise fall back to context
-    const effectiveParentNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentNumber;
-    if (effectiveParentNumber && createIssueItem.parent !== undefined) {
-      core.info(`Using explicit parent number from item: #${effectiveParentNumber}`);
+    const effectiveParentIssueNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentIssueNumber;
+    if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
+      core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
     }
     let labels = [...envLabels];
     if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
@@ -168,9 +165,9 @@ async function main() {
     if (titlePrefix && !title.startsWith(titlePrefix)) {
       title = titlePrefix + title;
     }
-    if (effectiveParentNumber) {
-      core.info("Detected issue or discussion context, parent #" + effectiveParentNumber);
-      bodyLines.push(`Related to #${effectiveParentNumber}`);
+    if (effectiveParentIssueNumber) {
+      core.info("Detected issue context, parent issue #" + effectiveParentIssueNumber);
+      bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
     }
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
@@ -208,7 +205,7 @@ async function main() {
       });
       core.info("Created issue #" + issue.number + ": " + issue.html_url);
       createdIssues.push(issue);
-      if (effectiveParentNumber) {
+      if (effectiveParentIssueNumber) {
         try {
           // First, get the node IDs for both parent and child issues
           const getIssueNodeIdQuery = `
@@ -225,7 +222,7 @@ async function main() {
           const parentResult = await github.graphql(getIssueNodeIdQuery, {
             owner: context.repo.owner,
             repo: context.repo.repo,
-            issueNumber: effectiveParentNumber,
+            issueNumber: effectiveParentIssueNumber,
           });
           const parentNodeId = parentResult.repository.issue.id;
 
@@ -257,7 +254,7 @@ async function main() {
             subIssueId: childNodeId,
           });
 
-          core.info("Linked issue #" + issue.number + " as sub-issue of #" + effectiveParentNumber);
+          core.info("Linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
         } catch (error) {
           core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
           // Fallback: add a comment if sub-issue linking fails
@@ -265,10 +262,10 @@ async function main() {
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: effectiveParentNumber,
+              issue_number: effectiveParentIssueNumber,
               body: `Created related issue: #${issue.number}`,
             });
-            core.info("Added comment to parent issue #" + effectiveParentNumber + " (sub-issue linking not available)");
+            core.info("Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
           } catch (commentError) {
             core.info(
               `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
