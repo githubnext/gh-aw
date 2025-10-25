@@ -134,11 +134,37 @@ gh aw compile --purge                      # Remove orphaned .lock.yml files
 # Development features
 gh aw compile --watch --verbose            # Auto-recompile on changes
 gh aw compile --workflows-dir custom/      # Custom workflows directory
+
+# Dependency management
+gh aw compile --dependabot                 # Generate dependency manifests
+gh aw compile --dependabot --force         # Force overwrite existing files
 ```
 
 **Strict Mode:**
 
 Enables enhanced security validation requiring timeouts, explicit network configuration, and blocking write permissions. Use `--strict` flag or `strict: true` in frontmatter.
+
+**Dependency Manifest Generation:**
+
+The `--dependabot` flag scans workflows for package dependencies and generates manifest files for automated security updates:
+
+- **npm**: Creates `package.json` and `package-lock.json` for packages used with `npx` (requires npm in PATH)
+- **pip**: Creates `requirements.txt` for Python packages
+- **Go**: Creates `go.mod` for packages installed via `go install` or `go get`
+
+The command also creates or updates `.github/dependabot.yml` to enable Dependabot monitoring. Existing manifests are merged intelligently to preserve manual entries. Use `--force` to overwrite the Dependabot configuration file if needed.
+
+```bash
+# Scan workflows and generate manifests for detected dependencies
+gh aw compile --dependabot
+
+# Force overwrite of existing dependabot.yml configuration
+gh aw compile --dependabot --force
+```
+
+:::note
+The `--dependabot` flag cannot be used with specific workflow files or custom `--workflows-dir`. It processes all workflows in `.github/workflows/`.
+:::
 
 ## ⚙️ Workflow Operations on GitHub Actions
 
