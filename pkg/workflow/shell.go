@@ -40,6 +40,9 @@ func shellEscapeArg(arg string) string {
 // backticks, backslashes, and parentheses within the command.
 // This is useful when passing a command to wrapper programs like awf that expect
 // the command as a single quoted argument.
+//
+// Special case: Parentheses immediately following $ (i.e., $(...)) are NOT escaped
+// to preserve command substitution syntax.
 func shellEscapeCommandString(cmd string) string {
 	// Escape backslashes first (must be done before other escapes)
 	escaped := strings.ReplaceAll(cmd, "\\", "\\\\")
@@ -49,10 +52,51 @@ func shellEscapeCommandString(cmd string) string {
 	escaped = strings.ReplaceAll(escaped, "$", "\\$")
 	// Escape backticks (to prevent command substitution)
 	escaped = strings.ReplaceAll(escaped, "`", "\\`")
+	
 	// Escape parentheses (to prevent subshell interpretation inside double quotes)
-	escaped = strings.ReplaceAll(escaped, "(", "\\(")
-	escaped = strings.ReplaceAll(escaped, ")", "\\)")
+	// BUT preserve command substitution syntax: \$(...) should remain as \$(...)
+	// We need to escape ( and ) except when they immediately follow \$ (which was $ before escaping)
+	result := make([]byte, 0, len(escaped)*2)
+	for i := 0; i < len(escaped); i++ {
+		ch := escaped[i]
+		if ch == '(' {
+			// Don't escape opening paren if it follows \$
+			if i >= 2 && escaped[i-2] == '\\' && escaped[i-1] == '$' {
+				result = append(result, ch)
+			} else {
+				result = append(result, '\\', ch)
+			}
+		} else if ch == ')' {
+			// Don't escape closing paren if we're inside a \$(...) construct
+			// We'll track this by looking backward for an unescaped \$(
+			inCommandSubst := false
+			depth := 0
+			for j := i - 1; j >= 0; j-- {
+				if escaped[j] == ')' && (j == 0 || escaped[j-1] != '\\') {
+					depth++
+				} else if escaped[j] == '(' {
+					if j >= 2 && escaped[j-2] == '\\' && escaped[j-1] == '$' {
+						// Found \$( - this is command substitution
+						if depth == 0 {
+							inCommandSubst = true
+							break
+						}
+						depth--
+					} else if j == 0 || escaped[j-1] != '\\' {
+						depth--
+					}
+				}
+			}
+			if inCommandSubst {
+				result = append(result, ch)
+			} else {
+				result = append(result, '\\', ch)
+			}
+		} else {
+			result = append(result, ch)
+		}
+	}
 
 	// Wrap in double quotes
-	return "\"" + escaped + "\""
+	return "\"" + string(result) + "\""
 }

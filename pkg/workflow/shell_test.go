@@ -142,7 +142,7 @@ func TestShellEscapeCommandString(t *testing.T) {
 		{
 			name:     "command with dollar sign (command substitution)",
 			input:    "echo $(date)",
-			expected: "\"echo \\$\\(date\\)\"",
+			expected: "\"echo \\$(date)\"",
 		},
 		{
 			name:     "command with backticks",
@@ -157,7 +157,7 @@ func TestShellEscapeCommandString(t *testing.T) {
 		{
 			name:     "complex copilot command",
 			input:    "npx -y @github/copilot@0.0.351 --allow-tool 'github(list_workflows)' --prompt \"$(cat /tmp/prompt.txt)\"",
-			expected: "\"npx -y @github/copilot@0.0.351 --allow-tool 'github\\(list_workflows\\)' --prompt \\\"\\$\\(cat /tmp/prompt.txt\\)\\\"\"",
+			expected: "\"npx -y @github/copilot@0.0.351 --allow-tool 'github\\(list_workflows\\)' --prompt \\\"\\$(cat /tmp/prompt.txt)\\\"\"",
 		},
 	}
 
