@@ -95,3 +95,75 @@ func stageGitAttributesIfChanged() error {
 	gitAttributesPath := filepath.Join(gitRoot, ".gitattributes")
 	return exec.Command("git", "-C", gitRoot, "add", gitAttributesPath).Run()
 }
+
+// getCurrentBranch gets the current git branch name
+func getCurrentBranch() (string, error) {
+	cmd := exec.Command("git", "branch", "--show-current")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current branch: %w", err)
+	}
+
+	branch := strings.TrimSpace(string(output))
+	if branch == "" {
+		return "", fmt.Errorf("could not determine current branch")
+	}
+
+	return branch, nil
+}
+
+// createAndSwitchBranch creates a new branch and switches to it
+func createAndSwitchBranch(branchName string, verbose bool) error {
+	if verbose {
+		fmt.Printf("Creating and switching to branch: %s\n", branchName)
+	}
+
+	cmd := exec.Command("git", "checkout", "-b", branchName)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to create and switch to branch %s: %w", branchName, err)
+	}
+
+	return nil
+}
+
+// switchBranch switches to the specified branch
+func switchBranch(branchName string, verbose bool) error {
+	if verbose {
+		fmt.Printf("Switching to branch: %s\n", branchName)
+	}
+
+	cmd := exec.Command("git", "checkout", branchName)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to switch to branch %s: %w", branchName, err)
+	}
+
+	return nil
+}
+
+// commitChanges commits all staged changes with the given message
+func commitChanges(message string, verbose bool) error {
+	if verbose {
+		fmt.Printf("Committing changes with message: %s\n", message)
+	}
+
+	cmd := exec.Command("git", "commit", "-m", message)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to commit changes: %w", err)
+	}
+
+	return nil
+}
+
+// pushBranch pushes the specified branch to origin
+func pushBranch(branchName string, verbose bool) error {
+	if verbose {
+		fmt.Printf("Pushing branch: %s\n", branchName)
+	}
+
+	cmd := exec.Command("git", "push", "-u", "origin", branchName)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to push branch %s: %w", branchName, err)
+	}
+
+	return nil
+}
