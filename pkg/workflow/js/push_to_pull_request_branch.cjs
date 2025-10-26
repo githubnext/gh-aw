@@ -56,18 +56,20 @@ async function main() {
   if (patchContent.includes("Failed to generate patch")) {
     const message = "Patch file contains error message - cannot push without changes";
 
-    switch (ifNoChanges) {
-      case "error":
-        core.setFailed(message);
-        return;
-      case "ignore":
-        // Silent success - no console output
-        return;
-      case "warn":
-      default:
-        core.info(message);
-        return;
-    }
+    // Log diagnostic information to help with troubleshooting
+    core.error("Patch file generation failed - this is an error condition that requires investigation");
+    core.error(`Patch file location: /tmp/gh-aw/aw.patch`);
+    core.error(`Patch file size: ${Buffer.byteLength(patchContent, "utf8")} bytes`);
+
+    // Show first 500 characters of patch content for diagnostics
+    const previewLength = Math.min(500, patchContent.length);
+    core.error(`Patch file preview (first ${previewLength} characters):`);
+    core.error(patchContent.substring(0, previewLength));
+
+    // This is always a failure regardless of if-no-changes configuration
+    // because the patch file contains an error message from the patch generation process
+    core.setFailed(message);
+    return;
   }
 
   // Validate patch size (unless empty)
