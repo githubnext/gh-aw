@@ -72,11 +72,11 @@ console.log("\nRunning tests...\n");
 // Test 1: Table format with new columns
 allPassed &= assertContains(
   output, 
-  "| Workflow ([source](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)) | Agent | Status | Schedule | Firewall | Edit | Bash * |", 
+  "| Workflow ([source](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)) | Agent | Status | Schedule | Command |", 
   "Table header is present with correct columns"
 );
 
-allPassed &= assertContains(output, "|----------|-------|--------|----------|----------|------|--------|", "Table separator is present");
+allPassed &= assertContains(output, "|----------|-------|--------|----------|---------|", "Table separator is present");
 
 // Test 2: Engine detection (copilot)
 allPassed &= assertContains(output, "| copilot |", "Copilot engine detected in at least one workflow");
@@ -127,32 +127,22 @@ allPassed &= assertContains(output, "| `0", "Schedule column contains cron expre
 // Test 12: Schedule column has no-schedule indicator
 allPassed &= assertContains(output, "| - |", "Schedule column has '-' for non-scheduled workflows");
 
-// Test 13: Firewall column has yes/no values
-allPassed &= assertContains(output, "| yes |", "Firewall column has 'yes' value");
-allPassed &= assertContains(output, "| no |", "Firewall column has 'no' value");
+// Test 13: Command column exists
+allPassed &= assertContains(output, "| Command |", "Command column header is present");
 
-// Test 14: Edit column has yes/no values
-const editYesCount = countOccurrences(output, "\\| yes \\|");
-const editNoCount = countOccurrences(output, "\\| no \\|");
-if (editYesCount > 0 && editNoCount > 0) {
-  console.log(`✓ PASS: Edit column has yes/no values (yes: ${editYesCount}, no: ${editNoCount})`);
-} else {
-  console.error(`❌ FAIL: Edit column should have both yes and no values (yes: ${editYesCount}, no: ${editNoCount})`);
-  allPassed = false;
-}
+// Test 14: Command column has command values
+allPassed &= assertContains(output, "`/", "Command column contains command values with backticks and /");
 
-// Test 15: Bash * column has yes/no values
-// We expect both yes and no values
-const bashYesMatches = output.match(/\|\s*yes\s*\|\s*$/gm);
-const bashNoMatches = output.match(/\|\s*no\s*\|\s*$/gm);
-if (bashYesMatches && bashYesMatches.length > 0 && bashNoMatches && bashNoMatches.length > 0) {
-  console.log(`✓ PASS: Bash * column has yes/no values (yes: ${bashYesMatches.length}, no: ${bashNoMatches.length})`);
-} else {
-  console.error(`❌ FAIL: Bash * column should have both yes and no values`);
-  allPassed = false;
-}
+// Test 15: Firewall column should NOT exist
+allPassed &= assertNotContains(output, "| Firewall |", "Firewall column header is removed");
 
-// Test 16: Verify table rows match workflow count
+// Test 16: Edit column should NOT exist
+allPassed &= assertNotContains(output, "| Edit |", "Edit column header is removed");
+
+// Test 17: Bash * column should NOT exist
+allPassed &= assertNotContains(output, "| Bash * |", "Bash * column header is removed");
+
+// Test 18: Verify table rows match workflow count
 const tableRowCount = countOccurrences(output, "\\| \\[!\\[");
 console.log(`Found ${tableRowCount} table rows with workflows`);
 if (tableRowCount >= 50) {
@@ -163,19 +153,19 @@ if (tableRowCount >= 50) {
   allPassed = false;
 }
 
-// Test 17: Verify no CardGrid remnants
+// Test 19: Verify no CardGrid remnants
 allPassed &= assertNotContains(output, "<CardGrid>", "No CardGrid component (should be table now)");
 
 allPassed &= assertNotContains(output, "<Card>", "No Card component (should be table now)");
 
-// Test 18: Verify consolidated workflow name column
+// Test 20: Verify consolidated workflow name column
 allPassed &= assertContains(
   output,
   "[source](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)",
   "Workflow column header has source link"
 );
 
-// Test 19: Verify no separate "Workflow Link" column
+// Test 21: Verify no separate "Workflow Link" column
 allPassed &= assertNotContains(output, "| Workflow Link |", "No separate 'Workflow Link' column (consolidated into first column)");
 
 
