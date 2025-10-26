@@ -69,10 +69,14 @@ let allPassed = true;
 
 console.log("\nRunning tests...\n");
 
-// Test 1: Table format
-allPassed &= assertContains(output, "| Workflow | Agent | Status | Workflow Link |", "Table header is present with correct columns");
+// Test 1: Table format with new columns
+allPassed &= assertContains(
+  output, 
+  "| Workflow ([source](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)) | Agent | Status | Schedule | Firewall | Edit | Bash * |", 
+  "Table header is present with correct columns"
+);
 
-allPassed &= assertContains(output, "|----------|-------|--------|---------------|", "Table separator is present");
+allPassed &= assertContains(output, "|----------|-------|--------|----------|----------|------|--------|", "Table separator is present");
 
 // Test 2: Engine detection (copilot)
 allPassed &= assertContains(output, "| copilot |", "Copilot engine detected in at least one workflow");
@@ -115,9 +119,40 @@ allPassed &= assertContains(
 // Test 10: Note section is present
 allPassed &= assertContains(output, ":::note", "Note section is present");
 
-allPassed &= assertContains(output, "Click on a workflow link to view the source markdown file.", "Note mentions workflow links");
+allPassed &= assertContains(output, "Click on a workflow name to view the source markdown file.", "Note mentions workflow name links");
 
-// Test 11: Verify table rows match workflow count
+// Test 11: Schedule column has cron expressions
+allPassed &= assertContains(output, "| `0", "Schedule column contains cron expressions with backticks");
+
+// Test 12: Schedule column has no-schedule indicator
+allPassed &= assertContains(output, "| - |", "Schedule column has '-' for non-scheduled workflows");
+
+// Test 13: Firewall column has yes/no values
+allPassed &= assertContains(output, "| yes |", "Firewall column has 'yes' value");
+allPassed &= assertContains(output, "| no |", "Firewall column has 'no' value");
+
+// Test 14: Edit column has yes/no values
+const editYesCount = countOccurrences(output, "\\| yes \\|");
+const editNoCount = countOccurrences(output, "\\| no \\|");
+if (editYesCount > 0 && editNoCount > 0) {
+  console.log(`✓ PASS: Edit column has yes/no values (yes: ${editYesCount}, no: ${editNoCount})`);
+} else {
+  console.error(`❌ FAIL: Edit column should have both yes and no values (yes: ${editYesCount}, no: ${editNoCount})`);
+  allPassed = false;
+}
+
+// Test 15: Bash * column has yes/no values
+// We expect both yes and no values
+const bashYesMatches = output.match(/\|\s*yes\s*\|\s*$/gm);
+const bashNoMatches = output.match(/\|\s*no\s*\|\s*$/gm);
+if (bashYesMatches && bashYesMatches.length > 0 && bashNoMatches && bashNoMatches.length > 0) {
+  console.log(`✓ PASS: Bash * column has yes/no values (yes: ${bashYesMatches.length}, no: ${bashNoMatches.length})`);
+} else {
+  console.error(`❌ FAIL: Bash * column should have both yes and no values`);
+  allPassed = false;
+}
+
+// Test 16: Verify table rows match workflow count
 const tableRowCount = countOccurrences(output, "\\| \\[!\\[");
 console.log(`Found ${tableRowCount} table rows with workflows`);
 if (tableRowCount >= 50) {
@@ -128,10 +163,21 @@ if (tableRowCount >= 50) {
   allPassed = false;
 }
 
-// Test 12: Verify no CardGrid remnants
+// Test 17: Verify no CardGrid remnants
 allPassed &= assertNotContains(output, "<CardGrid>", "No CardGrid component (should be table now)");
 
 allPassed &= assertNotContains(output, "<Card>", "No Card component (should be table now)");
+
+// Test 18: Verify consolidated workflow name column
+allPassed &= assertContains(
+  output,
+  "[source](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)",
+  "Workflow column header has source link"
+);
+
+// Test 19: Verify no separate "Workflow Link" column
+allPassed &= assertNotContains(output, "| Workflow Link |", "No separate 'Workflow Link' column (consolidated into first column)");
+
 
 // Summary
 console.log("\n" + "=".repeat(50));

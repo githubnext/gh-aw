@@ -97,6 +97,117 @@ function extractEngineFromMarkdown(mdFilePath) {
 }
 
 /**
+ * Extract schedule from a markdown workflow file
+ * Returns the cron schedule or null if not scheduled
+ */
+function extractScheduleFromMarkdown(mdFilePath) {
+  try {
+    if (!fs.existsSync(mdFilePath)) {
+      return null;
+    }
+
+    const content = fs.readFileSync(mdFilePath, "utf-8");
+
+    // Look for schedule field with cron in frontmatter
+    // schedule:
+    //   - cron: "0 0 * * *"
+    const cronMatch = content.match(/^\s+[-\s]*cron:\s*["']([^"'\n]+)["']/m);
+    if (cronMatch) {
+      return cronMatch[1];
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`Error extracting schedule from ${mdFilePath}:`, error.message);
+    return null;
+  }
+}
+
+/**
+ * Check if firewall is enabled in a markdown workflow file
+ * Returns true if network.firewall is true
+ */
+function hasFirewall(mdFilePath) {
+  try {
+    if (!fs.existsSync(mdFilePath)) {
+      return false;
+    }
+
+    const content = fs.readFileSync(mdFilePath, "utf-8");
+
+    // Look for network.firewall: true in frontmatter
+    // network:
+    //   firewall: true
+    const firewallMatch = content.match(/^network:\s*\n\s+firewall:\s*true/m);
+    if (firewallMatch) {
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error(`Error checking firewall in ${mdFilePath}:`, error.message);
+    return false;
+  }
+}
+
+/**
+ * Check if edit tool is enabled in a markdown workflow file
+ * Returns true if tools.edit exists
+ */
+function hasEditTool(mdFilePath) {
+  try {
+    if (!fs.existsSync(mdFilePath)) {
+      return false;
+    }
+
+    const content = fs.readFileSync(mdFilePath, "utf-8");
+
+    // Look for edit: in tools section of frontmatter
+    // tools:
+    //   edit:
+    const editMatch = content.match(/^tools:\s*\n(?:\s+\w+:.*\n)*\s+edit:/m);
+    if (editMatch) {
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error(`Error checking edit tool in ${mdFilePath}:`, error.message);
+    return false;
+  }
+}
+
+/**
+ * Check if bash tool has wildcard "*" in a markdown workflow file
+ * Returns true if bash has "*" value
+ */
+function hasBashWildcard(mdFilePath) {
+  try {
+    if (!fs.existsSync(mdFilePath)) {
+      return false;
+    }
+
+    const content = fs.readFileSync(mdFilePath, "utf-8");
+
+    // Look for bash: followed by "*" or array containing "*"
+    // bash:
+    //   - "*"
+    // or
+    // bash: "*"
+    const bashWildcardMatch = content.match(/^  bash:\s*\n\s+[-\s]*["']?\*["']?/m) || 
+                             content.match(/^  bash:\s*["']?\*["']?$/m);
+    if (bashWildcardMatch) {
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error(`Error checking bash wildcard in ${mdFilePath}:`, error.message);
+    return false;
+  }
+}
+
+/**
  * Generate the markdown documentation
  */
 function generateMarkdown(workflows) {
@@ -119,24 +230,34 @@ function generateMarkdown(workflows) {
   workflows.sort((a, b) => a.name.localeCompare(b.name));
 
   // Generate table header
-  lines.push("| Workflow | Agent | Status | Workflow Link |");
-  lines.push("|----------|-------|--------|---------------|");
+  lines.push("| Workflow ([source](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)) | Agent | Status | Schedule | Firewall | Edit | Bash * |");
+  lines.push("|----------|-------|--------|----------|----------|------|--------|");
 
   // Generate table rows
   for (const workflow of workflows) {
     const agent = workflow.engine || "copilot";
     const statusBadge = `[![${workflow.name}](${workflow.badgeUrl})](${workflow.workflowUrl})`;
-    const workflowLink = workflow.mdFilename
-      ? `[${workflow.mdFilename}](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/workflows/${workflow.mdFilename})`
-      : "-";
+    
+    // Consolidate name and source link
+    const workflowNameWithLink = workflow.mdFilename
+      ? `[${workflow.name}](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/workflows/${workflow.mdFilename})`
+      : workflow.name;
+    
+    // Format schedule - show cron or "-"
+    const schedule = workflow.schedule ? `\`${workflow.schedule}\`` : "-";
+    
+    // Format boolean columns as yes/no
+    const firewall = workflow.firewall ? "yes" : "no";
+    const edit = workflow.edit ? "yes" : "no";
+    const bashWildcard = workflow.bashWildcard ? "yes" : "no";
 
-    lines.push(`| ${workflow.name} | ${agent} | ${statusBadge} | ${workflowLink} |`);
+    lines.push(`| ${workflowNameWithLink} | ${agent} | ${statusBadge} | ${schedule} | ${firewall} | ${edit} | ${bashWildcard} |`);
   }
 
   lines.push("");
   lines.push(":::note");
   lines.push(
-    "Status badges update automatically based on the latest workflow runs. Click on a badge to view the workflow details and run history. Click on a workflow link to view the source markdown file."
+    "Status badges update automatically based on the latest workflow runs. Click on a badge to view the workflow details and run history. Click on a workflow name to view the source markdown file."
   );
   lines.push(":::");
   lines.push("");
@@ -168,12 +289,20 @@ const workflows = lockFiles
     const mdFilename = workflowInfo.filename.replace(".lock.yml", ".md");
     const mdFilePath = path.join(WORKFLOWS_DIR, mdFilename);
 
-    // Extract engine from markdown file
+    // Extract all workflow metadata from markdown file
     const engine = extractEngineFromMarkdown(mdFilePath);
+    const schedule = extractScheduleFromMarkdown(mdFilePath);
+    const firewall = hasFirewall(mdFilePath);
+    const edit = hasEditTool(mdFilePath);
+    const bashWildcard = hasBashWildcard(mdFilePath);
 
     return {
       ...workflowInfo,
       engine: engine,
+      schedule: schedule,
+      firewall: firewall,
+      edit: edit,
+      bashWildcard: bashWildcard,
       mdFilename: fs.existsSync(mdFilePath) ? mdFilename : null,
     };
   })
