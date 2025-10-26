@@ -4144,11 +4144,8 @@ jobs:
               if (!isEmpty) {
                 core.info("Applying patch...");
                 const patchLines = patchContent.split("\n");
-                const linesToLog = Math.min(500, patchLines.length);
-                core.info(`Patch preview (first ${linesToLog} of ${patchLines.length} lines):`);
-                for (let i = 0; i < linesToLog; i++) {
-                  core.info(patchLines[i]);
-                }
+                const previewLines = patchLines.slice(0, 500).join("\n");
+                core.info(`Patch preview (first ${Math.min(500, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
                 await exec.exec("git am /tmp/gh-aw/aw.patch");
                 core.info("Patch applied successfully");
                 try {
@@ -5118,11 +5115,8 @@ jobs:
                   }
                   const finalPatchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
                   const patchLines = finalPatchContent.split("\n");
-                  const linesToLog = Math.min(500, patchLines.length);
-                  core.info(`Patch preview (first ${linesToLog} of ${patchLines.length} lines):`);
-                  for (let i = 0; i < linesToLog; i++) {
-                    core.info(patchLines[i]);
-                  }
+                  const previewLines = patchLines.slice(0, 500).join("\n");
+                  core.info(`Patch preview (first ${Math.min(500, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
                   await exec.exec("git am /tmp/gh-aw/aw.patch");
                   core.info("Patch applied successfully");
                   await exec.exec(`git push origin ${branchName}`);
