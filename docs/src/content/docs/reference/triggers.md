@@ -73,7 +73,61 @@ on:
 
 ### Command Triggers (`command:`)
 
-An additional kind of trigger called `command:` is supported, see [Command Triggers](/gh-aw/reference/command-triggers/) for special `/my-bot` triggers and context text functionality.
+The `command:` trigger creates workflows that respond to `/command-name` mentions in issues, pull requests, and comments. See [Command Triggers](/gh-aw/reference/command-triggers/) for complete documentation.
+
+**Basic Configuration:**
+```yaml
+on:
+  command:
+    name: my-bot
+```
+
+**Shorthand Format:**
+```yaml
+on:
+  command: "my-bot"
+```
+
+**With Event Filtering:**
+```yaml
+on:
+  command:
+    name: summarize
+    events: [issues, issue_comment]  # Only in issue bodies and comments
+```
+
+**Complete Workflow Example:**
+```aw wrap
+---
+on:
+  command:
+    name: code-review
+    events: [pull_request, pull_request_comment]
+permissions:
+  contents: read
+  pull-requests: write
+engine: claude
+tools:
+  github:
+    allowed: [add_pull_request_review_comment]
+safe-outputs:
+  add-comment:
+    max: 5
+timeout_minutes: 10
+---
+
+# Code Review Assistant
+
+When someone mentions /code-review in a pull request or PR comment,
+analyze the code changes and provide detailed feedback.
+
+The current context is: "${{ needs.activation.outputs.text }}"
+
+Review the pull request changes and add helpful review comments on specific
+lines of code where improvements can be made.
+```
+
+The command must appear as the **first word** in the comment or body text. Command workflows automatically add the "eyes" (👀) reaction and edit comments with workflow run links.
 
 ### Label Filtering (`names:`)
 

@@ -43,6 +43,73 @@ This declares that the workflow should create at most one new issue.
 
 Custom safe output types can be defined through [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/).
 
+### Custom Safe Output Jobs (`jobs:`)
+
+The `jobs:` field enables custom post-processing jobs that execute after the main agentic workflow completes. Each job must define inputs that become callable tool parameters.
+
+**Basic Configuration:**
+```yaml
+safe-outputs:
+  jobs:
+    notify-slack:
+      description: "Send notification to Slack"
+      runs-on: ubuntu-latest
+      inputs:
+        message:
+          description: "Notification message"
+          required: true
+          type: string
+      steps:
+        - name: Send to Slack
+          run: echo "Sending notification..."
+```
+
+**With Full Configuration:**
+```yaml
+safe-outputs:
+  jobs:
+    deploy-app:
+      description: "Deploy application to production"
+      runs-on: ubuntu-latest
+      output: "Deployment completed successfully!"
+      permissions:
+        contents: write
+        deployments: write
+      env:
+        DEPLOY_ENV: production
+      inputs:
+        environment:
+          description: "Target deployment environment"
+          required: true
+          type: choice
+          options: ["staging", "production"]
+        force:
+          description: "Force deployment"
+          required: false
+          type: boolean
+          default: "false"
+      steps:
+        - name: Deploy application
+          uses: actions/github-script@v8
+          env:
+            ENVIRONMENT: ${{ inputs.environment }}
+            FORCE: ${{ inputs.force }}
+          with:
+            script: |
+              const env = process.env.ENVIRONMENT;
+              const force = process.env.FORCE === 'true';
+              core.info(`Deploying to ${env}${force ? ' (forced)' : ''}`);
+```
+
+**Key Features:**
+- Custom jobs are registered as MCP tools for the agentic workflow to call
+- `inputs:` section is required and defines tool parameters
+- `output:` field provides custom success message
+- Supports all standard GitHub Actions job properties (`runs-on`, `permissions`, `env`, `if`, `timeout-minutes`)
+- Jobs automatically download agent output artifact via `$GH_AW_AGENT_OUTPUT` environment variable
+
+See [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/) for detailed documentation.
+
 ### New Issue Creation (`create-issue:`)
 
 Adding issue creation to the `safe-outputs:` section declares that the workflow should conclude with the creation of GitHub issues based on the workflow's output.
