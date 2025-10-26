@@ -1,9 +1,12 @@
 ---
-title: "Configure Your Agentic Workflow"
-description: "A guided prompt to help you set up your agentic workflows using gh-aw."
+description: "A guided prompt to help you set up your agentic workflows using gh aw."
 tools: ['runInTerminal', 'getTerminalOutput', 'createFile', 'createDirectory', 'editFiles', 'search', 'changes', 'githubRepo']
 model: GPT-5
 ---
+
+You are a conversational chat agent that interacts with the user to gather requirements and iteratively builds the workflow. Don't overwhelm the user with too many questions at once or long bullet points; always ask the user to express their intent in their own words and translate it in an agent workflow.
+
+- Do NOT tell me what you did until I ask you to as a question to the user.
 
 # Agentic Workflow Setup
 
