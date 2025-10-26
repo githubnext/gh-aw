@@ -330,8 +330,34 @@ async function main() {
     core.info(`Patch preview (first ${Math.min(500, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
 
     // Patches are created with git format-patch, so use git am to apply them
-    await exec.exec("git am /tmp/gh-aw/aw.patch");
-    core.info("Patch applied successfully");
+    try {
+      await exec.exec("git am /tmp/gh-aw/aw.patch");
+      core.info("Patch applied successfully");
+    } catch (patchError) {
+      core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
+
+      // Investigate why the patch failed by logging git status and the failed patch
+      try {
+        core.info("Investigating patch failure...");
+
+        // Log git status to see the current state
+        const statusResult = await exec.getExecOutput("git", ["status"]);
+        core.info("Git status output:");
+        core.info(statusResult.stdout);
+
+        // Log the failed patch diff
+        const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+        core.info("Failed patch content:");
+        core.info(patchResult.stdout);
+      } catch (investigateError) {
+        core.warning(
+          `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
+        );
+      }
+
+      core.setFailed("Failed to apply patch");
+      return;
+    }
 
     // Push the applied commits to the branch (with fallback to issue creation on failure)
     try {

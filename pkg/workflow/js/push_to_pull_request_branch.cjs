@@ -316,6 +316,26 @@ async function main() {
       core.info(`Changes committed and pushed to branch: ${branchName}`);
     } catch (error) {
       core.error(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
+
+      // Investigate why the patch failed by logging git status and the failed patch
+      try {
+        core.info("Investigating patch failure...");
+
+        // Log git status to see the current state
+        const statusResult = await exec.getExecOutput("git", ["status"]);
+        core.info("Git status output:");
+        core.info(statusResult.stdout);
+
+        // Log the failed patch diff
+        const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+        core.info("Failed patch content:");
+        core.info(patchResult.stdout);
+      } catch (investigateError) {
+        core.warning(
+          `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
+        );
+      }
+
       core.setFailed("Failed to apply patch");
       return;
     }

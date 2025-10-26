@@ -4835,6 +4835,19 @@ jobs:
                   core.info(`Changes committed and pushed to branch: ${branchName}`);
                 } catch (error) {
                   core.error(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
+                  try {
+                    core.info("Investigating patch failure...");
+                    const statusResult = await exec.getExecOutput("git", ["status"]);
+                    core.info("Git status output:");
+                    core.info(statusResult.stdout);
+                    const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+                    core.info("Failed patch content:");
+                    core.info(patchResult.stdout);
+                  } catch (investigateError) {
+                    core.warning(
+                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
+                    );
+                  }
                   core.setFailed("Failed to apply patch");
                   return;
                 }

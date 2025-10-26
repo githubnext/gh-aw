@@ -960,4 +960,160 @@ Subject: Add new feature
       expect(mockExec.exec).toHaveBeenCalledWith("git am /tmp/gh-aw/aw.patch");
     });
   });
+
+  describe("Patch failure investigation", () => {
+    beforeEach(() => {
+      // Add writeFileSync to mockFs
+      mockFs.writeFileSync = vi.fn();
+    });
+
+    it("should investigate patch failure by logging git status and failed patch", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Mock git am to fail
+      let gitAmCalled = false;
+      mockExec.exec.mockImplementation(async (cmd, args) => {
+        if (typeof cmd === "string" && cmd.includes("git am")) {
+          gitAmCalled = true;
+          throw new Error("Patch does not apply");
+        }
+        return 0;
+      });
+
+      // Mock getExecOutput for investigation commands
+      mockExec.getExecOutput.mockImplementation(async (command, args) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "feature-branch",
+            title: "Test PR Title",
+            labels: ["bug", "enhancement"],
+          };
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData) + "\n",
+            stderr: "",
+          });
+        }
+
+        // Handle git status investigation
+        if (command === "git" && args && args[0] === "status") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "On branch feature-branch\nYour branch is up to date\n",
+            stderr: "",
+          });
+        }
+
+        // Handle git am --show-current-patch=diff investigation
+        if (command === "git" && args && args[0] === "am" && args[1] === "--show-current-patch=diff") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "diff --git a/conflicting.txt b/conflicting.txt\n+conflicting line\n",
+            stderr: "",
+          });
+        }
+
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+        });
+      });
+
+      // Execute the script
+      await executeScript();
+
+      // Verify git am was called and failed
+      expect(gitAmCalled).toBe(true);
+
+      // Verify investigation commands were called
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["status"]);
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["am", "--show-current-patch=diff"]);
+
+      // Verify investigation logs
+      expect(mockCore.info).toHaveBeenCalledWith("Investigating patch failure...");
+      expect(mockCore.info).toHaveBeenCalledWith("Git status output:");
+      expect(mockCore.info).toHaveBeenCalledWith("On branch feature-branch\nYour branch is up to date\n");
+      expect(mockCore.info).toHaveBeenCalledWith("Failed patch content:");
+      expect(mockCore.info).toHaveBeenCalledWith("diff --git a/conflicting.txt b/conflicting.txt\n+conflicting line\n");
+
+      // Verify setFailed was called
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to apply patch");
+    });
+
+    it("should handle investigation failure gracefully", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Mock git am to fail
+      mockExec.exec.mockImplementation(async (cmd, args) => {
+        if (typeof cmd === "string" && cmd.includes("git am")) {
+          throw new Error("Patch does not apply");
+        }
+        return 0;
+      });
+
+      // Mock investigation commands to also fail
+      mockExec.getExecOutput.mockImplementation(async (command, args) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "feature-branch",
+            title: "Test PR Title",
+            labels: [],
+          };
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData) + "\n",
+            stderr: "",
+          });
+        }
+
+        // Make git status and git am --show-current-patch fail
+        if (command === "git") {
+          throw new Error("Git command failed");
+        }
+
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+        });
+      });
+
+      // Execute the script
+      await executeScript();
+
+      // Verify investigation was attempted
+      expect(mockCore.info).toHaveBeenCalledWith("Investigating patch failure...");
+
+      // Verify warning about investigation failure
+      expect(mockCore.warning).toHaveBeenCalledWith("Failed to investigate patch failure: Git command failed");
+
+      // Verify setFailed was still called
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to apply patch");
+    });
+  });
 });
