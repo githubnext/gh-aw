@@ -754,19 +754,35 @@ Test that the push-to-pull-request-branch job includes working-directory configu
 		t.Errorf("Generated workflow should contain working-directory: ${{ github.workspace }}\nGenerated workflow:\n%s", lockContentStr)
 	}
 
+	// Extract the push_to_pull_request_branch job section to check field ordering
+	jobStartIdx := strings.Index(lockContentStr, "  push_to_pull_request_branch:")
+	if jobStartIdx == -1 {
+		t.Fatal("Could not find push_to_pull_request_branch job section")
+	}
+
+	// Find the next job (or end of file) to get the job boundary
+	jobEndIdx := strings.Index(lockContentStr[jobStartIdx+1:], "\njobs:")
+	if jobEndIdx == -1 {
+		jobEndIdx = len(lockContentStr)
+	} else {
+		jobEndIdx = jobStartIdx + 1 + jobEndIdx
+	}
+
+	jobSection := lockContentStr[jobStartIdx:jobEndIdx]
+
 	// Verify that the working-directory comes after github-token in the with section
-	githubTokenIdx := strings.Index(lockContentStr, "github-token:")
-	workingDirIdx := strings.Index(lockContentStr, "working-directory:")
-	scriptIdx := strings.Index(lockContentStr, "script: |")
+	githubTokenIdx := strings.Index(jobSection, "github-token:")
+	workingDirIdx := strings.Index(jobSection, "working-directory:")
+	scriptIdx := strings.Index(jobSection, "script: |")
 
 	if githubTokenIdx == -1 {
-		t.Error("github-token not found in generated workflow")
+		t.Error("github-token not found in push_to_pull_request_branch job")
 	}
 	if workingDirIdx == -1 {
-		t.Error("working-directory not found in generated workflow")
+		t.Error("working-directory not found in push_to_pull_request_branch job")
 	}
 	if scriptIdx == -1 {
-		t.Error("script section not found in generated workflow")
+		t.Error("script section not found in push_to_pull_request_branch job")
 	}
 
 	// Verify order: github-token comes before working-directory, which comes before script
