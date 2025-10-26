@@ -791,6 +791,10 @@ network:
     # (optional)
     version: "example-value"
 
+    # AWF log level (default: info). Valid values: debug, info, warn, error
+    # (optional)
+    log-level: "debug"
+
 # Conditional execution expression
 # (optional)
 if: "example-value"

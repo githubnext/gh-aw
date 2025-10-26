@@ -301,6 +301,12 @@ async function main() {
         core.info(`Patch modified with commit title suffix: "${commitTitleSuffix}"`);
       }
 
+      // Log first 500 lines of patch for debugging
+      const finalPatchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+      const patchLines = finalPatchContent.split("\n");
+      const previewLines = patchLines.slice(0, 500).join("\n");
+      core.info(`Patch preview (first ${Math.min(500, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
+
       // Patches are created with git format-patch, so use git am to apply them
       await exec.exec("git am /tmp/gh-aw/aw.patch");
       core.info("Patch applied successfully");
