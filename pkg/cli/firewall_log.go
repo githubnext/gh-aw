@@ -16,7 +16,6 @@ import (
 // Pre-compiled regexes for firewall log parsing (performance optimization)
 var (
 	firewallLogFieldSplitter = regexp.MustCompile(`(?:[^\s"]+|"[^"]*")+`)
-	sanitizeNamePattern      = regexp.MustCompile(`[^a-z0-9._-]`)
 )
 
 // Firewall Log Parser
@@ -436,19 +435,4 @@ func analyzeMultipleFirewallLogs(logsDir string, verbose bool) (*FirewallAnalysi
 	sort.Strings(aggregated.DeniedDomains)
 
 	return aggregated, nil
-}
-
-// sanitizeWorkflowName sanitizes a workflow name for use in file paths
-// This mirrors the JavaScript implementation
-func sanitizeWorkflowName(name string) string {
-	name = strings.ToLower(name)
-	name = strings.ReplaceAll(name, ":", "-")
-	name = strings.ReplaceAll(name, "\\", "-")
-	name = strings.ReplaceAll(name, "/", "-")
-	name = strings.ReplaceAll(name, " ", "-")
-
-	// Replace any other non-alphanumeric characters (except . _ -) with "-"
-	name = sanitizeNamePattern.ReplaceAllString(name, "-")
-
-	return name
 }
