@@ -37,7 +37,7 @@ func shellEscapeArg(arg string) string {
 // shellEscapeCommandString escapes a complete command string (which may already contain
 // quoted arguments) for passing as a single argument to another command.
 // It wraps the command in double quotes and escapes any double quotes, dollar signs,
-// backticks, and backslashes within the command.
+// backticks, backslashes, and parentheses within the command.
 // This is useful when passing a command to wrapper programs like awf that expect
 // the command as a single quoted argument.
 func shellEscapeCommandString(cmd string) string {
@@ -49,6 +49,9 @@ func shellEscapeCommandString(cmd string) string {
 	escaped = strings.ReplaceAll(escaped, "$", "\\$")
 	// Escape backticks (to prevent command substitution)
 	escaped = strings.ReplaceAll(escaped, "`", "\\`")
+	// Escape parentheses (to prevent subshell interpretation inside double quotes)
+	escaped = strings.ReplaceAll(escaped, "(", "\\(")
+	escaped = strings.ReplaceAll(escaped, ")", "\\)")
 
 	// Wrap in double quotes
 	return "\"" + escaped + "\""
