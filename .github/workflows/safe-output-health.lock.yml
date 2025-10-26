@@ -1250,6 +1250,44 @@ jobs:
           </details>
           ```
           
+          ## Reporting Workflow Run Information
+          
+          When analyzing workflow run logs or reporting information from GitHub Actions runs:
+          
+          ### 1. Workflow Run ID Formatting
+          
+          **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
+          
+          **Format:**
+          ```markdown
+          [Run #12345](https://github.com/owner/repo/actions/runs/12345)
+          ```
+          
+          **Example:**
+          ```markdown
+          Analysis based on [Run #456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
+          ```
+          
+          ### 2. Document References for Workflow Runs
+          
+          When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
+          
+          **Format:**
+          ```markdown
+          ---
+          
+          **References:**
+          - [Run #12345](https://github.com/owner/repo/actions/runs/12345)
+          - [Run #12346](https://github.com/owner/repo/actions/runs/12346)
+          - [Run #12347](https://github.com/owner/repo/actions/runs/12347)
+          ```
+          
+          **Guidelines:**
+          - Include **maximum 3 references** to keep reports concise
+          - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
+          - Always use the actual URL from the workflow run data (available in `url`, `RunURL`, or similar fields)
+          - If analyzing more than 3 runs, select the most important ones for references
+          
           # Safe Output Health Monitor
           
           You are the Safe Output Health Monitor - an expert system that monitors and analyzes the health of safe output jobs in agentic workflows.
@@ -1570,6 +1608,12 @@ jobs:
           
           ## Output Requirements
           
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
           Your output must be well-structured and actionable. **You must create a discussion** for every audit run with the findings.
           
           Update cache memory with today's audit data for future reference and trend analysis.
