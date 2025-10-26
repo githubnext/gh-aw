@@ -48,7 +48,8 @@ func TestGenerateGitHubContextPromptStep(t *testing.T) {
 			compiler := NewCompiler(false, "", "test")
 			var yaml strings.Builder
 			data := &WorkflowData{
-				Tools: tt.tools,
+				Tools:       tt.tools,
+				ParsedTools: NewTools(tt.tools), // Populate ParsedTools from Tools map
 			}
 
 			compiler.generateGitHubContextPromptStep(&yaml, data)
@@ -134,6 +135,7 @@ func TestGenerateTemplateRenderingWithGitHubContext(t *testing.T) {
 			data := &WorkflowData{
 				MarkdownContent: tt.markdownContent,
 				Tools:           tools,
+				ParsedTools:     NewTools(tools), // Populate ParsedTools from Tools map
 			}
 
 			compiler.generateTemplateRenderingStep(&yaml, data)

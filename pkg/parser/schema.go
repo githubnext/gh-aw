@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -120,24 +121,88 @@ func ValidateMCPConfigWithSchema(mcpConfig map[string]any, toolName string) erro
 }
 
 // validateWithSchema validates frontmatter against a JSON schema
-func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) error {
+// Cached compiled schemas to avoid recompiling on every validation
+var (
+	mainWorkflowSchemaOnce sync.Once
+	includedFileSchemaOnce sync.Once
+	mcpConfigSchemaOnce    sync.Once
+
+	compiledMainWorkflowSchema *jsonschema.Schema
+	compiledIncludedFileSchema *jsonschema.Schema
+	compiledMcpConfigSchema    *jsonschema.Schema
+
+	mainWorkflowSchemaError error
+	includedFileSchemaError error
+	mcpConfigSchemaError    error
+)
+
+// getCompiledMainWorkflowSchema returns the compiled main workflow schema, compiling it once and caching
+func getCompiledMainWorkflowSchema() (*jsonschema.Schema, error) {
+	mainWorkflowSchemaOnce.Do(func() {
+		compiledMainWorkflowSchema, mainWorkflowSchemaError = compileSchema(mainWorkflowSchema, "http://contoso.com/main-workflow-schema.json")
+	})
+	return compiledMainWorkflowSchema, mainWorkflowSchemaError
+}
+
+// getCompiledIncludedFileSchema returns the compiled included file schema, compiling it once and caching
+func getCompiledIncludedFileSchema() (*jsonschema.Schema, error) {
+	includedFileSchemaOnce.Do(func() {
+		compiledIncludedFileSchema, includedFileSchemaError = compileSchema(includedFileSchema, "http://contoso.com/included-file-schema.json")
+	})
+	return compiledIncludedFileSchema, includedFileSchemaError
+}
+
+// getCompiledMcpConfigSchema returns the compiled MCP config schema, compiling it once and caching
+func getCompiledMcpConfigSchema() (*jsonschema.Schema, error) {
+	mcpConfigSchemaOnce.Do(func() {
+		compiledMcpConfigSchema, mcpConfigSchemaError = compileSchema(mcpConfigSchema, "http://contoso.com/mcp-config-schema.json")
+	})
+	return compiledMcpConfigSchema, mcpConfigSchemaError
+}
+
+// compileSchema compiles a JSON schema from a JSON string
+func compileSchema(schemaJSON, schemaURL string) (*jsonschema.Schema, error) {
 	// Create a new compiler
 	compiler := jsonschema.NewCompiler()
 
 	// Parse the schema JSON first
 	var schemaDoc any
 	if err := json.Unmarshal([]byte(schemaJSON), &schemaDoc); err != nil {
-		return fmt.Errorf("schema validation error for %s: failed to parse schema JSON: %w", context, err)
+		return nil, fmt.Errorf("failed to parse schema JSON: %w", err)
 	}
 
-	// Add the schema as a resource with a temporary URL
-	schemaURL := "http://contoso.com/schema.json"
+	// Add the schema as a resource
 	if err := compiler.AddResource(schemaURL, schemaDoc); err != nil {
-		return fmt.Errorf("schema validation error for %s: failed to add schema resource: %w", context, err)
+		return nil, fmt.Errorf("failed to add schema resource: %w", err)
 	}
 
 	// Compile the schema
 	schema, err := compiler.Compile(schemaURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compile schema: %w", err)
+	}
+
+	return schema, nil
+}
+
+func validateWithSchema(frontmatter map[string]any, schemaJSON, context string) error {
+	// Determine which cached schema to use based on the schemaJSON
+	var schema *jsonschema.Schema
+	var err error
+
+	switch schemaJSON {
+	case mainWorkflowSchema:
+		schema, err = getCompiledMainWorkflowSchema()
+	case includedFileSchema:
+		schema, err = getCompiledIncludedFileSchema()
+	case mcpConfigSchema:
+		schema, err = getCompiledMcpConfigSchema()
+	default:
+		// Fallback for unknown schemas (shouldn't happen in normal operation)
+		// Compile the schema on-the-fly
+		schema, err = compileSchema(schemaJSON, "http://contoso.com/schema.json")
+	}
+
 	if err != nil {
 		return fmt.Errorf("schema validation error for %s: %w", context, err)
 	}
@@ -360,42 +425,10 @@ func min(a, b int) int {
 
 // validateEngineSpecificRules validates engine-specific rules that are not easily expressed in JSON schema
 func validateEngineSpecificRules(frontmatter map[string]any) error {
-	// Check if engine is configured
-	engine, ok := frontmatter["engine"]
-	if !ok {
-		return nil // No engine specified, nothing to validate
-	}
-
-	// Handle string format engine
-	if engineStr, ok := engine.(string); ok {
-		schemaLog.Printf("Validating engine-specific rules for string engine: %s", engineStr)
-		// String format doesn't support permissions, so no validation needed
-		_ = engineStr
-		return nil
-	}
-
-	// Handle object format engine
-	engineMap, ok := engine.(map[string]any)
-	if !ok {
-		return nil // Invalid engine format, but this should be caught by schema validation
-	}
-
-	// Check engine ID
-	engineID, ok := engineMap["id"].(string)
-	if !ok {
-		return nil // Missing or invalid ID, but this should be caught by schema validation
-	}
-
-	schemaLog.Printf("Validating engine-specific rules for engine: %s", engineID)
-
-	// Check if codex engine has permissions configured
-	if engineID == "codex" {
-		if _, hasPermissions := engineMap["permissions"]; hasPermissions {
-			schemaLog.Printf("Codex engine has invalid permissions configuration")
-			return errors.New("engine permissions are not supported for codex engine. Only Claude engine supports permissions configuration")
-		}
-	}
-
+	// Currently no engine-specific validation rules
+	// Network and firewall configuration is handled at the top-level, not under engine
+	// This function is kept as a placeholder for potential future engine-specific validation
+	_ = frontmatter
 	return nil
 }
 

@@ -656,11 +656,11 @@ This workflow validates both PR title prefix and labels.
 	}
 }
 
-func TestPushToPullRequestBranchWithCommitTitlePrefix(t *testing.T) {
+func TestPushToPullRequestBranchWithCommitTitleSuffix(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 
-	// Create a test markdown file with commit-title-prefix configuration
+	// Create a test markdown file with commit-title-suffix configuration
 	testMarkdown := `---
 on:
   pull_request:
@@ -668,16 +668,16 @@ on:
 safe-outputs:
   push-to-pull-request-branch:
     target: "triggering"
-    commit-title-prefix: "[skip ci] "
+    commit-title-suffix: " [skip ci]"
 ---
 
-# Test Push to Branch with Commit Title Prefix
+# Test Push to Branch with Commit Title Suffix
 
-This workflow prepends a prefix to commit titles.
+This workflow appends a suffix to commit titles.
 `
 
 	// Write the test file
-	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-commit-title-prefix.md")
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-commit-title-suffix.md")
 	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
 		t.Fatalf("Failed to write test markdown file: %v", err)
 	}
@@ -698,8 +698,100 @@ This workflow prepends a prefix to commit titles.
 
 	lockContentStr := string(lockContent)
 
-	// Verify that commit title prefix configuration is passed correctly
-	if !strings.Contains(lockContentStr, `GH_AW_COMMIT_TITLE_PREFIX: "[skip ci] "`) {
-		t.Errorf("Generated workflow should contain commit title prefix configuration")
+	// Verify that commit title suffix configuration is passed correctly
+	if !strings.Contains(lockContentStr, `GH_AW_COMMIT_TITLE_SUFFIX: " [skip ci]"`) {
+		t.Errorf("Generated workflow should contain commit title suffix configuration")
+	}
+}
+
+func TestPushToPullRequestBranchWithWorkingDirectory(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a test markdown file with push-to-pull-request-branch configuration
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened]
+safe-outputs:
+  push-to-pull-request-branch:
+---
+
+# Test Push to PR Branch with Working Directory
+
+Test that the push-to-pull-request-branch job includes working-directory configuration.
+`
+
+	// Write the test file
+	mdFile := filepath.Join(tmpDir, "test-push-working-dir.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	// Create compiler and compile the workflow
+	compiler := NewCompiler(false, "", "test")
+
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated .lock.yml file
+	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that push_to_pull_request_branch job is generated
+	if !strings.Contains(lockContentStr, "push_to_pull_request_branch:") {
+		t.Errorf("Generated workflow should contain push_to_pull_request_branch job")
+	}
+
+	// Verify that working-directory is set to ${{ github.workspace }}
+	if !strings.Contains(lockContentStr, "working-directory: ${{ github.workspace }}") {
+		t.Errorf("Generated workflow should contain working-directory: ${{ github.workspace }}\nGenerated workflow:\n%s", lockContentStr)
+	}
+
+	// Extract the push_to_pull_request_branch job section to check field ordering
+	jobStartIdx := strings.Index(lockContentStr, "  push_to_pull_request_branch:")
+	if jobStartIdx == -1 {
+		t.Fatal("Could not find push_to_pull_request_branch job section")
+	}
+
+	// Find the next job (or end of file) to get the job boundary
+	jobEndIdx := strings.Index(lockContentStr[jobStartIdx+1:], "\njobs:")
+	if jobEndIdx == -1 {
+		jobEndIdx = len(lockContentStr)
+	} else {
+		jobEndIdx = jobStartIdx + 1 + jobEndIdx
+	}
+
+	jobSection := lockContentStr[jobStartIdx:jobEndIdx]
+
+	// Verify that the working-directory comes after github-token in the with section
+	githubTokenIdx := strings.Index(jobSection, "github-token:")
+	workingDirIdx := strings.Index(jobSection, "working-directory:")
+	scriptIdx := strings.Index(jobSection, "script: |")
+
+	if githubTokenIdx == -1 {
+		t.Error("github-token not found in push_to_pull_request_branch job")
+	}
+	if workingDirIdx == -1 {
+		t.Error("working-directory not found in push_to_pull_request_branch job")
+	}
+	if scriptIdx == -1 {
+		t.Error("script section not found in push_to_pull_request_branch job")
+	}
+
+	// Verify order: github-token comes before working-directory, which comes before script
+	if githubTokenIdx != -1 && workingDirIdx != -1 && scriptIdx != -1 {
+		if githubTokenIdx > workingDirIdx {
+			t.Error("github-token should come before working-directory in the 'with' section")
+		}
+		if workingDirIdx > scriptIdx {
+			t.Error("working-directory should come before script in the 'with' section")
+		}
 	}
 }

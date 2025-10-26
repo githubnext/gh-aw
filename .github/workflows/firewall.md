@@ -7,11 +7,11 @@ permissions:
 
 engine: copilot
 
-features:
+network:
+  allowed:
+    - defaults
   firewall: true
   
-network: defaults
-
 tools:
   web-fetch:
 

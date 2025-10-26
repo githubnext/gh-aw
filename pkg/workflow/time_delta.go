@@ -8,6 +8,12 @@ import (
 	"time"
 )
 
+// Pre-compiled regexes for time parsing (performance optimization)
+var (
+	timeDeltaPattern = regexp.MustCompile(`(\d+)(mo|w|d|h|m)`)
+	ordinalPattern   = regexp.MustCompile(`\b(\d+)(st|nd|rd|th)\b`)
+)
+
 // TimeDelta represents a time duration that can be added to a base time
 type TimeDelta struct {
 	Hours   int
@@ -46,8 +52,7 @@ func parseTimeDelta(deltaStr string) (*TimeDelta, error) {
 
 	// Parse components using regex
 	// Pattern matches: number followed by mo/w/d/h/m (months, weeks, days, hours, minutes)
-	pattern := regexp.MustCompile(`(\d+)(mo|w|d|h|m)`)
-	matches := pattern.FindAllStringSubmatch(deltaStr, -1)
+	matches := timeDeltaPattern.FindAllStringSubmatch(deltaStr, -1)
 
 	if len(matches) == 0 {
 		return nil, fmt.Errorf("invalid time delta format: +%s. Expected format like +25h, +3d, +1w, +1mo, +1d12h30m", deltaStr)
@@ -203,7 +208,6 @@ func parseAbsoluteDateTime(dateTimeStr string) (string, error) {
 	dateTimeStr = strings.TrimSpace(dateTimeStr)
 
 	// Handle ordinal numbers (1st, 2nd, 3rd, 4th, etc.)
-	ordinalPattern := regexp.MustCompile(`\b(\d+)(st|nd|rd|th)\b`)
 	dateTimeStr = ordinalPattern.ReplaceAllString(dateTimeStr, "$1")
 
 	// Try to parse with each format
@@ -294,9 +298,11 @@ func parseRelativeDate(dateStr string) (*TimeDelta, bool, error) {
 	return delta, isNegative, nil
 }
 
-// ResolveRelativeDate resolves a relative date string to an absolute date string
-// suitable for use with GitHub CLI (YYYY-MM-DD format).
+// ResolveRelativeDate resolves a relative date string to an absolute timestamp
+// suitable for use with GitHub CLI.
 // If the date string is not relative, it returns the original string.
+//
+// Returns a full ISO 8601 timestamp (YYYY-MM-DDTHH:MM:SSZ) for precise filtering.
 func ResolveRelativeDate(dateStr string, baseTime time.Time) (string, error) {
 	if dateStr == "" {
 		return "", nil
@@ -323,6 +329,6 @@ func ResolveRelativeDate(dateStr string, baseTime time.Time) (string, error) {
 		absoluteTime = absoluteTime.Add(time.Duration(delta.Hours)*time.Hour + time.Duration(delta.Minutes)*time.Minute)
 	}
 
-	// Format as YYYY-MM-DD for GitHub CLI
-	return absoluteTime.Format("2006-01-02"), nil
+	// Return full ISO 8601 timestamp for precise filtering
+	return absoluteTime.Format(time.RFC3339), nil
 }

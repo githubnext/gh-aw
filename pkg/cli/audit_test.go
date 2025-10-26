@@ -1018,3 +1018,243 @@ func TestAuditParseFlagBehavior(t *testing.T) {
 		}
 	})
 }
+
+func TestBuildAuditDataWithFirewall(t *testing.T) {
+	// Create test data with firewall analysis
+	run := WorkflowRun{
+		DatabaseID:    123456,
+		WorkflowName:  "Test Workflow",
+		Status:        "completed",
+		Conclusion:    "success",
+		CreatedAt:     time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
+		Event:         "push",
+		HeadBranch:    "main",
+		URL:           "https://github.com/org/repo/actions/runs/123456",
+		TokenUsage:    1500,
+		EstimatedCost: 0.025,
+		Turns:         5,
+		ErrorCount:    0,
+		WarningCount:  0,
+		LogsPath:      t.TempDir(),
+	}
+
+	metrics := LogMetrics{
+		TokenUsage:    1500,
+		EstimatedCost: 0.025,
+		Turns:         5,
+	}
+
+	firewallAnalysis := &FirewallAnalysis{
+		TotalRequests:   10,
+		AllowedRequests: 7,
+		DeniedRequests:  3,
+		AllowedDomains:  []string{"api.github.com:443", "npmjs.org:443"},
+		DeniedDomains:   []string{"blocked.example.com:443"},
+		RequestsByDomain: map[string]DomainRequestStats{
+			"api.github.com:443":      {Allowed: 5, Denied: 0},
+			"npmjs.org:443":           {Allowed: 2, Denied: 0},
+			"blocked.example.com:443": {Allowed: 0, Denied: 3},
+		},
+	}
+
+	processedRun := ProcessedRun{
+		Run:              run,
+		FirewallAnalysis: firewallAnalysis,
+		MissingTools:     []MissingToolReport{},
+		MCPFailures:      []MCPFailureReport{},
+	}
+
+	// Build audit data
+	auditData := buildAuditData(processedRun, metrics)
+
+	// Verify firewall analysis is included
+	if auditData.FirewallAnalysis == nil {
+		t.Fatal("Expected firewall analysis to be included in audit data")
+	}
+
+	// Verify firewall data is correct
+	if auditData.FirewallAnalysis.TotalRequests != 10 {
+		t.Errorf("Expected 10 total requests, got %d", auditData.FirewallAnalysis.TotalRequests)
+	}
+	if auditData.FirewallAnalysis.AllowedRequests != 7 {
+		t.Errorf("Expected 7 allowed requests, got %d", auditData.FirewallAnalysis.AllowedRequests)
+	}
+	if auditData.FirewallAnalysis.DeniedRequests != 3 {
+		t.Errorf("Expected 3 denied requests, got %d", auditData.FirewallAnalysis.DeniedRequests)
+	}
+	if len(auditData.FirewallAnalysis.AllowedDomains) != 2 {
+		t.Errorf("Expected 2 allowed domains, got %d", len(auditData.FirewallAnalysis.AllowedDomains))
+	}
+	if len(auditData.FirewallAnalysis.DeniedDomains) != 1 {
+		t.Errorf("Expected 1 denied domain, got %d", len(auditData.FirewallAnalysis.DeniedDomains))
+	}
+}
+
+func TestGenerateAuditReportWithFirewall(t *testing.T) {
+	// Create test data with firewall analysis
+	run := WorkflowRun{
+		DatabaseID:    123456,
+		WorkflowName:  "Test Workflow",
+		Status:        "completed",
+		Conclusion:    "success",
+		CreatedAt:     time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
+		Event:         "push",
+		HeadBranch:    "main",
+		URL:           "https://github.com/org/repo/actions/runs/123456",
+		TokenUsage:    1500,
+		EstimatedCost: 0.025,
+		Turns:         5,
+		ErrorCount:    0,
+		WarningCount:  0,
+		LogsPath:      "/tmp/gh-aw/test-logs",
+	}
+
+	metrics := LogMetrics{
+		TokenUsage:    1500,
+		EstimatedCost: 0.025,
+		Turns:         5,
+	}
+
+	firewallAnalysis := &FirewallAnalysis{
+		TotalRequests:   10,
+		AllowedRequests: 7,
+		DeniedRequests:  3,
+		AllowedDomains:  []string{"api.github.com:443", "npmjs.org:443"},
+		DeniedDomains:   []string{"blocked.example.com:443"},
+		RequestsByDomain: map[string]DomainRequestStats{
+			"api.github.com:443":      {Allowed: 5, Denied: 0},
+			"npmjs.org:443":           {Allowed: 2, Denied: 0},
+			"blocked.example.com:443": {Allowed: 0, Denied: 3},
+		},
+	}
+
+	processedRun := ProcessedRun{
+		Run:              run,
+		FirewallAnalysis: firewallAnalysis,
+		MissingTools:     []MissingToolReport{},
+		MCPFailures:      []MCPFailureReport{},
+	}
+
+	// Generate report
+	report := generateAuditReport(processedRun, metrics)
+
+	// Verify firewall section is present
+	if !strings.Contains(report, "## Firewall Analysis") {
+		t.Error("Report should contain Firewall Analysis section")
+	}
+
+	// Verify firewall statistics are mentioned
+	if !strings.Contains(report, "Total Requests") {
+		t.Error("Report should mention total requests")
+	}
+	if !strings.Contains(report, "Allowed Requests") {
+		t.Error("Report should mention allowed requests")
+	}
+	if !strings.Contains(report, "Denied Requests") {
+		t.Error("Report should mention denied requests")
+	}
+
+	// Verify domain lists are present
+	if !strings.Contains(report, "Allowed Domains") {
+		t.Error("Report should contain Allowed Domains section")
+	}
+	if !strings.Contains(report, "Denied Domains") {
+		t.Error("Report should contain Denied Domains section")
+	}
+
+	// Verify specific domains are listed
+	if !strings.Contains(report, "api.github.com:443") {
+		t.Error("Report should list allowed domain api.github.com:443")
+	}
+	if !strings.Contains(report, "blocked.example.com:443") {
+		t.Error("Report should list denied domain blocked.example.com:443")
+	}
+}
+
+func TestRenderJSONWithFirewall(t *testing.T) {
+	// Create test audit data with firewall analysis
+	firewallAnalysis := &FirewallAnalysis{
+		TotalRequests:   10,
+		AllowedRequests: 7,
+		DeniedRequests:  3,
+		AllowedDomains:  []string{"api.github.com:443"},
+		DeniedDomains:   []string{"blocked.example.com:443"},
+		RequestsByDomain: map[string]DomainRequestStats{
+			"api.github.com:443":      {Allowed: 7, Denied: 0},
+			"blocked.example.com:443": {Allowed: 0, Denied: 3},
+		},
+	}
+
+	auditData := AuditData{
+		Overview: OverviewData{
+			RunID:        123456,
+			WorkflowName: "Test Workflow",
+			Status:       "completed",
+			Conclusion:   "success",
+			Event:        "push",
+			Branch:       "main",
+			URL:          "https://github.com/org/repo/actions/runs/123456",
+		},
+		Metrics: MetricsData{
+			TokenUsage:    1500,
+			EstimatedCost: 0.025,
+			Turns:         5,
+			ErrorCount:    0,
+			WarningCount:  0,
+		},
+		FirewallAnalysis: firewallAnalysis,
+		DownloadedFiles:  []FileInfo{},
+		MissingTools:     []MissingToolReport{},
+		MCPFailures:      []MCPFailureReport{},
+		Errors:           []ErrorInfo{},
+		Warnings:         []ErrorInfo{},
+		ToolUsage:        []ToolUsageInfo{},
+	}
+
+	// Render to JSON
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := renderJSON(auditData)
+	w.Close()
+
+	// Read the output
+	var buf strings.Builder
+	io.Copy(&buf, r)
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("renderJSON failed: %v", err)
+	}
+
+	jsonOutput := buf.String()
+
+	// Verify it's valid JSON
+	var parsed AuditData
+	if err := json.Unmarshal([]byte(jsonOutput), &parsed); err != nil {
+		t.Fatalf("Failed to parse JSON output: %v", err)
+	}
+
+	// Verify firewall analysis is included
+	if parsed.FirewallAnalysis == nil {
+		t.Fatal("Expected firewall analysis in JSON output")
+	}
+
+	// Verify firewall data is correct
+	if parsed.FirewallAnalysis.TotalRequests != 10 {
+		t.Errorf("Expected 10 total requests, got %d", parsed.FirewallAnalysis.TotalRequests)
+	}
+	if parsed.FirewallAnalysis.AllowedRequests != 7 {
+		t.Errorf("Expected 7 allowed requests, got %d", parsed.FirewallAnalysis.AllowedRequests)
+	}
+	if parsed.FirewallAnalysis.DeniedRequests != 3 {
+		t.Errorf("Expected 3 denied requests, got %d", parsed.FirewallAnalysis.DeniedRequests)
+	}
+	if len(parsed.FirewallAnalysis.AllowedDomains) != 1 {
+		t.Errorf("Expected 1 allowed domain, got %d", len(parsed.FirewallAnalysis.AllowedDomains))
+	}
+	if len(parsed.FirewallAnalysis.DeniedDomains) != 1 {
+		t.Errorf("Expected 1 denied domain, got %d", len(parsed.FirewallAnalysis.DeniedDomains))
+	}
+}

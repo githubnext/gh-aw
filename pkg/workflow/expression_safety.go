@@ -8,16 +8,20 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
+// Pre-compiled regexes for expression validation (performance optimization)
+var (
+	expressionRegex = regexp.MustCompile(`(?s)\$\{\{(.*?)\}\}`)
+	needsStepsRegex = regexp.MustCompile(`^(needs|steps)\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$`)
+	inputsRegex     = regexp.MustCompile(`^github\.event\.inputs\.[a-zA-Z0-9_-]+$`)
+	envRegex        = regexp.MustCompile(`^env\.[a-zA-Z0-9_-]+$`)
+)
+
 // validateExpressionSafety checks that all GitHub Actions expressions in the markdown content
 // are in the allowed list and returns an error if any unauthorized expressions are found
 func validateExpressionSafety(markdownContent string) error {
 	// Regular expression to match GitHub Actions expressions: ${{ ... }}
 	// Use (?s) flag to enable dotall mode so . matches newlines to capture multiline expressions
 	// Use non-greedy matching with .*? to handle nested braces properly
-	expressionRegex := regexp.MustCompile(`(?s)\$\{\{(.*?)\}\}`)
-	needsStepsRegex := regexp.MustCompile(`^(needs|steps)\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$`)
-	inputsRegex := regexp.MustCompile(`^github\.event\.inputs\.[a-zA-Z0-9_-]+$`)
-	envRegex := regexp.MustCompile(`^env\.[a-zA-Z0-9_-]+$`)
 
 	// Find all expressions in the markdown content
 	matches := expressionRegex.FindAllStringSubmatch(markdownContent, -1)
@@ -89,19 +93,19 @@ func validateExpressionSafety(markdownContent string) error {
 }
 
 // validateSingleExpression validates a single literal expression
-func validateSingleExpression(expression string, needsStepsRegex, inputsRegex, envRegex *regexp.Regexp, unauthorizedExpressions *[]string) error {
+func validateSingleExpression(expression string, needsStepsRe, inputsRe, envRe *regexp.Regexp, unauthorizedExpressions *[]string) error {
 	expression = strings.TrimSpace(expression)
 
 	// Check if this expression is in the allowed list
 	allowed := false
 
 	// Check if this expression starts with "needs." or "steps." and is a simple property access
-	if needsStepsRegex.MatchString(expression) {
+	if needsStepsRe.MatchString(expression) {
 		allowed = true
-	} else if inputsRegex.MatchString(expression) {
+	} else if inputsRe.MatchString(expression) {
 		// Check if this expression matches github.event.inputs.* pattern
 		allowed = true
-	} else if envRegex.MatchString(expression) {
+	} else if envRe.MatchString(expression) {
 		// check if this expression matches env.* pattern
 		allowed = true
 	} else {

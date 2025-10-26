@@ -49,6 +49,37 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 	return nil
 }
 
+// CompileWorkflowDataWithValidation compiles from already-parsed WorkflowData with validation
+// This avoids re-parsing when the workflow data has already been parsed
+func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData *workflow.WorkflowData, filePath string, verbose bool) error {
+	// Compile the workflow using already-parsed data
+	if err := compiler.CompileWorkflowData(workflowData, filePath); err != nil {
+		return err
+	}
+
+	// Always validate that the generated lock file is valid YAML (CLI requirement)
+	lockFile := strings.TrimSuffix(filePath, ".md") + ".lock.yml"
+	if _, err := os.Stat(lockFile); err != nil {
+		// Lock file doesn't exist (likely due to no-emit), skip YAML validation
+		return nil
+	}
+
+	compileLog.Print("Validating generated lock file YAML syntax")
+
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		return fmt.Errorf("failed to read generated lock file for validation: %w", err)
+	}
+
+	// Validate the lock file is valid YAML
+	var yamlValidationTest any
+	if err := yaml.Unmarshal(lockContent, &yamlValidationTest); err != nil {
+		return fmt.Errorf("generated lock file is not valid YAML: %w", err)
+	}
+
+	return nil
+}
+
 // CompileConfig holds configuration options for compiling workflows
 type CompileConfig struct {
 	MarkdownFiles        []string // Files to compile (empty for all files)
@@ -63,6 +94,8 @@ type CompileConfig struct {
 	TrialMode            bool     // Enable trial mode (suppress safe outputs)
 	TrialLogicalRepoSlug string   // Target repository for trial mode
 	Strict               bool     // Enable strict mode validation
+	Dependabot           bool     // Generate Dependabot manifests for npm dependencies
+	ForceOverwrite       bool     // Force overwrite of existing files (dependabot.yml)
 }
 
 // CompilationStats tracks the results of workflow compilation
@@ -85,11 +118,24 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	trialMode := config.TrialMode
 	trialLogicalRepoSlug := config.TrialLogicalRepoSlug
 	strict := config.Strict
+	dependabot := config.Dependabot
+	forceOverwrite := config.ForceOverwrite
 
-	compileLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v", len(markdownFiles), validate, watch, noEmit)
+	compileLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v, dependabot=%v", len(markdownFiles), validate, watch, noEmit, dependabot)
 
 	// Track compilation statistics
 	stats := &CompilationStats{}
+
+	// Validate dependabot flag usage
+	if dependabot {
+		if len(markdownFiles) > 0 {
+			return nil, fmt.Errorf("--dependabot flag cannot be used with specific workflow files")
+		}
+		if workflowDir != "" && workflowDir != ".github/workflows" {
+			return nil, fmt.Errorf("--dependabot flag cannot be used with custom --workflows-dir")
+		}
+	}
+
 	// Validate purge flag usage
 	if purge && len(markdownFiles) > 0 {
 		return nil, fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")
@@ -187,7 +233,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			workflowDataList = append(workflowDataList, workflowData)
 
 			compileLog.Printf("Starting compilation of %s", resolvedFile)
-			if err := CompileWorkflowWithValidation(compiler, resolvedFile, verbose); err != nil {
+			if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose); err != nil {
 				// Always put error on a new line and don't wrap with "failed to compile workflow"
 				fmt.Fprintln(os.Stderr, err.Error())
 				errorMessages = append(errorMessages, err.Error())
@@ -217,6 +263,26 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			compileLog.Printf("Successfully updated .gitattributes")
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
+			}
+		}
+
+		// Generate Dependabot manifests if requested
+		if dependabot && !noEmit {
+			// Resolve workflow directory path
+			absWorkflowDir := workflowDir
+			if !filepath.IsAbs(absWorkflowDir) {
+				gitRoot, err := findGitRoot()
+				if err == nil {
+					absWorkflowDir = filepath.Join(gitRoot, workflowDir)
+				}
+			}
+
+			if err := compiler.GenerateDependabotManifests(workflowDataList, absWorkflowDir, forceOverwrite); err != nil {
+				if strict {
+					return workflowDataList, fmt.Errorf("failed to generate Dependabot manifests: %w", err)
+				}
+				// Non-strict mode: just report as warning
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate Dependabot manifests: %v", err)))
 			}
 		}
 
@@ -308,7 +374,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 		workflowDataList = append(workflowDataList, workflowData)
 
-		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
+		if err := CompileWorkflowDataWithValidation(compiler, workflowData, file, verbose); err != nil {
 			// Print the error to stderr (errors from CompileWorkflow are already formatted)
 			fmt.Fprintln(os.Stderr, err.Error())
 			errorCount++
@@ -365,6 +431,23 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 	} else if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
+	}
+
+	// Generate Dependabot manifests if requested
+	if dependabot && !noEmit {
+		// Use absolute path for workflow directory
+		absWorkflowDir := workflowsDir
+		if !filepath.IsAbs(absWorkflowDir) {
+			absWorkflowDir = filepath.Join(gitRoot, workflowDir)
+		}
+
+		if err := compiler.GenerateDependabotManifests(workflowDataList, absWorkflowDir, forceOverwrite); err != nil {
+			if strict {
+				return workflowDataList, fmt.Errorf("failed to generate Dependabot manifests: %w", err)
+			}
+			// Non-strict mode: just report as warning
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate Dependabot manifests: %v", err)))
+		}
 	}
 
 	// Note: Instructions are only written by the init command

@@ -32,7 +32,6 @@ safe-outputs:
     labels: [audit, downstream]
     max: 1
 timeout_minutes: 10
-strict: true
 imports:
   - shared/reporting.md
 ---

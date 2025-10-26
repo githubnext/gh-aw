@@ -12,7 +12,7 @@ type PushToPullRequestBranchConfig struct {
 	TitlePrefix          string   `yaml:"title-prefix,omitempty"`        // Required title prefix for pull request validation
 	Labels               []string `yaml:"labels,omitempty"`              // Required labels for pull request validation
 	IfNoChanges          string   `yaml:"if-no-changes,omitempty"`       // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
-	CommitTitlePrefix    string   `yaml:"commit-title-prefix,omitempty"` // Optional prefix to prepend to generated commit titles
+	CommitTitleSuffix    string   `yaml:"commit-title-suffix,omitempty"` // Optional suffix to append to generated commit titles
 }
 
 // buildCreateOutputPushToPullRequestBranchJob creates the push_to_pull_request_branch job
@@ -56,9 +56,9 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 		labelsStr := strings.Join(data.SafeOutputs.PushToPullRequestBranch.Labels, ",")
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_LABELS: %q\n", labelsStr))
 	}
-	// Pass the commit title prefix configuration
-	if data.SafeOutputs.PushToPullRequestBranch.CommitTitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMIT_TITLE_PREFIX: %q\n", data.SafeOutputs.PushToPullRequestBranch.CommitTitlePrefix))
+	// Pass the commit title suffix configuration
+	if data.SafeOutputs.PushToPullRequestBranch.CommitTitleSuffix != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMIT_TITLE_SUFFIX: %q\n", data.SafeOutputs.PushToPullRequestBranch.CommitTitleSuffix))
 	}
 	// Pass the maximum patch size configuration
 	maxPatchSize := 1024 // Default value
@@ -75,12 +75,13 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 
 	// Step 4: Push to Branch using buildGitHubScriptStep
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Push to Branch",
-		StepID:        "push_to_pull_request_branch",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        pushToBranchScript,
-		Token:         token,
+		StepName:         "Push to Branch",
+		StepID:           "push_to_pull_request_branch",
+		MainJobName:      mainJobName,
+		CustomEnvVars:    customEnvVars,
+		Script:           pushToBranchScript,
+		Token:            token,
+		WorkingDirectory: "${{ github.workspace }}",
 	})
 	steps = append(steps, scriptSteps...)
 
@@ -180,10 +181,10 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 			// Parse labels using shared helper
 			pushToBranchConfig.Labels = parseLabelsFromConfig(configMap)
 
-			// Parse commit-title-prefix (optional)
-			if commitTitlePrefix, exists := configMap["commit-title-prefix"]; exists {
-				if commitTitlePrefixStr, ok := commitTitlePrefix.(string); ok {
-					pushToBranchConfig.CommitTitlePrefix = commitTitlePrefixStr
+			// Parse commit-title-suffix (optional)
+			if commitTitleSuffix, exists := configMap["commit-title-suffix"]; exists {
+				if commitTitleSuffixStr, ok := commitTitleSuffix.(string); ok {
+					pushToBranchConfig.CommitTitleSuffix = commitTitleSuffixStr
 				}
 			}
 

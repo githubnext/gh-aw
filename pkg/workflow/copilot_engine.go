@@ -30,6 +30,7 @@ func NewCopilotEngine() *CopilotEngine {
 			supportsMaxTurns:       false, // Copilot CLI does not support max-turns feature yet
 			supportsWebFetch:       false, // Copilot CLI does not have built-in web-fetch support
 			supportsWebSearch:      false, // Copilot CLI does not have built-in web-search support
+			supportsFirewall:       true,  // Copilot supports network firewalling via AWF
 		},
 	}
 }
@@ -61,14 +62,15 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		steps = append(steps, npmSteps[0]) // Setup Node.js step
 	}
 
-	// Add AWF installation steps only if "firewall" feature is enabled
-	if isFeatureEnabled("firewall", workflowData) {
+	// Add AWF installation steps only if firewall is enabled
+	if isFirewallEnabled(workflowData) {
 		// Install AWF after Node.js setup but before Copilot CLI installation
+		firewallConfig := getFirewallConfig(workflowData)
 		var awfVersion string
 		var cleanupScript string
-		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil {
-			awfVersion = workflowData.EngineConfig.Firewall.Version
-			cleanupScript = workflowData.EngineConfig.Firewall.CleanupScript
+		if firewallConfig != nil {
+			awfVersion = firewallConfig.Version
+			cleanupScript = firewallConfig.CleanupScript
 		}
 
 		// Install AWF binary
@@ -120,7 +122,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Build copilot CLI arguments based on configuration
 	var copilotArgs []string
-	if isFeatureEnabled("firewall", workflowData) {
+	if isFirewallEnabled(workflowData) {
 		// Simplified args for firewall mode
 		copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all"}
 	} else {
@@ -155,7 +157,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Add --allow-all-paths when edit tool is enabled to allow write on all paths
 	// See: https://github.com/github/copilot-cli/issues/67#issuecomment-3411256174
-	if _, hasEdit := workflowData.Tools["edit"]; hasEdit {
+	if workflowData.ParsedTools != nil && workflowData.ParsedTools.Edit != nil {
 		copilotArgs = append(copilotArgs, "--allow-all-paths")
 	}
 
@@ -165,7 +167,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Add prompt argument - inline for firewall, variable for non-firewall
-	if isFeatureEnabled("firewall", workflowData) {
+	if isFirewallEnabled(workflowData) {
 		copilotArgs = append(copilotArgs, "--prompt", "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
 	} else {
 		copilotArgs = append(copilotArgs, "--prompt", "\"$COPILOT_CLI_INSTRUCTION\"")
@@ -184,7 +186,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Build the copilot command
 	var copilotCommand string
-	if isFeatureEnabled("firewall", workflowData) {
+	if isFirewallEnabled(workflowData) {
 		// When firewall is enabled, use version pinning with npx
 		copilotVersion := constants.DefaultCopilotVersion
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
@@ -196,23 +198,26 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotCommand = fmt.Sprintf("copilot %s", shellJoinArgs(copilotArgs))
 	}
 
-	// Conditionally wrap with AWF if "firewall" feature is enabled
+	// Conditionally wrap with AWF if firewall is enabled
 	var command string
-	if isFeatureEnabled("firewall", workflowData) {
+	if isFirewallEnabled(workflowData) {
 		// Build the AWF-wrapped command - no mkdir needed, AWF handles it
-		var awfLogLevel = "debug"
-		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil && workflowData.EngineConfig.Firewall.LogLevel != "" {
-			awfLogLevel = workflowData.EngineConfig.Firewall.LogLevel
+		firewallConfig := getFirewallConfig(workflowData)
+		var awfLogLevel = "info"
+		if firewallConfig != nil && firewallConfig.LogLevel != "" {
+			awfLogLevel = firewallConfig.LogLevel
 		}
 
 		// Get allowed domains (copilot defaults + network permissions) with specific ordering
 		allowedDomains := GetCopilotAllowedDomains(workflowData.NetworkPermissions)
 
+		// Properly escape shell arguments using shell helper functions
+		// The copilot command is wrapped as a single string argument to AWF using shellEscapeCommandString
 		command = fmt.Sprintf(`set -o pipefail
 sudo -E awf --env-all \
   --allow-domains %s \
   --log-level %s \
-  '%s' \
+  %s \
   2>&1 | tee %s
 
 # Move preserved Copilot logs to expected location
@@ -222,7 +227,7 @@ if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   sudo mkdir -p %s
   sudo mv "$COPILOT_LOGS_DIR"/* %s || true
   sudo rmdir "$COPILOT_LOGS_DIR" || true
-fi`, allowedDomains, awfLogLevel, copilotCommand, logFile, logsFolder, logsFolder, logsFolder)
+fi`, shellEscapeArg(allowedDomains), shellEscapeArg(awfLogLevel), shellEscapeCommandString(copilotCommand), shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder))
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail
@@ -245,9 +250,8 @@ COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 		env["GH_AW_MCP_CONFIG"] = "/home/runner/.copilot/mcp-config.json"
 	}
 
-	if hasGitHubTool(workflowData.Tools) {
-		githubTool := workflowData.Tools["github"]
-		customGitHubToken := getGitHubToken(githubTool)
+	if hasGitHubTool(workflowData.ParsedTools) {
+		customGitHubToken := getGitHubToken(workflowData.Tools["github"])
 		// Use effective token with precedence: custom > top-level > default
 		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
 		env["GITHUB_MCP_SERVER_TOKEN"] = effectiveToken
@@ -325,8 +329,8 @@ func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error
 func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
 	var steps []GitHubActionStep
 
-	// Only add Squid logs collection and upload steps if "firewall" feature is enabled
-	if isFeatureEnabled("firewall", workflowData) {
+	// Only add Squid logs collection and upload steps if firewall is enabled
+	if isFirewallEnabled(workflowData) {
 		squidLogsCollection := generateSquidLogsCollectionStep(workflowData.Name)
 		steps = append(steps, squidLogsCollection)
 
@@ -343,11 +347,12 @@ func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubAc
 
 // GetCleanupStep returns the post-execution cleanup step
 func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionStep {
-	// Only add cleanup step if "firewall" feature is enabled
-	if isFeatureEnabled("firewall", workflowData) {
+	// Only add cleanup step if firewall is enabled
+	if isFirewallEnabled(workflowData) {
+		firewallConfig := getFirewallConfig(workflowData)
 		var postCleanupScript string
-		if workflowData.EngineConfig != nil && workflowData.EngineConfig.Firewall != nil {
-			postCleanupScript = workflowData.EngineConfig.Firewall.CleanupScript
+		if firewallConfig != nil {
+			postCleanupScript = firewallConfig.CleanupScript
 		}
 		return generateAWFPostExecutionCleanupStep(postCleanupScript)
 	}
@@ -822,6 +827,31 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			MessageGroup: 0,
 			Severity:     "warning",
 			Description:  "Copilot CLI permission denied warning (user interaction required)",
+		},
+		// Permission-related patterns (classified as warnings, not errors)
+		{
+			ID:           "copilot-permission-denied",
+			Pattern:      `(?i)\berror\b.*permission.*denied`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Severity:     "warning",
+			Description:  "Permission denied error (requires error context)",
+		},
+		{
+			ID:           "copilot-unauthorized",
+			Pattern:      `(?i)\berror\b.*unauthorized`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Severity:     "warning",
+			Description:  "Unauthorized access error (requires error context)",
+		},
+		{
+			ID:           "copilot-forbidden",
+			Pattern:      `(?i)\berror\b.*forbidden`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Severity:     "warning",
+			Description:  "Forbidden access error (requires error context)",
 		},
 	}...)
 

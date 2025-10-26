@@ -22,7 +22,7 @@ tools:
 
 ## Frontmatter Elements
 
-The frontmatter combines standard GitHub Actions properties (`on`, `permissions`, `run-name`, `runs-on`, `timeout_minutes`, `concurrency`, `env`, `environment`, `container`, `services`, `if`, `steps`, `cache`) with GitHub Agentic Workflows-specific elements (`description`, `source`, `github-token`, `imports`, `engine`, `strict`, `roles`, `safe-outputs`, `network`, `tools`, `cache-memory`).
+The frontmatter combines standard GitHub Actions properties (`on`, `permissions`, `run-name`, `runs-on`, `timeout_minutes`, `concurrency`, `env`, `environment`, `container`, `services`, `if`, `steps`, `cache`) with GitHub Agentic Workflows-specific elements (`description`, `source`, `github-token`, `imports`, `engine`, `strict`, `roles`, `features`, `safe-outputs`, `network`, `tools`, `cache-memory`).
 
 ### Trigger Events (`on:`)
 
@@ -67,6 +67,20 @@ The `github-token:` field configures the default GitHub token for the entire wor
 ```yaml
 github-token: ${{ secrets.CUSTOM_PAT }}
 ```
+
+:::caution[Secret Expression Required]
+The `github-token` field **must** use a GitHub Actions secret expression (e.g., `${{ secrets.CUSTOM_PAT }}`). Plaintext tokens are rejected during compilation to prevent accidental secret leakage.
+
+**Valid formats:**
+- `${{ secrets.GITHUB_TOKEN }}`
+- `${{ secrets.CUSTOM_PAT }}`
+- `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`
+
+**Invalid formats:**
+- `ghp_1234567890...` (plaintext token)
+- `${{ env.MY_TOKEN }}` (environment variable; not protected like secrets)
+- `my-secret-token` (plaintext string)
+:::
 
 The token precedence hierarchy allows fine-grained control:
 
@@ -124,6 +138,25 @@ strict: true  # Enable (default: false)
 Strict mode enforces: (1) no write permissions for `contents`, `issues`, or `pull-requests` (use `safe-outputs` instead), (2) explicit network configuration required, (3) no wildcard `*` in `network.allowed`, (4) network configuration for custom MCP servers with containers.
 
 Enable with `strict: true` in frontmatter or `gh aw compile --strict` (CLI flag applies to all workflows and takes precedence). Use for production workflows requiring enhanced security validation or security policy compliance.
+
+### Feature Flags (`features:`)
+
+Enable experimental or optional features for your workflow using feature flags. Each feature is a boolean key-value pair.
+
+```yaml
+features:
+  my-experimental-feature: true
+```
+
+:::note[Firewall Feature Removed]
+The `features.firewall` flag has been removed. Use `network.firewall` instead. See [Network Permissions](/gh-aw/reference/network/) for details.
+
+**Correct format:**
+```yaml
+network:
+  firewall: true
+```
+:::
 
 ### AI Engine (`engine:`)
 
@@ -236,6 +269,32 @@ steps:
 ```
 
 If no custom steps are specified, a default step to checkout the repository is added automatically.
+
+## Post-Execution Steps (`post-steps:`)
+
+Add custom steps after the agentic execution step using GitHub Actions standard `steps:` syntax. These steps run after the AI engine completes, regardless of whether the AI execution succeeds or fails (unless you add conditional expressions).
+
+```yaml
+post-steps:
+  - name: Upload Results
+    if: always()
+    uses: actions/upload-artifact@v4
+    with:
+      name: workflow-results
+      path: /tmp/gh-aw/
+      retention-days: 7
+  
+  - name: Generate Summary
+    run: |
+      echo "## Workflow Complete" >> $GITHUB_STEP_SUMMARY
+      echo "AI execution finished" >> $GITHUB_STEP_SUMMARY
+```
+
+Post-steps are useful for:
+- Uploading artifacts generated during AI execution
+- Creating workflow summaries or reports
+- Cleanup operations
+- Triggering downstream workflows
 
 ## Cache Configuration (`cache:`)
 

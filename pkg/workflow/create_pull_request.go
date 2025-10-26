@@ -84,12 +84,13 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 
 	// Step 4: Create pull request using the common helper
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Create Pull Request",
-		StepID:        "create_pull_request",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        createPullRequestScript,
-		Token:         data.SafeOutputs.CreatePullRequests.GitHubToken,
+		StepName:         "Create Pull Request",
+		StepID:           "create_pull_request",
+		MainJobName:      mainJobName,
+		CustomEnvVars:    customEnvVars,
+		Script:           createPullRequestScript,
+		Token:            data.SafeOutputs.CreatePullRequests.GitHubToken,
+		WorkingDirectory: "${{ github.workspace }}",
 	})
 	steps = append(steps, scriptSteps...)
 

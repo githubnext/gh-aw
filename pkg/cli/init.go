@@ -62,13 +62,28 @@ func InitRepository(verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created /create-shared-agentic-workflow command"))
 	}
 
+	// Write getting started prompt
+	initLog.Print("Writing getting started prompt")
+	if err := ensureGettingStartedPrompt(verbose, false); err != nil {
+		initLog.Printf("Failed to write getting started prompt: %v", err)
+		return fmt.Errorf("failed to write getting started prompt: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created getting started guide"))
+	}
+
 	initLog.Print("Repository initialization completed successfully")
 
 	// Display success message with next steps
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Repository initialized for agentic workflows!"))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("See .github/instructions for Copilot guidance or run "+constants.CLIExtensionPrefix+" add to get started."))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Next steps:"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  1. In Copilot Chat, type: @workspace /setup-agentic-workflows"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  2. Follow the guide to configure your AI engine and secrets"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  3. Create your first workflow with: /create-agentic-workflow"))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add workflows from the catalog: "+constants.CLIExtensionPrefix+" add <workflow-name>"))
 	fmt.Fprintln(os.Stderr, "")
 
 	return nil

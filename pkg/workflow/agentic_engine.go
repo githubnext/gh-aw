@@ -41,6 +41,10 @@ type CodingAgentEngine interface {
 	// SupportsWebSearch returns true if this engine has built-in support for the web-search tool
 	SupportsWebSearch() bool
 
+	// SupportsFirewall returns true if this engine supports network firewalling/sandboxing
+	// When true, the engine can enforce network restrictions defined in the workflow
+	SupportsFirewall() bool
+
 	// GetDeclaredOutputFiles returns a list of output files that this engine may produce
 	// These files will be automatically uploaded as artifacts if they exist
 	GetDeclaredOutputFiles() []string
@@ -102,6 +106,7 @@ type BaseEngine struct {
 	supportsMaxTurns       bool
 	supportsWebFetch       bool
 	supportsWebSearch      bool
+	supportsFirewall       bool
 }
 
 func (e *BaseEngine) GetID() string {
@@ -138,6 +143,10 @@ func (e *BaseEngine) SupportsWebFetch() bool {
 
 func (e *BaseEngine) SupportsWebSearch() bool {
 	return e.supportsWebSearch
+}
+
+func (e *BaseEngine) SupportsFirewall() bool {
+	return e.supportsFirewall
 }
 
 // GetDeclaredOutputFiles returns an empty list by default (engines can override)

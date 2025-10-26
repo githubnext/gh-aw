@@ -11,6 +11,11 @@ import (
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
+// Pre-compiled regexes for secret extraction (performance optimization)
+var (
+	secretPattern = regexp.MustCompile(`\$\{\{\s*secrets\.([A-Z_][A-Z0-9_]*)\s*(?:\|\|.*?)?\s*\}\}`)
+)
+
 // SecretInfo contains information about a required secret
 type SecretInfo struct {
 	Name      string // Secret name (e.g., "DD_API_KEY")
@@ -60,7 +65,6 @@ func checkSecretExists(secretName string) (bool, error) {
 //	"${{ secrets.DD_SITE || 'datadoghq.com' }}" -> "DD_SITE"
 func extractSecretName(value string) string {
 	// Match pattern: ${{ secrets.SECRET_NAME }} or ${{ secrets.SECRET_NAME || 'default' }}
-	secretPattern := regexp.MustCompile(`\$\{\{\s*secrets\.([A-Z_][A-Z0-9_]*)\s*(?:\|\|.*?)?\s*\}\}`)
 	matches := secretPattern.FindStringSubmatch(value)
 	if len(matches) >= 2 {
 		return matches[1]

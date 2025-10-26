@@ -11,6 +11,21 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
+// Pre-compiled regexes for convertToIdentifier (performance optimization)
+var (
+	identifierNonAlphanumeric = regexp.MustCompile(`[^a-z0-9-]`)
+	identifierMultipleHyphens = regexp.MustCompile(`-+`)
+)
+
+// Pre-compiled regexes for Codex log parsing (performance optimization)
+var (
+	codexToolCallOldFormat    = regexp.MustCompile(`\] tool ([^(]+)\(`)
+	codexToolCallNewFormat    = regexp.MustCompile(`^tool ([^(]+)\(`)
+	codexExecCommandOldFormat = regexp.MustCompile(`\] exec (.+?) in`)
+	codexExecCommandNewFormat = regexp.MustCompile(`^exec (.+?) in`)
+	codexDurationPattern      = regexp.MustCompile(`in\s+(\d+(?:\.\d+)?)\s*s`)
+)
+
 // convertToIdentifier converts a workflow name to a valid identifier format
 // by converting to lowercase and replacing spaces with hyphens
 func convertToIdentifier(name string) string {
@@ -20,9 +35,9 @@ func convertToIdentifier(name string) string {
 	identifier = strings.ReplaceAll(identifier, " ", "-")
 	identifier = strings.ReplaceAll(identifier, "_", "-")
 	// Remove any characters that aren't alphanumeric or hyphens
-	identifier = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(identifier, "")
+	identifier = identifierNonAlphanumeric.ReplaceAllString(identifier, "")
 	// Remove any double hyphens that might have been created
-	identifier = regexp.MustCompile(`-+`).ReplaceAllString(identifier, "-")
+	identifier = identifierMultipleHyphens.ReplaceAllString(identifier, "-")
 	// Remove leading/trailing hyphens
 	identifier = strings.Trim(identifier, "-")
 
@@ -105,7 +120,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 
 	// Build search parameter if web-search tool is present
 	webSearchParam := ""
-	if _, hasWebSearch := workflowData.Tools["web-search"]; hasWebSearch {
+	if workflowData.ParsedTools != nil && workflowData.ParsedTools.WebSearch != nil {
 		webSearchParam = "--search "
 	}
 
@@ -344,14 +359,14 @@ func (e *CodexEngine) parseCodexToolCallsWithSequence(line string, toolCallMap m
 
 	// Try old format first: "] tool provider.method(...)"
 	if strings.Contains(line, "] tool ") && strings.Contains(line, "(") {
-		if match := regexp.MustCompile(`\] tool ([^(]+)\(`).FindStringSubmatch(line); len(match) > 1 {
+		if match := codexToolCallOldFormat.FindStringSubmatch(line); len(match) > 1 {
 			toolName = strings.TrimSpace(match[1])
 		}
 	}
 
 	// Try new Rust format: "tool provider.method(...)"
 	if toolName == "" && strings.HasPrefix(trimmedLine, "tool ") && strings.Contains(trimmedLine, "(") {
-		if match := regexp.MustCompile(`^tool ([^(]+)\(`).FindStringSubmatch(trimmedLine); len(match) > 1 {
+		if match := codexToolCallNewFormat.FindStringSubmatch(trimmedLine); len(match) > 1 {
 			toolName = strings.TrimSpace(match[1])
 		}
 	}
@@ -390,14 +405,14 @@ func (e *CodexEngine) parseCodexToolCallsWithSequence(line string, toolCallMap m
 
 	// Try old format: "] exec command in"
 	if strings.Contains(line, "] exec ") {
-		if match := regexp.MustCompile(`\] exec (.+?) in`).FindStringSubmatch(line); len(match) > 1 {
+		if match := codexExecCommandOldFormat.FindStringSubmatch(line); len(match) > 1 {
 			execCommand = strings.TrimSpace(match[1])
 		}
 	}
 
 	// Try new Rust format: "exec command in"
 	if execCommand == "" && strings.HasPrefix(trimmedLine, "exec ") {
-		if match := regexp.MustCompile(`^exec (.+?) in`).FindStringSubmatch(trimmedLine); len(match) > 1 {
+		if match := codexExecCommandNewFormat.FindStringSubmatch(trimmedLine); len(match) > 1 {
 			execCommand = strings.TrimSpace(match[1])
 		}
 	}
@@ -424,7 +439,7 @@ func (e *CodexEngine) parseCodexToolCallsWithSequence(line string, toolCallMap m
 	// Parse duration from success/failure lines: "] success in 0.2s" or "] failure in 1.5s"
 	if strings.Contains(line, "success in") || strings.Contains(line, "failure in") || strings.Contains(line, "failed in") {
 		// Extract duration pattern like "in 0.2s", "in 1.5s"
-		if match := regexp.MustCompile(`in\s+(\d+(?:\.\d+)?)\s*s`).FindStringSubmatch(line); len(match) > 1 {
+		if match := codexDurationPattern.FindStringSubmatch(line); len(match) > 1 {
 			if durationSeconds, err := strconv.ParseFloat(match[1], 64); err == nil {
 				duration := time.Duration(durationSeconds * float64(time.Second))
 

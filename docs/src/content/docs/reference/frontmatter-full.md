@@ -765,6 +765,32 @@ network:
     # Array of Domain name or ecosystem identifier (supports wildcards like
     # '*.example.com' and ecosystem names like 'python', 'node')
 
+  # AWF (Agent Workflow Firewall) configuration for network egress control. Only
+  # supported for Copilot engine.
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Enable AWF with default settings (equivalent to empty object)
+  firewall: null
+
+  # Option 2: Enable (true) or explicitly disable (false) AWF firewall
+  firewall: true
+
+  # Option 3: Disable AWF firewall (triggers warning if allowed != *, error in
+  # strict mode if allowed is not * or engine does not support firewall)
+  firewall: "disable"
+
+  # Option 4: Custom AWF configuration with version and arguments
+  firewall:
+    # Optional additional arguments to pass to AWF wrapper
+    # (optional)
+    args: []
+      # Array of strings
+
+    # AWF version to use (empty = latest release)
+    # (optional)
+    version: "example-value"
+
 # Conditional execution expression
 # (optional)
 if: "example-value"
@@ -1567,10 +1593,10 @@ safe-outputs:
     # (optional)
     if-no-changes: "warn"
 
-    # Optional prefix to prepend to generated commit titles (e.g., '[skip ci] ' to
+    # Optional suffix to append to generated commit titles (e.g., ' [skip ci]' to
     # prevent triggering CI on the commit)
     # (optional)
-    commit-title-prefix: "example-value"
+    commit-title-suffix: "example-value"
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.

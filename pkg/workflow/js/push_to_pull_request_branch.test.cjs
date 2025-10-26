@@ -751,4 +751,213 @@ const exec = global.exec;`
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });
+
+  describe("Commit title suffix", () => {
+    beforeEach(() => {
+      // Add writeFileSync to mockFs
+      mockFs.writeFileSync = vi.fn();
+    });
+
+    it("should append bracketed suffix (for [skip-ci] support)", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+      process.env.GH_AW_COMMIT_TITLE_SUFFIX = " [skip-ci]";
+
+      mockFs.existsSync.mockReturnValue(true);
+      const originalPatch = `From abc123 Mon Sep 17 00:00:00 2001
+From: Test User <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Add new feature
+
+---
+ file.txt | 1 +
+ 1 file changed, 1 insertion(+)
+`;
+      mockPatchContent(originalPatch);
+
+      // Execute the script
+      await executeScript();
+
+      // Verify that writeFileSync was called with modified patch
+      expect(mockFs.writeFileSync).toHaveBeenCalled();
+      const writtenPatch = mockFs.writeFileSync.mock.calls[0][1];
+
+      // Check that the patch appends [skip-ci] at the end
+      expect(writtenPatch).toContain("Subject: [PATCH] Add new feature [skip-ci]");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('commit title suffix: " [skip-ci]"'));
+    });
+
+    it("should append suffix without brackets as-is", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+      process.env.GH_AW_COMMIT_TITLE_SUFFIX = " (automated)";
+
+      mockFs.existsSync.mockReturnValue(true);
+      const originalPatch = `From abc123 Mon Sep 17 00:00:00 2001
+From: Test User <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Add new feature
+
+---
+ file.txt | 1 +
+ 1 file changed, 1 insertion(+)
+`;
+      mockPatchContent(originalPatch);
+
+      // Execute the script
+      await executeScript();
+
+      // Verify that writeFileSync was called with modified patch
+      expect(mockFs.writeFileSync).toHaveBeenCalled();
+      const writtenPatch = mockFs.writeFileSync.mock.calls[0][1];
+
+      // Check that the patch was modified correctly
+      expect(writtenPatch).toContain("Subject: [PATCH] Add new feature (automated)");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('commit title suffix: " (automated)"'));
+    });
+
+    it("should append suffix with brackets", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+      process.env.GH_AW_COMMIT_TITLE_SUFFIX = " [bot]";
+
+      mockFs.existsSync.mockReturnValue(true);
+      const originalPatch = `From abc123 Mon Sep 17 00:00:00 2001
+From: Test User <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Add new feature
+
+---
+ file.txt | 1 +
+ 1 file changed, 1 insertion(+)
+`;
+      mockPatchContent(originalPatch);
+
+      // Execute the script
+      await executeScript();
+
+      // Verify that writeFileSync was called with modified patch
+      expect(mockFs.writeFileSync).toHaveBeenCalled();
+      const writtenPatch = mockFs.writeFileSync.mock.calls[0][1];
+
+      // Check that the patch appends the suffix
+      expect(writtenPatch).toContain("Subject: [PATCH] Add new feature [bot]");
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining('commit title suffix: " [bot]"'));
+    });
+
+    it("should not modify patch when no commit title suffix is set", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+      delete process.env.GH_AW_COMMIT_TITLE_SUFFIX;
+
+      mockFs.existsSync.mockReturnValue(true);
+      const originalPatch = `From abc123 Mon Sep 17 00:00:00 2001
+From: Test User <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] Add new feature
+
+---
+ file.txt | 1 +
+ 1 file changed, 1 insertion(+)
+`;
+      mockPatchContent(originalPatch);
+
+      // Execute the script
+      await executeScript();
+
+      // Verify that writeFileSync was NOT called (no modification)
+      expect(mockFs.writeFileSync).not.toHaveBeenCalled();
+    });
+
+    it("should handle patch without [PATCH] prefix in Subject line", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+      process.env.GH_AW_COMMIT_TITLE_SUFFIX = " [automated]";
+
+      mockFs.existsSync.mockReturnValue(true);
+      const originalPatch = `From abc123 Mon Sep 17 00:00:00 2001
+From: Test User <test@example.com>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: Add new feature
+
+---
+ file.txt | 1 +
+ 1 file changed, 1 insertion(+)
+`;
+      mockPatchContent(originalPatch);
+
+      // Execute the script
+      await executeScript();
+
+      // Verify that writeFileSync was called with modified patch
+      expect(mockFs.writeFileSync).toHaveBeenCalled();
+      const writtenPatch = mockFs.writeFileSync.mock.calls[0][1];
+
+      // Check that [PATCH] was added along with the suffix at the end
+      expect(writtenPatch).toContain("Subject: [PATCH] Add new feature [automated]");
+    });
+
+    it("should use git am without --keep-non-patch flag", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+      process.env.GH_AW_COMMIT_TITLE_SUFFIX = " [skip-ci]";
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Execute the script
+      await executeScript();
+
+      // Verify that git am was called without --keep-non-patch flag
+      expect(mockExec.exec).toHaveBeenCalledWith("git am /tmp/gh-aw/aw.patch");
+    });
+  });
 });

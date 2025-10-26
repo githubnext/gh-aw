@@ -4809,17 +4809,14 @@ func TestAccessLogUploadConditional(t *testing.T) {
 			expectSteps: false,
 		},
 		{
-			name: "mcp server with container and network permissions - access log steps generated",
+			name: "mcp server with container - no access log steps (proxy removed)",
 			mcpServers: map[string]any{
 				"fetch": map[string]any{
 					"container": "mcp/fetch",
-					"network": map[string]any{
-						"allowed": []any{"example.com"},
-					},
-					"allowed": []any{"fetch"},
+					"allowed":   []any{"fetch"},
 				},
 			},
-			expectSteps: true,
+			expectSteps: false, // Changed from true - per-tool proxy removed
 		},
 	}
 

@@ -105,12 +105,12 @@ debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
 const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
 if (!process.env.GH_AW_SAFE_OUTPUTS) {
   debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
-  // Ensure the directory exists
-  const outputDir = path.dirname(outputFile);
-  if (!fs.existsSync(outputDir)) {
-    debug(`Creating output directory: ${outputDir}`);
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
+}
+// Always ensure the directory exists, regardless of whether env var is set
+const outputDir = path.dirname(outputFile);
+if (!fs.existsSync(outputDir)) {
+  debug(`Creating output directory: ${outputDir}`);
+  fs.mkdirSync(outputDir, { recursive: true });
 }
 function writeMessage(obj) {
   const json = JSON.stringify(obj);
@@ -447,9 +447,30 @@ const uploadAssetHandler = args => {
  * @returns {string} The current branch name
  */
 function getCurrentBranch() {
+  // Priority 1: Use GitHub Actions environment variables (most reliable in GitHub Actions context)
+  // GITHUB_HEAD_REF is set for pull_request events and contains the source branch name
+  // GITHUB_REF_NAME is set for all events and contains the branch/tag name
+  const ghHeadRef = process.env.GITHUB_HEAD_REF;
+  const ghRefName = process.env.GITHUB_REF_NAME;
+
+  if (ghHeadRef) {
+    debug(`Resolved current branch from GITHUB_HEAD_REF: ${ghHeadRef}`);
+    return ghHeadRef;
+  }
+
+  if (ghRefName) {
+    debug(`Resolved current branch from GITHUB_REF_NAME: ${ghRefName}`);
+    return ghRefName;
+  }
+
+  // Priority 2: Fallback to git command with explicit working directory
+  const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
   try {
-    const branch = execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
-    debug(`Resolved current branch: ${branch}`);
+    const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+      encoding: "utf8",
+      cwd: cwd,
+    }).trim();
+    debug(`Resolved current branch from git in ${cwd}: ${branch}`);
     return branch;
   } catch (error) {
     throw new Error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`);
@@ -519,6 +540,10 @@ const ALL_TOOLS = [
           type: "array",
           items: { type: "string" },
           description: "Issue labels",
+        },
+        parent: {
+          type: "number",
+          description: "Parent issue number to create this issue as a sub-issue of",
         },
       },
       additionalProperties: false,
@@ -708,7 +733,8 @@ const ALL_TOOLS = [
       properties: {
         branch: {
           type: "string",
-          description: "Optional branch name. If not provided, the current branch will be used.",
+          description:
+            "Optional branch name. Do not provide this parameter if you want to push changes from the current branch. If not provided, the current branch will be used.",
         },
         message: { type: "string", description: "Commit message" },
         pull_request_number: {

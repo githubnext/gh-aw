@@ -73,14 +73,14 @@ This is a test workflow that should create an issue and assign it to multiple us
 		t.Error("Expected assignee step for bot-helper in compiled workflow")
 	}
 
-	// Verify gh issue edit command
-	if !strings.Contains(compiledStr, "gh issue edit") {
-		t.Error("Expected gh issue edit command in compiled workflow")
+	// Verify actions/github-script is used
+	if !strings.Contains(compiledStr, "actions/github-script") {
+		t.Error("Expected actions/github-script to be used in compiled workflow")
 	}
 
-	// Verify --add-assignee flag
-	if !strings.Contains(compiledStr, "--add-assignee") {
-		t.Error("Expected --add-assignee flag in compiled workflow")
+	// Verify exec.exec is used for gh CLI
+	if !strings.Contains(compiledStr, "exec.exec") {
+		t.Error("Expected exec.exec to be used in assign script")
 	}
 
 	// Verify ISSUE_NUMBER from step output

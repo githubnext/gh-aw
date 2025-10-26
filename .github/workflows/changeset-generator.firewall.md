@@ -3,6 +3,7 @@ name: Changeset Generator
 on:
   pull_request:
     types: [ready_for_review]
+  workflow_dispatch:
   reaction: "rocket"
 if: github.event.pull_request.base.ref == github.event.repository.default_branch
 permissions:
@@ -11,9 +12,9 @@ permissions:
 engine: copilot
 safe-outputs:
   push-to-pull-request-branch:
-    commit-title-prefix: "[skip-ci] "
+    commit-title-suffix: " [skip-ci]"
 timeout_minutes: 10
-features:
+network:
   firewall: true
 tools:
   bash:

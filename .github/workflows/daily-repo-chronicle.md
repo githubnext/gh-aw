@@ -10,7 +10,12 @@ permissions:
   pull-requests: read
   discussions: read
 engine: copilot
+network:
+  firewall: true
 tools:
+  edit:
+  bash:
+    - "*"
   github:
     allowed:
       - list_pull_requests

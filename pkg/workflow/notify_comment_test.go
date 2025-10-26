@@ -11,45 +11,56 @@ func TestUpdateReactionJob(t *testing.T) {
 	tests := []struct {
 		name               string
 		addCommentConfig   bool
+		aiReaction         string
 		safeOutputJobNames []string
 		expectJob          bool
 		expectConditions   []string
 		expectNeeds        []string
 	}{
 		{
-			name:               "update_reaction job created when add-comment is configured",
+			name:               "update_reaction job created when add-comment and ai-reaction are configured",
 			addCommentConfig:   true,
-			safeOutputJobNames: []string{"add_comment", "missing_tool"},
-			expectJob:          true,
-			expectConditions: []string{
-				"always()",
-				"needs.agent.result != 'skipped'",
-				"needs.activation.outputs.comment_id",
-				"!(contains(needs.agent.outputs.output_types, 'add_comment'))",
-				"!(contains(needs.agent.outputs.output_types, 'create_pull_request'))",
-				"!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))",
-			},
-			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "missing_tool"},
-		},
-		{
-			name:               "update_reaction job depends on all safe output jobs",
-			addCommentConfig:   true,
+			aiReaction:         "eyes",
 			safeOutputJobNames: []string{"add_comment", "create_issue", "missing_tool"},
 			expectJob:          true,
 			expectConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
 				"needs.activation.outputs.comment_id",
-				"!(contains(needs.agent.outputs.output_types, 'add_comment'))",
-				"!(contains(needs.agent.outputs.output_types, 'create_pull_request'))",
-				"!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))",
+				"(!contains(needs.agent.outputs.output_types, 'add_comment'))",
+				"(!contains(needs.agent.outputs.output_types, 'create_pull_request'))",
+				"(!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))",
+			},
+			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "create_issue", "missing_tool"},
+		},
+		{
+			name:               "update_reaction job depends on all safe output jobs",
+			addCommentConfig:   true,
+			aiReaction:         "eyes",
+			safeOutputJobNames: []string{"add_comment", "create_issue", "missing_tool"},
+			expectJob:          true,
+			expectConditions: []string{
+				"always()",
+				"needs.agent.result != 'skipped'",
+				"needs.activation.outputs.comment_id",
+				"(!contains(needs.agent.outputs.output_types, 'add_comment'))",
+				"(!contains(needs.agent.outputs.output_types, 'create_pull_request'))",
+				"(!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))",
 			},
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "create_issue", "missing_tool"},
 		},
 		{
 			name:               "update_reaction job not created when add-comment is not configured",
 			addCommentConfig:   false,
+			aiReaction:         "",
 			safeOutputJobNames: []string{},
+			expectJob:          false,
+		},
+		{
+			name:               "update_reaction job not created when add-comment is configured but ai-reaction is not",
+			addCommentConfig:   true,
+			aiReaction:         "",
+			safeOutputJobNames: []string{"add_comment", "missing_tool"},
 			expectJob:          false,
 		},
 	}
@@ -59,7 +70,8 @@ func TestUpdateReactionJob(t *testing.T) {
 			// Create a test workflow
 			compiler := NewCompiler(false, "", "")
 			workflowData := &WorkflowData{
-				Name: "Test Workflow",
+				Name:       "Test Workflow",
+				AIReaction: tt.aiReaction,
 			}
 
 			if tt.addCommentConfig {
@@ -200,13 +212,13 @@ func TestUpdateReactionJobIntegration(t *testing.T) {
 	if !strings.Contains(job.If, "needs.activation.outputs.comment_id") {
 		t.Error("Expected comment_id check in update_reaction condition")
 	}
-	if !strings.Contains(job.If, "!(contains(needs.agent.outputs.output_types, 'add_comment'))") {
+	if !strings.Contains(job.If, "(!contains(needs.agent.outputs.output_types, 'add_comment'))") {
 		t.Error("Expected NOT contains add_comment check in update_reaction condition")
 	}
-	if !strings.Contains(job.If, "!(contains(needs.agent.outputs.output_types, 'create_pull_request'))") {
+	if !strings.Contains(job.If, "(!contains(needs.agent.outputs.output_types, 'create_pull_request'))") {
 		t.Error("Expected NOT contains create_pull_request check in update_reaction condition")
 	}
-	if !strings.Contains(job.If, "!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))") {
+	if !strings.Contains(job.If, "(!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))") {
 		t.Error("Expected NOT contains push_to_pull_request_branch check in update_reaction condition")
 	}
 

@@ -249,6 +249,12 @@ Workflows use a hierarchical token precedence system that allows you to configur
 
 This allows you to set a default token for the entire workflow while still allowing specific safe-outputs to use different tokens when needed.
 
+:::tip[Automatic Secret Validation]
+All `github-token` fields are automatically validated during compilation to ensure they use GitHub Actions secret expressions (e.g., `${{ secrets.CUSTOM_PAT }}`). This prevents accidental plaintext secret leakage in workflow files.
+
+If you specify a plaintext token like `ghp_1234...` or use an environment variable like `${{ env.MY_TOKEN }}`, compilation will fail with a clear error message.
+:::
+
 #### Token Configuration Examples
 
 **Top-level token for entire workflow:**
@@ -466,10 +472,22 @@ Engine network permissions provide fine-grained control over network access for 
 
 ### Implementation Details
 
+Engine network permissions are implemented differently based on the AI engine:
+
+**Claude Engine:**
 - **Hook-Based Enforcement**: Uses Claude Code's PreToolUse hooks to intercept network requests
 - **Runtime Validation**: Domain checking happens at request time, not compilation time
 - **Error Handling**: Blocked requests receive clear error messages with allowed domains
 - **Performance Impact**: Minimal overhead (~10ms per network request)
+
+**Copilot Engine with AWF:**
+- **Firewall Wrapper**: Uses AWF (Agent Workflow Firewall) from [github.com/githubnext/gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall)
+- **Domain Allowlisting**: Enforces network access at the process level via `--allow-domains` flag
+- **Execution Wrapping**: AWF wraps the entire Copilot CLI execution command
+- **Activity Logging**: All network activity is logged for audit purposes
+- **Configuration**: Configure via `network.firewall` in workflow frontmatter
+
+See [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network-permissions) for detailed AWF configuration.
 
 ### Best Practices
 

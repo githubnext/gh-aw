@@ -5,9 +5,11 @@ on:
   workflow_dispatch:
 name: Smoke Copilot Firewall
 engine: copilot
-features:
+network:
   firewall: true
 tools:
+  edit:
+  bash:
   github:
 safe-outputs:
     staged: true

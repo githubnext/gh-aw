@@ -56,14 +56,14 @@ func TestCreateIssueJobWithAssignees(t *testing.T) {
 		t.Error("Expected assignee step for bot-user")
 	}
 
-	// Check that gh issue edit command is present
-	if !strings.Contains(stepsContent, "gh issue edit") {
-		t.Error("Expected gh issue edit command in steps")
+	// Check that actions/github-script is used for assigning
+	if !strings.Contains(stepsContent, "actions/github-script") {
+		t.Error("Expected actions/github-script to be used for assignee steps")
 	}
 
-	// Check that --add-assignee flag is present
-	if !strings.Contains(stepsContent, "--add-assignee") {
-		t.Error("Expected --add-assignee flag in gh issue edit command")
+	// Check that the JavaScript assigns issues using exec.exec with gh CLI
+	if !strings.Contains(stepsContent, "exec.exec") {
+		t.Error("Expected exec.exec to be used in assignee script")
 	}
 
 	// Check that ISSUE_NUMBER environment variable is set from step output
@@ -145,9 +145,9 @@ func TestCreateIssueJobWithSingleAssignee(t *testing.T) {
 		t.Error("Expected assignee step for single-user")
 	}
 
-	// Check that gh issue edit command is present
-	if !strings.Contains(stepsContent, "gh issue edit") {
-		t.Error("Expected gh issue edit command in steps")
+	// Check that actions/github-script is used
+	if !strings.Contains(stepsContent, "actions/github-script") {
+		t.Error("Expected actions/github-script to be used in assignee step")
 	}
 
 	// Verify environment variable for assignee

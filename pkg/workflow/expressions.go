@@ -50,7 +50,21 @@ type NotNode struct {
 }
 
 func (n *NotNode) Render() string {
+	// For simple function calls like cancelled(), render as !cancelled() instead of !(cancelled())
+	// This prevents GitHub Actions from interpreting the extra parentheses as an object structure
+	if _, isFunctionCall := n.Child.(*FunctionCallNode); isFunctionCall {
+		return fmt.Sprintf("!%s", n.Child.Render())
+	}
 	return fmt.Sprintf("!(%s)", n.Child.Render())
+}
+
+// ParenthesesNode wraps a condition in parentheses for proper YAML interpretation
+type ParenthesesNode struct {
+	Child ConditionNode
+}
+
+func (p *ParenthesesNode) Render() string {
+	return fmt.Sprintf("(%s)", p.Child.Render())
 }
 
 // DisjunctionNode represents an OR operation with multiple terms to avoid deep nesting
@@ -322,12 +336,18 @@ func BuildNotFromFork() *ComparisonNode {
 }
 
 func BuildSafeOutputType(outputType string, min int) ConditionNode {
-	alwaysFunc := BuildFunctionCall("always")
+	// Use !cancelled() instead of always() to respect workflow cancellation
+	// !cancelled() allows jobs to run when dependencies fail (for error reporting)
+	// but skips them when the workflow is cancelled (desired behavior)
+	notCancelledFunc := &NotNode{
+		Child: BuildFunctionCall("cancelled"),
+	}
 
-	// If min > 0, only return always() without the contains check
+	// If min > 0, only return !cancelled() without the contains check
 	// This is needed to ensure the job runs even with 0 outputs to enforce the minimum constraint
+	// Wrap in parentheses to ensure proper YAML interpretation
 	if min > 0 {
-		return alwaysFunc
+		return &ParenthesesNode{Child: notCancelledFunc}
 	}
 
 	containsFunc := BuildFunctionCall("contains",
@@ -335,7 +355,7 @@ func BuildSafeOutputType(outputType string, min int) ConditionNode {
 		BuildStringLiteral(outputType),
 	)
 	return &AndNode{
-		Left:  alwaysFunc,
+		Left:  notCancelledFunc,
 		Right: containsFunc,
 	}
 }

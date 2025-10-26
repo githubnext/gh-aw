@@ -40,7 +40,6 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
 	// Collect tools that need MCP server configuration
 	var mcpTools []string
-	var proxyTools []string
 
 	// Check if workflowData is valid before accessing its fields
 	if workflowData == nil {
@@ -57,11 +56,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			// Check if it's explicitly marked as MCP type in the new format
 			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
 				mcpTools = append(mcpTools, toolName)
-
-				// Check if this tool needs proxy
-				if needsProxySetup, _ := needsProxy(mcpConfig); needsProxySetup {
-					proxyTools = append(proxyTools, toolName)
-				}
 			}
 		}
 	}
@@ -79,55 +73,10 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// Sort tools to ensure stable code generation
 	sort.Strings(mcpTools)
-	sort.Strings(proxyTools)
 
 	// Collect all Docker images that will be used and generate download step
 	dockerImages := collectDockerImages(tools)
 	generateDownloadDockerImagesStep(yaml, dockerImages)
-
-	// Generate proxy configuration files inline for proxy-enabled tools
-	// These files will be used automatically by docker compose when MCP tools run
-	if len(proxyTools) > 0 {
-		yaml.WriteString("      - name: Setup Proxy Configuration for MCP Network Restrictions\n")
-		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          echo \"Generating proxy configuration files for MCP tools with network restrictions...\"\n")
-		yaml.WriteString("          \n")
-
-		// Generate proxy configurations inline for each proxy-enabled tool
-		for _, toolName := range proxyTools {
-			if toolConfig, ok := tools[toolName].(map[string]any); ok {
-				c.generateInlineProxyConfig(yaml, toolName, toolConfig)
-			}
-		}
-
-		yaml.WriteString("          echo \"Proxy configuration files generated.\"\n")
-
-		// Start squid proxy ahead of time to avoid timeouts
-		// Note: Docker images are now pre-downloaded in the "Downloading container images" step
-		yaml.WriteString("      - name: Start Squid proxy\n")
-		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          set -e\n")
-		yaml.WriteString("          echo 'Starting squid-proxy services for proxy-enabled MCP tools...'\n")
-
-		// Bring up squid service for each proxy-enabled tool
-		for _, toolName := range proxyTools {
-			fmt.Fprintf(yaml, "          echo 'Starting squid-proxy service for %s'\n", toolName)
-			fmt.Fprintf(yaml, "          docker compose -f docker-compose-%s.yml up -d squid-proxy\n", toolName)
-
-			// Enforce that egress from this tool's network can only reach the Squid proxy
-			subnetCIDR, squidIP, _ := computeProxyNetworkParams(toolName)
-			fmt.Fprintf(yaml, "          echo 'Enforcing egress to proxy for %s (subnet %s, squid %s)'\n", toolName, subnetCIDR, squidIP)
-			yaml.WriteString("          if command -v sudo >/dev/null 2>&1; then SUDO=sudo; else SUDO=; fi\n")
-			// Accept established/related connections first (position 1)
-			yaml.WriteString("          $SUDO iptables -C DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 1 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT\n")
-			// Accept all egress from Squid IP (position 2)
-			fmt.Fprintf(yaml, "          $SUDO iptables -C DOCKER-USER -s %s -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 2 -s %s -j ACCEPT\n", squidIP, squidIP)
-			// Allow traffic to squid:3128 from the subnet (position 3)
-			fmt.Fprintf(yaml, "          $SUDO iptables -C DOCKER-USER -s %s -d %s -p tcp --dport 3128 -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 3 -s %s -d %s -p tcp --dport 3128 -j ACCEPT\n", subnetCIDR, squidIP, subnetCIDR, squidIP)
-			// Then reject all other egress from that subnet (append to end)
-			fmt.Fprintf(yaml, "          $SUDO iptables -C DOCKER-USER -s %s -j REJECT 2>/dev/null || $SUDO iptables -A DOCKER-USER -s %s -j REJECT\n", subnetCIDR, subnetCIDR)
-		}
-	}
 
 	// If no MCP tools, no configuration needed
 	if len(mcpTools) == 0 {
@@ -199,10 +148,12 @@ func getGitHubDockerImageVersion(githubTool any) string {
 	return githubDockerImageVersion
 }
 
-// hasGitHubTool checks if the tools map contains a GitHub tool
-func hasGitHubTool(tools map[string]any) bool {
-	_, exists := tools["github"]
-	return exists
+// hasGitHubTool checks if the GitHub tool is configured (using ParsedTools)
+func hasGitHubTool(parsedTools *Tools) bool {
+	if parsedTools == nil {
+		return false
+	}
+	return parsedTools.GitHub != nil
 }
 
 // getGitHubType extracts the mode from GitHub tool configuration (local or remote)

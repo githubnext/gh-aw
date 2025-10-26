@@ -161,7 +161,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.48.0
+        run: npm install -g @openai/codex@0.49.0
       - name: Downloading container images
         run: |
           set -e
@@ -233,11 +233,11 @@ jobs:
             const outputFile = process.env.GH_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safeoutputs/outputs.jsonl";
             if (!process.env.GH_AW_SAFE_OUTPUTS) {
               debug(`GH_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
-              const outputDir = path.dirname(outputFile);
-              if (!fs.existsSync(outputDir)) {
-                debug(`Creating output directory: ${outputDir}`);
-                fs.mkdirSync(outputDir, { recursive: true });
-              }
+            }
+            const outputDir = path.dirname(outputFile);
+            if (!fs.existsSync(outputDir)) {
+              debug(`Creating output directory: ${outputDir}`);
+              fs.mkdirSync(outputDir, { recursive: true });
             }
             function writeMessage(obj) {
               const json = JSON.stringify(obj);
@@ -472,9 +472,23 @@ jobs:
               };
             };
             function getCurrentBranch() {
+              const ghHeadRef = process.env.GITHUB_HEAD_REF;
+              const ghRefName = process.env.GITHUB_REF_NAME;
+              if (ghHeadRef) {
+                debug(`Resolved current branch from GITHUB_HEAD_REF: ${ghHeadRef}`);
+                return ghHeadRef;
+              }
+              if (ghRefName) {
+                debug(`Resolved current branch from GITHUB_REF_NAME: ${ghRefName}`);
+                return ghRefName;
+              }
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
               try {
-                const branch = execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
-                debug(`Resolved current branch: ${branch}`);
+                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+                  encoding: "utf8",
+                  cwd: cwd,
+                }).trim();
+                debug(`Resolved current branch from git in ${cwd}: ${branch}`);
                 return branch;
               } catch (error) {
                 throw new Error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`);
@@ -527,6 +541,10 @@ jobs:
                       type: "array",
                       items: { type: "string" },
                       description: "Issue labels",
+                    },
+                    parent: {
+                      type: "number",
+                      description: "Parent issue number to create this issue as a sub-issue of",
                     },
                   },
                   additionalProperties: false,
@@ -716,7 +734,8 @@ jobs:
                   properties: {
                     branch: {
                       type: "string",
-                      description: "Optional branch name. If not provided, the current branch will be used.",
+                      description:
+                        "Optional branch name. Do not provide this parameter if you want to push changes from the current branch. If not provided, the current branch will be used.",
                     },
                     message: { type: "string", description: "Commit message" },
                     pull_request_number: {
@@ -1564,6 +1583,7 @@ jobs:
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":3},\"missing_tool\":{}}"
+          GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com"
         with:
           script: |
             async function main() {
@@ -2854,7 +2874,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_issue'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_issue'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2999,7 +3019,10 @@ jobs:
                 core.info(
                   `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
                 );
+                core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
+                core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
                 const effectiveParentIssueNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentIssueNumber;
+                core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}`);
                 if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
                   core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
                 }
@@ -3064,8 +3087,11 @@ jobs:
                   });
                   core.info("Created issue #" + issue.number + ": " + issue.html_url);
                   createdIssues.push(issue);
+                  core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
                   if (effectiveParentIssueNumber) {
+                    core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
                     try {
+                      core.info(`Fetching node ID for parent issue #${effectiveParentIssueNumber}...`);
                       const getIssueNodeIdQuery = `
                         query($owner: String!, $repo: String!, $issueNumber: Int!) {
                           repository(owner: $owner, name: $repo) {
@@ -3081,16 +3107,20 @@ jobs:
                         issueNumber: effectiveParentIssueNumber,
                       });
                       const parentNodeId = parentResult.repository.issue.id;
+                      core.info(`Parent issue node ID: ${parentNodeId}`);
+                      core.info(`Fetching node ID for child issue #${issue.number}...`);
                       const childResult = await github.graphql(getIssueNodeIdQuery, {
                         owner: context.repo.owner,
                         repo: context.repo.repo,
                         issueNumber: issue.number,
                       });
                       const childNodeId = childResult.repository.issue.id;
+                      core.info(`Child issue node ID: ${childNodeId}`);
+                      core.info(`Executing addSubIssue mutation...`);
                       const addSubIssueMutation = `
-                        mutation($parentId: ID!, $subIssueId: ID!) {
+                        mutation($issueId: ID!, $subIssueId: ID!) {
                           addSubIssue(input: {
-                            parentId: $parentId,
+                            issueId: $issueId,
                             subIssueId: $subIssueId
                           }) {
                             subIssue {
@@ -3101,26 +3131,30 @@ jobs:
                         }
                       `;
                       await github.graphql(addSubIssueMutation, {
-                        parentId: parentNodeId,
+                        issueId: parentNodeId,
                         subIssueId: childNodeId,
                       });
-                      core.info("Linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
+                      core.info("✓ Successfully linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
                     } catch (error) {
                       core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
+                      core.info(`Error details: ${error instanceof Error ? error.stack : String(error)}`);
                       try {
+                        core.info(`Attempting fallback: adding comment to parent issue #${effectiveParentIssueNumber}...`);
                         await github.rest.issues.createComment({
                           owner: context.repo.owner,
                           repo: context.repo.repo,
                           issue_number: effectiveParentIssueNumber,
                           body: `Created related issue: #${issue.number}`,
                         });
-                        core.info("Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
+                        core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
                       } catch (commentError) {
                         core.info(
                           `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
                         );
                       }
                     }
+                  } else {
+                    core.info(`Debug: No parent issue number set, skipping sub-issue linking`);
                   }
                   if (i === createIssueItems.length - 1) {
                     core.setOutput("issue_number", issue.number);
@@ -3154,12 +3188,59 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       - name: Assign issue to copilot
         if: steps.create_issue.outputs.issue_number != ''
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           ASSIGNEE: "@copilot"
           ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
-        run: |
-          gh issue edit "$ISSUE_NUMBER" --add-assignee "$ASSIGNEE"
+        with:
+          script: |
+            async function main() {
+              const ghToken = process.env.GH_TOKEN;
+              const assignee = process.env.ASSIGNEE;
+              const issueNumber = process.env.ISSUE_NUMBER;
+              if (!ghToken || ghToken.trim() === "") {
+                const docsUrl = "https://githubnext.github.io/gh-aw/reference/safe-outputs/#assigning-issues-to-copilot";
+                core.setFailed(
+                  `GH_TOKEN environment variable is required but not set. ` +
+                    `This token is needed to assign issues. ` +
+                    `For more information on configuring Copilot tokens, see: ${docsUrl}`
+                );
+                return;
+              }
+              if (!assignee || assignee.trim() === "") {
+                core.setFailed("ASSIGNEE environment variable is required but not set");
+                return;
+              }
+              if (!issueNumber || issueNumber.trim() === "") {
+                core.setFailed("ISSUE_NUMBER environment variable is required but not set");
+                return;
+              }
+              const trimmedAssignee = assignee.trim();
+              const trimmedIssueNumber = issueNumber.trim();
+              core.info(`Assigning issue #${trimmedIssueNumber} to ${trimmedAssignee}`);
+              try {
+                await exec.exec("gh", ["issue", "edit", trimmedIssueNumber, "--add-assignee", trimmedAssignee], {
+                  env: { ...process.env, GH_TOKEN: ghToken },
+                });
+                core.info(`✅ Successfully assigned issue #${trimmedIssueNumber} to ${trimmedAssignee}`);
+                await core.summary
+                  .addRaw(
+                    `
+            ## Issue Assignment
+            Successfully assigned issue #${trimmedIssueNumber} to \`${trimmedAssignee}\`.
+            `
+                  )
+                  .write();
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to assign issue: ${errorMessage}`);
+                core.setFailed(`Failed to assign issue #${trimmedIssueNumber} to ${trimmedAssignee}: ${errorMessage}`);
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
 
   detection:
     needs: agent
@@ -3324,7 +3405,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.48.0
+        run: npm install -g @openai/codex@0.49.0
       - name: Run Codex
         run: |
           set -o pipefail
@@ -3387,7 +3468,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
+    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

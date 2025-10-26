@@ -246,6 +246,81 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
       }, 2000);
     });
   });
+
+  it("should create output directory even when GH_AW_SAFE_OUTPUTS is set", async () => {
+    // Create a unique test directory path that doesn't exist yet
+    const testOutputDir = path.join("/tmp", `test_safe_outputs_${Date.now()}_envset`);
+    const testOutputFile = path.join(testOutputDir, "outputs.jsonl");
+
+    // Set GH_AW_SAFE_OUTPUTS to a path that doesn't exist yet
+    process.env.GH_AW_SAFE_OUTPUTS = testOutputFile;
+    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+
+    // Ensure the directory does NOT exist before starting
+    if (fs.existsSync(testOutputDir)) {
+      fs.rmSync(testOutputDir, { recursive: true, force: true });
+    }
+
+    const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        child.kill();
+        reject(new Error("Test timeout"));
+      }, 5000);
+
+      const child = spawn("node", [serverPath], {
+        stdio: ["pipe", "pipe", "pipe"],
+        env: { ...process.env },
+      });
+
+      let stderr = "";
+
+      child.stderr.on("data", data => {
+        stderr += data.toString();
+      });
+
+      child.on("error", error => {
+        clearTimeout(timeout);
+        // Clean up
+        if (fs.existsSync(testOutputDir)) {
+          fs.rmSync(testOutputDir, { recursive: true, force: true });
+        }
+        reject(error);
+      });
+
+      // Send initialization message
+      const initMessage =
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: { name: "test-client", version: "1.0.0" },
+          },
+        }) + "\n";
+
+      child.stdin.write(initMessage);
+
+      // Wait for the server to initialize
+      setTimeout(() => {
+        child.kill();
+        clearTimeout(timeout);
+
+        // Clean up
+        if (fs.existsSync(testOutputDir)) {
+          fs.rmSync(testOutputDir, { recursive: true, force: true });
+        }
+
+        // Verify that directory was created even though GH_AW_SAFE_OUTPUTS was set
+        expect(stderr).toContain(`Creating output directory: ${testOutputDir}`);
+
+        resolve();
+      }, 2000);
+    });
+  });
 });
 
 // Test that add_labels tool description is patched with allowed labels

@@ -58,20 +58,6 @@ func collectDockerImages(tools map[string]any) []string {
 		}
 	}
 
-	// Add squid proxy image if any tool needs proxy
-	for _, toolValue := range tools {
-		if mcpConfig, ok := toolValue.(map[string]any); ok {
-			if needsProxySetup, _ := needsProxy(mcpConfig); needsProxySetup {
-				squidImage := "ubuntu/squid:latest"
-				if !imageSet[squidImage] {
-					images = append(images, squidImage)
-					imageSet[squidImage] = true
-				}
-				break // Only need to add once
-			}
-		}
-	}
-
 	// Sort for stable output
 	sort.Strings(images)
 	return images

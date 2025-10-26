@@ -7,7 +7,7 @@ sidebar:
 
 Control network access for AI engines using the top-level `network` field to specify which domains and services your agentic workflows can access during execution.
 
-> **Note**: Network permissions are currently only supported by the Claude engine.
+> **Note**: Network permissions are currently supported by the Claude engine and the Copilot engine (when using the [firewall feature](/gh-aw/reference/engines/#network-permissions)).
 
 If no `network:` permission is specified, it defaults to `network: defaults` which allows access to basic infrastructure domains (certificates, JSON schema, Ubuntu, common package mirrors, Microsoft sources).
 
@@ -61,6 +61,39 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `terraform` | HashiCorp and Terraform domains |
 | `playwright` | Playwright testing framework domains |
 
+
+## Implementation
+
+Network permissions are enforced differently depending on the AI engine:
+
+### Claude Engine
+
+The Claude engine uses hook-based enforcement via Claude Code's PreToolUse hooks to intercept network requests. This provides fine-grained control with minimal performance overhead (~10ms per request).
+
+### Copilot Engine
+
+The Copilot engine supports network permissions through AWF (Agent Workflow Firewall). AWF is a network firewall wrapper sourced from [github.com/githubnext/gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall) that wraps Copilot CLI execution and enforces domain-based access controls.
+
+Enable network permissions in your workflow:
+
+```yaml
+engine: copilot
+
+network:
+  firewall: true           # Enable AWF enforcement
+  allowed:
+    - defaults             # Basic infrastructure
+    - python              # Python ecosystem
+    - "api.example.com"   # Custom domain
+```
+
+When enabled, AWF:
+- Wraps the Copilot CLI execution command
+- Enforces domain allowlisting using the `--allow-domains` flag
+- Logs all network activity for audit purposes
+- Blocks access to domains not explicitly allowed
+
+See the [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network-permissions) documentation for detailed AWF configuration options.
 
 ## Best Practices
 

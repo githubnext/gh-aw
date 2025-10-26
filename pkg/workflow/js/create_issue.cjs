@@ -139,8 +139,15 @@ async function main() {
     core.info(
       `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
     );
+
+    // Debug logging for parent field
+    core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
+    core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
+
     // Use the parent field from the item if provided, otherwise fall back to context
     const effectiveParentIssueNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentIssueNumber;
+    core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}`);
+
     if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
       core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
     }
@@ -205,9 +212,15 @@ async function main() {
       });
       core.info("Created issue #" + issue.number + ": " + issue.html_url);
       createdIssues.push(issue);
+
+      // Debug logging for sub-issue linking
+      core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
+
       if (effectiveParentIssueNumber) {
+        core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
         try {
           // First, get the node IDs for both parent and child issues
+          core.info(`Fetching node ID for parent issue #${effectiveParentIssueNumber}...`);
           const getIssueNodeIdQuery = `
             query($owner: String!, $repo: String!, $issueNumber: Int!) {
               repository(owner: $owner, name: $repo) {
@@ -225,20 +238,24 @@ async function main() {
             issueNumber: effectiveParentIssueNumber,
           });
           const parentNodeId = parentResult.repository.issue.id;
+          core.info(`Parent issue node ID: ${parentNodeId}`);
 
           // Get child issue node ID
+          core.info(`Fetching node ID for child issue #${issue.number}...`);
           const childResult = await github.graphql(getIssueNodeIdQuery, {
             owner: context.repo.owner,
             repo: context.repo.repo,
             issueNumber: issue.number,
           });
           const childNodeId = childResult.repository.issue.id;
+          core.info(`Child issue node ID: ${childNodeId}`);
 
           // Link the child issue as a sub-issue of the parent
+          core.info(`Executing addSubIssue mutation...`);
           const addSubIssueMutation = `
-            mutation($parentId: ID!, $subIssueId: ID!) {
+            mutation($issueId: ID!, $subIssueId: ID!) {
               addSubIssue(input: {
-                parentId: $parentId,
+                issueId: $issueId,
                 subIssueId: $subIssueId
               }) {
                 subIssue {
@@ -250,28 +267,32 @@ async function main() {
           `;
 
           await github.graphql(addSubIssueMutation, {
-            parentId: parentNodeId,
+            issueId: parentNodeId,
             subIssueId: childNodeId,
           });
 
-          core.info("Linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
+          core.info("✓ Successfully linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
         } catch (error) {
           core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
+          core.info(`Error details: ${error instanceof Error ? error.stack : String(error)}`);
           // Fallback: add a comment if sub-issue linking fails
           try {
+            core.info(`Attempting fallback: adding comment to parent issue #${effectiveParentIssueNumber}...`);
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: effectiveParentIssueNumber,
               body: `Created related issue: #${issue.number}`,
             });
-            core.info("Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
+            core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
           } catch (commentError) {
             core.info(
               `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
             );
           }
         }
+      } else {
+        core.info(`Debug: No parent issue number set, skipping sub-issue linking`);
       }
       if (i === createIssueItems.length - 1) {
         core.setOutput("issue_number", issue.number);

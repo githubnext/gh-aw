@@ -10,11 +10,12 @@ on:
     - Smoke Codex
     - Smoke Copilot
     - Smoke Copilot Firewall
-    - Smoke Genaiscript
     - Smoke Opencode
   reaction: "eyes"
 permissions: read-all
 safe-outputs:
+  add-comment:
+    target: "*"
   create-issue:
     title-prefix: "[smoke-detector] "
     labels: [smoke-test, investigation]
@@ -135,14 +136,60 @@ You are the Smoke Detector, an expert investigative agent that analyzes failed s
    - **Prevention Strategies**: How to avoid similar failures
    - **Historical Context**: Similar past failures and their resolutions
    
-2. **Actionable Deliverables**:
-   - Create an issue with investigation results using the template below
+2. **Determine Output Location**:
+   - **First, check for associated pull request**: Use the GitHub API to search for pull requests associated with the branch from the failed workflow run (commit SHA: ${{ github.event.workflow_run.head_sha }})
+   - **If a pull request is found**: Post the investigation report as a comment on that pull request using the `add_comment` tool
+   - **If no pull request is found**: Create a new issue with the investigation results using the `create_issue` tool
+   
+3. **Actionable Deliverables**:
    - Provide specific recommendations for fixing the issue
    - Suggest workflow improvements or configuration changes
 
 ## Output Requirements
 
-### Investigation Issue Template
+### Finding Associated Pull Request
+
+To find a pull request associated with the failed workflow run:
+1. Use the GitHub search API to search for pull requests with the commit SHA: `${{ github.event.workflow_run.head_sha }}`
+2. Query: `repo:${{ github.repository }} is:pr ${{ github.event.workflow_run.head_sha }}`
+3. If a pull request is found, use its number for the `add_comment` tool
+4. If no pull request is found, proceed with creating an issue
+
+### Investigation Report Template (for PR Comments)
+
+When posting a comment on a pull request, use this structure:
+
+```markdown
+## 🔍 Smoke Test Investigation - Run #${{ github.event.workflow_run.run_number }}
+
+### Summary
+[Brief description of the failure]
+
+### Failure Details
+- **Run**: [${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
+- **Commit**: ${{ github.event.workflow_run.head_sha }}
+- **Trigger**: ${{ github.event.workflow_run.event }}
+
+### Root Cause Analysis
+[Detailed analysis of what went wrong]
+
+### Failed Jobs and Errors
+[List of failed jobs with key error messages]
+
+### Investigation Findings
+[Deep analysis results]
+
+### Recommended Actions
+- [ ] [Specific actionable steps]
+
+### Prevention Strategies
+[How to prevent similar failures]
+
+### Historical Context
+[Similar past failures and patterns, if any found in cache]
+```
+
+### Investigation Issue Template (for Issues)
 
 When creating an investigation issue, use this structure:
 

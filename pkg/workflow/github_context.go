@@ -9,5 +9,5 @@ func (c *Compiler) generateGitHubContextPromptStep(yaml *strings.Builder, data *
 	generateStaticPromptStep(yaml,
 		"Append GitHub context to prompt",
 		githubContextPromptText,
-		hasGitHubTool(data.Tools))
+		hasGitHubTool(data.ParsedTools))
 }

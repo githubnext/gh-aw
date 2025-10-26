@@ -50,6 +50,70 @@ gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 The Copilot engine does not have built-in `web-search` support. You can add web search capabilities using third-party MCP servers. See the [Using Web Search](/gh-aw/guides/web-search/) for available options and setup instructions.
 :::
 
+#### Network Permissions
+
+The Copilot engine supports network access control through the `network:` configuration at the workflow level. When network permissions are configured, you can enable AWF (Agent Workflow Firewall) to enforce domain-based access controls. AWF is sourced from [github.com/githubnext/gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall).
+
+Enable network permissions and firewall in your workflow:
+
+```yaml
+engine: copilot
+
+network:
+  firewall: true           # Enable AWF enforcement
+  allowed:
+    - defaults             # Basic infrastructure domains
+    - python              # Python ecosystem
+    - "api.example.com"   # Custom domain
+```
+
+When enabled, AWF wraps the Copilot CLI execution and enforces the configured domain allowlist, logging all network activity for audit purposes. This provides network egress control and an additional layer of security for workflows that need strict network access control.
+
+**Advanced Firewall Configuration:**
+
+Additional AWF settings can be configured through the network configuration:
+
+```yaml
+network:
+  allowed:
+    - defaults
+    - python
+  firewall:
+    version: "v1.0.0"                    # Optional: AWF version (defaults to latest)
+    args: ["--custom-arg", "value"]      # Optional: additional AWF arguments
+```
+
+**Firewall Configuration Formats:**
+
+The `firewall` field supports multiple formats:
+
+```yaml
+# Enable with defaults
+network:
+  firewall: true
+
+# Enable with empty object (same as true)
+network:
+  firewall:
+
+# Disable firewall (triggers warning if allowed domains are specified)
+network:
+  allowed: ["example.com"]
+  firewall: "disable"
+
+# Custom configuration with version and arguments
+network:
+  firewall:
+    version: "v0.1.0"
+    args: ["--verbose"]
+```
+
+:::caution
+Using `firewall: "disable"` with `network.allowed` domains will emit a warning in normal mode and an error in strict mode, as the network may not be properly sandboxed.
+:::
+
+See the [Network Permissions](/gh-aw/reference/network/) documentation for details on configuring allowed domains and ecosystem identifiers.
+
 ### Anthropic Claude Code
 
 Claude Code excels at reasoning, code analysis, and understanding complex contexts.
