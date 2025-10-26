@@ -10,6 +10,7 @@ var validReactions = map[string]bool{
 	"hooray":   true,
 	"rocket":   true,
 	"eyes":     true,
+	"none":     true,
 }
 
 // isValidReaction checks if a reaction value is valid according to the schema

@@ -19,10 +19,10 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 		return nil, nil // Only create this job when add-comment is configured
 	}
 
-	// Only create this job when reactions are actually being used (AIReaction is set)
+	// Only create this job when reactions are actually being used (AIReaction is set and not "none")
 	// This job updates the activation comment, which is only created when AIReaction is configured
-	if data.AIReaction == "" {
-		return nil, nil // No reaction configured, no comment to update
+	if data.AIReaction == "" || data.AIReaction == "none" {
+		return nil, nil // No reaction configured or explicitly disabled, no comment to update
 	}
 
 	// Build the job steps

@@ -63,6 +63,13 @@ func TestUpdateReactionJob(t *testing.T) {
 			safeOutputJobNames: []string{"add_comment", "missing_tool"},
 			expectJob:          false,
 		},
+		{
+			name:               "update_reaction job not created when reaction is explicitly set to none",
+			addCommentConfig:   true,
+			aiReaction:         "none",
+			safeOutputJobNames: []string{"add_comment", "missing_tool"},
+			expectJob:          false,
+		},
 	}
 
 	for _, tt := range tests {
