@@ -3852,12 +3852,17 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_SHA: ${{ github.sha }}
         run: |
+          # Diagnostic logging: Show recent commits before patch generation
+          echo "=== Diagnostic: Recent commits (last 5) ==="
+          git log --oneline -5 || echo "Failed to show git log"
           # Check current git status
-          echo "Current git status:"
+          echo ""
+          echo "=== Diagnostic: Current git status ==="
           git status
           # Extract branch name from JSONL output
           BRANCH_NAME=""
           if [ -f "$GH_AW_SAFE_OUTPUTS" ]; then
+            echo ""
             echo "Checking for branch name in JSONL output..."
             while IFS= read -r line; do
               if [ -n "$line" ]; then
@@ -3910,6 +3915,24 @@ jobs:
                 BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)
                 echo "Using merge-base as base: $BASE_REF"
               fi
+              # Diagnostic logging: Show diff stats before generating patch
+              echo ""
+              echo "=== Diagnostic: Diff stats for patch generation ==="
+              echo "Command: git diff --stat $BASE_REF..$BRANCH_NAME"
+              git diff --stat "$BASE_REF".."$BRANCH_NAME" || echo "Failed to show diff stats"
+              # Diagnostic logging: Count commits to be included
+              echo ""
+              echo "=== Diagnostic: Commits to be included in patch ==="
+              COMMIT_COUNT=$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")
+              echo "Number of commits: $COMMIT_COUNT"
+              if [ "$COMMIT_COUNT" -gt 0 ]; then
+                echo "Commit SHAs:"
+                git log --oneline "$BASE_REF".."$BRANCH_NAME" || echo "Failed to list commits"
+              fi
+              # Diagnostic logging: Show the exact command being used
+              echo ""
+              echo "=== Diagnostic: Generating patch ==="
+              echo "Command: git format-patch $BASE_REF..$BRANCH_NAME --stdout > /tmp/gh-aw/aw.patch"
               # Generate patch from the determined base to the branch
               git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from branch" > /tmp/gh-aw/aw.patch
               echo "Patch file created from branch: $BRANCH_NAME (base: $BASE_REF)"
@@ -3919,7 +3942,23 @@ jobs:
           fi
           # Show patch info if it exists
           if [ -f /tmp/gh-aw/aw.patch ]; then
-            ls -la /tmp/gh-aw/aw.patch
+            echo ""
+            echo "=== Diagnostic: Patch file information ==="
+            ls -lh /tmp/gh-aw/aw.patch
+            # Get patch file size in KB
+            PATCH_SIZE=$(du -k /tmp/gh-aw/aw.patch | cut -f1)
+            echo "Patch file size: ${PATCH_SIZE} KB"
+            # Count lines in patch
+            PATCH_LINES=$(wc -l < /tmp/gh-aw/aw.patch)
+            echo "Patch file lines: $PATCH_LINES"
+            # Extract and count commits from patch file (each commit starts with "From <sha>")
+            PATCH_COMMITS=$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")
+            echo "Commits included in patch: $PATCH_COMMITS"
+            # List commit SHAs in the patch
+            if [ "$PATCH_COMMITS" -gt 0 ]; then
+              echo "Commit SHAs in patch:"
+              grep "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch | sed 's/^From \([0-9a-f]\{40\}\).*/  \1/' || echo "Failed to extract commit SHAs"
+            fi
             # Show the first 50 lines of the patch for review
             echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
             echo '' >> $GITHUB_STEP_SUMMARY
