@@ -15,14 +15,22 @@ import (
 // 4. NO create_pull_request output was produced by the agent
 // This job depends on all safe output jobs to ensure it runs last
 func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string, safeOutputJobNames []string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.AddComments == nil {
-		return nil, nil // Only create this job when add-comment is configured
+	// Create this job when:
+	// 1. add-comment is configured with a reaction, OR
+	// 2. command is configured with a reaction (which auto-creates a comment in activation)
+
+	hasAddComment := data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil
+	hasCommand := data.Command != ""
+	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
+
+	// Only create this job when reactions are being used AND either add-comment or command is configured
+	// This job updates the activation comment, which is only created when AIReaction is configured
+	if !hasReaction {
+		return nil, nil // No reaction configured or explicitly disabled, no comment to update
 	}
 
-	// Only create this job when reactions are actually being used (AIReaction is set and not "none")
-	// This job updates the activation comment, which is only created when AIReaction is configured
-	if data.AIReaction == "" || data.AIReaction == "none" {
-		return nil, nil // No reaction configured or explicitly disabled, no comment to update
+	if !hasAddComment && !hasCommand {
+		return nil, nil // Neither add-comment nor command is configured, no need for update_reaction job
 	}
 
 	// Build the job steps
@@ -51,7 +59,7 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 
 	// Get token from config
 	var token string
-	if data.SafeOutputs.AddComments != nil {
+	if data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil {
 		token = data.SafeOutputs.AddComments.GitHubToken
 	}
 
