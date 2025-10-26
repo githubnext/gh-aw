@@ -78,7 +78,10 @@ func InitRepository(verbose bool) error {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Repository initialized for agentic workflows!"))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Get started by loading .github/prompts/setup-agentic-workflows.prompt.md in your agent."))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Start a chat and copy the following prompt to create a new workflow:"))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "     activate @.github/prompts/create-agentic-workflow.prompt.md")
+	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add workflows from the catalog: "+constants.CLIExtensionPrefix+" add <workflow-name>"))
 	fmt.Fprintln(os.Stderr, "")
 
