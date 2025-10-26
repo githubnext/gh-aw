@@ -143,6 +143,24 @@ describe("push_to_pull_request_branch.cjs", () => {
             });
           }
         }
+        // Handle git ls-remote --heads origin <branch>
+        if (command === "git" && args && args[0] === "ls-remote" && args[1] === "--heads" && args[2] === "origin") {
+          // Default behavior: return success for branch existence check
+          if (args[3]) {
+            // Specific branch check - return success by default
+            return Promise.resolve({
+              exitCode: 0,
+              stdout: `abc123\trefs/heads/${args[3]}\n`,
+              stderr: "",
+            });
+          }
+          // List all branches - return some default branches
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123\trefs/heads/main\ndef456\trefs/heads/develop\n",
+            stderr: "",
+          });
+        }
         // Handle git rev-parse HEAD
         if (command === "git" && args && args[0] === "rev-parse" && args[1] === "HEAD") {
           return Promise.resolve({
@@ -544,6 +562,14 @@ const exec = global.exec;`
             stderr: "",
           });
         }
+        // Handle git ls-remote for branch existence check
+        if (command === "git" && args && args[0] === "ls-remote" && args[1] === "--heads" && args[2] === "origin") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123\trefs/heads/feature-branch\n",
+            stderr: "",
+          });
+        }
         if (command === "git" && args && args[0] === "rev-parse" && args[1] === "HEAD") {
           return Promise.resolve({
             exitCode: 0,
@@ -634,6 +660,14 @@ const exec = global.exec;`
           return Promise.resolve({
             exitCode: 0,
             stdout: JSON.stringify(prData),
+            stderr: "",
+          });
+        }
+        // Handle git ls-remote for branch existence check
+        if (command === "git" && args && args[0] === "ls-remote" && args[1] === "--heads" && args[2] === "origin") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123\trefs/heads/feature-branch\n",
             stderr: "",
           });
         }
@@ -730,6 +764,22 @@ const exec = global.exec;`
           return Promise.resolve({
             exitCode: 0,
             stdout: JSON.stringify(prData),
+            stderr: "",
+          });
+        }
+        // Handle git ls-remote for branch existence check
+        if (command === "git" && args && args[0] === "ls-remote" && args[1] === "--heads" && args[2] === "origin") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123\trefs/heads/feature-branch\n",
+            stderr: "",
+          });
+        }
+        // Handle git ls-remote for branch existence check
+        if (command === "git" && args && args[0] === "ls-remote" && args[1] === "--heads" && args[2] === "origin") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123\trefs/heads/feature-branch\n",
             stderr: "",
           });
         }
@@ -1007,6 +1057,15 @@ Subject: Add new feature
           });
         }
 
+        // Handle git ls-remote for branch existence check
+        if (command === "git" && args && args[0] === "ls-remote" && args[1] === "--heads" && args[2] === "origin") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123\trefs/heads/feature-branch\n",
+            stderr: "",
+          });
+        }
+
         // Handle git status investigation
         if (command === "git" && args && args[0] === "status") {
           return Promise.resolve({
@@ -1091,6 +1150,15 @@ Subject: Add new feature
           });
         }
 
+        // Allow git ls-remote to succeed for branch validation
+        if (command === "git" && args && args[0] === "ls-remote" && args[1] === "--heads" && args[2] === "origin") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123\trefs/heads/feature-branch\n",
+            stderr: "",
+          });
+        }
+
         // Make git status and git am --show-current-patch fail
         if (command === "git") {
           throw new Error("Git command failed");
@@ -1114,6 +1182,269 @@ Subject: Add new feature
 
       // Verify setFailed was still called
       expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to apply patch");
+    });
+  });
+
+  describe("Branch existence validation", () => {
+    beforeEach(() => {
+      // Add writeFileSync to mockFs for these tests
+      mockFs.writeFileSync = vi.fn();
+    });
+
+    it("should validate branch exists before attempting to push", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Mock git ls-remote to show branch exists
+      mockExec.getExecOutput.mockImplementation(async (command, args) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "feature-branch",
+            title: "Test PR Title",
+            labels: [],
+          };
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData) + "\n",
+            stderr: "",
+          });
+        }
+
+        // Handle git ls-remote --heads origin feature-branch
+        if (command === "git" && args && args[0] === "ls-remote" && args[1] === "--heads" && args[2] === "origin") {
+          if (args[3] === "feature-branch") {
+            return Promise.resolve({
+              exitCode: 0,
+              stdout: "abc123\trefs/heads/feature-branch\n",
+              stderr: "",
+            });
+          }
+        }
+
+        if (command === "git" && args && args[0] === "rev-parse" && args[1] === "HEAD") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123def456\n",
+            stderr: "",
+          });
+        }
+
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+        });
+      });
+
+      // Execute the script
+      await executeScript();
+
+      // Verify branch existence check was performed
+      expect(mockCore.info).toHaveBeenCalledWith('Validating branch existence: feature-branch');
+      expect(mockCore.info).toHaveBeenCalledWith('✓ Branch "feature-branch" exists on origin');
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should fail with clear error when branch doesn't exist", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Mock git ls-remote to show branch doesn't exist
+      mockExec.getExecOutput.mockImplementation(async (command, args) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "non-existent-branch",
+            title: "Test PR Title",
+            labels: [],
+          };
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData) + "\n",
+            stderr: "",
+          });
+        }
+
+        // Handle git ls-remote --heads origin non-existent-branch (returns empty)
+        if (command === "git" && args && args[0] === "ls-remote" && args[1] === "--heads" && args[2] === "origin") {
+          if (args[3] === "non-existent-branch") {
+            return Promise.resolve({
+              exitCode: 0,
+              stdout: "",
+              stderr: "",
+            });
+          }
+
+          // List all branches for debugging
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123\trefs/heads/main\ndef456\trefs/heads/develop\n789abc\trefs/heads/feature-1\n",
+            stderr: "",
+          });
+        }
+
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+        });
+      });
+
+      // Execute the script
+      await executeScript();
+
+      // Verify branch existence check failed with clear error
+      expect(mockCore.info).toHaveBeenCalledWith('Validating branch existence: non-existent-branch');
+      expect(mockCore.error).toHaveBeenCalledWith('Branch "non-existent-branch" does not exist on origin');
+
+      // Verify available branches were listed
+      expect(mockCore.info).toHaveBeenCalledWith('Available remote branches (showing first 3):');
+      expect(mockCore.info).toHaveBeenCalledWith('  - main');
+      expect(mockCore.info).toHaveBeenCalledWith('  - develop');
+      expect(mockCore.info).toHaveBeenCalledWith('  - feature-1');
+
+      // Verify setFailed was called with actionable error message
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        'Branch "non-existent-branch" does not exist on origin. Ensure the pull request branch exists before attempting to push changes.'
+      );
+    });
+
+    it("should handle error when listing available branches fails", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Mock git ls-remote to show branch doesn't exist
+      mockExec.getExecOutput.mockImplementation(async (command, args) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "non-existent-branch",
+            title: "Test PR Title",
+            labels: [],
+          };
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData) + "\n",
+            stderr: "",
+          });
+        }
+
+        // Handle git ls-remote --heads origin non-existent-branch (returns empty)
+        if (command === "git" && args && args[0] === "ls-remote" && args[1] === "--heads" && args[2] === "origin") {
+          if (args[3] === "non-existent-branch") {
+            return Promise.resolve({
+              exitCode: 0,
+              stdout: "",
+              stderr: "",
+            });
+          }
+
+          // Listing all branches fails
+          throw new Error("Failed to connect to remote");
+        }
+
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+        });
+      });
+
+      // Execute the script
+      await executeScript();
+
+      // Verify branch existence check failed
+      expect(mockCore.error).toHaveBeenCalledWith('Branch "non-existent-branch" does not exist on origin');
+
+      // Verify warning about failing to list branches
+      expect(mockCore.warning).toHaveBeenCalledWith('Failed to list available branches: Failed to connect to remote');
+
+      // Verify setFailed was still called with main error message
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        'Branch "non-existent-branch" does not exist on origin. Ensure the pull request branch exists before attempting to push changes.'
+      );
+    });
+
+    it("should handle errors during branch validation gracefully", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Mock git fetch to fail
+      mockExec.exec.mockImplementation(async (cmd, args) => {
+        if (typeof cmd === "string" && cmd.includes("git fetch")) {
+          throw new Error("Network error");
+        }
+        return 0;
+      });
+
+      mockExec.getExecOutput.mockImplementation(async (command, args) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "feature-branch",
+            title: "Test PR Title",
+            labels: [],
+          };
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData) + "\n",
+            stderr: "",
+          });
+        }
+
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+        });
+      });
+
+      // Execute the script
+      await executeScript();
+
+      // Verify setFailed was called with validation error
+      expect(mockCore.setFailed).toHaveBeenCalledWith('Failed to validate or switch to branch feature-branch: Network error');
     });
   });
 });

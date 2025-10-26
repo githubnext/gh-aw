@@ -252,26 +252,50 @@ async function main() {
   // Check if patch has actual changes (not just empty)
   const hasChanges = !isEmpty;
 
-  // Switch to or create the target branch
-  core.info(`Switching to branch: ${branchName}`);
+  // Defensive validation: Check if branch exists on remote before attempting operations
+  core.info(`Validating branch existence: ${branchName}`);
   try {
-    // Try to checkout existing branch first
     await exec.exec("git fetch origin");
 
-    // Check if branch exists on origin
-    try {
-      await exec.exec(`git rev-parse --verify origin/${branchName}`);
-      await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
-      core.info(`Checked out existing branch from origin: ${branchName}`);
-    } catch (originError) {
-      // Give an error if branch doesn't exist on origin
+    // Use git ls-remote to check if branch exists on origin
+    const lsRemoteResult = await exec.getExecOutput("git", ["ls-remote", "--heads", "origin", branchName]);
+
+    if (!lsRemoteResult.stdout.trim()) {
+      // Branch doesn't exist - provide clear error with available branches for debugging
+      core.error(`Branch "${branchName}" does not exist on origin`);
+
+      // List available remote branches for debugging
+      try {
+        const remoteBranchesResult = await exec.getExecOutput("git", ["ls-remote", "--heads", "origin"]);
+        const remoteBranches = remoteBranchesResult.stdout
+          .trim()
+          .split("\n")
+          .map(line => line.split("\t")[1]?.replace("refs/heads/", "") || "")
+          .filter(b => b)
+          .slice(0, 10); // Limit to first 10 branches
+
+        if (remoteBranches.length > 0) {
+          core.info(`Available remote branches (showing first ${remoteBranches.length}):`);
+          remoteBranches.forEach(branch => core.info(`  - ${branch}`));
+        }
+      } catch (listError) {
+        core.warning(`Failed to list available branches: ${listError instanceof Error ? listError.message : String(listError)}`);
+      }
+
       core.setFailed(
-        `Branch ${branchName} does not exist on origin, can't push to it: ${originError instanceof Error ? originError.message : String(originError)}`
+        `Branch "${branchName}" does not exist on origin. Ensure the pull request branch exists before attempting to push changes.`
       );
       return;
     }
+
+    core.info(`✓ Branch "${branchName}" exists on origin`);
+
+    // Switch to the target branch
+    core.info(`Switching to branch: ${branchName}`);
+    await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
+    core.info(`Checked out existing branch from origin: ${branchName}`);
   } catch (error) {
-    core.setFailed(`Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`);
+    core.setFailed(`Failed to validate or switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 
