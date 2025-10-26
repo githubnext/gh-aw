@@ -1,7 +1,13 @@
 package workflow
 
+import "github.com/githubnext/gh-aw/pkg/logger"
+
+var filtersLog = logger.New("workflow:filters")
+
 // applyPullRequestDraftFilter applies draft filter conditions for pull_request triggers
 func (c *Compiler) applyPullRequestDraftFilter(data *WorkflowData, frontmatter map[string]any) {
+	filtersLog.Print("Applying pull request draft filter")
+
 	// Check if there's an "on" section in the frontmatter
 	onValue, hasOn := frontmatter["on"]
 	if !hasOn {
@@ -38,6 +44,8 @@ func (c *Compiler) applyPullRequestDraftFilter(data *WorkflowData, frontmatter m
 		// If draft is not a boolean, don't add filter
 		return
 	}
+
+	filtersLog.Printf("Found draft filter configuration: draft=%v", draftBool)
 
 	// Generate conditional logic based on draft value using expression nodes
 	var draftCondition ConditionNode
@@ -82,6 +90,8 @@ func (c *Compiler) applyPullRequestDraftFilter(data *WorkflowData, frontmatter m
 // applyPullRequestForkFilter applies fork filter conditions for pull_request triggers
 // Supports "forks: []string" with glob patterns
 func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter map[string]any) {
+	filtersLog.Print("Applying pull request fork filter")
+
 	// Check if there's an "on" section in the frontmatter
 	onValue, hasOn := frontmatter["on"]
 	if !hasOn {
@@ -112,6 +122,8 @@ func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter ma
 	if !hasForks {
 		return
 	}
+
+	filtersLog.Print("Found forks filter configuration")
 
 	// Convert forks value to []string, handling both string and array formats
 	var allowedForks []string
@@ -159,6 +171,8 @@ func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter ma
 // applyLabelFilter applies label name filter conditions for labeled/unlabeled triggers
 // Supports "names: []string" to filter which label changes trigger the workflow
 func (c *Compiler) applyLabelFilter(data *WorkflowData, frontmatter map[string]any) {
+	filtersLog.Print("Applying label filter")
+
 	// Check if there's an "on" section in the frontmatter
 	onValue, hasOn := frontmatter["on"]
 	if !hasOn {
