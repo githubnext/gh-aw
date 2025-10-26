@@ -282,7 +282,21 @@ The audit command accepts workflow run URLs from any repository and GitHub insta
 
 - `--parse`: Generates detailed `log.md` and `firewall.md` files with tool calls, reasoning, and network access patterns extracted by engine-specific parsers
 
-The audit command checks local cache first (`logs/run-{id}`), then attempts download. On permission errors, it provides MCP server instructions for artifact downloads. Reports include overview, metrics, tool usage, MCP failures, firewall analysis, and available artifacts.
+The audit command checks local cache first (`logs/run-{id}`), then attempts download. On permission errors, it provides MCP server instructions for artifact downloads. Reports include overview, metrics, tool usage, MCP failures, missing tool detection, firewall analysis, and available artifacts.
+
+**Missing Tool Detection:**
+
+The audit command automatically detects and reports missing tools that agents need but cannot access. When an agent encounters a missing tool, the audit report includes:
+
+```
+## Missing Tools
+
+  • GitHub API read access for workflows and artifacts
+    Reason: Need to query GitHub API to list workflows, workflow runs, and artifacts data
+    Alternatives: Could use gh CLI with appropriate permissions or authenticated API token
+```
+
+Missing tool information is also available in JSON output via `--json` flag for automated processing.
 
 ### MCP Server Management
 
