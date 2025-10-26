@@ -68,22 +68,21 @@ func shellEscapeCommandString(cmd string) string {
 			}
 		} else if ch == ')' {
 			// Don't escape closing paren if we're inside a \$(...) construct
-			// We'll track this by looking backward for an unescaped \$(
+			// We need to track by looking backward for matching \$(
 			inCommandSubst := false
-			depth := 0
+			depth := 1 // We're currently at a ')', so depth starts at 1
 			for j := i - 1; j >= 0; j-- {
-				if escaped[j] == ')' && (j == 0 || escaped[j-1] != '\\') {
+				if escaped[j] == ')' {
 					depth++
 				} else if escaped[j] == '(' {
-					if j >= 2 && escaped[j-2] == '\\' && escaped[j-1] == '$' {
-						// Found \$( - this is command substitution
-						if depth == 0 {
+					depth--
+					if depth == 0 {
+						// Found the matching opening paren
+						// Check if it's a command substitution \$(
+						if j >= 2 && escaped[j-2] == '\\' && escaped[j-1] == '$' {
 							inCommandSubst = true
-							break
 						}
-						depth--
-					} else if j == 0 || escaped[j-1] != '\\' {
-						depth--
+						break
 					}
 				}
 			}
