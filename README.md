@@ -66,3 +66,7 @@ For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIB
 
 We welcome your feedback on GitHub Agentic Workflows! Please file bugs and feature requests as issues in this repository,
 and share your thoughts in the `#continuous-ai` channel in the [GitHub Next Discord](https://gh.io/next-discord).
+
+## 📊 Workflow Status
+
+See the [Workflow Status](https://githubnext.github.io/gh-aw/status/) page for a comprehensive overview of all agentic workflows in this repository, including their current status, schedules, and configurations.
