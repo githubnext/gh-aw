@@ -441,9 +441,9 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 }
 
 // getCurrentRepositoryInfo determines the current repository from the gh CLI (cached)
-// This is a wrapper around GetCurrentRepoSlugCached for backward compatibility
+// This is a wrapper around GetCurrentRepoSlug for backward compatibility
 func getCurrentRepositoryInfo() (string, error) {
-	return GetCurrentRepoSlugCached()
+	return GetCurrentRepoSlug()
 }
 
 // getCurrentGitHubUsername gets the current GitHub username from gh CLI

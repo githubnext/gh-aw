@@ -22,9 +22,9 @@ func ClearCurrentRepoSlugCache() {
 	currentRepoSlugError = nil
 }
 
-// GetCurrentRepoSlug gets the current repository slug (owner/repo) using gh CLI (uncached)
+// getCurrentRepoSlugUncached gets the current repository slug (owner/repo) using gh CLI (uncached)
 // Falls back to git remote parsing if gh CLI is not available
-func GetCurrentRepoSlug() (string, error) {
+func getCurrentRepoSlugUncached() (string, error) {
 	// Try gh CLI first (most reliable)
 	cmd := exec.Command("gh", "repo", "view", "--json", "owner,name", "--jq", ".owner.login + \"/\" + .name")
 	output, err := cmd.Output()
@@ -77,11 +77,11 @@ func GetCurrentRepoSlug() (string, error) {
 	return repoPath, nil
 }
 
-// GetCurrentRepoSlugCached gets the current repository slug with caching using sync.Once
+// GetCurrentRepoSlug gets the current repository slug with caching using sync.Once
 // This is the recommended function to use for repository access across the codebase
-func GetCurrentRepoSlugCached() (string, error) {
+func GetCurrentRepoSlug() (string, error) {
 	getCurrentRepoSlugOnce.Do(func() {
-		currentRepoSlugResult, currentRepoSlugError = GetCurrentRepoSlug()
+		currentRepoSlugResult, currentRepoSlugError = getCurrentRepoSlugUncached()
 	})
 
 	if currentRepoSlugError != nil {
