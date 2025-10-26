@@ -5131,8 +5131,8 @@ jobs:
                   }
                   const finalPatchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
                   const patchLines = finalPatchContent.split("\n");
-                  const previewLines = patchLines.slice(0, 500).join("\n");
-                  core.info(`Patch preview (first ${Math.min(500, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
+                  const previewLines = patchLines.slice(0, 100).join("\n");
+                  core.info(`Patch preview (first ${Math.min(100, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
                   await exec.exec("git am /tmp/gh-aw/aw.patch");
                   core.info("Patch applied successfully");
                   await exec.exec(`git push origin ${branchName}`);
@@ -5144,9 +5144,18 @@ jobs:
                     const statusResult = await exec.getExecOutput("git", ["status"]);
                     core.info("Git status output:");
                     core.info(statusResult.stdout);
-                    const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
-                    core.info("Failed patch content:");
-                    core.info(patchResult.stdout);
+                    const logResult = await exec.getExecOutput("git", ["log", "--oneline", "-5"]);
+                    core.info("Recent commits (last 5):");
+                    core.info(logResult.stdout);
+                    const diffResult = await exec.getExecOutput("git", ["diff", "HEAD"]);
+                    core.info("Uncommitted changes:");
+                    core.info(diffResult.stdout && diffResult.stdout.trim() ? diffResult.stdout : "(no uncommitted changes)");
+                    const patchDiffResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+                    core.info("Failed patch diff:");
+                    core.info(patchDiffResult.stdout);
+                    const patchFullResult = await exec.getExecOutput("git", ["am", "--show-current-patch"]);
+                    core.info("Failed patch (full):");
+                    core.info(patchFullResult.stdout);
                   } catch (investigateError) {
                     core.warning(
                       `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
