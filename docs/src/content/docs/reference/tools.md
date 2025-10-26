@@ -166,24 +166,109 @@ playwright:
     - "*.example.com"   # Custom wildcard
 ```
 
-## Other MCP Servers
+## Custom MCP Servers (`mcp-servers:`)
 
-Use `mcp-servers:` for custom MCP server configuration:
+Use `mcp-servers:` to integrate custom Model Context Protocol servers for third-party services, APIs, or specialized tools.
 
+### Basic Configuration
+
+**npx-based MCP server:**
 ```yaml
 mcp-servers:
   custom-api:
-    command: "node"
-    args: ["custom-mcp-server.js"]
+    command: "npx"
+    args: ["-y", "@company/custom-mcp-server"]
     env:
       API_KEY: "${{ secrets.CUSTOM_API_KEY }}"
+```
 
+**Node.js script:**
+```yaml
+mcp-servers:
+  analytics:
+    command: "node"
+    args: ["scripts/analytics-mcp-server.js"]
+    env:
+      ANALYTICS_TOKEN: "${{ secrets.ANALYTICS_TOKEN }}"
+```
+
+**Python MCP server:**
+```yaml
+mcp-servers:
+  data-processor:
+    command: "python"
+    args: ["-m", "data_processor.mcp_server"]
+    env:
+      DATABASE_URL: "${{ secrets.DATABASE_URL }}"
+      API_TIMEOUT: "30"
+```
+
+**Docker container:**
+```yaml
+mcp-servers:
+  notion:
+    container: "mcp/notion"
+    env:
+      NOTION_API_TOKEN: "${{ secrets.NOTION_API_TOKEN }}"
+    allowed:
+      - "search_pages"
+      - "get_page"
+      - "query_database"
+```
+
+**HTTP MCP server:**
+```yaml
+mcp-servers:
+  datadog:
+    url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
+    headers:
+      DD_API_KEY: "${{ secrets.DD_API_KEY }}"
+      DD_APPLICATION_KEY: "${{ secrets.DD_APPLICATION_KEY }}"
+    allowed:
+      - "search_datadog_dashboards"
+      - "get_datadog_metric"
+```
+
+### Configuration Fields
+
+- **`command:`** - Executable command (e.g., `"node"`, `"python"`, `"npx"`)
+- **`args:`** - Command arguments as array of strings
+- **`env:`** - Environment variables for the MCP server process
+- **`container:`** - Docker container image (alternative to `command`)
+- **`url:`** - HTTP endpoint for remote MCP servers (alternative to `command`)
+- **`headers:`** - HTTP headers for authentication (used with `url`)
+- **`allowed:`** - List of allowed tool names from the MCP server
+
+### Complete Example
+
+Combining GitHub tools with custom MCP servers:
+
+```yaml
 tools:
   github:
     allowed: [create_issue, update_issue]
+
+mcp-servers:
+  slack:
+    command: "npx"
+    args: ["-y", "@slack/mcp-server"]
+    env:
+      SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
+      SLACK_TEAM_ID: "${{ secrets.SLACK_TEAM_ID }}"
+    allowed:
+      - "send_message"
+      - "get_channel_history"
+  
+  notion:
+    container: "mcp/notion"
+    env:
+      NOTION_API_TOKEN: "${{ secrets.NOTION_API_TOKEN }}"
+    allowed:
+      - "search_pages"
+      - "get_page"
 ```
 
-MCP servers run alongside the AI engine in isolated environments with controlled network access.
+MCP servers run alongside the AI engine in isolated environments with controlled network access. See [MCPs Guide](/gh-aw/guides/mcps/) for detailed setup instructions and examples.
 
 ## Related Documentation
 
