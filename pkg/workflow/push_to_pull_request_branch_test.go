@@ -704,7 +704,7 @@ This workflow appends a suffix to commit titles.
 	}
 }
 
-func TestPushToPullRequestBranchWithWorkingDirectory(t *testing.T) {
+func TestPushToPullRequestBranchNoWorkingDirectory(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
 
@@ -717,13 +717,14 @@ safe-outputs:
   push-to-pull-request-branch:
 ---
 
-# Test Push to PR Branch with Working Directory
+# Test Push to PR Branch Without Working Directory
 
-Test that the push-to-pull-request-branch job includes working-directory configuration.
+Test that the push-to-pull-request-branch job does NOT include working-directory
+since it's not supported by actions/github-script.
 `
 
 	// Write the test file
-	mdFile := filepath.Join(tmpDir, "test-push-working-dir.md")
+	mdFile := filepath.Join(tmpDir, "test-push-no-working-dir.md")
 	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
 		t.Fatalf("Failed to write test markdown file: %v", err)
 	}
@@ -749,12 +750,12 @@ Test that the push-to-pull-request-branch job includes working-directory configu
 		t.Errorf("Generated workflow should contain push_to_pull_request_branch job")
 	}
 
-	// Verify that working-directory is set to ${{ github.workspace }}
-	if !strings.Contains(lockContentStr, "working-directory: ${{ github.workspace }}") {
-		t.Errorf("Generated workflow should contain working-directory: ${{ github.workspace }}\nGenerated workflow:\n%s", lockContentStr)
+	// Verify that working-directory is NOT present (not supported by actions/github-script)
+	if strings.Contains(lockContentStr, "working-directory:") {
+		t.Errorf("Generated workflow should NOT contain working-directory - it's not supported by actions/github-script\nGenerated workflow:\n%s", lockContentStr)
 	}
 
-	// Extract the push_to_pull_request_branch job section to check field ordering
+	// Extract the push_to_pull_request_branch job section
 	jobStartIdx := strings.Index(lockContentStr, "  push_to_pull_request_branch:")
 	if jobStartIdx == -1 {
 		t.Fatal("Could not find push_to_pull_request_branch job section")
@@ -770,28 +771,21 @@ Test that the push-to-pull-request-branch job includes working-directory configu
 
 	jobSection := lockContentStr[jobStartIdx:jobEndIdx]
 
-	// Verify that the working-directory comes after github-token in the with section
+	// Verify that github-token is present and script is present
 	githubTokenIdx := strings.Index(jobSection, "github-token:")
-	workingDirIdx := strings.Index(jobSection, "working-directory:")
 	scriptIdx := strings.Index(jobSection, "script: |")
 
 	if githubTokenIdx == -1 {
 		t.Error("github-token not found in push_to_pull_request_branch job")
 	}
-	if workingDirIdx == -1 {
-		t.Error("working-directory not found in push_to_pull_request_branch job")
-	}
 	if scriptIdx == -1 {
 		t.Error("script section not found in push_to_pull_request_branch job")
 	}
 
-	// Verify order: github-token comes before working-directory, which comes before script
-	if githubTokenIdx != -1 && workingDirIdx != -1 && scriptIdx != -1 {
-		if githubTokenIdx > workingDirIdx {
-			t.Error("github-token should come before working-directory in the 'with' section")
-		}
-		if workingDirIdx > scriptIdx {
-			t.Error("working-directory should come before script in the 'with' section")
+	// Verify order: github-token comes before script
+	if githubTokenIdx != -1 && scriptIdx != -1 {
+		if githubTokenIdx > scriptIdx {
+			t.Error("github-token should come before script in the 'with' section")
 		}
 	}
 }

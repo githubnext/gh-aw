@@ -4234,7 +4234,6 @@ jobs:
           GH_AW_MAX_PATCH_SIZE: 1024
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          working-directory: ${{ github.workspace }}
           script: |
             const fs = require("fs");
             const crypto = require("crypto");
@@ -5341,7 +5340,6 @@ jobs:
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          working-directory: ${{ github.workspace }}
           script: |
             const fs = require("fs");
             const path = require("path");

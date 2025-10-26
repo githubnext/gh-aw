@@ -75,13 +75,12 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 
 	// Step 4: Push to Branch using buildGitHubScriptStep
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:         "Push to Branch",
-		StepID:           "push_to_pull_request_branch",
-		MainJobName:      mainJobName,
-		CustomEnvVars:    customEnvVars,
-		Script:           pushToBranchScript,
-		Token:            token,
-		WorkingDirectory: "${{ github.workspace }}",
+		StepName:      "Push to Branch",
+		StepID:        "push_to_pull_request_branch",
+		MainJobName:   mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        pushToBranchScript,
+		Token:         token,
 	})
 	steps = append(steps, scriptSteps...)
 

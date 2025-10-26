@@ -567,3 +567,39 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 		t.Error("mkdir should come before find to ensure directory exists")
 	}
 }
+
+// TestBuildGitHubScriptStepNoWorkingDirectory verifies that working-directory
+// is NOT added to GitHub Script steps (it's only valid for run: steps)
+func TestBuildGitHubScriptStepNoWorkingDirectory(t *testing.T) {
+	compiler := &Compiler{}
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+	}
+
+	config := GitHubScriptStepConfig{
+		StepName:    "Test Script",
+		StepID:      "test_script",
+		MainJobName: "main",
+		Script:      "console.log('test');",
+		Token:       "",
+	}
+
+	steps := compiler.buildGitHubScriptStep(workflowData, config)
+	stepsStr := strings.Join(steps, "")
+
+	// Verify that working-directory is NOT present
+	// working-directory is only valid for run: steps, not for actions/github-script
+	if strings.Contains(stepsStr, "working-directory:") {
+		t.Error("working-directory should NOT be present in GitHub Script steps - it's only supported for 'run:' steps")
+	}
+
+	// Verify that the step uses actions/github-script
+	if !strings.Contains(stepsStr, "uses: actions/github-script@") {
+		t.Error("Expected step to use actions/github-script")
+	}
+
+	// Verify that script is present
+	if !strings.Contains(stepsStr, "script: |") {
+		t.Error("Expected step to contain script")
+	}
+}

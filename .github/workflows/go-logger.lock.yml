@@ -3367,7 +3367,6 @@ jobs:
           GH_AW_MAX_PATCH_SIZE: 1024
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          working-directory: ${{ github.workspace }}
           script: |
             const fs = require("fs");
             const crypto = require("crypto");
