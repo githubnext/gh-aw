@@ -169,13 +169,15 @@ function generateMarkdown(workflows) {
   // Introduction
   lines.push("This page shows the current status of all agentic workflows in the repository.");
   lines.push("");
+  lines.push("Browse the [workflow source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows) on GitHub.");
+  lines.push("");
 
   // Sort workflows alphabetically by name
   workflows.sort((a, b) => a.name.localeCompare(b.name));
 
-  // Generate table header
-  lines.push("| Workflow ([source](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)) | Agent | Status | Schedule | Command |");
-  lines.push("|----------|-------|--------|----------|---------|");
+  // Generate table header with pretty formatting
+  lines.push("| Workflow | Agent | Status | Schedule | Command |");
+  lines.push("|:---------|:-----:|:------:|:--------:|:-------:|");
 
   // Generate table rows
   for (const workflow of workflows) {

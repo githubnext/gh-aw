@@ -72,11 +72,11 @@ console.log("\nRunning tests...\n");
 // Test 1: Table format with new columns
 allPassed &= assertContains(
   output, 
-  "| Workflow ([source](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)) | Agent | Status | Schedule | Command |", 
+  "| Workflow | Agent | Status | Schedule | Command |", 
   "Table header is present with correct columns"
 );
 
-allPassed &= assertContains(output, "|----------|-------|--------|----------|---------|", "Table separator is present");
+allPassed &= assertContains(output, "|:---------|:-----:|:------:|:--------:|:-------:|", "Table separator is present with center alignment");
 
 // Test 2: Engine detection (copilot)
 allPassed &= assertContains(output, "| copilot |", "Copilot engine detected in at least one workflow");
@@ -114,6 +114,13 @@ allPassed &= assertContains(
   output,
   "This page shows the current status of all agentic workflows in the repository.",
   "Introduction text is present"
+);
+
+// Test 9b: Source files link is present
+allPassed &= assertContains(
+  output,
+  "Browse the [workflow source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows) on GitHub.",
+  "Source files link is present"
 );
 
 // Test 10: Note section is present
@@ -158,11 +165,11 @@ allPassed &= assertNotContains(output, "<CardGrid>", "No CardGrid component (sho
 
 allPassed &= assertNotContains(output, "<Card>", "No Card component (should be table now)");
 
-// Test 20: Verify consolidated workflow name column
+// Test 20: Verify source link is present (moved to intro text)
 allPassed &= assertContains(
   output,
-  "[source](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)",
-  "Workflow column header has source link"
+  "[workflow source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)",
+  "Source files link is present"
 );
 
 // Test 21: Verify no separate "Workflow Link" column
