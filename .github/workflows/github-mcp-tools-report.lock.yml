@@ -3499,8 +3499,47 @@ jobs:
                 BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)
                 echo "Using merge-base as base: $BASE_REF"
               fi
+              # Diagnostic logging before patch generation
+              echo "========================================="
+              echo "PRE-PATCH GENERATION DIAGNOSTICS"
+              echo "========================================="
+              echo "Recent commits (last 5):"
+              git log --oneline -5 || echo "Failed to show recent commits"
+              echo ""
+              echo "Git status:"
+              git status || echo "Failed to show git status"
+              echo ""
+              echo "Patch size preview (stat):"
+              git diff --stat "$BASE_REF".."$BRANCH_NAME" || echo "Failed to show diff stat"
+              echo ""
+              echo "Exact git format-patch command to be executed:"
+              echo "git format-patch \"$BASE_REF\"..\"$BRANCH_NAME\" --stdout > /tmp/gh-aw/aw.patch"
+              echo "========================================="
+              echo ""
               # Generate patch from the determined base to the branch
               git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from branch" > /tmp/gh-aw/aw.patch
+              # Diagnostic logging after patch generation
+              echo ""
+              echo "========================================="
+              echo "POST-PATCH GENERATION DIAGNOSTICS"
+              echo "========================================="
+              if [ -f /tmp/gh-aw/aw.patch ]; then
+                PATCH_SIZE=$(wc -c < /tmp/gh-aw/aw.patch)
+                PATCH_LINES=$(wc -l < /tmp/gh-aw/aw.patch)
+                PATCH_SIZE_KB=$((PATCH_SIZE / 1024))
+                echo "Patch file size: $PATCH_SIZE bytes ($PATCH_SIZE_KB KB)"
+                echo "Patch file lines: $PATCH_LINES"
+                echo ""
+                echo "Commits included in patch:"
+                git log --oneline "$BASE_REF".."$BRANCH_NAME" || echo "Failed to list commits in patch"
+                echo ""
+                echo "Number of commits in patch:"
+                git rev-list --count "$BASE_REF".."$BRANCH_NAME" || echo "Failed to count commits"
+              else
+                echo "Patch file was not created"
+              fi
+              echo "========================================="
+              echo ""
               echo "Patch file created from branch: $BRANCH_NAME (base: $BASE_REF)"
             else
               echo "Branch $BRANCH_NAME does not exist, no patch"
