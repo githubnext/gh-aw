@@ -323,7 +323,7 @@ async function main() {
   // Apply the patch using git CLI (skip if empty)
   if (!isEmpty) {
     core.info("Applying patch...");
-    
+
     // Log first 500 lines of patch for debugging
     const patchLines = patchContent.split("\n");
     const linesToLog = Math.min(500, patchLines.length);
@@ -331,7 +331,7 @@ async function main() {
     for (let i = 0; i < linesToLog; i++) {
       core.info(patchLines[i]);
     }
-    
+
     // Patches are created with git format-patch, so use git am to apply them
     await exec.exec("git am /tmp/gh-aw/aw.patch");
     core.info("Patch applied successfully");

@@ -309,7 +309,7 @@ async function main() {
       for (let i = 0; i < linesToLog; i++) {
         core.info(patchLines[i]);
       }
-      
+
       // Patches are created with git format-patch, so use git am to apply them
       await exec.exec("git am /tmp/gh-aw/aw.patch");
       core.info("Patch applied successfully");
