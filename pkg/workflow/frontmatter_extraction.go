@@ -672,6 +672,13 @@ func (c *Compiler) extractFirewallConfig(firewall any) *FirewallConfig {
 			}
 		}
 
+		// Extract log-level if present
+		if logLevel, hasLogLevel := firewallObj["log-level"]; hasLogLevel {
+			if logLevelStr, ok := logLevel.(string); ok {
+				config.LogLevel = logLevelStr
+			}
+		}
+
 		return config
 	}
 

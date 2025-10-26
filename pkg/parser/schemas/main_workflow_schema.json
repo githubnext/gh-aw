@@ -1501,6 +1501,16 @@
                     "version": {
                       "type": "string",
                       "description": "AWF version to use (empty = latest release)"
+                    },
+                    "log-level": {
+                      "type": "string",
+                      "description": "AWF log level (default: info). Valid values: debug, info, warn, error",
+                      "enum": [
+                        "debug",
+                        "info",
+                        "warn",
+                        "error"
+                      ]
                     }
                   },
                   "additionalProperties": false

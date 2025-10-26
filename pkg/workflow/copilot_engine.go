@@ -203,7 +203,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	if isFirewallEnabled(workflowData) {
 		// Build the AWF-wrapped command - no mkdir needed, AWF handles it
 		firewallConfig := getFirewallConfig(workflowData)
-		var awfLogLevel = "debug"
+		var awfLogLevel = "info"
 		if firewallConfig != nil && firewallConfig.LogLevel != "" {
 			awfLogLevel = firewallConfig.LogLevel
 		}
