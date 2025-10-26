@@ -14,9 +14,9 @@ import (
 
 // Global cache for current repository info
 var (
-	getCurrentRepoSlugOnce   sync.Once
-	currentRepoSlugResult    string
-	currentRepoSlugError     error
+	getCurrentRepoSlugOnce sync.Once
+	currentRepoSlugResult  string
+	currentRepoSlugError   error
 )
 
 // ClearCurrentRepoSlugCache clears the current repository slug cache

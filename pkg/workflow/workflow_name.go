@@ -7,8 +7,8 @@ import (
 
 var (
 	// Regular expressions for workflow name sanitization
-	identifierNonAlphanumeric  = regexp.MustCompile(`[^a-z0-9-]`)
-	identifierMultipleHyphens  = regexp.MustCompile(`-+`)
+	identifierNonAlphanumeric = regexp.MustCompile(`[^a-z0-9-]`)
+	identifierMultipleHyphens = regexp.MustCompile(`-+`)
 )
 
 // SanitizeWorkflowName sanitizes a workflow name for use in artifact names and file paths
