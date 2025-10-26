@@ -5,288 +5,66 @@ sidebar:
   order: 1000
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
-
 This page shows the current status of all agentic workflows in the repository.
 
-<CardGrid>
-  <Card>
-    ### Agentic Workflow Audit Agent
-
-    [![Agentic Workflow Audit Agent](https://github.com/githubnext/gh-aw/actions/workflows/audit-workflows.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/audit-workflows.lock.yml)
-  </Card>
-  <Card>
-    ### Artifacts Summary
-
-    [![Artifacts Summary](https://github.com/githubnext/gh-aw/actions/workflows/artifacts-summary.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/artifacts-summary.lock.yml)
-  </Card>
-  <Card>
-    ### Basic Research Agent
-
-    [![Basic Research Agent](https://github.com/githubnext/gh-aw/actions/workflows/research.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/research.lock.yml)
-  </Card>
-  <Card>
-    ### Blog Auditor
-
-    [![Blog Auditor](https://github.com/githubnext/gh-aw/actions/workflows/blog-auditor.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/blog-auditor.lock.yml)
-  </Card>
-  <Card>
-    ### Brave Web Search Agent
-
-    [![Brave Web Search Agent](https://github.com/githubnext/gh-aw/actions/workflows/brave.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/brave.lock.yml)
-  </Card>
-  <Card>
-    ### Changeset Generator
-
-    [![Changeset Generator](https://github.com/githubnext/gh-aw/actions/workflows/changeset-generator.firewall.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/changeset-generator.firewall.lock.yml)
-  </Card>
-  <Card>
-    ### CI Failure Doctor
-
-    [![CI Failure Doctor](https://github.com/githubnext/gh-aw/actions/workflows/ci-doctor.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/ci-doctor.lock.yml)
-  </Card>
-  <Card>
-    ### CLI Version Checker
-
-    [![CLI Version Checker](https://github.com/githubnext/gh-aw/actions/workflows/cli-version-checker.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/cli-version-checker.lock.yml)
-  </Card>
-  <Card>
-    ### Commit Changes Analyzer
-
-    [![Commit Changes Analyzer](https://github.com/githubnext/gh-aw/actions/workflows/commit-changes-analyzer.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/commit-changes-analyzer.lock.yml)
-  </Card>
-  <Card>
-    ### Copilot Agent PR Analysis
-
-    [![Copilot Agent PR Analysis](https://github.com/githubnext/gh-aw/actions/workflows/copilot-agent-analysis.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/copilot-agent-analysis.lock.yml)
-  </Card>
-  <Card>
-    ### Daily Documentation Updater
-
-    [![Daily Documentation Updater](https://github.com/githubnext/gh-aw/actions/workflows/daily-doc-updater.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-doc-updater.lock.yml)
-  </Card>
-  <Card>
-    ### Daily Firewall Logs Collector and Reporter
-
-    [![Daily Firewall Logs Collector and Reporter](https://github.com/githubnext/gh-aw/actions/workflows/daily-firewall-report.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-firewall-report.lock.yml)
-  </Card>
-  <Card>
-    ### Daily News
-
-    [![Daily News](https://github.com/githubnext/gh-aw/actions/workflows/daily-news.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-news.lock.yml)
-  </Card>
-  <Card>
-    ### Daily Perf Improver
-
-    [![Daily Perf Improver](https://github.com/githubnext/gh-aw/actions/workflows/daily-perf-improver.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-perf-improver.lock.yml)
-  </Card>
-  <Card>
-    ### Daily Test Coverage Improver
-
-    [![Daily Test Coverage Improver](https://github.com/githubnext/gh-aw/actions/workflows/daily-test-improver.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-test-improver.lock.yml)
-  </Card>
-  <Card>
-    ### Dev
-
-    [![Dev](https://github.com/githubnext/gh-aw/actions/workflows/dev.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/dev.lock.yml)
-  </Card>
-  <Card>
-    ### Dev Firewall
-
-    [![Dev Firewall](https://github.com/githubnext/gh-aw/actions/workflows/dev.firewall.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/dev.firewall.lock.yml)
-  </Card>
-  <Card>
-    ### Dev Hawk
-
-    [![Dev Hawk](https://github.com/githubnext/gh-aw/actions/workflows/dev-hawk.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/dev-hawk.lock.yml)
-  </Card>
-  <Card>
-    ### Dictation Prompt Generator
-
-    [![Dictation Prompt Generator](https://github.com/githubnext/gh-aw/actions/workflows/dictation-prompt.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/dictation-prompt.lock.yml)
-  </Card>
-  <Card>
-    ### Documentation Unbloat
-
-    [![Documentation Unbloat](https://github.com/githubnext/gh-aw/actions/workflows/unbloat-docs.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/unbloat-docs.lock.yml)
-  </Card>
-  <Card>
-    ### Duplicate Code Detector
-
-    [![Duplicate Code Detector](https://github.com/githubnext/gh-aw/actions/workflows/duplicate-code-detector.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/duplicate-code-detector.lock.yml)
-  </Card>
-  <Card>
-    ### Firewall Test Agent
-
-    [![Firewall Test Agent](https://github.com/githubnext/gh-aw/actions/workflows/firewall.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/firewall.lock.yml)
-  </Card>
-  <Card>
-    ### GitHub MCP Remote Server Tools Report Generator
-
-    [![GitHub MCP Remote Server Tools Report Generator](https://github.com/githubnext/gh-aw/actions/workflows/github-mcp-tools-report.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/github-mcp-tools-report.lock.yml)
-  </Card>
-  <Card>
-    ### Go Logger Enhancement
-
-    [![Go Logger Enhancement](https://github.com/githubnext/gh-aw/actions/workflows/go-logger.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/go-logger.lock.yml)
-  </Card>
-  <Card>
-    ### Go Pattern Detector
-
-    [![Go Pattern Detector](https://github.com/githubnext/gh-aw/actions/workflows/go-pattern-detector.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/go-pattern-detector.lock.yml)
-  </Card>
-  <Card>
-    ### Instructions Janitor
-
-    [![Instructions Janitor](https://github.com/githubnext/gh-aw/actions/workflows/instructions-janitor.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/instructions-janitor.lock.yml)
-  </Card>
-  <Card>
-    ### Issue Classifier
-
-    [![Issue Classifier](https://github.com/githubnext/gh-aw/actions/workflows/issue-classifier.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/issue-classifier.lock.yml)
-  </Card>
-  <Card>
-    ### Issue Summary to Notion
-
-    [![Issue Summary to Notion](https://github.com/githubnext/gh-aw/actions/workflows/notion-issue-summary.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/notion-issue-summary.lock.yml)
-  </Card>
-  <Card>
-    ### Lockfile Statistics Analysis Agent
-
-    [![Lockfile Statistics Analysis Agent](https://github.com/githubnext/gh-aw/actions/workflows/lockfile-stats.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/lockfile-stats.lock.yml)
-  </Card>
-  <Card>
-    ### MCP Inspector Agent
-
-    [![MCP Inspector Agent](https://github.com/githubnext/gh-aw/actions/workflows/mcp-inspector.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/mcp-inspector.lock.yml)
-  </Card>
-  <Card>
-    ### Mergefest
-
-    [![Mergefest](https://github.com/githubnext/gh-aw/actions/workflows/mergefest.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/mergefest.lock.yml)
-  </Card>
-  <Card>
-    ### Plan Command
-
-    [![Plan Command](https://github.com/githubnext/gh-aw/actions/workflows/plan.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/plan.lock.yml)
-  </Card>
-  <Card>
-    ### Poem Bot - A Creative Agentic Workflow
-
-    [![Poem Bot - A Creative Agentic Workflow](https://github.com/githubnext/gh-aw/actions/workflows/poem-bot.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/poem-bot.lock.yml)
-  </Card>
-  <Card>
-    ### Q
-
-    [![Q](https://github.com/githubnext/gh-aw/actions/workflows/q.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/q.lock.yml)
-  </Card>
-  <Card>
-    ### Repository Tree Map Generator
-
-    [![Repository Tree Map Generator](https://github.com/githubnext/gh-aw/actions/workflows/repo-tree-map.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/repo-tree-map.lock.yml)
-  </Card>
-  <Card>
-    ### Resource Summarizer Agent
-
-    [![Resource Summarizer Agent](https://github.com/githubnext/gh-aw/actions/workflows/pdf-summary.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/pdf-summary.lock.yml)
-  </Card>
-  <Card>
-    ### Schema Consistency Checker
-
-    [![Schema Consistency Checker](https://github.com/githubnext/gh-aw/actions/workflows/schema-consistency-checker.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/schema-consistency-checker.lock.yml)
-  </Card>
-  <Card>
-    ### Scout
-
-    [![Scout](https://github.com/githubnext/gh-aw/actions/workflows/scout.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/scout.lock.yml)
-  </Card>
-  <Card>
-    ### Security Fix PR
-
-    [![Security Fix PR](https://github.com/githubnext/gh-aw/actions/workflows/security-fix-pr.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/security-fix-pr.lock.yml)
-  </Card>
-  <Card>
-    ### Semantic Function Refactoring
-
-    [![Semantic Function Refactoring](https://github.com/githubnext/gh-aw/actions/workflows/semantic-function-refactor.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/semantic-function-refactor.lock.yml)
-  </Card>
-  <Card>
-    ### Smoke Claude
-
-    [![Smoke Claude](https://github.com/githubnext/gh-aw/actions/workflows/smoke-claude.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-claude.lock.yml)
-  </Card>
-  <Card>
-    ### Smoke Codex
-
-    [![Smoke Codex](https://github.com/githubnext/gh-aw/actions/workflows/smoke-codex.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-codex.lock.yml)
-  </Card>
-  <Card>
-    ### Smoke Copilot
-
-    [![Smoke Copilot](https://github.com/githubnext/gh-aw/actions/workflows/smoke-copilot.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-copilot.lock.yml)
-  </Card>
-  <Card>
-    ### Smoke Copilot Firewall
-
-    [![Smoke Copilot Firewall](https://github.com/githubnext/gh-aw/actions/workflows/smoke-copilot.firewall.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-copilot.firewall.lock.yml)
-  </Card>
-  <Card>
-    ### Smoke Detector - Smoke Test Failure Investigator
-
-    [![Smoke Detector - Smoke Test Failure Investigator](https://github.com/githubnext/gh-aw/actions/workflows/smoke-detector.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-detector.lock.yml)
-  </Card>
-  <Card>
-    ### Smoke OpenCode
-
-    [![Smoke OpenCode](https://github.com/githubnext/gh-aw/actions/workflows/smoke-opencode.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-opencode.lock.yml)
-  </Card>
-  <Card>
-    ### Technical Documentation Writer for GitHub Actions
-
-    [![Technical Documentation Writer for GitHub Actions](https://github.com/githubnext/gh-aw/actions/workflows/technical-doc-writer.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/technical-doc-writer.lock.yml)
-  </Card>
-  <Card>
-    ### Test jqschema
-
-    [![Test jqschema](https://github.com/githubnext/gh-aw/actions/workflows/test-jqschema.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/test-jqschema.lock.yml)
-  </Card>
-  <Card>
-    ### Test Post-Steps Workflow
-
-    [![Test Post-Steps Workflow](https://github.com/githubnext/gh-aw/actions/workflows/test-post-steps.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/test-post-steps.lock.yml)
-  </Card>
-  <Card>
-    ### Test Svelte MCP
-
-    [![Test Svelte MCP](https://github.com/githubnext/gh-aw/actions/workflows/test-svelte.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/test-svelte.lock.yml)
-  </Card>
-  <Card>
-    ### The Daily Repository Chronicle
-
-    [![The Daily Repository Chronicle](https://github.com/githubnext/gh-aw/actions/workflows/daily-repo-chronicle.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-repo-chronicle.lock.yml)
-  </Card>
-  <Card>
-    ### Tidy
-
-    [![Tidy](https://github.com/githubnext/gh-aw/actions/workflows/tidy.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/tidy.lock.yml)
-  </Card>
-  <Card>
-    ### Video Analysis Agent
-
-    [![Video Analysis Agent](https://github.com/githubnext/gh-aw/actions/workflows/video-analyzer.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/video-analyzer.lock.yml)
-  </Card>
-  <Card>
-    ### Weekly Issue Summary
-
-    [![Weekly Issue Summary](https://github.com/githubnext/gh-aw/actions/workflows/weekly-issue-summary.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/weekly-issue-summary.lock.yml)
-  </Card>
-  <Card>
-    ### Weekly Workflow Analysis
-
-    [![Weekly Workflow Analysis](https://github.com/githubnext/gh-aw/actions/workflows/example-workflow-analyzer.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/example-workflow-analyzer.lock.yml)
-  </Card>
-</CardGrid>
+| Workflow | Agent | Status | Workflow Link |
+|----------|-------|--------|---------------|
+| Agentic Workflow Audit Agent | claude | [![Agentic Workflow Audit Agent](https://github.com/githubnext/gh-aw/actions/workflows/audit-workflows.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/audit-workflows.lock.yml) | [audit-workflows.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/audit-workflows.md) |
+| Artifacts Summary | copilot | [![Artifacts Summary](https://github.com/githubnext/gh-aw/actions/workflows/artifacts-summary.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/artifacts-summary.lock.yml) | [artifacts-summary.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/artifacts-summary.md) |
+| Basic Research Agent | copilot | [![Basic Research Agent](https://github.com/githubnext/gh-aw/actions/workflows/research.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/research.lock.yml) | [research.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/research.md) |
+| Blog Auditor | claude | [![Blog Auditor](https://github.com/githubnext/gh-aw/actions/workflows/blog-auditor.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/blog-auditor.lock.yml) | [blog-auditor.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/blog-auditor.md) |
+| Brave Web Search Agent | copilot | [![Brave Web Search Agent](https://github.com/githubnext/gh-aw/actions/workflows/brave.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/brave.lock.yml) | [brave.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/brave.md) |
+| Changeset Generator | copilot | [![Changeset Generator](https://github.com/githubnext/gh-aw/actions/workflows/changeset-generator.firewall.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/changeset-generator.firewall.lock.yml) | [changeset-generator.firewall.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/changeset-generator.firewall.md) |
+| CI Failure Doctor | copilot | [![CI Failure Doctor](https://github.com/githubnext/gh-aw/actions/workflows/ci-doctor.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/ci-doctor.lock.yml) | [ci-doctor.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/ci-doctor.md) |
+| CLI Version Checker | copilot | [![CLI Version Checker](https://github.com/githubnext/gh-aw/actions/workflows/cli-version-checker.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/cli-version-checker.lock.yml) | [cli-version-checker.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/cli-version-checker.md) |
+| Commit Changes Analyzer | claude | [![Commit Changes Analyzer](https://github.com/githubnext/gh-aw/actions/workflows/commit-changes-analyzer.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/commit-changes-analyzer.lock.yml) | [commit-changes-analyzer.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/commit-changes-analyzer.md) |
+| Copilot Agent PR Analysis | claude | [![Copilot Agent PR Analysis](https://github.com/githubnext/gh-aw/actions/workflows/copilot-agent-analysis.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/copilot-agent-analysis.lock.yml) | [copilot-agent-analysis.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/copilot-agent-analysis.md) |
+| Daily Documentation Updater | claude | [![Daily Documentation Updater](https://github.com/githubnext/gh-aw/actions/workflows/daily-doc-updater.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-doc-updater.lock.yml) | [daily-doc-updater.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/daily-doc-updater.md) |
+| Daily Firewall Logs Collector and Reporter | copilot | [![Daily Firewall Logs Collector and Reporter](https://github.com/githubnext/gh-aw/actions/workflows/daily-firewall-report.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-firewall-report.lock.yml) | [daily-firewall-report.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/daily-firewall-report.md) |
+| Daily News | copilot | [![Daily News](https://github.com/githubnext/gh-aw/actions/workflows/daily-news.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-news.lock.yml) | [daily-news.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/daily-news.md) |
+| Daily Perf Improver | copilot | [![Daily Perf Improver](https://github.com/githubnext/gh-aw/actions/workflows/daily-perf-improver.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-perf-improver.lock.yml) | [daily-perf-improver.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/daily-perf-improver.md) |
+| Daily Test Coverage Improver | copilot | [![Daily Test Coverage Improver](https://github.com/githubnext/gh-aw/actions/workflows/daily-test-improver.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-test-improver.lock.yml) | [daily-test-improver.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/daily-test-improver.md) |
+| Dev | copilot | [![Dev](https://github.com/githubnext/gh-aw/actions/workflows/dev.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/dev.lock.yml) | [dev.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/dev.md) |
+| Dev Firewall | copilot | [![Dev Firewall](https://github.com/githubnext/gh-aw/actions/workflows/dev.firewall.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/dev.firewall.lock.yml) | [dev.firewall.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/dev.firewall.md) |
+| Dev Hawk | copilot | [![Dev Hawk](https://github.com/githubnext/gh-aw/actions/workflows/dev-hawk.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/dev-hawk.lock.yml) | [dev-hawk.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/dev-hawk.md) |
+| Dictation Prompt Generator | copilot | [![Dictation Prompt Generator](https://github.com/githubnext/gh-aw/actions/workflows/dictation-prompt.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/dictation-prompt.lock.yml) | [dictation-prompt.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/dictation-prompt.md) |
+| Documentation Unbloat | claude | [![Documentation Unbloat](https://github.com/githubnext/gh-aw/actions/workflows/unbloat-docs.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/unbloat-docs.lock.yml) | [unbloat-docs.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/unbloat-docs.md) |
+| Duplicate Code Detector | codex | [![Duplicate Code Detector](https://github.com/githubnext/gh-aw/actions/workflows/duplicate-code-detector.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/duplicate-code-detector.lock.yml) | [duplicate-code-detector.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/duplicate-code-detector.md) |
+| Firewall Test Agent | copilot | [![Firewall Test Agent](https://github.com/githubnext/gh-aw/actions/workflows/firewall.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/firewall.lock.yml) | [firewall.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/firewall.md) |
+| GitHub MCP Remote Server Tools Report Generator | claude | [![GitHub MCP Remote Server Tools Report Generator](https://github.com/githubnext/gh-aw/actions/workflows/github-mcp-tools-report.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/github-mcp-tools-report.lock.yml) | [github-mcp-tools-report.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/github-mcp-tools-report.md) |
+| Go Logger Enhancement | claude | [![Go Logger Enhancement](https://github.com/githubnext/gh-aw/actions/workflows/go-logger.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/go-logger.lock.yml) | [go-logger.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/go-logger.md) |
+| Go Pattern Detector | claude | [![Go Pattern Detector](https://github.com/githubnext/gh-aw/actions/workflows/go-pattern-detector.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/go-pattern-detector.lock.yml) | [go-pattern-detector.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/go-pattern-detector.md) |
+| Instructions Janitor | claude | [![Instructions Janitor](https://github.com/githubnext/gh-aw/actions/workflows/instructions-janitor.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/instructions-janitor.lock.yml) | [instructions-janitor.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/instructions-janitor.md) |
+| Issue Classifier | copilot | [![Issue Classifier](https://github.com/githubnext/gh-aw/actions/workflows/issue-classifier.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/issue-classifier.lock.yml) | [issue-classifier.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/issue-classifier.md) |
+| Issue Summary to Notion | copilot | [![Issue Summary to Notion](https://github.com/githubnext/gh-aw/actions/workflows/notion-issue-summary.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/notion-issue-summary.lock.yml) | [notion-issue-summary.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/notion-issue-summary.md) |
+| Lockfile Statistics Analysis Agent | claude | [![Lockfile Statistics Analysis Agent](https://github.com/githubnext/gh-aw/actions/workflows/lockfile-stats.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/lockfile-stats.lock.yml) | [lockfile-stats.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/lockfile-stats.md) |
+| MCP Inspector Agent | copilot | [![MCP Inspector Agent](https://github.com/githubnext/gh-aw/actions/workflows/mcp-inspector.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/mcp-inspector.lock.yml) | [mcp-inspector.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/mcp-inspector.md) |
+| Mergefest | copilot | [![Mergefest](https://github.com/githubnext/gh-aw/actions/workflows/mergefest.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/mergefest.lock.yml) | [mergefest.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/mergefest.md) |
+| Plan Command | copilot | [![Plan Command](https://github.com/githubnext/gh-aw/actions/workflows/plan.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/plan.lock.yml) | [plan.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/plan.md) |
+| Poem Bot - A Creative Agentic Workflow | copilot | [![Poem Bot - A Creative Agentic Workflow](https://github.com/githubnext/gh-aw/actions/workflows/poem-bot.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/poem-bot.lock.yml) | [poem-bot.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/poem-bot.md) |
+| Q | copilot | [![Q](https://github.com/githubnext/gh-aw/actions/workflows/q.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/q.lock.yml) | [q.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/q.md) |
+| Repository Tree Map Generator | copilot | [![Repository Tree Map Generator](https://github.com/githubnext/gh-aw/actions/workflows/repo-tree-map.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/repo-tree-map.lock.yml) | [repo-tree-map.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/repo-tree-map.md) |
+| Resource Summarizer Agent | copilot | [![Resource Summarizer Agent](https://github.com/githubnext/gh-aw/actions/workflows/pdf-summary.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/pdf-summary.lock.yml) | [pdf-summary.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/pdf-summary.md) |
+| Schema Consistency Checker | claude | [![Schema Consistency Checker](https://github.com/githubnext/gh-aw/actions/workflows/schema-consistency-checker.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/schema-consistency-checker.lock.yml) | [schema-consistency-checker.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/schema-consistency-checker.md) |
+| Scout | claude | [![Scout](https://github.com/githubnext/gh-aw/actions/workflows/scout.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/scout.lock.yml) | [scout.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/scout.md) |
+| Security Fix PR | claude | [![Security Fix PR](https://github.com/githubnext/gh-aw/actions/workflows/security-fix-pr.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/security-fix-pr.lock.yml) | [security-fix-pr.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/security-fix-pr.md) |
+| Semantic Function Refactoring | claude | [![Semantic Function Refactoring](https://github.com/githubnext/gh-aw/actions/workflows/semantic-function-refactor.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/semantic-function-refactor.lock.yml) | [semantic-function-refactor.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/semantic-function-refactor.md) |
+| Smoke Claude | claude | [![Smoke Claude](https://github.com/githubnext/gh-aw/actions/workflows/smoke-claude.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-claude.lock.yml) | [smoke-claude.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/smoke-claude.md) |
+| Smoke Codex | codex | [![Smoke Codex](https://github.com/githubnext/gh-aw/actions/workflows/smoke-codex.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-codex.lock.yml) | [smoke-codex.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/smoke-codex.md) |
+| Smoke Copilot | copilot | [![Smoke Copilot](https://github.com/githubnext/gh-aw/actions/workflows/smoke-copilot.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-copilot.lock.yml) | [smoke-copilot.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/smoke-copilot.md) |
+| Smoke Copilot Firewall | copilot | [![Smoke Copilot Firewall](https://github.com/githubnext/gh-aw/actions/workflows/smoke-copilot.firewall.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-copilot.firewall.lock.yml) | [smoke-copilot.firewall.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/smoke-copilot.firewall.md) |
+| Smoke Detector - Smoke Test Failure Investigator | claude | [![Smoke Detector - Smoke Test Failure Investigator](https://github.com/githubnext/gh-aw/actions/workflows/smoke-detector.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-detector.lock.yml) | [smoke-detector.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/smoke-detector.md) |
+| Smoke OpenCode | copilot | [![Smoke OpenCode](https://github.com/githubnext/gh-aw/actions/workflows/smoke-opencode.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/smoke-opencode.lock.yml) | [smoke-opencode.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/smoke-opencode.md) |
+| Technical Documentation Writer for GitHub Actions | claude | [![Technical Documentation Writer for GitHub Actions](https://github.com/githubnext/gh-aw/actions/workflows/technical-doc-writer.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/technical-doc-writer.lock.yml) | [technical-doc-writer.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/technical-doc-writer.md) |
+| Test jqschema | copilot | [![Test jqschema](https://github.com/githubnext/gh-aw/actions/workflows/test-jqschema.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/test-jqschema.lock.yml) | [test-jqschema.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/test-jqschema.md) |
+| Test Post-Steps Workflow | copilot | [![Test Post-Steps Workflow](https://github.com/githubnext/gh-aw/actions/workflows/test-post-steps.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/test-post-steps.lock.yml) | [test-post-steps.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/test-post-steps.md) |
+| Test Svelte MCP | copilot | [![Test Svelte MCP](https://github.com/githubnext/gh-aw/actions/workflows/test-svelte.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/test-svelte.lock.yml) | [test-svelte.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/test-svelte.md) |
+| The Daily Repository Chronicle | copilot | [![The Daily Repository Chronicle](https://github.com/githubnext/gh-aw/actions/workflows/daily-repo-chronicle.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/daily-repo-chronicle.lock.yml) | [daily-repo-chronicle.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/daily-repo-chronicle.md) |
+| Tidy | copilot | [![Tidy](https://github.com/githubnext/gh-aw/actions/workflows/tidy.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/tidy.lock.yml) | [tidy.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/tidy.md) |
+| Video Analysis Agent | copilot | [![Video Analysis Agent](https://github.com/githubnext/gh-aw/actions/workflows/video-analyzer.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/video-analyzer.lock.yml) | [video-analyzer.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/video-analyzer.md) |
+| Weekly Issue Summary | copilot | [![Weekly Issue Summary](https://github.com/githubnext/gh-aw/actions/workflows/weekly-issue-summary.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/weekly-issue-summary.lock.yml) | [weekly-issue-summary.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/weekly-issue-summary.md) |
+| Weekly Workflow Analysis | claude | [![Weekly Workflow Analysis](https://github.com/githubnext/gh-aw/actions/workflows/example-workflow-analyzer.lock.yml/badge.svg)](https://github.com/githubnext/gh-aw/actions/workflows/example-workflow-analyzer.lock.yml) | [example-workflow-analyzer.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/example-workflow-analyzer.md) |
 
 :::note
-Status badges update automatically based on the latest workflow runs. Click on a badge to view the workflow details and run history.
+Status badges update automatically based on the latest workflow runs. Click on a badge to view the workflow details and run history. Click on a workflow link to view the source markdown file.
 :::
