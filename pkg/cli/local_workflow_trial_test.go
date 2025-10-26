@@ -9,6 +9,9 @@ import (
 
 // TestLocalWorkflowTrialMode tests the local workflow installation for trial mode
 func TestLocalWorkflowTrialMode(t *testing.T) {
+	// Clear the repository slug cache to ensure clean test state
+	ClearCurrentRepoSlugCache()
+
 	// Create a temporary directory for testing
 	tempDir, err := os.MkdirTemp("", "gh-aw-local-trial-test-*")
 	if err != nil {

@@ -11,12 +11,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
-// Pre-compiled regexes for convertToIdentifier (performance optimization)
-var (
-	identifierNonAlphanumeric = regexp.MustCompile(`[^a-z0-9-]`)
-	identifierMultipleHyphens = regexp.MustCompile(`-+`)
-)
-
 // Pre-compiled regexes for Codex log parsing (performance optimization)
 var (
 	codexToolCallOldFormat    = regexp.MustCompile(`\] tool ([^(]+)\(`)
@@ -25,29 +19,6 @@ var (
 	codexExecCommandNewFormat = regexp.MustCompile(`^exec (.+?) in`)
 	codexDurationPattern      = regexp.MustCompile(`in\s+(\d+(?:\.\d+)?)\s*s`)
 )
-
-// convertToIdentifier converts a workflow name to a valid identifier format
-// by converting to lowercase and replacing spaces with hyphens
-func convertToIdentifier(name string) string {
-	// Convert to lowercase
-	identifier := strings.ToLower(name)
-	// Replace spaces and other common separators with hyphens
-	identifier = strings.ReplaceAll(identifier, " ", "-")
-	identifier = strings.ReplaceAll(identifier, "_", "-")
-	// Remove any characters that aren't alphanumeric or hyphens
-	identifier = identifierNonAlphanumeric.ReplaceAllString(identifier, "")
-	// Remove any double hyphens that might have been created
-	identifier = identifierMultipleHyphens.ReplaceAllString(identifier, "-")
-	// Remove leading/trailing hyphens
-	identifier = strings.Trim(identifier, "-")
-
-	// If the result is empty, return a default identifier
-	if identifier == "" {
-		identifier = "github-agentic-workflow"
-	}
-
-	return identifier
-}
 
 // CodexEngine represents the Codex agentic engine (experimental)
 type CodexEngine struct {
@@ -508,8 +479,8 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.UserAgent != "" {
 			userAgent = workflowData.EngineConfig.UserAgent
 		} else if workflowData.Name != "" {
-			// Fall back to converting workflow name to identifier
-			userAgent = convertToIdentifier(workflowData.Name)
+			// Fall back to sanitizing workflow name to identifier
+			userAgent = SanitizeIdentifier(workflowData.Name)
 		}
 	}
 	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")

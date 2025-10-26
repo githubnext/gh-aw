@@ -159,25 +159,3 @@ func WaitForWorkflowCompletion(repoSlug, runID string, timeoutMinutes int, verbo
 		time.Sleep(10 * time.Second)
 	}
 }
-
-// GetCurrentRepoSlug gets the current repository slug (owner/repo) using gh CLI
-func GetCurrentRepoSlug() (string, error) {
-	cmd := exec.Command("gh", "repo", "view", "--json", "owner,name", "--jq", ".owner.login + \"/\" + .name")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get current repository: %w", err)
-	}
-
-	repoSlug := strings.TrimSpace(string(output))
-	if repoSlug == "" {
-		return "", fmt.Errorf("repository slug is empty")
-	}
-
-	// Validate format (should be owner/repo)
-	parts := strings.Split(repoSlug, "/")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return "", fmt.Errorf("invalid repository format: %s", repoSlug)
-	}
-
-	return repoSlug, nil
-}

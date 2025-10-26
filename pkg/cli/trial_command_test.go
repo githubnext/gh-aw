@@ -7,22 +7,6 @@ import (
 	"testing"
 )
 
-func TestGetCurrentRepoSlug(t *testing.T) {
-	// Note: This test would require a real git repository with a GitHub remote
-	// In a real environment, we would mock the exec.Command calls for testing
-	// For now, we'll just test the function exists and has the right signature
-
-	t.Run("function exists", func(t *testing.T) {
-		// Test that the function exists and returns the expected types
-		_, err := GetCurrentRepoSlug()
-		// We expect an error in test environment since there may not be a git repo
-		// but the important thing is that the function compiles and exists
-		if err != nil {
-			t.Logf("Expected error in test environment: %v", err)
-		}
-	})
-}
-
 // Test the host repo slug processing logic with dot notation
 func TestHostRepoSlugProcessing(t *testing.T) {
 	testCases := []struct {

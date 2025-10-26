@@ -331,6 +331,9 @@ func TestParseWorkflowSpec(t *testing.T) {
 }
 
 func TestParseLocalWorkflowSpec(t *testing.T) {
+	// Clear the repository slug cache to ensure clean test state
+	ClearCurrentRepoSlugCache()
+
 	tests := []struct {
 		name             string
 		spec             string

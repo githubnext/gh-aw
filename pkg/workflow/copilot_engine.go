@@ -902,7 +902,7 @@ func generateAWFCleanupStep(scriptPath string) GitHubActionStep {
 
 // generateSquidLogsCollectionStep creates a GitHub Actions step to collect Squid logs from AWF
 func generateSquidLogsCollectionStep(workflowName string) GitHubActionStep {
-	sanitizedName := SanitizeWorkflowName(workflowName)
+	sanitizedName := strings.ToLower(SanitizeWorkflowName(workflowName))
 	squidLogsDir := fmt.Sprintf("/tmp/gh-aw/squid-logs-%s/", sanitizedName)
 
 	stepLines := []string{
@@ -924,7 +924,7 @@ func generateSquidLogsCollectionStep(workflowName string) GitHubActionStep {
 
 // generateSquidLogsUploadStep creates a GitHub Actions step to upload Squid logs as artifact
 func generateSquidLogsUploadStep(workflowName string) GitHubActionStep {
-	sanitizedName := SanitizeWorkflowName(workflowName)
+	sanitizedName := strings.ToLower(SanitizeWorkflowName(workflowName))
 	artifactName := fmt.Sprintf("squid-logs-%s", sanitizedName)
 	squidLogsDir := fmt.Sprintf("/tmp/gh-aw/squid-logs-%s/", sanitizedName)
 
