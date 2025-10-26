@@ -121,6 +121,7 @@ describe("push_to_pull_request_branch.cjs", () => {
         // Default return value for patch files
         return "diff --git a/file.txt b/file.txt\n+new content";
       }),
+      writeFileSync: vi.fn(), // Add writeFileSync mock
     };
 
     // Create fresh mock for exec
@@ -993,7 +994,7 @@ Subject: Add new feature
       });
 
       // Mock getExecOutput for investigation commands
-      mockExec.getExecOutput.mockImplementation(async (command, args) => {
+      mockExec.getExecOutput.mockImplementation(async (command, args, options) => {
         if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
           const prData = {
             headRefName: "feature-branch",
@@ -1003,6 +1004,15 @@ Subject: Add new feature
           return Promise.resolve({
             exitCode: 0,
             stdout: JSON.stringify(prData) + "\n",
+            stderr: "",
+          });
+        }
+
+        // Handle git apply --check (validation)
+        if (command === "git" && args && args[0] === "apply" && args[1] === "--check") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "",
             stderr: "",
           });
         }
@@ -1025,6 +1035,15 @@ Subject: Add new feature
           });
         }
 
+        // Handle git am --show-current-patch investigation
+        if (command === "git" && args && args[0] === "am" && args[1] === "--show-current-patch") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "Patch details...\n",
+            stderr: "",
+          });
+        }
+
         return Promise.resolve({
           exitCode: 0,
           stdout: "",
@@ -1038,9 +1057,11 @@ Subject: Add new feature
       // Verify git am was called and failed
       expect(gitAmCalled).toBe(true);
 
-      // Verify investigation commands were called
+      // Verify investigation commands were called (with ignoreReturnCode option)
       expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["status"]);
-      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["am", "--show-current-patch=diff"]);
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["am", "--show-current-patch=diff"], {
+        ignoreReturnCode: true,
+      });
 
       // Verify investigation logs
       expect(mockCore.info).toHaveBeenCalledWith("Investigating patch failure...");
@@ -1049,8 +1070,10 @@ Subject: Add new feature
       expect(mockCore.info).toHaveBeenCalledWith("Failed patch content:");
       expect(mockCore.info).toHaveBeenCalledWith("diff --git a/conflicting.txt b/conflicting.txt\n+conflicting line\n");
 
-      // Verify setFailed was called
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to apply patch");
+      // Verify setFailed was called with new detailed message
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      const setFailedCall = mockCore.setFailed.mock.calls[0][0];
+      expect(setFailedCall).toContain("Review the error details above");
     });
 
     it("should handle investigation failure gracefully", async () => {
@@ -1077,7 +1100,7 @@ Subject: Add new feature
       });
 
       // Mock investigation commands to also fail
-      mockExec.getExecOutput.mockImplementation(async (command, args) => {
+      mockExec.getExecOutput.mockImplementation(async (command, args, options) => {
         if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
           const prData = {
             headRefName: "feature-branch",
@@ -1087,6 +1110,15 @@ Subject: Add new feature
           return Promise.resolve({
             exitCode: 0,
             stdout: JSON.stringify(prData) + "\n",
+            stderr: "",
+          });
+        }
+
+        // Handle git apply --check (validation) - succeed
+        if (command === "git" && args && args[0] === "apply" && args[1] === "--check") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "",
             stderr: "",
           });
         }
@@ -1112,8 +1144,411 @@ Subject: Add new feature
       // Verify warning about investigation failure
       expect(mockCore.warning).toHaveBeenCalledWith("Failed to investigate patch failure: Git command failed");
 
-      // Verify setFailed was still called
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to apply patch");
+      // Verify setFailed was still called with new detailed message
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      const setFailedCall = mockCore.setFailed.mock.calls[0][0];
+      expect(setFailedCall).toContain("Review the error details above");
+    });
+  });
+
+  describe("Patch validation", () => {
+    it("should validate patch before applying", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Mock git apply --check to succeed
+      mockExec.getExecOutput.mockImplementation(async (command, args, options) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "feature-branch",
+            title: "Test PR Title",
+            labels: [],
+          };
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData) + "\n",
+            stderr: "",
+          });
+        }
+
+        if (command === "git" && args && args[0] === "apply" && args[1] === "--check") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "",
+            stderr: "",
+          });
+        }
+
+        if (command === "git" && args && args[0] === "rev-parse") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123def456\n",
+            stderr: "",
+          });
+        }
+
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+        });
+      });
+
+      // Execute the script
+      await executeScript();
+
+      // Verify validation was performed
+      expect(mockCore.info).toHaveBeenCalledWith("Validating patch format and applicability...");
+      expect(mockCore.info).toHaveBeenCalledWith("✓ Patch validation passed");
+
+      // Verify patch was applied
+      expect(mockExec.exec).toHaveBeenCalledWith("git am /tmp/gh-aw/aw.patch");
+      expect(mockCore.info).toHaveBeenCalledWith("Patch applied successfully");
+    });
+
+    it("should fail when patch references non-existent files", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("diff --git a/missing.txt b/missing.txt\n+new content");
+
+      // Mock git apply --check to fail with "does not exist in index"
+      mockExec.getExecOutput.mockImplementation(async (command, args, options) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "feature-branch",
+            title: "Test PR Title",
+            labels: [],
+          };
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData) + "\n",
+            stderr: "",
+          });
+        }
+
+        if (command === "git" && args && args[0] === "apply" && args[1] === "--check") {
+          return Promise.resolve({
+            exitCode: 1,
+            stdout: "",
+            stderr: "error: missing.txt: does not exist in index",
+          });
+        }
+
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+        });
+      });
+
+      // Execute the script
+      await executeScript();
+
+      // Verify validation error was logged
+      expect(mockCore.error).toHaveBeenCalledWith("Patch validation failed:");
+      expect(mockCore.error).toHaveBeenCalledWith("error: missing.txt: does not exist in index");
+
+      // Verify helpful error message
+      expect(mockCore.error).toHaveBeenCalledWith("\nAffected files:");
+      expect(mockCore.error).toHaveBeenCalledWith("  - missing.txt");
+      expect(mockCore.error).toHaveBeenCalledWith("\nSuggestions:");
+      expect(mockCore.error).toHaveBeenCalledWith("• Ensure the patch was generated from the correct base branch");
+      expect(mockCore.error).toHaveBeenCalledWith("• Verify that files referenced in the patch exist in the target branch");
+
+      // Verify failure with descriptive message
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        "Patch references files that don't exist in the target branch. See error details above."
+      );
+
+      // Verify git am was NOT called
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git am /tmp/gh-aw/aw.patch");
+    });
+
+    it("should fail when patch conflicts with current branch", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("diff --git a/conflict.txt b/conflict.txt\n+conflicting change");
+
+      // Mock git apply --check to fail with "patch does not apply"
+      mockExec.getExecOutput.mockImplementation(async (command, args, options) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "feature-branch",
+            title: "Test PR Title",
+            labels: [],
+          };
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData) + "\n",
+            stderr: "",
+          });
+        }
+
+        if (command === "git" && args && args[0] === "apply" && args[1] === "--check") {
+          return Promise.resolve({
+            exitCode: 1,
+            stdout: "",
+            stderr: "error: conflict.txt: patch does not apply",
+          });
+        }
+
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+        });
+      });
+
+      // Execute the script
+      await executeScript();
+
+      // Verify validation error was logged
+      expect(mockCore.error).toHaveBeenCalledWith("Patch validation failed:");
+      expect(mockCore.error).toHaveBeenCalledWith("error: conflict.txt: patch does not apply");
+
+      // Verify suggestions for conflict resolution
+      expect(mockCore.error).toHaveBeenCalledWith("\nSuggestions:");
+      expect(mockCore.error).toHaveBeenCalledWith("• The target branch may have diverged from the base branch");
+      expect(mockCore.error).toHaveBeenCalledWith("• Try rebasing the changes or regenerating the patch");
+      expect(mockCore.error).toHaveBeenCalledWith("• Check if the same lines were modified in the target branch");
+
+      // Verify failure with descriptive message
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Patch conflicts with current branch state. See error details above.");
+
+      // Verify git am was NOT called
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git am /tmp/gh-aw/aw.patch");
+    });
+
+    it("should fail when patch is corrupted", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("corrupted patch content");
+
+      // Mock git apply --check to fail with "corrupt patch"
+      mockExec.getExecOutput.mockImplementation(async (command, args, options) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "feature-branch",
+            title: "Test PR Title",
+            labels: [],
+          };
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData) + "\n",
+            stderr: "",
+          });
+        }
+
+        if (command === "git" && args && args[0] === "apply" && args[1] === "--check") {
+          return Promise.resolve({
+            exitCode: 1,
+            stdout: "",
+            stderr: "error: corrupt patch at line 1",
+          });
+        }
+
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+        });
+      });
+
+      // Execute the script
+      await executeScript();
+
+      // Verify validation error was logged
+      expect(mockCore.error).toHaveBeenCalledWith("Patch validation failed:");
+      expect(mockCore.error).toHaveBeenCalledWith("error: corrupt patch at line 1");
+
+      // Verify suggestions for corrupted patch
+      expect(mockCore.error).toHaveBeenCalledWith("\nSuggestions:");
+      expect(mockCore.error).toHaveBeenCalledWith("• Regenerate the patch file");
+      expect(mockCore.error).toHaveBeenCalledWith("• Check that the patch wasn't truncated during transfer");
+
+      // Verify failure with descriptive message
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Patch file is corrupted or malformed. See error details above.");
+
+      // Verify git am was NOT called
+      expect(mockExec.exec).not.toHaveBeenCalledWith("git am /tmp/gh-aw/aw.patch");
+    });
+
+    it("should continue with warning if validation itself fails", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Mock git apply --check to throw an unexpected error
+      mockExec.getExecOutput.mockImplementation(async (command, args, options) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "feature-branch",
+            title: "Test PR Title",
+            labels: [],
+          };
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData) + "\n",
+            stderr: "",
+          });
+        }
+
+        if (command === "git" && args && args[0] === "apply" && args[1] === "--check") {
+          throw new Error("Unexpected validation error");
+        }
+
+        if (command === "git" && args && args[0] === "rev-parse") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123def456\n",
+            stderr: "",
+          });
+        }
+
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+        });
+      });
+
+      // Execute the script
+      await executeScript();
+
+      // Verify validation warning was logged
+      expect(mockCore.warning).toHaveBeenCalledWith("Failed to validate patch: Unexpected validation error");
+      expect(mockCore.info).toHaveBeenCalledWith("Continuing with patch application despite validation error...");
+
+      // Verify patch was still applied (fallback behavior)
+      expect(mockExec.exec).toHaveBeenCalledWith("git am /tmp/gh-aw/aw.patch");
+      expect(mockCore.info).toHaveBeenCalledWith("Patch applied successfully");
+    });
+
+    it("should provide helpful error message for exit code 128", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push_to_pull_request_branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      setAgentOutput(validOutput);
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Mock git apply --check to succeed but git am to fail with exit code 128
+      mockExec.getExecOutput.mockImplementation(async (command, args, options) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "feature-branch",
+            title: "Test PR Title",
+            labels: [],
+          };
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData) + "\n",
+            stderr: "",
+          });
+        }
+
+        if (command === "git" && args && args[0] === "apply" && args[1] === "--check") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "",
+            stderr: "",
+          });
+        }
+
+        if (command === "git" && args && args[0] === "status") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "On branch feature-branch\n",
+            stderr: "",
+          });
+        }
+
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+        });
+      });
+
+      mockExec.exec.mockImplementation(async (cmd, args) => {
+        if (typeof cmd === "string" && cmd.includes("git am")) {
+          throw new Error("Command failed with exit code 128");
+        }
+        return 0;
+      });
+
+      // Execute the script
+      await executeScript();
+
+      // Verify helpful error messages for exit code 128
+      expect(mockCore.error).toHaveBeenCalledWith("\nCommon causes of exit code 128:");
+      expect(mockCore.error).toHaveBeenCalledWith("  • Patch conflicts with existing changes");
+      expect(mockCore.error).toHaveBeenCalledWith("  • Malformed patch file");
+      expect(mockCore.error).toHaveBeenCalledWith("  • Files referenced in patch don't exist");
+      expect(mockCore.error).toHaveBeenCalledWith("  • Patch was created from a different base commit");
+
+      // Verify specific failure message
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        "Git error during patch application (exit code 128). Review the error details above."
+      );
     });
   });
 });

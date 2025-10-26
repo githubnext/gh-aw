@@ -307,6 +307,72 @@ async function main() {
       const previewLines = patchLines.slice(0, 500).join("\n");
       core.info(`Patch preview (first ${Math.min(500, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
 
+      // Validate patch before applying using git apply --check
+      core.info("Validating patch format and applicability...");
+      try {
+        const checkResult = await exec.getExecOutput("git", ["apply", "--check", "/tmp/gh-aw/aw.patch"], {
+          ignoreReturnCode: true,
+        });
+
+        if (checkResult.exitCode !== 0) {
+          // Parse validation errors
+          const validationErrors = checkResult.stderr.trim();
+          core.error("Patch validation failed:");
+          core.error(validationErrors);
+
+          // Analyze the error to provide helpful feedback
+          let errorSummary = "Patch validation failed";
+          const suggestions = [];
+
+          if (validationErrors.includes("does not exist in index")) {
+            errorSummary = "Patch references files that don't exist in the target branch";
+            suggestions.push("• Ensure the patch was generated from the correct base branch");
+            suggestions.push("• Verify that files referenced in the patch exist in the target branch");
+          } else if (validationErrors.includes("patch does not apply")) {
+            errorSummary = "Patch conflicts with current branch state";
+            suggestions.push("• The target branch may have diverged from the base branch");
+            suggestions.push("• Try rebasing the changes or regenerating the patch");
+            suggestions.push("• Check if the same lines were modified in the target branch");
+          } else if (validationErrors.includes("corrupt patch")) {
+            errorSummary = "Patch file is corrupted or malformed";
+            suggestions.push("• Regenerate the patch file");
+            suggestions.push("• Check that the patch wasn't truncated during transfer");
+          } else if (validationErrors.includes("No such file or directory")) {
+            errorSummary = "Patch references missing files or directories";
+            suggestions.push("• Verify the directory structure matches the patch expectations");
+          }
+
+          // Extract affected files
+          const fileMatches = validationErrors.matchAll(/error: (.+?):/g);
+          const affectedFiles = new Set();
+          for (const match of fileMatches) {
+            affectedFiles.add(match[1]);
+          }
+
+          if (affectedFiles.size > 0) {
+            core.error("\nAffected files:");
+            for (const file of affectedFiles) {
+              core.error(`  - ${file}`);
+            }
+          }
+
+          if (suggestions.length > 0) {
+            core.error("\nSuggestions:");
+            for (const suggestion of suggestions) {
+              core.error(suggestion);
+            }
+          }
+
+          core.setFailed(`${errorSummary}. See error details above.`);
+          return;
+        }
+
+        core.info("✓ Patch validation passed");
+      } catch (validateError) {
+        core.warning(`Failed to validate patch: ${validateError instanceof Error ? validateError.message : String(validateError)}`);
+        core.info("Continuing with patch application despite validation error...");
+      }
+
       // Patches are created with git format-patch, so use git am to apply them
       await exec.exec("git am /tmp/gh-aw/aw.patch");
       core.info("Patch applied successfully");
@@ -326,17 +392,56 @@ async function main() {
         core.info("Git status output:");
         core.info(statusResult.stdout);
 
-        // Log the failed patch diff
-        const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
-        core.info("Failed patch content:");
-        core.info(patchResult.stdout);
+        // Try to get detailed error information from git am
+        try {
+          const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"], {
+            ignoreReturnCode: true,
+          });
+          if (patchResult.exitCode === 0 && patchResult.stdout.trim()) {
+            core.info("Failed patch content:");
+            core.info(patchResult.stdout);
+          }
+        } catch (patchError) {
+          // Silently ignore - patch may not be in progress
+        }
+
+        // Try to get rejection details
+        try {
+          const rejResult = await exec.getExecOutput("git", ["am", "--show-current-patch"], {
+            ignoreReturnCode: true,
+          });
+          if (rejResult.exitCode === 0 && rejResult.stdout.trim()) {
+            core.info("Rejection details:");
+            core.info(rejResult.stdout);
+          }
+        } catch (rejError) {
+          // Silently ignore
+        }
       } catch (investigateError) {
         core.warning(
           `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
         );
       }
 
-      core.setFailed("Failed to apply patch");
+      // Provide helpful error message based on error type
+      let failureReason = "Unknown error during patch application";
+      const errorMsg = error instanceof Error ? error.message : String(error);
+
+      if (errorMsg.includes("exit code 128")) {
+        failureReason = "Git error during patch application (exit code 128)";
+        core.error("\nCommon causes of exit code 128:");
+        core.error("  • Patch conflicts with existing changes");
+        core.error("  • Malformed patch file");
+        core.error("  • Files referenced in patch don't exist");
+        core.error("  • Patch was created from a different base commit");
+      } else if (errorMsg.includes("does not apply")) {
+        failureReason = "Patch does not apply cleanly to target branch";
+        core.error("\nThis usually means:");
+        core.error("  • The target branch has diverged from the patch base");
+        core.error("  • Conflicting changes exist in the target branch");
+      }
+
+      core.setFailed(`${failureReason}. Review the error details above.`);
       return;
     }
   } else {
