@@ -1200,7 +1200,7 @@ jobs:
           **Guidelines:**
           - Include **maximum 3 references** to keep reports concise
           - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
-          - Always use the actual URL from the workflow run data (available in `url`, `RunURL`, or similar fields)
+          - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
           - If analyzing more than 3 runs, select the most important ones for references
           
           # Daily News

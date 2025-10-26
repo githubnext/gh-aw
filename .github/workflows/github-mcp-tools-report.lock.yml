@@ -1161,7 +1161,7 @@ jobs:
           **Guidelines:**
           - Include **maximum 3 references** to keep reports concise
           - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
-          - Always use the actual URL from the workflow run data (available in `url`, `RunURL`, or similar fields)
+          - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
           - If analyzing more than 3 runs, select the most important ones for references
           
           # GitHub MCP Remote Server Tools Report Generator
@@ -1505,13 +1505,13 @@ jobs:
              - Consider which tools are most commonly needed across different workflow types
              - Evaluate the current defaults: `context`, `repos`, `issues`, `pull_requests`, `users`
              - Determine if these defaults should be updated based on actual tool availability and usage patterns
-             - Document your rationale for the recommended defaults
           PROMPT_EOF
       - name: Append prompt (part 2)
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+             - Document your rationale for the recommended defaults
           6. **Create comprehensive documentation file**: Create/update `.github/instructions/github-mcp-server.instructions.md` with:
              - Overview of GitHub MCP server (remote vs local mode)
              - Complete list of available tools organized by toolset
