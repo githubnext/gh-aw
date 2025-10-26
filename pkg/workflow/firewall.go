@@ -5,7 +5,7 @@ type FirewallConfig struct {
 	Enabled       bool     `yaml:"enabled,omitempty"`        // Enable/disable AWF (default: true for copilot when network restrictions present)
 	Version       string   `yaml:"version,omitempty"`        // AWF version (empty = latest)
 	Args          []string `yaml:"args,omitempty"`           // Additional arguments to pass to AWF
-	LogLevel      string   `yaml:"log_level,omitempty"`      // AWF log level (default: "debug")
+	LogLevel      string   `yaml:"log_level,omitempty"`      // AWF log level (default: "info")
 	CleanupScript string   `yaml:"cleanup_script,omitempty"` // Cleanup script path (default: "./scripts/ci/cleanup.sh")
 }
 
