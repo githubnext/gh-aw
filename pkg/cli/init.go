@@ -78,11 +78,7 @@ func InitRepository(verbose bool) error {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Repository initialized for agentic workflows!"))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Next steps:"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  1. In Copilot Chat, type: @workspace /setup-agentic-workflows"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  2. Follow the guide to configure your AI engine and secrets"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  3. Create your first workflow with: /create-agentic-workflow"))
-	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Get started by loading .github/prompts/setup-agentic-workflows.prompt.md in your agent."))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add workflows from the catalog: "+constants.CLIExtensionPrefix+" add <workflow-name>"))
 	fmt.Fprintln(os.Stderr, "")
 
