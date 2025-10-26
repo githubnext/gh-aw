@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 func TestParseFirewallLogLine(t *testing.T) {
@@ -486,9 +488,9 @@ func TestSanitizeWorkflowName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := sanitizeWorkflowName(tt.input)
+			result := workflow.SanitizeWorkflowName(tt.input)
 			if result != tt.expected {
-				t.Errorf("sanitizeWorkflowName(%q) = %q, want %q", tt.input, result, tt.expected)
+				t.Errorf("SanitizeWorkflowName(%q) = %q, want %q", tt.input, result, tt.expected)
 			}
 		})
 	}
