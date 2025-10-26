@@ -13,6 +13,7 @@ type PushToPullRequestBranchConfig struct {
 	Labels               []string `yaml:"labels,omitempty"`              // Required labels for pull request validation
 	IfNoChanges          string   `yaml:"if-no-changes,omitempty"`       // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
 	CommitTitleSuffix    string   `yaml:"commit-title-suffix,omitempty"` // Optional suffix to append to generated commit titles
+	Strategy             string   `yaml:"strategy,omitempty"`            // Push strategy: "default" or "merge-only" (default: "default")
 }
 
 // buildCreateOutputPushToPullRequestBranchJob creates the push_to_pull_request_branch job
@@ -60,6 +61,12 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	if data.SafeOutputs.PushToPullRequestBranch.CommitTitleSuffix != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMIT_TITLE_SUFFIX: %q\n", data.SafeOutputs.PushToPullRequestBranch.CommitTitleSuffix))
 	}
+	// Pass the strategy configuration
+	strategy := data.SafeOutputs.PushToPullRequestBranch.Strategy
+	if strategy == "" {
+		strategy = "default" // Default strategy
+	}
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PUSH_STRATEGY: %q\n", strategy))
 	// Pass the maximum patch size configuration
 	maxPatchSize := 1024 // Default value
 	if data.SafeOutputs != nil && data.SafeOutputs.MaximumPatchSize > 0 {
@@ -184,6 +191,23 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 			if commitTitleSuffix, exists := configMap["commit-title-suffix"]; exists {
 				if commitTitleSuffixStr, ok := commitTitleSuffix.(string); ok {
 					pushToBranchConfig.CommitTitleSuffix = commitTitleSuffixStr
+				}
+			}
+
+			// Parse strategy (optional, defaults to "default")
+			if strategy, exists := configMap["strategy"]; exists {
+				if strategyStr, ok := strategy.(string); ok {
+					// Validate the value
+					switch strategyStr {
+					case "default", "merge-only":
+						pushToBranchConfig.Strategy = strategyStr
+					default:
+						// Invalid value, use default and log warning
+						if c.verbose {
+							fmt.Printf("Warning: invalid strategy value '%s', using default 'default'\n", strategyStr)
+						}
+						pushToBranchConfig.Strategy = "default"
+					}
 				}
 			}
 

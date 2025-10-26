@@ -1180,4 +1180,93 @@ Subject: Add new feature
       expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to apply patch");
     });
   });
+
+  describe("Merge-only strategy", () => {
+    it("should skip patch validation in merge-only mode", async () => {
+      setAgentOutput({
+        items: [{ type: "push_to_pull_request_branch", content: "test" }],
+      });
+      process.env.GH_AW_PUSH_STRATEGY = "merge-only";
+
+      // No patch file exists
+      mockFs.existsSync.mockReturnValue(false);
+
+      // Execute the script
+      await executeScript();
+
+      // Should not fail - merge-only allows missing patch
+      expect(mockCore.info).toHaveBeenCalledWith("Using merge-only strategy - skipping patch validation");
+      expect(mockCore.info).toHaveBeenCalledWith("No patch file found - merge-only mode allows this");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should succeed with empty patch in merge-only mode", async () => {
+      setAgentOutput({
+        items: [{ type: "push_to_pull_request_branch", content: "test" }],
+      });
+      process.env.GH_AW_PUSH_STRATEGY = "merge-only";
+      process.env.GH_AW_PUSH_IF_NO_CHANGES = "ignore";
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("");
+
+      // Mock writeFileSync since we need it for empty patches
+      mockFs.writeFileSync = vi.fn();
+
+      // Execute the script
+      await executeScript();
+
+      // Should succeed silently
+      expect(mockCore.info).toHaveBeenCalledWith("Using merge-only strategy - skipping patch validation");
+      expect(mockCore.info).toHaveBeenCalledWith("Skipping patch application (merge-only strategy - no patch required)");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should fail on missing patch in default strategy with if-no-changes: error", async () => {
+      setAgentOutput({
+        items: [{ type: "push_to_pull_request_branch", content: "test" }],
+      });
+      process.env.GH_AW_PUSH_STRATEGY = "default";
+      process.env.GH_AW_PUSH_IF_NO_CHANGES = "error";
+
+      mockFs.existsSync.mockReturnValue(false);
+
+      // Execute the script
+      await executeScript();
+
+      // Should fail in default strategy
+      expect(mockCore.setFailed).toHaveBeenCalledWith("No patch file found - cannot push without changes");
+    });
+
+    it("should log strategy selection", async () => {
+      setAgentOutput({
+        items: [{ type: "push_to_pull_request_branch", content: "test" }],
+      });
+
+      // Test with merge-only
+      process.env.GH_AW_PUSH_STRATEGY = "merge-only";
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
+      mockFs.writeFileSync = vi.fn();
+
+      await executeScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("Strategy: merge-only");
+    });
+
+    it("should default to 'default' strategy when not specified", async () => {
+      setAgentOutput({
+        items: [{ type: "push_to_pull_request_branch", content: "test" }],
+      });
+
+      delete process.env.GH_AW_PUSH_STRATEGY;
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
+      mockFs.writeFileSync = vi.fn();
+
+      await executeScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("Strategy: default");
+    });
+  });
 });

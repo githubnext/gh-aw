@@ -704,6 +704,106 @@ This workflow appends a suffix to commit titles.
 	}
 }
 
+func TestPushToPullRequestBranchWithMergeOnlyStrategy(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a test markdown file with merge-only strategy
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-pull-request-branch:
+    strategy: merge-only
+    if-no-changes: ignore
+---
+
+# Test Push to Branch with Merge-Only Strategy
+
+This workflow uses merge-only strategy for merge commits.
+`
+
+	// Write the test file
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-merge-only.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	// Create compiler and compile the workflow
+	compiler := NewCompiler(false, "", "test")
+
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated .lock.yml file
+	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that strategy configuration is passed correctly
+	if !strings.Contains(lockContentStr, `GH_AW_PUSH_STRATEGY: "merge-only"`) {
+		t.Errorf("Generated workflow should contain merge-only strategy configuration")
+	}
+
+	// Verify that if-no-changes is also set correctly
+	if !strings.Contains(lockContentStr, `GH_AW_PUSH_IF_NO_CHANGES: "ignore"`) {
+		t.Errorf("Generated workflow should contain if-no-changes ignore configuration")
+	}
+}
+
+func TestPushToPullRequestBranchWithDefaultStrategy(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a test markdown file without strategy (should default to "default")
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-pull-request-branch:
+    target: "triggering"
+---
+
+# Test Push to Branch with Default Strategy
+
+This workflow uses default strategy.
+`
+
+	// Write the test file
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-default-strategy.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	// Create compiler and compile the workflow
+	compiler := NewCompiler(false, "", "test")
+
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated .lock.yml file
+	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that default strategy is set when not specified
+	if !strings.Contains(lockContentStr, `GH_AW_PUSH_STRATEGY: "default"`) {
+		t.Errorf("Generated workflow should contain default strategy configuration when not specified")
+	}
+}
+
 func TestPushToPullRequestBranchNoWorkingDirectory(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()

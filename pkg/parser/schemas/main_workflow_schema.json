@@ -2502,6 +2502,14 @@
                   "type": "string",
                   "description": "Optional suffix to append to generated commit titles (e.g., ' [skip ci]' to prevent triggering CI on the commit)"
                 },
+                "strategy": {
+                  "type": "string",
+                  "enum": [
+                    "default",
+                    "merge-only"
+                  ],
+                  "description": "Push strategy: 'default' (standard patch-based push) or 'merge-only' (skip patch validation for merge commits, push directly)"
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."

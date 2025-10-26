@@ -31,87 +31,109 @@ async function main() {
 
   const target = process.env.GH_AW_PUSH_TARGET || "triggering";
   const ifNoChanges = process.env.GH_AW_PUSH_IF_NO_CHANGES || "warn";
+  const strategy = process.env.GH_AW_PUSH_STRATEGY || "default";
 
-  // Check if patch file exists and has valid content
-  if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-    const message = "No patch file found - cannot push without changes";
+  // For merge-only strategy, skip patch validation entirely
+  if (strategy === "merge-only") {
+    core.info("Using merge-only strategy - skipping patch validation");
 
-    switch (ifNoChanges) {
-      case "error":
-        core.setFailed(message);
-        return;
-      case "ignore":
-        // Silent success - no console output
-        return;
-      case "warn":
-      default:
-        core.info(message);
-        return;
+    // In merge-only mode, we don't require a patch file
+    // This is typically used for merge commits that don't add new agent-authored changes
+    if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
+      core.info("No patch file found - merge-only mode allows this");
+    }
+  } else {
+    // Default strategy - require and validate patch file
+    // Check if patch file exists and has valid content
+    if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
+      const message = "No patch file found - cannot push without changes";
+
+      switch (ifNoChanges) {
+        case "error":
+          core.setFailed(message);
+          return;
+        case "ignore":
+          // Silent success - no console output
+          return;
+        case "warn":
+        default:
+          core.info(message);
+          return;
+      }
     }
   }
 
-  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-
-  // Check for actual error conditions (but allow empty patches as valid noop)
-  if (patchContent.includes("Failed to generate patch")) {
-    const message = "Patch file contains error message - cannot push without changes";
-
-    // Log diagnostic information to help with troubleshooting
-    core.error("Patch file generation failed - this is an error condition that requires investigation");
-    core.error(`Patch file location: /tmp/gh-aw/aw.patch`);
-    core.error(`Patch file size: ${Buffer.byteLength(patchContent, "utf8")} bytes`);
-
-    // Show first 500 characters of patch content for diagnostics
-    const previewLength = Math.min(500, patchContent.length);
-    core.error(`Patch file preview (first ${previewLength} characters):`);
-    core.error(patchContent.substring(0, previewLength));
-
-    // This is always a failure regardless of if-no-changes configuration
-    // because the patch file contains an error message from the patch generation process
-    core.setFailed(message);
-    return;
+  // Read patch content if it exists (may not exist in merge-only mode)
+  let patchContent = "";
+  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+    patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
   }
 
-  // Validate patch size (unless empty)
-  const isEmpty = !patchContent || !patchContent.trim();
-  if (!isEmpty) {
-    // Get maximum patch size from environment (default: 1MB = 1024 KB)
-    const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
-    const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
-    const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
+  // Only validate patch for default strategy
+  if (strategy === "default") {
+    // Check for actual error conditions (but allow empty patches as valid noop)
+    if (patchContent.includes("Failed to generate patch")) {
+      const message = "Patch file contains error message - cannot push without changes";
 
-    core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+      // Log diagnostic information to help with troubleshooting
+      core.error("Patch file generation failed - this is an error condition that requires investigation");
+      core.error(`Patch file location: /tmp/gh-aw/aw.patch`);
+      core.error(`Patch file size: ${Buffer.byteLength(patchContent, "utf8")} bytes`);
 
-    if (patchSizeKb > maxSizeKb) {
-      const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+      // Show first 500 characters of patch content for diagnostics
+      const previewLength = Math.min(500, patchContent.length);
+      core.error(`Patch file preview (first ${previewLength} characters):`);
+      core.error(patchContent.substring(0, previewLength));
+
+      // This is always a failure regardless of if-no-changes configuration
+      // because the patch file contains an error message from the patch generation process
       core.setFailed(message);
       return;
     }
 
-    core.info("Patch size validation passed");
-  }
-  if (isEmpty) {
-    const message = "Patch file is empty - no changes to apply (noop operation)";
+    // Validate patch size (unless empty)
+    const isEmpty = !patchContent || !patchContent.trim();
+    if (!isEmpty) {
+      // Get maximum patch size from environment (default: 1MB = 1024 KB)
+      const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
+      const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+      const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 
-    switch (ifNoChanges) {
-      case "error":
-        core.setFailed("No changes to push - failing as configured by if-no-changes: error");
+      core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+
+      if (patchSizeKb > maxSizeKb) {
+        const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+        core.setFailed(message);
         return;
-      case "ignore":
-        // Silent success - no console output
-        break;
-      case "warn":
-      default:
-        core.info(message);
-        break;
+      }
+
+      core.info("Patch size validation passed");
+    }
+    if (isEmpty) {
+      const message = "Patch file is empty - no changes to apply (noop operation)";
+
+      switch (ifNoChanges) {
+        case "error":
+          core.setFailed("No changes to push - failing as configured by if-no-changes: error");
+          return;
+        case "ignore":
+          // Silent success - no console output
+          break;
+        case "warn":
+        default:
+          core.info(message);
+          break;
+      }
     }
   }
 
   core.info(`Agent output content length: ${outputContent.length}`);
-  if (!isEmpty) {
+  const isEmpty = !patchContent || !patchContent.trim();
+  if (!isEmpty && strategy === "default") {
     core.info("Patch content validation passed");
   }
   core.info(`Target configuration: ${target}`);
+  core.info(`Strategy: ${strategy}`);
 
   // Parse the validated output JSON
   let validatedOutput;
@@ -277,8 +299,8 @@ async function main() {
     return;
   }
 
-  // Apply the patch using git CLI (skip if empty)
-  if (!isEmpty) {
+  // Apply the patch using git CLI (skip if empty or in merge-only mode without patch)
+  if (!isEmpty && patchContent) {
     core.info("Applying patch...");
     try {
       // Check if commit title suffix is configured
@@ -357,22 +379,29 @@ async function main() {
       return;
     }
   } else {
-    core.info("Skipping patch application (empty patch)");
+    // No patch to apply or empty patch
+    if (strategy === "merge-only") {
+      core.info("Skipping patch application (merge-only strategy - no patch required)");
+      // In merge-only mode, we succeed silently even without changes
+      // This is the expected behavior for merge commits
+    } else {
+      core.info("Skipping patch application (empty patch)");
 
-    // Handle if-no-changes configuration for empty patches
-    const message = "No changes to apply - noop operation completed successfully";
+      // Handle if-no-changes configuration for empty patches in default strategy
+      const message = "No changes to apply - noop operation completed successfully";
 
-    switch (ifNoChanges) {
-      case "error":
-        core.setFailed("No changes to apply - failing as configured by if-no-changes: error");
-        return;
-      case "ignore":
-        // Silent success - no console output
-        break;
-      case "warn":
-      default:
-        core.info(message);
-        break;
+      switch (ifNoChanges) {
+        case "error":
+          core.setFailed("No changes to apply - failing as configured by if-no-changes: error");
+          return;
+        case "ignore":
+          // Silent success - no console output
+          break;
+        case "warn":
+        default:
+          core.info(message);
+          break;
+      }
     }
   }
 
