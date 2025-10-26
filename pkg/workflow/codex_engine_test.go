@@ -484,7 +484,7 @@ func TestCodexEngineRenderMCPConfigUserAgentFromConfig(t *testing.T) {
 	}
 }
 
-func TestConvertToIdentifier(t *testing.T) {
+func TestSanitizeIdentifier(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
@@ -544,9 +544,9 @@ func TestConvertToIdentifier(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ConvertToIdentifier(tt.input)
+			result := SanitizeIdentifier(tt.input)
 			if result != tt.expected {
-				t.Errorf("ConvertToIdentifier(%q) = %q, expected %q", tt.input, result, tt.expected)
+				t.Errorf("SanitizeIdentifier(%q) = %q, expected %q", tt.input, result, tt.expected)
 			}
 		})
 	}

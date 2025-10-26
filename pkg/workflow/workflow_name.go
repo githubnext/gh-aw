@@ -6,17 +6,17 @@ import (
 )
 
 var (
-	// Regular expressions for identifier conversion (used in ConvertToIdentifier)
+	// Regular expressions for identifier sanitization (used in SanitizeIdentifier)
 	identifierNonAlphanumeric = regexp.MustCompile(`[^a-z0-9-]`)
 	identifierMultipleHyphens = regexp.MustCompile(`-+`)
 )
 
-// ConvertToIdentifier converts a workflow name to a valid identifier format
-// suitable for use as a user agent string or similar identifier.
+// SanitizeIdentifier sanitizes a workflow name to create a safe identifier
+// suitable for use as a user agent string or similar context.
 // It converts to lowercase, replaces spaces and underscores with hyphens,
 // removes non-alphanumeric characters (except hyphens), and consolidates multiple hyphens.
 // Returns "github-agentic-workflow" if the result would be empty.
-func ConvertToIdentifier(name string) string {
+func SanitizeIdentifier(name string) string {
 	// Convert to lowercase
 	identifier := strings.ToLower(name)
 

@@ -479,8 +479,8 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		if workflowData.EngineConfig != nil && workflowData.EngineConfig.UserAgent != "" {
 			userAgent = workflowData.EngineConfig.UserAgent
 		} else if workflowData.Name != "" {
-			// Fall back to converting workflow name to identifier
-			userAgent = ConvertToIdentifier(workflowData.Name)
+			// Fall back to sanitizing workflow name to identifier
+			userAgent = SanitizeIdentifier(workflowData.Name)
 		}
 	}
 	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
