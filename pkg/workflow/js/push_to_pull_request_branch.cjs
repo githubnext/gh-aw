@@ -303,11 +303,11 @@ async function main() {
         core.info(`Patch modified with commit title suffix: "${commitTitleSuffix}"`);
       }
 
-      // Log first 500 lines of patch for debugging
+      // Log first 100 lines of patch for debugging
       const finalPatchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
       const patchLines = finalPatchContent.split("\n");
-      const previewLines = patchLines.slice(0, 500).join("\n");
-      core.info(`Patch preview (first ${Math.min(500, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
+      const previewLines = patchLines.slice(0, 100).join("\n");
+      core.info(`Patch preview (first ${Math.min(100, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
 
       // Patches are created with git format-patch, so use git am to apply them
       await exec.exec("git am /tmp/gh-aw/aw.patch");
@@ -328,10 +328,25 @@ async function main() {
         core.info("Git status output:");
         core.info(statusResult.stdout);
 
+        // Log recent commits for context
+        const logResult = await exec.getExecOutput("git", ["log", "--oneline", "-5"]);
+        core.info("Recent commits (last 5):");
+        core.info(logResult.stdout);
+
+        // Log uncommitted changes
+        const diffResult = await exec.getExecOutput("git", ["diff", "HEAD"]);
+        core.info("Uncommitted changes:");
+        core.info(diffResult.stdout || "(no uncommitted changes)");
+
         // Log the failed patch diff
-        const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
-        core.info("Failed patch content:");
-        core.info(patchResult.stdout);
+        const patchDiffResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+        core.info("Failed patch diff:");
+        core.info(patchDiffResult.stdout);
+
+        // Log the full failed patch for complete context
+        const patchFullResult = await exec.getExecOutput("git", ["am", "--show-current-patch"]);
+        core.info("Failed patch (full):");
+        core.info(patchFullResult.stdout);
       } catch (investigateError) {
         core.warning(
           `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`

@@ -1044,11 +1044,38 @@ Subject: Add new feature
           });
         }
 
+        // Handle git log investigation
+        if (command === "git" && args && args[0] === "log" && args[1] === "--oneline" && args[2] === "-5") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123 Latest commit\ndef456 Previous commit\n",
+            stderr: "",
+          });
+        }
+
+        // Handle git diff HEAD investigation
+        if (command === "git" && args && args[0] === "diff" && args[1] === "HEAD") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "diff --git a/modified.txt b/modified.txt\n+modified content\n",
+            stderr: "",
+          });
+        }
+
         // Handle git am --show-current-patch=diff investigation
         if (command === "git" && args && args[0] === "am" && args[1] === "--show-current-patch=diff") {
           return Promise.resolve({
             exitCode: 0,
             stdout: "diff --git a/conflicting.txt b/conflicting.txt\n+conflicting line\n",
+            stderr: "",
+          });
+        }
+
+        // Handle git am --show-current-patch investigation
+        if (command === "git" && args && args[0] === "am" && args[1] === "--show-current-patch") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "From abc123 Mon Sep 17 00:00:00 2001\nSubject: [PATCH] Add feature\n",
             stderr: "",
           });
         }
@@ -1068,14 +1095,23 @@ Subject: Add new feature
 
       // Verify investigation commands were called
       expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["status"]);
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["log", "--oneline", "-5"]);
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "HEAD"]);
       expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["am", "--show-current-patch=diff"]);
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["am", "--show-current-patch"]);
 
       // Verify investigation logs
       expect(mockCore.info).toHaveBeenCalledWith("Investigating patch failure...");
       expect(mockCore.info).toHaveBeenCalledWith("Git status output:");
       expect(mockCore.info).toHaveBeenCalledWith("On branch feature-branch\nYour branch is up to date\n");
-      expect(mockCore.info).toHaveBeenCalledWith("Failed patch content:");
+      expect(mockCore.info).toHaveBeenCalledWith("Recent commits (last 5):");
+      expect(mockCore.info).toHaveBeenCalledWith("abc123 Latest commit\ndef456 Previous commit\n");
+      expect(mockCore.info).toHaveBeenCalledWith("Uncommitted changes:");
+      expect(mockCore.info).toHaveBeenCalledWith("diff --git a/modified.txt b/modified.txt\n+modified content\n");
+      expect(mockCore.info).toHaveBeenCalledWith("Failed patch diff:");
       expect(mockCore.info).toHaveBeenCalledWith("diff --git a/conflicting.txt b/conflicting.txt\n+conflicting line\n");
+      expect(mockCore.info).toHaveBeenCalledWith("Failed patch (full):");
+      expect(mockCore.info).toHaveBeenCalledWith("From abc123 Mon Sep 17 00:00:00 2001\nSubject: [PATCH] Add feature\n");
 
       // Verify setFailed was called
       expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to apply patch");
