@@ -17,6 +17,12 @@ async function main() {
   try {
     outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
   } catch (error) {
+    // Check if the error is ENOENT (file not found)
+    if (error instanceof Error && error.message.includes("ENOENT")) {
+      core.warning("Agent output file not found. The agent job may have failed or been cancelled.");
+      core.info("This safe output job cannot proceed without the agent output. Skipping gracefully.");
+      return;
+    }
     core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }

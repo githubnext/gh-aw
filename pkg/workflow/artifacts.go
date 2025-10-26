@@ -38,7 +38,12 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 		steps = append(steps, fmt.Sprintf("          find %s -type f -print\n", config.DownloadPath))
 		// Configure environment variable to point to downloaded artifact file
 		artifactPath := fmt.Sprintf("%s%s", config.DownloadPath, config.ArtifactName)
-		steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> $GITHUB_ENV\n", config.EnvVarName, artifactPath))
+		// Only set the environment variable if the artifact file actually exists
+		steps = append(steps, fmt.Sprintf("          if [ -f \"%s\" ]; then\n", artifactPath))
+		steps = append(steps, fmt.Sprintf("            echo \"%s=%s\" >> $GITHUB_ENV\n", config.EnvVarName, artifactPath))
+		steps = append(steps, "          else\n")
+		steps = append(steps, fmt.Sprintf("            echo \"Warning: Artifact file %s not found. Agent job may have failed.\"\n", config.ArtifactName))
+		steps = append(steps, "          fi\n")
 	}
 
 	return steps

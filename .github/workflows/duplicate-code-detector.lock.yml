@@ -2894,7 +2894,11 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
           find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          if [ -f "/tmp/gh-aw/safeoutputs/agent_output.json" ]; then
+            echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          else
+            echo "Warning: Artifact file agent_output.json not found. Agent job may have failed."
+          fi
       - name: Create Output Issue
         id: create_issue
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -2956,6 +2960,11 @@ jobs:
               try {
                 outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
               } catch (error) {
+                if (error instanceof Error && error.message.includes("ENOENT")) {
+                  core.warning("Agent output file not found. The agent job may have failed or been cancelled.");
+                  core.info("This safe output job cannot proceed without the agent output. Skipping gracefully.");
+                  return;
+                }
                 core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
                 return;
               }
@@ -3487,7 +3496,11 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
           find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          if [ -f "/tmp/gh-aw/safeoutputs/agent_output.json" ]; then
+            echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          else
+            echo "Warning: Artifact file agent_output.json not found. Agent job may have failed."
+          fi
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -3515,6 +3528,11 @@ jobs:
               try {
                 agentOutput = fs.readFileSync(agentOutputFile, "utf8");
               } catch (error) {
+                if (error instanceof Error && error.message.includes("ENOENT")) {
+                  core.warning("Agent output file not found. The agent job may have failed or been cancelled.");
+                  core.info("This safe output job cannot proceed without the agent output. Skipping gracefully.");
+                  return;
+                }
                 core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
                 return;
               }
