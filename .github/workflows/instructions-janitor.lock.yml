@@ -3542,6 +3542,12 @@ jobs:
               core.info(`Created new branch from base: ${branchName}`);
               if (!isEmpty) {
                 core.info("Applying patch...");
+                const patchLines = patchContent.split("\n");
+                const linesToLog = Math.min(500, patchLines.length);
+                core.info(`Patch preview (first ${linesToLog} of ${patchLines.length} lines):`);
+                for (let i = 0; i < linesToLog; i++) {
+                  core.info(patchLines[i]);
+                }
                 await exec.exec("git am /tmp/gh-aw/aw.patch");
                 core.info("Patch applied successfully");
                 try {
