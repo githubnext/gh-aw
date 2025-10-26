@@ -1237,12 +1237,12 @@ jobs:
           
           **Format:**
           ```markdown
-          [Run §12345](https://github.com/owner/repo/actions/runs/12345)
+          [§12345](https://github.com/owner/repo/actions/runs/12345)
           ```
           
           **Example:**
           ```markdown
-          Analysis based on [Run §456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
+          Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
           ```
           
           ### 2. Document References for Workflow Runs
@@ -1254,9 +1254,9 @@ jobs:
           ---
           
           **References:**
-          - [Run §12345](https://github.com/owner/repo/actions/runs/12345)
-          - [Run §12346](https://github.com/owner/repo/actions/runs/12346)
-          - [Run §12347](https://github.com/owner/repo/actions/runs/12347)
+          - [§12345](https://github.com/owner/repo/actions/runs/12345)
+          - [§12346](https://github.com/owner/repo/actions/runs/12346)
+          - [§12347](https://github.com/owner/repo/actions/runs/12347)
           ```
           
           **Guidelines:**
@@ -1581,13 +1581,13 @@ jobs:
           
           ## Key Insights
           
+          [1-2 bullet points only, focus on actionable items or notable observations]
           PROMPT_EOF
       - name: Append prompt (part 2)
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
-          [1-2 bullet points only, focus on actionable items or notable observations]
           
           ---
           
