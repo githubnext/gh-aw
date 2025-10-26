@@ -3,7 +3,7 @@
 
 async function main() {
   const fs = require("fs");
-  const maxBodyLength = 16384;
+  const maxBodyLength = 65000;
   function sanitizeContent(content, maxLength) {
     if (!content || typeof content !== "string") {
       return "";
