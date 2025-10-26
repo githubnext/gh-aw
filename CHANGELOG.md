@@ -2,6 +2,114 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.25.0 - 2025-10-26
+
+### Features
+
+#### Add pip and golang dependency manifest generation support
+
+#### Update logs command to show combined errors/warnings table with cleaner formatting
+
+#### Remove per-tool Squid proxy - unify network filtering at workflow level
+
+
+### Bug Fixes
+
+#### Add configuration examples for `jobs`, `mcp-servers`, and `command` frontmatter fields
+
+#### Add copy button for dictation instructions in documentation
+
+#### Add discussions toolset to GitHub tool in plan.md workflow
+
+#### Add firewall analysis section to audit agent reports
+
+#### Add firewall version of changeset-generator workflow
+
+#### Add configurable log-level field to firewall configuration
+
+#### Add firewall agentic workflow demonstrating network permission enforcement
+
+#### Add github-token secret validation
+
+#### Add firewall version of research workflow
+
+#### Add smoke-copilot.firewall workflow with firewall enabled for network monitoring
+
+#### Fix audit command to cache downloads and prevent duplicate artifact fetches
+
+#### Cache compiled JSON schemas to improve compilation speed
+
+#### Review and centralize network configuration under top level field
+
+#### Clarify branch name requirement for push pull request tool
+
+#### Configure network firewall, edit, and bash tools for scheduled Copilot workflows
+
+#### Consolidate generic validation functions into validation.go
+
+#### Add daily firewall logs collector and reporter workflow
+
+#### Document AWF firewall feature and reference gh-aw-firewall repository
+
+#### Expand GitHub toolsets documentation in agent instructions
+
+#### Extend action SHA pinning to custom steps and imported jobs
+
+#### Extend action SHA pinning to custom steps and imported jobs
+
+#### Extend secret redaction to .md, .mdx, .yml, .jsonl files
+
+#### Extract extraction functions from compiler.go to frontmatter_extraction.go
+
+#### Refactor: Extract duplicate GitHub MCP remote config rendering into shared helper
+
+#### Extract job building logic from compiler.go to compiler_jobs.go
+
+#### Extract YAML generation logic from compiler.go to compiler_yaml.go
+
+#### Fixed permission denied error when moving Copilot logs in firewall mode
+
+#### Fixed silent failure when agentic workflow hits max-turns limit - now raises clear error message
+
+#### Fix nested quoting in awf compiler shell command generation
+
+#### Fix npx command parsing to support --yes and -y flags
+
+#### Fix relative time precision loss in logs command date filtering
+
+#### Fix push to pull request failure by ensuring safe-outputs directory creation
+
+#### Fixed test expectation for safe outputs MCP server name
+
+#### Add support for silently ignoring description and applyTo fields in frontmatter
+
+#### Merge engine_helpers.go into engine_shared_helpers.go and rename to engine_helpers.go
+
+#### Merge network allowed domains from imported workflow files
+
+#### Move generateGitConfigurationSteps from git.go to yaml_generation.go
+
+#### Move validation functions from compiler.go to validation.go
+
+#### Add --parse support for firewall logs in logs and audit commands
+
+#### Add firewall log parser and step summary generation
+
+#### Pin all GitHub Actions to specific commit SHAs in generated workflows for enhanced security and reproducibility
+
+#### Reduced compile command verbose output noisiness by converting internal messages to logger calls
+
+#### Rename safe-outputs MCP server identifier to "safeoutputs", update file paths, and improve user-facing text
+
+#### Rename "Upload Squid Logs" step to "Upload Firewall Logs"
+
+#### Replace always() with !cancelled() in safe-output job conditions
+
+#### Update cli-version-checker workflow to use copilot engine
+
+#### Update CLI versions: Claude Code 2.0.25, Copilot 0.0.349, GitHub MCP Server v0.19.1
+
+
 ## v0.24.0 - 2025-10-23
 
 ### Features
