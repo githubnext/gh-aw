@@ -60,6 +60,89 @@ Use the `--port` flag to run the server with HTTP/SSE transport instead of stdio
 gh aw mcp-server --port 8080
 ```
 
+## Configuring with Copilot CLI
+
+The GitHub Copilot CLI can use the gh-aw MCP server to access workflow management tools. Add the following configuration to your Copilot CLI MCP config file.
+
+**Configuration file location:**
+- Default: `~/.config/copilot/mcp-config.json` (or `$XDG_CONFIG_HOME/copilot/mcp-config.json`)
+- Custom location: Set via `XDG_CONFIG_HOME` environment variable
+
+**Configuration:**
+
+```json
+{
+  "mcpServers": {
+    "github-agentic-workflows": {
+      "type": "local",
+      "command": "gh",
+      "args": ["aw", "mcp-server"]
+    }
+  }
+}
+```
+
+For development builds or when using a custom binary path:
+
+```json
+{
+  "mcpServers": {
+    "github-agentic-workflows": {
+      "type": "local",
+      "command": "./gh-aw",
+      "args": ["mcp-server"],
+      "cwd": "/path/to/gh-aw"
+    }
+  }
+}
+```
+
+After adding the configuration, restart the Copilot CLI. The server will provide tools for checking workflow status, compiling workflows, downloading logs, and investigating failures.
+
+## Configuring with VS Code
+
+VS Code can use the gh-aw MCP server through the Copilot Chat extension. Add the following configuration to your VS Code workspace or user settings.
+
+**Configuration file location:**
+- Workspace: `.vscode/mcp.json` (recommended for per-project configuration)
+- User settings: Follow VS Code Copilot extension documentation
+
+**Configuration:**
+
+Create or update `.vscode/mcp.json` in your repository:
+
+```json
+{
+  "servers": {
+    "github-agentic-workflows": {
+      "command": "gh",
+      "args": ["aw", "mcp-server"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
+```
+
+For development builds or custom binary paths:
+
+```json
+{
+  "servers": {
+    "github-agentic-workflows": {
+      "command": "./gh-aw",
+      "args": ["mcp-server"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
+```
+
+:::note
+The `${workspaceFolder}` variable automatically resolves to your current workspace directory in VS Code. Use this for development builds where the `gh-aw` binary is in your project root.
+:::
+
+After adding the configuration, reload VS Code or restart the Copilot Chat extension. You can then use prompts in Copilot Chat to interact with your agentic workflows, such as "Check the status of my workflows" or "Analyze the logs for the last failed workflow run."
+
 ## Available Tools
 
 The MCP server provides **status** (list workflows with pattern filter), **compile** (generate GitHub Actions YAML), **logs** (download with timeout handling and continuation), **audit** (generate report to `/tmp/gh-aw/aw-mcp/logs`), and **mcp-inspect** (inspect servers and validate secrets).
