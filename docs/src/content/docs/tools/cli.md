@@ -223,7 +223,7 @@ When using `gh aw trial --clone-repo`, the agentic workflow uses the codebase fr
 
 ```bash
 gh aw status [WorkflowPrefix]               # Show workflow status
-gh aw status --json                         # Output status as JSON with full frontmatter
+gh aw status --json                         # Output status as JSON
 gh aw status [WorkflowPrefix] --json        # Filter and output as JSON
 gh aw enable [WorkflowPrefix]               # Enable workflows
 gh aw disable [WorkflowPrefix]              # Disable and cancel workflows
@@ -233,10 +233,10 @@ Status shows workflow names, enabled/disabled state, execution status, and compi
 
 **JSON Output:**
 
-The `--json` flag outputs workflow status as structured JSON, including the complete parsed frontmatter from each workflow file. This is useful for automation, documentation generation, and programmatic analysis of workflow configurations.
+The `--json` flag outputs workflow status as structured JSON. This is useful for automation, documentation generation, and programmatic analysis of workflow configurations.
 
 ```bash
-gh aw status --json | jq '.[] | {workflow, engine_id, frontmatter}'
+gh aw status --json | jq '.[] | {workflow, engine_id, command}'
 ```
 
 Each workflow entry in the JSON output includes:
@@ -246,7 +246,7 @@ Each workflow entry in the JSON output includes:
 - `status`: GitHub workflow state (active, disabled, Unknown)
 - `time_remaining`: Time until workflow deadline (if applicable)
 - `on`: Workflow triggers
-- `frontmatter`: Complete parsed frontmatter configuration (permissions, tools, safe-outputs, network, timeout, etc.)
+- `command`: Resolved command name (for command-triggered workflows only)
 
 ### Log Analysis and Monitoring
 

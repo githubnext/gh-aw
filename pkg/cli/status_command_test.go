@@ -56,17 +56,6 @@ func TestWorkflowStatus_JSONMarshaling(t *testing.T) {
 		On: map[string]any{
 			"workflow_dispatch": nil,
 		},
-		Frontmatter: map[string]any{
-			"on": map[string]any{
-				"workflow_dispatch": nil,
-			},
-			"permissions": map[string]any{
-				"contents": "read",
-				"issues":   "write",
-			},
-			"timeout_minutes": 10,
-			"engine":          "copilot",
-		},
 	}
 
 	jsonBytes, err := json.Marshal(status)
@@ -104,29 +93,39 @@ func TestWorkflowStatus_JSONMarshaling(t *testing.T) {
 	if _, exists := onField["workflow_dispatch"]; !exists {
 		t.Errorf("Expected 'on' to contain 'workflow_dispatch' key")
 	}
+}
 
-	// Verify "frontmatter" field is included
-	frontmatterField, ok := unmarshaled["frontmatter"].(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected 'frontmatter' to be a map, got %T", unmarshaled["frontmatter"])
-	}
-	if frontmatterField["engine"] != "copilot" {
-		t.Errorf("Expected frontmatter.engine='copilot', got %v", frontmatterField["engine"])
-	}
-	if frontmatterField["timeout_minutes"] != float64(10) {
-		t.Errorf("Expected frontmatter.timeout_minutes=10, got %v", frontmatterField["timeout_minutes"])
+// TestWorkflowStatus_JSONMarshalingWithCommand tests that WorkflowStatus with command field can be marshaled to JSON
+func TestWorkflowStatus_JSONMarshalingWithCommand(t *testing.T) {
+	// Test that WorkflowStatus with command can be marshaled to JSON
+	status := WorkflowStatus{
+		Workflow:      "test-workflow",
+		EngineID:      "copilot",
+		Compiled:      "Yes",
+		Status:        "active",
+		TimeRemaining: "N/A",
+		On: map[string]any{
+			"command": map[string]any{
+				"name":   "test-command",
+				"events": []string{"issue_comment"},
+			},
+		},
+		Command: "test-command",
 	}
 
-	// Verify permissions in frontmatter
-	permissions, ok := frontmatterField["permissions"].(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected frontmatter.permissions to be a map, got %T", frontmatterField["permissions"])
+	jsonBytes, err := json.Marshal(status)
+	if err != nil {
+		t.Fatalf("Failed to marshal WorkflowStatus: %v", err)
 	}
-	if permissions["contents"] != "read" {
-		t.Errorf("Expected frontmatter.permissions.contents='read', got %v", permissions["contents"])
+
+	// Verify JSON contains expected fields
+	var unmarshaled map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &unmarshaled); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
 	}
-	if permissions["issues"] != "write" {
-		t.Errorf("Expected frontmatter.permissions.issues='write', got %v", permissions["issues"])
+
+	if unmarshaled["command"] != "test-command" {
+		t.Errorf("Expected command='test-command', got %v", unmarshaled["command"])
 	}
 }
 
@@ -199,17 +198,6 @@ func TestStatusCommand_JSONOutputValidation(t *testing.T) {
 		}
 		if firstStatus.TimeRemaining == "" {
 			t.Error("Expected 'time_remaining' field to be non-empty")
-		}
-
-		// Verify frontmatter field is present (it should contain the full parsed frontmatter)
-		if firstStatus.Frontmatter == nil {
-			t.Error("Expected 'frontmatter' field to be non-nil")
-		} else {
-			t.Logf("Frontmatter contains %d keys", len(firstStatus.Frontmatter))
-			// Verify that frontmatter contains some expected fields
-			if _, hasOn := firstStatus.Frontmatter["on"]; !hasOn {
-				t.Error("Expected frontmatter to contain 'on' field")
-			}
 		}
 
 		t.Logf("Successfully parsed %d workflow status entries", len(statuses))

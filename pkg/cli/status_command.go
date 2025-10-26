@@ -16,13 +16,13 @@ import (
 
 // WorkflowStatus represents the status of a single workflow for JSON output
 type WorkflowStatus struct {
-	Workflow      string         `json:"workflow" console:"header:Workflow"`
-	EngineID      string         `json:"engine_id" console:"header:Engine"`
-	Compiled      string         `json:"compiled" console:"header:Compiled"`
-	Status        string         `json:"status" console:"header:Status"`
-	TimeRemaining string         `json:"time_remaining" console:"header:Time Remaining"`
-	On            any            `json:"on,omitempty" console:"-"`
-	Frontmatter   map[string]any `json:"frontmatter,omitempty" console:"-"`
+	Workflow      string `json:"workflow" console:"header:Workflow"`
+	EngineID      string `json:"engine_id" console:"header:Engine"`
+	Compiled      string `json:"compiled" console:"header:Compiled"`
+	Status        string `json:"status" console:"header:Status"`
+	TimeRemaining string `json:"time_remaining" console:"header:Time Remaining"`
+	On            any    `json:"on,omitempty" console:"-"`
+	Command       string `json:"command,omitempty" console:"-"`
 }
 
 func StatusWorkflows(pattern string, verbose bool, jsonOutput bool) error {
@@ -117,14 +117,21 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool) error {
 				}
 			}
 
-			// Extract frontmatter for JSON output
+			// Extract "on" field and command name from frontmatter for JSON output
 			var onField any
-			var frontmatter map[string]any
+			var commandName string
 			if content, err := os.ReadFile(file); err == nil {
 				if result, err := parser.ExtractFrontmatterFromContent(string(content)); err == nil {
 					if result.Frontmatter != nil {
 						onField = result.Frontmatter["on"]
-						frontmatter = result.Frontmatter
+						// Extract command name if this is a command-triggered workflow
+						if onMap, ok := onField.(map[string]any); ok {
+							if cmd, ok := onMap["command"].(map[string]any); ok {
+								if name, ok := cmd["name"].(string); ok {
+									commandName = name
+								}
+							}
+						}
 					}
 				}
 			}
@@ -137,7 +144,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool) error {
 				Status:        status,
 				TimeRemaining: timeRemaining,
 				On:            onField,
-				Frontmatter:   frontmatter,
+				Command:       commandName,
 			})
 		}
 
