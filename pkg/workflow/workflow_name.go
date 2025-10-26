@@ -6,29 +6,10 @@ import (
 )
 
 var (
-	// Regular expressions for workflow name sanitization
+	// Regular expressions for identifier conversion (used in ConvertToIdentifier)
 	identifierNonAlphanumeric = regexp.MustCompile(`[^a-z0-9-]`)
 	identifierMultipleHyphens = regexp.MustCompile(`-+`)
 )
-
-// SanitizeWorkflowName sanitizes a workflow name for use in artifact names and file paths
-// Removes or replaces characters that are invalid in YAML artifact names or filesystem paths
-func SanitizeWorkflowName(name string) string {
-	// Replace colons, slashes, and other problematic characters with hyphens
-	sanitized := strings.ReplaceAll(name, ":", "-")
-	sanitized = strings.ReplaceAll(sanitized, "/", "-")
-	sanitized = strings.ReplaceAll(sanitized, "\\", "-")
-	sanitized = strings.ReplaceAll(sanitized, " ", "-")
-	// Remove any remaining special characters that might cause issues
-	sanitized = strings.Map(func(r rune) rune {
-		// Allow alphanumeric, hyphens, underscores, and periods
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
-			return r
-		}
-		return '-'
-	}, sanitized)
-	return sanitized
-}
 
 // ConvertToIdentifier converts a workflow name to a valid identifier format
 // by converting to lowercase and replacing spaces with hyphens
