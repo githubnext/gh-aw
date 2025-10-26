@@ -1227,6 +1227,44 @@ jobs:
           </details>
           ```
           
+          ## Reporting Workflow Run Information
+          
+          When analyzing workflow run logs or reporting information from GitHub Actions runs:
+          
+          ### 1. Workflow Run ID Formatting
+          
+          **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
+          
+          **Format:**
+          ```markdown
+          [§12345](https://github.com/owner/repo/actions/runs/12345)
+          ```
+          
+          **Example:**
+          ```markdown
+          Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
+          ```
+          
+          ### 2. Document References for Workflow Runs
+          
+          When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
+          
+          **Format:**
+          ```markdown
+          ---
+          
+          **References:**
+          - [§12345](https://github.com/owner/repo/actions/runs/12345)
+          - [§12346](https://github.com/owner/repo/actions/runs/12346)
+          - [§12347](https://github.com/owner/repo/actions/runs/12347)
+          ```
+          
+          **Guidelines:**
+          - Include **maximum 3 references** to keep reports concise
+          - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
+          - Always use the actual URL from the workflow run data (available in `url`, `RunURL`, or similar fields)
+          - If analyzing more than 3 runs, select the most important ones for references
+          
           # Copilot Agent PR Analysis
           
           You are an AI analytics agent that monitors and analyzes the performance of the copilot-swe-agent (also known as copilot agent) in this repository.
@@ -1544,6 +1582,12 @@ jobs:
           ## Key Insights
           
           [1-2 bullet points only, focus on actionable items or notable observations]
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
           
           ---
           
@@ -1576,12 +1620,6 @@ jobs:
           - **Organize data**: Keep historical data well-structured in JSON format
           - **Limit retention**: Keep last 90 days (3 months) of daily data for trend analysis
           - **Handle errors**: If cache is corrupted, reinitialize gracefully
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
           - **Simplified data collection**: Focus on 3-day trends, not weekly or monthly
             - Only collect and maintain last 3 days of data for trend comparison
             - Save progress after each day to ensure data persistence
