@@ -117,3 +117,56 @@ func TestShellJoinArgs(t *testing.T) {
 		})
 	}
 }
+
+func TestShellEscapeCommandString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple command without special characters",
+			input:    "echo hello",
+			expected: "\"echo hello\"",
+		},
+		{
+			name:     "command with single-quoted arguments",
+			input:    "npx --allow-tool 'shell(cat)' --allow-tool 'shell(ls)'",
+			expected: "\"npx --allow-tool 'shell(cat)' --allow-tool 'shell(ls)'\"",
+		},
+		{
+			name:     "command with double quotes",
+			input:    "echo \"hello world\"",
+			expected: "\"echo \\\"hello world\\\"\"",
+		},
+		{
+			name:     "command with dollar sign (command substitution)",
+			input:    "echo $(date)",
+			expected: "\"echo \\$(date)\"",
+		},
+		{
+			name:     "command with backticks",
+			input:    "echo `date`",
+			expected: "\"echo \\`date\\`\"",
+		},
+		{
+			name:     "command with backslashes",
+			input:    "echo \\n\\t",
+			expected: "\"echo \\\\n\\\\t\"",
+		},
+		{
+			name:     "complex copilot command",
+			input:    "npx -y @github/copilot@0.0.351 --allow-tool 'github(list_workflows)' --prompt \"$(cat /tmp/prompt.txt)\"",
+			expected: "\"npx -y @github/copilot@0.0.351 --allow-tool 'github(list_workflows)' --prompt \\\"\\$(cat /tmp/prompt.txt)\\\"\"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := shellEscapeCommandString(tt.input)
+			if result != tt.expected {
+				t.Errorf("shellEscapeCommandString(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
