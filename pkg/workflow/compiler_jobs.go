@@ -501,8 +501,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
 	}
 
-	// Add reaction step if ai-reaction is configured
-	if data.AIReaction != "" {
+	// Add reaction step if ai-reaction is configured and not "none"
+	if data.AIReaction != "" && data.AIReaction != "none" {
 		reactionCondition := buildReactionCondition()
 
 		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction to the triggering item\n", data.AIReaction))
@@ -563,9 +563,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		activationCondition = data.If
 	}
 
-	// Set permissions - add reaction permissions if reaction is configured
+	// Set permissions - add reaction permissions if reaction is configured and not "none"
 	var permissions string
-	if data.AIReaction != "" {
+	if data.AIReaction != "" && data.AIReaction != "none" {
 		perms := NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
 			PermissionDiscussions:  PermissionWrite,
 			PermissionIssues:       PermissionWrite,
