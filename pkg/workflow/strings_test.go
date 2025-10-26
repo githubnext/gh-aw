@@ -36,7 +36,7 @@ func TestSanitizeWorkflowName(t *testing.T) {
 		{
 			name:     "special characters to dashes",
 			input:    "workflow@#$test",
-			expected: "workflow---test",
+			expected: "workflow-test",
 		},
 		{
 			name:     "preserve dots and underscores",
@@ -46,7 +46,7 @@ func TestSanitizeWorkflowName(t *testing.T) {
 		{
 			name:     "complex name",
 			input:    "My Workflow: Test/Build",
-			expected: "my-workflow--test-build",
+			expected: "my-workflow-test-build",
 		},
 		{
 			name:     "empty string",
@@ -56,12 +56,12 @@ func TestSanitizeWorkflowName(t *testing.T) {
 		{
 			name:     "only special characters",
 			input:    "@#$%^&*()",
-			expected: "---------",
+			expected: "-",
 		},
 		{
 			name:     "unicode characters",
 			input:    "workflow-αβγ-test",
-			expected: "workflow-----test",
+			expected: "workflow-test",
 		},
 		{
 			name:     "mixed case with numbers",
@@ -71,7 +71,7 @@ func TestSanitizeWorkflowName(t *testing.T) {
 		{
 			name:     "multiple consecutive spaces",
 			input:    "workflow   test",
-			expected: "workflow---test",
+			expected: "workflow-test",
 		},
 		{
 			name:     "preserve hyphens",

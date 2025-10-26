@@ -472,7 +472,7 @@ func TestSanitizeWorkflowName(t *testing.T) {
 		{
 			name:     "special characters to dashes",
 			input:    "workflow@#$test",
-			expected: "workflow---test",
+			expected: "workflow-test",
 		},
 		{
 			name:     "preserve dots and underscores",
@@ -482,7 +482,7 @@ func TestSanitizeWorkflowName(t *testing.T) {
 		{
 			name:     "complex name",
 			input:    "My Workflow: Test/Build",
-			expected: "my-workflow--test-build",
+			expected: "my-workflow-test-build",
 		},
 	}
 

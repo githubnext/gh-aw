@@ -5,7 +5,8 @@ import (
 	"strings"
 )
 
-var sanitizeNamePattern = regexp.MustCompile(`[^a-z0-9._-]`)
+var sanitizeNamePattern = regexp.MustCompile(`[^a-z0-9._-]+`)
+var multipleHyphens = regexp.MustCompile(`-+`)
 
 // SortStrings sorts a slice of strings in place using bubble sort
 func SortStrings(s []string) {
@@ -40,6 +41,9 @@ func SanitizeWorkflowName(name string) string {
 
 	// Replace any other non-alphanumeric characters (except . _ -) with "-"
 	name = sanitizeNamePattern.ReplaceAllString(name, "-")
+
+	// Consolidate multiple consecutive hyphens into a single hyphen
+	name = multipleHyphens.ReplaceAllString(name, "-")
 
 	return name
 }
