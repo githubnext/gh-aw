@@ -270,6 +270,32 @@ steps:
 
 If no custom steps are specified, a default step to checkout the repository is added automatically.
 
+## Post-Execution Steps (`post-steps:`)
+
+Add custom steps after the agentic execution step using GitHub Actions standard `steps:` syntax. These steps run after the AI engine completes, regardless of whether the AI execution succeeds or fails (unless you add conditional expressions).
+
+```yaml
+post-steps:
+  - name: Upload Results
+    if: always()
+    uses: actions/upload-artifact@v4
+    with:
+      name: workflow-results
+      path: /tmp/gh-aw/
+      retention-days: 7
+  
+  - name: Generate Summary
+    run: |
+      echo "## Workflow Complete" >> $GITHUB_STEP_SUMMARY
+      echo "AI execution finished" >> $GITHUB_STEP_SUMMARY
+```
+
+Post-steps are useful for:
+- Uploading artifacts generated during AI execution
+- Creating workflow summaries or reports
+- Cleanup operations
+- Triggering downstream workflows
+
 ## Cache Configuration (`cache:`)
 
 Cache configuration using standard GitHub Actions `actions/cache` syntax:
