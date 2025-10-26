@@ -2800,7 +2800,7 @@ jobs:
           script: |
             async function main() {
               const fs = require("fs");
-              const maxBodyLength = 16384;
+              const maxBodyLength = 65000;
               function sanitizeContent(content, maxLength) {
                 if (!content || typeof content !== "string") {
                   return "";
@@ -5071,27 +5071,8 @@ jobs:
                 const patchLines = patchContent.split("\n");
                 const previewLines = patchLines.slice(0, 500).join("\n");
                 core.info(`Patch preview (first ${Math.min(500, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
-                try {
-                  await exec.exec("git am /tmp/gh-aw/aw.patch");
-                  core.info("Patch applied successfully");
-                } catch (patchError) {
-                  core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
-                  try {
-                    core.info("Investigating patch failure...");
-                    const statusResult = await exec.getExecOutput("git", ["status"]);
-                    core.info("Git status output:");
-                    core.info(statusResult.stdout);
-                    const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
-                    core.info("Failed patch content:");
-                    core.info(patchResult.stdout);
-                  } catch (investigateError) {
-                    core.warning(
-                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
-                    );
-                  }
-                  core.setFailed("Failed to apply patch");
-                  return;
-                }
+                await exec.exec("git am /tmp/gh-aw/aw.patch");
+                core.info("Patch applied successfully");
                 try {
                   let remoteBranchExists = false;
                   try {

@@ -37,14 +37,28 @@ engine:
 
 #### Required Secrets
 
-- **`COPILOT_CLI_TOKEN`**: [GitHub Personal Access Token with Copilot subscription](https://github.com/settings/tokens)
+- **`COPILOT_CLI_TOKEN`**: GitHub Personal Access Token (PAT) with "Copilot Requests" permission
 - **`GH_AW_GITHUB_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#github-remote-mode)
 
-Set secrets using:
+#### Authenticating with a Personal Access Token (PAT)
+
+To use the Copilot engine, you need a fine-grained Personal Access Token with the "Copilot Requests" permission enabled:
+
+1. Visit https://github.com/settings/personal-access-tokens/new
+2. Under "Permissions," click "add permissions" and select "Copilot Requests"
+3. Generate your token
+4. Add the token to your repository secrets as `COPILOT_CLI_TOKEN`:
+
 ```bash
 gh secret set COPILOT_CLI_TOKEN -a actions --body "<your-github-pat>"
+```
+
+For GitHub Tools Remote Mode, also configure:
+```bash
 gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 ```
+
+For more information about GitHub Copilot CLI authentication, see the [official documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat).
 
 :::note
 The Copilot engine does not have built-in `web-search` support. You can add web search capabilities using third-party MCP servers. See the [Using Web Search](/gh-aw/guides/web-search/) for available options and setup instructions.
