@@ -12,9 +12,9 @@ tools:
   github:
     allowed: [get_workflow_run, list_workflow_runs]
 safe-outputs:
-  create-issue:
+  create-discussion:
     title-prefix: "[workflow-analysis] "
-    labels: [automation, ci-improvement]
+    category: "Audits"
 timeout_minutes: 10
 ---
 
@@ -44,4 +44,4 @@ Analyze the collected data and provide:
 - **Reliability Metrics**: Success rates and error frequencies
 - **Optimization Opportunities**: Suggestions for improving workflow efficiency
 
-Create an issue with your findings and actionable recommendations for improving CI/CD reliability and performance.
+Create a discussion with your findings and actionable recommendations for improving CI/CD reliability and performance.
