@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.25.2 - 2025-10-26
+
+### Bug Fixes
+
+#### Improve create-agentic-workflow prompt with writing style guidelines and user engagement tips
+
+
 ## v0.25.1 - 2025-10-26
 
 ### Bug Fixes
