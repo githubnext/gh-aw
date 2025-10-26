@@ -1251,7 +1251,7 @@ Subject: Add new feature
       await executeScript();
 
       // Verify branch existence check was performed
-      expect(mockCore.info).toHaveBeenCalledWith('Validating branch existence: feature-branch');
+      expect(mockCore.info).toHaveBeenCalledWith("Validating branch existence: feature-branch");
       expect(mockCore.info).toHaveBeenCalledWith('✓ Branch "feature-branch" exists on origin');
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
@@ -1315,14 +1315,14 @@ Subject: Add new feature
       await executeScript();
 
       // Verify branch existence check failed with clear error
-      expect(mockCore.info).toHaveBeenCalledWith('Validating branch existence: non-existent-branch');
+      expect(mockCore.info).toHaveBeenCalledWith("Validating branch existence: non-existent-branch");
       expect(mockCore.error).toHaveBeenCalledWith('Branch "non-existent-branch" does not exist on origin');
 
       // Verify available branches were listed
-      expect(mockCore.info).toHaveBeenCalledWith('Available remote branches (showing first 3):');
-      expect(mockCore.info).toHaveBeenCalledWith('  - main');
-      expect(mockCore.info).toHaveBeenCalledWith('  - develop');
-      expect(mockCore.info).toHaveBeenCalledWith('  - feature-1');
+      expect(mockCore.info).toHaveBeenCalledWith("Available remote branches (showing first 3):");
+      expect(mockCore.info).toHaveBeenCalledWith("  - main");
+      expect(mockCore.info).toHaveBeenCalledWith("  - develop");
+      expect(mockCore.info).toHaveBeenCalledWith("  - feature-1");
 
       // Verify setFailed was called with actionable error message
       expect(mockCore.setFailed).toHaveBeenCalledWith(
@@ -1388,7 +1388,7 @@ Subject: Add new feature
       expect(mockCore.error).toHaveBeenCalledWith('Branch "non-existent-branch" does not exist on origin');
 
       // Verify warning about failing to list branches
-      expect(mockCore.warning).toHaveBeenCalledWith('Failed to list available branches: Failed to connect to remote');
+      expect(mockCore.warning).toHaveBeenCalledWith("Failed to list available branches: Failed to connect to remote");
 
       // Verify setFailed was still called with main error message
       expect(mockCore.setFailed).toHaveBeenCalledWith(
@@ -1444,7 +1444,7 @@ Subject: Add new feature
       await executeScript();
 
       // Verify setFailed was called with validation error
-      expect(mockCore.setFailed).toHaveBeenCalledWith('Failed to validate or switch to branch feature-branch: Network error');
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Failed to validate or switch to branch feature-branch: Network error");
     });
   });
 });
