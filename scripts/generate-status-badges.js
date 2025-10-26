@@ -124,86 +124,30 @@ function extractScheduleFromMarkdown(mdFilePath) {
 }
 
 /**
- * Check if firewall is enabled in a markdown workflow file
- * Returns true if network.firewall is true
+ * Extract command name from a markdown workflow file
+ * Returns the command name if it exists (e.g., "brave", "plan", "summarize")
  */
-function hasFirewall(mdFilePath) {
+function extractCommandFromMarkdown(mdFilePath) {
   try {
     if (!fs.existsSync(mdFilePath)) {
-      return false;
+      return null;
     }
 
     const content = fs.readFileSync(mdFilePath, "utf-8");
 
-    // Look for network.firewall: true in frontmatter
-    // network:
-    //   firewall: true
-    const firewallMatch = content.match(/^network:\s*\n\s+firewall:\s*true/m);
-    if (firewallMatch) {
-      return true;
+    // Look for command.name in frontmatter
+    // on:
+    //   command:
+    //     name: brave
+    const commandMatch = content.match(/^  command:\s*\n\s+name:\s*["']?(\w+)["']?/m);
+    if (commandMatch) {
+      return commandMatch[1];
     }
 
-    return false;
+    return null;
   } catch (error) {
-    console.error(`Error checking firewall in ${mdFilePath}:`, error.message);
-    return false;
-  }
-}
-
-/**
- * Check if edit tool is enabled in a markdown workflow file
- * Returns true if tools.edit exists
- */
-function hasEditTool(mdFilePath) {
-  try {
-    if (!fs.existsSync(mdFilePath)) {
-      return false;
-    }
-
-    const content = fs.readFileSync(mdFilePath, "utf-8");
-
-    // Look for edit: in tools section of frontmatter
-    // tools:
-    //   edit:
-    const editMatch = content.match(/^tools:\s*\n(?:\s+\w+:.*\n)*\s+edit:/m);
-    if (editMatch) {
-      return true;
-    }
-
-    return false;
-  } catch (error) {
-    console.error(`Error checking edit tool in ${mdFilePath}:`, error.message);
-    return false;
-  }
-}
-
-/**
- * Check if bash tool has wildcard "*" in a markdown workflow file
- * Returns true if bash has "*" value
- */
-function hasBashWildcard(mdFilePath) {
-  try {
-    if (!fs.existsSync(mdFilePath)) {
-      return false;
-    }
-
-    const content = fs.readFileSync(mdFilePath, "utf-8");
-
-    // Look for bash: followed by "*" or array containing "*"
-    // bash:
-    //   - "*"
-    // or
-    // bash: "*"
-    const bashWildcardMatch = content.match(/^  bash:\s*\n\s+[-\s]*["']?\*["']?/m) || 
-                             content.match(/^  bash:\s*["']?\*["']?$/m);
-    if (bashWildcardMatch) {
-      return true;
-    }
-
-    return false;
-  } catch (error) {
-    console.error(`Error checking bash wildcard in ${mdFilePath}:`, error.message);
-    return false;
+    console.error(`Error extracting command from ${mdFilePath}:`, error.message);
+    return null;
   }
 }
 
@@ -225,13 +169,15 @@ function generateMarkdown(workflows) {
   // Introduction
   lines.push("This page shows the current status of all agentic workflows in the repository.");
   lines.push("");
+  lines.push("Browse the [workflow source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows) on GitHub.");
+  lines.push("");
 
   // Sort workflows alphabetically by name
   workflows.sort((a, b) => a.name.localeCompare(b.name));
 
-  // Generate table header
-  lines.push("| Workflow ([source](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)) | Agent | Status | Schedule | Firewall | Edit | Bash * |");
-  lines.push("|----------|-------|--------|----------|----------|------|--------|");
+  // Generate table header with pretty formatting
+  lines.push("| Workflow | Agent | Status | Schedule | Command |");
+  lines.push("|:---------|:-----:|:------:|:--------:|:-------:|");
 
   // Generate table rows
   for (const workflow of workflows) {
@@ -246,12 +192,10 @@ function generateMarkdown(workflows) {
     // Format schedule - show cron or "-"
     const schedule = workflow.schedule ? `\`${workflow.schedule}\`` : "-";
     
-    // Format boolean columns as yes/no
-    const firewall = workflow.firewall ? "yes" : "no";
-    const edit = workflow.edit ? "yes" : "no";
-    const bashWildcard = workflow.bashWildcard ? "yes" : "no";
+    // Format command - show /command or "-"
+    const command = workflow.command ? `\`/${workflow.command}\`` : "-";
 
-    lines.push(`| ${workflowNameWithLink} | ${agent} | ${statusBadge} | ${schedule} | ${firewall} | ${edit} | ${bashWildcard} |`);
+    lines.push(`| ${workflowNameWithLink} | ${agent} | ${statusBadge} | ${schedule} | ${command} |`);
   }
 
   lines.push("");
@@ -292,17 +236,13 @@ const workflows = lockFiles
     // Extract all workflow metadata from markdown file
     const engine = extractEngineFromMarkdown(mdFilePath);
     const schedule = extractScheduleFromMarkdown(mdFilePath);
-    const firewall = hasFirewall(mdFilePath);
-    const edit = hasEditTool(mdFilePath);
-    const bashWildcard = hasBashWildcard(mdFilePath);
+    const command = extractCommandFromMarkdown(mdFilePath);
 
     return {
       ...workflowInfo,
       engine: engine,
       schedule: schedule,
-      firewall: firewall,
-      edit: edit,
-      bashWildcard: bashWildcard,
+      command: command,
       mdFilename: fs.existsSync(mdFilePath) ? mdFilename : null,
     };
   })
