@@ -336,7 +336,7 @@ async function main() {
         // Log uncommitted changes
         const diffResult = await exec.getExecOutput("git", ["diff", "HEAD"]);
         core.info("Uncommitted changes:");
-        core.info(diffResult.stdout || "(no uncommitted changes)");
+        core.info(diffResult.stdout && diffResult.stdout.trim() ? diffResult.stdout : "(no uncommitted changes)");
 
         // Log the failed patch diff
         const patchDiffResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
