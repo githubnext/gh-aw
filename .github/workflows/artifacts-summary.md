@@ -13,10 +13,7 @@ tools:
   edit:
   bash:
   github:
-    allowed: 
-      - list_workflows
-      - list_workflow_runs
-      - list_workflow_run_artifacts
+    toolset: [actions, repos]
 safe-outputs:
   create-discussion:
     category: "artifacts"
