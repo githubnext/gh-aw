@@ -130,7 +130,7 @@ func TestEnsureGettingStartedPrompt_WithSkipInstructionsTrue(t *testing.T) {
 func TestGettingStartedPromptContainsRequiredSections(t *testing.T) {
 	// Verify the template contains all required sections
 	requiredSections := []string{
-		"Configure Your Agentic Workflow",
+		"Configure Secrets for Your Chosen Agent",
 		"copilot",
 		"claude",
 		"codex",
@@ -154,7 +154,6 @@ func TestGettingStartedPromptHasValidDocumentationLinks(t *testing.T) {
 	// Verify the template contains documentation links
 	requiredLinks := []string{
 		"https://githubnext.github.io/gh-aw/reference/engines/",
-		"https://githubnext.github.io/gh-aw/start-here/quick-start/",
 		"https://github.com/settings/tokens",
 	}
 
