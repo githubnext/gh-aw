@@ -3907,6 +3907,7 @@ jobs:
           GH_AW_PR_DRAFT: "false"
           GH_AW_PR_IF_NO_CHANGES: "warn"
           GH_AW_MAX_PATCH_SIZE: 1024
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

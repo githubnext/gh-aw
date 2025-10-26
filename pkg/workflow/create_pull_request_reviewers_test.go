@@ -328,3 +328,81 @@ func TestCreatePullRequestJobWithCustomGitHubToken(t *testing.T) {
 		t.Error("Did not expect default token when custom token is configured")
 	}
 }
+
+func TestCreatePullRequestJobHasGHTokenEnvVar(t *testing.T) {
+	// Create a compiler instance
+	c := NewCompiler(false, "", "test")
+
+	// Test basic create-pull-request configuration without reviewers
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				// No reviewers configured, just basic PR creation
+			},
+		},
+	}
+
+	job, err := c.buildCreateOutputPullRequestJob(workflowData, "main_job")
+	if err != nil {
+		t.Fatalf("Unexpected error building create pull request job: %v", err)
+	}
+
+	// Convert steps to a single string for testing
+	stepsContent := strings.Join(job.Steps, "")
+
+	// Verify that GH_TOKEN environment variable is set in the main create PR step
+	// This is required for git push commands in the JavaScript script
+	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+		t.Error("Expected GH_TOKEN environment variable to be set in create pull request step for git CLI authentication")
+	}
+
+	// Verify it appears in the environment section (not just in reviewer steps)
+	envSectionStart := strings.Index(stepsContent, "env:")
+	createPRStepStart := strings.Index(stepsContent, "Create Pull Request")
+	if envSectionStart == -1 || createPRStepStart == -1 {
+		t.Fatal("Could not find env section or Create Pull Request step")
+	}
+
+	// Check that GH_TOKEN appears in an env section associated with the Create Pull Request step
+	// by finding the nearest env: section after the step name
+	stepContent := stepsContent[createPRStepStart:]
+	if !strings.Contains(stepContent, "GH_TOKEN:") {
+		t.Error("Expected GH_TOKEN to be in the Create Pull Request step's environment variables")
+	}
+}
+
+func TestCreatePullRequestJobWithCustomTokenHasGHTokenEnvVar(t *testing.T) {
+	// Create a compiler instance
+	c := NewCompiler(false, "", "test")
+
+	// Test with custom GitHub token at PR level
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubToken: "${{ secrets.CUSTOM_PR_TOKEN }}",
+				},
+			},
+		},
+	}
+
+	job, err := c.buildCreateOutputPullRequestJob(workflowData, "main_job")
+	if err != nil {
+		t.Fatalf("Unexpected error building create pull request job: %v", err)
+	}
+
+	// Convert steps to a single string for testing
+	stepsContent := strings.Join(job.Steps, "")
+
+	// Verify that custom token is used in GH_TOKEN
+	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.CUSTOM_PR_TOKEN }}") {
+		t.Error("Expected custom GitHub token to be used in GH_TOKEN environment variable")
+	}
+
+	// Verify default token is NOT used
+	if strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+		t.Error("Did not expect default token when custom token is configured at PR level")
+	}
+}

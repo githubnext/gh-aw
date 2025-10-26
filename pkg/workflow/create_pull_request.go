@@ -82,6 +82,15 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.CreatePullRequests.TargetRepoSlug,
 	)...)
 
+	// Add GH_TOKEN environment variable for git CLI commands (git push)
+	// Use the same token resolution as the GitHub Script action
+	var safeOutputsToken string
+	if data.SafeOutputs != nil {
+		safeOutputsToken = data.SafeOutputs.GitHubToken
+	}
+	effectiveToken := getEffectiveGitHubToken(data.SafeOutputs.CreatePullRequests.GitHubToken, getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
+
 	// Step 4: Create pull request using the common helper
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
 		StepName:      "Create Pull Request",
