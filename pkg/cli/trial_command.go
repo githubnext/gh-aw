@@ -440,44 +440,10 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 
 }
 
-// getCurrentRepositoryInfo determines the current repository from git remote
+// getCurrentRepositoryInfo determines the current repository from the gh CLI (cached)
+// This is a wrapper around GetCurrentRepoSlugCached for backward compatibility
 func getCurrentRepositoryInfo() (string, error) {
-	// Get git remote URL
-	cmd := exec.Command("git", "remote", "get-url", "origin")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get git remote origin: %w", err)
-	}
-
-	remoteURL := strings.TrimSpace(string(output))
-
-	// Parse GitHub repository from remote URL
-	// Handle both SSH and HTTPS formats
-	var repoPath string
-
-	// SSH format: git@github.com:owner/repo.git
-	if strings.HasPrefix(remoteURL, "git@github.com:") {
-		repoPath = strings.TrimPrefix(remoteURL, "git@github.com:")
-	} else if strings.Contains(remoteURL, "github.com/") {
-		// HTTPS format: https://github.com/owner/repo.git
-		parts := strings.Split(remoteURL, "github.com/")
-		if len(parts) >= 2 {
-			repoPath = parts[1]
-		}
-	} else {
-		return "", fmt.Errorf("remote URL does not appear to be a GitHub repository: %s", remoteURL)
-	}
-
-	// Remove .git suffix if present
-	repoPath = strings.TrimSuffix(repoPath, ".git")
-
-	// Use parseRepoSpec to validate the format consistently
-	repoSpec, err := parseRepoSpec(repoPath)
-	if err != nil {
-		return "", fmt.Errorf("invalid repository format from git remote: %w", err)
-	}
-
-	return repoSpec.RepoSlug, nil
+	return GetCurrentRepoSlugCached()
 }
 
 // getCurrentGitHubUsername gets the current GitHub username from gh CLI
