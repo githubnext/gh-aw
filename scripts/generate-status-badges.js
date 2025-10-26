@@ -71,7 +71,7 @@ function extractEngineFromMarkdown(mdFilePath) {
     }
 
     const content = fs.readFileSync(mdFilePath, "utf-8");
-    
+
     // Look for engine field in frontmatter
     // Handles both simple string format and object format:
     // engine: copilot
@@ -126,10 +126,10 @@ function generateMarkdown(workflows) {
   for (const workflow of workflows) {
     const agent = workflow.engine || "copilot";
     const statusBadge = `[![${workflow.name}](${workflow.badgeUrl})](${workflow.workflowUrl})`;
-    const workflowLink = workflow.mdFilename 
+    const workflowLink = workflow.mdFilename
       ? `[${workflow.mdFilename}](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/workflows/${workflow.mdFilename})`
       : "-";
-    
+
     lines.push(`| ${workflow.name} | ${agent} | ${statusBadge} | ${workflowLink} |`);
   }
 
@@ -156,26 +156,28 @@ const lockFiles = fs
 console.log(`Found ${lockFiles.length} lock files`);
 
 // Extract workflow information and match with markdown files
-const workflows = lockFiles.map(lockFilePath => {
-  const workflowInfo = extractWorkflowInfo(lockFilePath);
-  if (!workflowInfo) {
-    return null;
-  }
+const workflows = lockFiles
+  .map(lockFilePath => {
+    const workflowInfo = extractWorkflowInfo(lockFilePath);
+    if (!workflowInfo) {
+      return null;
+    }
 
-  // Try to find corresponding .md file
-  // Convert "workflow-name.lock.yml" to "workflow-name.md"
-  const mdFilename = workflowInfo.filename.replace(".lock.yml", ".md");
-  const mdFilePath = path.join(WORKFLOWS_DIR, mdFilename);
-  
-  // Extract engine from markdown file
-  const engine = extractEngineFromMarkdown(mdFilePath);
-  
-  return {
-    ...workflowInfo,
-    engine: engine,
-    mdFilename: fs.existsSync(mdFilePath) ? mdFilename : null,
-  };
-}).filter(info => info !== null);
+    // Try to find corresponding .md file
+    // Convert "workflow-name.lock.yml" to "workflow-name.md"
+    const mdFilename = workflowInfo.filename.replace(".lock.yml", ".md");
+    const mdFilePath = path.join(WORKFLOWS_DIR, mdFilename);
+
+    // Extract engine from markdown file
+    const engine = extractEngineFromMarkdown(mdFilePath);
+
+    return {
+      ...workflowInfo,
+      engine: engine,
+      mdFilename: fs.existsSync(mdFilePath) ? mdFilename : null,
+    };
+  })
+  .filter(info => info !== null);
 
 console.log(`Extracted ${workflows.length} workflows with valid names`);
 
