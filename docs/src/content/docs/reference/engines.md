@@ -80,6 +80,7 @@ network:
     - python
   firewall:
     version: "v1.0.0"                    # Optional: AWF version (defaults to latest)
+    log-level: debug                     # Optional: debug, info (default), warn, error
     args: ["--custom-arg", "value"]      # Optional: additional AWF arguments
 ```
 
@@ -96,6 +97,11 @@ network:
 network:
   firewall:
 
+# Configure log level
+network:
+  firewall:
+    log-level: info    # Options: debug, info (default), warn, error
+
 # Disable firewall (triggers warning if allowed domains are specified)
 network:
   allowed: ["example.com"]
@@ -105,6 +111,7 @@ network:
 network:
   firewall:
     version: "v0.1.0"
+    log-level: debug
     args: ["--verbose"]
 ```
 

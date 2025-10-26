@@ -93,6 +93,27 @@ When enabled, AWF:
 - Logs all network activity for audit purposes
 - Blocks access to domains not explicitly allowed
 
+### Firewall Log Level
+
+Control the verbosity of AWF firewall logs using the `log-level` field:
+
+```yaml
+network:
+  firewall:
+    log-level: info      # Options: debug, info, warn, error
+  allowed:
+    - defaults
+    - python
+```
+
+Available log levels:
+- `debug`: Detailed diagnostic information for troubleshooting
+- `info`: General informational messages (default)
+- `warn`: Warning messages for potential issues
+- `error`: Error messages only
+
+The default log level is `info`, which provides a balance between visibility and log volume. Use `debug` for troubleshooting network access issues or `error` to minimize log output.
+
 See the [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network-permissions) documentation for detailed AWF configuration options.
 
 ## Best Practices
