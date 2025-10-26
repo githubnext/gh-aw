@@ -261,7 +261,7 @@ const exec = global.exec;`
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
-    it("should handle patch file with error content", async () => {
+    it("should fail when patch file contains error content", async () => {
       setAgentOutput({
         items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
@@ -272,8 +272,36 @@ const exec = global.exec;`
       // Execute the script
       await executeScript();
 
-      expect(mockCore.info).toHaveBeenCalledWith("Patch file contains error message - cannot push without changes");
-      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      // Should always fail regardless of if-no-changes configuration
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Patch file contains error message - cannot push without changes");
+
+      // Should log diagnostic information
+      expect(mockCore.error).toHaveBeenCalledWith("Patch file generation failed - this is an error condition that requires investigation");
+      expect(mockCore.error).toHaveBeenCalledWith("Patch file location: /tmp/gh-aw/aw.patch");
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringMatching(/Patch file size: \d+ bytes/));
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringMatching(/Patch file preview \(first \d+ characters\):/));
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Failed to generate patch: some error"));
+    });
+
+    it("should fail when patch file contains error content regardless of if-no-changes config", async () => {
+      setAgentOutput({
+        items: [{ type: "push_to_pull_request_branch", content: "test" }],
+      });
+
+      // Set if-no-changes to 'ignore' to verify it still fails
+      process.env.GH_AW_PUSH_IF_NO_CHANGES = "ignore";
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockPatchContent("Failed to generate patch: git diff failed");
+
+      // Execute the script
+      await executeScript();
+
+      // Should always fail regardless of if-no-changes configuration
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Patch file contains error message - cannot push without changes");
+
+      // Should log diagnostic information
+      expect(mockCore.error).toHaveBeenCalledWith("Patch file generation failed - this is an error condition that requires investigation");
     });
 
     it("should handle empty patch file with default 'warn' behavior", async () => {
