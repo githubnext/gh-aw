@@ -1336,7 +1336,7 @@ jobs:
           sudo -E awf --env-all \
             --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org \
             --log-level info \
-            "npx -y @github/copilot@0.0.351 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
+            "npx -y @github/copilot@0.0.351 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool 'github\(list_workflow_run_artifacts\)' --allow-tool 'github\(list_workflow_runs\)' --allow-tool 'github\(list_workflows\)' --allow-tool safeoutputs --allow-tool 'shell\(cat\)' --allow-tool 'shell\(date\)' --allow-tool 'shell\(echo\)' --allow-tool 'shell\(grep\)' --allow-tool 'shell\(head\)' --allow-tool 'shell\(ls\)' --allow-tool 'shell\(pwd\)' --allow-tool 'shell\(sort\)' --allow-tool 'shell\(tail\)' --allow-tool 'shell\(uniq\)' --allow-tool 'shell\(wc\)' --allow-tool 'shell\(yq\)' --allow-tool write --allow-all-paths --prompt \"\$\(cat /tmp/gh-aw/aw-prompts/prompt.txt\)\"" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved Copilot logs to expected location
