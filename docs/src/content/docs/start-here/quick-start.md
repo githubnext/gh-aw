@@ -41,11 +41,18 @@ This creates a pull request that adds `.github/workflows/weekly-research.md` and
 
 Agentic workflows use a coding agent: GitHub Copilot CLI (default), Claude or Codex.
 
-For GitHub Copilot CLI please [create a GitHub Fine-Grained Personal Access Token (PAT) for an account with a GitHub Copilot subscription](https://github.com/settings/personal-access-tokens/new) with the "```Copilot Requests```" permission selected/checked with "```Access: Read-only```" and add this as a repository secret name "```COPILOT_CLI_TOKEN```":
+For GitHub Copilot CLI, create a fine-grained Personal Access Token (PAT) with the "Copilot Requests" permission enabled:
+
+1. Visit https://github.com/settings/personal-access-tokens/new
+2. Under "Permissions," click "add permissions" and select "Copilot Requests"
+3. Generate your token
+4. Add the token to your repository secrets as `COPILOT_CLI_TOKEN`:
 
 ```bash
 gh secret set COPILOT_CLI_TOKEN -a actions --body "<your-personal-access-token>"
 ```
+
+For more information, see the [official documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat).
 
 For Claude and Codex, see the instructions in [AI Engines](/gh-aw/reference/engines/).
 

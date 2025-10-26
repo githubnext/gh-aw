@@ -1048,6 +1048,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 					if !isValidReaction(reactionStr) {
 						return fmt.Errorf("invalid reaction value '%s': must be one of %v", reactionStr, getValidReactions())
 					}
+					// Set AIReaction even if it's "none" - "none" explicitly disables reactions
 					workflowData.AIReaction = reactionStr
 				}
 			}

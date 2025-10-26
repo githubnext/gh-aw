@@ -27,9 +27,9 @@ tools:
     - "rm *"
     - "test *"
 safe-outputs:
-  create-issue:
+  create-discussion:
     title-prefix: "[audit] "
-    labels: [audit, downstream]
+    category: "Audits"
     max: 1
 timeout_minutes: 10
 imports:
@@ -143,15 +143,15 @@ date -u "+%Y-%m-%d %H:%M:%S UTC"
 
 ### Phase 5: Report Results
 
-Create a new issue to document the audit results.
+Create a new discussion to document the audit results.
 
 #### For Successful Audits ✅
 
-If all validations pass, **create a new issue** with:
+If all validations pass, **create a new discussion** with:
 - **Title**: "[audit] Agentic Workflows blog audit - PASSED"
-- **Labels**: audit, downstream
+- **Category**: Audits
 
-**Issue Body**:
+**Discussion Body**:
 ```markdown
 ## ✅ Agentic Workflows Blog Audit - PASSED
 
@@ -182,11 +182,11 @@ The Agentic Workflows blog is accessible and up to date with valid code examples
 
 If any validation fails:
 
-**Create a new issue** with:
+**Create a new discussion** with:
 - **Title**: "[audit] Agentic Workflows blog out-of-date or unavailable"
-- **Labels**: audit, downstream
+- **Category**: Audits
 
-**Issue Body**:
+**Discussion Body**:
 ```markdown
 ## 🚨 Agentic Workflows Blog Audit - FAILED
 
@@ -292,7 +292,7 @@ A successful audit:
 - ✅ Validates all criteria (HTTP status, URL, content length, keywords)
 - ✅ Extracts code snippets from the blog page
 - ✅ Validates code snippets against the latest agentic workflow schema
-- ✅ Reports results appropriately (issue with all validation details)
+- ✅ Reports results appropriately (discussion with all validation details)
 - ✅ Provides actionable information for remediation
 - ✅ Completes within timeout limits
 

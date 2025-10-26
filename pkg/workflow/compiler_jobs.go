@@ -328,17 +328,16 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, createAgentTaskJob.Name)
 	}
 
-	// Build update_reaction job if add-comment is configured
+	// Build update_reaction job if add-comment is configured OR if command trigger is configured with reactions
 	// This job runs last, after all safe output jobs, to update the activation comment on failure
-	if data.SafeOutputs.AddComments != nil {
-		updateReactionJob, err := c.buildUpdateReactionJob(data, jobName, safeOutputJobNames)
-		if err != nil {
-			return fmt.Errorf("failed to build update_reaction job: %w", err)
-		}
-		if updateReactionJob != nil {
-			if err := c.jobManager.AddJob(updateReactionJob); err != nil {
-				return fmt.Errorf("failed to add update_reaction job: %w", err)
-			}
+	// The buildUpdateReactionJob function itself will decide whether to create the job based on the configuration
+	updateReactionJob, err := c.buildUpdateReactionJob(data, jobName, safeOutputJobNames)
+	if err != nil {
+		return fmt.Errorf("failed to build update_reaction job: %w", err)
+	}
+	if updateReactionJob != nil {
+		if err := c.jobManager.AddJob(updateReactionJob); err != nil {
+			return fmt.Errorf("failed to add update_reaction job: %w", err)
 		}
 	}
 
@@ -501,8 +500,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
 	}
 
-	// Add reaction step if ai-reaction is configured
-	if data.AIReaction != "" {
+	// Add reaction step if ai-reaction is configured and not "none"
+	if data.AIReaction != "" && data.AIReaction != "none" {
 		reactionCondition := buildReactionCondition()
 
 		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction to the triggering item\n", data.AIReaction))
@@ -563,9 +562,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		activationCondition = data.If
 	}
 
-	// Set permissions - add reaction permissions if reaction is configured
+	// Set permissions - add reaction permissions if reaction is configured and not "none"
 	var permissions string
-	if data.AIReaction != "" {
+	if data.AIReaction != "" && data.AIReaction != "none" {
 		perms := NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
 			PermissionDiscussions:  PermissionWrite,
 			PermissionIssues:       PermissionWrite,

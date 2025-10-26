@@ -531,7 +531,8 @@ on:
   stop-after: "example-value"
 
   # AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused,
-  # heart, hooray, rocket, eyes). Defaults to 'eyes' if not specified.
+  # heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to
+  # 'eyes' if not specified.
   # (optional)
   reaction: "+1"
 

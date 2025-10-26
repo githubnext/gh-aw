@@ -2,7 +2,7 @@
   "servers": {
     "github-agentic-workflows": {
       "command": "./gh-aw",
-      "args": ["mcp-server"],
+      "args": ["mcp-server", "--cmd", "./gh-aw"],
       "cwd": "${workspaceFolder}"
     }
   }

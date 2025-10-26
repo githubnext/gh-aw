@@ -2066,7 +2066,7 @@ jobs:
           script: |
             async function main() {
               const fs = require("fs");
-              const maxBodyLength = 16384;
+              const maxBodyLength = 65000;
               function sanitizeContent(content, maxLength) {
                 if (!content || typeof content !== "string") {
                   return "";
@@ -4955,17 +4955,14 @@ jobs:
               const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
               if (patchContent.includes("Failed to generate patch")) {
                 const message = "Patch file contains error message - cannot push without changes";
-                switch (ifNoChanges) {
-                  case "error":
-                    core.setFailed(message);
-                    return;
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.info(message);
-                    return;
-                }
+                core.error("Patch file generation failed - this is an error condition that requires investigation");
+                core.error(`Patch file location: /tmp/gh-aw/aw.patch`);
+                core.error(`Patch file size: ${Buffer.byteLength(patchContent, "utf8")} bytes`);
+                const previewLength = Math.min(500, patchContent.length);
+                core.error(`Patch file preview (first ${previewLength} characters):`);
+                core.error(patchContent.substring(0, previewLength));
+                core.setFailed(message);
+                return;
               }
               const isEmpty = !patchContent || !patchContent.trim();
               if (!isEmpty) {
@@ -5138,12 +5135,38 @@ jobs:
                     fs.writeFileSync("/tmp/gh-aw/aw.patch", patchContent, "utf8");
                     core.info(`Patch modified with commit title suffix: "${commitTitleSuffix}"`);
                   }
+                  const finalPatchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                  const patchLines = finalPatchContent.split("\n");
+                  const previewLines = patchLines.slice(0, 100).join("\n");
+                  core.info(`Patch preview (first ${Math.min(100, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
                   await exec.exec("git am /tmp/gh-aw/aw.patch");
                   core.info("Patch applied successfully");
                   await exec.exec(`git push origin ${branchName}`);
                   core.info(`Changes committed and pushed to branch: ${branchName}`);
                 } catch (error) {
                   core.error(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
+                  try {
+                    core.info("Investigating patch failure...");
+                    const statusResult = await exec.getExecOutput("git", ["status"]);
+                    core.info("Git status output:");
+                    core.info(statusResult.stdout);
+                    const logResult = await exec.getExecOutput("git", ["log", "--oneline", "-5"]);
+                    core.info("Recent commits (last 5):");
+                    core.info(logResult.stdout);
+                    const diffResult = await exec.getExecOutput("git", ["diff", "HEAD"]);
+                    core.info("Uncommitted changes:");
+                    core.info(diffResult.stdout && diffResult.stdout.trim() ? diffResult.stdout : "(no uncommitted changes)");
+                    const patchDiffResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+                    core.info("Failed patch diff:");
+                    core.info(patchDiffResult.stdout);
+                    const patchFullResult = await exec.getExecOutput("git", ["am", "--show-current-patch"]);
+                    core.info("Failed patch (full):");
+                    core.info(patchFullResult.stdout);
+                  } catch (investigateError) {
+                    core.warning(
+                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
+                    );
+                  }
                   core.setFailed("Failed to apply patch");
                   return;
                 }

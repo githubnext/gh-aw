@@ -19,9 +19,9 @@ tools:
       - search_issues
       - get_issue
 safe-outputs:
-  create-issue:
+  create-discussion:
     title-prefix: "[Weekly Summary] "
-    labels: [automation, weekly-report]
+    category: "Audits"
 ---
 
 # Weekly Issue Summary

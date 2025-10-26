@@ -56,18 +56,20 @@ async function main() {
   if (patchContent.includes("Failed to generate patch")) {
     const message = "Patch file contains error message - cannot push without changes";
 
-    switch (ifNoChanges) {
-      case "error":
-        core.setFailed(message);
-        return;
-      case "ignore":
-        // Silent success - no console output
-        return;
-      case "warn":
-      default:
-        core.info(message);
-        return;
-    }
+    // Log diagnostic information to help with troubleshooting
+    core.error("Patch file generation failed - this is an error condition that requires investigation");
+    core.error(`Patch file location: /tmp/gh-aw/aw.patch`);
+    core.error(`Patch file size: ${Buffer.byteLength(patchContent, "utf8")} bytes`);
+
+    // Show first 500 characters of patch content for diagnostics
+    const previewLength = Math.min(500, patchContent.length);
+    core.error(`Patch file preview (first ${previewLength} characters):`);
+    core.error(patchContent.substring(0, previewLength));
+
+    // This is always a failure regardless of if-no-changes configuration
+    // because the patch file contains an error message from the patch generation process
+    core.setFailed(message);
+    return;
   }
 
   // Validate patch size (unless empty)
@@ -301,6 +303,12 @@ async function main() {
         core.info(`Patch modified with commit title suffix: "${commitTitleSuffix}"`);
       }
 
+      // Log first 100 lines of patch for debugging
+      const finalPatchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+      const patchLines = finalPatchContent.split("\n");
+      const previewLines = patchLines.slice(0, 100).join("\n");
+      core.info(`Patch preview (first ${Math.min(100, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
+
       // Patches are created with git format-patch, so use git am to apply them
       await exec.exec("git am /tmp/gh-aw/aw.patch");
       core.info("Patch applied successfully");
@@ -310,6 +318,41 @@ async function main() {
       core.info(`Changes committed and pushed to branch: ${branchName}`);
     } catch (error) {
       core.error(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
+
+      // Investigate why the patch failed by logging git status and the failed patch
+      try {
+        core.info("Investigating patch failure...");
+
+        // Log git status to see the current state
+        const statusResult = await exec.getExecOutput("git", ["status"]);
+        core.info("Git status output:");
+        core.info(statusResult.stdout);
+
+        // Log recent commits for context
+        const logResult = await exec.getExecOutput("git", ["log", "--oneline", "-5"]);
+        core.info("Recent commits (last 5):");
+        core.info(logResult.stdout);
+
+        // Log uncommitted changes
+        const diffResult = await exec.getExecOutput("git", ["diff", "HEAD"]);
+        core.info("Uncommitted changes:");
+        core.info(diffResult.stdout && diffResult.stdout.trim() ? diffResult.stdout : "(no uncommitted changes)");
+
+        // Log the failed patch diff
+        const patchDiffResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+        core.info("Failed patch diff:");
+        core.info(patchDiffResult.stdout);
+
+        // Log the full failed patch for complete context
+        const patchFullResult = await exec.getExecOutput("git", ["am", "--show-current-patch"]);
+        core.info("Failed patch (full):");
+        core.info(patchFullResult.stdout);
+      } catch (investigateError) {
+        core.warning(
+          `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
+        );
+      }
+
       core.setFailed("Failed to apply patch");
       return;
     }

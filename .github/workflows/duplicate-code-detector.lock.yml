@@ -161,7 +161,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.49.0
+        run: npm install -g @openai/codex@0.50.0
       - name: Downloading container images
         run: |
           set -e
@@ -1588,7 +1588,7 @@ jobs:
           script: |
             async function main() {
               const fs = require("fs");
-              const maxBodyLength = 16384;
+              const maxBodyLength = 65000;
               function sanitizeContent(content, maxLength) {
                 if (!content || typeof content !== "string") {
                   return "";
@@ -3405,7 +3405,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.49.0
+        run: npm install -g @openai/codex@0.50.0
       - name: Run Codex
         run: |
           set -o pipefail

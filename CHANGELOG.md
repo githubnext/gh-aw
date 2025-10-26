@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.25.2 - 2025-10-26
+
+### Bug Fixes
+
+#### Improve create-agentic-workflow prompt with writing style guidelines and user engagement tips
+
+
+## v0.25.1 - 2025-10-26
+
+### Bug Fixes
+
+#### Centralize git utility functions in git.go
+
+#### Consolidate duplicate sanitizeWorkflowName into pkg/workflow/strings.go
+
+#### Fix: Disable container validation by default, require --validate flag
+
+#### Increase max body size to 65000 for issues, comments, PRs, and discussions
+
+#### Update scheduled reporting workflows to use create-discussion for Audits
+
+#### Add workflow run URL formatting guidelines to reporting shared workflow
+
+
 ## v0.25.0 - 2025-10-26
 
 ### Features

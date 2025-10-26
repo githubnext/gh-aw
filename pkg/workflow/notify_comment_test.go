@@ -12,6 +12,7 @@ func TestUpdateReactionJob(t *testing.T) {
 		name               string
 		addCommentConfig   bool
 		aiReaction         string
+		command            string
 		safeOutputJobNames []string
 		expectJob          bool
 		expectConditions   []string
@@ -21,6 +22,7 @@ func TestUpdateReactionJob(t *testing.T) {
 			name:               "update_reaction job created when add-comment and ai-reaction are configured",
 			addCommentConfig:   true,
 			aiReaction:         "eyes",
+			command:            "",
 			safeOutputJobNames: []string{"add_comment", "create_issue", "missing_tool"},
 			expectJob:          true,
 			expectConditions: []string{
@@ -37,6 +39,7 @@ func TestUpdateReactionJob(t *testing.T) {
 			name:               "update_reaction job depends on all safe output jobs",
 			addCommentConfig:   true,
 			aiReaction:         "eyes",
+			command:            "",
 			safeOutputJobNames: []string{"add_comment", "create_issue", "missing_tool"},
 			expectJob:          true,
 			expectConditions: []string{
@@ -53,6 +56,7 @@ func TestUpdateReactionJob(t *testing.T) {
 			name:               "update_reaction job not created when add-comment is not configured",
 			addCommentConfig:   false,
 			aiReaction:         "",
+			command:            "",
 			safeOutputJobNames: []string{},
 			expectJob:          false,
 		},
@@ -60,7 +64,58 @@ func TestUpdateReactionJob(t *testing.T) {
 			name:               "update_reaction job not created when add-comment is configured but ai-reaction is not",
 			addCommentConfig:   true,
 			aiReaction:         "",
+			command:            "",
 			safeOutputJobNames: []string{"add_comment", "missing_tool"},
+			expectJob:          false,
+		},
+		{
+			name:               "update_reaction job not created when reaction is explicitly set to none",
+			addCommentConfig:   true,
+			aiReaction:         "none",
+			command:            "",
+			safeOutputJobNames: []string{"add_comment", "missing_tool"},
+			expectJob:          false,
+		},
+		{
+			name:               "update_reaction job created when command and reaction are configured (no add-comment)",
+			addCommentConfig:   false,
+			aiReaction:         "eyes",
+			command:            "test-command",
+			safeOutputJobNames: []string{"missing_tool"},
+			expectJob:          true,
+			expectConditions: []string{
+				"always()",
+				"needs.agent.result != 'skipped'",
+				"needs.activation.outputs.comment_id",
+				"(!contains(needs.agent.outputs.output_types, 'add_comment'))",
+				"(!contains(needs.agent.outputs.output_types, 'create_pull_request'))",
+				"(!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))",
+			},
+			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "missing_tool"},
+		},
+		{
+			name:               "update_reaction job created when command is configured with push-to-pull-request-branch",
+			addCommentConfig:   false,
+			aiReaction:         "eyes",
+			command:            "mergefest",
+			safeOutputJobNames: []string{"push_to_pull_request_branch", "missing_tool"},
+			expectJob:          true,
+			expectConditions: []string{
+				"always()",
+				"needs.agent.result != 'skipped'",
+				"needs.activation.outputs.comment_id",
+				"(!contains(needs.agent.outputs.output_types, 'add_comment'))",
+				"(!contains(needs.agent.outputs.output_types, 'create_pull_request'))",
+				"(!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))",
+			},
+			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "push_to_pull_request_branch", "missing_tool"},
+		},
+		{
+			name:               "update_reaction job not created when command is configured but reaction is none",
+			addCommentConfig:   false,
+			aiReaction:         "none",
+			command:            "test-command",
+			safeOutputJobNames: []string{"missing_tool"},
 			expectJob:          false,
 		},
 	}
@@ -72,6 +127,7 @@ func TestUpdateReactionJob(t *testing.T) {
 			workflowData := &WorkflowData{
 				Name:       "Test Workflow",
 				AIReaction: tt.aiReaction,
+				Command:    tt.command,
 			}
 
 			if tt.addCommentConfig {

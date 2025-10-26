@@ -1126,6 +1126,44 @@ jobs:
           </details>
           ```
           
+          ## Reporting Workflow Run Information
+          
+          When analyzing workflow run logs or reporting information from GitHub Actions runs:
+          
+          ### 1. Workflow Run ID Formatting
+          
+          **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
+          
+          **Format:**
+          ```markdown
+          [§12345](https://github.com/owner/repo/actions/runs/12345)
+          ```
+          
+          **Example:**
+          ```markdown
+          Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
+          ```
+          
+          ### 2. Document References for Workflow Runs
+          
+          When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
+          
+          **Format:**
+          ```markdown
+          ---
+          
+          **References:**
+          - [§12345](https://github.com/owner/repo/actions/runs/12345)
+          - [§12346](https://github.com/owner/repo/actions/runs/12346)
+          - [§12347](https://github.com/owner/repo/actions/runs/12347)
+          ```
+          
+          **Guidelines:**
+          - Include **maximum 3 references** to keep reports concise
+          - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
+          - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
+          - If analyzing more than 3 runs, select the most important ones for references
+          
           # GitHub MCP Remote Server Tools Report Generator
           
           You are the GitHub MCP Remote Server Tools Report Generator - an agent that documents the available functions in the GitHub MCP remote server.
@@ -1467,6 +1505,12 @@ jobs:
              - Consider which tools are most commonly needed across different workflow types
              - Evaluate the current defaults: `context`, `repos`, `issues`, `pull_requests`, `users`
              - Determine if these defaults should be updated based on actual tool availability and usage patterns
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
              - Document your rationale for the recommended defaults
           6. **Create comprehensive documentation file**: Create/update `.github/instructions/github-mcp-server.instructions.md` with:
              - Overview of GitHub MCP server (remote vs local mode)
@@ -1989,7 +2033,7 @@ jobs:
           script: |
             async function main() {
               const fs = require("fs");
-              const maxBodyLength = 16384;
+              const maxBodyLength = 65000;
               function sanitizeContent(content, maxLength) {
                 if (!content || typeof content !== "string") {
                   return "";
@@ -4059,8 +4103,30 @@ jobs:
               core.info(`Created new branch from base: ${branchName}`);
               if (!isEmpty) {
                 core.info("Applying patch...");
-                await exec.exec("git am /tmp/gh-aw/aw.patch");
-                core.info("Patch applied successfully");
+                const patchLines = patchContent.split("\n");
+                const previewLines = patchLines.slice(0, 500).join("\n");
+                core.info(`Patch preview (first ${Math.min(500, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
+                try {
+                  await exec.exec("git am /tmp/gh-aw/aw.patch");
+                  core.info("Patch applied successfully");
+                } catch (patchError) {
+                  core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
+                  try {
+                    core.info("Investigating patch failure...");
+                    const statusResult = await exec.getExecOutput("git", ["status"]);
+                    core.info("Git status output:");
+                    core.info(statusResult.stdout);
+                    const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
+                    core.info("Failed patch content:");
+                    core.info(patchResult.stdout);
+                  } catch (investigateError) {
+                    core.warning(
+                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
+                    );
+                  }
+                  core.setFailed("Failed to apply patch");
+                  return;
+                }
                 try {
                   let remoteBranchExists = false;
                   try {

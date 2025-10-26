@@ -60,6 +60,42 @@ Use the `--port` flag to run the server with HTTP/SSE transport instead of stdio
 gh aw mcp-server --port 8080
 ```
 
+## Configuring with Copilot CLI
+
+The GitHub Copilot CLI can use the gh-aw MCP server to access workflow management tools.
+
+Use the `/mcp` command in Copilot CLI to add the MCP server:
+
+```bash
+/mcp add github-agentic-workflows gh aw mcp-server
+```
+
+This registers the server with Copilot CLI, making workflow management tools available in your terminal sessions.
+
+## Configuring with VS Code
+
+VS Code can use the gh-aw MCP server through the Copilot Chat extension.
+
+Create or update `.vscode/mcp.json` in your repository:
+
+```json
+{
+  "servers": {
+    "github-agentic-workflows": {
+      "command": "gh",
+      "args": ["aw", "mcp-server"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
+```
+
+:::note
+The `${workspaceFolder}` variable automatically resolves to your current workspace directory in VS Code. Use this for development builds where the `gh-aw` binary is in your project root.
+:::
+
+After adding the configuration, reload VS Code or restart the Copilot Chat extension.
+
 ## Available Tools
 
 The MCP server provides **status** (list workflows with pattern filter), **compile** (generate GitHub Actions YAML), **logs** (download with timeout handling and continuation), **audit** (generate report to `/tmp/gh-aw/aw-mcp/logs`), and **mcp-inspect** (inspect servers and validate secrets).
