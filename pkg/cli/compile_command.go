@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -96,6 +98,7 @@ type CompileConfig struct {
 	Strict               bool     // Enable strict mode validation
 	Dependabot           bool     // Generate Dependabot manifests for npm dependencies
 	ForceOverwrite       bool     // Force overwrite of existing files (dependabot.yml)
+	Zizmor               bool     // Run zizmor security scanner on generated .lock.yml files
 }
 
 // CompilationStats tracks the results of workflow compilation
@@ -120,8 +123,9 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	strict := config.Strict
 	dependabot := config.Dependabot
 	forceOverwrite := config.ForceOverwrite
+	zizmor := config.Zizmor
 
-	compileLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v, dependabot=%v", len(markdownFiles), validate, watch, noEmit, dependabot)
+	compileLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v, dependabot=%v, zizmor=%v", len(markdownFiles), validate, watch, noEmit, dependabot, zizmor)
 
 	// Track compilation statistics
 	stats := &CompilationStats{}
@@ -301,6 +305,25 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			return workflowDataList, fmt.Errorf("compilation failed")
 		}
 
+		// Run zizmor security scanner if requested and compilation was successful
+		if zizmor && !noEmit {
+			// Resolve workflow directory path
+			if workflowDir == "" {
+				workflowDir = ".github/workflows"
+			}
+			absWorkflowDir := workflowDir
+			if !filepath.IsAbs(absWorkflowDir) {
+				gitRoot, err := findGitRoot()
+				if err == nil {
+					absWorkflowDir = filepath.Join(gitRoot, workflowDir)
+				}
+			}
+
+			if err := runZizmor(absWorkflowDir, verbose); err != nil {
+				return workflowDataList, fmt.Errorf("zizmor security scan failed: %w", err)
+			}
+		}
+
 		return workflowDataList, nil
 	}
 
@@ -459,6 +482,13 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	// Return error if any compilations failed
 	if errorCount > 0 {
 		return workflowDataList, fmt.Errorf("compilation failed")
+	}
+
+	// Run zizmor security scanner if requested and compilation was successful
+	if zizmor && !noEmit {
+		if err := runZizmor(workflowsDir, verbose); err != nil {
+			return workflowDataList, fmt.Errorf("zizmor security scan failed: %w", err)
+		}
 	}
 
 	return workflowDataList, nil
@@ -798,4 +828,88 @@ func printCompilationSummary(stats *CompilationStats) {
 	} else {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(summary))
 	}
+}
+
+// runZizmor runs the zizmor security scanner on generated .lock.yml files using Docker
+func runZizmor(workflowsDir string, verbose bool) error {
+	compileLog.Print("Running zizmor security scanner")
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Running zizmor security scanner on generated .lock.yml files..."))
+	}
+
+	// Find git root to get the absolute path for Docker volume mount
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return fmt.Errorf("failed to find git root: %w", err)
+	}
+
+	// Get the absolute path of the workflows directory
+	var absWorkflowsDir string
+	if filepath.IsAbs(workflowsDir) {
+		absWorkflowsDir = workflowsDir
+	} else {
+		absWorkflowsDir = filepath.Join(gitRoot, workflowsDir)
+	}
+
+	compileLog.Printf("Running zizmor on directory: %s", absWorkflowsDir)
+
+	// Build the Docker command
+	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/zizmorcore/zizmor:latest .
+	cmd := exec.Command(
+		"docker",
+		"run",
+		"--rm",
+		"-v", fmt.Sprintf("%s:/workdir", gitRoot),
+		"-w", "/workdir",
+		"ghcr.io/zizmorcore/zizmor:latest",
+		".",
+	)
+
+	// Capture output
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	// Run the command
+	err = cmd.Run()
+
+	// Always show zizmor output
+	if stdout.Len() > 0 {
+		fmt.Fprint(os.Stderr, stdout.String())
+	}
+	if stderr.Len() > 0 {
+		fmt.Fprint(os.Stderr, stderr.String())
+	}
+
+	// Check if the error is due to findings (expected) or actual failure
+	if err != nil {
+		// zizmor uses exit codes to indicate findings:
+		// 0 = no findings
+		// 10-13 = findings at different severity levels
+		// 14 = findings with mixed severities
+		// Other codes = actual errors
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode := exitErr.ExitCode()
+			compileLog.Printf("Zizmor exited with code %d", exitCode)
+			// Exit codes 10-14 indicate findings, not failures
+			// Treat these as success but log them
+			if exitCode >= 10 && exitCode <= 14 {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Zizmor found security findings (see output above)"))
+				}
+				return nil
+			}
+			// Other exit codes are actual errors
+			return fmt.Errorf("zizmor failed with exit code %d", exitCode)
+		}
+		// Non-ExitError errors (e.g., command not found)
+		return fmt.Errorf("zizmor failed: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Zizmor security scan completed - no findings"))
+	}
+
+	return nil
 }
