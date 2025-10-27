@@ -5,7 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var domainsLog = logger.New("workflow:domains")
 
 //go:embed data/ecosystem_domains.json
 var ecosystemDomainsJSON []byte
@@ -24,9 +28,13 @@ var CopilotDefaultDomains = []string{
 
 // init loads the ecosystem domains from the embedded JSON
 func init() {
+	domainsLog.Print("Loading ecosystem domains from embedded JSON")
+
 	if err := json.Unmarshal(ecosystemDomainsJSON, &ecosystemDomains); err != nil {
 		panic(fmt.Sprintf("failed to load ecosystem domains from JSON: %v", err))
 	}
+
+	domainsLog.Printf("Loaded %d ecosystem categories", len(ecosystemDomains))
 }
 
 // getEcosystemDomains returns the domains for a given ecosystem category
@@ -67,16 +75,21 @@ func getEcosystemDomains(category string) []string {
 //   - "github-actions": GitHub Actions domains
 func GetAllowedDomains(network *NetworkPermissions) []string {
 	if network == nil {
+		domainsLog.Print("No network permissions specified, using defaults")
 		return getEcosystemDomains("defaults") // Default allow-list for backwards compatibility
 	}
 	if network.Mode == "defaults" {
+		domainsLog.Print("Network mode is defaults, using default ecosystem domains")
 		return getEcosystemDomains("defaults") // Default allow-list for defaults mode
 	}
 
 	// Handle empty allowed list (deny-all case)
 	if len(network.Allowed) == 0 {
+		domainsLog.Print("Empty allowed list, denying all network access")
 		return []string{} // Return empty slice, not nil
 	}
+
+	domainsLog.Printf("Processing %d allowed domains/ecosystems", len(network.Allowed))
 
 	// Process the allowed list, expanding ecosystem identifiers if present
 	var expandedDomains []string
@@ -85,6 +98,7 @@ func GetAllowedDomains(network *NetworkPermissions) []string {
 		ecosystemDomains := getEcosystemDomains(domain)
 		if len(ecosystemDomains) > 0 {
 			// This was an ecosystem identifier, expand it
+			domainsLog.Printf("Expanded ecosystem '%s' to %d domains", domain, len(ecosystemDomains))
 			expandedDomains = append(expandedDomains, ecosystemDomains...)
 		} else {
 			// Add the domain as-is (regular domain name)
