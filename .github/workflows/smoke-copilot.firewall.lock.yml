@@ -25,7 +25,9 @@ name: "Smoke Copilot Firewall"
   - cron: 0 0,6,12,18 * * *
   workflow_dispatch: null
 
-permissions: read-all
+permissions:
+  actions: read
+  contents: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -55,7 +57,9 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions: read-all
+    permissions:
+      actions: read
+      contents: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:

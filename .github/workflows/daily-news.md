@@ -5,6 +5,11 @@ on:
     - cron: "0 9 * * 1-5"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  discussions: write
+  actions: read
+
 engine: copilot
 
 network:

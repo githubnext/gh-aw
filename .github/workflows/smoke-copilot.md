@@ -3,6 +3,9 @@ on:
   schedule:
     - cron: "0 0,6,12,18 * * *"  # Every 6 hours
   workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
 name: Smoke Copilot
 engine: copilot
 network:
