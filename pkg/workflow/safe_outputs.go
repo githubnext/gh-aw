@@ -634,7 +634,7 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 	if safeOutputs.UpdateIssues != nil {
 		yaml.WriteString("          **Updating an Issue**\n")
 		yaml.WriteString("          \n")
-		yaml.WriteString(fmt.Sprintf("          To udpate an issue, use the update-issue tool from %s\n", constants.SafeOutputsMCPServerID))
+		yaml.WriteString(fmt.Sprintf("          To update an issue, use the update-issue tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 
