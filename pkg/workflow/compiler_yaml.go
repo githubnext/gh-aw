@@ -773,6 +773,13 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	}
 	fmt.Fprintf(yaml, "              staged: %s,\n", stagedValue)
 
+	// Add firewall value based on network configuration
+	firewallValue := "false"
+	if isFirewallEnabled(data) {
+		firewallValue = "true"
+	}
+	fmt.Fprintf(yaml, "              firewall: %s,\n", firewallValue)
+
 	yaml.WriteString("              created_at: new Date().toISOString()\n")
 
 	yaml.WriteString("            };\n")

@@ -258,6 +258,7 @@ type AwInfo struct {
 	Version      string `json:"version"`
 	WorkflowName string `json:"workflow_name"`
 	Staged       bool   `json:"staged"`
+	Firewall     bool   `json:"firewall"`
 	CreatedAt    string `json:"created_at"`
 	// Additional fields that might be present
 	RunID      any    `json:"run_id,omitempty"`
@@ -320,6 +321,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000       # Filter runs after run ID 1000
   ` + constants.CLIExtensionPrefix + ` logs --before-run-id 2000      # Filter runs before run ID 2000
   ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
+  ` + constants.CLIExtensionPrefix + ` logs --firewall                # Filter runs with firewall enabled
   ` + constants.CLIExtensionPrefix + ` logs --tool-graph              # Generate Mermaid tool sequence graph`,
 		Run: func(cmd *cobra.Command, args []string) {
 			var workflowName string
@@ -358,6 +360,7 @@ Examples:
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
 			noStaged, _ := cmd.Flags().GetBool("no-staged")
+			firewall, _ := cmd.Flags().GetBool("firewall")
 			parse, _ := cmd.Flags().GetBool("parse")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			timeout, _ := cmd.Flags().GetInt("timeout")
@@ -400,7 +403,7 @@ Examples:
 				}
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged, parse, jsonOutput, timeout); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged, firewall, parse, jsonOutput, timeout); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -421,6 +424,7 @@ Examples:
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
+	logsCmd.Flags().Bool("firewall", false, "Filter runs to include only those with firewall enabled (firewall: true in aw_info.json)")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing markdown to log.md and firewall.md")
 	logsCmd.Flags().Bool("json", false, "Output logs data as JSON instead of formatted console tables")
 	logsCmd.Flags().Int("timeout", 0, "Maximum time in seconds to spend downloading logs (0 = no timeout)")
@@ -429,7 +433,7 @@ Examples:
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool, parse bool, jsonOutput bool, timeout int) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool, firewall bool, parse bool, jsonOutput bool, timeout int) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -596,6 +600,24 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 				if isStaged {
 					if verbose {
 						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow is staged (filtered out by --no-staged)", result.Run.DatabaseID)))
+					}
+					continue
+				}
+			}
+
+			// Apply firewall filtering if --firewall flag is specified
+			if firewall {
+				// Check if the run has firewall enabled
+				awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
+				info, err := parseAwInfo(awInfoPath, verbose)
+				var hasFirewall bool
+				if err == nil && info != nil {
+					hasFirewall = info.Firewall
+				}
+
+				if !hasFirewall {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping run %d: workflow does not have firewall enabled (filtered out by --firewall)", result.Run.DatabaseID)))
 					}
 					continue
 				}
