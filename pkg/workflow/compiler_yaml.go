@@ -773,6 +773,18 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	}
 	fmt.Fprintf(yaml, "              staged: %s,\n", stagedValue)
 
+	// Add steps object with firewall information
+	yaml.WriteString("              steps: {\n")
+
+	// Determine firewall type
+	firewallType := ""
+	if isFirewallEnabled(data) {
+		firewallType = "squid"
+	}
+	fmt.Fprintf(yaml, "                firewall: \"%s\"\n", firewallType)
+
+	yaml.WriteString("              },\n")
+
 	yaml.WriteString("              created_at: new Date().toISOString()\n")
 
 	yaml.WriteString("            };\n")

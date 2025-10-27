@@ -251,14 +251,20 @@ type JobInfoWithDuration struct {
 }
 
 // AwInfo represents the structure of aw_info.json files
+// AwInfoSteps represents the steps information in aw_info.json files
+type AwInfoSteps struct {
+	Firewall string `json:"firewall,omitempty"` // Firewall type (e.g., "squid") or empty if no firewall
+}
+
 type AwInfo struct {
-	EngineID     string `json:"engine_id"`
-	EngineName   string `json:"engine_name"`
-	Model        string `json:"model"`
-	Version      string `json:"version"`
-	WorkflowName string `json:"workflow_name"`
-	Staged       bool   `json:"staged"`
-	CreatedAt    string `json:"created_at"`
+	EngineID     string      `json:"engine_id"`
+	EngineName   string      `json:"engine_name"`
+	Model        string      `json:"model"`
+	Version      string      `json:"version"`
+	WorkflowName string      `json:"workflow_name"`
+	Staged       bool        `json:"staged"`
+	Steps        AwInfoSteps `json:"steps,omitempty"` // Steps metadata
+	CreatedAt    string      `json:"created_at"`
 	// Additional fields that might be present
 	RunID      any    `json:"run_id,omitempty"`
 	RunNumber  any    `json:"run_number,omitempty"`

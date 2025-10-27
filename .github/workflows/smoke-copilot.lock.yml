@@ -1207,6 +1207,9 @@ jobs:
               actor: context.actor,
               event_name: context.eventName,
               staged: true,
+              steps: {
+                firewall: "squid"
+              },
               created_at: new Date().toISOString()
             };
             
