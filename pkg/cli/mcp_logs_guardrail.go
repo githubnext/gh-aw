@@ -8,8 +8,8 @@ import (
 
 const (
 	// MaxMCPLogsOutputSize is the maximum size in bytes for MCP logs output
-	// before triggering the guardrail (100KB)
-	MaxMCPLogsOutputSize = 100 * 1024
+	// before triggering the guardrail (10KB)
+	MaxMCPLogsOutputSize = 10 * 1024
 )
 
 // MCPLogsGuardrailResponse represents the response when output is too large

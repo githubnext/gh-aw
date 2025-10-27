@@ -245,7 +245,7 @@ Check for the presence of the continuation field to determine if there are more 
 The continuation field includes all necessary parameters (before_run_id, etc.) to resume fetching from where 
 the previous request stopped due to timeout.
 
-⚠️  Output Size Guardrail: If the output exceeds 100KB, the tool will return a schema description and 
+⚠️  Output Size Guardrail: If the output exceeds 10KB, the tool will return a schema description and 
 suggested jq filters instead of the full output. Use the 'jq' parameter to filter the output to a 
 manageable size. Common filters include:
   - .summary (get only summary statistics)

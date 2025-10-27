@@ -246,9 +246,9 @@ func TestGuardrailResponseJSON(t *testing.T) {
 }
 
 func TestMaxMCPLogsOutputSize_Constant(t *testing.T) {
-	// Verify the constant is set to expected value (100KB)
-	expected := 100 * 1024
+	// Verify the constant is set to expected value (10KB)
+	expected := 10 * 1024
 	if MaxMCPLogsOutputSize != expected {
-		t.Errorf("MaxMCPLogsOutputSize should be %d bytes (100KB), got %d", expected, MaxMCPLogsOutputSize)
+		t.Errorf("MaxMCPLogsOutputSize should be %d bytes (10KB), got %d", expected, MaxMCPLogsOutputSize)
 	}
 }

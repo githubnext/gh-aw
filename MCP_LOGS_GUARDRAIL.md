@@ -19,12 +19,12 @@ Large outputs can:
 The MCP server `logs` command now includes an automatic guardrail that:
 
 1. **Checks output size** before returning results
-2. **Triggers at 100KB** (102,400 bytes)
+2. **Triggers at 10KB** (10,240 bytes)
 3. **Returns helpful guidance** instead of large payloads
 
 ## How It Works
 
-### Normal Operation (Output ≤ 100KB)
+### Normal Operation (Output ≤ 10KB)
 
 When the output is within the size limit, the command returns the full JSON data as usual:
 
@@ -42,9 +42,9 @@ When the output is within the size limit, the command returns the full JSON data
 }
 ```
 
-### Guardrail Triggered (Output > 100KB)
+### Guardrail Triggered (Output > 10KB)
 
-When the output exceeds 100KB, the command returns a structured response with:
+When the output exceeds 10KB, the command returns a structured response with:
 
 ```json
 {
@@ -170,7 +170,7 @@ Filters to show runs from a specific workflow.
 
 ### Constants
 
-- `MaxMCPLogsOutputSize`: 102,400 bytes (100KB)
+- `MaxMCPLogsOutputSize`: 10,240 bytes (10KB)
 
 ### Files
 
