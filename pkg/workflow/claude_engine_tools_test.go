@@ -485,9 +485,9 @@ func TestGenerateAllowedToolsComment(t *testing.T) {
 		},
 		{
 			name:            "tools with special characters",
-			allowedToolsStr: "Bash(echo),mcp__github__get_issue,Write",
+			allowedToolsStr: "Bash(echo),mcp__github__issue_read,Write",
 			indent:          "      ",
-			expected:        "      # Allowed tools (sorted):\n      # - Bash(echo)\n      # - mcp__github__get_issue\n      # - Write\n",
+			expected:        "      # Allowed tools (sorted):\n      # - Bash(echo)\n      # - mcp__github__issue_read\n      # - Write\n",
 		},
 	}
 

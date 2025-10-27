@@ -17,7 +17,7 @@ tools:
   github:
     allowed:
       - search_issues
-      - get_issue
+      - issue_read
 safe-outputs:
   create-discussion:
     title-prefix: "[Weekly Summary] "

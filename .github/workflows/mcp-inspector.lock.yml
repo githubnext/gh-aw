@@ -230,7 +230,7 @@ jobs:
         run: |
           set -e
           docker pull docker.io/mcp/brave-search
-          docker pull ghcr.io/github/github-mcp-server:v0.19.1
+          docker pull ghcr.io/github/github-mcp-server:v0.20.0
           docker pull mcp/arxiv-mcp-server
           docker pull mcp/ast-grep:latest
           docker pull mcp/context7
@@ -1172,7 +1172,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.19.1"
+                  "ghcr.io/github/github-mcp-server:v0.20.0"
                 ],
                 "tools": ["*"],
                 "env": {

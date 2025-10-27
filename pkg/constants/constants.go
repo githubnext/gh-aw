@@ -24,7 +24,7 @@ const DefaultCopilotVersion = "0.0.351"
 const DefaultCodexVersion = "0.50.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion = "v0.19.1"
+const DefaultGitHubMCPServerVersion = "v0.20.0"
 
 // DefaultNodeVersion is the default version of Node.js for runtime setup
 const DefaultNodeVersion = "24"
@@ -176,8 +176,7 @@ var DefaultGitHubToolsLocal = []string{
 	"list_discussion_categories",
 	"list_discussions",
 	// issues
-	"get_issue",
-	"get_issue_comments",
+	"issue_read",
 	"list_issues",
 	"search_issues",
 	// notifications
@@ -219,7 +218,6 @@ var DefaultGitHubToolsLocal = []string{
 	"list_issue_types",
 	"list_releases",
 	"list_starred_repositories",
-	"list_sub_issues",
 }
 
 // DefaultGitHubToolsRemote defines the default read-only GitHub MCP tools for remote (hosted) mode
@@ -248,8 +246,7 @@ var DefaultGitHubToolsRemote = []string{
 	"list_discussion_categories",
 	"list_discussions",
 	// issues
-	"get_issue",
-	"get_issue_comments",
+	"issue_read",
 	"list_issues",
 	"search_issues",
 	// notifications
@@ -291,7 +288,6 @@ var DefaultGitHubToolsRemote = []string{
 	"list_issue_types",
 	"list_releases",
 	"list_starred_repositories",
-	"list_sub_issues",
 }
 
 // DefaultGitHubTools is deprecated. Use DefaultGitHubToolsLocal or DefaultGitHubToolsRemote instead.

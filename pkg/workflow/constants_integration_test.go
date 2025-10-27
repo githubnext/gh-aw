@@ -15,7 +15,7 @@ func TestConstantsIntegration(t *testing.T) {
 
 	// Test that it contains expected tools
 	expectedTools := []string{
-		"get_issue",
+		"issue_read",
 		"list_issues",
 		"search_repositories",
 		"get_commit",
@@ -54,7 +54,7 @@ func TestClaudeCanAccessGitHubTools(t *testing.T) {
 	}
 
 	claudeRelevantTools := []string{
-		"get_issue",
+		"issue_read",
 		"pull_request_read",
 		"search_code",
 		"list_commits",
