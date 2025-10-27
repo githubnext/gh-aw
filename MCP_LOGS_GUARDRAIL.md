@@ -215,4 +215,4 @@ Potential improvements:
 - Make the size limit configurable via parameter
 - Add more sophisticated query suggestions based on output content
 - Provide automatic chunking for very large datasets
-- Add compression support for large outputs
+- Add content-aware compression (e.g., gzip) for JSON responses to reduce transfer size while maintaining full data access
