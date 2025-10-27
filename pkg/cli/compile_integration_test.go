@@ -255,3 +255,64 @@ Please check the repository for any open issues and create a summary.
 
 	t.Logf("Integration test passed - successfully compiled workflow to %s", lockFilePath)
 }
+
+// TestCompileWithZizmor tests the compile command with --zizmor flag
+func TestCompileWithZizmor(t *testing.T) {
+	setup := setupIntegrationTest(t)
+	defer setup.cleanup()
+
+	// Create a test markdown workflow file
+	testWorkflow := `---
+name: Zizmor Test Workflow
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+---
+
+# Zizmor Test Workflow
+
+This workflow tests the zizmor security scanner integration.
+`
+
+	testWorkflowPath := filepath.Join(setup.workflowsDir, "zizmor-test.md")
+	if err := os.WriteFile(testWorkflowPath, []byte(testWorkflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow file: %v", err)
+	}
+
+	// First compile without zizmor to create the lock file
+	compileCmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath)
+	if output, err := compileCmd.CombinedOutput(); err != nil {
+		t.Fatalf("Initial compile failed: %v\nOutput: %s", err, string(output))
+	}
+
+	// Check that the lock file was created
+	lockFilePath := filepath.Join(setup.workflowsDir, "zizmor-test.lock.yml")
+	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
+		t.Fatalf("Expected lock file %s was not created", lockFilePath)
+	}
+
+	// Now compile with --zizmor flag
+	zizmorCmd := exec.Command(setup.binaryPath, "compile", testWorkflowPath, "--zizmor", "--verbose")
+	output, err := zizmorCmd.CombinedOutput()
+
+	// The command should succeed even if zizmor finds issues
+	if err != nil {
+		t.Fatalf("Compile with --zizmor failed: %v\nOutput: %s", err, string(output))
+	}
+
+	outputStr := string(output)
+
+	// Check that zizmor was run
+	if !strings.Contains(outputStr, "zizmor") && !strings.Contains(outputStr, "Zizmor") {
+		t.Errorf("Output should mention zizmor scanner")
+	}
+
+	// The lock file should still exist after zizmor scan
+	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
+		t.Fatalf("Lock file was removed after zizmor scan")
+	}
+
+	t.Logf("Integration test passed - zizmor flag works correctly")
+}
