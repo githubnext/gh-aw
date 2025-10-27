@@ -7,12 +7,17 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
 )
 
+var toolsLog = logger.New("workflow:tools")
+
 // applyDefaults applies default values for missing workflow sections
 func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
+	toolsLog.Printf("Applying defaults to workflow: name=%s, path=%s", data.Name, markdownPath)
+
 	// Check if this is a command trigger workflow (by checking if user specified "on.command")
 	isCommandTrigger := false
 	if data.On == "" {
@@ -35,6 +40,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 
 	if data.On == "" {
 		if isCommandTrigger {
+			toolsLog.Print("Workflow is command trigger, configuring command events")
+
 			// Get the filtered command events based on CommandEvents field
 			filteredEvents := FilterCommentEvents(data.CommandEvents)
 
@@ -169,6 +176,8 @@ func extractRuntimesFromFrontmatter(frontmatter map[string]any) map[string]any {
 
 // mergeToolsAndMCPServers merges tools, mcp-servers, and included tools
 func (c *Compiler) mergeToolsAndMCPServers(topTools, mcpServers map[string]any, includedTools string) (map[string]any, error) {
+	toolsLog.Printf("Merging tools and MCP servers: topTools=%d, mcpServers=%d", len(topTools), len(mcpServers))
+
 	// Start with top-level tools
 	result := topTools
 	if result == nil {
