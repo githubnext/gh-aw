@@ -4,15 +4,27 @@
   "properties": {
     "name": {
       "type": "string",
-      "description": "Workflow name that appears in the GitHub Actions interface. If not specified, defaults to the filename without extension."
+      "description": "Workflow name that appears in the GitHub Actions interface. If not specified, defaults to the filename without extension.",
+      "examples": [
+        "Copilot Agent PR Analysis",
+        "Dev Hawk",
+        "Smoke Claude"
+      ]
     },
     "description": {
       "type": "string",
-      "description": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)"
+      "description": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)",
+      "examples": [
+        "Quickstart for using the GitHub Actions library"
+      ]
     },
     "source": {
       "type": "string",
-      "description": "Optional source reference indicating where this workflow was added from. Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/ci-doctor.md@v1.0.0). Rendered as a comment in the generated lock file."
+      "description": "Optional source reference indicating where this workflow was added from. Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/ci-doctor.md@v1.0.0). Rendered as a comment in the generated lock file.",
+      "examples": [
+        "githubnext/agentics/workflows/ci-doctor.md",
+        "githubnext/agentics/workflows/daily-perf-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
+      ]
     },
     "imports": {
       "type": "array",
@@ -20,14 +32,33 @@
       "items": {
         "type": "string",
         "description": "Workflow specification in format owner/repo/path@ref"
-      }
+      },
+      "examples": [
+        [
+          "shared/jqschema.md",
+          "shared/reporting.md"
+        ],
+        [
+          "shared/mcp/gh-aw.md",
+          "shared/jqschema.md",
+          "shared/reporting.md"
+        ],
+        [
+          "../instructions/documentation.instructions.md"
+        ]
+      ]
     },
     "on": {
       "description": "Workflow triggers that define when the agentic workflow should run. Supports standard GitHub Actions trigger events plus special command triggers for /commands (required)",
       "oneOf": [
         {
           "type": "string",
-          "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call')"
+          "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call')",
+          "examples": [
+            "push",
+            "issues",
+            "workflow_dispatch"
+          ]
         },
         {
           "type": "object",
@@ -926,7 +957,41 @@
               "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to 'eyes' if not specified."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "examples": [
+            {
+              "schedule": [
+                {
+                  "cron": "0 0 * * *"
+                }
+              ],
+              "workflow_dispatch": null
+            },
+            {
+              "command": {
+                "name": "mergefest",
+                "events": ["pull_request_comment"]
+              }
+            },
+            {
+              "workflow_run": {
+                "workflows": ["Dev"],
+                "types": ["completed"],
+                "branches": ["copilot/**"]
+              }
+            },
+            {
+              "pull_request": {
+                "types": ["ready_for_review"]
+              },
+              "workflow_dispatch": null
+            },
+            {
+              "push": {
+                "branches": ["main"]
+              }
+            }
+          ]
         }
       ]
     },
