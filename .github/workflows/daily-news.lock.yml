@@ -31,10 +31,7 @@ name: "Daily News"
   - cron: 0 9 * * 1-5
   workflow_dispatch: null
 
-permissions:
-  actions: read
-  contents: read
-  discussions: write
+permissions: read-all
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -64,10 +61,7 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      discussions: write
+    permissions: read-all
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:

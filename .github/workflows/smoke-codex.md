@@ -6,6 +6,7 @@ on:
 permissions:
   contents: read
   actions: read
+  pull-requests: read
 name: Smoke Codex
 engine: codex
 tools:

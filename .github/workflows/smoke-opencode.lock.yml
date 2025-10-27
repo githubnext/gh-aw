@@ -32,6 +32,7 @@ name: "Smoke OpenCode"
 permissions:
   actions: read
   contents: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -64,6 +65,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      pull-requests: read
     concurrency:
       group: "gh-aw-custom-${{ github.workflow }}"
     env:

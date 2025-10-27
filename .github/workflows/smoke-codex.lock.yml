@@ -28,6 +28,7 @@ name: "Smoke Codex"
 permissions:
   actions: read
   contents: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -60,6 +61,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      pull-requests: read
     concurrency:
       group: "gh-aw-codex-${{ github.workflow }}"
     env:
