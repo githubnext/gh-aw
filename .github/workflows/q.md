@@ -127,7 +127,7 @@ Example:
 tools:
   github:
     allowed: 
-      - get_issue
+      - issue_read
       - list_commits
       - create_issue_comment
 ```

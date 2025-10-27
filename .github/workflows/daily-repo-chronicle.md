@@ -22,7 +22,7 @@ tools:
       - list_issues
       - list_commits
       - get_pull_request
-      - get_issue
+      - issue_read
       - search_issues
       - search_pull_requests
       - list_discussions

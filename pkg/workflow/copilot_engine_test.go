@@ -657,7 +657,7 @@ func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 				`"--rm",`,
 				`"-e",`,
 				`"GITHUB_PERSONAL_ACCESS_TOKEN",`,
-				`"ghcr.io/github/github-mcp-server:v0.19.1"`,
+				`"ghcr.io/github/github-mcp-server:v0.20.0"`,
 				`"tools": ["*"]`,
 				`"env": {`,
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
@@ -790,7 +790,7 @@ func TestCopilotEngineRenderMCPConfigWithGitHubAndPlaywright(t *testing.T) {
 		`"github": {`,
 		`"type": "local",`,
 		`"command": "docker",`,
-		`"ghcr.io/github/github-mcp-server:v0.19.1"`,
+		`"ghcr.io/github/github-mcp-server:v0.20.0"`,
 		`},`, // GitHub should NOT be last (comma after closing brace)
 		`"playwright": {`,
 		`"type": "local",`,
@@ -810,7 +810,7 @@ func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
 		Name: "test-workflow",
 		Tools: map[string]any{
 			"github": map[string]any{
-				"allowed": []any{"add_issue_comment", "get_issue"},
+				"allowed": []any{"add_issue_comment", "issue_read"},
 			},
 		},
 	}
@@ -847,8 +847,8 @@ func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
 		t.Errorf("Expected 'github(add_issue_comment)' to be single-quoted in command: %s", copilotCommand)
 	}
 
-	if !strings.Contains(copilotCommand, "'github(get_issue)'") {
-		t.Errorf("Expected 'github(get_issue)' to be single-quoted in command: %s", copilotCommand)
+	if !strings.Contains(copilotCommand, "'github(issue_read)'") {
+		t.Errorf("Expected 'github(issue_read)' to be single-quoted in command: %s", copilotCommand)
 	}
 }
 

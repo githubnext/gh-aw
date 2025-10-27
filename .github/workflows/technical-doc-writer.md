@@ -51,7 +51,7 @@ tools:
   cache-memory: true
   github:
     allowed:
-      - get_issue
+      - issue_read
       - get_pull_request
       - pull_request_read
       - get_file_contents

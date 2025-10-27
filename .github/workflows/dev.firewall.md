@@ -32,7 +32,7 @@ Test each GitHub MCP tool with sensible arguments to verify they are configured 
 Example tools you should discover and test may include (but are not limited to):
 - Context tools: `get_me`, etc.
 - Repository tools: `get_file_contents`, `list_branches`, `list_commits`, `search_repositories`, etc.
-- Issues tools: `list_issues`, `search_issues`, `get_issue`, etc.
+- Issues tools: `list_issues`, `search_issues`, `issue_read`, etc.
 - Pull Request tools: `list_pull_requests`, `get_pull_request`, `search_pull_requests`, etc.
 - Actions tools: `list_workflows`, `list_workflow_runs`, etc.
 - Release tools: `list_releases`, etc.

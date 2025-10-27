@@ -332,7 +332,7 @@ Your output MUST:
       {"name": "list_commits", "purpose": "List repository commits"}
     ],
     "issues": [
-      {"name": "get_issue", "purpose": "Get issue details"},
+      {"name": "issue_read", "purpose": "Read issue details and comments"},
       {"name": "list_issues", "purpose": "List repository issues"}
     ]
   }

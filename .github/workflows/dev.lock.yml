@@ -137,7 +137,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.19.1
+          docker pull ghcr.io/github/github-mcp-server:v0.20.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -946,7 +946,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.19.1"
+                  "ghcr.io/github/github-mcp-server:v0.20.0"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -1002,7 +1002,7 @@ jobs:
           Example tools you should discover and test may include (but are not limited to):
           - Context tools: `get_me`, etc.
           - Repository tools: `get_file_contents`, `list_branches`, `list_commits`, `search_repositories`, etc.
-          - Issues tools: `list_issues`, `search_issues`, `get_issue`, etc.
+          - Issues tools: `list_issues`, `search_issues`, `issue_read`, etc.
           - Pull Request tools: `list_pull_requests`, `get_pull_request`, `search_pull_requests`, etc.
           - Actions tools: `list_workflows`, `list_workflow_runs`, etc.
           - Release tools: `list_releases`, etc.

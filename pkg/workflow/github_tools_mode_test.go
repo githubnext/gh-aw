@@ -29,7 +29,7 @@ func TestGitHubToolsModeSeparation(t *testing.T) {
 
 	// Verify they contain expected core tools
 	expectedCoreTools := []string{
-		"get_issue",
+		"issue_read",
 		"list_issues",
 		"get_commit",
 		"get_file_contents",
