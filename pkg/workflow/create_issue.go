@@ -119,57 +119,22 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	// Add assignee steps if assignees are configured
 	if len(data.SafeOutputs.CreateIssues.Assignees) > 0 {
-		// Add checkout step for gh CLI to work
-		steps = append(steps, "      - name: Checkout repository for gh CLI\n")
-		steps = append(steps, "        if: steps.create_issue.outputs.issue_number != ''\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
-
 		// Get the effective GitHub token to use for gh CLI
 		var safeOutputsToken string
 		if data.SafeOutputs != nil {
 			safeOutputsToken = data.SafeOutputs.GitHubToken
 		}
 
-		// Check if any assignee is "copilot" to determine token preference
-		hasCopilotAssignee := false
-		for _, assignee := range data.SafeOutputs.CreateIssues.Assignees {
-			if assignee == "copilot" {
-				hasCopilotAssignee = true
-				break
-			}
-		}
-
-		// Use Copilot token preference if assigning to copilot, otherwise use regular token
-		var effectiveToken string
-		if hasCopilotAssignee {
-			effectiveToken = getEffectiveCopilotGitHubToken(token, getEffectiveCopilotGitHubToken(safeOutputsToken, data.GitHubToken))
-		} else {
-			effectiveToken = getEffectiveGitHubToken(token, getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken))
-		}
-
-		for i, assignee := range data.SafeOutputs.CreateIssues.Assignees {
-			// Special handling: "copilot" should be passed as "@copilot" to gh CLI
-			actualAssignee := assignee
-			if assignee == "copilot" {
-				actualAssignee = "@copilot"
-			}
-
-			steps = append(steps, fmt.Sprintf("      - name: Assign issue to %s\n", assignee))
-			steps = append(steps, "        if: steps.create_issue.outputs.issue_number != ''\n")
-			steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-			steps = append(steps, "        env:\n")
-			steps = append(steps, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
-			steps = append(steps, fmt.Sprintf("          ASSIGNEE: %q\n", actualAssignee))
-			steps = append(steps, "          ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}\n")
-			steps = append(steps, "        with:\n")
-			steps = append(steps, "          script: |\n")
-			steps = append(steps, FormatJavaScriptForYAML(assignIssueScript)...)
-
-			// Add a comment after each assignee step except the last
-			if i < len(data.SafeOutputs.CreateIssues.Assignees)-1 {
-				steps = append(steps, "\n")
-			}
-		}
+		assigneeSteps := buildCopilotParticipantSteps(CopilotParticipantConfig{
+			Participants:       data.SafeOutputs.CreateIssues.Assignees,
+			ParticipantType:    "assignee",
+			CustomToken:        token,
+			SafeOutputsToken:   safeOutputsToken,
+			WorkflowToken:      data.GitHubToken,
+			ConditionStepID:    "create_issue",
+			ConditionOutputKey: "issue_number",
+		})
+		steps = append(steps, assigneeSteps...)
 	}
 
 	// Create outputs for the job
