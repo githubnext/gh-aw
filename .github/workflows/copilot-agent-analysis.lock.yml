@@ -1928,14 +1928,13 @@ jobs:
         # - mcp__github__get_commit
         # - mcp__github__get_file_contents
         # - mcp__github__list_commits
-        # - mcp__github__list_pull_requests
         # - mcp__github__pull_request_read
         # - mcp__github__search_pull_requests
         timeout-minutes: 15
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(/tmp/gh-aw/jqschema.sh),Bash(cat),Bash(date),Bash(echo),Bash(find .github -name '*.md'),Bash(find .github -type f -exec cat {} +),Bash(gh pr list *),Bash(gh search prs *),Bash(git diff),Bash(git log --oneline),Bash(grep),Bash(head),Bash(jq *),Bash(ls -la .github),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__get_commit,mcp__github__get_file_contents,mcp__github__list_commits,mcp__github__list_pull_requests,mcp__github__pull_request_read,mcp__github__search_pull_requests" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --max-turns 30 --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(/tmp/gh-aw/jqschema.sh),Bash(cat),Bash(date),Bash(echo),Bash(find .github -name '*.md'),Bash(find .github -type f -exec cat {} +),Bash(gh pr list *),Bash(gh search prs *),Bash(git diff),Bash(git log --oneline),Bash(grep),Bash(head),Bash(jq *),Bash(ls -la .github),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__get_commit,mcp__github__get_file_contents,mcp__github__list_commits,mcp__github__pull_request_read,mcp__github__search_pull_requests" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -1948,6 +1947,7 @@ jobs:
           BASH_DEFAULT_TIMEOUT_MS: "60000"
           BASH_MAX_TIMEOUT_MS: "60000"
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_MAX_TURNS: 30
       - name: Clean up network proxy hook files
         if: always()
         run: |
@@ -3966,7 +3966,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          claude --print --max-turns 30 --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -3977,6 +3977,7 @@ jobs:
           MCP_TOOL_TIMEOUT: "60000"
           BASH_DEFAULT_TIMEOUT_MS: "60000"
           BASH_MAX_TIMEOUT_MS: "60000"
+          GH_AW_MAX_TURNS: 30
       - name: Parse threat detection results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:

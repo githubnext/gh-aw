@@ -8,7 +8,9 @@ on:
 
 permissions: read-all
 
-engine: claude
+engine:
+  id: claude
+  max-turns: 30
 
 network:
   allowed:
@@ -31,7 +33,6 @@ tools:
     allowed:
       - search_pull_requests
       - pull_request_read
-      - list_pull_requests
       - get_file_contents
       - list_commits
       - get_commit

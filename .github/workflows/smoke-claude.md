@@ -4,9 +4,14 @@ on:
     - cron: "0 0,6,12,18 * * *"  # Every 6 hours
   workflow_dispatch:
 name: Smoke Claude
-engine: claude
+engine:
+  id: claude
+  max-turns: 15
 tools:
   github:
+    allowed:
+      - search_pull_requests
+      - pull_request_read
 safe-outputs:
     staged: true
     create-issue:
@@ -15,4 +20,4 @@ timeout_minutes: 10
 strict: true
 ---
 
-Review the last 5 merged pull requests in this repository and post summary in an issue.
+Search for the last 5 merged pull requests in this repository using search filters and post a summary in an issue.

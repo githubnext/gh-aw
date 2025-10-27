@@ -7,6 +7,8 @@ on:
 
 engine: copilot
 
+timeout_minutes: 10
+
 network:
   firewall: true
 
