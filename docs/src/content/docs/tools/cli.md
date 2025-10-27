@@ -21,7 +21,7 @@ gh aw version
 gh aw --help
 
 # Basic workflow lifecycle
-gh aw init                                       # Initialize repository (first-time setup)
+gh aw init                                       # Initialize repository for workflow authoring
 gh aw add githubnext/agentics/ci-doctor    # Add workflow and compile to GitHub Actions
 gh aw compile                                    # Recompile to GitHub Actions
 gh aw trial githubnext/agentics/ci-doctor  # Test workflow safely before adding
@@ -82,19 +82,42 @@ The `add` and `new` commands help you create and manage agentic workflows, from 
 
 ### Repository Initialization
 
-The `init` command prepares your repository for agentic workflows by configuring `.gitattributes` and creating GitHub Copilot custom instructions:
+The `init` command prepares your repository for agentic workflows with two key capabilities:
+
+1. **Git configuration**: Configures `.gitattributes` for workflow files
+2. **AI-assisted authoring**: Creates GitHub Copilot custom instructions and prompt files
 
 ```bash
 gh aw init
 ```
 
-After initialization, start a chat with an AI agent and use the following prompt to create a new workflow:
+After initialization, you can create workflows conversationally:
 
+**Using GitHub Copilot Chat (VS Code):**
 ```
-activate @.github/prompts/create-agentic-workflow.prompt.md
+/create-agentic-workflow
 ```
 
-Alternatively, add pre-built workflows from the catalog using `gh aw add <workflow-name>`.
+**Using GitHub Copilot CLI:**
+```bash
+gh copilot chat
+> load @.github/prompts/create-agentic-workflow.prompt.md
+```
+
+This starts a conversational workflow designer that helps you:
+- Choose appropriate triggers (schedule, issues, PRs, commands)
+- Configure tools and permissions
+- Apply security best practices
+- Generate valid workflow markdown
+
+**Alternative: Use pre-built workflows**
+
+If you prefer to start with tested examples, skip `init` and use:
+```bash
+gh aw add githubnext/agentics/workflow-name
+```
+
+See [Workflow Authoring Guide](/gh-aw/tools/agentic-authoring/) for detailed instructions.
 
 ### Workflow Management
 
