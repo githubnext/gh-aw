@@ -1088,7 +1088,11 @@
     },
     "run-name": {
       "type": "string",
-      "description": "Custom name for workflow runs that appears in the GitHub Actions interface (supports GitHub expressions like ${{ github.event.issue.title }})"
+      "description": "Custom name for workflow runs that appears in the GitHub Actions interface (supports GitHub expressions like ${{ github.event.issue.title }})",
+      "examples": [
+        "Deploy to ${{ github.event.inputs.environment }}",
+        "Build #${{ github.run_number }}"
+      ]
     },
     "jobs": {
       "type": "object",
@@ -1233,13 +1237,22 @@
     },
     "timeout_minutes": {
       "type": "integer",
-      "description": "Workflow timeout in minutes. Defaults to 15 minutes for agentic workflows. Has sensible defaults and can typically be omitted."
+      "description": "Workflow timeout in minutes. Defaults to 15 minutes for agentic workflows. Has sensible defaults and can typically be omitted.",
+      "examples": [
+        5,
+        10,
+        30
+      ]
     },
     "concurrency": {
       "oneOf": [
         {
           "type": "string",
-          "description": "Simple concurrency group name to prevent multiple runs. Agentic workflows automatically generate enhanced concurrency policies."
+          "description": "Simple concurrency group name to prevent multiple runs. Agentic workflows automatically generate enhanced concurrency policies.",
+          "examples": [
+            "my-workflow-group",
+            "workflow-${{ github.ref }}"
+          ]
         },
         {
           "type": "object",
@@ -1257,6 +1270,12 @@
           },
           "required": [
             "group"
+          ],
+          "examples": [
+            {
+              "group": "dev-workflow-${{ github.ref }}",
+              "cancel-in-progress": true
+            }
           ]
         }
       ]
@@ -1268,7 +1287,13 @@
           "type": "object",
           "additionalProperties": {
             "type": "string"
-          }
+          },
+          "examples": [
+            {
+              "NODE_ENV": "production",
+              "API_KEY": "${{ secrets.API_KEY }}"
+            }
+          ]
         },
         {
           "type": "string"
@@ -1525,7 +1550,11 @@
     },
     "if": {
       "type": "string",
-      "description": "Conditional execution expression"
+      "description": "Conditional execution expression",
+      "examples": [
+        "${{ github.event.workflow_run.event == 'workflow_dispatch' }}",
+        "${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}"
+      ]
     },
     "steps": {
       "description": "Custom workflow steps",
@@ -1546,7 +1575,18 @@
                 "additionalProperties": true
               }
             ]
-          }
+          },
+          "examples": [
+            [
+              {
+                "name": "Download logs from last 24 hours",
+                "env": {
+                  "GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
+                },
+                "run": "./gh-aw logs --start-date -1d -o /tmp/gh-aw/aw-mcp/logs"
+              }
+            ]
+          ]
         }
       ]
     },
@@ -1569,7 +1609,26 @@
                 "additionalProperties": true
               }
             ]
-          }
+          },
+          "examples": [
+            [
+              {
+                "name": "Verify Post-Steps Execution",
+                "run": "echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
+              },
+              {
+                "name": "Upload Test Results",
+                "if": "always()",
+                "uses": "actions/upload-artifact@v4",
+                "with": {
+                  "name": "post-steps-test-results",
+                  "path": "/tmp/gh-aw/",
+                  "retention-days": 1,
+                  "if-no-files-found": "ignore"
+                }
+              }
+            ]
+          ]
         }
       ]
     },
@@ -1949,7 +2008,25 @@
             "key",
             "path"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "examples": [
+            {
+              "key": "node-modules-${{ hashFiles('package-lock.json') }}",
+              "path": "node_modules",
+              "restore-keys": [
+                "node-modules-"
+              ]
+            },
+            {
+              "key": "build-cache-${{ github.sha }}",
+              "path": [
+                "dist",
+                ".cache"
+              ],
+              "restore-keys": "build-cache-",
+              "fail-on-cache-miss": false
+            }
+          ]
         },
         {
           "type": "array",
@@ -2939,7 +3016,10 @@
     },
     "strict": {
       "type": "boolean",
-      "description": "Enable strict mode validation: require timeout, refuse write permissions, require network configuration. Defaults to false."
+      "description": "Enable strict mode validation: require timeout, refuse write permissions, require network configuration. Defaults to false.",
+      "examples": [
+        true
+      ]
     },
     "runtimes": {
       "type": "object",
