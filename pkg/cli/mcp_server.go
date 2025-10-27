@@ -243,7 +243,14 @@ a "continuation" field will be present in the response with updated parameters t
 Check for the presence of the continuation field to determine if there are more logs available.
 
 The continuation field includes all necessary parameters (before_run_id, etc.) to resume fetching from where 
-the previous request stopped due to timeout.`,
+the previous request stopped due to timeout.
+
+⚠️  Output Size Guardrail: If the output exceeds 100KB, the tool will return a schema description and 
+suggested jq filters instead of the full output. Use the 'jq' parameter to filter the output to a 
+manageable size. Common filters include:
+  - .summary (get only summary statistics)
+  - .runs[:5] (get first 5 runs)
+  - .runs | map(select(.conclusion == "failure")) (get only failed runs)`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
 		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server
@@ -309,9 +316,12 @@ the previous request stopped due to timeout.`,
 			outputStr = filteredOutput
 		}
 
+		// Check output size and apply guardrail if needed
+		finalOutput, _ := checkLogsOutputSize(outputStr)
+
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: outputStr},
+				&mcp.TextContent{Text: finalOutput},
 			},
 		}, nil, nil
 	})
