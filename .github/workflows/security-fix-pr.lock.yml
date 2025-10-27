@@ -100,7 +100,7 @@ jobs:
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "${{ github.workflow }}"
+          git config --global user.name "github-actions[bot]"
           echo "Git configured with standard GitHub Actions identity"
       - name: Checkout PR branch
         if: |
@@ -3280,7 +3280,7 @@ jobs:
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "${{ github.workflow }}"
+          git config --global user.name "github-actions[bot]"
           echo "Git configured with standard GitHub Actions identity"
       - name: Download agent output artifact
         continue-on-error: true
