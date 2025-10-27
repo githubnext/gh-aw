@@ -42,6 +42,9 @@ var assignIssueScript string
 //go:embed js/update_issue.cjs
 var updateIssueScript string
 
+//go:embed js/close_issue.cjs
+var closeIssueScript string
+
 //go:embed js/push_to_pull_request_branch.cjs
 var pushToBranchScript string
 

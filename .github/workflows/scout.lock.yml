@@ -1788,6 +1788,29 @@ jobs:
                 },
               },
               {
+                name: "close_issue",
+                description: "Close a GitHub issue with optional outcome and reason",
+                inputSchema: {
+                  type: "object",
+                  properties: {
+                    issue_number: {
+                      type: ["number", "string"],
+                      description: "Optional issue number for target '*'",
+                    },
+                    outcome: {
+                      type: "string",
+                      enum: ["completed", "not_planned"],
+                      description: "Optional close outcome: 'completed' (issue was resolved) or 'not_planned' (issue won't be worked on)",
+                    },
+                    reason: {
+                      type: "string",
+                      description: "Optional reason for closing (for logging/documentation purposes)",
+                    },
+                  },
+                  additionalProperties: false,
+                },
+              },
+              {
                 name: "push_to_pull_request_branch",
                 description: "Push changes to a pull request branch",
                 inputSchema: {

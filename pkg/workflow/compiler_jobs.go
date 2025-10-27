@@ -264,6 +264,22 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, updateIssueJob.Name)
 	}
 
+	// Build close_issue job if output.close-issue is configured
+	if data.SafeOutputs.CloseIssues != nil {
+		closeIssueJob, err := c.buildCloseIssueJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build close_issue job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			closeIssueJob.Needs = append(closeIssueJob.Needs, constants.DetectionJobName)
+		}
+		if err := c.jobManager.AddJob(closeIssueJob); err != nil {
+			return fmt.Errorf("failed to add close_issue job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, closeIssueJob.Name)
+	}
+
 	// Build push_to_pull_request_branch job if output.push-to-pull-request-branch is configured
 	if data.SafeOutputs.PushToPullRequestBranch != nil {
 		pushToBranchJob, err := c.buildCreateOutputPushToPullRequestBranchJob(data, jobName)

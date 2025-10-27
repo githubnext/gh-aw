@@ -2806,6 +2806,60 @@
             }
           ]
         },
+        "close-issue": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for closing GitHub issues from agentic workflow output",
+              "properties": {
+                "required-labels": {
+                  "type": "array",
+                  "description": "List of labels that must be present on an issue before it can be closed",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "outcome": {
+                  "type": "array",
+                  "description": "List of allowed close outcomes (default: all). Valid values: 'completed', 'not_planned'",
+                  "items": {
+                    "type": "string",
+                    "enum": ["completed", "not_planned"]
+                  }
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for close operations: 'triggering' (default), '*' (any issue), or explicit issue number"
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of issues to close (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "min": {
+                  "type": "integer",
+                  "description": "Minimum number of issues to close (default: 0 - no requirement)",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository issue closing. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable issue closing with default configuration"
+            }
+          ]
+        },
         "push-to-pull-request-branch": {
           "oneOf": [
             {

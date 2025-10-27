@@ -38,6 +38,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.CreateCodeScanningAlerts != nil ||
 		safeOutputs.AddLabels != nil ||
 		safeOutputs.UpdateIssues != nil ||
+		safeOutputs.CloseIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
 		safeOutputs.MissingTool != nil ||
@@ -106,6 +107,14 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 			yaml.WriteString(", ")
 		}
 		yaml.WriteString("Updating Issues")
+		written = true
+	}
+
+	if safeOutputs.CloseIssues != nil {
+		if written {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("Closing Issues")
 		written = true
 	}
 
@@ -190,6 +199,13 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          **Updating an Issue**\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString(fmt.Sprintf("          To udpate an issue, use the update-issue tool from %s\n", constants.SafeOutputsMCPServerID))
+		yaml.WriteString("          \n")
+	}
+
+	if safeOutputs.CloseIssues != nil {
+		yaml.WriteString("          **Closing an Issue**\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString(fmt.Sprintf("          To close an issue, use the close-issue tool from %s\n", constants.SafeOutputsMCPServerID))
 		yaml.WriteString("          \n")
 	}
 
@@ -404,6 +420,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			updateIssuesConfig := c.parseUpdateIssuesConfig(outputMap)
 			if updateIssuesConfig != nil {
 				config.UpdateIssues = updateIssuesConfig
+			}
+
+			// Handle close-issue
+			closeIssuesConfig := c.parseCloseIssuesConfig(outputMap)
+			if closeIssuesConfig != nil {
+				config.CloseIssues = closeIssuesConfig
 			}
 
 			// Handle push-to-pull-request-branch
@@ -718,6 +740,22 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				updateConfig["min"] = data.SafeOutputs.UpdateIssues.Min
 			}
 			safeOutputsConfig["update_issue"] = updateConfig
+		}
+		if data.SafeOutputs.CloseIssues != nil {
+			closeConfig := map[string]any{}
+			if data.SafeOutputs.CloseIssues.Max > 0 {
+				closeConfig["max"] = data.SafeOutputs.CloseIssues.Max
+			}
+			if data.SafeOutputs.CloseIssues.Min > 0 {
+				closeConfig["min"] = data.SafeOutputs.CloseIssues.Min
+			}
+			if len(data.SafeOutputs.CloseIssues.RequiredLabels) > 0 {
+				closeConfig["required_labels"] = data.SafeOutputs.CloseIssues.RequiredLabels
+			}
+			if len(data.SafeOutputs.CloseIssues.Outcome) > 0 {
+				closeConfig["outcome"] = data.SafeOutputs.CloseIssues.Outcome
+			}
+			safeOutputsConfig["close_issue"] = closeConfig
 		}
 		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			pushToBranchConfig := map[string]any{}
