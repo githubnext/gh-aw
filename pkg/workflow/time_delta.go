@@ -34,6 +34,25 @@ type TimeDelta struct {
 // - +2d5h30m (2 days, 5 hours, 30 minutes)
 // - +1mo2w3d (1 month, 2 weeks, 3 days)
 func parseTimeDelta(deltaStr string) (*TimeDelta, error) {
+	return parseTimeDeltaWithMinutes(deltaStr, true)
+}
+
+// parseTimeDeltaForStopAfter parses a relative time delta string for stop-after configuration.
+// Unlike parseTimeDelta, this function does NOT accept minute or second units.
+// The minimum unit for stop-after is hours.
+// Supported formats:
+// - +25h (25 hours)
+// - +3d (3 days)
+// - +1w (1 week)
+// - +1mo (1 month)
+// - +1d12h (1 day and 12 hours)
+// - +1mo2w3d (1 month, 2 weeks, 3 days)
+func parseTimeDeltaForStopAfter(deltaStr string) (*TimeDelta, error) {
+	return parseTimeDeltaWithMinutes(deltaStr, false)
+}
+
+// parseTimeDeltaWithMinutes parses a relative time delta string with optional minute support
+func parseTimeDeltaWithMinutes(deltaStr string, allowMinutes bool) (*TimeDelta, error) {
 	if deltaStr == "" {
 		return nil, fmt.Errorf("empty time delta")
 	}
@@ -103,6 +122,9 @@ func parseTimeDelta(deltaStr string) (*TimeDelta, error) {
 		case "h":
 			delta.Hours = value
 		case "m":
+			if !allowMinutes {
+				return nil, fmt.Errorf("minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +%dh instead of +%dm", (value+59)/60, value)
+			}
 			delta.Minutes = value
 		default:
 			return nil, fmt.Errorf("unsupported time unit '%s' in time delta: +%s", unit, deltaStr)

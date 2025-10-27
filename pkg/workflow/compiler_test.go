@@ -5641,7 +5641,7 @@ on:
   issues:
     types: [opened]
   reaction: rocket
-  stop-after: +30m
+  stop-after: +3h
 permissions:
   contents: read
   issues: write

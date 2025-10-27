@@ -39,7 +39,7 @@ The YAML frontmatter supports these fields:
   - String: `"push"`, `"issues"`, etc.
   - Object: Complex trigger configuration
   - Special: `command:` for /mention triggers
-  - **`stop-after:`** - Can be included in the `on:` object to set a deadline for workflow execution. Supports absolute timestamps ("YYYY-MM-DD HH:MM:SS") or relative time deltas (+25h, +3d, +1d12h30m). Uses precise date calculations that account for varying month lengths.
+  - **`stop-after:`** - Can be included in the `on:` object to set a deadline for workflow execution. Supports absolute timestamps ("YYYY-MM-DD HH:MM:SS") or relative time deltas (+25h, +3d, +1d12h). The minimum unit for relative deltas is hours (h). Uses precise date calculations that account for varying month lengths.
   
 - **`permissions:`** - GitHub token permissions
   - Object with permission levels: `read`, `write`, `none`

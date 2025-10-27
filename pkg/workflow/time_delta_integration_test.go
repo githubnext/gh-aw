@@ -90,7 +90,7 @@ engine: claude
 on:
   schedule:
     - cron: "0 9 * * 1"  
-  stop-after: "+1d12h30m"
+  stop-after: "+1d12h"
 ---`,
 			markdown:       "# Test Workflow\n\nThis is a test workflow.",
 			expectStopTime: true,
@@ -285,6 +285,16 @@ func TestStopTimeResolutionError(t *testing.T) {
 			name:        "invalid month name",
 			stopTime:    "Foo 1, 2025",
 			expectedErr: "invalid stop-after format",
+		},
+		{
+			name:        "minutes not allowed",
+			stopTime:    "+30m",
+			expectedErr: "minute unit 'm' is not allowed for stop-after",
+		},
+		{
+			name:        "complex with minutes not allowed",
+			stopTime:    "+1d12h30m",
+			expectedErr: "minute unit 'm' is not allowed for stop-after",
 		},
 	}
 
