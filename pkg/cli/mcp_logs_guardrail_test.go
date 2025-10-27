@@ -7,10 +7,10 @@ import (
 )
 
 func TestCheckLogsOutputSize_SmallOutput(t *testing.T) {
-	// Create a small output (less than 100KB)
+	// Create a small output (less than default token limit)
 	smallOutput := `{"summary": {"total_runs": 1}, "runs": []}`
 
-	result, triggered := checkLogsOutputSize(smallOutput)
+	result, triggered := checkLogsOutputSize(smallOutput, 0)
 
 	if triggered {
 		t.Error("Guardrail should not be triggered for small output")
@@ -22,10 +22,12 @@ func TestCheckLogsOutputSize_SmallOutput(t *testing.T) {
 }
 
 func TestCheckLogsOutputSize_LargeOutput(t *testing.T) {
-	// Create a large output (more than 100KB)
-	largeOutput := strings.Repeat("x", MaxMCPLogsOutputSize+1)
+	// Create a large output (more than default token limit)
+	// Default is 12000 tokens, which is ~48000 characters
+	// Use 50000 to be safely over the limit
+	largeOutput := strings.Repeat("x", 50000)
 
-	result, triggered := checkLogsOutputSize(largeOutput)
+	result, triggered := checkLogsOutputSize(largeOutput, 0)
 
 	if !triggered {
 		t.Error("Guardrail should be triggered for large output")
@@ -46,12 +48,13 @@ func TestCheckLogsOutputSize_LargeOutput(t *testing.T) {
 		t.Error("Guardrail response should have a message")
 	}
 
-	if guardrail.OutputSize != len(largeOutput) {
-		t.Errorf("Guardrail should report correct output size: expected %d, got %d", len(largeOutput), guardrail.OutputSize)
+	expectedTokens := estimateTokens(largeOutput)
+	if guardrail.OutputTokens != expectedTokens {
+		t.Errorf("Guardrail should report correct output tokens: expected %d, got %d", expectedTokens, guardrail.OutputTokens)
 	}
 
-	if guardrail.OutputSizeLimit != MaxMCPLogsOutputSize {
-		t.Errorf("Guardrail should report correct limit: expected %d, got %d", MaxMCPLogsOutputSize, guardrail.OutputSizeLimit)
+	if guardrail.OutputSizeLimit != DefaultMaxMCPLogsOutputTokens {
+		t.Errorf("Guardrail should report correct limit: expected %d, got %d", DefaultMaxMCPLogsOutputTokens, guardrail.OutputSizeLimit)
 	}
 
 	if len(guardrail.SuggestedQueries) == 0 {
@@ -65,9 +68,10 @@ func TestCheckLogsOutputSize_LargeOutput(t *testing.T) {
 
 func TestCheckLogsOutputSize_ExactLimit(t *testing.T) {
 	// Create output exactly at the limit
-	exactOutput := strings.Repeat("x", MaxMCPLogsOutputSize)
+	// 12000 tokens = 48000 characters
+	exactOutput := strings.Repeat("x", 48000)
 
-	result, triggered := checkLogsOutputSize(exactOutput)
+	result, triggered := checkLogsOutputSize(exactOutput, 0)
 
 	if triggered {
 		t.Error("Guardrail should not be triggered for output at exact limit")
@@ -79,13 +83,36 @@ func TestCheckLogsOutputSize_ExactLimit(t *testing.T) {
 }
 
 func TestCheckLogsOutputSize_JustOverLimit(t *testing.T) {
-	// Create output just over the limit (100KB + 1 byte)
-	overOutput := strings.Repeat("x", MaxMCPLogsOutputSize+1)
+	// Create output just over the limit (12000 tokens + 1 token)
+	// 12001 tokens = 48004+ characters
+	overOutput := strings.Repeat("x", 48005)
 
-	_, triggered := checkLogsOutputSize(overOutput)
+	_, triggered := checkLogsOutputSize(overOutput, 0)
 
 	if !triggered {
 		t.Error("Guardrail should be triggered for output just over limit")
+	}
+}
+
+func TestCheckLogsOutputSize_CustomLimit(t *testing.T) {
+	// Test with custom token limit
+	customLimit := 100
+	// 100 tokens = 400 characters, so use 500 to exceed
+	largeOutput := strings.Repeat("x", 500)
+
+	result, triggered := checkLogsOutputSize(largeOutput, customLimit)
+
+	if !triggered {
+		t.Error("Guardrail should be triggered when exceeding custom limit")
+	}
+
+	var guardrail MCPLogsGuardrailResponse
+	if err := json.Unmarshal([]byte(result), &guardrail); err != nil {
+		t.Errorf("Guardrail response should be valid JSON: %v", err)
+	}
+
+	if guardrail.OutputSizeLimit != customLimit {
+		t.Errorf("Guardrail should report custom limit: expected %d, got %d", customLimit, guardrail.OutputSizeLimit)
 	}
 }
 
@@ -166,8 +193,8 @@ func TestGetSuggestedJqQueries(t *testing.T) {
 func TestFormatGuardrailMessage(t *testing.T) {
 	guardrail := MCPLogsGuardrailResponse{
 		Message:          "Test message",
-		OutputSize:       150000,
-		OutputSizeLimit:  MaxMCPLogsOutputSize,
+		OutputTokens:     15000,
+		OutputSizeLimit:  DefaultMaxMCPLogsOutputTokens,
 		Schema:           getLogsDataSchema(),
 		SuggestedQueries: getSuggestedJqQueries(),
 	}
@@ -195,9 +222,10 @@ func TestFormatGuardrailMessage(t *testing.T) {
 
 func TestGuardrailResponseJSON(t *testing.T) {
 	// Create a large output to trigger guardrail
-	largeOutput := strings.Repeat("x", MaxMCPLogsOutputSize*2)
+	// Default limit is 12000 tokens = 48000 characters
+	largeOutput := strings.Repeat("x", 96000)
 
-	result, triggered := checkLogsOutputSize(largeOutput)
+	result, triggered := checkLogsOutputSize(largeOutput, 0)
 
 	if !triggered {
 		t.Fatal("Guardrail should be triggered")
@@ -214,8 +242,8 @@ func TestGuardrailResponseJSON(t *testing.T) {
 		t.Error("JSON should have message field")
 	}
 
-	if guardrail.OutputSize == 0 {
-		t.Error("JSON should have output_size field")
+	if guardrail.OutputTokens == 0 {
+		t.Error("JSON should have output_tokens field")
 	}
 
 	if guardrail.OutputSizeLimit == 0 {
@@ -245,10 +273,31 @@ func TestGuardrailResponseJSON(t *testing.T) {
 	}
 }
 
-func TestMaxMCPLogsOutputSize_Constant(t *testing.T) {
-	// Verify the constant is set to expected value (10KB)
-	expected := 10 * 1024
-	if MaxMCPLogsOutputSize != expected {
-		t.Errorf("MaxMCPLogsOutputSize should be %d bytes (10KB), got %d", expected, MaxMCPLogsOutputSize)
+func TestDefaultMaxTokensConstant(t *testing.T) {
+	// Verify the constant is set to expected value (12000 tokens)
+	expected := 12000
+	if DefaultMaxMCPLogsOutputTokens != expected {
+		t.Errorf("DefaultMaxMCPLogsOutputTokens should be %d tokens, got %d", expected, DefaultMaxMCPLogsOutputTokens)
+	}
+}
+
+func TestEstimateTokens(t *testing.T) {
+	// Test token estimation
+	tests := []struct {
+		text           string
+		expectedTokens int
+	}{
+		{"", 0},
+		{"x", 0},          // 1 char / 4 = 0
+		{"xxxx", 1},       // 4 chars / 4 = 1
+		{"xxxxxxxx", 2},   // 8 chars / 4 = 2
+		{strings.Repeat("x", 400), 100}, // 400 chars / 4 = 100
+	}
+
+	for _, tt := range tests {
+		got := estimateTokens(tt.text)
+		if got != tt.expectedTokens {
+			t.Errorf("estimateTokens(%q) = %d, want %d", tt.text, got, tt.expectedTokens)
+		}
 	}
 }

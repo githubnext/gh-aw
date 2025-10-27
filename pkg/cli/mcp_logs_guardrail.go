@@ -7,15 +7,19 @@ import (
 )
 
 const (
-	// MaxMCPLogsOutputSize is the maximum size in bytes for MCP logs output
-	// before triggering the guardrail (10KB)
-	MaxMCPLogsOutputSize = 10 * 1024
+	// DefaultMaxMCPLogsOutputTokens is the default maximum number of tokens for MCP logs output
+	// before triggering the guardrail (12000 tokens)
+	DefaultMaxMCPLogsOutputTokens = 12000
+
+	// CharsPerToken is the approximate number of characters per token
+	// Using OpenAI's rule of thumb: ~4 characters per token
+	CharsPerToken = 4
 )
 
 // MCPLogsGuardrailResponse represents the response when output is too large
 type MCPLogsGuardrailResponse struct {
 	Message          string             `json:"message"`
-	OutputSize       int                `json:"output_size"`
+	OutputTokens     int                `json:"output_tokens"`
 	OutputSizeLimit  int                `json:"output_size_limit"`
 	Schema           LogsDataSchema     `json:"schema"`
 	SuggestedQueries []SuggestedJqQuery `json:"suggested_queries"`
@@ -41,26 +45,36 @@ type SuggestedJqQuery struct {
 	Example     string `json:"example,omitempty"`
 }
 
-// checkLogsOutputSize checks if the logs output exceeds the size limit
-// and returns a guardrail response if it does
-func checkLogsOutputSize(outputStr string) (string, bool) {
-	outputSize := len(outputStr)
+// estimateTokens estimates the number of tokens in a string
+// Using the approximation: ~4 characters per token
+func estimateTokens(text string) int {
+	return len(text) / CharsPerToken
+}
 
-	if outputSize <= MaxMCPLogsOutputSize {
+// checkLogsOutputSize checks if the logs output exceeds the token limit
+// and returns a guardrail response if it does
+func checkLogsOutputSize(outputStr string, maxTokens int) (string, bool) {
+	if maxTokens == 0 {
+		maxTokens = DefaultMaxMCPLogsOutputTokens
+	}
+
+	outputTokens := estimateTokens(outputStr)
+
+	if outputTokens <= maxTokens {
 		return outputStr, false
 	}
 
 	// Generate guardrail response
 	guardrail := MCPLogsGuardrailResponse{
 		Message: fmt.Sprintf(
-			"⚠️  Output size (%d bytes) exceeds the limit (%d bytes). "+
+			"⚠️  Output size (%d tokens) exceeds the limit (%d tokens). "+
 				"To reduce output size, use the 'jq' parameter with one of the suggested queries below.",
-			outputSize,
-			MaxMCPLogsOutputSize,
+			outputTokens,
+			maxTokens,
 		),
-		OutputSize:       outputSize,
-		OutputSizeLimit:  MaxMCPLogsOutputSize,
-		Schema:           getLogsDataSchema(),
+		OutputTokens:    outputTokens,
+		OutputSizeLimit: maxTokens,
+		Schema:          getLogsDataSchema(),
 		SuggestedQueries: getSuggestedJqQueries(),
 	}
 
@@ -69,10 +83,10 @@ func checkLogsOutputSize(outputStr string) (string, bool) {
 	if err != nil {
 		// Fallback to simple text message if JSON marshaling fails
 		return fmt.Sprintf(
-			"Output size (%d bytes) exceeds the limit (%d bytes). "+
+			"Output size (%d tokens) exceeds the limit (%d tokens). "+
 				"Please use the 'jq' parameter to filter the output.",
-			outputSize,
-			MaxMCPLogsOutputSize,
+			outputTokens,
+			maxTokens,
 		), true
 	}
 

@@ -54,8 +54,10 @@ func TestMCPServer_LogsGuardrail(t *testing.T) {
 		// behavior and structure of the guardrail response
 
 		// Test that checkLogsOutputSize produces the expected structure
-		largeOutput := strings.Repeat("x", MaxMCPLogsOutputSize+1)
-		guardrailJSON, triggered := checkLogsOutputSize(largeOutput)
+		// Default limit is 12000 tokens = 48000 characters
+		// Use 50000 to safely exceed the limit
+		largeOutput := strings.Repeat("x", 50000)
+		guardrailJSON, triggered := checkLogsOutputSize(largeOutput, 0)
 
 		if !triggered {
 			t.Fatal("Guardrail should be triggered for large output")
@@ -74,6 +76,10 @@ func TestMCPServer_LogsGuardrail(t *testing.T) {
 
 		if !strings.Contains(guardrail.Message, "exceeds the limit") {
 			t.Error("Message should explain the issue")
+		}
+
+		if !strings.Contains(guardrail.Message, "tokens") {
+			t.Error("Message should mention tokens")
 		}
 
 		if guardrail.Schema.Type != "object" {

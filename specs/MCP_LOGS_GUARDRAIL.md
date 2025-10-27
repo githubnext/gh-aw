@@ -19,14 +19,14 @@ Large outputs can:
 The MCP server `logs` command now includes an automatic guardrail that:
 
 1. **Checks output size** before returning results
-2. **Triggers at 10KB** (10,240 bytes)
+2. **Triggers at 12000 tokens** (default, configurable)
 3. **Returns helpful guidance** instead of large payloads
 
 ## How It Works
 
-### Normal Operation (Output ≤ 10KB)
+### Normal Operation (Output ≤ Token Limit)
 
-When the output is within the size limit, the command returns the full JSON data as usual:
+When the output is within the token limit, the command returns the full JSON data as usual:
 
 ```json
 {
@@ -42,15 +42,15 @@ When the output is within the size limit, the command returns the full JSON data
 }
 ```
 
-### Guardrail Triggered (Output > 10KB)
+### Guardrail Triggered (Output > Token Limit)
 
-When the output exceeds 10KB, the command returns a structured response with:
+When the output exceeds the token limit (default: 12000 tokens), the command returns a structured response with:
 
 ```json
 {
-  "message": "⚠️  Output size (152400 bytes) exceeds the limit (102400 bytes). To reduce output size, use the 'jq' parameter with one of the suggested queries below.",
-  "output_size": 152400,
-  "output_size_limit": 102400,
+  "message": "⚠️  Output size (15000 tokens) exceeds the limit (12000 tokens). To reduce output size, use the 'jq' parameter with one of the suggested queries below.",
+  "output_tokens": 15000,
+  "output_size_limit": 12000,
   "schema": {
     "description": "Complete structured data for workflow logs",
     "type": "object",
@@ -81,6 +81,24 @@ When the output exceeds 10KB, the command returns a structured response with:
   ]
 }
 ```
+
+## Configuring the Token Limit
+
+The guardrail uses a token-based limit instead of byte-based. By default, the limit is 12000 tokens (approximately 48KB of text).
+
+You can customize the limit using the `max_tokens` parameter:
+
+```json
+{
+  "name": "logs",
+  "arguments": {
+    "count": 100,
+    "max_tokens": 20000
+  }
+}
+```
+
+**Token Estimation**: The system uses approximately 4 characters per token as an estimation (OpenAI's rule of thumb).
 
 ## Using the jq Parameter
 
@@ -170,7 +188,8 @@ Filters to show runs from a specific workflow.
 
 ### Constants
 
-- `MaxMCPLogsOutputSize`: 10,240 bytes (10KB)
+- `DefaultMaxMCPLogsOutputTokens`: 12000 tokens (default limit)
+- `CharsPerToken`: 4 characters per token (estimation factor)
 
 ### Files
 
@@ -181,7 +200,8 @@ Filters to show runs from a specific workflow.
 
 ### Functions
 
-- `checkLogsOutputSize(outputStr string) (string, bool)` - Main guardrail function
+- `estimateTokens(text string) int` - Estimates token count from text
+- `checkLogsOutputSize(outputStr string, maxTokens int) (string, bool)` - Main guardrail function
 - `getLogsDataSchema() LogsDataSchema` - Returns schema description
 - `getSuggestedJqQueries() []SuggestedJqQuery` - Returns suggested jq filters
 
