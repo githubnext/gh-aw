@@ -308,10 +308,10 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		// Run zizmor security scanner if requested and compilation was successful
 		if zizmor && !noEmit {
 			// Resolve workflow directory path
-			absWorkflowDir := workflowDir
 			if workflowDir == "" {
 				workflowDir = ".github/workflows"
 			}
+			absWorkflowDir := workflowDir
 			if !filepath.IsAbs(absWorkflowDir) {
 				gitRoot, err := findGitRoot()
 				if err == nil {
