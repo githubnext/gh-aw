@@ -932,6 +932,21 @@
     },
     "permissions": {
       "description": "GitHub token permissions for the workflow. Controls what the GITHUB_TOKEN can access during execution. Use the principle of least privilege - only grant the minimum permissions needed.",
+      "examples": [
+        "read-all",
+        {
+          "contents": "read",
+          "actions": "read",
+          "pull-requests": "read"
+        },
+        {
+          "contents": "read",
+          "actions": "read"
+        },
+        {
+          "all": "read"
+        }
+      ],
       "oneOf": [
         {
           "type": "string",
@@ -1450,6 +1465,33 @@
     },
     "network": {
       "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Controls web fetch and search capabilities.",
+      "examples": [
+        "defaults",
+        {
+          "allowed": [
+            "defaults",
+            "github"
+          ]
+        },
+        {
+          "allowed": [
+            "defaults",
+            "python",
+            "node",
+            "*.example.com"
+          ]
+        },
+        {
+          "allowed": [
+            "api.openai.com",
+            "*.github.com"
+          ],
+          "firewall": {
+            "version": "v1.0.0",
+            "log-level": "debug"
+          }
+        }
+      ],
       "oneOf": [
         {
           "type": "string",
@@ -2983,6 +3025,26 @@
   "additionalProperties": false,
   "$defs": {
     "engine_config": {
+      "examples": [
+        "claude",
+        "copilot",
+        {
+          "id": "claude",
+          "model": "claude-3-5-sonnet-20241022",
+          "max-turns": 15
+        },
+        {
+          "id": "copilot",
+          "version": "beta"
+        },
+        {
+          "id": "claude",
+          "concurrency": {
+            "group": "gh-aw-claude",
+            "cancel-in-progress": false
+          }
+        }
+      ],
       "oneOf": [
         {
           "type": "string",
