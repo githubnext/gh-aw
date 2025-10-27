@@ -1758,6 +1758,9 @@ jobs:
               actor: context.actor,
               event_name: context.eventName,
               staged: false,
+              steps: {
+                firewall: ""
+              },
               created_at: new Date().toISOString()
             };
             
