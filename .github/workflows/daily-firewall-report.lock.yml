@@ -948,7 +948,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=default",
+                  "GITHUB_TOOLSETS=default,actions",
                   "ghcr.io/github/github-mcp-server:v0.20.0"
                 ],
                 "tools": [
