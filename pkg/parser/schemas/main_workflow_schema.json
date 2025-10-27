@@ -4,15 +4,27 @@
   "properties": {
     "name": {
       "type": "string",
-      "description": "Workflow name that appears in the GitHub Actions interface. If not specified, defaults to the filename without extension."
+      "description": "Workflow name that appears in the GitHub Actions interface. If not specified, defaults to the filename without extension.",
+      "examples": [
+        "Copilot Agent PR Analysis",
+        "Dev Hawk",
+        "Smoke Claude"
+      ]
     },
     "description": {
       "type": "string",
-      "description": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)"
+      "description": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)",
+      "examples": [
+        "Quickstart for using the GitHub Actions library"
+      ]
     },
     "source": {
       "type": "string",
-      "description": "Optional source reference indicating where this workflow was added from. Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/ci-doctor.md@v1.0.0). Rendered as a comment in the generated lock file."
+      "description": "Optional source reference indicating where this workflow was added from. Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/ci-doctor.md@v1.0.0). Rendered as a comment in the generated lock file.",
+      "examples": [
+        "githubnext/agentics/workflows/ci-doctor.md",
+        "githubnext/agentics/workflows/daily-perf-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
+      ]
     },
     "imports": {
       "type": "array",
@@ -20,14 +32,33 @@
       "items": {
         "type": "string",
         "description": "Workflow specification in format owner/repo/path@ref"
-      }
+      },
+      "examples": [
+        [
+          "shared/jqschema.md",
+          "shared/reporting.md"
+        ],
+        [
+          "shared/mcp/gh-aw.md",
+          "shared/jqschema.md",
+          "shared/reporting.md"
+        ],
+        [
+          "../instructions/documentation.instructions.md"
+        ]
+      ]
     },
     "on": {
       "description": "Workflow triggers that define when the agentic workflow should run. Supports standard GitHub Actions trigger events plus special command triggers for /commands (required)",
       "oneOf": [
         {
           "type": "string",
-          "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call')"
+          "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call')",
+          "examples": [
+            "push",
+            "issues",
+            "workflow_dispatch"
+          ]
         },
         {
           "type": "object",
@@ -926,12 +957,61 @@
               "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to 'eyes' if not specified."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "examples": [
+            {
+              "schedule": [
+                {
+                  "cron": "0 0 * * *"
+                }
+              ],
+              "workflow_dispatch": null
+            },
+            {
+              "command": {
+                "name": "mergefest",
+                "events": ["pull_request_comment"]
+              }
+            },
+            {
+              "workflow_run": {
+                "workflows": ["Dev"],
+                "types": ["completed"],
+                "branches": ["copilot/**"]
+              }
+            },
+            {
+              "pull_request": {
+                "types": ["ready_for_review"]
+              },
+              "workflow_dispatch": null
+            },
+            {
+              "push": {
+                "branches": ["main"]
+              }
+            }
+          ]
         }
       ]
     },
     "permissions": {
       "description": "GitHub token permissions for the workflow. Controls what the GITHUB_TOKEN can access during execution. Use the principle of least privilege - only grant the minimum permissions needed.",
+      "examples": [
+        "read-all",
+        {
+          "contents": "read",
+          "actions": "read",
+          "pull-requests": "read"
+        },
+        {
+          "contents": "read",
+          "actions": "read"
+        },
+        {
+          "all": "read"
+        }
+      ],
       "oneOf": [
         {
           "type": "string",
@@ -1475,6 +1555,33 @@
     },
     "network": {
       "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Controls web fetch and search capabilities.",
+      "examples": [
+        "defaults",
+        {
+          "allowed": [
+            "defaults",
+            "github"
+          ]
+        },
+        {
+          "allowed": [
+            "defaults",
+            "python",
+            "node",
+            "*.example.com"
+          ]
+        },
+        {
+          "allowed": [
+            "api.openai.com",
+            "*.github.com"
+          ],
+          "firewall": {
+            "version": "v1.0.0",
+            "log-level": "debug"
+          }
+        }
+      ],
       "oneOf": [
         {
           "type": "string",
@@ -1737,7 +1844,45 @@
                   }
                 }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "toolset": ["pull_requests", "actions", "repos"]
+                },
+                {
+                  "allowed": [
+                    "search_pull_requests",
+                    "pull_request_read",
+                    "list_pull_requests",
+                    "get_file_contents",
+                    "list_commits",
+                    "get_commit"
+                  ]
+                },
+                {
+                  "read-only": true
+                },
+                {
+                  "toolset": ["pull_requests", "repos"]
+                }
+              ]
+            }
+          ],
+          "examples": [
+            null,
+            {
+              "toolset": ["pull_requests", "actions", "repos"]
+            },
+            {
+              "allowed": [
+                "search_pull_requests",
+                "pull_request_read",
+                "get_file_contents"
+              ]
+            },
+            {
+              "read-only": true,
+              "toolset": ["repos", "issues"]
             }
           ]
         },
@@ -1759,6 +1904,33 @@
                 "type": "string"
               }
             }
+          ],
+          "examples": [
+            true,
+            [
+              "git fetch",
+              "git checkout",
+              "git status",
+              "git diff",
+              "git log",
+              "make recompile",
+              "make fmt",
+              "make lint",
+              "make test-unit",
+              "cat",
+              "echo",
+              "ls"
+            ],
+            [
+              "echo",
+              "ls",
+              "cat"
+            ],
+            [
+              "gh pr list *",
+              "gh search prs *",
+              "jq *"
+            ]
           ]
         },
         "web-fetch": {
@@ -1857,6 +2029,10 @@
               "type": "null",
               "description": "Enable agentic-workflows tool with default settings (same as true)"
             }
+          ],
+          "examples": [
+            true,
+            null
           ]
         },
         "cache-memory": {
@@ -1893,7 +2069,16 @@
                   "description": "Number of days to retain uploaded artifacts (1-90 days, default: repository setting)"
                 }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "key": "memory-audit-${{ github.workflow }}"
+                },
+                {
+                  "key": "memory-copilot-analysis",
+                  "retention-days": 30
+                }
+              ]
             },
             {
               "type": "array",
@@ -1922,8 +2107,37 @@
                 },
                 "additionalProperties": false
               },
-              "minItems": 1
+              "minItems": 1,
+              "examples": [
+                [
+                  {
+                    "id": "default",
+                    "key": "memory-default"
+                  },
+                  {
+                    "id": "session",
+                    "key": "memory-session"
+                  }
+                ]
+              ]
             }
+          ],
+          "examples": [
+            true,
+            null,
+            {
+              "key": "memory-audit-workflow"
+            },
+            [
+              {
+                "id": "default",
+                "key": "memory-default"
+              },
+              {
+                "id": "logs",
+                "key": "memory-logs"
+              }
+            ]
           ]
         },
         "safety-prompt": {
@@ -1933,7 +2147,12 @@
         "timeout": {
           "type": "integer",
           "minimum": 1,
-          "description": "Timeout in seconds for tool/MCP server operations. Applies to all tools and MCP servers if supported by the engine. Default varies by engine (Claude: 60s, Codex: 120s)."
+          "description": "Timeout in seconds for tool/MCP server operations. Applies to all tools and MCP servers if supported by the engine. Default varies by engine (Claude: 60s, Codex: 120s).",
+          "examples": [
+            60,
+            120,
+            300
+          ]
         },
         "startup-timeout": {
           "type": "integer",
@@ -3063,6 +3282,26 @@
   "additionalProperties": false,
   "$defs": {
     "engine_config": {
+      "examples": [
+        "claude",
+        "copilot",
+        {
+          "id": "claude",
+          "model": "claude-3-5-sonnet-20241022",
+          "max-turns": 15
+        },
+        {
+          "id": "copilot",
+          "version": "beta"
+        },
+        {
+          "id": "claude",
+          "concurrency": {
+            "group": "gh-aw-claude",
+            "cancel-in-progress": false
+          }
+        }
+      ],
       "oneOf": [
         {
           "type": "string",

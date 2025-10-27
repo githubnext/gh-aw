@@ -4,14 +4,19 @@ import (
 	"regexp"
 	"sort"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
+
+var yamlLog = logger.New("workflow:yaml")
 
 // UnquoteYAMLKey removes quotes from a YAML key at the start of a line.
 // This is necessary because yaml.Marshal adds quotes around reserved words like "on".
 // The function only replaces the quoted key if it appears at the start of a line
 // (optionally preceded by whitespace) to avoid replacing quoted strings in values.
 func UnquoteYAMLKey(yamlStr string, key string) string {
+	yamlLog.Printf("Unquoting YAML key: %s", key)
+
 	// Create a regex pattern that matches the quoted key at the start of a line
 	// Pattern: (start of line or newline) + (optional whitespace) + quoted key + colon
 	pattern := `(^|\n)([ \t]*)"` + regexp.QuoteMeta(key) + `":`
@@ -36,6 +41,8 @@ func UnquoteYAMLKey(yamlStr string, key string) string {
 // Priority fields are emitted first in the order specified, then remaining fields alphabetically.
 // This is used to ensure GitHub Actions workflow fields appear in a conventional order.
 func MarshalWithFieldOrder(data map[string]any, priorityFields []string) ([]byte, error) {
+	yamlLog.Printf("Marshaling YAML with field order: %d priority fields", len(priorityFields))
+
 	orderedData := OrderMapFields(data, priorityFields)
 	// Marshal the ordered data with proper options for GitHub Actions
 	return yaml.MarshalWithOptions(orderedData,

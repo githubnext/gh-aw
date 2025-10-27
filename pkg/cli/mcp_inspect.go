@@ -11,10 +11,13 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
+
+var mcpInspectLog = logger.New("cli:mcp_inspect")
 
 // filterOutSafeOutputs removes safe-outputs MCP servers from the list since they are
 // handled by the workflow compiler and not actual MCP servers that can be inspected
@@ -31,6 +34,8 @@ func filterOutSafeOutputs(configs []parser.MCPServerConfig) []parser.MCPServerCo
 // applyImportsToFrontmatter merges imported MCP servers and tools into frontmatter
 // Returns a new frontmatter map with imports applied
 func applyImportsToFrontmatter(frontmatter map[string]any, importsResult *parser.ImportsResult) (map[string]any, error) {
+	mcpInspectLog.Print("Applying imports to frontmatter")
+
 	// Create a copy of the frontmatter to avoid modifying the original
 	result := make(map[string]any)
 	for k, v := range frontmatter {
@@ -92,6 +97,9 @@ func applyImportsToFrontmatter(frontmatter map[string]any, importsResult *parser
 
 // InspectWorkflowMCP inspects MCP servers used by a workflow and lists available tools, resources, and roots
 func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter string, verbose bool, useActionsSecrets bool) error {
+	mcpInspectLog.Printf("Inspecting workflow MCP: workflow=%s, serverFilter=%s, toolFilter=%s",
+		workflowFile, serverFilter, toolFilter)
+
 	workflowsDir := getWorkflowsDir()
 
 	// If no workflow file specified, show available workflow files with MCP configs
