@@ -5,37 +5,11 @@ sidebar:
   order: 700
 ---
 
-Custom safe outputs enable you to extend GitHub Agentic Workflows with your own output processing logic for third-party services like Notion, Slack, Jira, or any custom API. This guide demonstrates how to create reusable, secure integrations using safe-jobs combined with MCP servers.
-
-## Overview
-
-Custom safe outputs provide a pattern for integrating external services while maintaining security:
-
-1. **Read-only MCP server** provides tools for querying data from the external service
-2. **Custom safe-job** handles write operations through a separate job with appropriate permissions
-3. **Shared configuration files** make integrations reusable across multiple workflows
-
-This pattern ensures the main agentic job runs with minimal permissions while still enabling powerful integrations.
+Custom safe outputs extend GitHub Agentic Workflows with your own output processing logic for third-party services. Create reusable, secure integrations using safe-jobs combined with MCP servers.
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Main Agentic Job (Read-Only Permissions)                   │
-├─────────────────────────────────────────────────────────────┤
-│ • Uses read-only MCP tools to query external service       │
-│ • Analyzes data and makes decisions                        │
-│ • Calls custom safe-job tool to perform write operations   │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Custom Safe-Job (Write Permissions)                        │
-├─────────────────────────────────────────────────────────────┤
-│ • Executes after main job completes                        │
-│ • Has appropriate permissions for write operations         │
-│ • Uses secure API calls to perform actions                 │
-└─────────────────────────────────────────────────────────────┘
-```
+The pattern separates read and write operations for security: a read-only MCP server queries external services, while a custom safe-job handles write operations with appropriate permissions. Store configuration in shared files for reusability across workflows.
 
 ## Creating a Custom Safe Output
 
@@ -58,11 +32,7 @@ mcp-servers:
 ---
 ```
 
-**Key Points:**
-- Use `container:` for Docker-based MCP servers
-- Use `command:` and `args:` for npx or local commands
-- List only **read-only tools** in the `allowed` section
-- Store sensitive tokens in GitHub Secrets
+Use `container:` for Docker-based servers or `command:`/`args:` for npx commands. List only read-only tools in `allowed` and store tokens in GitHub Secrets.
 
 ### Step 2: Define the Custom Safe-Job (Write Operations)
 
@@ -150,13 +120,7 @@ safe-outputs:
 ---
 ```
 
-**Key Points:**
-- `description:` field appears in the MCP tool registration
-- `inputs:` section defines the tool's parameters (required for all safe-jobs)
-- `output:` field provides custom success message
-- Use `actions/github-script@v8` for JavaScript-based API calls
-- Include error handling with `core.setFailed()`
-- Store the configuration in `.github/workflows/shared/` for reusability
+The `description` appears in MCP tool registration. All safe-jobs require an `inputs` section defining parameters. Use `output` for custom success messages and `actions/github-script@v8` for API calls with `core.setFailed()` error handling. Store configurations in `.github/workflows/shared/` for reusability.
 
 ### Step 3: Use the Custom Safe Output in a Workflow
 
@@ -182,25 +146,11 @@ Analyze the issue: "${{ needs.activation.outputs.text }}"
 Search for the GitHub Issues page in Notion using the read-only Notion tools, then add a summary comment using the notion-add-comment safe-job.
 ```
 
-**How It Works:**
-1. The `imports:` directive loads the Notion MCP server and safe-job
-2. The agent can use read-only Notion tools to search and query
-3. The agent calls the `notion-add-comment` tool (registered from the safe-job)
-4. The safe-job executes with appropriate permissions after the main job completes
+The `imports` directive loads both the MCP server and safe-job. The agent uses read-only tools to query, then calls the safe-job tool which executes with write permissions after completion.
 
 ## Safe Jobs Technical Specification
 
-The `safe-outputs.jobs:` element of your workflow's frontmatter enables you to define custom post-processing jobs that execute after the main agentic workflow completes. Safe-jobs provide a powerful way to create sophisticated automation workflows while maintaining security through controlled job execution.
-
-**How It Works:**
-1. Safe-jobs are defined under the `safe-outputs.jobs` section of the frontmatter
-2. Each safe-job **must have an "inputs" section with at least one input** - these inputs become the arguments of the MCP tool
-3. Each safe-job has access to all standard GitHub Actions job properties (runs-on, if, needs, env, permissions, steps)
-4. Safe-jobs automatically download the agent output artifact and can process it using jq
-5. Safe-jobs become available as callable tools in the safe-outputs MCP server
-6. Safe-jobs can be imported from included workflows with automatic conflict detection
-
-**Important Requirement**: Every safe-job definition must include an `inputs` section with at least one input parameter. These inputs define the MCP tool's arguments and enable the agentic workflow to call the safe-job with appropriate parameters.
+Define custom post-processing jobs under `safe-outputs.jobs` in your workflow frontmatter. Each safe-job requires an `inputs` section (these become MCP tool arguments), supports all GitHub Actions job properties, automatically receives agent output artifacts, and registers as a callable tool in the safe-outputs MCP server. Safe-jobs can be imported with automatic conflict detection.
 
 ### GitHub Actions Job Properties
 
@@ -231,7 +181,7 @@ safe-outputs:
 
 ### Safe Job Inputs
 
-**Every safe-job must define inputs** using workflow_dispatch syntax for parameterization. The inputs become the MCP tool arguments:
+Every safe-job must define inputs using workflow_dispatch syntax. The inputs become the MCP tool arguments:
 
 ```yaml
 safe-outputs:
@@ -379,70 +329,11 @@ Please backup the user database using the database-backup safe-job.
 
 ## Best Practices
 
-### Error Handling
-
-Always include comprehensive error handling in safe-jobs:
-
-```javascript
-try {
-  const response = await fetch(apiUrl, options);
-  
-  if (!response.ok) {
-    const errorData = await response.text();
-    core.setFailed(`API error (${response.status}): ${errorData}`);
-    return;
-  }
-  
-  const data = await response.json();
-  core.info('Operation successful');
-} catch (error) {
-  core.setFailed(`Failed to complete operation: ${error.message}`);
-}
-```
-
-### Logging
-
-Use appropriate logging levels:
-
-```javascript
-core.info('Informational message');
-core.warning('Warning message');
-core.error('Error message');
-core.setFailed('Failure message that stops the job');
-```
+Always include error handling with `core.setFailed()` for API failures. Use appropriate logging levels: `core.info()`, `core.warning()`, `core.error()`, and `core.setFailed()` to stop jobs on failure.
 
 ## Example: MCP Diagnostic Reporting
 
-The `mcp-debug` shared workflow demonstrates a custom safe-output that posts diagnostic findings to pull requests:
-
-```yaml
-imports:
-  - shared/mcp-debug.md
-```
-
-This provides the `report_diagnostics_to_pull_request` safe-job that:
-- Accepts a `message` parameter with diagnostic information
-- Automatically finds the pull request associated with the current branch
-- Posts the diagnostic message as a PR comment
-- Handles cases where no PR exists gracefully
-
-**Usage in workflow:**
-```aw wrap
----
-on:
-  pull_request:
-    types: [opened, synchronize]
-imports:
-  - shared/mcp-debug.md
----
-
-# MCP Troubleshooting Agent
-
-Debug MCP server issues and report findings.
-Use the report_diagnostics_to_pull_request safe-job to post your diagnostic findings to the pull request.
-```
-
-This pattern enables workflows to report complex diagnostic information directly to pull requests without requiring write permissions in the main agentic job.
+The `mcp-debug` shared workflow provides a `report_diagnostics_to_pull_request` safe-job that accepts diagnostic messages, finds the associated pull request, and posts comments. Import with `shared/mcp-debug.md` to enable workflows to report diagnostic information without requiring write permissions in the main job.
 
 ## Related Documentation
 
