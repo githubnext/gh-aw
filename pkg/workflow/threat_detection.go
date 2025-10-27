@@ -96,7 +96,7 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 		Name:           constants.DetectionJobName,
 		If:             "",
 		RunsOn:         "runs-on: ubuntu-latest",
-		Permissions:    NewPermissionsReadAll().RenderToYAML(),
+		Permissions:    NewPermissions().RenderToYAML(),
 		Concurrency:    c.indentYAMLLines(agentConcurrency, "    "),
 		TimeoutMinutes: 10,
 		Steps:          steps,
