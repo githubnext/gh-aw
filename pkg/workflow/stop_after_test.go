@@ -3,6 +3,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -151,7 +152,7 @@ func TestResolveStopTimeRejectsMinutes(t *testing.T) {
 				return
 			}
 
-			if !containsSubstring(err.Error(), tt.errorMsg) {
+			if !strings.Contains(err.Error(), tt.errorMsg) {
 				t.Errorf("resolveStopTime(%q, %v) error = %v, want to contain %v", tt.stopTime, baseTime, err.Error(), tt.errorMsg)
 			}
 		})
