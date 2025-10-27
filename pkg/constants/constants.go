@@ -27,7 +27,7 @@ const DefaultCodexVersion = "0.50.0"
 const DefaultGitHubMCPServerVersion = "v0.20.0"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
-const DefaultFirewallVersion = "v0.1.0"
+const DefaultFirewallVersion = "v0.1.1"
 
 // DefaultNodeVersion is the default version of Node.js for runtime setup
 const DefaultNodeVersion = "24"

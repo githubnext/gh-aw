@@ -120,8 +120,8 @@ jobs:
           node-version: '24'
       - name: Install awf binary
         run: |
-          echo "Installing awf from release: v0.1.0"
-          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.1.0/awf-linux-x64 -o awf
+          echo "Installing awf from release: v0.1.1"
+          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.1.1/awf-linux-x64 -o awf
           chmod +x awf
           sudo mv awf /usr/local/bin/
           which awf
