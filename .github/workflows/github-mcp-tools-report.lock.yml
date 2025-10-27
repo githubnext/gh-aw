@@ -78,6 +78,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: false
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -3886,6 +3888,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Configure Git credentials
         run: |
@@ -4350,6 +4353,8 @@ jobs:
       - name: Checkout repository for gh CLI
         if: steps.create_pull_request.outputs.pull_request_url != ''
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: false
       - name: Add copilot as reviewer
         if: steps.create_pull_request.outputs.pull_request_number != ''
         env:

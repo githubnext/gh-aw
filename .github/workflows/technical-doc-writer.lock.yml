@@ -476,6 +476,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
@@ -4007,6 +4009,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Configure Git credentials
         run: |
@@ -4471,6 +4474,8 @@ jobs:
       - name: Checkout repository for gh CLI
         if: steps.create_pull_request.outputs.pull_request_url != ''
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: false
       - name: Add copilot as reviewer
         if: steps.create_pull_request.outputs.pull_request_number != ''
         env:
@@ -4866,6 +4871,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Configure Git credentials
         run: |

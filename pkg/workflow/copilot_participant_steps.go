@@ -35,6 +35,8 @@ func buildCopilotParticipantSteps(config CopilotParticipantConfig) []string {
 	steps = append(steps, "      - name: Checkout repository for gh CLI\n")
 	steps = append(steps, fmt.Sprintf("        if: steps.%s.outputs.%s != ''\n", config.ConditionStepID, config.ConditionOutputKey))
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          persist-credentials: false\n")
 
 	// Check if any participant is "copilot" to determine token preference
 	hasCopilotParticipant := false
