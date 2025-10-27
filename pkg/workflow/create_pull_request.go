@@ -95,62 +95,22 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 
 	// Add reviewer steps if reviewers are configured
 	if len(data.SafeOutputs.CreatePullRequests.Reviewers) > 0 {
-		// Add checkout step for gh CLI to work
-		steps = append(steps, "      - name: Checkout repository for gh CLI\n")
-		steps = append(steps, "        if: steps.create_pull_request.outputs.pull_request_url != ''\n")
-		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
-
 		// Get the effective GitHub token to use for gh CLI
 		var safeOutputsToken string
 		if data.SafeOutputs != nil {
 			safeOutputsToken = data.SafeOutputs.GitHubToken
 		}
 
-		// Check if any reviewer is "copilot" to determine token preference
-		hasCopilotReviewer := false
-		for _, reviewer := range data.SafeOutputs.CreatePullRequests.Reviewers {
-			if reviewer == "copilot" {
-				hasCopilotReviewer = true
-				break
-			}
-		}
-
-		// Use Copilot token preference if adding copilot as reviewer, otherwise use regular token
-		var effectiveToken string
-		if hasCopilotReviewer {
-			effectiveToken = getEffectiveCopilotGitHubToken(data.SafeOutputs.CreatePullRequests.GitHubToken, getEffectiveCopilotGitHubToken(safeOutputsToken, data.GitHubToken))
-		} else {
-			effectiveToken = getEffectiveGitHubToken(data.SafeOutputs.CreatePullRequests.GitHubToken, getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken))
-		}
-
-		for i, reviewer := range data.SafeOutputs.CreatePullRequests.Reviewers {
-			// Special handling: "copilot" uses the GitHub API with "copilot-pull-request-reviewer[bot]"
-			// because gh pr edit --add-reviewer does not support @copilot
-			if reviewer == "copilot" {
-				steps = append(steps, fmt.Sprintf("      - name: Add %s as reviewer\n", reviewer))
-				steps = append(steps, "        if: steps.create_pull_request.outputs.pull_request_number != ''\n")
-				steps = append(steps, "        env:\n")
-				steps = append(steps, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
-				steps = append(steps, "          PR_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}\n")
-				steps = append(steps, "        run: |\n")
-				steps = append(steps, "          gh api --method POST /repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers \\\n")
-				steps = append(steps, "            -f 'reviewers[]=copilot-pull-request-reviewer[bot]'\n")
-			} else {
-				steps = append(steps, fmt.Sprintf("      - name: Add %s as reviewer\n", reviewer))
-				steps = append(steps, "        if: steps.create_pull_request.outputs.pull_request_url != ''\n")
-				steps = append(steps, "        env:\n")
-				steps = append(steps, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
-				steps = append(steps, fmt.Sprintf("          REVIEWER: %q\n", reviewer))
-				steps = append(steps, "          PR_URL: ${{ steps.create_pull_request.outputs.pull_request_url }}\n")
-				steps = append(steps, "        run: |\n")
-				steps = append(steps, "          gh pr edit \"$PR_URL\" --add-reviewer \"$REVIEWER\"\n")
-			}
-
-			// Add a comment after each reviewer step except the last
-			if i < len(data.SafeOutputs.CreatePullRequests.Reviewers)-1 {
-				steps = append(steps, "\n")
-			}
-		}
+		reviewerSteps := buildCopilotParticipantSteps(CopilotParticipantConfig{
+			Participants:       data.SafeOutputs.CreatePullRequests.Reviewers,
+			ParticipantType:    "reviewer",
+			CustomToken:        data.SafeOutputs.CreatePullRequests.GitHubToken,
+			SafeOutputsToken:   safeOutputsToken,
+			WorkflowToken:      data.GitHubToken,
+			ConditionStepID:    "create_pull_request",
+			ConditionOutputKey: "pull_request_url",
+		})
+		steps = append(steps, reviewerSteps...)
 	}
 
 	// Create outputs for the job
