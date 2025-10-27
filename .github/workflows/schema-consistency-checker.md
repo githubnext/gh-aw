@@ -16,7 +16,7 @@ tools:
     read-only: false
     toolset: [default, discussions]
   cache-memory:
-    key: schema-consistency-cache-this workflow
+    key: schema-consistency-cache-${{ github.workflow }}
 safe-outputs:
   create-discussion:
     category: "audits"

@@ -1276,10 +1276,10 @@ jobs:
       - name: Cache memory file share data
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
-          key: poem-memory-this workflow-${{ github.run_id }}
+          key: poem-memory-${{ github.workflow }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            poem-memory-this workflow-
+            poem-memory-${{ github.workflow }}-
             poem-memory-
             poem-
       - name: Upload cache-memory data as artifact
