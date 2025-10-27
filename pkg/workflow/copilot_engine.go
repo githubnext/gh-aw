@@ -865,22 +865,19 @@ func generateAWFInstallationStep(version string) GitHubActionStep {
 		"        run: |",
 	}
 
+	// Use default version if not specified to ensure reproducible builds
 	if version == "" {
-		stepLines = append(stepLines, "          LATEST_TAG=$(gh release view --repo githubnext/gh-aw-firewall --json tagName --jq .tagName)")
-		stepLines = append(stepLines, "          echo \"Installing awf from release: $LATEST_TAG\"")
-		stepLines = append(stepLines, "          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/${LATEST_TAG}/awf-linux-x64 -o awf")
-	} else {
-		stepLines = append(stepLines, fmt.Sprintf("          echo \"Installing awf from release: %s\"", version))
-		stepLines = append(stepLines, fmt.Sprintf("          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/%s/awf-linux-x64 -o awf", version))
+		version = constants.DefaultFirewallVersion
 	}
+
+	stepLines = append(stepLines, fmt.Sprintf("          echo \"Installing awf from release: %s\"", version))
+	stepLines = append(stepLines, fmt.Sprintf("          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/%s/awf-linux-x64 -o awf", version))
 
 	stepLines = append(stepLines,
 		"          chmod +x awf",
 		"          sudo mv awf /usr/local/bin/",
 		"          which awf",
 		"          awf --version",
-		"        env:",
-		"          GH_TOKEN: ${{ github.token }}",
 	)
 
 	return GitHubActionStep(stepLines)
