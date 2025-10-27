@@ -1143,7 +1143,7 @@ jobs:
           
           - **Repository**: ${{ github.repository }}
           - **Push Event**: ${{ github.event.after }}
-          - **Triggered by**: @${{ github.actor }}
+          - **Triggered by**: @user
           
           ## Your Task
           

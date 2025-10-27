@@ -1895,7 +1895,7 @@ jobs:
           ## Context
           
           - **Repository**: ${{ github.repository }}
-          - **Triggered by**: ${{ github.actor }}
+          - **Triggered by**: the user
           
           ## What is Documentation Bloat?
           

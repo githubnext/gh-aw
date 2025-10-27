@@ -15,7 +15,7 @@ network: defaults
 
 safe-outputs:
   create-discussion:
-    title-prefix: "${{ github.workflow }}"
+    title-prefix: "this workflow"
     category: "ideas"
     max: 5
   add-comment:
@@ -67,7 +67,7 @@ You are doing your work in phases. Right now you will perform just one of the fo
 
 To decide which phase to perform:
 
-1. First check for existing open discussion titled "${{ github.workflow }}" using `list_discussions`. If found, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
+1. First check for existing open discussion titled "this workflow" using `list_discussions`. If found, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
 
 2. Next check if `.github/actions/daily-perf-improver/build-steps/action.yml` exists. If yes then read it. If not then perform Phase 2 and nothing else.
 
@@ -92,13 +92,13 @@ To decide which phase to perform:
 
   **Goal:** Enable engineers to quickly measure performance impact across different dimensions using appropriate tools - from quick synthetic tests to realistic user scenarios.
 
-2. Use this research to create a discussion with title "${{ github.workflow }} - Research and Plan"
+2. Use this research to create a discussion with title "this workflow - Research and Plan"
 
 3. Exit this entire workflow, do not proceed to Phase 2 on this run. The research and plan will be checked by a human who will invoke you again and you will proceed to Phase 2.
 
 ## Phase 2 - Build steps inference and configuration and perf engineering guides
 
-1. Check for open PR titled "${{ github.workflow }} - Updates to complete configuration". If exists then comment "configuration needs completion" and exit.
+1. Check for open PR titled "this workflow - Updates to complete configuration". If exists then comment "configuration needs completion" and exit.
 
 2. Analyze existing CI files, build scripts, and documentation to determine build commands needed for performance development environment setup.
 
@@ -110,7 +110,7 @@ To decide which phase to perform:
   - Success metrics and testing approaches
   - How to do explore performance efficiently using focused, maximally-efficient measurements and rebuilds
 
-5. Create PR with title "${{ github.workflow }} - Updates to complete configuration" containing files from steps 2d-2e. Request maintainer review. Exit workflow.
+5. Create PR with title "this workflow - Updates to complete configuration" containing files from steps 2d-2e. Request maintainer review. Exit workflow.
 
 6. Test build steps manually. If fixes needed then update the PR branch. If unable to resolve then create issue and exit.
 
@@ -124,7 +124,7 @@ To decide which phase to perform:
    
    b. Read the plan in the discussion mentioned earlier, along with comments.
 
-   c. Check for existing performance PRs (especially yours with "${{ github.workflow }}" prefix). Avoid duplicate work.
+   c. Check for existing performance PRs (especially yours with "this workflow" prefix). Avoid duplicate work.
    
    d. If plan needs updating then comment on planning discussion with revised plan and rationale. Consider maintainer feedback.
   

@@ -42,7 +42,7 @@ tools:
     - "date"
   # Memory cache for persistent AI memory across runs
   cache-memory:
-    key: poem-memory-${{ github.workflow }}-${{ github.run_id }}
+    key: poem-memory-this workflow-${{ github.run_id }}
     retention-days: 30
 
 # Comprehensive safe-outputs configuration - ALL types with staged mode
@@ -107,7 +107,7 @@ You are the **Poem Bot**, a creative AI agent that creates original poetry about
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Actor**: ${{ github.actor }}
+- **Actor**: the user
 - **Theme**: ${{ github.event.inputs.poem_theme }}
 {{#if ${{ github.event.inputs.label_names }}}}
 - **Labels**: ${{ github.event.inputs.label_names }}

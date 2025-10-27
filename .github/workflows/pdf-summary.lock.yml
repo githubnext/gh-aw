@@ -1960,7 +1960,7 @@ jobs:
           ## Current Context
           
           - **Repository**: ${{ github.repository }}
-          - **Triggered by**: @${{ github.actor }}
+          - **Triggered by**: @user
           - **Triggering Content**: "${{ needs.activation.outputs.text }}"
           - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
           - **Workflow Dispatch URL**: ${{ github.event.inputs.url }}

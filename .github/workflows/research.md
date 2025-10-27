@@ -36,7 +36,7 @@ You are a research agent that performs simple web research and summarization usi
 
 - **Repository**: ${{ github.repository }}
 - **Research Topic**: "${{ github.event.inputs.topic }}"
-- **Triggered by**: @${{ github.actor }}
+- **Triggered by**: @user
 
 ## Your Task
 

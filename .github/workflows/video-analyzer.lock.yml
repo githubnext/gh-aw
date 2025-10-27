@@ -1136,7 +1136,7 @@ jobs:
           
           - **Repository**: ${{ github.repository }}
           - **Video URL**: "${{ github.event.inputs.video_url }}"
-          - **Triggered by**: @${{ github.actor }}
+          - **Triggered by**: @user
           
           ## Your Task
           
@@ -1228,7 +1228,7 @@ jobs:
           ```markdown
           # Video Analysis Report: [Video Filename]
           
-          *Analysis performed by @${{ github.actor }} on [Date]*
+          *Analysis performed by @user on [Date]*
           
           ## 📊 Video Information
           

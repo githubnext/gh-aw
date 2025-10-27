@@ -36,7 +36,7 @@ Detect and report code duplication by:
 
 - **Repository**: ${{ github.repository }}
 - **Commit ID**: ${{ github.event.head_commit.id }}
-- **Triggered by**: @${{ github.actor }}
+- **Triggered by**: @user
 
 ## Analysis Workflow
 

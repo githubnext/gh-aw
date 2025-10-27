@@ -38,7 +38,7 @@ Generate a detailed developer-focused report analyzing all changes in the reposi
 
 - **Repository**: ${{ github.repository }}
 - **Commit URL**: ${{ github.event.inputs.commit_url }}
-- **Triggered by**: ${{ github.actor }}
+- **Triggered by**: the user
 
 ## Task
 

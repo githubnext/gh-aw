@@ -1096,7 +1096,7 @@ jobs:
           
           - **Repository**: ${{ github.repository }}
           - **Commit URL**: ${{ github.event.inputs.commit_url }}
-          - **Triggered by**: ${{ github.actor }}
+          - **Triggered by**: the user
           
           ## Task
           

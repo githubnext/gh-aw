@@ -47,7 +47,7 @@ When invoked with the `/q` command in an issue or pull request comment, analyze 
 - **Repository**: ${{ github.repository }}
 - **Triggering Content**: "${{ needs.activation.outputs.text }}"
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
-- **Triggered by**: @${{ github.actor }}
+- **Triggered by**: @user
 </current_context>
 
 ## Investigation Protocol

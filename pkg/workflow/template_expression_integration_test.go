@@ -39,7 +39,7 @@ Analyze the issue or pull request and provide insights.
 
 You are analyzing issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
 
-The issue was created by ${{ github.actor }}.
+The issue sender is ${{ github.event.sender.id }}.
 {{/if}}
 
 {{#if github.event.pull_request.number}}
@@ -47,7 +47,7 @@ The issue was created by ${{ github.actor }}.
 
 You are analyzing PR #${{ github.event.pull_request.number }} in repository ${{ github.repository }}.
 
-The PR was created by ${{ github.actor }}.
+The PR sender is ${{ github.event.sender.id }}.
 {{/if}}
 
 {{#if needs.activation.outputs.text}}
@@ -138,7 +138,7 @@ engine: claude
 This expression is already wrapped.
 {{/if}}
 
-{{#if github.actor}}
+{{#if github.repository}}
 This expression needs wrapping.
 {{/if}}
 `
@@ -174,7 +174,7 @@ This expression needs wrapping.
 	}
 
 	// Verify unwrapped expression is wrapped
-	if !strings.Contains(compiledStr, "{{#if ${{ github.actor }} }}") {
+	if !strings.Contains(compiledStr, "{{#if ${{ github.repository }} }}") {
 		t.Error("Unwrapped expression should be wrapped")
 	}
 }
