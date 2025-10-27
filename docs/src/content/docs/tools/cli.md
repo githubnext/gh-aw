@@ -76,11 +76,27 @@ Debug logs show:
 - Use `--verbose` for user-facing operational details
 - Debug logs are zero-overhead when disabled (no performance impact)
 
-## 📝 Workflow Creation and Management  
+## 📝 Workflow Creation and Management
 
 The `add` and `new` commands help you create and manage agentic workflows, from templates and samples to completely custom workflows.
 
-The `init` command prepares your repository for agentic workflows by configuring `.gitattributes` and creating GitHub Copilot custom instructions.
+### Repository Initialization
+
+The `init` command prepares your repository for agentic workflows by configuring `.gitattributes` and creating GitHub Copilot custom instructions:
+
+```bash
+gh aw init
+```
+
+After initialization, start a chat with an AI agent and use the following prompt to create a new workflow:
+
+```
+activate @.github/prompts/create-agentic-workflow.prompt.md
+```
+
+Alternatively, add pre-built workflows from the catalog using `gh aw add <workflow-name>`.
+
+### Workflow Management
 
 ```bash
 # Create new workflows
@@ -127,7 +143,7 @@ Transforms markdown workflow files into executable GitHub Actions YAML files:
 # Core compilation
 gh aw compile                              # Compile all workflows
 gh aw compile ci-doctor daily-plan         # Compile specific workflows
-gh aw compile --validate --no-emit         # Validate without generating files
+gh aw compile --validate --no-emit         # Validate schema and containers without generating files
 gh aw compile --strict --engine copilot    # Strict mode with custom engine
 gh aw compile --purge                      # Remove orphaned .lock.yml files
 
@@ -139,6 +155,10 @@ gh aw compile --workflows-dir custom/      # Custom workflows directory
 gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --dependabot --force         # Force overwrite existing files
 ```
+
+**Validation:**
+
+The `--validate` flag enables GitHub Actions workflow schema validation and container image validation. By default, validation is disabled for faster compilation. Enable it when you need to verify workflow correctness or validate that container images exist and are accessible.
 
 **Strict Mode:**
 
