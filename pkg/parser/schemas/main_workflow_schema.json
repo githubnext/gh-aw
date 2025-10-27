@@ -938,7 +938,7 @@
             },
             "stop-after": {
               "type": "string",
-              "description": "Time when workflow should stop running. Supports multiple formats: absolute dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or relative time deltas (+25h, +3d, +1d12h30m)"
+              "description": "DEPRECATED: Use disable-workflow-after instead. Time when workflow should stop running. Supports multiple formats: absolute dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or relative time deltas (+25h, +3d, +1d12h30m)"
             },
             "reaction": {
               "type": "string",
@@ -955,6 +955,10 @@
               ],
               "default": "eyes",
               "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to 'eyes' if not specified."
+            },
+            "disable-workflow-after": {
+              "type": "string",
+              "description": "Deadline when workflow should stop being triggered. Prevents accidental costs from workflows running indefinitely. Supports absolute dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or relative time deltas from compilation time (+25h, +3d, +1mo, +1d12h30m). Note: use \"mo\" for months, \"m\" for minutes."
             }
           },
           "additionalProperties": false,
@@ -970,25 +974,37 @@
             {
               "command": {
                 "name": "mergefest",
-                "events": ["pull_request_comment"]
+                "events": [
+                  "pull_request_comment"
+                ]
               }
             },
             {
               "workflow_run": {
-                "workflows": ["Dev"],
-                "types": ["completed"],
-                "branches": ["copilot/**"]
+                "workflows": [
+                  "Dev"
+                ],
+                "types": [
+                  "completed"
+                ],
+                "branches": [
+                  "copilot/**"
+                ]
               }
             },
             {
               "pull_request": {
-                "types": ["ready_for_review"]
+                "types": [
+                  "ready_for_review"
+                ]
               },
               "workflow_dispatch": null
             },
             {
               "push": {
-                "branches": ["main"]
+                "branches": [
+                  "main"
+                ]
               }
             }
           ]
@@ -1788,7 +1804,11 @@
               "additionalProperties": false,
               "examples": [
                 {
-                  "toolset": ["pull_requests", "actions", "repos"]
+                  "toolset": [
+                    "pull_requests",
+                    "actions",
+                    "repos"
+                  ]
                 },
                 {
                   "allowed": [
@@ -1804,7 +1824,10 @@
                   "read-only": true
                 },
                 {
-                  "toolset": ["pull_requests", "repos"]
+                  "toolset": [
+                    "pull_requests",
+                    "repos"
+                  ]
                 }
               ]
             }
@@ -1812,7 +1835,11 @@
           "examples": [
             null,
             {
-              "toolset": ["pull_requests", "actions", "repos"]
+              "toolset": [
+                "pull_requests",
+                "actions",
+                "repos"
+              ]
             },
             {
               "allowed": [
@@ -1823,7 +1850,10 @@
             },
             {
               "read-only": true,
-              "toolset": ["repos", "issues"]
+              "toolset": [
+                "repos",
+                "issues"
+              ]
             }
           ]
         },
@@ -2300,12 +2330,18 @@
               "examples": [
                 {
                   "title-prefix": "[ca] ",
-                  "labels": ["automation", "dependencies"],
+                  "labels": [
+                    "automation",
+                    "dependencies"
+                  ],
                   "assignees": "copilot"
                 },
                 {
                   "title-prefix": "[duplicate-code] ",
-                  "labels": ["code-quality", "automated-analysis"],
+                  "labels": [
+                    "code-quality",
+                    "automated-analysis"
+                  ],
                   "assignees": "copilot"
                 },
                 {
@@ -2535,13 +2571,19 @@
               "examples": [
                 {
                   "title-prefix": "[docs] ",
-                  "labels": ["documentation", "automation"],
+                  "labels": [
+                    "documentation",
+                    "automation"
+                  ],
                   "reviewers": "copilot",
                   "draft": false
                 },
                 {
                   "title-prefix": "[security-fix] ",
-                  "labels": ["security", "automated-fix"],
+                  "labels": [
+                    "security",
+                    "automated-fix"
+                  ],
                   "reviewers": "copilot"
                 }
               ]
@@ -2869,7 +2911,10 @@
         "staged": {
           "type": "boolean",
           "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)",
-          "examples": [true, false]
+          "examples": [
+            true,
+            false
+          ]
         },
         "env": {
           "type": "object",

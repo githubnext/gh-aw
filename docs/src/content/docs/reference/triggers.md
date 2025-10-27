@@ -34,7 +34,7 @@ Run workflows on a recurring schedule using [cron syntax](https://docs.github.co
 on:
   schedule:
     - cron: "0 9 * * 1"  # Every Monday at 9 AM
-  stop-after: "+7d"     # Stop after a week
+  disable-workflow-after: "+7d"     # Disable after a week
 ```
 
 ### Issue Triggers (`issues:`)
@@ -159,18 +159,31 @@ The reaction is added to the triggering item. For issues/PRs, a comment with the
 
 **Job outputs** (`add_reaction`): `reaction_id`, `comment_id` (issues/PRs only), `comment_url` (issues/PRs only)
 
-### Stop After Configuration (`stop-after:`)
+### Disable Workflow After Configuration (`disable-workflow-after:`)
 
-Automatically disable workflow triggering after a deadline to control costs.
+Automatically disable workflow triggering after a deadline to control costs and prevent workflows from running indefinitely.
 
 ```yaml
 on:
   schedule:
     - cron: "0 9 * * 1"
-  stop-after: "+25h"  # 25 hours from compilation time
+  disable-workflow-after: "+7d"  # Disable after 7 days from compilation
 ```
 
-Accepts absolute dates (`YYYY-MM-DD`, `MM/DD/YYYY`, `DD/MM/YYYY`, `January 2 2006`, `1st June 2025`, ISO 8601) or relative deltas (`+7d`, `+25h`, `+90m`) calculated from compilation time. Recompiling the workflow resets the stop time.
+Accepts absolute dates (`YYYY-MM-DD`, `MM/DD/YYYY`, `DD/MM/YYYY`, `January 2 2006`, `1st June 2025`, ISO 8601) or relative deltas calculated from compilation time. Recompiling the workflow resets the stop time.
+
+**Relative Time Format:**
+- **`+Xmo`** - months (e.g., `+3mo` = 3 months)
+- **`+Xw`** - weeks (e.g., `+2w` = 2 weeks)  
+- **`+Xd`** - days (e.g., `+7d` = 7 days)
+- **`+Xh`** - hours (e.g., `+25h` = 25 hours)
+- **`+Xm`** - minutes (e.g., `+90m` = 90 minutes)
+
+:::caution
+Be careful with time units: `+10m` means 10 **minutes**, not months. Use `+10mo` for 10 months.
+:::
+
+**Legacy field:** The deprecated `stop-after` field is still supported for backward compatibility but will show a warning.
 
 ## Related Documentation
 

@@ -99,6 +99,7 @@ session
 staged
 steps
 stop-after
+disable-workflow-after
 strict
 target
 target-repo
@@ -152,7 +153,8 @@ Replace speech-to-text ambiguities with correct technical terms from the glossar
 - "read only" → "read-only"
 - "if no changes" → "if-no-changes"
 - "retention days" → "retention-days"
-- "stop after" → "stop-after"
+- "stop after" → "stop-after" or "disable-workflow-after"
+- "disable workflow after" → "disable-workflow-after"
 - "web fetch" → "web-fetch"
 - "web search" → "web-search"
 - "test unit" → "test-unit"

@@ -9,39 +9,54 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 )
 
-// extractStopAfterFromOn extracts the stop-after value from the on: section
-func (c *Compiler) extractStopAfterFromOn(frontmatter map[string]any) (string, error) {
+// extractStopAfterFromOn extracts the disable-workflow-after or stop-after value from the on: section
+// Prioritizes disable-workflow-after over the deprecated stop-after field
+func (c *Compiler) extractStopAfterFromOn(frontmatter map[string]any) (string, bool, error) {
 	onSection, exists := frontmatter["on"]
 	if !exists {
-		return "", nil
+		return "", false, nil
 	}
 
 	// Handle different formats of the on: section
 	switch on := onSection.(type) {
 	case string:
 		// Simple string format like "on: push" - no stop-after possible
-		return "", nil
+		return "", false, nil
 	case map[string]any:
-		// Complex object format - look for stop-after
+		// Check for new disable-workflow-after field first
+		if disableAfter, exists := on["disable-workflow-after"]; exists {
+			if str, ok := disableAfter.(string); ok {
+				return str, false, nil
+			}
+			return "", false, fmt.Errorf("disable-workflow-after value must be a string")
+		}
+		
+		// Fall back to deprecated stop-after field
 		if stopAfter, exists := on["stop-after"]; exists {
 			if str, ok := stopAfter.(string); ok {
-				return str, nil
+				return str, true, nil // Return true to indicate deprecated field was used
 			}
-			return "", fmt.Errorf("stop-after value must be a string")
+			return "", false, fmt.Errorf("stop-after value must be a string")
 		}
-		return "", nil
+		return "", false, nil
 	default:
-		return "", fmt.Errorf("invalid on: section format")
+		return "", false, fmt.Errorf("invalid on: section format")
 	}
 }
 
-// processStopAfterConfiguration extracts and processes stop-after configuration from frontmatter
+// processStopAfterConfiguration extracts and processes disable-workflow-after/stop-after configuration from frontmatter
 func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, workflowData *WorkflowData, markdownPath string) error {
-	// Extract stop-after from the on: section
-	stopAfter, err := c.extractStopAfterFromOn(frontmatter)
+	// Extract disable-workflow-after or stop-after from the on: section
+	stopAfter, isDeprecated, err := c.extractStopAfterFromOn(frontmatter)
 	if err != nil {
 		return err
 	}
+	
+	// Show deprecation warning if stop-after was used
+	if isDeprecated && stopAfter != "" {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("The 'stop-after' field is deprecated. Please use 'disable-workflow-after' instead for clarity. Note: 'm' means minutes, 'mo' means months."))
+	}
+	
 	workflowData.StopTime = stopAfter
 
 	// Resolve relative stop-after to absolute time if needed
@@ -54,21 +69,21 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 			// Preserve existing stop time during recompilation
 			workflowData.StopTime = existingStopTime
 			if c.verbose {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Preserving existing stop time from lock file: %s", existingStopTime)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Preserving existing stop time from lock file: %s", existingStopTime)))
 			}
 		} else {
 			// First compilation or no existing stop time, generate new one
 			resolvedStopTime, err := resolveStopTime(workflowData.StopTime, time.Now().UTC())
 			if err != nil {
-				return fmt.Errorf("invalid stop-after format: %w", err)
+				return fmt.Errorf("invalid disable-workflow-after/stop-after format: %w", err)
 			}
 			originalStopTime := stopAfter
 			workflowData.StopTime = resolvedStopTime
 
 			if c.verbose && isRelativeStopTime(originalStopTime) {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Resolved relative stop-after to: %s", resolvedStopTime)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Resolved relative disable-workflow-after to: %s", resolvedStopTime)))
 			} else if c.verbose && originalStopTime != resolvedStopTime {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Parsed absolute stop-after from '%s' to: %s", originalStopTime, resolvedStopTime)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Parsed absolute disable-workflow-after from '%s' to: %s", originalStopTime, resolvedStopTime)))
 			}
 		}
 	}
