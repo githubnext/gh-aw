@@ -267,6 +267,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// upload MCP logs (if any MCP tools were used)
 	c.generateUploadMCPLogs(yaml)
 
+	// parse agent logs for GITHUB_STEP_SUMMARY
+	c.generateLogParsing(yaml, engine)
+
 	// Add Squid logs collection and upload steps for Copilot engine
 	if copilotEngine, ok := engine.(*CopilotEngine); ok {
 		squidSteps := copilotEngine.GetSquidLogsSteps(data)
@@ -276,9 +279,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			}
 		}
 	}
-
-	// parse agent logs for GITHUB_STEP_SUMMARY
-	c.generateLogParsing(yaml, engine)
 
 	// upload agent logs
 	var _ string = logFile
