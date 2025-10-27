@@ -1678,7 +1678,45 @@
                   }
                 }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "toolset": ["pull_requests", "actions", "repos"]
+                },
+                {
+                  "allowed": [
+                    "search_pull_requests",
+                    "pull_request_read",
+                    "list_pull_requests",
+                    "get_file_contents",
+                    "list_commits",
+                    "get_commit"
+                  ]
+                },
+                {
+                  "read-only": true
+                },
+                {
+                  "toolset": ["pull_requests", "repos"]
+                }
+              ]
+            }
+          ],
+          "examples": [
+            null,
+            {
+              "toolset": ["pull_requests", "actions", "repos"]
+            },
+            {
+              "allowed": [
+                "search_pull_requests",
+                "pull_request_read",
+                "get_file_contents"
+              ]
+            },
+            {
+              "read-only": true,
+              "toolset": ["repos", "issues"]
             }
           ]
         },
@@ -1700,6 +1738,33 @@
                 "type": "string"
               }
             }
+          ],
+          "examples": [
+            true,
+            [
+              "git fetch",
+              "git checkout",
+              "git status",
+              "git diff",
+              "git log",
+              "make recompile",
+              "make fmt",
+              "make lint",
+              "make test-unit",
+              "cat",
+              "echo",
+              "ls"
+            ],
+            [
+              "echo",
+              "ls",
+              "cat"
+            ],
+            [
+              "gh pr list *",
+              "gh search prs *",
+              "jq *"
+            ]
           ]
         },
         "web-fetch": {
@@ -1798,6 +1863,10 @@
               "type": "null",
               "description": "Enable agentic-workflows tool with default settings (same as true)"
             }
+          ],
+          "examples": [
+            true,
+            null
           ]
         },
         "cache-memory": {
@@ -1834,7 +1903,16 @@
                   "description": "Number of days to retain uploaded artifacts (1-90 days, default: repository setting)"
                 }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "key": "memory-audit-${{ github.workflow }}"
+                },
+                {
+                  "key": "memory-copilot-analysis",
+                  "retention-days": 30
+                }
+              ]
             },
             {
               "type": "array",
@@ -1863,8 +1941,37 @@
                 },
                 "additionalProperties": false
               },
-              "minItems": 1
+              "minItems": 1,
+              "examples": [
+                [
+                  {
+                    "id": "default",
+                    "key": "memory-default"
+                  },
+                  {
+                    "id": "session",
+                    "key": "memory-session"
+                  }
+                ]
+              ]
             }
+          ],
+          "examples": [
+            true,
+            null,
+            {
+              "key": "memory-audit-workflow"
+            },
+            [
+              {
+                "id": "default",
+                "key": "memory-default"
+              },
+              {
+                "id": "logs",
+                "key": "memory-logs"
+              }
+            ]
           ]
         },
         "safety-prompt": {
@@ -1874,7 +1981,12 @@
         "timeout": {
           "type": "integer",
           "minimum": 1,
-          "description": "Timeout in seconds for tool/MCP server operations. Applies to all tools and MCP servers if supported by the engine. Default varies by engine (Claude: 60s, Codex: 120s)."
+          "description": "Timeout in seconds for tool/MCP server operations. Applies to all tools and MCP servers if supported by the engine. Default varies by engine (Claude: 60s, Codex: 120s).",
+          "examples": [
+            60,
+            120,
+            300
+          ]
         },
         "startup-timeout": {
           "type": "integer",
