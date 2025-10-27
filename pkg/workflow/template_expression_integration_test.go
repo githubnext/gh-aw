@@ -39,7 +39,7 @@ Analyze the issue or pull request and provide insights.
 
 You are analyzing issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
 
-The issue sender is ${{ github.event.sender.id }}.
+The issue was created by user ID ${{ github.event.sender.id }}.
 {{/if}}
 
 {{#if github.event.pull_request.number}}
@@ -47,7 +47,7 @@ The issue sender is ${{ github.event.sender.id }}.
 
 You are analyzing PR #${{ github.event.pull_request.number }} in repository ${{ github.repository }}.
 
-The PR sender is ${{ github.event.sender.id }}.
+The PR was created by user ID ${{ github.event.sender.id }}.
 {{/if}}
 
 {{#if needs.activation.outputs.text}}
