@@ -9,21 +9,26 @@ engine: copilot
 permissions:
   contents: read
   actions: read
+  issues: write
 tools:
   github:
 safe-outputs:
   create-issue:
     title-prefix: "[dev] "
     labels: [automation, dev-workflow]
+  close-issue:
+    required-labels: [automation]
+  staged: true
 ---
 
-# Test GitHub MCP Tools and Create Poem Issue
+# Test GitHub MCP Tools, Create Poem Issue, and Close Automation Issues
 
-Test each GitHub MCP tool with sensible arguments to verify they are configured properly, then create a child issue under issue #2439 containing a short poem.
+Test each GitHub MCP tool with sensible arguments to verify they are configured properly, create a child issue under issue #2439 containing a short poem, and close any open issues with the "automation" label.
 
 **Goal**: 
 1. Invoke each tool from the GitHub MCP server with reasonable arguments. Some tools may fail due to missing data or invalid arguments, but they should at least be callable. Fail if there are permission issues indicating the tools aren't properly configured.
 2. Create a child issue under issue #2439 with a short poem about GitHub Agentic Workflows.
+3. Close any open issues that have the "automation" label using the close-issue tool.
 
 ## Instructions
 
@@ -80,3 +85,22 @@ Example structure:
   "labels": ["poetry", "automation"]
 }
 ```
+
+## Part 3: Close Automation Issues
+
+After creating the poem issue, find and close any open issues that have the "automation" label:
+
+1. Search for open issues with the "automation" label in this repository
+2. For each open issue with the "automation" label, use the `close_issue` tool from the safeoutputs MCP server to close it
+3. Use outcome "completed" when closing the issues
+
+Example structure:
+```json
+{
+  "type": "close_issue",
+  "issue_number": 123,
+  "outcome": "completed"
+}
+```
+
+**Note**: This workflow is running in staged mode, so issues will not actually be closed - you'll see a preview of what would be closed in the workflow summary.

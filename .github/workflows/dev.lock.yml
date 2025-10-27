@@ -8,10 +8,13 @@
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
+#   close_issue["close_issue"]
 #   create_issue["create_issue"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   activation --> agent
+#   agent --> close_issue
+#   detection --> close_issue
 #   agent --> create_issue
 #   detection --> create_issue
 #   agent --> detection
@@ -26,6 +29,7 @@ name: "Dev"
 permissions:
   actions: read
   contents: read
+  issues: write
 
 concurrency:
   cancel-in-progress: true
@@ -59,11 +63,12 @@ jobs:
     permissions:
       actions: read
       contents: read
+      issues: write
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
+      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"close_issue\":{\"max\":1,\"required_labels\":[\"automation\"]},\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -142,7 +147,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_issue":{"max":1},"missing_tool":{}}
+          {"close_issue":{"max":1,"required_labels":["automation"]},"create_issue":{"max":1},"missing_tool":{}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1006,13 +1011,14 @@ jobs:
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
-          # Test GitHub MCP Tools and Create Poem Issue
+          # Test GitHub MCP Tools, Create Poem Issue, and Close Automation Issues
           
-          Test each GitHub MCP tool with sensible arguments to verify they are configured properly, then create a child issue under issue #2439 containing a short poem.
+          Test each GitHub MCP tool with sensible arguments to verify they are configured properly, create a child issue under issue #2439 containing a short poem, and close any open issues with the "automation" label.
           
           **Goal**: 
           1. Invoke each tool from the GitHub MCP server with reasonable arguments. Some tools may fail due to missing data or invalid arguments, but they should at least be callable. Fail if there are permission issues indicating the tools aren't properly configured.
           2. Create a child issue under issue #2439 with a short poem about GitHub Agentic Workflows.
+          3. Close any open issues that have the "automation" label using the close-issue tool.
           
           ## Instructions
           
@@ -1070,6 +1076,25 @@ jobs:
           }
           ```
           
+          ## Part 3: Close Automation Issues
+          
+          After creating the poem issue, find and close any open issues that have the "automation" label:
+          
+          1. Search for open issues with the "automation" label in this repository
+          2. For each open issue with the "automation" label, use the `close_issue` tool from the safeoutputs MCP server to close it
+          3. Use outcome "completed" when closing the issues
+          
+          Example structure:
+          ```json
+          {
+            "type": "close_issue",
+            "issue_number": 123,
+            "outcome": "completed"
+          }
+          ```
+          
+          **Note**: This workflow is running in staged mode, so issues will not actually be closed - you'll see a preview of what would be closed in the workflow summary.
+          
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
         env:
@@ -1124,13 +1149,17 @@ jobs:
           
           ---
           
-          ## Creating an Issue, Reporting Missing Tools or Functionality
+          ## Creating an Issue, Closing Issues, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
           **Creating an Issue**
           
           To create an issue, use the create-issue tool from safeoutputs
+          
+          **Closing an Issue**
+          
+          To close an issue, use the close-issue tool from safeoutputs
           
           **Reporting Missing Tools or Functionality**
           
@@ -1256,7 +1285,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: false,
+              staged: true,
               steps: {
                 firewall: ""
               },
@@ -1294,7 +1323,8 @@ jobs:
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"close_issue\":{\"max\":1,\"required_labels\":[\"automation\"]},\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
@@ -1426,7 +1456,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"close_issue\":{\"max\":1,\"required_labels\":[\"automation\"]},\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
           GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
         with:
           script: |
@@ -3325,6 +3355,210 @@ jobs:
               main();
             }
 
+  close_issue:
+    needs:
+      - agent
+      - detection
+    if: ((!cancelled()) && (contains(needs.agent.outputs.output_types, 'close_issue'))) && (github.event.issue.number)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    timeout-minutes: 10
+    outputs:
+      issue_number: ${{ steps.close_issue.outputs.issue_number }}
+      issue_url: ${{ steps.close_issue.outputs.issue_url }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find /tmp/gh-aw/safeoutputs/ -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+      - name: Close Issue
+        id: close_issue
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_REQUIRED_LABELS: "automation"
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return;
+              }
+              let outputContent;
+              try {
+                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return;
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return;
+              }
+              const closeItems = validatedOutput.items.filter( item => item.type === "close_issue");
+              if (closeItems.length === 0) {
+                core.info("No close-issue items found in agent output");
+                return;
+              }
+              core.info(`Found ${closeItems.length} close-issue item(s)`);
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Close Issues Preview\n\n";
+                summaryContent += "The following issues would be closed if staged mode was disabled:\n\n";
+                for (let i = 0; i < closeItems.length; i++) {
+                  const item = closeItems[i];
+                  summaryContent += `### Close Issue ${i + 1}\n`;
+                  if (item.issue_number) {
+                    summaryContent += `**Target Issue:** #${item.issue_number}\n\n`;
+                  } else {
+                    summaryContent += `**Target:** Current issue\n\n`;
+                  }
+                  if (item.outcome) {
+                    summaryContent += `**Outcome:** ${item.outcome}\n\n`;
+                  }
+                  if (item.reason) {
+                    summaryContent += `**Reason:** ${item.reason}\n\n`;
+                  }
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Close issue preview written to step summary");
+                return;
+              }
+              const closeTarget = process.env.GH_AW_CLOSE_TARGET || "triggering";
+              const requiredLabels = process.env.GH_AW_REQUIRED_LABELS ? process.env.GH_AW_REQUIRED_LABELS.split(",").map(l => l.trim()) : [];
+              const allowedOutcomes = process.env.GH_AW_ALLOWED_OUTCOMES
+                ? process.env.GH_AW_ALLOWED_OUTCOMES.split(",").map(o => o.trim())
+                : ["completed", "not_planned"];
+              core.info(`Close target configuration: ${closeTarget}`);
+              core.info(`Required labels: ${requiredLabels.length > 0 ? requiredLabels.join(", ") : "none"}`);
+              core.info(`Allowed outcomes: ${allowedOutcomes.join(", ")}`);
+              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+              if (closeTarget === "triggering" && !isIssueContext) {
+                core.info('Target is "triggering" but not running in issue context, skipping issue close');
+                return;
+              }
+              const closedIssues = [];
+              for (let i = 0; i < closeItems.length; i++) {
+                const closeItem = closeItems[i];
+                core.info(`Processing close-issue item ${i + 1}/${closeItems.length}`);
+                let issueNumber;
+                if (closeTarget === "*") {
+                  if (closeItem.issue_number) {
+                    issueNumber = parseInt(closeItem.issue_number, 10);
+                    if (isNaN(issueNumber) || issueNumber <= 0) {
+                      core.info(`Invalid issue number specified: ${closeItem.issue_number}`);
+                      continue;
+                    }
+                  } else {
+                    core.info('Target is "*" but no issue_number specified in close item');
+                    continue;
+                  }
+                } else if (closeTarget && closeTarget !== "triggering") {
+                  issueNumber = parseInt(closeTarget, 10);
+                  if (isNaN(issueNumber) || issueNumber <= 0) {
+                    core.info(`Invalid issue number in target configuration: ${closeTarget}`);
+                    continue;
+                  }
+                } else {
+                  if (isIssueContext) {
+                    if (context.payload.issue) {
+                      issueNumber = context.payload.issue.number;
+                    } else {
+                      core.info("Issue context detected but no issue found in payload");
+                      continue;
+                    }
+                  } else {
+                    core.info("Could not determine issue number");
+                    continue;
+                  }
+                }
+                if (!issueNumber) {
+                  core.info("Could not determine issue number");
+                  continue;
+                }
+                core.info(`Attempting to close issue #${issueNumber}`);
+                try {
+                  const { data: issue } = await github.rest.issues.get({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issueNumber,
+                  });
+                  if (requiredLabels.length > 0) {
+                    const issueLabels = issue.labels.map( label => (typeof label === "string" ? label : label.name));
+                    const missingLabels = requiredLabels.filter(required => !issueLabels.includes(required));
+                    if (missingLabels.length > 0) {
+                      core.info(`Issue #${issueNumber} does not have required labels: ${missingLabels.join(", ")}. Skipping.`);
+                      continue;
+                    }
+                    core.info(`Issue #${issueNumber} has all required labels`);
+                  }
+                  let stateReason = closeItem.outcome;
+                  if (stateReason) {
+                    if (!allowedOutcomes.includes(stateReason)) {
+                      core.info(`Outcome '${stateReason}' is not in allowed outcomes: ${allowedOutcomes.join(", ")}. Skipping.`);
+                      continue;
+                    }
+                    core.info(`Using outcome: ${stateReason}`);
+                  } else {
+                    stateReason = "completed";
+                    core.info(`No outcome specified, using default: ${stateReason}`);
+                  }
+                  const updateData = {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issueNumber,
+                    state: "closed",
+                    state_reason: stateReason,
+                  };
+                  const { data: closedIssue } = await github.rest.issues.update(updateData);
+                  core.info(`✓ Closed issue #${closedIssue.number}: ${closedIssue.html_url}`);
+                  closedIssues.push(closedIssue);
+                  if (i === closeItems.length - 1) {
+                    core.setOutput("issue_number", closedIssue.number);
+                    core.setOutput("issue_url", closedIssue.html_url);
+                  }
+                } catch (error) {
+                  core.error(`✗ Failed to close issue #${issueNumber}: ${error instanceof Error ? error.message : String(error)}`);
+                  throw error;
+                }
+              }
+              if (closedIssues.length > 0) {
+                let summaryContent = "\n\n## Closed Issues\n";
+                for (const issue of closedIssues) {
+                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully closed ${closedIssues.length} issue(s)`);
+              return closedIssues;
+            }
+            await main();
+
   create_issue:
     needs:
       - agent
@@ -3358,6 +3592,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "Dev"
           GH_AW_ISSUE_TITLE_PREFIX: "[dev] "
           GH_AW_ISSUE_LABELS: "automation,dev-workflow"
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
