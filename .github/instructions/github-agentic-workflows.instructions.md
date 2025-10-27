@@ -36,11 +36,11 @@ The YAML frontmatter supports these fields:
 ### Core GitHub Actions Fields
 
 - **`on:`** - Workflow triggers (required)
-  - String: `"push"`, `"issues"`, `"workflow_dispatch"`, etc.
+  - String: `"push"`, `"issues"`, etc.
   - Object: Complex trigger configuration
   - Special: `command:` for /mention triggers
   - **`stop-after:`** - Can be included in the `on:` object to set a deadline for workflow execution. Supports absolute timestamps ("YYYY-MM-DD HH:MM:SS") or relative time deltas (+25h, +3d, +1d12h30m). Uses precise date calculations that account for varying month lengths.
-
+  
 - **`permissions:`** - GitHub token permissions
   - Object with permission levels: `read`, `write`, `none`
   - Available permissions: `contents`, `issues`, `pull-requests`, `discussions`, `actions`, `checks`, `statuses`, `models`, `deployments`, `security-events`
@@ -51,12 +51,7 @@ The YAML frontmatter supports these fields:
 - **`env:`** - Environment variables (object or string)
 - **`if:`** - Conditional execution expression (string)
 - **`run-name:`** - Custom workflow run name (string)
-- **`name:`** - Workflow name displayed in GitHub Actions interface (string). Defaults to filename without extension if not specified.
-  - Examples: `"Copilot Agent PR Analysis"`, `"Dev Hawk"`, `"Smoke Claude"`
-- **`description:`** - Optional workflow description rendered as a comment in generated `.lock.yml` file (string)
-  - Example: `"Quickstart for using the GitHub Actions library"`
-- **`source:`** - Optional source reference indicating where workflow was added from (string). Format: `owner/repo/path@ref`. Rendered as a comment in generated lock file.
-  - Examples: `"githubnext/agentics/workflows/ci-doctor.md"`, `"githubnext/agentics/workflows/daily-perf-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"`
+- **`name:`** - Workflow name (string)
 - **`steps:`** - Custom workflow steps (object)
 - **`post-steps:`** - Custom workflow steps to run after AI execution (object)
 
@@ -613,29 +608,16 @@ Import shared components using the `imports:` field in frontmatter:
 on: issues
 engine: copilot
 imports:
-  - shared/jqschema.md
-  - shared/reporting.md
-  - shared/mcp/gh-aw.md
+  - shared/security-notice.md
+  - shared/tool-setup.md
+  - shared/mcp/tavily.md
 ---
-```
-
-**Additional Examples:**
-```yaml
-# Import relative to current workflow location
-imports:
-  - ../instructions/documentation.instructions.md
-
-# Import multiple shared configurations
-imports:
-  - shared/mcp/gh-aw.md
-  - shared/jqschema.md
-  - shared/reporting.md
 ```
 
 ### Import File Structure
 Import files are in `.github/workflows/shared/` and can contain:
 - Tool configurations (frontmatter only)
-- Text content
+- Text content 
 - Mixed frontmatter + content
 
 Example import file with tools:
