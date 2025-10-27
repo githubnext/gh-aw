@@ -21,6 +21,8 @@ tools:
       - list_workflow_runs
       - download_workflow_run_artifact
   bash:
+    - "*"
+  edit:
 ---
 
 # Daily Firewall Logs Collector and Reporter
