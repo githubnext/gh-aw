@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
+
+var cacheLog = logger.New("workflow:cache")
 
 // CacheMemoryConfig holds configuration for cache-memory functionality
 type CacheMemoryConfig struct {
@@ -34,6 +37,8 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryC
 	if !exists {
 		return nil, nil
 	}
+
+	cacheLog.Print("Extracting cache-memory configuration from tools")
 
 	config := &CacheMemoryConfig{}
 
@@ -66,6 +71,7 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryC
 
 	// Handle array of cache configurations
 	if cacheArray, ok := cacheMemoryValue.([]any); ok {
+		cacheLog.Printf("Processing cache array with %d entries", len(cacheArray))
 		config.Caches = make([]CacheMemoryEntry, 0, len(cacheArray))
 		for _, item := range cacheArray {
 			if cacheMap, ok := item.(map[string]any); ok {
@@ -280,6 +286,8 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 	if data.CacheMemoryConfig == nil || len(data.CacheMemoryConfig.Caches) == 0 {
 		return
 	}
+
+	cacheLog.Printf("Generating cache-memory steps for %d caches", len(data.CacheMemoryConfig.Caches))
 
 	builder.WriteString("      # Cache memory file share configuration from frontmatter processed below\n")
 

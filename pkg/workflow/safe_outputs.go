@@ -5,7 +5,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var safeOutputsLog = logger.New("workflow:safe_outputs")
 
 // formatSafeOutputsRunsOn formats the runs-on value from SafeOutputsConfig for job output
 func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) string {
@@ -21,7 +24,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 	if safeOutputs == nil {
 		return false
 	}
-	return safeOutputs.CreateIssues != nil ||
+	enabled := safeOutputs.CreateIssues != nil ||
 		safeOutputs.CreateAgentTasks != nil ||
 		safeOutputs.CreateDiscussions != nil ||
 		safeOutputs.AddComments != nil ||
@@ -34,6 +37,12 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.UploadAssets != nil ||
 		safeOutputs.MissingTool != nil ||
 		len(safeOutputs.Jobs) > 0
+
+	if safeOutputsLog.Enabled() {
+		safeOutputsLog.Printf("Safe outputs enabled check: %v", enabled)
+	}
+
+	return enabled
 }
 
 // generateSafeOutputsPromptSection generates the safe-outputs instruction section for prompts
@@ -221,6 +230,8 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 
 // extractSafeOutputsConfig extracts output configuration from frontmatter
 func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOutputsConfig {
+	safeOutputsLog.Print("Extracting safe-outputs configuration from frontmatter")
+
 	var config *SafeOutputsConfig
 
 	if output, exists := frontmatter["safe-outputs"]; exists {
