@@ -261,6 +261,26 @@ func TestCompileWithZizmor(t *testing.T) {
 	setup := setupIntegrationTest(t)
 	defer setup.cleanup()
 
+	// Initialize git repository for zizmor to work (it needs git root)
+	gitInitCmd := exec.Command("git", "init")
+	gitInitCmd.Dir = setup.tempDir
+	if output, err := gitInitCmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to initialize git repository: %v\nOutput: %s", err, string(output))
+	}
+
+	// Configure git user for the repository
+	gitConfigEmail := exec.Command("git", "config", "user.email", "test@test.com")
+	gitConfigEmail.Dir = setup.tempDir
+	if output, err := gitConfigEmail.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to configure git user email: %v\nOutput: %s", err, string(output))
+	}
+
+	gitConfigName := exec.Command("git", "config", "user.name", "Test User")
+	gitConfigName.Dir = setup.tempDir
+	if output, err := gitConfigName.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to configure git user name: %v\nOutput: %s", err, string(output))
+	}
+
 	// Create a test markdown workflow file
 	testWorkflow := `---
 name: Zizmor Test Workflow
