@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -830,6 +832,23 @@ func printCompilationSummary(stats *CompilationStats) {
 	}
 }
 
+// zizmorFinding represents a single finding from zizmor JSON output
+type zizmorFinding struct {
+	Ident          string `json:"ident"`
+	Determinations struct {
+		Severity string `json:"severity"`
+	} `json:"determinations"`
+	Locations []struct {
+		Symbolic struct {
+			Key struct {
+				Local struct {
+					GivenPath string `json:"given_path"`
+				} `json:"Local"`
+			} `json:"key"`
+		} `json:"symbolic"`
+	} `json:"locations"`
+}
+
 // runZizmor runs the zizmor security scanner on generated .lock.yml files using Docker
 func runZizmor(workflowsDir string, verbose bool) error {
 	compileLog.Print("Running zizmor security scanner")
@@ -854,8 +873,8 @@ func runZizmor(workflowsDir string, verbose bool) error {
 
 	compileLog.Printf("Running zizmor on directory: %s", absWorkflowsDir)
 
-	// Build the Docker command
-	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/zizmorcore/zizmor:latest .
+	// Build the Docker command with JSON output for easier parsing
+	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/zizmorcore/zizmor:latest --format json .
 	cmd := exec.Command(
 		"docker",
 		"run",
@@ -863,6 +882,7 @@ func runZizmor(workflowsDir string, verbose bool) error {
 		"-v", fmt.Sprintf("%s:/workdir", gitRoot),
 		"-w", "/workdir",
 		"ghcr.io/zizmorcore/zizmor:latest",
+		"--format", "json",
 		".",
 	)
 
@@ -874,12 +894,16 @@ func runZizmor(workflowsDir string, verbose bool) error {
 	// Run the command
 	err = cmd.Run()
 
-	// Always show zizmor output
-	if stdout.Len() > 0 {
-		fmt.Fprint(os.Stderr, stdout.String())
-	}
-	if stderr.Len() > 0 {
-		fmt.Fprint(os.Stderr, stderr.String())
+	// Parse and reformat the output
+	if err := parseAndDisplayZizmorOutput(stdout.String(), stderr.String(), verbose); err != nil {
+		compileLog.Printf("Failed to parse zizmor output: %v", err)
+		// Fall back to showing raw output
+		if stdout.Len() > 0 {
+			fmt.Fprint(os.Stderr, stdout.String())
+		}
+		if stderr.Len() > 0 {
+			fmt.Fprint(os.Stderr, stderr.String())
+		}
 	}
 
 	// Check if the error is due to findings (expected) or actual failure
@@ -895,9 +919,6 @@ func runZizmor(workflowsDir string, verbose bool) error {
 			// Exit codes 10-14 indicate findings, not failures
 			// Treat these as success but log them
 			if exitCode >= 10 && exitCode <= 14 {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Zizmor found security findings (see output above)"))
-				}
 				return nil
 			}
 			// Other exit codes are actual errors
@@ -909,6 +930,63 @@ func runZizmor(workflowsDir string, verbose bool) error {
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Zizmor security scan completed - no findings"))
+	}
+
+	return nil
+}
+
+// parseAndDisplayZizmorOutput parses zizmor JSON output and displays it in the desired format
+func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) error {
+	// Count findings per file
+	fileFindings := make(map[string]int)
+
+	// Parse stderr for "completed" messages to get list of files
+	completedFiles := []string{}
+	scanner := bufio.NewScanner(strings.NewReader(stderr))
+	for scanner.Scan() {
+		line := scanner.Text()
+		// Look for lines like: " INFO audit: zizmor: 🌈 completed ./.github/workflows/pdf-summary.lock.yml"
+		if strings.Contains(line, "INFO audit: zizmor: 🌈 completed") {
+			parts := strings.Split(line, "completed ")
+			if len(parts) == 2 {
+				filePath := strings.TrimSpace(parts[1])
+				completedFiles = append(completedFiles, filePath)
+				// Initialize count to 0
+				fileFindings[filePath] = 0
+			}
+		}
+	}
+
+	// Parse JSON findings from stdout
+	var findings []zizmorFinding
+	if stdout != "" && strings.HasPrefix(strings.TrimSpace(stdout), "[") {
+		if err := json.Unmarshal([]byte(stdout), &findings); err != nil {
+			return fmt.Errorf("failed to parse zizmor JSON output: %w", err)
+		}
+
+		// Count findings per file - each finding counts as 1 regardless of how many locations it has
+		for _, finding := range findings {
+			// Track which files this finding affects
+			affectedFiles := make(map[string]bool)
+			for _, location := range finding.Locations {
+				filePath := location.Symbolic.Key.Local.GivenPath
+				if filePath != "" && !affectedFiles[filePath] {
+					affectedFiles[filePath] = true
+					fileFindings[filePath]++
+				}
+			}
+		}
+	}
+
+	// Display reformatted output for each completed file
+	for _, filePath := range completedFiles {
+		count := fileFindings[filePath]
+		// Format: 🌈 zizmor xx warnings in <filepath>
+		warningText := "warnings"
+		if count == 1 {
+			warningText = "warning"
+		}
+		fmt.Fprintf(os.Stderr, "🌈 zizmor %d %s in %s\n", count, warningText, filePath)
 	}
 
 	return nil
