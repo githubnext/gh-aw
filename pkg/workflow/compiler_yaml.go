@@ -134,9 +134,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	if needsCheckout {
 		yaml.WriteString("      - name: Checkout repository\n")
 		yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+		// Always add with section for persist-credentials
+		yaml.WriteString("        with:\n")
+		yaml.WriteString("          persist-credentials: false\n")
 		// In trial mode without cloning, checkout the logical repo if specified
 		if c.trialMode {
-			yaml.WriteString("        with:\n")
 			if c.trialLogicalRepoSlug != "" {
 				yaml.WriteString(fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
 				// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
