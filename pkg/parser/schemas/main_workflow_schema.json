@@ -2077,7 +2077,22 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "title-prefix": "[ca] ",
+                  "labels": ["automation", "dependencies"],
+                  "assignees": "copilot"
+                },
+                {
+                  "title-prefix": "[duplicate-code] ",
+                  "labels": ["code-quality", "automated-analysis"],
+                  "assignees": "copilot"
+                },
+                {
+                  "min": 1
+                }
+              ]
             },
             {
               "type": "null",
@@ -2168,7 +2183,20 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "category": "audits"
+                },
+                {
+                  "title-prefix": "[copilot-agent-analysis] ",
+                  "category": "audits",
+                  "max": 1
+                },
+                {
+                  "category": "General"
+                }
+              ]
             },
             {
               "type": "null",
@@ -2212,7 +2240,16 @@
                   "description": "Target discussion comments instead of issue/PR comments. Must be true if present."
                 }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "max": 1,
+                  "target": "*"
+                },
+                {
+                  "max": 3
+                }
+              ]
             },
             {
               "type": "null",
@@ -2275,7 +2312,20 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "title-prefix": "[docs] ",
+                  "labels": ["documentation", "automation"],
+                  "reviewers": "copilot",
+                  "draft": false
+                },
+                {
+                  "title-prefix": "[security-fix] ",
+                  "labels": ["security", "automated-fix"],
+                  "reviewers": "copilot"
+                }
+              ]
             },
             {
               "type": "null",
@@ -2599,7 +2649,8 @@
         },
         "staged": {
           "type": "boolean",
-          "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)"
+          "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)",
+          "examples": [true, false]
         },
         "env": {
           "type": "object",
@@ -2614,7 +2665,12 @@
         },
         "github-token": {
           "$ref": "#/$defs/github_token",
-          "description": "GitHub token to use for safe output jobs. Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}"
+          "description": "GitHub token to use for safe output jobs. Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}",
+          "examples": [
+            "${{ secrets.GITHUB_TOKEN }}",
+            "${{ secrets.CUSTOM_PAT }}",
+            "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+          ]
         },
         "max-patch-size": {
           "type": "integer",
