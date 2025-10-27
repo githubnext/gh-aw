@@ -159,6 +159,143 @@ func TestParseTimeDelta(t *testing.T) {
 	}
 }
 
+func TestParseTimeDeltaForStopAfter(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    *TimeDelta
+		expectError bool
+		errorMsg    string
+	}{
+		// Valid cases (no minutes allowed)
+		{
+			name:     "hours only",
+			input:    "+25h",
+			expected: &TimeDelta{Hours: 25},
+		},
+		{
+			name:     "days only",
+			input:    "+3d",
+			expected: &TimeDelta{Days: 3},
+		},
+		{
+			name:     "weeks only",
+			input:    "+1w",
+			expected: &TimeDelta{Weeks: 1},
+		},
+		{
+			name:     "months only",
+			input:    "+1mo",
+			expected: &TimeDelta{Months: 1},
+		},
+		{
+			name:     "days and hours",
+			input:    "+1d12h",
+			expected: &TimeDelta{Days: 1, Hours: 12},
+		},
+		{
+			name:     "all units except minutes",
+			input:    "+1mo2w3d5h",
+			expected: &TimeDelta{Months: 1, Weeks: 2, Days: 3, Hours: 5},
+		},
+		{
+			name:     "different order",
+			input:    "+5h2d",
+			expected: &TimeDelta{Days: 2, Hours: 5},
+		},
+
+		// Error cases - minutes not allowed
+		{
+			name:        "minutes only",
+			input:       "+30m",
+			expectError: true,
+			errorMsg:    "minute unit 'm' is not allowed for stop-after",
+		},
+		{
+			name:        "days hours and minutes",
+			input:       "+2d5h30m",
+			expectError: true,
+			errorMsg:    "minute unit 'm' is not allowed for stop-after",
+		},
+		{
+			name:        "complex with minutes",
+			input:       "+1d12h30m",
+			expectError: true,
+			errorMsg:    "minute unit 'm' is not allowed for stop-after",
+		},
+		{
+			name:        "only minutes at end",
+			input:       "+1d5m",
+			expectError: true,
+			errorMsg:    "minute unit 'm' is not allowed for stop-after",
+		},
+
+		// Other error cases (inherited from parseTimeDelta)
+		{
+			name:        "empty string",
+			input:       "",
+			expectError: true,
+			errorMsg:    "empty time delta",
+		},
+		{
+			name:        "no plus prefix",
+			input:       "25h",
+			expectError: true,
+			errorMsg:    "time delta must start with '+'",
+		},
+		{
+			name:        "invalid unit",
+			input:       "+25x",
+			expectError: true,
+			errorMsg:    "invalid time delta format",
+		},
+		{
+			name:        "duplicate units",
+			input:       "+25h5h",
+			expectError: true,
+			errorMsg:    "duplicate unit 'h'",
+		},
+		{
+			name:        "too many days",
+			input:       "+400d",
+			expectError: true,
+			errorMsg:    "time delta too large: 400 days exceeds maximum",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseTimeDeltaForStopAfter(tt.input)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("parseTimeDeltaForStopAfter(%q) expected error but got none", tt.input)
+					return
+				}
+				if tt.errorMsg != "" && !containsString(err.Error(), tt.errorMsg) {
+					t.Errorf("parseTimeDeltaForStopAfter(%q) error = %v, want to contain %v", tt.input, err.Error(), tt.errorMsg)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("parseTimeDeltaForStopAfter(%q) unexpected error: %v", tt.input, err)
+					return
+				}
+				if result == nil {
+					t.Errorf("parseTimeDeltaForStopAfter(%q) returned nil result", tt.input)
+					return
+				}
+				if result.Days != tt.expected.Days || result.Hours != tt.expected.Hours ||
+					result.Minutes != tt.expected.Minutes || result.Weeks != tt.expected.Weeks ||
+					result.Months != tt.expected.Months {
+					t.Errorf("parseTimeDeltaForStopAfter(%q) = {Months: %d, Weeks: %d, Days: %d, Hours: %d, Minutes: %d}, want {Months: %d, Weeks: %d, Days: %d, Hours: %d, Minutes: %d}",
+						tt.input, result.Months, result.Weeks, result.Days, result.Hours, result.Minutes,
+						tt.expected.Months, tt.expected.Weeks, tt.expected.Days, tt.expected.Hours, tt.expected.Minutes)
+				}
+			}
+		})
+	}
+}
+
 func TestTimeDeltaString(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -507,7 +644,14 @@ func TestResolveStopTime(t *testing.T) {
 			name:        "relative complex",
 			stopTime:    "+1d12h30m",
 			compileTime: baseTime,
-			expected:    "2025-08-17 00:30:00",
+			expectError: true,
+			errorMsg:    "minute unit 'm' is not allowed for stop-after",
+		},
+		{
+			name:        "relative complex without minutes",
+			stopTime:    "+1d12h",
+			compileTime: baseTime,
+			expected:    "2025-08-17 00:00:00",
 		},
 		{
 			name:        "invalid relative format",

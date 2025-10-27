@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // TestExtractStopTimeFromLockFile tests the ExtractStopTimeFromLockFile function
@@ -103,4 +104,56 @@ jobs:
 			t.Errorf("ExtractStopTimeFromLockFile() for non-existent file = %q, want empty string", result)
 		}
 	})
+}
+
+// TestResolveStopTimeRejectsMinutes tests that resolveStopTime properly rejects minute units
+func TestResolveStopTimeRejectsMinutes(t *testing.T) {
+	baseTime := time.Date(2025, 8, 15, 12, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name     string
+		stopTime string
+		errorMsg string
+	}{
+		{
+			name:     "reject minutes only",
+			stopTime: "+30m",
+			errorMsg: "minute unit 'm' is not allowed for stop-after",
+		},
+		{
+			name:     "reject days hours and minutes",
+			stopTime: "+2d5h30m",
+			errorMsg: "minute unit 'm' is not allowed for stop-after",
+		},
+		{
+			name:     "reject complex with minutes",
+			stopTime: "+1d12h30m",
+			errorMsg: "minute unit 'm' is not allowed for stop-after",
+		},
+		{
+			name:     "reject only minutes at end",
+			stopTime: "+1w5m",
+			errorMsg: "minute unit 'm' is not allowed for stop-after",
+		},
+		{
+			name:     "reject 90 minutes",
+			stopTime: "+90m",
+			errorMsg: "minute unit 'm' is not allowed for stop-after",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := resolveStopTime(tt.stopTime, baseTime)
+
+			if err == nil {
+				t.Errorf("resolveStopTime(%q, %v) expected error but got result: %s", tt.stopTime, baseTime, result)
+				return
+			}
+
+			if !containsSubstring(err.Error(), tt.errorMsg) {
+				t.Errorf("resolveStopTime(%q, %v) error = %v, want to contain %v", tt.stopTime, baseTime, err.Error(), tt.errorMsg)
+			}
+		})
+	}
 }

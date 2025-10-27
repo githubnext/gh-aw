@@ -170,7 +170,7 @@ on:
   stop-after: "+25h"  # 25 hours from compilation time
 ```
 
-Accepts absolute dates (`YYYY-MM-DD`, `MM/DD/YYYY`, `DD/MM/YYYY`, `January 2 2006`, `1st June 2025`, ISO 8601) or relative deltas (`+7d`, `+25h`, `+90m`) calculated from compilation time. Recompiling the workflow resets the stop time.
+Accepts absolute dates (`YYYY-MM-DD`, `MM/DD/YYYY`, `DD/MM/YYYY`, `January 2 2006`, `1st June 2025`, ISO 8601) or relative deltas (`+7d`, `+25h`, `+1d12h`) calculated from compilation time. The minimum unit for relative deltas is hours (`h`). Recompiling the workflow resets the stop time.
 
 ## Related Documentation
 

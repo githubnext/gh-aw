@@ -85,8 +85,8 @@ func resolveStopTime(stopTime string, compilationTime time.Time) (string, error)
 	}
 
 	if isRelativeStopTime(stopTime) {
-		// Parse the relative time delta
-		delta, err := parseTimeDelta(stopTime)
+		// Parse the relative time delta (minutes not allowed for stop-after)
+		delta, err := parseTimeDeltaForStopAfter(stopTime)
 		if err != nil {
 			return "", err
 		}
