@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  actions: read
+  contents: read  # Read repository files and workflow definitions
+  actions: read   # Required for list_workflows, list_workflow_runs, download_workflow_run_artifact
 
 safe-outputs:
   create-discussion:
@@ -16,10 +16,7 @@ safe-outputs:
 
 tools:
   github:
-    allowed:
-      - list_workflows
-      - list_workflow_runs
-      - download_workflow_run_artifact
+    toolset: [actions]  # Provides workflow and artifact access tools
   bash:
 ---
 
