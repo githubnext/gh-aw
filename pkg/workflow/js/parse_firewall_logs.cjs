@@ -199,7 +199,7 @@ function isRequestAllowed(decision, status) {
 function generateFirewallSummary(analysis) {
   const { totalRequests, deniedRequests, deniedDomains, requestsByDomain } = analysis;
 
-  let summary = "# 🔥 Firewall Blocked Requests\n\n";
+  let summary = "### 🔥 Firewall Blocked Requests\n\n";
 
   // Filter out invalid domains (placeholder "-" values)
   const validDeniedDomains = deniedDomains.filter(domain => domain !== "-");
