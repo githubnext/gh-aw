@@ -72,3 +72,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.pyc
+
+# Manual test scripts
+test_*.sh
