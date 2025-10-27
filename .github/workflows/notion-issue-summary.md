@@ -6,6 +6,10 @@ on:
         description: "Issue number to analyze"
         required: true
         type: string
+permissions:
+  contents: read
+  issues: read
+  actions: read
 tools:
   github:
 imports:
