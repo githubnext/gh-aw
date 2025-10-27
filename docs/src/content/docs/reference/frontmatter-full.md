@@ -1566,6 +1566,48 @@ safe-outputs:
   # (optional)
   # This field supports multiple formats (oneOf):
 
+  # Option 1: Configuration for closing GitHub issues from agentic workflow output
+  close-issue:
+    # List of labels that must be present on an issue before it can be closed
+    # (optional)
+    required-labels: []
+      # Array of strings
+
+    # List of allowed close outcomes (default: all). Valid values: 'completed',
+    # 'not_planned'
+    # (optional)
+    outcome: []
+      # Array of strings
+
+    # Target for close operations: 'triggering' (default), '*' (any issue), or
+    # explicit issue number
+    # (optional)
+    target: "example-value"
+
+    # Maximum number of issues to close (default: 1)
+    # (optional)
+    max: 1
+
+    # Minimum number of issues to close (default: 0 - no requirement)
+    # (optional)
+    min: 1
+
+    # Target repository in format 'owner/repo' for cross-repository issue closing.
+    # Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable issue closing with default configuration
+  close-issue: null
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
   # Option 1: Use default configuration (branch: 'triggering', if-no-changes:
   # 'warn')
   push-to-pull-request-branch: null
