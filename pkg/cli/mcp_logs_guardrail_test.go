@@ -288,9 +288,9 @@ func TestEstimateTokens(t *testing.T) {
 		expectedTokens int
 	}{
 		{"", 0},
-		{"x", 0},          // 1 char / 4 = 0
-		{"xxxx", 1},       // 4 chars / 4 = 1
-		{"xxxxxxxx", 2},   // 8 chars / 4 = 2
+		{"x", 0},                        // 1 char / 4 = 0
+		{"xxxx", 1},                     // 4 chars / 4 = 1
+		{"xxxxxxxx", 2},                 // 8 chars / 4 = 2
 		{strings.Repeat("x", 400), 100}, // 400 chars / 4 = 100
 	}
 

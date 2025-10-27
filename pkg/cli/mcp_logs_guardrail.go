@@ -72,9 +72,9 @@ func checkLogsOutputSize(outputStr string, maxTokens int) (string, bool) {
 			outputTokens,
 			maxTokens,
 		),
-		OutputTokens:    outputTokens,
-		OutputSizeLimit: maxTokens,
-		Schema:          getLogsDataSchema(),
+		OutputTokens:     outputTokens,
+		OutputSizeLimit:  maxTokens,
+		Schema:           getLogsDataSchema(),
 		SuggestedQueries: getSuggestedJqQueries(),
 	}
 
