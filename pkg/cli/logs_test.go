@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -37,25 +36,6 @@ func TestDownloadWorkflowLogs(t *testing.T) {
 
 	// Clean up
 	os.RemoveAll("./test-logs")
-}
-
-func TestFormatDuration(t *testing.T) {
-	tests := []struct {
-		duration time.Duration
-		expected string
-	}{
-		{30 * time.Second, "30s"},
-		{90 * time.Second, "1.5m"},
-		{2 * time.Hour, "2.0h"},
-		{45 * time.Minute, "45.0m"},
-	}
-
-	for _, tt := range tests {
-		result := formatDuration(tt.duration)
-		if result != tt.expected {
-			t.Errorf("formatDuration(%v) = %q, expected %q", tt.duration, result, tt.expected)
-		}
-	}
 }
 
 func TestFormatNumber(t *testing.T) {

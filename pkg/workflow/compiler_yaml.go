@@ -117,6 +117,21 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	yamlContent := yaml.String()
 
+	// Collect used action pins from the generated YAML and add them to the header
+	usedPins := collectUsedActionPins(yamlContent)
+	pinnedActionsComment := generatePinnedActionsComment(usedPins)
+
+	// If we have pinned actions, insert the comment before the workflow name
+	if pinnedActionsComment != "" {
+		// Find the position after the mermaid graph and before "name:"
+		// The yamlContent has the header comments, then a blank line, then "name:"
+		namePos := strings.Index(yamlContent, "\nname:")
+		if namePos != -1 {
+			// Insert the pinned actions comment before "name:"
+			yamlContent = yamlContent[:namePos] + pinnedActionsComment + yamlContent[namePos:]
+		}
+	}
+
 	// If we're in non-cloning trial mode and this workflow has issue triggers,
 	// replace github.event.issue.number with inputs.issue_number
 	if c.trialMode && c.hasIssueTrigger(data.On) {
@@ -860,4 +875,99 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          path: ${{ env.GH_AW_AGENT_OUTPUT }}\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 
+}
+
+// collectUsedActionPins scans the YAML content for uses: directives and returns a map of used action pins
+// The returned map keys are action repository names, and values are ActionPin structs
+func collectUsedActionPins(yamlContent string) map[string]ActionPin {
+	usedPins := make(map[string]ActionPin)
+
+	// Scan each line for "uses:" directives
+	lines := strings.Split(yamlContent, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Match both "uses:" and "- uses:" (step format)
+		var usesValue string
+		if strings.HasPrefix(trimmed, "uses:") {
+			// Format: "uses: owner/repo@sha"
+			parts := strings.SplitN(trimmed, ":", 2)
+			if len(parts) == 2 {
+				usesValue = strings.TrimSpace(parts[1])
+			}
+		} else if strings.HasPrefix(trimmed, "- uses:") {
+			// Format: "- uses: owner/repo@sha"
+			parts := strings.SplitN(trimmed, ":", 2)
+			if len(parts) == 2 {
+				usesValue = strings.TrimSpace(parts[1])
+			}
+		}
+
+		if usesValue == "" {
+			continue
+		}
+
+		// Extract the repository part (before @)
+		actionRepo := extractActionRepo(usesValue)
+		if actionRepo == "" {
+			continue
+		}
+
+		// Check if this action is in our pinned actions
+		if pin, exists := GetActionPinByRepo(actionRepo); exists {
+			usedPins[actionRepo] = pin
+		}
+	}
+
+	return usedPins
+}
+
+// generatePinnedActionsComment generates a comment section listing all pinned actions used in the workflow
+// The comment includes the repository, version tag, SHA, and GitHub URL for each action
+func generatePinnedActionsComment(usedPins map[string]ActionPin) string {
+	if len(usedPins) == 0 {
+		return ""
+	}
+
+	// Sort the pins by repository name for consistent output
+	sortedRepos := make([]string, 0, len(usedPins))
+	for repo := range usedPins {
+		sortedRepos = append(sortedRepos, repo)
+	}
+
+	// Simple bubble sort for consistency
+	for i := 0; i < len(sortedRepos); i++ {
+		for j := i + 1; j < len(sortedRepos); j++ {
+			if sortedRepos[i] > sortedRepos[j] {
+				sortedRepos[i], sortedRepos[j] = sortedRepos[j], sortedRepos[i]
+			}
+		}
+	}
+
+	var comment strings.Builder
+	comment.WriteString("#\n")
+	comment.WriteString("# Pinned GitHub Actions:\n")
+
+	for _, repo := range sortedRepos {
+		pin := usedPins[repo]
+		// Generate the GitHub URL to the specific commit
+		// For "actions/checkout" -> "https://github.com/actions/checkout/commit/08c6903..."
+		// For "github/codeql-action/upload-sarif" -> "https://github.com/github/codeql-action/commit/562257d..."
+
+		// Extract the base repository (owner/repo) from potentially nested paths
+		var baseRepo string
+		repoParts := strings.Split(repo, "/")
+		if len(repoParts) >= 2 {
+			baseRepo = repoParts[0] + "/" + repoParts[1]
+		} else {
+			baseRepo = repo
+		}
+
+		githubURL := fmt.Sprintf("https://github.com/%s/commit/%s", baseRepo, pin.SHA)
+
+		comment.WriteString(fmt.Sprintf("#   - %s@%s (%s)\n", repo, pin.Version, pin.SHA))
+		comment.WriteString(fmt.Sprintf("#     %s\n", githubURL))
+	}
+
+	return comment.String()
 }

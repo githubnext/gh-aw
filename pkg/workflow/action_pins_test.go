@@ -301,3 +301,86 @@ func TestApplyActionPinToStep(t *testing.T) {
 		})
 	}
 }
+
+// TestGetAllActionPinsSorted tests the GetAllActionPinsSorted function
+func TestGetAllActionPinsSorted(t *testing.T) {
+	pins := GetAllActionPinsSorted()
+
+	// Verify we got all the pins
+	if len(pins) != len(actionPins) {
+		t.Errorf("GetAllActionPinsSorted() returned %d pins, expected %d", len(pins), len(actionPins))
+	}
+
+	// Verify they are sorted by repository name
+	for i := 0; i < len(pins)-1; i++ {
+		if pins[i].Repo >= pins[i+1].Repo {
+			t.Errorf("Pins not sorted correctly: %s should come before %s", pins[i].Repo, pins[i+1].Repo)
+		}
+	}
+
+	// Verify all pins have the required fields
+	for _, pin := range pins {
+		if pin.Repo == "" {
+			t.Error("Found pin with empty Repo field")
+		}
+		if pin.Version == "" {
+			t.Errorf("Pin %s has empty Version field", pin.Repo)
+		}
+		if !isValidSHA(pin.SHA) {
+			t.Errorf("Pin %s has invalid SHA: %s", pin.Repo, pin.SHA)
+		}
+	}
+}
+
+// TestGetActionPinByRepo tests the GetActionPinByRepo function
+func TestGetActionPinByRepo(t *testing.T) {
+	tests := []struct {
+		repo         string
+		expectExists bool
+		expectRepo   string
+		expectVer    string
+	}{
+		{
+			repo:         "actions/checkout",
+			expectExists: true,
+			expectRepo:   "actions/checkout",
+			expectVer:    "v5",
+		},
+		{
+			repo:         "actions/setup-node",
+			expectExists: true,
+			expectRepo:   "actions/setup-node",
+			expectVer:    "v4",
+		},
+		{
+			repo:         "unknown/action",
+			expectExists: false,
+		},
+		{
+			repo:         "",
+			expectExists: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.repo, func(t *testing.T) {
+			pin, exists := GetActionPinByRepo(tt.repo)
+
+			if exists != tt.expectExists {
+				t.Errorf("GetActionPinByRepo(%s) exists = %v, want %v", tt.repo, exists, tt.expectExists)
+			}
+
+			if tt.expectExists {
+				if pin.Repo != tt.expectRepo {
+					t.Errorf("GetActionPinByRepo(%s) repo = %s, want %s", tt.repo, pin.Repo, tt.expectRepo)
+				}
+				if pin.Version != tt.expectVer {
+					t.Errorf("GetActionPinByRepo(%s) version = %s, want %s", tt.repo, pin.Version, tt.expectVer)
+				}
+				if !isValidSHA(pin.SHA) {
+					t.Errorf("GetActionPinByRepo(%s) has invalid SHA: %s", tt.repo, pin.SHA)
+				}
+			}
+		})
+	}
+}

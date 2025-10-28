@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/timeutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
@@ -170,14 +171,14 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			Branch:           run.HeadBranch,
 		}
 		if run.Duration > 0 {
-			runData.Duration = formatDuration(run.Duration)
+			runData.Duration = timeutil.FormatDuration(run.Duration)
 		}
 		runs = append(runs, runData)
 	}
 
 	summary := LogsSummary{
 		TotalRuns:         len(processedRuns),
-		TotalDuration:     formatDuration(totalDuration),
+		TotalDuration:     timeutil.FormatDuration(totalDuration),
 		TotalTokens:       totalTokens,
 		TotalCost:         totalCost,
 		TotalTurns:        totalTurns,
@@ -241,7 +242,7 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 					existing.MaxOutputSize = toolCall.MaxOutputSize
 				}
 				if toolCall.MaxDuration > 0 {
-					maxDur := formatDuration(toolCall.MaxDuration)
+					maxDur := timeutil.FormatDuration(toolCall.MaxDuration)
 					if existing.MaxDuration == "" || toolCall.MaxDuration > parseDurationString(existing.MaxDuration) {
 						existing.MaxDuration = maxDur
 					}
@@ -254,7 +255,7 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 					Runs:          0, // Will be incremented below
 				}
 				if toolCall.MaxDuration > 0 {
-					info.MaxDuration = formatDuration(toolCall.MaxDuration)
+					info.MaxDuration = timeutil.FormatDuration(toolCall.MaxDuration)
 				}
 				toolStats[displayKey] = info
 			}
