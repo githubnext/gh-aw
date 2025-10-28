@@ -12,6 +12,7 @@ permissions:
 tools:
   edit:
 safe-outputs:
+  threat-detection: false
   push-to-pull-request-branch:
 ---
 
