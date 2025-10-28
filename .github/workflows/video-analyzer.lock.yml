@@ -3852,6 +3852,7 @@ jobs:
   detection:
     needs: agent
     runs-on: ubuntu-latest
+    permissions: {}
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10

@@ -457,10 +457,11 @@ func GetAllPermissionScopes() []PermissionScope {
 // It can be a shorthand (read-all, write-all, read, write, none) or a map of scopes to levels
 // It can also have an "all" permission that expands to all scopes
 type Permissions struct {
-	shorthand   string
-	permissions map[PermissionScope]PermissionLevel
-	hasAll      bool
-	allLevel    PermissionLevel
+	shorthand     string
+	permissions   map[PermissionScope]PermissionLevel
+	hasAll        bool
+	allLevel      PermissionLevel
+	explicitEmpty bool // When true, renders "permissions: {}" even if no permissions are set
 }
 
 // NewPermissions creates a new Permissions with an empty map
@@ -502,6 +503,14 @@ func NewPermissionsWrite() *Permissions {
 func NewPermissionsNone() *Permissions {
 	return &Permissions{
 		shorthand: "none",
+	}
+}
+
+// NewPermissionsEmpty creates a Permissions that explicitly renders as "permissions: {}"
+func NewPermissionsEmpty() *Permissions {
+	return &Permissions{
+		permissions:   make(map[PermissionScope]PermissionLevel),
+		explicitEmpty: true,
 	}
 }
 
@@ -753,6 +762,10 @@ func (p *Permissions) RenderToYAML() string {
 	}
 
 	if len(allPerms) == 0 {
+		// If explicitEmpty is true, render "permissions: {}"
+		if p.explicitEmpty {
+			return "permissions: {}"
+		}
 		return ""
 	}
 

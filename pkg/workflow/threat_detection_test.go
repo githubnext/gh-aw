@@ -223,8 +223,8 @@ func TestBuildThreatDetectionJob(t *testing.T) {
 				if job.RunsOn != "runs-on: ubuntu-latest" {
 					t.Errorf("Expected ubuntu-latest runner, got %q", job.RunsOn)
 				}
-				if job.Permissions != "" {
-					t.Errorf("Expected empty permissions (metadata read only), got %q", job.Permissions)
+				if job.Permissions != "permissions: {}" {
+					t.Errorf("Expected 'permissions: {}', got %q", job.Permissions)
 				}
 				if len(job.Needs) != 1 || job.Needs[0] != tt.mainJobName {
 					t.Errorf("Expected job to depend on %q, got %v", tt.mainJobName, job.Needs)

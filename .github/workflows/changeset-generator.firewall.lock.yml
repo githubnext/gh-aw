@@ -4465,6 +4465,7 @@ jobs:
   detection:
     needs: agent
     runs-on: ubuntu-latest
+    permissions: {}
     timeout-minutes: 10
     steps:
       - name: Download prompt artifact
