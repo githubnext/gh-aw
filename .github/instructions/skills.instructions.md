@@ -23,14 +23,10 @@ on: issues
 engine: copilot
 mcp-servers:
   skillz:
-    command: "docker"
+    container: "intellectronica/skillz"
     args:
-      - "run"
-      - "-i"
-      - "--rm"
       - "-v"
       - "/path/to/skills:/skillz"
-      - "intellectronica/skillz"
       - "/skillz"
 ---
 
@@ -162,17 +158,13 @@ When using Docker, you can pass environment variables to skills:
 ```yaml
 mcp-servers:
   skillz:
-    command: "docker"
+    container: "intellectronica/skillz"
     args:
-      - "run"
-      - "-i"
-      - "--rm"
-      - "-e"
-      - "API_KEY=${{ secrets.SKILL_API_KEY }}"
       - "-v"
       - "/path/to/skills:/skillz"
-      - "intellectronica/skillz"
       - "/skillz"
+    env:
+      API_KEY: "${{ secrets.SKILL_API_KEY }}"
 ```
 
 ### Verbose Logging
@@ -182,14 +174,10 @@ Enable verbose logging for debugging:
 ```yaml
 mcp-servers:
   skillz:
-    command: "docker"
+    container: "intellectronica/skillz"
     args:
-      - "run"
-      - "-i"
-      - "--rm"
       - "-v"
       - "/path/to/skills:/skillz"
-      - "intellectronica/skillz"
       - "/skillz"
       - "--verbose"
 ```
@@ -247,14 +235,10 @@ permissions:
 engine: copilot
 mcp-servers:
   skillz:
-    command: "docker"
+    container: "intellectronica/skillz"
     args:
-      - "run"
-      - "-i"
-      - "--rm"
       - "-v"
       - "${{ github.workspace }}/.github/skills:/skillz"
-      - "intellectronica/skillz"
       - "/skillz"
 ---
 
@@ -275,14 +259,10 @@ permissions:
 engine: copilot
 mcp-servers:
   skillz:
-    command: "docker"
+    container: "intellectronica/skillz"
     args:
-      - "run"
-      - "-i"
-      - "--rm"
       - "-v"
       - "/home/runner/skills:/skillz"
-      - "intellectronica/skillz"
       - "/skillz"
 tools:
   web-search:
@@ -309,14 +289,10 @@ permissions:
 engine: copilot
 mcp-servers:
   skillz:
-    command: "docker"
+    container: "intellectronica/skillz"
     args:
-      - "run"
-      - "-i"
-      - "--rm"
       - "-v"
       - "${{ github.workspace }}/.github/skills:/skillz"
-      - "intellectronica/skillz"
       - "/skillz"
 safe-outputs:
   add-comment:
