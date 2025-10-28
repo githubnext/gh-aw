@@ -23,7 +23,9 @@ Create or update an `emoji.md` file with an emoji and push the changes to the pu
 
 Use the `edit` tool to either create a new `emoji.md` file or update the existing one if it already exists. Choose a fun, creative emoji that represents GitHub Agentic Workflows.
 
-The changes will be automatically pushed to the pull request branch.
+Commit your changes.
+
+Call the `push-to-pull-request-branch` tool after making your changes.
 
 **Example emoji file structure:**
 ```markdown
