@@ -431,14 +431,12 @@ Use GitHub Actions context expressions throughout the workflow content. **Note: 
 - **`${{ github.event.review_comment.id }}`** - ID of the review comment
 - **`${{ github.event.sender.id }}`** - ID of the user who triggered the event
 - **`${{ github.event.workflow_run.id }}`** - ID of the workflow run
-- **`${{ github.actor }}`** - Username of the person who initiated the workflow
 - **`${{ github.job }}`** - Job ID of the current workflow run
 - **`${{ github.owner }}`** - Owner of the repository
 - **`${{ github.repository }}`** - Repository name in "owner/name" format
 - **`${{ github.run_id }}`** - Unique ID of the workflow run
 - **`${{ github.run_number }}`** - Number of the workflow run
 - **`${{ github.server_url }}`** - Base URL of the server, e.g. https://github.com
-- **`${{ github.workflow }}`** - Name of the workflow
 - **`${{ github.workspace }}`** - The default working directory on the runner for steps
 
 #### Special Pattern Expressions
@@ -495,7 +493,7 @@ Analyze issue #${{ github.event.issue.number }} in repository ${{ github.reposit
 The issue content is: "${{ needs.activation.outputs.text }}"
 
 # Alternative approach using individual fields (less secure)
-The issue was created by ${{ github.actor }} with title: "${{ github.event.issue.title }}"
+The issue was created by user with title: "${{ github.event.issue.title }}"
 
 Using output from previous task: "${{ needs.activation.outputs.text }}"
 
@@ -504,7 +502,8 @@ Deploy to environment: "${{ github.event.inputs.environment }}"
 # Invalid expressions (will cause compilation errors)
 # Token: ${{ secrets.GITHUB_TOKEN }}
 # Environment: ${{ env.MY_VAR }}
-# Complex: ${{ toJson(github.workflow) }}
+# Actor: ${{ github.actor }}
+# Complex: ${{ toJson(github.repository) }}
 ```
 
 ## Tool Configuration

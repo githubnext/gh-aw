@@ -119,14 +119,12 @@ var AllowedExpressions = []string{
 	"github.event.deployment.environment",
 	"github.event.pull_request.head.sha",
 	"github.event.pull_request.base.sha",
-	"github.actor",
 	"github.job",
 	"github.owner",
 	"github.repository",
 	"github.run_id",
 	"github.run_number",
 	"github.server_url",
-	"github.workflow",
 	"github.workspace",
 } // needs., steps. already allowed
 

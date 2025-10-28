@@ -1455,7 +1455,7 @@ jobs:
           
           To decide which phase to perform:
           
-          1. First check for existing open discussion titled "${{ github.workflow }}" using `list_discussions`. If found, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
+          1. First check for existing open discussion titled "daily-test" using `list_discussions`. If found, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
           
           2. Next check if `.github/actions/daily-test-improver/coverage-steps/action.yml` exists. If yes then read it. If not then perform Phase 2 and nothing else.
           
@@ -1465,7 +1465,7 @@ jobs:
           
           1. Research the current state of test coverage in the repository. Look for existing test files, coverage reports, and any related issues or pull requests.
           
-          2. Create a discussion with title "${{ github.workflow }} - Research and Plan" that includes:
+          2. Create a discussion with title "Research and Plan" that includes:
             - A summary of your findings about the repository, its testing strategies, its test coverage
             - A plan for how you will approach improving test coverage, including specific areas to focus on and strategies to use
             - Details of the commands needed to run to build the project, run tests, and generate coverage reports
@@ -1477,13 +1477,13 @@ jobs:
           
           ## Phase 2 - Coverage steps inference and configuration
           
-          1. Check if an open pull request with title "${{ github.workflow }} - Updates to complete configuration" exists in this repo. If it does, add a comment to the pull request saying configuration needs to be completed, then exit the workflow.
+          1. Check if an open pull request with title "Updates to complete configuration" exists in this repo. If it does, add a comment to the pull request saying configuration needs to be completed, then exit the workflow.
           
           2. Have a careful think about the CI commands needed to build the repository, run tests, produce a combined coverage report and upload it as an artifact. Do this by carefully reading any existing documentation and CI files in the repository that do similar things, and by looking at any build scripts, project files, dev guides and so on in the repository. If multiple projects are present, perform build and coverage testing on as many as possible, and where possible merge the coverage reports into one combined report. Work out the steps you worked out, in order, as a series of YAML steps suitable for inclusion in a GitHub Action.
           
           3. Create the file `.github/actions/daily-test-improver/coverage-steps/action.yml` containing these steps, ensuring that the action.yml file is valid. Leave comments in the file to explain what the steps are doing, where the coverage report will be generated, and any other relevant information. Ensure that the steps include uploading the coverage report(s) as an artifact called "coverage".  Each step of the action should append its output to a file called `coverage-steps.log` in the root of the repository. Ensure that the action.yml file is valid and correctly formatted.
           
-          4. Before running any of the steps, make a pull request for the addition of the `action.yml` file, with title "${{ github.workflow }} - Updates to complete configuration". Encourage the maintainer to review the files carefully to ensure they are appropriate for the project.
+          4. Before running any of the steps, make a pull request for the addition of the `action.yml` file, with title "Updates to complete configuration". Encourage the maintainer to review the files carefully to ensure they are appropriate for the project.
           
           5. Try to run through the steps you worked out manually one by one. If the a step needs updating, then update the branch you created in step 2e. Continue through all the steps. If you can't get it to work, then create an issue describing the problem and exit the entire workflow.
           
@@ -1497,9 +1497,9 @@ jobs:
           
              b. Read the coverge report. Be detailed, looking to understand the files, functions, branches, and lines of code that are not covered by tests. Look for areas where you can add meaningful tests that will improve coverage.
              
-             c. Check the most recent pull request with title starting with "${{ github.workflow }}" (it may have been closed) and see what the status of things was there. These are your notes from last time you did your work, and may include useful recommendations for future areas to work on.
+             c. Check the most recent pull request with title starting with prefix (it may have been closed) and see what the status of things was there. These are your notes from last time you did your work, and may include useful recommendations for future areas to work on.
           
-             d. Check for existing open pull opened by you starting with title "${{ github.workflow }}". Don't repeat work from any open pull requests.
+             d. Check for existing open pull opened by you starting with title prefix. Don't repeat work from any open pull requests.
              
              e. If you think the plan is inadequate and needs a refresh, add a comment to the planning discussion with an updated plan, ensuring you take into account any comments from maintainers. Explain in the comment why the plan has been updated. Then continue to step (f).
             
@@ -1539,9 +1539,9 @@ jobs:
           
               - After creation, check the pull request to ensure it is correct, includes all expected files, and doesn't include any unwanted files or changes. Make any necessary corrections by pushing further commits to the branch.
           
-          3. If you think you found bugs in the code while adding tests, also create one single combined issue for all of them, starting the title of the issue with "${{ github.workflow }}". Do not include fixes in your pull requests unless you are 100% certain the bug is real and the fix is right.
+          3. If you think you found bugs in the code while adding tests, also create one single combined issue for all of them, starting the title of the issue with prefix. Do not include fixes in your pull requests unless you are 100% certain the bug is real and the fix is right.
           
-          4. At the end of your work, add a very, very brief comment (at most two-sentences) to the discussion titled "${{ github.workflow }}" found earlier, saying you have worked on the particular goal, linking to any pull request you created, and indicating whether you made any progress or not, and reporting the coverage improvement numbers achieved and current overall coverage numbers.
+          4. At the end of your work, add a very, very brief comment (at most two-sentences) to the discussion titled "daily-test" found earlier, saying you have worked on the particular goal, linking to any pull request you created, and indicating whether you made any progress or not, and reporting the coverage improvement numbers achieved and current overall coverage numbers.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -3984,7 +3984,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Daily Test Coverage Improver"
-          GH_AW_DISCUSSION_TITLE_PREFIX: "${{ github.workflow }}"
+          GH_AW_DISCUSSION_TITLE_PREFIX: "[daily-test]"
           GH_AW_DISCUSSION_CATEGORY: "ideas"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}

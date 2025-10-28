@@ -34,7 +34,7 @@ When invoked with the `/brave` command in an issue or pull request comment, you 
 - **Repository**: ${{ github.repository }}
 - **Triggering Content**: "${{ needs.activation.outputs.text }}"
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
-- **Triggered by**: @${{ github.actor }}
+- **Triggered by**: @user
 
 ## Search Process
 
@@ -81,8 +81,6 @@ Your search summary should be formatted as a comment with:
 
 ```markdown
 # 🔍 Brave Search Results
-
-*Triggered by @${{ github.actor }}*
 
 ## Summary
 [Brief overview of search results]

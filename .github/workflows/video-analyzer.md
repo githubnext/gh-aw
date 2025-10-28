@@ -37,7 +37,6 @@ You are a video analysis agent that uses ffmpeg to process and analyze video fil
 
 - **Repository**: ${{ github.repository }}
 - **Video URL**: "${{ github.event.inputs.video_url }}"
-- **Triggered by**: @${{ github.actor }}
 
 ## Your Task
 
@@ -128,8 +127,6 @@ Create your issue with the following markdown structure:
 
 ```markdown
 # Video Analysis Report: [Video Filename]
-
-*Analysis performed by @${{ github.actor }} on [Date]*
 
 ## 📊 Video Information
 
