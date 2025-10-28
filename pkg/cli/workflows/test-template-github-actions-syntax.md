@@ -12,7 +12,6 @@ engine:
 This workflow tests template rendering with GitHub Actions expressions in conditions.
 
 Repository: ${{ github.repository }}
-Actor: ${{ github.actor }}
 
 {{#if true}}
 ## Standard Analysis
@@ -31,7 +30,6 @@ This section is hidden and won't be included in the prompt.
 
 ## Workflow Information
 
-- Workflow: ${{ github.workflow }}
 - Run ID: ${{ github.run_id }}
 - Run Number: ${{ github.run_number }}
 
