@@ -10,6 +10,16 @@
 #   agent["agent"]
 #   activation --> agent
 # ```
+#
+# Pinned GitHub Actions:
+#   - actions/checkout@v5 (08c6903cd8c0fde910a37f88322edcfb5dd907a8)
+#     https://github.com/actions/checkout/commit/08c6903cd8c0fde910a37f88322edcfb5dd907a8
+#   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
+#     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
+#   - actions/setup-node@v4 (49933ea5288caeca8642d1e84afbd3f7d6820020)
+#     https://github.com/actions/setup-node/commit/49933ea5288caeca8642d1e84afbd3f7d6820020
+#   - actions/upload-artifact@v4 (ea165f8d65b6e75b540449e92b4886f43607fa02)
+#     https://github.com/actions/upload-artifact/commit/ea165f8d65b6e75b540449e92b4886f43607fa02
 
 name: "Test Post-Steps Workflow"
 "on":

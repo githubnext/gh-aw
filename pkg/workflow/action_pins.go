@@ -180,3 +180,29 @@ func ApplyActionPinsToSteps(steps []any) []any {
 	}
 	return result
 }
+
+// GetAllActionPinsSorted returns all action pins sorted by repository name
+func GetAllActionPinsSorted() []ActionPin {
+	// Collect all pins into a slice
+	pins := make([]ActionPin, 0, len(actionPins))
+	for _, pin := range actionPins {
+		pins = append(pins, pin)
+	}
+
+	// Sort by repository name for consistent output
+	for i := 0; i < len(pins); i++ {
+		for j := i + 1; j < len(pins); j++ {
+			if pins[i].Repo > pins[j].Repo {
+				pins[i], pins[j] = pins[j], pins[i]
+			}
+		}
+	}
+
+	return pins
+}
+
+// GetActionPinByRepo returns the ActionPin for a given repository, if it exists
+func GetActionPinByRepo(repo string) (ActionPin, bool) {
+	pin, exists := actionPins[repo]
+	return pin, exists
+}
