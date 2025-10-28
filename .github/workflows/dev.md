@@ -11,19 +11,16 @@ permissions:
   actions: read
 tools:
   github:
-safe-outputs:
-  create-issue:
-    title-prefix: "[dev] "
-    labels: [automation, dev-workflow]
+  edit:
 ---
 
-# Test GitHub MCP Tools and Create Poem Issue
+# Test GitHub MCP Tools and Create Poem File
 
-Test each GitHub MCP tool with sensible arguments to verify they are configured properly, then create a child issue under issue #2439 containing a short poem.
+Test each GitHub MCP tool with sensible arguments to verify they are configured properly, then create or update a poem.md file with a new poem.
 
 **Goal**: 
 1. Invoke each tool from the GitHub MCP server with reasonable arguments. Some tools may fail due to missing data or invalid arguments, but they should at least be callable. Fail if there are permission issues indicating the tools aren't properly configured.
-2. Create a child issue under issue #2439 with a short poem about GitHub Agentic Workflows.
+2. Create or update a `poem.md` file in the repository with a short poem about GitHub Agentic Workflows.
 
 ## Instructions
 
@@ -59,24 +56,25 @@ After testing all tools, provide a summary:
 
 If any permission issues were encountered, clearly state which tools had permission problems and fail the workflow.
 
-## Part 2: Create Child Issue with Poem
+## Part 2: Create or Update Poem File
 
-After completing the tool testing, use the `create_issue` tool to create a child issue under issue #2439. The issue should:
+After completing the tool testing, create or update a `poem.md` file in the repository root. The file should:
 
-1. **Be a child issue** - Set the parent field to 2439
-2. **Contain a short poem** - Write a creative, original poem about GitHub Agentic Workflows (4-8 lines)
-3. **Have an appropriate title** - Something like "A Poem for Agentic Workflows"
-4. **Reference the parent** - The body should acknowledge it's related to issue #2439
+1. **Contain a short poem** - Write a creative, original poem about GitHub Agentic Workflows (4-8 lines)
+2. **Be in markdown format** - Use proper markdown formatting
+3. **Include a title** - Use a markdown heading for the poem title
 
-**Important**: When calling `create_issue`, include the JSON field `"parent": 2439` to make this a child issue.
+**Instructions**: Use the `edit` tool to either create a new `poem.md` file or update the existing one if it already exists. The poem should celebrate the capabilities and magic of agentic workflows.
 
-Example structure:
-```json
-{
-  "type": "create_issue",
-  "title": "A Poem for Agentic Workflows",
-  "body": "[Your creative poem here]\n\nThis poem celebrates the magic of agentic workflows!",
-  "parent": 2439,
-  "labels": ["poetry", "automation"]
-}
+**Example poem structure:**
+```markdown
+# A Poem for Agentic Workflows
+
+In the realm of code where actions flow,
+AI agents work their magic show.
+With natural language as their guide,
+They automate tasks far and wide.
+
+GitHub workflows, smart and bright,
+Transform our repos day and night!
 ```
