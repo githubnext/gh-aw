@@ -170,13 +170,13 @@ func TestFormatFieldValueWithTag_NumberFormat(t *testing.T) {
 		expected string
 	}{
 		{"int - small", 500, "500"},
-		{"int - 1k", 1000, "1.0k"},
-		{"int - 1.5k", 1500, "1.5k"},
+		{"int - 1k", 1000, "1.00k"},
+		{"int - 1.5k", 1500, "1.50k"},
 		{"int - 1M", 1000000, "1.00M"},
 		{"int - 5M", 5000000, "5.00M"},
 		{"int64", int64(250000), "250k"},
-		{"int32", int32(1500), "1.5k"},
-		{"uint", uint(2000), "2.0k"},
+		{"int32", int32(1500), "1.50k"},
+		{"uint", uint(2000), "2.00k"},
 		{"uint64", uint64(3500000), "3.50M"},
 		{"uint32", uint32(750), "750"},
 	}

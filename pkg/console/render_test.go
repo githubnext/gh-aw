@@ -386,7 +386,62 @@ func TestFormatTag_InTable(t *testing.T) {
 	}
 
 	// Should format small output size
-	if !strings.Contains(output, "1.5k") {
-		t.Errorf("Output should contain formatted number '1.5k', got:\n%s", output)
+	if !strings.Contains(output, "1.50k") {
+		t.Errorf("Output should contain formatted number '1.50k', got:\n%s", output)
+	}
+}
+
+func TestFormatNumber(t *testing.T) {
+	tests := []struct {
+		input    int
+		expected string
+	}{
+		// Zero
+		{0, "0"},
+		// Small numbers (under 1000)
+		{5, "5"},
+		{42, "42"},
+		{999, "999"},
+		// Thousands (1k-999k)
+		{1000, "1.00k"}, // Under 10k: 2 decimal places
+		{1200, "1.20k"},
+		{1234, "1.23k"},
+		{9999, "10.00k"}, // 9999/1000 = 9.999 -> formats as 10.00k
+		{10000, "10.0k"}, // 10k-99k: 1 decimal place
+		{12000, "12.0k"},
+		{12300, "12.3k"},
+		{99999, "100.0k"}, // 99999/1000 = 99.999 -> formats as 100.0k
+		{100000, "100k"},  // 100k+: no decimal places
+		{123000, "123k"},
+		{999999, "1000k"}, // 999999/1000 = 999.999 -> formats as 1000k
+		// Millions (1M-999M)
+		{1000000, "1.00M"}, // Under 10M: 2 decimal places
+		{1200000, "1.20M"},
+		{1234567, "1.23M"},
+		{9999999, "10.00M"}, // 9999999/1000000 = 9.999999 -> formats as 10.00M
+		{10000000, "10.0M"}, // 10M-99M: 1 decimal place
+		{12000000, "12.0M"},
+		{12300000, "12.3M"},
+		{99999999, "100.0M"}, // 99999999/1000000 = 99.999999 -> formats as 100.0M
+		{100000000, "100M"},  // 100M+: no decimal places
+		{123000000, "123M"},
+		{999999999, "1000M"}, // 999999999/1000000 = 999.999999 -> formats as 1000M
+		// Billions (1B+)
+		{1000000000, "1.00B"}, // Under 10B: 2 decimal places
+		{1200000000, "1.20B"},
+		{1234567890, "1.23B"},
+		{9999999999, "10.00B"}, // 9999999999/1000000000 = 9.999999999 -> formats as 10.00B
+		{10000000000, "10.0B"}, // 10B-99B: 1 decimal place
+		{12000000000, "12.0B"},
+		{99999999999, "100.0B"}, // 99999999999/1000000000 = 99.999999999 -> formats as 100.0B
+		{100000000000, "100B"},  // 100B+: no decimal places
+		{123000000000, "123B"},
+	}
+
+	for _, test := range tests {
+		result := FormatNumber(test.input)
+		if result != test.expected {
+			t.Errorf("FormatNumber(%d) = %s, expected %s", test.input, result, test.expected)
+		}
 	}
 }
