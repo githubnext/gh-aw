@@ -31,7 +31,7 @@ type zizmorFinding struct {
 }
 
 // runZizmor runs the zizmor security scanner on generated .lock.yml files using Docker
-func runZizmor(workflowsDir string, verbose bool) error {
+func runZizmor(workflowsDir string, verbose bool, strict bool) error {
 	compileLog.Print("Running zizmor security scanner")
 
 	if verbose {
@@ -75,9 +75,10 @@ func runZizmor(workflowsDir string, verbose bool) error {
 	// Run the command
 	err = cmd.Run()
 
-	// Parse and reformat the output
-	if err := parseAndDisplayZizmorOutput(stdout.String(), stderr.String(), verbose); err != nil {
-		compileLog.Printf("Failed to parse zizmor output: %v", err)
+	// Parse and reformat the output, get total warning count
+	totalWarnings, parseErr := parseAndDisplayZizmorOutput(stdout.String(), stderr.String(), verbose)
+	if parseErr != nil {
+		compileLog.Printf("Failed to parse zizmor output: %v", parseErr)
 		// Fall back to showing raw output
 		if stdout.Len() > 0 {
 			fmt.Fprint(os.Stderr, stdout.String())
@@ -97,9 +98,13 @@ func runZizmor(workflowsDir string, verbose bool) error {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode := exitErr.ExitCode()
 			compileLog.Printf("Zizmor exited with code %d", exitCode)
-			// Exit codes 10-14 indicate findings, not failures
-			// Treat these as success but log them
+			// Exit codes 10-14 indicate findings
 			if exitCode >= 10 && exitCode <= 14 {
+				// In strict mode, findings are treated as errors
+				if strict {
+					return fmt.Errorf("strict mode: zizmor found %d security warnings/errors - workflows must have no zizmor findings in strict mode", totalWarnings)
+				}
+				// In non-strict mode, findings are logged but not treated as errors
 				return nil
 			}
 			// Other exit codes are actual errors
@@ -117,7 +122,8 @@ func runZizmor(workflowsDir string, verbose bool) error {
 }
 
 // parseAndDisplayZizmorOutput parses zizmor JSON output and displays it in the desired format
-func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) error {
+// Returns the total number of warnings found
+func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, error) {
 	// Count findings per file
 	fileFindings := make(map[string]int)
 
@@ -140,9 +146,10 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) error {
 
 	// Parse JSON findings from stdout
 	var findings []zizmorFinding
+	totalWarnings := 0
 	if stdout != "" && strings.HasPrefix(strings.TrimSpace(stdout), "[") {
 		if err := json.Unmarshal([]byte(stdout), &findings); err != nil {
-			return fmt.Errorf("failed to parse zizmor JSON output: %w", err)
+			return 0, fmt.Errorf("failed to parse zizmor JSON output: %w", err)
 		}
 
 		// Count findings per file - each finding counts as 1 regardless of how many locations it has
@@ -154,6 +161,7 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) error {
 				if filePath != "" && !affectedFiles[filePath] {
 					affectedFiles[filePath] = true
 					fileFindings[filePath]++
+					totalWarnings++
 				}
 			}
 		}
@@ -170,5 +178,5 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) error {
 		fmt.Fprintf(os.Stderr, "🌈 zizmor %d %s in %s\n", count, warningText, filePath)
 	}
 
-	return nil
+	return totalWarnings, nil
 }
