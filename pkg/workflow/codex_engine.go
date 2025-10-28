@@ -391,7 +391,7 @@ func (e *CodexEngine) parseCodexToolCallsWithSequence(line string, toolCallMap m
 
 	if execCommand != "" {
 		// Create unique bash entry with command info, avoiding colons
-		uniqueBashName := fmt.Sprintf("bash_%s", e.shortenCommand(execCommand))
+		uniqueBashName := fmt.Sprintf("bash_%s", ShortenCommand(execCommand))
 
 		// Initialize or update tool call info
 		if toolInfo, exists := toolCallMap[uniqueBashName]; exists {
@@ -438,16 +438,6 @@ func (e *CodexEngine) updateMostRecentToolWithDuration(toolCallMap map[string]*T
 			break
 		}
 	}
-}
-
-// shortenCommand creates a short identifier for bash commands
-func (e *CodexEngine) shortenCommand(command string) string {
-	// Take first 20 characters and remove newlines
-	shortened := strings.ReplaceAll(command, "\n", " ")
-	if len(shortened) > 20 {
-		shortened = shortened[:20] + "..."
-	}
-	return shortened
 }
 
 // extractCodexTokenUsage extracts token usage from Codex-specific log lines

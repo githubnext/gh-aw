@@ -47,3 +47,14 @@ func SanitizeWorkflowName(name string) string {
 
 	return name
 }
+
+// ShortenCommand creates a short identifier for bash commands.
+// It replaces newlines with spaces and truncates to 20 characters if needed.
+func ShortenCommand(command string) string {
+	// Take first 20 characters and remove newlines
+	shortened := strings.ReplaceAll(command, "\n", " ")
+	if len(shortened) > 20 {
+		shortened = shortened[:20] + "..."
+	}
+	return shortened
+}
