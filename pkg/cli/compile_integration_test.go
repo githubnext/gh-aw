@@ -329,10 +329,21 @@ This workflow tests the zizmor security scanner integration.
 		t.Errorf("Output should mention zizmor scanner")
 	}
 
+	// Check for the new formatted output: "🌈 zizmor X warnings in <filepath>"
+	if !strings.Contains(outputStr, "🌈 zizmor") {
+		t.Errorf("Output should contain formatted zizmor message with rainbow emoji")
+	}
+
+	// Verify the format includes "warnings in" or "warning in"
+	hasWarningsFormat := strings.Contains(outputStr, "warnings in") || strings.Contains(outputStr, "warning in")
+	if !hasWarningsFormat {
+		t.Errorf("Output should contain 'warnings in' or 'warning in' format")
+	}
+
 	// The lock file should still exist after zizmor scan
 	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
 		t.Fatalf("Lock file was removed after zizmor scan")
 	}
 
-	t.Logf("Integration test passed - zizmor flag works correctly")
+	t.Logf("Integration test passed - zizmor flag works correctly with new format")
 }
