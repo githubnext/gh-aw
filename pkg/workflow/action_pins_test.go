@@ -112,9 +112,13 @@ func TestActionPinSHAsMatchVersionTags(t *testing.T) {
 		t.Skip("Skipping network-dependent test in short mode")
 	}
 
-	// Test all action pins
+	// Test all action pins in parallel for faster execution
 	for key, pin := range actionPins {
+		key := key // Capture for parallel execution
+		pin := pin // Capture for parallel execution
 		t.Run(key, func(t *testing.T) {
+			t.Parallel() // Run subtests in parallel
+
 			// Extract the repository URL from the repo field
 			// For actions like "actions/checkout", the URL is https://github.com/actions/checkout.git
 			// For actions like "github/codeql-action/upload-sarif", we need the base repo
