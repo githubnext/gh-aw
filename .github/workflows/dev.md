@@ -1,6 +1,9 @@
 ---
 on: 
   workflow_dispatch:
+  pull_request:
+    branches:
+      - copilot/*
 concurrency:
   group: dev-workflow-${{ github.ref }}
   cancel-in-progress: true
