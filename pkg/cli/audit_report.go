@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/timeutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 )
@@ -114,7 +115,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 		URL:          run.URL,
 	}
 	if run.Duration > 0 {
-		overview.Duration = formatDuration(run.Duration)
+		overview.Duration = timeutil.FormatDuration(run.Duration)
 	}
 
 	// Build metrics
@@ -135,7 +136,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 			Conclusion: jobDetail.Conclusion,
 		}
 		if jobDetail.Duration > 0 {
-			job.Duration = formatDuration(jobDetail.Duration)
+			job.Duration = timeutil.FormatDuration(jobDetail.Duration)
 		}
 		jobs = append(jobs, job)
 	}
@@ -174,7 +175,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 				existing.MaxOutputSize = toolCall.MaxOutputSize
 			}
 			if toolCall.MaxDuration > 0 {
-				maxDur := formatDuration(toolCall.MaxDuration)
+				maxDur := timeutil.FormatDuration(toolCall.MaxDuration)
 				if existing.MaxDuration == "" || toolCall.MaxDuration > parseDurationString(existing.MaxDuration) {
 					existing.MaxDuration = maxDur
 				}
@@ -187,7 +188,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 				MaxOutputSize: toolCall.MaxOutputSize,
 			}
 			if toolCall.MaxDuration > 0 {
-				info.MaxDuration = formatDuration(toolCall.MaxDuration)
+				info.MaxDuration = timeutil.FormatDuration(toolCall.MaxDuration)
 			}
 			toolStats[displayKey] = info
 		}

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/timeutil"
 	"github.com/mattn/go-isatty"
 )
 
@@ -106,9 +107,9 @@ func (l *Logger) Printf(format string, args ...interface{}) {
 
 	message := fmt.Sprintf(format, args...)
 	if l.color != "" {
-		fmt.Fprintf(os.Stderr, "%s%s%s %s +%s\n", l.color, l.namespace, colorReset, message, formatDuration(diff))
+		fmt.Fprintf(os.Stderr, "%s%s%s %s +%s\n", l.color, l.namespace, colorReset, message, timeutil.FormatDuration(diff))
 	} else {
-		fmt.Fprintf(os.Stderr, "%s %s +%s\n", l.namespace, message, formatDuration(diff))
+		fmt.Fprintf(os.Stderr, "%s %s +%s\n", l.namespace, message, timeutil.FormatDuration(diff))
 	}
 }
 
@@ -127,30 +128,10 @@ func (l *Logger) Print(args ...interface{}) {
 
 	message := fmt.Sprint(args...)
 	if l.color != "" {
-		fmt.Fprintf(os.Stderr, "%s%s%s %s +%s\n", l.color, l.namespace, colorReset, message, formatDuration(diff))
+		fmt.Fprintf(os.Stderr, "%s%s%s %s +%s\n", l.color, l.namespace, colorReset, message, timeutil.FormatDuration(diff))
 	} else {
-		fmt.Fprintf(os.Stderr, "%s %s +%s\n", l.namespace, message, formatDuration(diff))
+		fmt.Fprintf(os.Stderr, "%s %s +%s\n", l.namespace, message, timeutil.FormatDuration(diff))
 	}
-}
-
-// formatDuration formats a duration for display like the debug npm package
-func formatDuration(d time.Duration) string {
-	if d < time.Microsecond {
-		return fmt.Sprintf("%dns", d.Nanoseconds())
-	}
-	if d < time.Millisecond {
-		return fmt.Sprintf("%dµs", d.Microseconds())
-	}
-	if d < time.Second {
-		return fmt.Sprintf("%dms", d.Milliseconds())
-	}
-	if d < time.Minute {
-		return fmt.Sprintf("%.1fs", d.Seconds())
-	}
-	if d < time.Hour {
-		return fmt.Sprintf("%.1fm", d.Minutes())
-	}
-	return fmt.Sprintf("%.1fh", d.Hours())
 }
 
 // computeEnabled computes whether a namespace matches the DEBUG patterns
