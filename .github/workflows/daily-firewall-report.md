@@ -19,10 +19,6 @@ tools:
     toolsets:
       - default
       - actions
-    allowed:
-      - list_workflows
-      - list_workflow_runs
-      - download_workflow_run_artifact
   bash:
     - "*"
   edit:
