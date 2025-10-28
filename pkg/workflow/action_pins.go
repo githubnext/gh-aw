@@ -136,13 +136,8 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		if pin.Version == version {
 			return actionRepo + "@" + pin.SHA, nil
 		}
-		// Version mismatch, but we can still use the hardcoded SHA if we're not in strict mode
-		if !data.StrictMode {
-			warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
-				actionRepo, version, actionRepo, pin.Version)
-			fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
-			return actionRepo + "@" + pin.SHA, nil
-		}
+		// Version mismatch: do NOT use hardcoded SHA from different version
+		// as it could introduce security or compatibility issues
 	}
 
 	// No pin available
@@ -218,13 +213,6 @@ func ApplyActionPinToStep(stepMap map[string]any, data *WorkflowData) map[string
 	return result
 }
 
-// ApplyActionPinToStepWithMode is deprecated, kept for backwards compatibility
-func ApplyActionPinToStepWithMode(stepMap map[string]any, strictMode bool) map[string]any {
-	// Create a minimal WorkflowData for backwards compatibility
-	data := &WorkflowData{StrictMode: strictMode}
-	return ApplyActionPinToStep(stepMap, data)
-}
-
 // extractActionRepo extracts the action repository from a uses string
 // For example:
 //   - "actions/checkout@v4" -> "actions/checkout"
@@ -270,13 +258,6 @@ func ApplyActionPinsToSteps(steps []any, data *WorkflowData) []any {
 		}
 	}
 	return result
-}
-
-// ApplyActionPinsToStepsWithMode is deprecated, kept for backwards compatibility
-func ApplyActionPinsToStepsWithMode(steps []any, strictMode bool) []any {
-	// Create a minimal WorkflowData for backwards compatibility
-	data := &WorkflowData{StrictMode: strictMode}
-	return ApplyActionPinsToSteps(steps, data)
 }
 
 // GetAllActionPinsSorted returns all action pins sorted by repository name

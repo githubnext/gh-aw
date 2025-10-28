@@ -268,7 +268,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 			name: "step with pinned action (checkout)",
 			stepMap: map[string]any{
 				"name": "Checkout code",
-				"uses": "actions/checkout@v4",
+				"uses": "actions/checkout@v5",
 			},
 			expectPinned: true,
 			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
@@ -277,7 +277,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 			name: "step with pinned action (setup-node)",
 			stepMap: map[string]any{
 				"name": "Setup Node",
-				"uses": "actions/setup-node@v5",
+				"uses": "actions/setup-node@v4",
 				"with": map[string]any{
 					"node-version": "20",
 				},
