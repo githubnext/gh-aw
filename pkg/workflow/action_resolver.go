@@ -3,7 +3,6 @@ package workflow
 import (
 	"fmt"
 	"os/exec"
-	"regexp"
 	"strings"
 )
 
@@ -24,13 +23,7 @@ func NewActionResolver(cache *ActionCache) *ActionResolver {
 func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
 	// Check cache first
 	if sha, found := r.cache.Get(repo, version); found {
-		// Validate cached SHA to ensure data integrity
-		if validSHA, err := validateSHA(sha, repo, version); err != nil {
-			// Invalid cached SHA, try to resolve fresh
-			delete(r.cache.Entries, repo+"@"+version)
-		} else {
-			return validSHA, nil
-		}
+		return sha, nil
 	}
 
 	// Resolve using GitHub CLI
@@ -39,7 +32,7 @@ func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
 		return "", err
 	}
 
-	// Cache the result (already validated by resolveFromGitHub)
+	// Cache the result
 	r.cache.Set(repo, version, sha)
 
 	return sha, nil
@@ -66,24 +59,9 @@ func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error)
 		return "", fmt.Errorf("empty SHA returned for %s@%s", repo, version)
 	}
 
-	return validateSHA(sha, repo, version)
-}
-
-// validateSHA validates that a SHA is in the correct format
-func validateSHA(sha, repo, version string) (string, error) {
-	if sha == "" {
-		return "", fmt.Errorf("empty SHA for %s@%s", repo, version)
-	}
-
 	// Validate SHA format (should be 40 hex characters)
 	if len(sha) != 40 {
-		return "", fmt.Errorf("invalid SHA format for %s@%s: %s (expected 40 characters, got %d)", repo, version, sha, len(sha))
-	}
-
-	// Validate that SHA contains only hex characters
-	validSHA := regexp.MustCompile(`^[0-9a-fA-F]{40}$`)
-	if !validSHA.MatchString(sha) {
-		return "", fmt.Errorf("invalid SHA format for %s@%s: %s (must be 40 hex characters)", repo, version, sha)
+		return "", fmt.Errorf("invalid SHA format for %s@%s: %s", repo, version, sha)
 	}
 
 	return sha, nil
