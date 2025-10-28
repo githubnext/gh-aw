@@ -101,11 +101,6 @@ var actionPins = map[string]ActionPin{
 		Version: "v3",
 		SHA:     "562257dc84ee23987d348302b161ee561898ec02", // v3
 	},
-	"actions/ai-inference": {
-		Repo:    "actions/ai-inference",
-		Version: "v1",
-		SHA:     "b81b2afb8390ee6839b494a404766bef6493c7d9", // v1
-	},
 }
 
 // GetActionPin returns the pinned action reference for a given action repository
