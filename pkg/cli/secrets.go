@@ -8,8 +8,11 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
+
+var secretsLog = logger.New("cli:secrets")
 
 // Pre-compiled regexes for secret extraction (performance optimization)
 var (
@@ -27,6 +30,8 @@ type SecretInfo struct {
 
 // checkSecretExists checks if a secret exists in the repository using GitHub CLI
 func checkSecretExists(secretName string) (bool, error) {
+	secretsLog.Printf("Checking if secret exists: %s", secretName)
+
 	// Use gh CLI to list repository secrets
 	cmd := exec.Command("gh", "secret", "list", "--json", "name")
 	output, err := cmd.Output()
@@ -74,6 +79,7 @@ func extractSecretName(value string) string {
 
 // extractSecretsFromConfig extracts all required secrets from an MCP server config
 func extractSecretsFromConfig(config parser.MCPServerConfig) []SecretInfo {
+	secretsLog.Printf("Extracting secrets from MCP config: command=%s", config.Command)
 	var secrets []SecretInfo
 	seen := make(map[string]bool)
 
@@ -101,6 +107,7 @@ func extractSecretsFromConfig(config parser.MCPServerConfig) []SecretInfo {
 		}
 	}
 
+	secretsLog.Printf("Extracted %d secrets from config", len(secrets))
 	return secrets
 }
 

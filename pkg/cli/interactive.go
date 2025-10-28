@@ -10,7 +10,10 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var interactiveLog = logger.New("cli:interactive")
 
 // InteractiveWorkflowBuilder collects user input to build an agentic workflow
 type InteractiveWorkflowBuilder struct {
@@ -26,6 +29,8 @@ type InteractiveWorkflowBuilder struct {
 
 // CreateWorkflowInteractively prompts the user to build a workflow interactively
 func CreateWorkflowInteractively(workflowName string, verbose bool, force bool) error {
+	interactiveLog.Printf("Starting interactive workflow creation: workflowName=%s, force=%v", workflowName, force)
+
 	// Assert this function is not running in automated unit tests
 	if os.Getenv("GO_TEST_MODE") == "true" || os.Getenv("CI") != "" {
 		return fmt.Errorf("interactive workflow creation cannot be used in automated tests or CI environments")
@@ -247,6 +252,8 @@ func (b *InteractiveWorkflowBuilder) promptForIntent() error {
 
 // generateWorkflow creates the markdown workflow file based on user selections
 func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
+	interactiveLog.Printf("Generating workflow file: name=%s, engine=%s, trigger=%s", b.WorkflowName, b.Engine, b.Trigger)
+
 	// Get current working directory for .github/workflows
 	workingDir, err := os.Getwd()
 	if err != nil {
@@ -275,6 +282,7 @@ func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 		return fmt.Errorf("failed to write workflow file '%s': %w", destFile, err)
 	}
 
+	interactiveLog.Printf("Workflow file created successfully: %s", destFile)
 	fmt.Fprintf(os.Stderr, "Created new workflow: %s\n", destFile)
 	return nil
 }

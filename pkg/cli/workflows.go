@@ -10,7 +10,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var workflowsLog = logger.New("cli:workflows")
 
 // getPackagesDir returns the global packages directory path
 func getPackagesDir() (string, error) {
@@ -57,6 +60,8 @@ type GitHubWorkflow struct {
 
 // fetchGitHubWorkflows fetches workflow information from GitHub
 func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHubWorkflow, error) {
+	workflowsLog.Printf("Fetching GitHub workflows: repoOverride=%s", repoOverride)
+
 	// Start spinner for network operation (only if not in verbose mode)
 	spinner := console.NewSpinner("Fetching GitHub workflow status...")
 	if !verbose {
@@ -100,6 +105,7 @@ func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHub
 		workflowMap[name] = &workflows[i]
 	}
 
+	workflowsLog.Printf("Fetched %d GitHub workflows", len(workflowMap))
 	return workflowMap, nil
 }
 
@@ -112,6 +118,8 @@ func extractWorkflowNameFromPath(path string) string {
 
 // getWorkflowStatus gets the status of a single workflow by name
 func getWorkflowStatus(workflowIdOrName string, repoOverride string, verbose bool) (*GitHubWorkflow, error) {
+	workflowsLog.Printf("Getting workflow status: workflow=%s", workflowIdOrName)
+
 	// Extract workflow name for lookup
 	filename := strings.TrimSuffix(filepath.Base(workflowIdOrName), ".md")
 

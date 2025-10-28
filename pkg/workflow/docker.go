@@ -8,7 +8,10 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var dockerLog = logger.New("workflow:docker")
 
 // collectDockerImages collects all Docker images used in MCP configurations
 func collectDockerImages(tools map[string]any) []string {
@@ -60,6 +63,7 @@ func collectDockerImages(tools map[string]any) []string {
 
 	// Sort for stable output
 	sort.Strings(images)
+	dockerLog.Printf("Collected %d Docker images from tools", len(images))
 	return images
 }
 
@@ -80,9 +84,12 @@ func generateDownloadDockerImagesStep(yaml *strings.Builder, dockerImages []stri
 // validateDockerImage checks if a Docker image exists and is accessible
 // Returns nil if docker is not available (with a warning printed)
 func validateDockerImage(image string, verbose bool) error {
+	dockerLog.Printf("Validating Docker image: %s", image)
+
 	// Check if docker is available
 	_, err := exec.LookPath("docker")
 	if err != nil {
+		dockerLog.Print("Docker not available, skipping image validation")
 		// Docker not available - print warning and skip validation
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Docker not available - skipping validation for container image '%s'", image)))
@@ -96,9 +103,12 @@ func validateDockerImage(image string, verbose bool) error {
 
 	if err == nil {
 		// Image exists locally
+		dockerLog.Printf("Docker image found locally: %s", image)
 		_ = output // Suppress unused variable warning
 		return nil
 	}
+
+	dockerLog.Printf("Docker image not found locally, attempting to pull: %s", image)
 
 	// Image doesn't exist locally, try to pull it
 	pullCmd := exec.Command("docker", "pull", image)
