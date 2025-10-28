@@ -208,7 +208,6 @@ jobs:
           ## Context
           
           - **Repository**: ${{ github.repository }}
-          - **Triggered by**: ${{ github.actor }}
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt

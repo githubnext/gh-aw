@@ -1026,7 +1026,6 @@ jobs:
           
           - **Repository**: ${{ github.repository }}
           - **Research Topic**: "${{ github.event.inputs.topic }}"
-          - **Triggered by**: @${{ github.actor }}
           
           ## Your Task
           

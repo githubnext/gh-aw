@@ -64,7 +64,6 @@ When invoked with `/mergefest` in a pull request comment, merge the main branch 
 
 - **Repository**: ${{ github.repository }}
 - **Pull Request Number**: ${{ github.event.pull_request.number }}
-- **Triggered by**: @${{ github.actor }}
 
 ## Task
 
