@@ -10,7 +10,7 @@ permissions:
 engine: copilot
 tools:
   github:
-    toolset: [default, discussions]
+    toolsets: [default, discussions]
 safe-outputs:
   create-issue:
     title-prefix: "[task] "

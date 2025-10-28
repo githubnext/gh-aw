@@ -106,7 +106,7 @@ test-unit
 timeout
 timeout-minutes
 title-prefix
-toolset
+toolsets
 tools
 triggers
 update-issue

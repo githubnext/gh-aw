@@ -17,7 +17,7 @@ engine: copilot
 tools:
   agentic-workflows:
   github:
-    toolset: [pull_requests, actions, repos]
+    toolsets: [pull_requests, actions, repos]
 safe-outputs:
   add-comment:
     max: 1

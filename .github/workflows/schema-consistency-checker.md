@@ -14,7 +14,7 @@ tools:
   github:
     mode: remote
     read-only: false
-    toolset: [default, discussions]
+    toolsets: [default, discussions]
   cache-memory:
     key: schema-consistency-cache-${{ github.workflow }}
 safe-outputs:

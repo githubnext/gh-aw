@@ -15,7 +15,7 @@ engine:
   max-turns: 100
 tools:
   github:
-    toolset: [default]
+    toolsets: [default]
   bash:
     - "*"
   edit:

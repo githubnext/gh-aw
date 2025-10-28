@@ -961,7 +961,7 @@ func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 		"mode":            true, // for github tool
 		"github-token":    true, // for github tool
 		"read-only":       true, // for github tool
-		"toolset":         true, // for github tool
+		"toolsets":        true, // for github tool
 		"id":              true, // for cache-memory (array notation)
 		"key":             true, // for cache-memory
 		"description":     true, // for cache-memory

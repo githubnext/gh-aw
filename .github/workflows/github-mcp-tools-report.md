@@ -10,7 +10,7 @@ engine: claude
 tools:
   github:
     mode: "remote"
-    toolset: [all]
+    toolsets: [all]
   cache-memory: true
   edit:
 safe-outputs:
@@ -39,7 +39,7 @@ Generate a comprehensive report of all tools/functions available in the GitHub M
 
 - **Repository**: ${{ github.repository }}
 - **Report Date**: Today's date
-- **MCP Server**: GitHub MCP Remote (mode: remote, toolset: all)
+- **MCP Server**: GitHub MCP Remote (mode: remote, toolsets: all)
 
 ## Report Generation Process
 
@@ -141,7 +141,7 @@ Report any inconsistencies discovered during the systematic exploration:
 
 ### New Tools Added ✨
 
-List any tools that were added since the last report, organized by toolset:
+List any tools that were added since the last report, organized by toolsets:
 
 | Toolset | Tool Name | Purpose |
 |---------|-----------|---------|
@@ -169,7 +169,7 @@ List any tools that changed their toolset categorization:
 
 Organize tools into their respective toolset categories. For each toolset that has tools, create a section with a table listing all tools.
 
-**Example format for each toolset:**
+**Example format for each toolsets:**
 
 ### [Toolset Name] Toolset
 Brief description of the toolset.
@@ -202,7 +202,7 @@ When configuring the GitHub MCP server in agentic workflows, you can enable spec
 tools:
   github:
     mode: "remote"  # or "local"
-    toolset: [all]  # or specific toolsets like [repos, issues, pull_requests]
+    toolsets: [all]  # or specific toolsets like [repos, issues, pull_requests]
 ```
 
 **Available toolset options**:

@@ -987,7 +987,7 @@ tools:
     # Array of GitHub MCP server toolset names to enable specific groups of GitHub API
     # functionalities
     # (optional)
-    toolset: []
+    toolsets: []
       # Array of Toolset name
 
   # Bash shell command execution tool for running command-line programs and scripts

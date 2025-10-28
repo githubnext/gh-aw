@@ -31,7 +31,7 @@ The GitHub MCP server provides AI agents with programmatic access to GitHub's AP
 tools:
   github:
     mode: "local"
-    toolset: [default]  # or [repos, issues, pull_requests]
+    toolsets: [default]  # or [repos, issues, pull_requests]
 ```
 
 **Remote Mode (Hosted)**:
@@ -39,7 +39,7 @@ tools:
 tools:
   github:
     mode: "remote"
-    toolset: [default]  # or [repos, issues, pull_requests]
+    toolsets: [default]  # or [repos, issues, pull_requests]
 ```
 
 ### Read-Only Mode
@@ -51,7 +51,7 @@ tools:
   github:
     mode: "remote"
     read-only: true
-    toolset: [repos, issues]
+    toolsets: [repos, issues]
 ```
 
 ### Custom Authentication
@@ -63,7 +63,7 @@ tools:
   github:
     mode: "remote"
     github-token: "${{ secrets.CUSTOM_GITHUB_PAT }}"
-    toolset: [repos, issues]
+    toolsets: [repos, issues]
 ```
 
 ## Available Toolsets
@@ -118,11 +118,11 @@ The local mode uses environment variables:
 
 Ensure your GitHub token has appropriate permissions for the toolsets you're enabling:
 
-- `repos` toolset: Requires repository read/write permissions
-- `issues` toolset: Requires issues read/write permissions
-- `pull_requests` toolset: Requires pull requests read/write permissions
-- `actions` toolset: Requires actions read/write permissions
-- `discussions` toolset: Requires discussions read/write permissions
+- `repos` toolsets: Requires repository read/write permissions
+- `issues` toolsets: Requires issues read/write permissions
+- `pull_requests` toolsets: Requires pull requests read/write permissions
+- `actions` toolsets: Requires actions read/write permissions
+- `discussions` toolsets: Requires discussions read/write permissions
 
 ### Remote vs Local Mode
 

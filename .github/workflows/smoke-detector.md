@@ -26,7 +26,7 @@ imports:
 tools:
   cache-memory: true
   github:
-    toolset: [default, actions]
+    toolsets: [default, actions]
 strict: false
 ---
 # Smoke Detector - Smoke Test Failure Investigator

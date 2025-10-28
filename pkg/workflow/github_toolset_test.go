@@ -19,35 +19,35 @@ func TestGetGitHubToolsets(t *testing.T) {
 		{
 			name: "Toolsets as array of strings",
 			input: map[string]any{
-				"toolset": []string{"repos", "issues", "pull_requests"},
+				"toolsets": []string{"repos", "issues", "pull_requests"},
 			},
 			expected: "repos,issues,pull_requests",
 		},
 		{
 			name: "Toolsets as array of any",
 			input: map[string]any{
-				"toolset": []any{"repos", "issues", "actions"},
+				"toolsets": []any{"repos", "issues", "actions"},
 			},
 			expected: "repos,issues,actions",
 		},
 		{
 			name: "Special 'all' toolset as array",
 			input: map[string]any{
-				"toolset": []string{"all"},
+				"toolsets": []string{"all"},
 			},
 			expected: "all",
 		},
 		{
 			name: "Special 'default' toolset as array",
 			input: map[string]any{
-				"toolset": []string{"default"},
+				"toolsets": []string{"default"},
 			},
 			expected: "default",
 		},
 		{
 			name: "Default with additional toolsets",
 			input: map[string]any{
-				"toolset": []string{"default", "discussions"},
+				"toolsets": []string{"default", "discussions"},
 			},
 			expected: "default,discussions",
 		},
@@ -78,7 +78,7 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 		{
 			name: "Toolsets configured with array",
 			githubTool: map[string]any{
-				"toolset": []string{"repos", "issues", "pull_requests"},
+				"toolsets": []string{"repos", "issues", "pull_requests"},
 			},
 			expectedInYAML: []string{
 				`"GITHUB_TOOLSETS=repos,issues,pull_requests"`,
@@ -98,7 +98,7 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 		{
 			name: "All toolset as array",
 			githubTool: map[string]any{
-				"toolset": []string{"all"},
+				"toolsets": []string{"all"},
 			},
 			expectedInYAML: []string{
 				`"GITHUB_TOOLSETS=all"`,
@@ -108,7 +108,7 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 		{
 			name: "Default toolset as array",
 			githubTool: map[string]any{
-				"toolset": []string{"default"},
+				"toolsets": []string{"default"},
 			},
 			expectedInYAML: []string{
 				`"GITHUB_TOOLSETS=default"`,
@@ -118,7 +118,7 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 		{
 			name: "Default with additional toolsets",
 			githubTool: map[string]any{
-				"toolset": []string{"default", "discussions"},
+				"toolsets": []string{"default", "discussions"},
 			},
 			expectedInYAML: []string{
 				`"GITHUB_TOOLSETS=default,discussions"`,
@@ -161,7 +161,7 @@ func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 		{
 			name: "Toolsets configured with array",
 			githubTool: map[string]any{
-				"toolset": []string{"repos", "issues", "pull_requests"},
+				"toolsets": []string{"repos", "issues", "pull_requests"},
 			},
 			expectedInYAML: []string{
 				`"GITHUB_TOOLSETS=repos,issues,pull_requests"`,
@@ -181,7 +181,7 @@ func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 		{
 			name: "Default toolset as array",
 			githubTool: map[string]any{
-				"toolset": []string{"default"},
+				"toolsets": []string{"default"},
 			},
 			expectedInYAML: []string{
 				`"GITHUB_TOOLSETS=default"`,
@@ -191,7 +191,7 @@ func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 		{
 			name: "Default with additional toolsets",
 			githubTool: map[string]any{
-				"toolset": []string{"default", "actions"},
+				"toolsets": []string{"default", "actions"},
 			},
 			expectedInYAML: []string{
 				`"GITHUB_TOOLSETS=default,actions"`,
@@ -233,7 +233,7 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 		{
 			name: "Toolsets configured with array",
 			githubTool: map[string]any{
-				"toolset": []string{"repos", "issues"},
+				"toolsets": []string{"repos", "issues"},
 			},
 			expectedInYAML: []string{
 				`"GITHUB_TOOLSETS=repos,issues"`,
@@ -253,7 +253,7 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 		{
 			name: "Default toolset as array",
 			githubTool: map[string]any{
-				"toolset": []string{"default"},
+				"toolsets": []string{"default"},
 			},
 			expectedInYAML: []string{
 				`"GITHUB_TOOLSETS=default"`,
@@ -263,7 +263,7 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 		{
 			name: "Default with additional toolsets",
 			githubTool: map[string]any{
-				"toolset": []string{"default", "discussions"},
+				"toolsets": []string{"default", "discussions"},
 			},
 			expectedInYAML: []string{
 				`"GITHUB_TOOLSETS=default,discussions"`,
@@ -305,7 +305,7 @@ func TestGitHubToolsetsWithOtherConfiguration(t *testing.T) {
 		{
 			name: "Toolsets with read-only mode",
 			githubTool: map[string]any{
-				"toolset":   []string{"repos", "issues"},
+				"toolsets":  []string{"repos", "issues"},
 				"read-only": true,
 			},
 			expectedInYAML: []string{
@@ -317,7 +317,7 @@ func TestGitHubToolsetsWithOtherConfiguration(t *testing.T) {
 		{
 			name: "Toolsets with custom token",
 			githubTool: map[string]any{
-				"toolset":      []string{"all"},
+				"toolsets":     []string{"all"},
 				"github-token": "${{ secrets.CUSTOM_PAT }}",
 			},
 			expectedInYAML: []string{
@@ -329,8 +329,8 @@ func TestGitHubToolsetsWithOtherConfiguration(t *testing.T) {
 		{
 			name: "Toolsets with custom Docker version",
 			githubTool: map[string]any{
-				"toolset": []string{"repos", "issues", "pull_requests"},
-				"version": "latest",
+				"toolsets": []string{"repos", "issues", "pull_requests"},
+				"version":  "latest",
 			},
 			expectedInYAML: []string{
 				`GITHUB_TOOLSETS`,
