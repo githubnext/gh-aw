@@ -16,8 +16,6 @@ tools:
 
 Review PR #${{ github.event.pull_request.number }} in repository ${{ github.repository }}.
 
-Opened by: ${{ github.actor }}
-
 {{#if true}}
 ## Standard Review
 

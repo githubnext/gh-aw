@@ -317,7 +317,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				}
 			}
 
-			if err := runZizmor(absWorkflowDir, verbose); err != nil {
+			if err := runZizmor(absWorkflowDir, verbose, strict); err != nil {
 				return workflowDataList, fmt.Errorf("zizmor security scan failed: %w", err)
 			}
 		}
@@ -484,7 +484,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Run zizmor security scanner if requested and compilation was successful
 	if zizmor && !noEmit {
-		if err := runZizmor(workflowsDir, verbose); err != nil {
+		if err := runZizmor(workflowsDir, verbose, strict); err != nil {
 			return workflowDataList, fmt.Errorf("zizmor security scan failed: %w", err)
 		}
 	}

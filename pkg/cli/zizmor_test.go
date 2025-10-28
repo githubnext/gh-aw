@@ -186,7 +186,7 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stderr = w
 
-			err := parseAndDisplayZizmorOutput(tt.stdout, tt.stderr, tt.verbose)
+			warningCount, err := parseAndDisplayZizmorOutput(tt.stdout, tt.stderr, tt.verbose)
 
 			// Restore stderr
 			w.Close()
@@ -203,6 +203,11 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			}
 			if !tt.expectError && err != nil {
 				t.Errorf("Unexpected error: %v", err)
+			}
+
+			// Verify warning count is non-negative
+			if warningCount < 0 {
+				t.Errorf("Warning count should be non-negative, got: %d", warningCount)
 			}
 
 			// Check expected output

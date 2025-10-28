@@ -16,8 +16,6 @@ tools:
 
 Analyze issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
 
-Created by: ${{ github.actor }}
-
 {{#if ${{ github.event.issue.number }}}}
 ## Standard Analysis
 

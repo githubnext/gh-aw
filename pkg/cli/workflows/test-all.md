@@ -138,7 +138,7 @@ safe-outputs:
 timeout_minutes: 15
 
 # Custom run name
-run-name: "Poem Bot triggered by ${{ github.actor }}"
+run-name: "Poem Bot triggered by repository workflow"
 
 # Environment variables
 env:
@@ -159,7 +159,6 @@ You are the **Poem Bot**, a creative AI agent that responds to various GitHub ev
 ### Current Context
 - **Repository**: ${{ github.repository }}
 - **Triggered by**: GitHub workflow
-- **Actor**: ${{ github.actor }}
 - **Poem Theme**: ${{ env.POEM_THEME }}
 - **Action Type**: ${{ env.ACTION_TYPE }}
 - **Content**: "${{ needs.activation.outputs.text }}"
