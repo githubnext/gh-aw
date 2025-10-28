@@ -23,10 +23,11 @@ func NewClaudeEngine() *ClaudeEngine {
 			description:            "Uses Claude Code with full MCP tool support and allow-listing",
 			experimental:           false,
 			supportsToolsAllowlist: true,
-			supportsHTTPTransport:  true, // Claude supports both stdio and HTTP transport
-			supportsMaxTurns:       true, // Claude supports max-turns feature
-			supportsWebFetch:       true, // Claude has built-in WebFetch support
-			supportsWebSearch:      true, // Claude has built-in WebSearch support
+			supportsHTTPTransport:  true,  // Claude supports both stdio and HTTP transport
+			supportsMaxTurns:       true,  // Claude supports max-turns feature
+			supportsWebFetch:       true,  // Claude has built-in WebFetch support
+			supportsWebSearch:      true,  // Claude has built-in WebSearch support
+			supportsFirewall:       true,  // Claude supports network firewalling via AWF
 		},
 	}
 }
@@ -52,11 +53,40 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		"claude",
 		workflowData,
 	)
-	steps = append(steps, npmSteps...)
 
-	// Check if network permissions are configured (only for Claude engine)
-	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		// Generate network hook generator and settings generator
+	// Get Node.js setup step first (before AWF)
+	if len(npmSteps) > 0 {
+		steps = append(steps, npmSteps[0]) // Setup Node.js step
+	}
+
+	// Add AWF installation steps only if firewall is enabled
+	if isFirewallEnabled(workflowData) {
+		// Install AWF after Node.js setup but before Claude Code CLI installation
+		firewallConfig := getFirewallConfig(workflowData)
+		var awfVersion string
+		var cleanupScript string
+		if firewallConfig != nil {
+			awfVersion = firewallConfig.Version
+			cleanupScript = firewallConfig.CleanupScript
+		}
+
+		// Install AWF binary
+		awfInstall := generateAWFInstallationStep(awfVersion)
+		steps = append(steps, awfInstall)
+
+		// Pre-execution cleanup
+		awfCleanup := generateAWFCleanupStep(cleanupScript)
+		steps = append(steps, awfCleanup)
+	}
+
+	// Add Claude Code CLI installation step after AWF
+	if len(npmSteps) > 1 {
+		steps = append(steps, npmSteps[1:]...) // Install Claude Code CLI and subsequent steps
+	}
+
+	// Check if network permissions are configured (only for Claude engine with network hooks, not AWF)
+	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) && !isFirewallEnabled(workflowData) {
+		// Generate network hook generator and settings generator (only when AWF is not used)
 		hookGenerator := &NetworkHookGenerator{}
 		settingsGenerator := &ClaudeSettingsGenerator{}
 
@@ -174,21 +204,45 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	commandParts = append(commandParts, "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)")
 
 	// Join command parts with proper escaping for complex arguments
-	command := ""
+	claudeCommand := ""
 	for i, part := range commandParts {
 		if i > 0 {
-			command += " "
+			claudeCommand += " "
 		}
 		// For complex arguments that contain spaces or special characters, quote them
 		if strings.Contains(part, " ") || strings.Contains(part, ",") {
-			command += "\"" + part + "\""
+			claudeCommand += "\"" + part + "\""
 		} else {
-			command += part
+			claudeCommand += part
 		}
 	}
 
-	// Add the command with proper indentation and tee output (preserves exit code with pipefail)
-	stepLines = append(stepLines, fmt.Sprintf("          %s 2>&1 | tee %s", command, logFile))
+	// Conditionally wrap with AWF if firewall is enabled
+	var command string
+	if isFirewallEnabled(workflowData) {
+		// Build the AWF-wrapped command
+		firewallConfig := getFirewallConfig(workflowData)
+		var awfLogLevel = "info"
+		if firewallConfig != nil && firewallConfig.LogLevel != "" {
+			awfLogLevel = firewallConfig.LogLevel
+		}
+
+		// Get allowed domains (claude defaults + network permissions)
+		allowedDomains := GetClaudeAllowedDomains(workflowData.NetworkPermissions)
+
+		// Properly escape shell arguments using shell helper functions
+		command = fmt.Sprintf(`sudo -E awf --env-all \
+  --allow-domains %s \
+  --log-level %s \
+  %s \
+  2>&1 | tee %s`, shellEscapeArg(allowedDomains), shellEscapeArg(awfLogLevel), shellEscapeCommandString(claudeCommand), shellEscapeArg(logFile))
+	} else {
+		// Run claude command without AWF wrapper
+		command = fmt.Sprintf(`%s 2>&1 | tee %s`, claudeCommand, logFile)
+	}
+
+	// Add the command with proper indentation
+	stepLines = append(stepLines, fmt.Sprintf("          %s", command))
 
 	// Add environment section - always include environment section for GH_AW_PROMPT
 	stepLines = append(stepLines, "        env:")

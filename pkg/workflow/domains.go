@@ -26,6 +26,20 @@ var CopilotDefaultDomains = []string{
 	"registry.npmjs.org",
 }
 
+// ClaudeDefaultDomains are the default domains required for Claude Code authentication and operation
+var ClaudeDefaultDomains = []string{
+	"api.anthropic.com",
+	"cdn.anthropic.com",
+	"registry.npmjs.org",
+}
+
+// CodexDefaultDomains are the default domains required for Codex authentication and operation
+var CodexDefaultDomains = []string{
+	"api.openai.com",
+	"cdn.openai.com",
+	"registry.npmjs.org",
+}
+
 // init loads the ecosystem domains from the embedded JSON
 func init() {
 	domainsLog.Print("Loading ecosystem domains from embedded JSON")
@@ -143,10 +157,28 @@ func matchesDomain(domain, pattern string) bool {
 // GetCopilotAllowedDomains merges Copilot default domains with NetworkPermissions allowed domains
 // Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
 func GetCopilotAllowedDomains(network *NetworkPermissions) string {
+	return getEngineAllowedDomains(CopilotDefaultDomains, network)
+}
+
+// GetClaudeAllowedDomains merges Claude default domains with NetworkPermissions allowed domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetClaudeAllowedDomains(network *NetworkPermissions) string {
+	return getEngineAllowedDomains(ClaudeDefaultDomains, network)
+}
+
+// GetCodexAllowedDomains merges Codex default domains with NetworkPermissions allowed domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func GetCodexAllowedDomains(network *NetworkPermissions) string {
+	return getEngineAllowedDomains(CodexDefaultDomains, network)
+}
+
+// getEngineAllowedDomains is a helper that merges engine default domains with NetworkPermissions allowed domains
+// Returns a deduplicated, sorted, comma-separated string suitable for AWF's --allow-domains flag
+func getEngineAllowedDomains(defaultDomains []string, network *NetworkPermissions) string {
 	domainMap := make(map[string]bool)
 
-	// Add Copilot default domains
-	for _, domain := range CopilotDefaultDomains {
+	// Add engine default domains
+	for _, domain := range defaultDomains {
 		domainMap[domain] = true
 	}
 

@@ -38,6 +38,7 @@ func NewCodexEngine() *CodexEngine {
 			supportsMaxTurns:       false, // Codex does not support max-turns feature
 			supportsWebFetch:       false, // Codex does not have built-in web-fetch support
 			supportsWebSearch:      true,  // Codex has built-in web-search support
+			supportsFirewall:       true,  // Codex supports network firewalling via AWF
 		},
 	}
 }
@@ -60,7 +61,37 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		"codex",
 		workflowData,
 	)
-	steps = append(steps, npmSteps...)
+
+	// Get Node.js setup step first (before AWF)
+	if len(npmSteps) > 0 {
+		steps = append(steps, npmSteps[0]) // Setup Node.js step
+	}
+
+	// Add AWF installation steps only if firewall is enabled
+	if isFirewallEnabled(workflowData) {
+		// Install AWF after Node.js setup but before Codex installation
+		firewallConfig := getFirewallConfig(workflowData)
+		var awfVersion string
+		var cleanupScript string
+		if firewallConfig != nil {
+			awfVersion = firewallConfig.Version
+			cleanupScript = firewallConfig.CleanupScript
+		}
+
+		// Install AWF binary
+		awfInstall := generateAWFInstallationStep(awfVersion)
+		steps = append(steps, awfInstall)
+
+		// Pre-execution cleanup
+		awfCleanup := generateAWFCleanupStep(cleanupScript)
+		steps = append(steps, awfCleanup)
+	}
+
+	// Add Codex installation step after AWF
+	if len(npmSteps) > 1 {
+		steps = append(steps, npmSteps[1:]...) // Install Codex and subsequent steps
+	}
+
 	return steps
 }
 
@@ -107,10 +138,36 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 		}
 	}
 
-	command := fmt.Sprintf(`set -o pipefail
-INSTRUCTION=$(cat $GH_AW_PROMPT)
+	// Build the base codex command
+	codexCommand := fmt.Sprintf(`INSTRUCTION=$(cat $GH_AW_PROMPT)
 mkdir -p $CODEX_HOME/logs
-codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
+codex %sexec%s%s%s"$INSTRUCTION"`, modelParam, webSearchParam, fullAutoParam, customArgsParam)
+
+	// Conditionally wrap with AWF if firewall is enabled
+	var command string
+	if isFirewallEnabled(workflowData) {
+		// Build the AWF-wrapped command
+		firewallConfig := getFirewallConfig(workflowData)
+		var awfLogLevel = "info"
+		if firewallConfig != nil && firewallConfig.LogLevel != "" {
+			awfLogLevel = firewallConfig.LogLevel
+		}
+
+		// Get allowed domains (codex defaults + network permissions)
+		allowedDomains := GetCodexAllowedDomains(workflowData.NetworkPermissions)
+
+		// Properly escape shell arguments using shell helper functions
+		command = fmt.Sprintf(`set -o pipefail
+sudo -E awf --env-all \
+  --allow-domains %s \
+  --log-level %s \
+  %s \
+  2>&1 | tee %s`, shellEscapeArg(allowedDomains), shellEscapeArg(awfLogLevel), shellEscapeCommandString(codexCommand), shellEscapeArg(logFile))
+	} else {
+		// Run codex command without AWF wrapper
+		command = fmt.Sprintf(`set -o pipefail
+%s 2>&1 | tee %s`, codexCommand, logFile)
+	}
 
 	// Get effective GitHub token based on precedence: top-level github-token > default
 	effectiveGitHubToken := getEffectiveGitHubToken("", workflowData.GitHubToken)

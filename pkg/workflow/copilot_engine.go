@@ -858,45 +858,6 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 	return patterns
 }
 
-// generateAWFInstallationStep creates a GitHub Actions step to install the AWF binary
-func generateAWFInstallationStep(version string) GitHubActionStep {
-	stepLines := []string{
-		"      - name: Install awf binary",
-		"        run: |",
-	}
-
-	// Use default version if not specified to ensure reproducible builds
-	if version == "" {
-		version = constants.DefaultFirewallVersion
-	}
-
-	stepLines = append(stepLines, fmt.Sprintf("          echo \"Installing awf from release: %s\"", version))
-	stepLines = append(stepLines, fmt.Sprintf("          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/%s/awf-linux-x64 -o awf", version))
-
-	stepLines = append(stepLines,
-		"          chmod +x awf",
-		"          sudo mv awf /usr/local/bin/",
-		"          which awf",
-		"          awf --version",
-	)
-
-	return GitHubActionStep(stepLines)
-}
-
-// generateAWFCleanupStep creates a GitHub Actions step to cleanup AWF resources
-func generateAWFCleanupStep(scriptPath string) GitHubActionStep {
-	if scriptPath == "" {
-		scriptPath = "./scripts/ci/cleanup.sh"
-	}
-
-	stepLines := []string{
-		"      - name: Cleanup any existing awf resources",
-		fmt.Sprintf("        run: %s || true", scriptPath),
-	}
-
-	return GitHubActionStep(stepLines)
-}
-
 // generateSquidLogsCollectionStep creates a GitHub Actions step to collect Squid logs from AWF
 func generateSquidLogsCollectionStep(workflowName string) GitHubActionStep {
 	sanitizedName := strings.ToLower(SanitizeWorkflowName(workflowName))
