@@ -223,7 +223,7 @@ type SafeOutputsConfig struct {
 func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	// Set global strict mode for action pinning
 	SetStrictMode(c.strictMode)
-	
+
 	// Parse the markdown file
 	log.Printf("Parsing workflow file")
 	workflowData, err := c.ParseWorkflowFile(markdownPath)
@@ -254,7 +254,7 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath string) error {
 	// Set global strict mode for action pinning
 	SetStrictMode(c.strictMode)
-	
+
 	// Reset the step order tracker for this compilation
 	c.stepOrderTracker = NewStepOrderTracker()
 
@@ -451,7 +451,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
 	// Set global strict mode for action pinning
 	SetStrictMode(c.strictMode)
-	
+
 	log.Printf("Reading file: %s", markdownPath)
 
 	// Read the file

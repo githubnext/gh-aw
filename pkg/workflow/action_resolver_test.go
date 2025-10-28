@@ -31,7 +31,7 @@ func TestExtractBaseRepo(t *testing.T) {
 			expected: "myrepo",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractBaseRepo(tt.repo)
@@ -47,10 +47,10 @@ func TestActionResolverCache(t *testing.T) {
 	tmpDir := t.TempDir()
 	cache := NewActionCache(tmpDir)
 	resolver := NewActionResolver(cache)
-	
+
 	// Manually add an entry to the cache
 	cache.Set("actions/checkout", "v5", "test-sha-123")
-	
+
 	// Resolve should return cached value without making API call
 	sha, err := resolver.ResolveSHA("actions/checkout", "v5")
 	if err != nil {

@@ -14,7 +14,7 @@ var (
 	globalResolver     *ActionResolver
 	globalResolverOnce sync.Once
 	globalCache        *ActionCache
-	
+
 	// globalStrictMode controls whether to error on pinning failures
 	globalStrictMode bool
 )
@@ -33,11 +33,11 @@ func initializeGlobalResolver() {
 			// If we can't get cwd, just use current directory
 			cwd = "."
 		}
-		
+
 		globalCache = NewActionCache(cwd)
 		// Try to load existing cache, ignore errors
 		_ = globalCache.Load()
-		
+
 		globalResolver = NewActionResolver(globalCache)
 	})
 }
@@ -166,14 +166,14 @@ func GetActionPin(actionRepo string) string {
 func GetActionPinWithMode(actionRepo, version string, strictMode bool) (string, error) {
 	// First try dynamic resolution
 	initializeGlobalResolver()
-	
+
 	sha, err := globalResolver.ResolveSHA(actionRepo, version)
 	if err == nil && sha != "" {
 		// Successfully resolved, save cache
 		_ = globalCache.Save()
 		return actionRepo + "@" + sha, nil
 	}
-	
+
 	// Dynamic resolution failed, try hardcoded pins
 	if pin, exists := actionPins[actionRepo]; exists {
 		// Check if the version matches the hardcoded version
@@ -188,14 +188,14 @@ func GetActionPinWithMode(actionRepo, version string, strictMode bool) (string, 
 			return actionRepo + "@" + pin.SHA, nil
 		}
 	}
-	
+
 	// No pin available
 	if strictMode {
 		errMsg := fmt.Sprintf("Unable to pin action %s@%s: %v", actionRepo, version, err)
 		fmt.Fprint(os.Stderr, console.FormatErrorMessage(errMsg))
 		return "", fmt.Errorf("%s", errMsg)
 	}
-	
+
 	// In non-strict mode, emit warning and return empty string
 	warningMsg := fmt.Sprintf("Unable to pin action %s@%s: %v", actionRepo, version, err)
 	fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
@@ -223,7 +223,7 @@ func ApplyActionPinToStep(stepMap map[string]any) map[string]any {
 	if actionRepo == "" {
 		return stepMap
 	}
-	
+
 	version := extractActionVersion(usesStr)
 	if version == "" {
 		// No version specified, can't pin
@@ -237,7 +237,7 @@ func ApplyActionPinToStep(stepMap map[string]any) map[string]any {
 		// In normal mode, we just return the original step
 		return stepMap
 	}
-	
+
 	if pinnedRef == "" {
 		// No pin available for this action, return original step
 		return stepMap

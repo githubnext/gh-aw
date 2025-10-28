@@ -10,7 +10,7 @@ import (
 const (
 	// CacheFileName is the name of the cache file in .github/aw/
 	CacheFileName = "action-pins-cache.json"
-	
+
 	// CacheExpirationDays is the number of days before cache entries expire
 	CacheExpirationDays = 7
 )
@@ -48,7 +48,7 @@ func (c *ActionCache) Load() error {
 		}
 		return err
 	}
-	
+
 	return json.Unmarshal(data, c)
 }
 
@@ -59,12 +59,12 @@ func (c *ActionCache) Save() error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
-	
+
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err
 	}
-	
+
 	return os.WriteFile(c.path, data, 0644)
 }
 
@@ -75,14 +75,14 @@ func (c *ActionCache) Get(repo, version string) (string, bool) {
 	if !exists {
 		return "", false
 	}
-	
+
 	// Check if expired
 	if time.Since(entry.Timestamp) > CacheExpirationDays*24*time.Hour {
 		// Entry is expired
 		delete(c.Entries, key)
 		return "", false
 	}
-	
+
 	return entry.SHA, true
 }
 
