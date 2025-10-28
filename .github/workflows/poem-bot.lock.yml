@@ -2208,7 +2208,6 @@ jobs:
           ## Current Context
           
           - **Repository**: ${{ github.repository }}
-          - **Actor**: the user
           - **Theme**: ${{ github.event.inputs.poem_theme }}
           {{#if ${{ github.event.inputs.label_names }}}}
           - **Labels**: ${{ github.event.inputs.label_names }}

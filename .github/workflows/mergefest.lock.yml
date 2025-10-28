@@ -1351,7 +1351,6 @@ jobs:
           
           - **Repository**: ${{ github.repository }}
           - **Pull Request Number**: ${{ github.event.pull_request.number }}
-          - **Triggered by**: @user
           
           ## Task
           

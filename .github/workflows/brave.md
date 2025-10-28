@@ -82,8 +82,6 @@ Your search summary should be formatted as a comment with:
 ```markdown
 # 🔍 Brave Search Results
 
-*Triggered by @user*
-
 ## Summary
 [Brief overview of search results]
 

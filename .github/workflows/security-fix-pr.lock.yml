@@ -1119,7 +1119,6 @@ jobs:
           ## Current Context
           
           - **Repository**: ${{ github.repository }}
-          - **Triggered by**: @user
           
           ## Workflow Steps
           

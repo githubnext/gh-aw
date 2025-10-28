@@ -39,4 +39,3 @@ Since network permissions are set to `defaults` (which does not include example.
 ## Context
 
 - **Repository**: ${{ github.repository }}
-- **Triggered by**: the user
