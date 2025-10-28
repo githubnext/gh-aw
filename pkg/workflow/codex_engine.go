@@ -18,6 +18,7 @@ var (
 	codexExecCommandOldFormat = regexp.MustCompile(`\] exec (.+?) in`)
 	codexExecCommandNewFormat = regexp.MustCompile(`^exec (.+?) in`)
 	codexDurationPattern      = regexp.MustCompile(`in\s+(\d+(?:\.\d+)?)\s*s`)
+	codexTokenUsagePattern    = regexp.MustCompile(`(?i)tokens\s+used[:\s]+(\d+)`)
 )
 
 // CodexEngine represents the Codex agentic engine (experimental)
@@ -452,9 +453,9 @@ func (e *CodexEngine) shortenCommand(command string) string {
 // extractCodexTokenUsage extracts token usage from Codex-specific log lines
 func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 	// Codex format: "tokens used: 13934"
-	codexPattern := `tokens\s+used[:\s]+(\d+)`
-	if match := ExtractFirstMatch(line, codexPattern); match != "" {
-		if count, err := strconv.Atoi(match); err == nil {
+	// Use pre-compiled pattern for performance
+	if match := codexTokenUsagePattern.FindStringSubmatch(line); len(match) > 1 {
+		if count, err := strconv.Atoi(match[1]); err == nil {
 			return count
 		}
 	}
