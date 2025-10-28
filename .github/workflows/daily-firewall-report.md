@@ -16,6 +16,9 @@ safe-outputs:
 
 tools:
   github:
+    toolset:
+      - default
+      - actions
     allowed:
       - list_workflows
       - list_workflow_runs
