@@ -212,6 +212,50 @@ func TestExtractActionRepo(t *testing.T) {
 	}
 }
 
+// TestExtractActionVersion tests the extractActionVersion function
+func TestExtractActionVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		uses     string
+		expected string
+	}{
+		{
+			name:     "action with version tag",
+			uses:     "actions/checkout@v4",
+			expected: "v4",
+		},
+		{
+			name:     "action with SHA",
+			uses:     "actions/setup-node@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+			expected: "08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+		},
+		{
+			name:     "action with subpath and version",
+			uses:     "github/codeql-action/upload-sarif@v3",
+			expected: "v3",
+		},
+		{
+			name:     "action without version",
+			uses:     "actions/checkout",
+			expected: "",
+		},
+		{
+			name:     "action with branch ref",
+			uses:     "actions/setup-python@main",
+			expected: "main",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractActionVersion(tt.uses)
+			if result != tt.expected {
+				t.Errorf("extractActionVersion(%q) = %q, want %q", tt.uses, result, tt.expected)
+			}
+		})
+	}
+}
+
 // TestApplyActionPinToStep tests the ApplyActionPinToStep function
 func TestApplyActionPinToStep(t *testing.T) {
 	tests := []struct {

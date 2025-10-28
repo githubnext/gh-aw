@@ -1,6 +1,58 @@
 package workflow
 
-import "strings"
+import (
+	"fmt"
+	"os"
+	"strings"
+	"sync"
+
+	"github.com/githubnext/gh-aw/pkg/console"
+)
+
+var (
+	// globalResolver is the global action resolver instance
+	globalResolver     *ActionResolver
+	globalResolverOnce sync.Once
+	globalCache        *ActionCache
+	
+	// globalStrictMode controls whether to error on pinning failures
+	globalStrictMode bool
+)
+
+// SetStrictMode sets the global strict mode flag for action pinning
+func SetStrictMode(strict bool) {
+	globalStrictMode = strict
+}
+
+// initializeGlobalResolver initializes the global resolver and cache
+func initializeGlobalResolver() {
+	globalResolverOnce.Do(func() {
+		// Get current working directory to find .github/aw
+		cwd, err := os.Getwd()
+		if err != nil {
+			// If we can't get cwd, just use current directory
+			cwd = "."
+		}
+		
+		globalCache = NewActionCache(cwd)
+		// Try to load existing cache, ignore errors
+		_ = globalCache.Load()
+		
+		globalResolver = NewActionResolver(globalCache)
+	})
+}
+
+// GetGlobalCache returns the global action cache instance
+func GetGlobalCache() *ActionCache {
+	initializeGlobalResolver()
+	return globalCache
+}
+
+// GetGlobalResolver returns the global action resolver instance
+func GetGlobalResolver() *ActionResolver {
+	initializeGlobalResolver()
+	return globalResolver
+}
 
 // ActionPin represents a pinned GitHub Action with its commit SHA
 type ActionPin struct {
@@ -108,6 +160,48 @@ func GetActionPin(actionRepo string) string {
 	return ""
 }
 
+// GetActionPinWithMode returns the pinned action reference for a given action@version
+// It tries dynamic resolution first, then falls back to hardcoded pins
+// If strictMode is true and resolution fails, it returns an error
+func GetActionPinWithMode(actionRepo, version string, strictMode bool) (string, error) {
+	// First try dynamic resolution
+	initializeGlobalResolver()
+	
+	sha, err := globalResolver.ResolveSHA(actionRepo, version)
+	if err == nil && sha != "" {
+		// Successfully resolved, save cache
+		_ = globalCache.Save()
+		return actionRepo + "@" + sha, nil
+	}
+	
+	// Dynamic resolution failed, try hardcoded pins
+	if pin, exists := actionPins[actionRepo]; exists {
+		// Check if the version matches the hardcoded version
+		if pin.Version == version {
+			return actionRepo + "@" + pin.SHA, nil
+		}
+		// Version mismatch, but we can still use the hardcoded SHA if we're not in strict mode
+		if !strictMode {
+			warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
+				actionRepo, version, actionRepo, pin.Version)
+			fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
+			return actionRepo + "@" + pin.SHA, nil
+		}
+	}
+	
+	// No pin available
+	if strictMode {
+		errMsg := fmt.Sprintf("Unable to pin action %s@%s: %v", actionRepo, version, err)
+		fmt.Fprint(os.Stderr, console.FormatErrorMessage(errMsg))
+		return "", fmt.Errorf("%s", errMsg)
+	}
+	
+	// In non-strict mode, emit warning and return empty string
+	warningMsg := fmt.Sprintf("Unable to pin action %s@%s: %v", actionRepo, version, err)
+	fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
+	return "", nil
+}
+
 // ApplyActionPinToStep applies SHA pinning to a step map if it contains a "uses" field
 // with a pinned action. Returns a modified copy of the step map with pinned references.
 // If the step doesn't use an action or the action is not pinned, returns the original map.
@@ -124,14 +218,26 @@ func ApplyActionPinToStep(stepMap map[string]any) map[string]any {
 		return stepMap
 	}
 
-	// Extract action repo from uses field (remove @version or @ref)
+	// Extract action repo and version from uses field
 	actionRepo := extractActionRepo(usesStr)
 	if actionRepo == "" {
 		return stepMap
 	}
+	
+	version := extractActionVersion(usesStr)
+	if version == "" {
+		// No version specified, can't pin
+		return stepMap
+	}
 
-	// Check if this action has a pin
-	pinnedRef := GetActionPin(actionRepo)
+	// Try to get pinned SHA
+	pinnedRef, err := GetActionPinWithMode(actionRepo, version, globalStrictMode)
+	if err != nil {
+		// In strict mode, this would have already been handled by GetActionPinWithMode
+		// In normal mode, we just return the original step
+		return stepMap
+	}
+	
 	if pinnedRef == "" {
 		// No pin available for this action, return original step
 		return stepMap
@@ -148,6 +254,14 @@ func ApplyActionPinToStep(stepMap map[string]any) map[string]any {
 	}
 
 	return result
+}
+
+// ApplyActionPinToStepWithMode is deprecated, use ApplyActionPinToStep with SetStrictMode instead
+func ApplyActionPinToStepWithMode(stepMap map[string]any, strictMode bool) map[string]any {
+	oldMode := globalStrictMode
+	globalStrictMode = strictMode
+	defer func() { globalStrictMode = oldMode }()
+	return ApplyActionPinToStep(stepMap)
 }
 
 // extractActionRepo extracts the action repository from a uses string
@@ -167,6 +281,22 @@ func extractActionRepo(uses string) string {
 	return uses[:idx]
 }
 
+// extractActionVersion extracts the version from a uses string
+// For example:
+//   - "actions/checkout@v4" -> "v4"
+//   - "actions/setup-node@v5" -> "v5"
+//   - "actions/checkout" -> ""
+func extractActionVersion(uses string) string {
+	// Split on @ to separate repo from version/ref
+	idx := strings.Index(uses, "@")
+	if idx == -1 {
+		// No @ found, no version
+		return ""
+	}
+	// Return everything after the @
+	return uses[idx+1:]
+}
+
 // ApplyActionPinsToSteps applies SHA pinning to a slice of step maps
 // Returns a new slice with pinned references
 func ApplyActionPinsToSteps(steps []any) []any {
@@ -179,6 +309,14 @@ func ApplyActionPinsToSteps(steps []any) []any {
 		}
 	}
 	return result
+}
+
+// ApplyActionPinsToStepsWithMode is deprecated, use ApplyActionPinsToSteps with SetStrictMode instead
+func ApplyActionPinsToStepsWithMode(steps []any, strictMode bool) []any {
+	oldMode := globalStrictMode
+	globalStrictMode = strictMode
+	defer func() { globalStrictMode = oldMode }()
+	return ApplyActionPinsToSteps(steps)
 }
 
 // GetAllActionPinsSorted returns all action pins sorted by repository name

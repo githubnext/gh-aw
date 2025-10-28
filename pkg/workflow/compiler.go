@@ -221,6 +221,9 @@ type SafeOutputsConfig struct {
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
 func (c *Compiler) CompileWorkflow(markdownPath string) error {
+	// Set global strict mode for action pinning
+	SetStrictMode(c.strictMode)
+	
 	// Parse the markdown file
 	log.Printf("Parsing workflow file")
 	workflowData, err := c.ParseWorkflowFile(markdownPath)
