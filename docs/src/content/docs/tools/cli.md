@@ -158,15 +158,23 @@ gh aw compile --strict --zizmor            # Strict mode with security scanning 
 # Dependency management
 gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --dependabot --force         # Force overwrite existing files
+
+# Security scanning
+gh aw compile --zizmor                     # Run zizmor security scanner on compiled workflows
+gh aw compile --strict --zizmor            # Strict mode: treat zizmor findings as errors
 ```
 
 **Validation:**
 
 The `--validate` flag enables GitHub Actions workflow schema validation and container image validation. By default, validation is disabled for faster compilation. Enable it when you need to verify workflow correctness or validate that container images exist and are accessible.
 
+**Security Scanning:**
+
+The `--zizmor` flag runs the [zizmor](https://github.com/woodruffw/zizmor) security scanner on generated `.lock.yml` files after compilation. Zizmor identifies security issues such as template injection vulnerabilities, dangerous permissions, and other workflow security risks. When findings are detected, they are displayed with file locations and descriptions, but compilation succeeds by default. Use with `--strict` to treat security findings as compilation errors.
+
 **Strict Mode:**
 
-Enables enhanced security validation requiring timeouts, explicit network configuration, and blocking write permissions. Use `--strict` flag or `strict: true` in frontmatter.
+Enables enhanced security validation requiring timeouts, explicit network configuration, and blocking write permissions. When combined with `--zizmor`, strict mode treats any zizmor security findings as compilation errors, requiring workflows to have zero security warnings before they can be deployed. Use `--strict` flag or `strict: true` in frontmatter.
 
 **Repository Feature Validation:**
 

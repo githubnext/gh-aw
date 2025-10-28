@@ -122,6 +122,28 @@ The logs tool uses a 50-second default timeout to prevent MCP server timeouts wh
 
 Agents can detect incomplete data by checking for the `continuation` field and make follow-up calls with the provided `before_run_id` to fetch remaining logs.
 
+**Output Size Guardrail:**
+
+The logs tool includes a token-based output guardrail (default: 12,000 tokens, ~48KB) to prevent overwhelming responses. When output exceeds the limit, the tool returns a structured response with:
+
+- Warning message explaining the token limit
+- Complete JSON schema of the LogsData structure
+- Suggested jq queries for common filtering scenarios
+
+The limit can be customized using the `max_tokens` parameter:
+
+```json
+{
+  "name": "logs",
+  "arguments": {
+    "count": 100,
+    "max_tokens": 20000
+  }
+}
+```
+
+When the guardrail triggers, use the provided jq queries to filter the data. For example, to get only failed runs, use `jq: '.runs | map(select(.conclusion == "failure"))'`.
+
 **Large Output Handling:**
 
 When tool outputs exceed 16,000 tokens (~64KB), the MCP server automatically writes content to `/tmp/gh-aw/safe-outputs/` and returns a JSON response with file location and schema description:
