@@ -326,8 +326,11 @@ async function main() {
 
     // Log first 500 lines of patch for debugging
     const patchLines = patchContent.split("\n");
-    const previewLines = patchLines.slice(0, 500).join("\n");
-    core.info(`Patch preview (first ${Math.min(500, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
+    const previewLineCount = Math.min(500, patchLines.length);
+    core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
+    for (let i = 0; i < previewLineCount; i++) {
+      core.info(patchLines[i]);
+    }
 
     // Patches are created with git format-patch, so use git am to apply them
     try {

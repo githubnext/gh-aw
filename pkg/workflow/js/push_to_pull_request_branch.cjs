@@ -315,8 +315,11 @@ async function main() {
       // Log first 100 lines of patch for debugging
       const finalPatchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
       const patchLines = finalPatchContent.split("\n");
-      const previewLines = patchLines.slice(0, 100).join("\n");
-      core.info(`Patch preview (first ${Math.min(100, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
+      const previewLineCount = Math.min(100, patchLines.length);
+      core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
+      for (let i = 0; i < previewLineCount; i++) {
+        core.info(patchLines[i]);
+      }
 
       // Patches are created with git format-patch, so use git am to apply them
       await exec.exec("git am /tmp/gh-aw/aw.patch");

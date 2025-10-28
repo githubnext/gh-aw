@@ -4879,8 +4879,11 @@ jobs:
                   }
                   const finalPatchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
                   const patchLines = finalPatchContent.split("\n");
-                  const previewLines = patchLines.slice(0, 100).join("\n");
-                  core.info(`Patch preview (first ${Math.min(100, patchLines.length)} of ${patchLines.length} lines):\n${previewLines}`);
+                  const previewLineCount = Math.min(100, patchLines.length);
+                  core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
+                  for (let i = 0; i < previewLineCount; i++) {
+                    core.info(patchLines[i]);
+                  }
                   await exec.exec("git am /tmp/gh-aw/aw.patch");
                   core.info("Patch applied successfully");
                   await exec.exec(`git push origin ${branchName}`);
