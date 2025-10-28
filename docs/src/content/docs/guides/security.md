@@ -448,6 +448,64 @@ The system uses AI-powered analysis with workflow source context to distinguish 
 
 See the [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for threat detection configuration options.
 
+### Automated Security Scanning
+
+GitHub Agentic Workflows supports automated security scanning of compiled workflows using [zizmor](https://github.com/zizmorcore/zizmor), a specialized security scanner for GitHub Actions workflows. Zizmor runs during compilation to identify potential vulnerabilities before workflows are deployed.
+
+**Enable security scanning:**
+
+```bash
+gh aw compile --zizmor
+```
+
+Zizmor analyzes generated `.lock.yml` files for common security issues:
+
+- Excessive or overly broad permissions
+- Insecure workflow practices
+- Supply chain vulnerabilities
+- Workflow misconfigurations
+
+**Security findings are reported in IDE-parseable format:**
+
+```
+./.github/workflows/workflow.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions
+5 |     steps:
+6 |       - uses: actions/checkout@v4
+7 |   permissions:
+        ^^^^^^^^^^^^^
+8 |     contents: write
+9 |     issues: write
+```
+
+Each finding includes:
+- **Severity level**: Low, Medium, High, or Critical
+- **File location**: Clickable line and column numbers for IDE navigation
+- **Context**: Surrounding code lines showing the issue
+- **Description**: Clear explanation of the security concern
+
+**Enforcement with strict mode:**
+
+Combine `--zizmor` with `--strict` to block compilation when security issues are found:
+
+```bash
+gh aw compile --strict --zizmor  # Fails if security findings exist
+```
+
+This ensures workflows meet security standards before deployment to production environments. In non-strict mode, findings are reported as warnings but do not prevent compilation.
+
+**Requirements:**
+
+- Docker must be installed and running
+- The scanner runs in a container (`ghcr.io/zizmorcore/zizmor:latest`)
+- Each `.lock.yml` file is scanned independently
+
+**Best practices:**
+
+- Run `--zizmor` during development to catch security issues early
+- Use `--strict --zizmor` in CI/CD pipelines for production workflows
+- Review and address all High and Critical severity findings
+- Consider Medium and Low findings for defense-in-depth improvements
+
 ### Network Isolation
 
 Network isolation in GitHub Agentic Workflows operates at two layers to prevent unauthorized network access:
