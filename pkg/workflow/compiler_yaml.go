@@ -120,7 +120,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// Collect used action pins from the generated YAML and add them to the header
 	usedPins := collectUsedActionPins(yamlContent)
 	pinnedActionsComment := generatePinnedActionsComment(usedPins)
-	
+
 	// If we have pinned actions, insert the comment before the workflow name
 	if pinnedActionsComment != "" {
 		// Find the position after the mermaid graph and before "name:"
@@ -886,7 +886,7 @@ func collectUsedActionPins(yamlContent string) map[string]ActionPin {
 	lines := strings.Split(yamlContent, "\n")
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		
+
 		// Match both "uses:" and "- uses:" (step format)
 		var usesValue string
 		if strings.HasPrefix(trimmed, "uses:") {
@@ -902,7 +902,7 @@ func collectUsedActionPins(yamlContent string) map[string]ActionPin {
 				usesValue = strings.TrimSpace(parts[1])
 			}
 		}
-		
+
 		if usesValue == "" {
 			continue
 		}
@@ -953,7 +953,7 @@ func generatePinnedActionsComment(usedPins map[string]ActionPin) string {
 		// Generate the GitHub URL to the specific commit
 		// For "actions/checkout" -> "https://github.com/actions/checkout/commit/08c6903..."
 		// For "github/codeql-action/upload-sarif" -> "https://github.com/github/codeql-action/commit/562257d..."
-		
+
 		// Extract the base repository (owner/repo) from potentially nested paths
 		var baseRepo string
 		repoParts := strings.Split(repo, "/")
@@ -964,7 +964,7 @@ func generatePinnedActionsComment(usedPins map[string]ActionPin) string {
 		}
 
 		githubURL := fmt.Sprintf("https://github.com/%s/commit/%s", baseRepo, pin.SHA)
-		
+
 		comment.WriteString(fmt.Sprintf("#   - %s@%s (%s)\n", repo, pin.Version, pin.SHA))
 		comment.WriteString(fmt.Sprintf("#     %s\n", githubURL))
 	}
