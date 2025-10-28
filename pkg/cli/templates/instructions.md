@@ -503,7 +503,6 @@ Deploy to environment: "${{ github.event.inputs.environment }}"
 # Token: ${{ secrets.GITHUB_TOKEN }}
 # Environment: ${{ env.MY_VAR }}
 # Actor: ${{ github.actor }}
-# Workflow: ${{ github.workflow }}
 # Complex: ${{ toJson(github.repository) }}
 ```
 
