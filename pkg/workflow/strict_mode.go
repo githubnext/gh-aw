@@ -5,6 +5,9 @@ import (
 )
 
 // validateStrictMode performs strict mode validations on the workflow
+// Note: Strict mode also affects zizmor security scanner behavior (see pkg/cli/zizmor.go)
+// When zizmor is enabled with --zizmor flag, strict mode will treat any security
+// findings as compilation errors rather than warnings.
 func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermissions *NetworkPermissions) error {
 	if !c.strictMode {
 		return nil
