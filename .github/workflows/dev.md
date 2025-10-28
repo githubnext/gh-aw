@@ -9,7 +9,6 @@ engine: copilot
 permissions:
   contents: read
   actions: read
-  pull-requests: write
 tools:
   github:
   edit:
