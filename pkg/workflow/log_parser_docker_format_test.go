@@ -10,9 +10,9 @@ func TestParseClaudeLogDockerPullFormat(t *testing.T) {
 	dockerPullLog := `npm warn exec The following package was not found and will be installed: @anthropic-ai/claude-code@1.0.115
 [DEBUG] Watching for changes in setting files /tmp/gh-aw/.claude/settings.json...
 [ERROR] Failed to save config with lock: Error: ENOENT: no such file or directory, lstat '/home/runner/.claude.json'
-[ERROR] MCP server "github" Server stderr: Unable to find image 'ghcr.io/github/github-mcp-server:v0.20.0' locally
+[ERROR] MCP server "github" Server stderr: Unable to find image 'ghcr.io/github/github-mcp-server:v0.20.1' locally
 [DEBUG] Shell snapshot created successfully (242917 bytes)
-[ERROR] MCP server "github" Server stderr: v0.20.0: Pulling from github/github-mcp-server
+[ERROR] MCP server "github" Server stderr: v0.20.1: Pulling from github/github-mcp-server
 [ERROR] MCP server "github" Server stderr: 35d697fe2738: Pulling fs layer
 [ERROR] MCP server "github" Server stderr: bfb59b82a9b6: Pulling fs layer
 4eff9a62d888: Pulling fs layer
@@ -60,8 +60,8 @@ func TestParseClaudeLogDockerPullFormatJS(t *testing.T) {
 	}
 
 	dockerPullLog := `[DEBUG] Starting Claude
-[ERROR] MCP server "github" Server stderr: Unable to find image 'ghcr.io/github/github-mcp-server:v0.20.0' locally
-[ERROR] MCP server "github" Server stderr: v0.20.0: Pulling from github/github-mcp-server
+[ERROR] MCP server "github" Server stderr: Unable to find image 'ghcr.io/github/github-mcp-server:v0.20.1' locally
+[ERROR] MCP server "github" Server stderr: v0.20.1: Pulling from github/github-mcp-server
 4eff9a62d888: Pulling fs layer
 62de241dac5f: Pulling fs layer
 {"type":"system","subtype":"init","session_id":"test-123","tools":["Bash","Read"],"model":"claude-sonnet-4-20250514"}

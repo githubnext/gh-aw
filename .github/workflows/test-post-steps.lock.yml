@@ -134,11 +134,11 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.351
+        run: npm install -g @github/copilot@0.0.352
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.20.0
+          docker pull ghcr.io/github/github-mcp-server:v0.20.1
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
@@ -159,7 +159,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.20.0"
+                  "ghcr.io/github/github-mcp-server:v0.20.1"
                 ],
                 "tools": [
                   "get_repository"

@@ -314,7 +314,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"\"GITHUB_READ_ONLY=1\",",
 				"\"-e\",",
 				"\"GITHUB_TOOLSETS=default\",",
-				"\"ghcr.io/github/github-mcp-server:v0.20.0\"",
+				"\"ghcr.io/github/github-mcp-server:v0.20.1\"",
 				"]",
 				"",
 				"[mcp_servers.github.env]",
