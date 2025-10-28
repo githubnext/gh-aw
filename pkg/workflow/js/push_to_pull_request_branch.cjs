@@ -256,24 +256,33 @@ async function main() {
 
   // Switch to or create the target branch
   core.info(`Switching to branch: ${branchName}`);
-  try {
-    // Try to checkout existing branch first
-    await exec.exec("git fetch origin");
 
-    // Check if branch exists on origin
-    try {
-      await exec.exec(`git rev-parse --verify origin/${branchName}`);
-      await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
-      core.info(`Checked out existing branch from origin: ${branchName}`);
-    } catch (originError) {
-      // Give an error if branch doesn't exist on origin
-      core.setFailed(
-        `Branch ${branchName} does not exist on origin, can't push to it: ${originError instanceof Error ? originError.message : String(originError)}`
-      );
-      return;
-    }
-  } catch (error) {
-    core.setFailed(`Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`);
+  // Fetch latest changes from origin
+  try {
+    await exec.exec("git fetch origin");
+  } catch (fetchError) {
+    core.setFailed(`Failed to fetch from origin: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+    return;
+  }
+
+  // Check if branch exists on origin
+  try {
+    await exec.exec(`git rev-parse --verify origin/${branchName}`);
+  } catch (verifyError) {
+    core.setFailed(
+      `Branch ${branchName} does not exist on origin, can't push to it: ${verifyError instanceof Error ? verifyError.message : String(verifyError)}`
+    );
+    return;
+  }
+
+  // Checkout the branch from origin
+  try {
+    await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
+    core.info(`Checked out existing branch from origin: ${branchName}`);
+  } catch (checkoutError) {
+    core.setFailed(
+      `Failed to checkout branch ${branchName}: ${checkoutError instanceof Error ? checkoutError.message : String(checkoutError)}`
+    );
     return;
   }
 
