@@ -950,7 +950,7 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 	stepLines := []string{
 		"      - name: Parse firewall logs for step summary",
 		"        if: always()",
-		"        uses: actions/github-script@v8",
+		"        uses: " + GetActionPin("actions/github-script"),
 		"        with:",
 		"          script: |",
 	}
