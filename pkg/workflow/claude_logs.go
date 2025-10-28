@@ -387,7 +387,7 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []any, toolCallMa
 											if command, exists := inputMap["command"]; exists {
 												if commandStr, ok := command.(string); ok {
 													// Create unique bash entry with command info, avoiding colons
-													uniqueBashName := fmt.Sprintf("bash_%s", e.shortenCommand(commandStr))
+													uniqueBashName := fmt.Sprintf("bash_%s", ShortenCommand(commandStr))
 													prettifiedName = uniqueBashName
 												}
 											}
@@ -472,7 +472,7 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []any, toolCallMap map[string
 											if command, exists := inputMap["command"]; exists {
 												if commandStr, ok := command.(string); ok {
 													// Create unique bash entry with command info, avoiding colons
-													uniqueBashName := fmt.Sprintf("bash_%s", e.shortenCommand(commandStr))
+													uniqueBashName := fmt.Sprintf("bash_%s", ShortenCommand(commandStr))
 													prettifiedName = uniqueBashName
 												}
 											}
@@ -529,16 +529,6 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []any, toolCallMap map[string
 			}
 		}
 	}
-}
-
-// shortenCommand creates a short identifier for bash commands
-func (e *ClaudeEngine) shortenCommand(command string) string {
-	// Take first 20 characters and remove newlines
-	shortened := strings.ReplaceAll(command, "\n", " ")
-	if len(shortened) > 20 {
-		shortened = shortened[:20] + "..."
-	}
-	return shortened
 }
 
 // estimateInputSize estimates the input size in tokens from a tool input object
