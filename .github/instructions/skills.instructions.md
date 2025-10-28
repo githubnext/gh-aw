@@ -40,23 +40,6 @@ Use skills from the skillz server to accomplish tasks.
 - The skills directory is mounted at `/skillz` inside the container
 - Pass `/skillz` as the argument to tell skillz where to find skills
 
-### Alternative: Using uvx (Non-Docker)
-
-For environments where Docker is not preferred, you can use `uvx`:
-
-```aw
----
-on: issues
-engine: copilot
-mcp-servers:
-  skillz:
-    command: "uvx"
-    args: ["skillz@latest", "/path/to/skills"]
----
-```
-
-**Note**: The Docker approach is recommended for better isolation and security.
-
 ## Skills Directory Structure
 
 Skillz looks for skills inside the root directory you provide (defaults to `~/.skillz`). Each skill lives in its own folder or zip archive that includes a `SKILL.md` file with YAML front matter.
@@ -190,37 +173,6 @@ To verify which skills will be exposed before running your workflow:
 docker run --rm -v /path/to/skills:/skillz intellectronica/skillz /skillz --list-skills
 ```
 
-Or with uvx:
-
-```bash
-uvx skillz@latest /path/to/skills --list-skills
-```
-
-## Best Practices
-
-### Security Considerations
-
-1. **Treat skills as untrusted code** - Always review skills before use
-2. **Use Docker for isolation** - Run in containers to limit potential damage
-3. **Validate skill sources** - Only use skills from trusted authors
-4. **Review helper scripts** - Examine any executable code in skills
-5. **Limit permissions** - Use minimal Docker permissions and network access
-
-### Organizing Skills
-
-1. **Use descriptive names** - Make skill purposes clear from folder names
-2. **Document thoroughly** - Include comprehensive `SKILL.md` descriptions
-3. **Keep skills focused** - One skill should do one thing well
-4. **Version your skills** - Track changes to skill definitions
-5. **Test independently** - Verify skills work before integrating into workflows
-
-### Performance Optimization
-
-1. **Minimize skill count** - Only mount necessary skills
-2. **Use specific paths** - Point directly to needed skill directories
-3. **Avoid large resources** - Keep skill files small when possible
-4. **Cache Docker images** - Reuse the `intellectronica/skillz` image
-
 ## Workflow Examples
 
 ### Issue Triage with Custom Skills
@@ -303,57 +255,6 @@ safe-outputs:
 Use code analysis skills to review PR #${{ github.event.pull_request.number }}.
 Provide constructive feedback as a comment.
 ```
-
-## CLI Reference
-
-The Skillz CLI supports several options (when not using Docker, these apply directly; with Docker, append them to the args array):
-
-| Flag / Option | Description |
-| --- | --- |
-| positional `skills_root` | Optional skills directory (defaults to `~/.skillz`) |
-| `--transport {stdio,http,sse}` | Choose the FastMCP transport (default `stdio`) |
-| `--host HOST` | Bind address for HTTP/SSE transports |
-| `--port PORT` | Port for HTTP/SSE transports |
-| `--path PATH` | URL path when using HTTP transport |
-| `--list-skills` | List discovered skills and exit |
-| `--verbose` | Emit debug logging to the console |
-| `--log` | Mirror verbose logs to `/tmp/skillz.log` |
-
-## Troubleshooting
-
-### Skills Not Found
-
-**Problem**: Skillz reports no skills found.
-
-**Solutions**:
-1. Verify the mounted path is correct
-2. Check that skills have `SKILL.md` files
-3. Use `--list-skills` to debug
-4. Ensure proper directory permissions
-
-### Docker Permission Issues
-
-**Problem**: Docker cannot access the skills directory.
-
-**Solutions**:
-1. Verify the host path exists
-2. Check file permissions on the host
-3. Use absolute paths, not relative paths
-4. On Linux, consider SELinux/AppArmor contexts
-
-### Skill Execution Failures
-
-**Problem**: Skills are found but fail to execute.
-
-**Solutions**:
-1. Check helper script permissions (must be executable)
-2. Verify required dependencies are in the container
-3. Review skill `SKILL.md` for missing requirements
-4. Enable `--verbose` logging to see errors
-
-## Finding Skills
-
-Browse and discover skills at the **[Awesome Skills](http://skills.intellectronica.net/)** directory.
 
 ## Additional Resources
 
