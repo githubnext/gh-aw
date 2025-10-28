@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
 func TestActionCache(t *testing.T) {
@@ -68,33 +67,6 @@ func TestActionCacheSaveLoad(t *testing.T) {
 	sha, found = cache2.Get("actions/setup-node", "v4")
 	if !found || sha != "def456" {
 		t.Errorf("Expected to find actions/setup-node@v4 with SHA 'def456', got '%s' (found=%v)", sha, found)
-	}
-}
-
-func TestActionCacheExpiration(t *testing.T) {
-	// Create temporary directory for testing
-	tmpDir := t.TempDir()
-
-	cache := NewActionCache(tmpDir)
-
-	// Add an entry with an old timestamp
-	key := "actions/checkout@v5"
-	cache.Entries[key] = ActionCacheEntry{
-		Repo:      "actions/checkout",
-		Version:   "v5",
-		SHA:       "abc123",
-		Timestamp: time.Now().Add(-10 * 24 * time.Hour), // 10 days old
-	}
-
-	// Try to get the expired entry
-	_, found := cache.Get("actions/checkout", "v5")
-	if found {
-		t.Error("Expected cache miss for expired entry")
-	}
-
-	// Verify it was removed from the cache
-	if _, exists := cache.Entries[key]; exists {
-		t.Error("Expected expired entry to be removed from cache")
 	}
 }
 

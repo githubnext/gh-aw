@@ -316,7 +316,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ApplyActionPinToStep(tt.stepMap)
+			// Create a minimal WorkflowData for testing
+			data := &WorkflowData{}
+			result := ApplyActionPinToStep(tt.stepMap, data)
 
 			// Check if uses field exists in result
 			if uses, hasUses := result["uses"]; hasUses {

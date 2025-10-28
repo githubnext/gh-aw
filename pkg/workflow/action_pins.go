@@ -4,55 +4,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 )
-
-var (
-	// globalResolver is the global action resolver instance
-	globalResolver     *ActionResolver
-	globalResolverOnce sync.Once
-	globalCache        *ActionCache
-
-	// globalStrictMode controls whether to error on pinning failures
-	globalStrictMode bool
-)
-
-// SetStrictMode sets the global strict mode flag for action pinning
-func SetStrictMode(strict bool) {
-	globalStrictMode = strict
-}
-
-// initializeGlobalResolver initializes the global resolver and cache
-func initializeGlobalResolver() {
-	globalResolverOnce.Do(func() {
-		// Get current working directory to find .github/aw
-		cwd, err := os.Getwd()
-		if err != nil {
-			// If we can't get cwd, just use current directory
-			cwd = "."
-		}
-
-		globalCache = NewActionCache(cwd)
-		// Try to load existing cache, ignore errors
-		_ = globalCache.Load()
-
-		globalResolver = NewActionResolver(globalCache)
-	})
-}
-
-// GetGlobalCache returns the global action cache instance
-func GetGlobalCache() *ActionCache {
-	initializeGlobalResolver()
-	return globalCache
-}
-
-// GetGlobalResolver returns the global action resolver instance
-func GetGlobalResolver() *ActionResolver {
-	initializeGlobalResolver()
-	return globalResolver
-}
 
 // ActionPin represents a pinned GitHub Action with its commit SHA
 type ActionPin struct {
@@ -160,18 +114,20 @@ func GetActionPin(actionRepo string) string {
 	return ""
 }
 
-// GetActionPinWithMode returns the pinned action reference for a given action@version
+// GetActionPinWithData returns the pinned action reference for a given action@version
 // It tries dynamic resolution first, then falls back to hardcoded pins
 // If strictMode is true and resolution fails, it returns an error
-func GetActionPinWithMode(actionRepo, version string, strictMode bool) (string, error) {
-	// First try dynamic resolution
-	initializeGlobalResolver()
-
-	sha, err := globalResolver.ResolveSHA(actionRepo, version)
-	if err == nil && sha != "" {
-		// Successfully resolved, save cache
-		_ = globalCache.Save()
-		return actionRepo + "@" + sha, nil
+func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {
+	// First try dynamic resolution if resolver is available
+	if data.ActionResolver != nil {
+		sha, err := data.ActionResolver.ResolveSHA(actionRepo, version)
+		if err == nil && sha != "" {
+			// Successfully resolved, save cache
+			if data.ActionCache != nil {
+				_ = data.ActionCache.Save()
+			}
+			return actionRepo + "@" + sha, nil
+		}
 	}
 
 	// Dynamic resolution failed, try hardcoded pins
@@ -181,7 +137,7 @@ func GetActionPinWithMode(actionRepo, version string, strictMode bool) (string, 
 			return actionRepo + "@" + pin.SHA, nil
 		}
 		// Version mismatch, but we can still use the hardcoded SHA if we're not in strict mode
-		if !strictMode {
+		if !data.StrictMode {
 			warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
 				actionRepo, version, actionRepo, pin.Version)
 			fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
@@ -190,14 +146,20 @@ func GetActionPinWithMode(actionRepo, version string, strictMode bool) (string, 
 	}
 
 	// No pin available
-	if strictMode {
-		errMsg := fmt.Sprintf("Unable to pin action %s@%s: %v", actionRepo, version, err)
+	if data.StrictMode {
+		errMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
+		if data.ActionResolver != nil {
+			errMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
+		}
 		fmt.Fprint(os.Stderr, console.FormatErrorMessage(errMsg))
 		return "", fmt.Errorf("%s", errMsg)
 	}
 
 	// In non-strict mode, emit warning and return empty string
-	warningMsg := fmt.Sprintf("Unable to pin action %s@%s: %v", actionRepo, version, err)
+	warningMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
+	if data.ActionResolver != nil {
+		warningMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
+	}
 	fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
 	return "", nil
 }
@@ -205,7 +167,7 @@ func GetActionPinWithMode(actionRepo, version string, strictMode bool) (string, 
 // ApplyActionPinToStep applies SHA pinning to a step map if it contains a "uses" field
 // with a pinned action. Returns a modified copy of the step map with pinned references.
 // If the step doesn't use an action or the action is not pinned, returns the original map.
-func ApplyActionPinToStep(stepMap map[string]any) map[string]any {
+func ApplyActionPinToStep(stepMap map[string]any, data *WorkflowData) map[string]any {
 	// Check if step has a "uses" field
 	uses, hasUses := stepMap["uses"]
 	if !hasUses {
@@ -231,9 +193,9 @@ func ApplyActionPinToStep(stepMap map[string]any) map[string]any {
 	}
 
 	// Try to get pinned SHA
-	pinnedRef, err := GetActionPinWithMode(actionRepo, version, globalStrictMode)
+	pinnedRef, err := GetActionPinWithData(actionRepo, version, data)
 	if err != nil {
-		// In strict mode, this would have already been handled by GetActionPinWithMode
+		// In strict mode, this would have already been handled by GetActionPinWithData
 		// In normal mode, we just return the original step
 		return stepMap
 	}
@@ -256,12 +218,11 @@ func ApplyActionPinToStep(stepMap map[string]any) map[string]any {
 	return result
 }
 
-// ApplyActionPinToStepWithMode is deprecated, use ApplyActionPinToStep with SetStrictMode instead
+// ApplyActionPinToStepWithMode is deprecated, kept for backwards compatibility
 func ApplyActionPinToStepWithMode(stepMap map[string]any, strictMode bool) map[string]any {
-	oldMode := globalStrictMode
-	globalStrictMode = strictMode
-	defer func() { globalStrictMode = oldMode }()
-	return ApplyActionPinToStep(stepMap)
+	// Create a minimal WorkflowData for backwards compatibility
+	data := &WorkflowData{StrictMode: strictMode}
+	return ApplyActionPinToStep(stepMap, data)
 }
 
 // extractActionRepo extracts the action repository from a uses string
@@ -299,11 +260,11 @@ func extractActionVersion(uses string) string {
 
 // ApplyActionPinsToSteps applies SHA pinning to a slice of step maps
 // Returns a new slice with pinned references
-func ApplyActionPinsToSteps(steps []any) []any {
+func ApplyActionPinsToSteps(steps []any, data *WorkflowData) []any {
 	result := make([]any, len(steps))
 	for i, step := range steps {
 		if stepMap, ok := step.(map[string]any); ok {
-			result[i] = ApplyActionPinToStep(stepMap)
+			result[i] = ApplyActionPinToStep(stepMap, data)
 		} else {
 			result[i] = step
 		}
@@ -311,12 +272,11 @@ func ApplyActionPinsToSteps(steps []any) []any {
 	return result
 }
 
-// ApplyActionPinsToStepsWithMode is deprecated, use ApplyActionPinsToSteps with SetStrictMode instead
+// ApplyActionPinsToStepsWithMode is deprecated, kept for backwards compatibility
 func ApplyActionPinsToStepsWithMode(steps []any, strictMode bool) []any {
-	oldMode := globalStrictMode
-	globalStrictMode = strictMode
-	defer func() { globalStrictMode = oldMode }()
-	return ApplyActionPinsToSteps(steps)
+	// Create a minimal WorkflowData for backwards compatibility
+	data := &WorkflowData{StrictMode: strictMode}
+	return ApplyActionPinsToSteps(steps, data)
 }
 
 // GetAllActionPinsSorted returns all action pins sorted by repository name
