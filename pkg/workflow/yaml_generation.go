@@ -7,6 +7,10 @@ func (c *Compiler) generateGitConfigurationSteps() []string {
 		"        run: |\n",
 		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
 		"          git config --global user.name \"github-actions[bot]\"\n",
+		"          # Re-authenticate git with GitHub token\n",
+		"          SERVER_URL=\"${{ github.server_url }}\"\n",
+		"          SERVER_URL=\"${SERVER_URL#https://}\"\n",
+		"          git remote set-url origin \"https://x-access-token:${{ github.token }}@${SERVER_URL}/${{ github.repository }}.git\"\n",
 		"          echo \"Git configured with standard GitHub Actions identity\"\n",
 	}
 }
