@@ -178,33 +178,61 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, erro
 			continue
 		}
 
-		// Format: 🌈 zizmor xx warnings in <filepath>
-		warningText := "warnings"
-		if count == 1 {
-			warningText = "warning"
+		// Read file content for context display
+		fileContent, err := os.ReadFile(filePath)
+		var fileLines []string
+		if err == nil {
+			fileLines = strings.Split(string(fileContent), "\n")
 		}
-		fmt.Fprintf(os.Stderr, "🌈 zizmor %d %s in %s\n", count, warningText, filePath)
 
-		// Display detailed findings
+		// Display detailed findings using CompilerError format
 		for _, finding := range findings {
 			severity := finding.Determinations.Severity
 			ident := finding.Ident
 			desc := finding.Desc
 
 			// Find the primary location (first location in the list)
-			var locationInfo string
 			if len(finding.Locations) > 0 {
 				loc := finding.Locations[0]
 				row := loc.Concrete.Location.StartPoint.Row
 				col := loc.Concrete.Location.StartPoint.Column
 				// Zizmor uses 0-based indexing, convert to 1-based for user display
-				if row > 0 || col > 0 {
-					locationInfo = fmt.Sprintf(" at line %d, column %d", row+1, col+1)
-				}
-			}
+				lineNum := row + 1
+				colNum := col + 1
 
-			errorMsg := fmt.Sprintf("  - [%s] %s%s: %s", severity, ident, locationInfo, desc)
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errorMsg))
+				// Create context lines around the error
+				var context []string
+				if len(fileLines) > 0 && lineNum > 0 && lineNum <= len(fileLines) {
+					startLine := max(1, lineNum-2)
+					endLine := min(len(fileLines), lineNum+2)
+
+					for i := startLine; i <= endLine; i++ {
+						if i-1 < len(fileLines) {
+							context = append(context, fileLines[i-1])
+						}
+					}
+				}
+
+				// Map severity to error type
+				errorType := "warning"
+				if severity == "High" || severity == "Critical" {
+					errorType = "error"
+				}
+
+				// Create and format CompilerError
+				compilerErr := console.CompilerError{
+					Position: console.ErrorPosition{
+						File:   filePath,
+						Line:   lineNum,
+						Column: colNum,
+					},
+					Type:    errorType,
+					Message: fmt.Sprintf("[%s] %s: %s", severity, ident, desc),
+					Context: context,
+				}
+
+				fmt.Fprint(os.Stderr, console.FormatError(compilerErr))
+			}
 		}
 	}
 
