@@ -9,18 +9,21 @@ engine: copilot
 permissions:
   contents: read
   actions: read
+  pull-requests: write
 tools:
   github:
   edit:
+safe-outputs:
+  push-to-pull-request-branch:
 ---
 
-# Test GitHub MCP Tools and Create Poem File
+# Test GitHub MCP Tools and Create Emoji File
 
-Test each GitHub MCP tool with sensible arguments to verify they are configured properly, then create or update a poem.md file with a new poem.
+Test each GitHub MCP tool with sensible arguments to verify they are configured properly, then create or update an emoji.md file with an emoji and push it to the pull request branch.
 
 **Goal**: 
 1. Invoke each tool from the GitHub MCP server with reasonable arguments. Some tools may fail due to missing data or invalid arguments, but they should at least be callable. Fail if there are permission issues indicating the tools aren't properly configured.
-2. Create or update a `poem.md` file in the repository with a short poem about GitHub Agentic Workflows.
+2. Create or update an `emoji.md` file in the repository with an emoji and push the changes to the pull request branch.
 
 ## Instructions
 
@@ -56,25 +59,19 @@ After testing all tools, provide a summary:
 
 If any permission issues were encountered, clearly state which tools had permission problems and fail the workflow.
 
-## Part 2: Create or Update Poem File
+## Part 2: Create or Update Emoji File
 
-After completing the tool testing, create or update a `poem.md` file in the repository root. The file should:
+After completing the tool testing, create or update an `emoji.md` file in the repository root. The file should:
 
-1. **Contain a short poem** - Write a creative, original poem about GitHub Agentic Workflows (4-8 lines)
+1. **Contain an emoji** - Choose a fun, creative emoji that represents GitHub Agentic Workflows
 2. **Be in markdown format** - Use proper markdown formatting
-3. **Include a title** - Use a markdown heading for the poem title
+3. **Include a title** - Use a markdown heading for the file
 
-**Instructions**: Use the `edit` tool to either create a new `poem.md` file or update the existing one if it already exists. The poem should celebrate the capabilities and magic of agentic workflows.
+**Instructions**: Use the `edit` tool to either create a new `emoji.md` file or update the existing one if it already exists. The changes will be automatically pushed to the pull request branch.
 
-**Example poem structure:**
+**Example emoji file structure:**
 ```markdown
-# A Poem for Agentic Workflows
+# Emoji for Agentic Workflows
 
-In the realm of code where actions flow,
-AI agents work their magic show.
-With natural language as their guide,
-They automate tasks far and wide.
-
-GitHub workflows, smart and bright,
-Transform our repos day and night!
+🤖✨
 ```
