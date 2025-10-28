@@ -495,3 +495,65 @@ func TestSanitizeWorkflowName(t *testing.T) {
 		})
 	}
 }
+
+func TestAnalyzeFirewallLogsWithWorkflowSuffix(t *testing.T) {
+	// Create a temporary directory structure that mimics actual workflow artifact layout
+	tmpDir := t.TempDir()
+	
+	// Create a directory with workflow-specific suffix (like squid-logs-smoke-copilot-firewall)
+	logsDir := filepath.Join(tmpDir, "squid-logs-smoke-copilot-firewall")
+	err := os.MkdirAll(logsDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create logs directory: %v", err)
+	}
+	
+	// Create a sample access.log file
+	accessLog := filepath.Join(logsDir, "access.log")
+	logContent := `1761332530.474 172.30.0.20:35288 api.enterprise.githubcopilot.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.enterprise.githubcopilot.com:443 "-"
+1761332531.123 172.30.0.20:35289 blocked.example.com:443 140.82.112.23:443 1.1 CONNECT 403 NONE_NONE:HIER_NONE blocked.example.com:443 "-"
+1761332532.456 172.30.0.20:35290 api.github.com:443 140.82.112.5:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"
+`
+	err = os.WriteFile(accessLog, []byte(logContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write access.log: %v", err)
+	}
+	
+	// Analyze the logs - this should find the squid-logs-* directory
+	analysis, err := analyzeFirewallLogs(tmpDir, false)
+	if err != nil {
+		t.Fatalf("analyzeFirewallLogs failed: %v", err)
+	}
+	
+	if analysis == nil {
+		t.Fatal("Expected firewall analysis but got nil")
+	}
+	
+	// Verify the analysis found our logs
+	if analysis.TotalRequests != 3 {
+		t.Errorf("TotalRequests: got %d, want 3", analysis.TotalRequests)
+	}
+	
+	if analysis.AllowedRequests != 2 {
+		t.Errorf("AllowedRequests: got %d, want 2", analysis.AllowedRequests)
+	}
+	
+	if analysis.DeniedRequests != 1 {
+		t.Errorf("DeniedRequests: got %d, want 1", analysis.DeniedRequests)
+	}
+	
+	// Verify allowed domains
+	expectedAllowed := map[string]bool{
+		"api.enterprise.githubcopilot.com:443": true,
+		"api.github.com:443":                   true,
+	}
+	for _, domain := range analysis.AllowedDomains {
+		if !expectedAllowed[domain] {
+			t.Errorf("Unexpected allowed domain: %s", domain)
+		}
+	}
+	
+	// Verify denied domains
+	if len(analysis.DeniedDomains) != 1 || analysis.DeniedDomains[0] != "blocked.example.com:443" {
+		t.Errorf("DeniedDomains: got %v, want [blocked.example.com:443]", analysis.DeniedDomains)
+	}
+}
