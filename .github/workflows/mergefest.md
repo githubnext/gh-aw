@@ -34,7 +34,7 @@ tools:
     - "grep"
   edit:
   github:
-    toolset: [pull_requests, repos]
+    toolsets: [pull_requests, repos]
 safe-outputs:
   push-to-pull-request-branch:
 timeout_minutes: 10

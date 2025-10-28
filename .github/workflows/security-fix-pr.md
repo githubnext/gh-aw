@@ -9,7 +9,7 @@ permissions:
 engine: claude
 tools:
   github:
-    toolset: [context, repos, code_security, pull_requests]
+    toolsets: [context, repos, code_security, pull_requests]
     allowed:
       - list_code_scanning_alerts
       - get_code_scanning_alert

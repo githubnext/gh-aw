@@ -197,7 +197,7 @@ func getGitHubReadOnly(githubTool any) bool {
 // Defaults to "default" for recommended toolset
 func getGitHubToolsets(githubTool any) string {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if toolsetsSetting, exists := toolConfig["toolset"]; exists {
+		if toolsetsSetting, exists := toolConfig["toolsets"]; exists {
 			// Handle array format only
 			switch v := toolsetsSetting.(type) {
 			case []any:

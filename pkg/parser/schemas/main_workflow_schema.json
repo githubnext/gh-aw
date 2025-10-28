@@ -1813,7 +1813,7 @@
                   "$ref": "#/$defs/github_token",
                   "description": "Optional custom GitHub token (e.g., '${{ secrets.CUSTOM_PAT }}'). For 'remote' type, defaults to GH_AW_GITHUB_TOKEN if not specified."
                 },
-                "toolset": {
+                "toolsets": {
                   "type": "array",
                   "description": "Array of GitHub MCP server toolset names to enable specific groups of GitHub API functionalities",
                   "items": {
@@ -1847,7 +1847,7 @@
               "additionalProperties": false,
               "examples": [
                 {
-                  "toolset": ["pull_requests", "actions", "repos"]
+                  "toolsets": ["pull_requests", "actions", "repos"]
                 },
                 {
                   "allowed": [
@@ -1863,7 +1863,7 @@
                   "read-only": true
                 },
                 {
-                  "toolset": ["pull_requests", "repos"]
+                  "toolsets": ["pull_requests", "repos"]
                 }
               ]
             }
@@ -1871,7 +1871,7 @@
           "examples": [
             null,
             {
-              "toolset": ["pull_requests", "actions", "repos"]
+              "toolsets": ["pull_requests", "actions", "repos"]
             },
             {
               "allowed": [
@@ -1882,7 +1882,7 @@
             },
             {
               "read-only": true,
-              "toolset": ["repos", "issues"]
+              "toolsets": ["repos", "issues"]
             }
           ]
         },

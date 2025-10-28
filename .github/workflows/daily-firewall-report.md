@@ -16,7 +16,7 @@ safe-outputs:
 
 tools:
   github:
-    toolset:
+    toolsets:
       - default
       - actions
     allowed:

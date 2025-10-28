@@ -13,7 +13,7 @@ tools:
   edit:
   bash:
   github:
-    toolset: [actions, repos]
+    toolsets: [actions, repos]
 safe-outputs:
   create-discussion:
     category: "artifacts"

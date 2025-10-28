@@ -12,7 +12,7 @@ imports:
   - shared/opencode.md
 tools:
   github:
-    toolset: [pull_requests]
+    toolsets: [pull_requests]
     allowed:
       - list_pull_requests
       - get_pull_request

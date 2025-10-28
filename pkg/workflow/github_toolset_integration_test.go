@@ -21,7 +21,7 @@ on: push
 engine: claude
 tools:
   github:
-    toolset: [repos, issues, pull_requests]
+    toolsets: [repos, issues, pull_requests]
 ---
 
 # Test Workflow
@@ -41,7 +41,7 @@ on: push
 engine: copilot
 tools:
   github:
-    toolset: [repos, issues, actions]
+    toolsets: [repos, issues, actions]
 ---
 
 # Test Workflow
@@ -61,7 +61,7 @@ on: push
 engine: codex
 tools:
   github:
-    toolset: [all]
+    toolsets: [all]
 ---
 
 # Test Workflow
@@ -99,7 +99,7 @@ on: push
 engine: claude
 tools:
   github:
-    toolset: [repos, issues]
+    toolsets: [repos, issues]
     read-only: true
 ---
 
@@ -168,7 +168,7 @@ engine: claude
 tools:
   github:
     mode: remote
-    toolset: [repos, issues]
+    toolsets: [repos, issues]
 ---
 
 # Test Workflow
@@ -228,7 +228,7 @@ engine: claude
 tools:
   github:
     mode: remote
-    toolset: [repos, issues, pull_requests]
+    toolsets: [repos, issues, pull_requests]
 ---
 
 # Test Workflow
@@ -246,7 +246,7 @@ engine: copilot
 tools:
   github:
     mode: remote
-    toolset: [actions, discussions]
+    toolsets: [actions, discussions]
 ---
 
 # Test Workflow
@@ -264,7 +264,7 @@ engine: claude
 tools:
   github:
     mode: remote
-    toolset: [all]
+    toolsets: [all]
 ---
 
 # Test Workflow
@@ -299,7 +299,7 @@ engine: copilot
 tools:
   github:
     mode: remote
-    toolset: [repos, issues]
+    toolsets: [repos, issues]
     read-only: true
 ---
 
