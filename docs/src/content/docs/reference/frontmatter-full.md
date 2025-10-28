@@ -985,7 +985,11 @@ tools:
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
     # Array of GitHub MCP server toolset names to enable specific groups of GitHub API
-    # functionalities
+    # functionalities. Prefer using toolset over listing individual tools with 'allowed'.
+    # Available toolsets: context, repos, issues, pull_requests, actions, code_security,
+    # dependabot, discussions, experiments, gists, labels, notifications, orgs, projects,
+    # secret_protection, security_advisories, stargazers, users, search
+    # Use [default] for recommended toolsets or [all] for everything.
     # (optional)
     toolset: []
       # Array of Toolset name

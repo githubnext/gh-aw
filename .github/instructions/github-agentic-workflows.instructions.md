@@ -115,17 +115,18 @@ The YAML frontmatter supports these fields:
   
 - **`tools:`** - Tool configuration for coding agent
   - `github:` - GitHub API tools
-    - `allowed:` - Array of allowed GitHub API functions
+    - `toolset:` - **PREFERRED**: Enable specific GitHub toolset groups (array only)
+      - **Default toolsets** (when unspecified): `context`, `repos`, `issues`, `pull_requests`, `users`
+      - **All toolsets**: `context`, `repos`, `issues`, `pull_requests`, `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `labels`, `notifications`, `orgs`, `projects`, `secret_protection`, `security_advisories`, `stargazers`, `users`, `search`
+      - Use `[default]` for recommended toolsets, `[all]` to enable everything
+      - Examples: `toolset: [default]`, `toolset: [default, discussions]`, `toolset: [repos, issues]`
+      - **Best Practice**: Prefer `toolset:` over `allowed:` for better organization and completeness
+    - `allowed:` - Array of allowed GitHub API functions (use `toolset:` instead when possible)
     - `mode:` - "local" (Docker, default) or "remote" (hosted)
     - `version:` - MCP server version (local mode only)
     - `args:` - Additional command-line arguments (local mode only)
     - `read-only:` - Restrict to read-only operations (boolean)
     - `github-token:` - Custom GitHub token
-    - `toolset:` - Enable specific GitHub toolset groups (array only)
-      - **Default toolsets** (when unspecified): `context`, `repos`, `issues`, `pull_requests`, `users`
-      - **All toolsets**: `context`, `repos`, `issues`, `pull_requests`, `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `labels`, `notifications`, `orgs`, `projects`, `secret_protection`, `security_advisories`, `stargazers`, `users`
-      - Use `[default]` for recommended toolsets, `[all]` to enable everything
-      - Examples: `toolset: [default]`, `toolset: [default, discussions]`, `toolset: [repos, issues]`
   - `agentic-workflows:` - GitHub Agentic Workflows MCP server for workflow introspection
     - Provides tools for:
       - `status` - Show status of workflow files in the repository
