@@ -493,9 +493,9 @@ See [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network-per
 
 1. **Start with Minimal Access**: Begin with `defaults` and add only needed ecosystems
 2. **Use Ecosystem Identifiers**: Prefer `python`, `node`, etc. over listing individual domains
-3. **Use Wildcards Carefully**: `*.example.com` matches any subdomain including nested ones (e.g., `api.example.com`, `nested.api.example.com`) - ensure this broad access is intended
-   - **Claude engine**: Wildcard matching implemented via Python network hooks
-   - **Copilot engine**: Wildcards passed to AWF binary via `--allow-domains` (see [gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall) for AWF's wildcard support)
+3. **Domain Matching Behavior**:
+   - **Claude engine**: Supports wildcard syntax - `*.example.com` matches any subdomain including nested ones (e.g., `api.example.com`, `nested.api.example.com`)
+   - **Copilot engine with AWF**: Does NOT support wildcard syntax (`*.example.com` won't work). Instead, AWF automatically matches subdomains when you specify a base domain - use `example.com` to match all subdomains including `api.example.com`
 4. **Test Thoroughly**: Verify that all required domains/ecosystems are included in allowlist
 5. **Monitor Usage**: Review workflow logs to identify any blocked legitimate requests
 6. **Document Reasoning**: Comment why specific domains/ecosystems are required for maintenance

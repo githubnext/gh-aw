@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 )
@@ -37,6 +38,11 @@ func (c *Compiler) checkNetworkSupport(engine CodingAgentEngine, networkPermissi
 		return err
 	}
 
+	// Check for wildcards with AWF (Copilot engine)
+	if err := c.checkAWFWildcardSupport(engine, networkPermissions); err != nil {
+		return err
+	}
+
 	// Check if network restrictions exist
 	if !hasNetworkRestrictions(networkPermissions) {
 		// No restrictions, no validation needed
@@ -58,6 +64,52 @@ func (c *Compiler) checkNetworkSupport(engine CodingAgentEngine, networkPermissi
 	if c.strictMode {
 		// In strict mode, this is an error
 		return fmt.Errorf("strict mode: engine must support firewall when network restrictions (network.allowed) are set")
+	}
+
+	// In non-strict mode, emit a warning
+	fmt.Println(console.FormatWarningMessage(message))
+	c.IncrementWarningCount()
+
+	return nil
+}
+
+// checkAWFWildcardSupport validates that wildcard patterns are not used with Copilot engine
+// AWF (Agent Workflow Firewall) does not support wildcard syntax like *.example.com
+// Instead, AWF automatically matches subdomains when a base domain is specified
+func (c *Compiler) checkAWFWildcardSupport(engine CodingAgentEngine, networkPermissions *NetworkPermissions) error {
+	// Only check for Copilot engine with firewall enabled
+	if engine.GetID() != "copilot" {
+		return nil
+	}
+
+	// Check if firewall is enabled
+	if networkPermissions == nil || networkPermissions.Firewall == nil || !networkPermissions.Firewall.Enabled {
+		return nil
+	}
+
+	// Check for wildcards in allowed domains
+	var wildcardDomains []string
+	if networkPermissions != nil && len(networkPermissions.Allowed) > 0 {
+		for _, domain := range networkPermissions.Allowed {
+			if strings.HasPrefix(domain, "*.") {
+				wildcardDomains = append(wildcardDomains, domain)
+			}
+		}
+	}
+
+	if len(wildcardDomains) == 0 {
+		return nil
+	}
+
+	// Wildcards detected with Copilot/AWF
+	message := fmt.Sprintf(
+		"AWF does not support wildcard syntax (found: %s). AWF automatically matches subdomains - use base domain instead (e.g., 'example.com' matches 'api.example.com'). See https://github.com/githubnext/gh-aw-firewall/blob/main/docs/QUICKSTART.md#limitations",
+		strings.Join(wildcardDomains, ", "),
+	)
+
+	if c.strictMode {
+		// In strict mode, this is an error
+		return fmt.Errorf("strict mode: %s", message)
 	}
 
 	// In non-strict mode, emit a warning

@@ -4,6 +4,10 @@
 
 This document provides a comprehensive analysis of wildcard network filtering support in GitHub Agentic Workflows.
 
+**Key Finding**: Wildcard support varies by engine:
+- **Claude Engine**: ✅ Fully supported via Python hooks
+- **Copilot Engine with AWF**: ❌ NOT supported (AWF doesn't support wildcard syntax)
+
 ## Current Implementation Status
 
 ### ✅ Claude Engine - FULLY IMPLEMENTED
@@ -22,87 +26,146 @@ Wildcard patterns are **fully implemented and tested** for the Claude engine via
 - ✅ `*.example.com` does NOT match `example.com` (base domain)
 - ✅ `*.example.com` does NOT match `notexample.com` (partial suffix)
 
-### ⚠️ Copilot Engine with AWF - PARTIALLY VERIFIED
+### ❌ Copilot Engine with AWF - NOT SUPPORTED
 
-Wildcard patterns are **passed to AWF** via the `--allow-domains` flag, but the external AWF binary's wildcard support has not been independently verified.
+AWF (Agent Workflow Firewall) **does NOT support wildcard syntax** according to its [official documentation](https://github.com/githubnext/gh-aw-firewall/blob/main/docs/QUICKSTART.md#limitations):
 
-**Implementation Details:**
+> **✗ No wildcard syntax** (use base domain instead)  
+> `--allow-domains '*.github.com'`  
+> `--allow-domains github.com        # ✓ matches subdomains automatically`
+
+**Current gh-aw Behavior (INCORRECT):**
 - **File**: `pkg/workflow/copilot_engine.go` (line 218)
-- **AWF Invocation**: `--allow-domains '*.example.com,api.github.com,...'`
-- **Domain List Building**: `GetCopilotAllowedDomains()` in `pkg/workflow/domains.go`
-- **Test Coverage**: `TestWildcardNetworkPermissionsCopilotEngine`
+- **What Happens**: gh-aw passes `*.example.com` to AWF via `--allow-domains`
+- **Problem**: AWF doesn't support wildcard syntax and will reject or ignore it
+- **Impact**: Wildcards in network configuration for Copilot engine won't work as expected
+
+**How AWF Actually Works:**
+- AWF automatically matches subdomains for base domains
+- `example.com` in AWF matches: `api.example.com`, `nested.api.example.com`, etc.
+- No wildcard prefix (`*.`) is needed or supported
 
 **What is Verified:**
-- ✅ Wildcards are correctly extracted from workflow configuration
-- ✅ Wildcards are included in the comma-separated domain list
-- ✅ Wildcards are passed to AWF via `--allow-domains` flag
+- ✅ gh-aw extracts wildcards from workflow configuration
+- ✅ gh-aw includes wildcards in domain list
+- ✅ gh-aw passes wildcards to AWF via `--allow-domains` flag
 
-**What is NOT Verified:**
-- ❓ AWF binary's actual wildcard matching implementation
-- ❓ AWF's wildcard syntax compatibility (if different from `*.domain.com`)
-- ❓ AWF's behavior when given wildcard patterns
-
-**AWF Source:**
-- Repository: `github.com/githubnext/gh-aw-firewall`
-- Binary: Downloaded from GitHub releases
-- Version: Configurable via `network.firewall.version`
+**What is BROKEN:**
+- ❌ AWF does not support wildcards
+- ❌ Users expecting wildcard behavior with Copilot will be confused
+- ❌ No validation or warning when wildcards are used with Copilot
 
 ## Security Guide Accuracy
 
-The security guide (`docs/src/content/docs/guides/security.md` line 496) states:
+The security guide (`docs/src/content/docs/guides/security.md`) previously stated:
 
-> **Use Wildcards Carefully**: `*.example.com` matches any subdomain including nested ones (e.g., `api.example.com`, `nested.api.example.com`) - ensure this broad access is intended
+> **Use Wildcards Carefully**: `*.example.com` matches any subdomain including nested ones
+
+**Original Assessment**: INACCURATE for Copilot engine
+
+**Corrected Version** (line 496):
+> **Domain Matching Behavior**:
+>    - **Claude engine**: Supports wildcard syntax - `*.example.com` matches any subdomain
+>    - **Copilot engine with AWF**: Does NOT support wildcard syntax. Use base domain instead (e.g., `example.com` auto-matches subdomains)
 
 **Assessment:**
-- ✅ **Accurate for Claude engine** - behavior verified via tests
-- ⚠️ **Assumed for Copilot/AWF** - wildcards are passed to AWF, but AWF's implementation is external
+- ✅ **Now accurate** - distinguishes between Claude and Copilot behavior
+- ✅ **Helpful** - explains AWF's subdomain auto-matching feature
+
+## Required Fixes
+
+### High Priority
+
+1. **Add Validation for Copilot/AWF**
+   - Detect wildcards in network configuration when using Copilot engine
+   - Issue warning or error message
+   - Suggest using base domain instead
+
+2. **Auto-Convert Wildcards** (Optional)
+   - Strip `*.` prefix when compiling for AWF
+   - Convert `*.example.com` → `example.com` automatically
+   - Add compiler message explaining the conversion
+
+3. **Update Tests**
+   - Current `TestWildcardNetworkPermissionsCopilotEngine` is misleading
+   - Only verifies wildcards are passed, not that they work
+   - Should either be removed or updated to test the actual (non-working) behavior
+
+### Documentation
+
+- [x] Security guide updated to distinguish Claude vs Copilot
+- [x] Investigation summary updated with correct findings
+- [ ] Add examples showing correct usage per engine
+- [ ] Update user-facing docs with clear guidance
 
 ## Recommendations
 
 ### For Claude Engine Users
-No action needed. Wildcard filtering is fully functional and tested.
+```yaml
+engine: claude
+network:
+  allowed:
+    - "*.example.com"  # ✓ Wildcard syntax works
+    - "api.github.com"  # ✓ Exact domain works
+```
+
+Wildcards work as documented. No changes needed.
 
 ### For Copilot Engine Users
-The gh-aw codebase correctly passes wildcards to AWF. However, if you need to verify AWF's wildcard support:
 
-1. **Check AWF Documentation**: Review `github.com/githubnext/gh-aw-firewall` documentation
-2. **Test with AWF Directly**: Run AWF with wildcard patterns and verify behavior
-3. **Review AWF Source**: Examine AWF's domain matching implementation
-4. **Check AWF Logs**: AWF logs network activity, which can confirm wildcard matching
-
-### For Security Guide
-Consider adding a note distinguishing between:
-- **Claude engine**: Native wildcard support via Python hooks
-- **Copilot engine**: Wildcards passed to AWF (external binary)
-
-Example addition:
-```markdown
-**Note**: For Claude engine, wildcard matching is implemented directly in the workflow.
-For Copilot engine with AWF, wildcards are passed to the AWF binary via `--allow-domains`.
-Verify AWF's wildcard support in the [gh-aw-firewall repository](https://github.com/githubnext/gh-aw-firewall).
+**INCORRECT (Won't Work):**
+```yaml
+engine: copilot
+network:
+  firewall: true
+  allowed:
+    - "*.example.com"  # ✗ AWF doesn't support wildcards
 ```
+
+**CORRECT:**
+```yaml
+engine: copilot
+network:
+  firewall: true
+  allowed:
+    - "example.com"  # ✓ Auto-matches api.example.com, etc.
+    - "api.github.com"  # ✓ Exact domain
+```
+
+**Note**: AWF automatically matches subdomains, so `example.com` will allow `api.example.com`, `nested.api.example.com`, etc.
+
+### For gh-aw Maintainers
+
+1. **Immediate Action**: Add compiler warning when wildcards detected with Copilot/AWF
+2. **Consider**: Auto-strip `*.` prefix for AWF compatibility
+3. **Testing**: Add integration test with actual AWF to verify behavior
+4. **Documentation**: Ensure all examples use correct syntax per engine
 
 ## Test Coverage
 
-All verification tests pass successfully:
+### Valid Tests
+- ✅ `TestWildcardNetworkPermissionsClaudeEngine` - Correctly verifies Claude wildcard support
+- ✅ `TestWildcardDomainMatching` - Documents expected behavior (for Claude)
+- ✅ `TestWildcardSecurityGuideAccuracy` - Verifies documentation exists
 
-```bash
-$ go test -v -run TestWildcard ./pkg/workflow/...
-=== RUN   TestWildcardNetworkPermissionsClaudeEngine
---- PASS: TestWildcardNetworkPermissionsClaudeEngine (0.01s)
-=== RUN   TestWildcardNetworkPermissionsCopilotEngine
---- PASS: TestWildcardNetworkPermissionsCopilotEngine (0.00s)
-=== RUN   TestWildcardDomainMatching
---- PASS: TestWildcardDomainMatching (0.00s)
-=== RUN   TestWildcardSecurityGuideAccuracy
---- PASS: TestWildcardSecurityGuideAccuracy (0.00s)
-PASS
-```
+### Problematic Tests
+- ⚠️ `TestWildcardNetworkPermissionsCopilotEngine` - Misleading test that only verifies wildcards are passed to AWF, not that they work
 
 ## Conclusion
 
-**For the gh-aw codebase**: Wildcard network filtering is properly implemented for Claude engine and correctly configured for Copilot/AWF.
+**Original Problem Statement Was PARTIALLY CORRECT:**
 
-**For end-to-end wildcard support**: Claude engine is fully verified. Copilot/AWF requires verification of the external AWF binary's wildcard matching implementation.
+The security guide claimed wildcards work, but this is only true for Claude engine. For Copilot engine with AWF, wildcards are NOT supported.
 
-**For the security guide**: The documentation is accurate for Claude engine. For Copilot/AWF, it assumes AWF supports wildcards (which should be verified separately).
+**Summary:**
+- ✅ Claude engine: Wildcards fully implemented
+- ❌ Copilot/AWF: Wildcards NOT supported (AWF limitation)
+- ⚠️ gh-aw: Passes wildcards to AWF without validation (bug)
+- ✅ Documentation: Now corrected to distinguish between engines
+
+**Next Steps:**
+1. Add validation/warning for wildcards with Copilot
+2. Update or remove misleading test
+3. Consider auto-conversion of wildcards for AWF
+4. Update user-facing documentation with clear examples
+

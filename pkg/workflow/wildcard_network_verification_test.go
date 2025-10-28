@@ -193,8 +193,8 @@ func TestWildcardDomainMatching(t *testing.T) {
 	}
 }
 
-// TestWildcardSecurityGuideAccuracy verifies that the security guide claims
-// about wildcard support are accurate
+// TestWildcardSecurityGuideAccuracy verifies that the security guide
+// documents domain matching behavior correctly for different engines
 func TestWildcardSecurityGuideAccuracy(t *testing.T) {
 	// Read the security guide
 	securityGuide, err := os.ReadFile("../../docs/src/content/docs/guides/security.md")
@@ -205,26 +205,86 @@ func TestWildcardSecurityGuideAccuracy(t *testing.T) {
 
 	content := string(securityGuide)
 
-	// Verify the security guide mentions wildcard support
-	if !strings.Contains(content, "Use Wildcards Carefully") {
-		t.Error("Security guide should document wildcard usage in best practices")
+	// Verify the security guide documents domain matching behavior
+	if !strings.Contains(content, "Domain Matching Behavior") {
+		t.Error("Security guide should document domain matching behavior in best practices")
 	}
 
 	if !strings.Contains(content, "*.example.com") {
 		t.Error("Security guide should include wildcard example (*.example.com)")
 	}
 
-	// Verify the guide explains what wildcards match
-	if !strings.Contains(content, "matches any subdomain") {
-		t.Error("Security guide should explain that wildcards match subdomains")
+	// Verify the guide distinguishes between Claude and Copilot
+	if !strings.Contains(content, "Claude engine") {
+		t.Error("Security guide should document Claude engine behavior")
 	}
 
-	// The security guide states:
-	// "Use Wildcards Carefully: *.example.com matches any subdomain including
-	//  nested ones (e.g., api.example.com, nested.api.example.com)"
+	if !strings.Contains(content, "Copilot engine") {
+		t.Error("Security guide should document Copilot engine behavior")
+	}
+
+	// Verify the guide explains AWF's automatic subdomain matching
+	if !strings.Contains(content, "automatically matches subdomains") {
+		t.Error("Security guide should explain AWF's automatic subdomain matching")
+	}
+
+	// The security guide now correctly distinguishes between engines:
+	// - Claude engine: Supports wildcard syntax
+	// - Copilot engine with AWF: Does NOT support wildcards, uses automatic subdomain matching
 	//
-	// This test verifies that this claim is documented.
-	// For actual implementation verification, see:
+	// For implementation verification, see:
 	// - Claude engine: TestWildcardNetworkPermissionsClaudeEngine
-	// - Copilot engine: TestWildcardNetworkPermissionsCopilotEngine
+	// - Copilot engine: TestWildcardNetworkPermissionsCopilotEngine (with AWF warning)
+}
+
+// TestAWFWildcardWarning verifies that a warning is emitted when wildcards
+// are used with Copilot engine and AWF firewall
+func TestAWFWildcardWarning(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	yamlContent := `---
+on: push
+engine: copilot
+network:
+  firewall: true
+  allowed:
+    - "github.com"
+    - "*.example.com"
+    - "*.trusted.com"
+tools:
+  edit:
+  github:
+---
+
+# Test AWF Wildcard Warning
+
+Test that wildcards trigger a warning with Copilot/AWF.`
+
+	tmpDir, err := os.MkdirTemp("", "awf-wildcard-warning-")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	filePath := filepath.Join(tmpDir, "test.md")
+	err = os.WriteFile(filePath, []byte(yamlContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write temp file: %v", err)
+	}
+
+	// Compile the workflow
+	err = compiler.CompileWorkflow(filePath)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Verify that a warning was emitted
+	if compiler.GetWarningCount() == 0 {
+		t.Error("Expected a warning about wildcards with AWF, but no warnings were emitted")
+	}
+
+	// Note: The warning message is:
+	// "AWF does not support wildcard syntax (found: *.example.com, *.trusted.com).
+	//  AWF automatically matches subdomains - use base domain instead
+	//  (e.g., 'example.com' matches 'api.example.com')."
 }
