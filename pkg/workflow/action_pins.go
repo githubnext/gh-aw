@@ -1,6 +1,12 @@
 package workflow
 
-import "strings"
+import (
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/console"
+)
 
 // ActionPin represents a pinned GitHub Action with its commit SHA
 type ActionPin struct {
@@ -108,10 +114,60 @@ func GetActionPin(actionRepo string) string {
 	return ""
 }
 
+// GetActionPinWithData returns the pinned action reference for a given action@version
+// It tries dynamic resolution first, then falls back to hardcoded pins
+// If strictMode is true and resolution fails, it returns an error
+func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {
+	// First try dynamic resolution if resolver is available
+	if data.ActionResolver != nil {
+		sha, err := data.ActionResolver.ResolveSHA(actionRepo, version)
+		if err == nil && sha != "" {
+			// Successfully resolved, save cache
+			if data.ActionCache != nil {
+				_ = data.ActionCache.Save()
+			}
+			return actionRepo + "@" + sha, nil
+		}
+	}
+
+	// Dynamic resolution failed, try hardcoded pins
+	if pin, exists := actionPins[actionRepo]; exists {
+		// Check if the version matches the hardcoded version
+		if pin.Version == version {
+			return actionRepo + "@" + pin.SHA, nil
+		}
+		// Version mismatch, but we can still use the hardcoded SHA if we're not in strict mode
+		if !data.StrictMode {
+			warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
+				actionRepo, version, actionRepo, pin.Version)
+			fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
+			return actionRepo + "@" + pin.SHA, nil
+		}
+	}
+
+	// No pin available
+	if data.StrictMode {
+		errMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
+		if data.ActionResolver != nil {
+			errMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
+		}
+		fmt.Fprint(os.Stderr, console.FormatErrorMessage(errMsg))
+		return "", fmt.Errorf("%s", errMsg)
+	}
+
+	// In non-strict mode, emit warning and return empty string
+	warningMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
+	if data.ActionResolver != nil {
+		warningMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
+	}
+	fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
+	return "", nil
+}
+
 // ApplyActionPinToStep applies SHA pinning to a step map if it contains a "uses" field
 // with a pinned action. Returns a modified copy of the step map with pinned references.
 // If the step doesn't use an action or the action is not pinned, returns the original map.
-func ApplyActionPinToStep(stepMap map[string]any) map[string]any {
+func ApplyActionPinToStep(stepMap map[string]any, data *WorkflowData) map[string]any {
 	// Check if step has a "uses" field
 	uses, hasUses := stepMap["uses"]
 	if !hasUses {
@@ -124,14 +180,26 @@ func ApplyActionPinToStep(stepMap map[string]any) map[string]any {
 		return stepMap
 	}
 
-	// Extract action repo from uses field (remove @version or @ref)
+	// Extract action repo and version from uses field
 	actionRepo := extractActionRepo(usesStr)
 	if actionRepo == "" {
 		return stepMap
 	}
 
-	// Check if this action has a pin
-	pinnedRef := GetActionPin(actionRepo)
+	version := extractActionVersion(usesStr)
+	if version == "" {
+		// No version specified, can't pin
+		return stepMap
+	}
+
+	// Try to get pinned SHA
+	pinnedRef, err := GetActionPinWithData(actionRepo, version, data)
+	if err != nil {
+		// In strict mode, this would have already been handled by GetActionPinWithData
+		// In normal mode, we just return the original step
+		return stepMap
+	}
+
 	if pinnedRef == "" {
 		// No pin available for this action, return original step
 		return stepMap
@@ -167,13 +235,29 @@ func extractActionRepo(uses string) string {
 	return uses[:idx]
 }
 
+// extractActionVersion extracts the version from a uses string
+// For example:
+//   - "actions/checkout@v4" -> "v4"
+//   - "actions/setup-node@v5" -> "v5"
+//   - "actions/checkout" -> ""
+func extractActionVersion(uses string) string {
+	// Split on @ to separate repo from version/ref
+	idx := strings.Index(uses, "@")
+	if idx == -1 {
+		// No @ found, no version
+		return ""
+	}
+	// Return everything after the @
+	return uses[idx+1:]
+}
+
 // ApplyActionPinsToSteps applies SHA pinning to a slice of step maps
 // Returns a new slice with pinned references
-func ApplyActionPinsToSteps(steps []any) []any {
+func ApplyActionPinsToSteps(steps []any, data *WorkflowData) []any {
 	result := make([]any, len(steps))
 	for i, step := range steps {
 		if stepMap, ok := step.(map[string]any); ok {
-			result[i] = ApplyActionPinToStep(stepMap)
+			result[i] = ApplyActionPinToStep(stepMap, data)
 		} else {
 			result[i] = step
 		}
