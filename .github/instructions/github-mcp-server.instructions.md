@@ -70,17 +70,116 @@ tools:
 
 The GitHub MCP server organizes tools into logical toolsets. You can enable specific toolsets, use `[default]` for the recommended defaults, or use `[all]` to enable everything.
 
+:::tip[Best Practice]
+**Always prefer using `toolset:` over listing individual tools with `allowed:`**. Toolsets provide:
+- Better organization and discoverability
+- Complete functionality for each area
+- Reduced configuration verbosity
+- Automatic inclusion of new tools as they're added
+:::
+
 ### Recommended Default Toolsets
 
-[To be filled by workflow with analysis and recommendations]
+The following toolsets are enabled by default when `toolset:` is not specified:
+- `context` - User and environment context (strongly recommended)
+- `repos` - Repository management
+- `issues` - Issue management  
+- `pull_requests` - Pull request operations
+- `users` - User profiles
 
 ### All Available Toolsets
 
-[To be filled by workflow with complete toolset descriptions]
+| Toolset | Description | Common Tools |
+|---------|-------------|--------------|
+| `context` | User and environment context | `get_me`, `get_teams`, `get_team_members` |
+| `repos` | Repository management | `get_repository`, `get_file_contents`, `search_code`, `list_commits` |
+| `issues` | Issue management | `issue_read`, `list_issues`, `create_issue`, `search_issues` |
+| `pull_requests` | Pull request operations | `pull_request_read`, `list_pull_requests`, `create_pull_request` |
+| `actions` | GitHub Actions/CI/CD | `list_workflows`, `list_workflow_runs`, `download_workflow_run_artifact` |
+| `code_security` | Code scanning and security | `list_code_scanning_alerts`, `get_code_scanning_alert` |
+| `dependabot` | Dependency management | Dependabot alerts and updates |
+| `discussions` | GitHub Discussions | `list_discussions`, `create_discussion` |
+| `experiments` | Experimental features | Unstable/preview APIs |
+| `gists` | Gist operations | `create_gist`, `list_gists` |
+| `labels` | Label management | `get_label`, `list_labels`, `create_label` |
+| `notifications` | Notifications | `list_notifications`, `mark_notifications_read` |
+| `orgs` | Organization management | `get_organization`, `list_organizations` |
+| `projects` | GitHub Projects | Project board operations |
+| `secret_protection` | Secret scanning | Secret detection and management |
+| `security_advisories` | Security advisories | Advisory creation and management |
+| `stargazers` | Repository stars | Star-related operations |
+| `users` | User profiles | `get_user`, `list_users` |
+| `search` | Advanced search | Search across repos, code, users |
 
 ## Available Tools by Toolset
 
-[To be filled by workflow with comprehensive tool listings]
+This section maps individual tools to their respective toolsets to help with migration from `allowed:` to `toolset:`.
+
+### Context Toolset
+- `get_me` - Get current user information
+- `get_teams` - List teams the user belongs to
+- `get_team_members` - List members of a specific team
+
+### Repos Toolset
+- `get_repository` - Get repository information
+- `get_file_contents` - Read file contents from repository
+- `search_code` - Search code across repositories
+- `list_commits` - List commits in a repository
+- `get_commit` - Get details of a specific commit
+- `get_latest_release` - Get the latest release
+- `list_releases` - List all releases
+
+### Issues Toolset
+- `issue_read` - Read issue details
+- `list_issues` - List issues in a repository
+- `create_issue` - Create a new issue
+- `update_issue` - Update an existing issue
+- `search_issues` - Search issues across repositories
+- `add_reaction` - Add reaction to an issue or comment
+- `create_issue_comment` - Add a comment to an issue
+
+### Pull Requests Toolset
+- `pull_request_read` - Read pull request details
+- `list_pull_requests` - List pull requests in a repository
+- `get_pull_request` - Get details of a specific pull request
+- `create_pull_request` - Create a new pull request
+- `search_pull_requests` - Search pull requests across repositories
+
+### Actions Toolset
+- `list_workflows` - List GitHub Actions workflows
+- `list_workflow_runs` - List workflow runs
+- `get_workflow_run` - Get details of a specific workflow run
+- `download_workflow_run_artifact` - Download workflow artifacts
+
+### Code Security Toolset
+- `list_code_scanning_alerts` - List code scanning alerts
+- `get_code_scanning_alert` - Get details of a specific alert
+- `create_code_scanning_alert` - Create a code scanning alert
+
+### Discussions Toolset
+- `list_discussions` - List discussions in a repository
+- `create_discussion` - Create a new discussion
+
+### Labels Toolset
+- `get_label` - Get label details
+- `list_labels` - List labels in a repository
+- `create_label` - Create a new label
+
+### Users Toolset
+- `get_user` - Get user profile information
+- `list_users` - List users
+
+### Notifications Toolset
+- `list_notifications` - List user notifications
+- `mark_notifications_read` - Mark notifications as read
+
+### Organizations Toolset
+- `get_organization` - Get organization details
+- `list_organizations` - List organizations
+
+### Gists Toolset
+- `create_gist` - Create a new gist
+- `list_gists` - List user's gists
 
 ## Authentication Details
 
@@ -139,7 +238,25 @@ Ensure your GitHub token has appropriate permissions for the toolsets you're ena
 
 ## Troubleshooting
 
-[To be filled by workflow with common issues and solutions]
+### Common Issues
+
+**Issue**: Tool not found or not available
+- **Solution**: Check if you're using `allowed:` to restrict tools. Consider using `toolset:` instead to get all related tools.
+- **Verify**: Run `gh aw mcp inspect <workflow-name>` to see which tools are actually available.
+
+**Issue**: Missing functionality after specifying toolset
+- **Cause**: Using a too-narrow toolset that doesn't include all needed tools
+- **Solution**: Either add additional toolsets (e.g., `toolset: [default, actions]`) or use `[all]` for full access
+
+**Issue**: Workflow using `allowed:` list is verbose and hard to maintain
+- **Solution**: Migrate to `toolset:` configuration using the migration guide above
+
+### Best Practices for Debugging
+
+1. **Start with `[default]` toolset**: Most workflows work well with default toolsets
+2. **Add specific toolsets as needed**: Incrementally add toolsets like `actions`, `discussions`, etc.
+3. **Use `gh aw mcp inspect`**: Verify which tools are actually available
+4. **Check tool-to-toolset mapping**: Reference the tables above to find the right toolset
 
 ## References
 

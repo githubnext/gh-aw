@@ -101,6 +101,10 @@ tools:
 
 ### GitHub Toolsets
 
+:::tip[Prefer Toolsets Over Individual Tools]
+Use `toolset:` to enable groups of related tools instead of listing individual tools with `allowed:`. Toolsets provide better organization, reduce configuration verbosity, and ensure you get all related functionality.
+:::
+
 Enables or disables specific GitHub API groups to improve tool selection and reduce context size.
 
 ```yaml
@@ -109,9 +113,72 @@ tools:
     toolset: [repos, issues, pull_requests, actions]
 ```
 
-**Available Toolsets**: `context` (recommended), `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `issues`, `labels`, `notifications`, `orgs`, `projects`, `pull_requests`, `repos`, `secret_protection`, `security_advisories`, `stargazers`, `users`
+**Available Toolsets**: `context` (recommended), `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `issues`, `labels`, `notifications`, `orgs`, `projects`, `pull_requests`, `repos`, `secret_protection`, `security_advisories`, `stargazers`, `users`, `search`
 
-Default: `toolset: [all]` enables all toolsets. Currently supported in local (Docker) mode only.
+**Default Toolsets** (when `toolset:` is not specified): `context`, `repos`, `issues`, `pull_requests`, `users`
+
+**Recommended Combinations**:
+- **Read-only workflows**: `toolset: [default]` or `toolset: [context, repos]`
+- **Issue/PR/Discussion management**: `toolset: [default, discussions]` 
+- **CI/CD workflows**: `toolset: [default, actions]`
+- **Security workflows**: `toolset: [default, code_security, secret_protection]`
+- **Full access**: `toolset: [all]`
+
+#### Tool-to-Toolset Mapping
+
+When migrating from `allowed:` to `toolset:`, use this mapping to identify the correct toolset for your tools:
+
+| Tool Name | Toolset | Description |
+|-----------|---------|-------------|
+| `get_me`, `get_teams`, `get_team_members` | `context` | User and environment context |
+| `get_repository`, `get_file_contents`, `search_code`, `list_commits`, `get_commit` | `repos` | Repository operations |
+| `issue_read`, `list_issues`, `create_issue`, `update_issue`, `search_issues`, `add_reaction` | `issues` | Issue management |
+| `pull_request_read`, `list_pull_requests`, `get_pull_request`, `create_pull_request`, `search_pull_requests` | `pull_requests` | Pull request operations |
+| `list_workflows`, `list_workflow_runs`, `get_workflow_run`, `download_workflow_run_artifact` | `actions` | GitHub Actions/CI/CD |
+| `list_code_scanning_alerts`, `get_code_scanning_alert`, `create_code_scanning_alert` | `code_security` | Code security scanning |
+| `list_discussions`, `create_discussion` | `discussions` | GitHub Discussions |
+| `get_label`, `list_labels`, `create_label` | `labels` | Label management |
+| `list_notifications`, `mark_notifications_read` | `notifications` | Notifications |
+| `get_user`, `list_users` | `users` | User profiles |
+| `get_organization`, `list_organizations` | `orgs` | Organization management |
+| `create_gist`, `list_gists` | `gists` | Gist operations |
+| `get_latest_release`, `list_releases` | `repos` | Release management (part of repos) |
+| `create_issue_comment` | `issues` | Issue comments (part of issues) |
+
+**Example Migration**:
+
+Before (using `allowed:`):
+```yaml
+tools:
+  github:
+    allowed:
+      - list_pull_requests
+      - get_pull_request
+      - pull_request_read
+      - list_commits
+      - get_commit
+      - get_file_contents
+```
+
+After (using `toolset:`):
+```yaml
+tools:
+  github:
+    toolset: [default]  # Includes repos and pull_requests
+```
+
+Or for more specific control:
+```yaml
+tools:
+  github:
+    toolset: [repos, pull_requests]
+```
+
+:::note
+Both `toolset:` and `allowed:` can be used together. When specified, `allowed:` further restricts which tools are available within the enabled toolsets.
+:::
+
+**Supported Modes**: Toolsets are supported in both local (Docker) and remote (hosted) modes.
 
 ### GitHub Remote Mode
 

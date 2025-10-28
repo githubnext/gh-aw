@@ -227,12 +227,17 @@ mcp-servers:
 
 GitHub Agentic Workflows includes built-in GitHub MCP integration with comprehensive repository access. See [Tools](/gh-aw/reference/tools/) for details.
 
+:::tip[Use Toolsets for GitHub Tools]
+Prefer using `toolset:` instead of `allowed:` for GitHub tools. Toolsets provide better organization and ensure complete functionality. See the [GitHub Toolsets](/gh-aw/reference/tools/#github-toolsets) section for details.
+:::
+
 Configure the Docker image version (default: `"sha-09deac4"`):
 
 ```yaml
 tools:
   github:
     version: "sha-09deac4"
+    toolset: [default, actions]  # Recommended: use toolsets
 ```
 
 ### GitHub Authentication

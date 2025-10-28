@@ -70,7 +70,7 @@ imports:
   - shared/mcp/tavily.md
 tools:
   github:
-    allowed: [add_issue_comment]
+    toolset: [issues]
 ---
 
 # Research Agent
