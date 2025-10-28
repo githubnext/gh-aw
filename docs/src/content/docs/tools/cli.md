@@ -151,6 +151,10 @@ gh aw compile --purge                      # Remove orphaned .lock.yml files
 gh aw compile --watch --verbose            # Auto-recompile on changes
 gh aw compile --workflows-dir custom/      # Custom workflows directory
 
+# Security scanning
+gh aw compile --zizmor                     # Run security scanner on compiled workflows
+gh aw compile --strict --zizmor            # Strict mode with security scanning (fails on findings)
+
 # Dependency management
 gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --dependabot --force         # Force overwrite existing files
@@ -194,6 +198,39 @@ gh aw compile --dependabot --force
 :::note
 The `--dependabot` flag cannot be used with specific workflow files or custom `--workflows-dir`. It processes all workflows in `.github/workflows/`.
 :::
+
+**Security Scanning with Zizmor:**
+
+The `--zizmor` flag runs the [zizmor](https://github.com/zizmorcore/zizmor) security scanner on generated `.lock.yml` files to identify potential security vulnerabilities in compiled workflows. Zizmor analyzes workflows for excessive permissions, insecure practices, workflow misconfigurations, and supply chain risks.
+
+Security findings are displayed in IDE-parseable format with clickable file locations:
+
+```
+./.github/workflows/workflow.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions
+5 |     steps:
+6 |       - uses: actions/checkout@v4
+7 |   permissions:
+        ^^^^^^^^^^^^^
+8 |     contents: write
+9 |     issues: write
+```
+
+**Strict Mode Enforcement:**
+
+When combined with `--strict`, security findings block compilation, ensuring workflows meet security standards before deployment:
+
+```bash
+# Security scanning with enforcement
+gh aw compile --strict --zizmor  # Fails if security issues found
+```
+
+In non-strict mode, findings are reported as warnings but do not prevent compilation.
+
+**Requirements:**
+
+- Docker must be installed and running
+- The scanner runs `ghcr.io/zizmorcore/zizmor:latest` in a container
+- Scans each generated `.lock.yml` file independently
 
 ## ⚙️ Workflow Operations on GitHub Actions
 
