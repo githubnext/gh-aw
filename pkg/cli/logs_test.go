@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 )
@@ -88,9 +89,9 @@ func TestFormatNumber(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		result := formatNumber(test.input)
+		result := console.FormatNumber(test.input)
 		if result != test.expected {
-			t.Errorf("formatNumber(%d) = %s, expected %s", test.input, result, test.expected)
+			t.Errorf("console.FormatNumber(%d) = %s, expected %s", test.input, result, test.expected)
 		}
 	}
 }

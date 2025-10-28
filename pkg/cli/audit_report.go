@@ -491,11 +491,11 @@ func renderToolUsageTable(toolUsage []ToolUsageInfo) {
 	for _, tool := range toolUsage {
 		inputStr := "N/A"
 		if tool.MaxInputSize > 0 {
-			inputStr = formatNumber(tool.MaxInputSize)
+			inputStr = console.FormatNumber(tool.MaxInputSize)
 		}
 		outputStr := "N/A"
 		if tool.MaxOutputSize > 0 {
-			outputStr = formatNumber(tool.MaxOutputSize)
+			outputStr = console.FormatNumber(tool.MaxOutputSize)
 		}
 		durationStr := "N/A"
 		if tool.MaxDuration != "" {

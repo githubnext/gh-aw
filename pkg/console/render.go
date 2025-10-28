@@ -437,22 +437,22 @@ func formatFieldValueWithTag(val reflect.Value, tag consoleTag) string {
 			if val.CanInterface() {
 				switch v := val.Interface().(type) {
 				case int:
-					return formatNumberForDisplay(v)
+					return FormatNumber(v)
 				case int64:
-					return formatNumberForDisplay(int(v))
+					return FormatNumber(int(v))
 				case int32:
-					return formatNumberForDisplay(int(v))
+					return FormatNumber(int(v))
 				case uint:
-					return formatNumberForDisplay(int(v))
+					return FormatNumber(int(v))
 				case uint64:
-					return formatNumberForDisplay(int(v))
+					return FormatNumber(int(v))
 				case uint32:
-					return formatNumberForDisplay(int(v))
+					return FormatNumber(int(v))
 				}
 			}
 			// Fallback: try to parse from baseValue if it's an integer
 			if val.Kind() >= reflect.Int && val.Kind() <= reflect.Uint64 {
-				return formatNumberForDisplay(int(val.Int()))
+				return FormatNumber(int(val.Int()))
 			}
 		case "cost":
 			// Format as currency with $ prefix
@@ -539,8 +539,8 @@ func formatFileSize(size int64) string {
 	return fmt.Sprintf("%.1f %s", float64(size)/float64(div), units[exp])
 }
 
-// formatNumberForDisplay formats large numbers in a human-readable way (e.g., "1k", "1.2M")
-func formatNumberForDisplay(n int) string {
+// FormatNumber formats large numbers in a human-readable way (e.g., "1k", "1.2k", "1.12M")
+func FormatNumber(n int) string {
 	if n == 0 {
 		return "0"
 	}
@@ -551,17 +551,33 @@ func formatNumberForDisplay(n int) string {
 		return fmt.Sprintf("%d", n)
 	} else if f < 1000000 {
 		// Format as thousands (k)
-		if f < 10000 {
-			return fmt.Sprintf("%.1fk", f/1000)
+		k := f / 1000
+		if k >= 100 {
+			return fmt.Sprintf("%.0fk", k)
+		} else if k >= 10 {
+			return fmt.Sprintf("%.1fk", k)
+		} else {
+			return fmt.Sprintf("%.2fk", k)
 		}
-		return fmt.Sprintf("%.0fk", f/1000)
 	} else if f < 1000000000 {
 		// Format as millions (M)
-		if f < 10000000 {
-			return fmt.Sprintf("%.2fM", f/1000000)
+		m := f / 1000000
+		if m >= 100 {
+			return fmt.Sprintf("%.0fM", m)
+		} else if m >= 10 {
+			return fmt.Sprintf("%.1fM", m)
+		} else {
+			return fmt.Sprintf("%.2fM", m)
 		}
-		return fmt.Sprintf("%.1fM", f/1000000)
+	} else {
+		// Format as billions (B)
+		b := f / 1000000000
+		if b >= 100 {
+			return fmt.Sprintf("%.0fB", b)
+		} else if b >= 10 {
+			return fmt.Sprintf("%.1fB", b)
+		} else {
+			return fmt.Sprintf("%.2fB", b)
+		}
 	}
-	// Format as billions (B)
-	return fmt.Sprintf("%.2fB", f/1000000000)
 }

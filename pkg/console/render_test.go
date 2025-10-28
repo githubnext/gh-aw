@@ -386,7 +386,7 @@ func TestFormatTag_InTable(t *testing.T) {
 	}
 
 	// Should format small output size
-	if !strings.Contains(output, "1.5k") {
+	if !strings.Contains(output, "1.50k") {
 		t.Errorf("Output should contain formatted number '1.5k', got:\n%s", output)
 	}
 }

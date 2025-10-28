@@ -1722,7 +1722,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 		// Format tokens
 		tokensStr := ""
 		if run.TokenUsage > 0 {
-			tokensStr = formatNumber(run.TokenUsage)
+			tokensStr = console.FormatNumber(run.TokenUsage)
 			totalTokens += run.TokenUsage
 		}
 
@@ -1798,7 +1798,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 		"",
 		"",
 		formatDuration(totalDuration),
-		formatNumber(totalTokens),
+		console.FormatNumber(totalTokens),
 		fmt.Sprintf("%.3f", totalCost),
 		fmt.Sprintf("%d", totalTurns),
 		fmt.Sprintf("%d", totalErrors),
@@ -1846,49 +1846,6 @@ func formatDuration(d time.Duration) string {
 		return fmt.Sprintf("%.1fm", d.Minutes())
 	}
 	return fmt.Sprintf("%.1fh", d.Hours())
-}
-
-// formatNumber formats large numbers in a human-readable way (e.g., "1k", "1.2k", "1.12M")
-func formatNumber(n int) string {
-	if n == 0 {
-		return "0"
-	}
-
-	f := float64(n)
-
-	if f < 1000 {
-		return fmt.Sprintf("%d", n)
-	} else if f < 1000000 {
-		// Format as thousands (k)
-		k := f / 1000
-		if k >= 100 {
-			return fmt.Sprintf("%.0fk", k)
-		} else if k >= 10 {
-			return fmt.Sprintf("%.1fk", k)
-		} else {
-			return fmt.Sprintf("%.2fk", k)
-		}
-	} else if f < 1000000000 {
-		// Format as millions (M)
-		m := f / 1000000
-		if m >= 100 {
-			return fmt.Sprintf("%.0fM", m)
-		} else if m >= 10 {
-			return fmt.Sprintf("%.1fM", m)
-		} else {
-			return fmt.Sprintf("%.2fM", m)
-		}
-	} else {
-		// Format as billions (B)
-		b := f / 1000000000
-		if b >= 100 {
-			return fmt.Sprintf("%.0fB", b)
-		} else if b >= 10 {
-			return fmt.Sprintf("%.1fB", b)
-		} else {
-			return fmt.Sprintf("%.2fB", b)
-		}
-	}
 }
 
 // findAgentOutputFile searches for a file named agent_output.json within the logDir tree.
