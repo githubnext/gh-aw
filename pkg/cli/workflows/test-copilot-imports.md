@@ -8,10 +8,10 @@ engine: copilot
 
 # Test Copilot Imports
 
-This is a test workflow to verify that @include directives with cycles are handled correctly.
+This is a test workflow to verify that import directives with cycles are handled correctly.
 
-@include shared/keep-it-short.md
+{{#import shared/keep-it-short.md}}
 
-@include shared/use-emojis.md
+{{#import shared/use-emojis.md}}
 
 Process the issue and respond with a helpful comment.
