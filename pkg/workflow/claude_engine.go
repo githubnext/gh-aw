@@ -170,6 +170,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeArgs = append(claudeArgs, workflowData.EngineConfig.Args...)
 	}
 
+	// Add prompt argument - pre-quoted for firewall compatibility
+	claudeArgs = append(claudeArgs, "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"")
+
 	var stepLines []string
 
 	stepName := "Execute Claude Code CLI"
@@ -197,25 +200,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "          set -o pipefail")
 	stepLines = append(stepLines, "          # Execute Claude Code CLI with prompt from file")
 
-	// Build the command string with proper argument formatting
-	// Use claude command directly (installed via npm install -g)
-	commandParts := []string{"claude"}
-	commandParts = append(commandParts, claudeArgs...)
-	commandParts = append(commandParts, "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)")
-
-	// Join command parts with proper escaping for complex arguments
-	claudeCommand := ""
-	for i, part := range commandParts {
-		if i > 0 {
-			claudeCommand += " "
-		}
-		// For complex arguments that contain spaces or special characters, quote them
-		if strings.Contains(part, " ") || strings.Contains(part, ",") {
-			claudeCommand += "\"" + part + "\""
-		} else {
-			claudeCommand += part
-		}
-	}
+	// Join command parts with proper shell escaping
+	claudeCommand := "claude " + shellJoinArgs(claudeArgs)
 
 	// Conditionally wrap with AWF if firewall is enabled
 	var command string

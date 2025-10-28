@@ -1536,7 +1536,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash,BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__get_code_scanning_alert,mcp__github__get_file_contents,mcp__github__get_pull_request,mcp__github__list_code_scanning_alerts,mcp__github__list_pull_requests" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools 'Bash,BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__get_code_scanning_alert,mcp__github__get_file_contents,mcp__github__get_pull_request,mcp__github__list_code_scanning_alerts,mcp__github__list_pull_requests' --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -3958,7 +3958,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          claude --print --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"

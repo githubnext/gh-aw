@@ -1812,7 +1812,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat pkg/**/*.go),Bash(cat),Bash(date),Bash(echo),Bash(find pkg -name '*.go' ! -name '*_test.go' -type f),Bash(find pkg -type f -name '*.go' ! -name '*_test.go'),Bash(grep -r 'func ' pkg --include='*.go'),Bash(grep),Bash(head -n * pkg/**/*.go),Bash(head),Bash(ls -la pkg/),Bash(ls -la pkg/workflow/),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc -l pkg/**/*.go),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__get_file_contents,mcp__github__search_code,mcp__serena" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools 'Bash(cat pkg/**/*.go),Bash(cat),Bash(date),Bash(echo),Bash(find pkg -name '"'"'*.go'"'"' ! -name '"'"'*_test.go'"'"' -type f),Bash(find pkg -type f -name '"'"'*.go'"'"' ! -name '"'"'*_test.go'"'"'),Bash(grep -r '"'"'func '"'"' pkg --include='"'"'*.go'"'"'),Bash(grep),Bash(head -n * pkg/**/*.go),Bash(head),Bash(ls -la pkg/),Bash(ls -la pkg/workflow/),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc -l pkg/**/*.go),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__get_file_contents,mcp__github__search_code,mcp__serena' --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -3908,7 +3908,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          claude --print --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
