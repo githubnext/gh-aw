@@ -17,6 +17,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/timeutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 	"github.com/sourcegraph/conc/pool"
@@ -1708,7 +1709,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 		// Format duration
 		durationStr := ""
 		if run.Duration > 0 {
-			durationStr = formatDuration(run.Duration)
+			durationStr = timeutil.FormatDuration(run.Duration)
 			totalDuration += run.Duration
 		}
 
@@ -1797,7 +1798,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 		fmt.Sprintf("TOTAL (%d runs)", len(processedRuns)),
 		"",
 		"",
-		formatDuration(totalDuration),
+		timeutil.FormatDuration(totalDuration),
 		formatNumber(totalTokens),
 		fmt.Sprintf("%.3f", totalCost),
 		fmt.Sprintf("%d", totalTurns),
@@ -1835,17 +1836,6 @@ func ExtractLogMetricsFromRun(processedRun ProcessedRun) workflow.LogMetrics {
 	}
 
 	return metrics
-}
-
-// formatDuration formats a duration in a human-readable way
-func formatDuration(d time.Duration) string {
-	if d < time.Minute {
-		return fmt.Sprintf("%.0fs", d.Seconds())
-	}
-	if d < time.Hour {
-		return fmt.Sprintf("%.1fm", d.Minutes())
-	}
-	return fmt.Sprintf("%.1fh", d.Hours())
 }
 
 // formatNumber formats large numbers in a human-readable way (e.g., "1k", "1.2k", "1.12M")

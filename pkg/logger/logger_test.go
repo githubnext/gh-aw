@@ -332,30 +332,6 @@ func TestColorDisabling(t *testing.T) {
 	}
 }
 
-func TestFormatDuration(t *testing.T) {
-	tests := []struct {
-		name     string
-		duration time.Duration
-		want     string
-	}{
-		{"nanoseconds", 500 * time.Nanosecond, "500ns"},
-		{"microseconds", 500 * time.Microsecond, "500µs"},
-		{"milliseconds", 500 * time.Millisecond, "500ms"},
-		{"seconds", 2500 * time.Millisecond, "2.5s"},
-		{"minutes", 90 * time.Second, "1.5m"},
-		{"hours", 90 * time.Minute, "1.5h"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := formatDuration(tt.duration)
-			if got != tt.want {
-				t.Errorf("formatDuration(%v) = %q, want %q", tt.duration, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestMatchPattern(t *testing.T) {
 	tests := []struct {
 		name      string

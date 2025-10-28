@@ -15,6 +15,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/timeutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -455,7 +456,7 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 		report.WriteString(fmt.Sprintf("- **Updated**: %s\n", run.UpdatedAt.Format(time.RFC3339)))
 	}
 	if run.Duration > 0 {
-		report.WriteString(fmt.Sprintf("- **Duration**: %s\n", formatDuration(run.Duration)))
+		report.WriteString(fmt.Sprintf("- **Duration**: %s\n", timeutil.FormatDuration(run.Duration)))
 	}
 	report.WriteString(fmt.Sprintf("- **Event**: %s\n", run.Event))
 	report.WriteString(fmt.Sprintf("- **Branch**: %s\n", run.HeadBranch))
@@ -528,7 +529,7 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 			}
 			durationStr := "N/A"
 			if tool.MaxDuration > 0 {
-				durationStr = formatDuration(tool.MaxDuration)
+				durationStr = timeutil.FormatDuration(tool.MaxDuration)
 			}
 			report.WriteString(fmt.Sprintf("| %s | %d | %s | %s | %s |\n",
 				name, tool.CallCount, inputStr, outputStr, durationStr))

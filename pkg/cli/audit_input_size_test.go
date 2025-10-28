@@ -74,8 +74,8 @@ func TestAuditReportIncludesInputSizes(t *testing.T) {
 	}
 
 	// Verify durations are displayed
-	if !strings.Contains(report, "2s") {
-		t.Error("Report should contain duration 2s")
+	if !strings.Contains(report, "2.0s") && !strings.Contains(report, "2s") {
+		t.Error("Report should contain duration 2.0s or 2s")
 	}
 
 	// Verify the table has the correct number of columns (5: Tool, Calls, Max Input, Max Output, Max Duration)
