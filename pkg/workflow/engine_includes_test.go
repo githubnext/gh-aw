@@ -445,8 +445,8 @@ This workflow imports a custom engine with steps.
 	if !strings.Contains(lockStr, "name: Run AI Inference") {
 		t.Error("Expected lock file to contain 'name: Run AI Inference' step")
 	}
-	if !strings.Contains(lockStr, "uses: actions/ai-inference@v1") {
-		t.Error("Expected lock file to contain 'uses: actions/ai-inference@v1'")
+	if !strings.Contains(lockStr, "uses: actions/ai-inference@b81b2afb8390ee6839b494a404766bef6493c7d9") {
+		t.Error("Expected lock file to contain 'uses: actions/ai-inference@b81b2afb8390ee6839b494a404766bef6493c7d9' (pinned SHA)")
 	}
 	if !strings.Contains(lockStr, "prompt-file:") {
 		t.Error("Expected lock file to contain 'prompt-file:' parameter")
