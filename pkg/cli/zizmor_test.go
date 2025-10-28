@@ -40,6 +40,7 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/test.lock.yml\n",
 			expectedOutput: []string{
 				"🌈 zizmor 1 warning in ./.github/workflows/test.lock.yml",
+				"  - [Medium] excessive-permissions",
 			},
 			expectError: false,
 		},
@@ -84,6 +85,8 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/test.lock.yml\n",
 			expectedOutput: []string{
 				"🌈 zizmor 2 warnings in ./.github/workflows/test.lock.yml",
+				"  - [Medium] excessive-permissions",
+				"  - [High] template-injection",
 			},
 			expectError: false,
 		},
@@ -92,7 +95,7 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			stdout: "[]",
 			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/clean.lock.yml\n",
 			expectedOutput: []string{
-				"🌈 zizmor 0 warnings in ./.github/workflows/clean.lock.yml",
+				// No output expected for 0 warnings
 			},
 			expectError: false,
 		},
@@ -137,7 +140,9 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/test1.lock.yml\n INFO audit: zizmor: 🌈 completed ./.github/workflows/test2.lock.yml\n",
 			expectedOutput: []string{
 				"🌈 zizmor 1 warning in ./.github/workflows/test1.lock.yml",
+				"  - [Medium] excessive-permissions",
 				"🌈 zizmor 1 warning in ./.github/workflows/test2.lock.yml",
+				"  - [High] template-injection",
 			},
 			expectError: false,
 		},
@@ -174,6 +179,7 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/test.lock.yml\n",
 			expectedOutput: []string{
 				"🌈 zizmor 1 warning in ./.github/workflows/test.lock.yml",
+				"  - [Medium] excessive-permissions",
 			},
 			expectError: false,
 		},
