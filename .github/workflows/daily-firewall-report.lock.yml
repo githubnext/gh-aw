@@ -951,11 +951,7 @@ jobs:
                   "GITHUB_TOOLSETS=default,actions",
                   "ghcr.io/github/github-mcp-server:v0.20.0"
                 ],
-                "tools": [
-                  "list_workflows",
-                  "list_workflow_runs",
-                  "download_workflow_run_artifact"
-                ],
+                "tools": ["*"],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
