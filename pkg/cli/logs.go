@@ -16,11 +16,14 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
 )
+
+var logsLog = logger.New("cli:logs")
 
 const (
 	// defaultAgentStdioLogPath is the default log file path for agent stdout/stderr
@@ -130,6 +133,7 @@ type RunSummary struct {
 
 // fetchJobStatuses gets job information for a workflow run and counts failed jobs
 func fetchJobStatuses(runID int64, verbose bool) (int, error) {
+	logsLog.Printf("Fetching job statuses: runID=%d", runID)
 	args := []string{"api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion}"}
 
 	if verbose {
@@ -165,12 +169,14 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 		// Count jobs with failure conclusions as errors
 		if job.Conclusion == "failure" || job.Conclusion == "cancelled" || job.Conclusion == "timed_out" {
 			failedJobs++
+			logsLog.Printf("Found failed job: name=%s, conclusion=%s", job.Name, job.Conclusion)
 			if verbose {
 				fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Found failed job '%s' with conclusion '%s'", job.Name, job.Conclusion)))
 			}
 		}
 	}
 
+	logsLog.Printf("Job status check complete: failedJobs=%d", failedJobs)
 	return failedJobs, nil
 }
 
@@ -436,6 +442,7 @@ Examples:
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
 func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool, parse bool, jsonOutput bool, timeout int) error {
+	logsLog.Printf("Starting workflow log download: workflow=%s, count=%d, startDate=%s, endDate=%s, outputDir=%s", workflowName, count, startDate, endDate, outputDir)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -785,6 +792,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 	// Limit the number of runs to process if maxRuns is specified
 	actualRuns := runs
 	if maxRuns > 0 && len(runs) > maxRuns {
+		logsLog.Printf("Limiting concurrent downloads: maxRuns=%d, totalRuns=%d", maxRuns, len(runs))
 		actualRuns = runs[:maxRuns]
 	}
 
