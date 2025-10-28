@@ -144,7 +144,7 @@ engine: claude
 			checkoutsByJob := make(map[string][]string)
 			var currentJob string
 			lines := strings.Split(lockContentStr, "\n")
-			
+
 			for i, line := range lines {
 				// Detect job names: they should be indented with exactly 2 spaces and end with :
 				// and they should come under a "jobs:" section
@@ -155,7 +155,7 @@ engine: claude
 						currentJob = strings.TrimSuffix(jobNameWithColon, ":")
 					}
 				}
-				
+
 				if strings.Contains(line, "actions/checkout@") {
 					// Collect the next several lines to check for persist-credentials
 					context := ""
@@ -186,7 +186,7 @@ engine: claude
 			// Verify each checkout has persist-credentials set correctly based on its job
 			for jobName, checkouts := range checkoutsByJob {
 				expectTrue := expectTrueJobs[jobName]
-				
+
 				for idx, checkoutContext := range checkouts {
 					if expectTrue {
 						if !strings.Contains(checkoutContext, "persist-credentials: true") {
