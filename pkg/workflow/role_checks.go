@@ -15,7 +15,7 @@ func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) [
 		steps = append(steps, "      - name: Check team membership for workflow\n")
 	}
 	steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckMembershipStepID))
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPinWithComment("actions/github-script")))
 
 	// Add environment variables for permission check
 	steps = append(steps, "        env:\n")

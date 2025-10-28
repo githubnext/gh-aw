@@ -27,7 +27,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	// Step 1: Download patch artifact
 	steps = append(steps, "      - name: Download patch artifact\n")
 	steps = append(steps, "        continue-on-error: true\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPinWithComment("actions/download-artifact")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          name: aw.patch\n")
 	steps = append(steps, "          path: /tmp/gh-aw/\n")

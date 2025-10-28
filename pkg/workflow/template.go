@@ -93,7 +93,7 @@ func (c *Compiler) generateTemplateRenderingStep(yaml *strings.Builder, data *Wo
 	templateLog.Printf("Generating template rendering step: hasPattern=%v, hasGitHubContext=%v", hasTemplatePattern, hasGitHubContext)
 
 	yaml.WriteString("      - name: Render template conditionals\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPinWithComment("actions/github-script")))
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        with:\n")

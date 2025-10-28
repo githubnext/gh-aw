@@ -53,7 +53,7 @@ func (c *Compiler) buildCreateOutputAgentTaskJob(data *WorkflowData, mainJobName
 
 	// Step 1: Checkout repository for gh CLI to work
 	steps = append(steps, "      - name: Checkout repository for gh CLI\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPinWithComment("actions/checkout")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          persist-credentials: false\n")
 

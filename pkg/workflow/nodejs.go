@@ -9,7 +9,7 @@ import (
 func GenerateNodeJsSetupStep() GitHubActionStep {
 	return GitHubActionStep{
 		"      - name: Setup Node.js",
-		fmt.Sprintf("        uses: %s", GetActionPin("actions/setup-node")),
+		fmt.Sprintf("        uses: %s", GetActionPinWithComment("actions/setup-node")),
 		"        with:",
 		"          node-version: '24'",
 	}

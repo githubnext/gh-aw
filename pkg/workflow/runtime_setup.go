@@ -352,7 +352,7 @@ func generateSetupStep(runtime *Runtime, version string) GitHubActionStep {
 	}
 
 	// Use SHA-pinned action reference for security if available
-	actionRef := GetActionPin(runtime.ActionRepo)
+	actionRef := GetActionPinWithComment(runtime.ActionRepo)
 
 	// If no pin exists (custom action repo), use the action repo with its version
 	if actionRef == "" {

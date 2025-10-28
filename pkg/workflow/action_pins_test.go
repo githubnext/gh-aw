@@ -96,6 +96,30 @@ func TestGetActionPinFallback(t *testing.T) {
 	}
 }
 
+// TestGetActionPinWithComment tests that GetActionPinWithComment returns pinned SHA with version comment
+func TestGetActionPinWithComment(t *testing.T) {
+	tests := []struct {
+		repo     string
+		expected string
+	}{
+		{"actions/checkout", "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5"},
+		{"actions/github-script", "actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8"},
+		{"actions/upload-artifact", "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4"},
+		{"actions/cache", "actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4"},
+		{"actions/setup-node", "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4"},
+		{"unknown/action", ""}, // Should return empty string for unknown actions
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.repo, func(t *testing.T) {
+			result := GetActionPinWithComment(tt.repo)
+			if result != tt.expected {
+				t.Errorf("GetActionPinWithComment(%s) = %q, want %q", tt.repo, result, tt.expected)
+			}
+		})
+	}
+}
+
 // isValidSHA checks if a string is a valid 40-character hexadecimal SHA
 func isValidSHA(s string) bool {
 	if len(s) != 40 {
@@ -227,7 +251,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@v4",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -239,7 +263,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+			expectedUses: "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4",
 		},
 		{
 			name: "step with unpinned action",
@@ -266,7 +290,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5",
 		},
 	}
 

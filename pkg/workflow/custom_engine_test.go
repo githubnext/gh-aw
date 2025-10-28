@@ -229,8 +229,11 @@ func TestCustomEngineGetExecutionStepsWithSteps(t *testing.T) {
 		if !strings.Contains(firstStepContent, "name: Setup Node.js") {
 			t.Errorf("Expected first step to contain 'name: Setup Node.js', got:\n%s", firstStepContent)
 		}
-		if !strings.Contains(firstStepContent, "uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020") {
-			t.Errorf("Expected first step to contain 'uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020', got:\n%s", firstStepContent)
+		// Check for uses with version comment (may be quoted in YAML)
+		hasUsesWithComment := strings.Contains(firstStepContent, `uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4`) ||
+			strings.Contains(firstStepContent, `uses: "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4"`)
+		if !hasUsesWithComment {
+			t.Errorf("Expected first step to contain 'uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4' (quoted or unquoted), got:\n%s", firstStepContent)
 		}
 	}
 

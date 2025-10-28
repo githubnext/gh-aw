@@ -90,7 +90,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 	// Step 3: Download assets artifact if it exists
 	steps = append(steps, "      - name: Download assets\n")
 	steps = append(steps, "        continue-on-error: true\n") // Continue if no assets were uploaded
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPinWithComment("actions/download-artifact")))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          name: safe-outputs-assets\n")
 	steps = append(steps, "          path: /tmp/gh-aw/safeoutputs/assets/\n")

@@ -108,6 +108,17 @@ func GetActionPin(actionRepo string) string {
 	return ""
 }
 
+// GetActionPinWithComment returns the pinned action reference with an inline YAML comment showing the version
+// For example: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5"
+// If no pin is found, it returns an empty string
+func GetActionPinWithComment(actionRepo string) string {
+	if pin, exists := actionPins[actionRepo]; exists {
+		return actionRepo + "@" + pin.SHA + " # " + pin.Version
+	}
+	// If no pin exists, return empty string to signal that this action is not pinned
+	return ""
+}
+
 // ApplyActionPinToStep applies SHA pinning to a step map if it contains a "uses" field
 // with a pinned action. Returns a modified copy of the step map with pinned references.
 // If the step doesn't use an action or the action is not pinned, returns the original map.
@@ -131,7 +142,7 @@ func ApplyActionPinToStep(stepMap map[string]any) map[string]any {
 	}
 
 	// Check if this action has a pin
-	pinnedRef := GetActionPin(actionRepo)
+	pinnedRef := GetActionPinWithComment(actionRepo)
 	if pinnedRef == "" {
 		// No pin available for this action, return original step
 		return stepMap
