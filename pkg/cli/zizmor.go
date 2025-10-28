@@ -9,11 +9,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 // zizmorFinding represents a single finding from zizmor JSON output
 type zizmorFinding struct {
 	Ident          string `json:"ident"`
+	Desc           string `json:"desc"`
+	URL            string `json:"url"`
 	Determinations struct {
 		Severity string `json:"severity"`
 	} `json:"determinations"`
@@ -24,7 +28,16 @@ type zizmorFinding struct {
 					GivenPath string `json:"given_path"`
 				} `json:"Local"`
 			} `json:"key"`
+			Annotation string `json:"annotation"`
 		} `json:"symbolic"`
+		Concrete struct {
+			Location struct {
+				StartPoint struct {
+					Row    int `json:"row"`
+					Column int `json:"column"`
+				} `json:"start_point"`
+			} `json:"location"`
+		} `json:"concrete"`
 	} `json:"locations"`
 }
 
@@ -176,7 +189,22 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, erro
 		for _, finding := range findings {
 			severity := finding.Determinations.Severity
 			ident := finding.Ident
-			fmt.Fprintf(os.Stderr, "  - [%s] %s\n", severity, ident)
+			desc := finding.Desc
+
+			// Find the primary location (first location in the list)
+			var locationInfo string
+			if len(finding.Locations) > 0 {
+				loc := finding.Locations[0]
+				row := loc.Concrete.Location.StartPoint.Row
+				col := loc.Concrete.Location.StartPoint.Column
+				// Zizmor uses 0-based indexing, convert to 1-based for user display
+				if row > 0 || col > 0 {
+					locationInfo = fmt.Sprintf(" at line %d, column %d", row+1, col+1)
+				}
+			}
+
+			errorMsg := fmt.Sprintf("  - [%s] %s%s: %s", severity, ident, locationInfo, desc)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errorMsg))
 		}
 	}
 
