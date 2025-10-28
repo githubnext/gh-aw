@@ -466,7 +466,7 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 	// Metrics
 	report.WriteString("## Metrics\n\n")
 	if run.TokenUsage > 0 {
-		report.WriteString(fmt.Sprintf("- **Token Usage**: %s\n", formatNumber(run.TokenUsage)))
+		report.WriteString(fmt.Sprintf("- **Token Usage**: %s\n", console.FormatNumber(run.TokenUsage)))
 	}
 	if run.EstimatedCost > 0 {
 		report.WriteString(fmt.Sprintf("- **Estimated Cost**: $%.3f\n", run.EstimatedCost))
@@ -521,11 +521,11 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 			tool := toolStats[name]
 			inputStr := "N/A"
 			if tool.MaxInputSize > 0 {
-				inputStr = formatNumber(tool.MaxInputSize)
+				inputStr = console.FormatNumber(tool.MaxInputSize)
 			}
 			outputStr := "N/A"
 			if tool.MaxOutputSize > 0 {
-				outputStr = formatNumber(tool.MaxOutputSize)
+				outputStr = console.FormatNumber(tool.MaxOutputSize)
 			}
 			durationStr := "N/A"
 			if tool.MaxDuration > 0 {
