@@ -46,7 +46,7 @@ engine: claude
 			description: "Create issue job checkout should include persist-credentials: false",
 		},
 		{
-			name: "safe output create-pull-request checkout includes persist-credentials false",
+			name: "safe output create-pull-request checkout includes persist-credentials true",
 			frontmatter: `---
 on:
   push:
@@ -58,10 +58,10 @@ safe-outputs:
   create-pull-request:
 engine: claude
 ---`,
-			description: "Create pull request job checkout should include persist-credentials: false",
+			description: "Create pull request job checkout should include persist-credentials: true",
 		},
 		{
-			name: "safe output push-to-pull-request-branch checkout includes persist-credentials false",
+			name: "safe output push-to-pull-request-branch checkout includes persist-credentials true",
 			frontmatter: `---
 on:
   pull_request:
@@ -73,7 +73,21 @@ safe-outputs:
   push-to-pull-request-branch:
 engine: claude
 ---`,
-			description: "Push to PR branch job checkout should include persist-credentials: false",
+			description: "Push to PR branch job checkout should include persist-credentials: true",
+		},
+		{
+			name: "safe output upload_assets checkout includes persist-credentials true",
+			frontmatter: `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+safe-outputs:
+  upload-assets:
+engine: claude
+---`,
+			description: "Upload assets job checkout should include persist-credentials: true",
 		},
 		{
 			name: "safe output create-agent-task checkout includes persist-credentials false",
@@ -126,11 +140,22 @@ engine: claude
 
 			lockContentStr := string(lockContent)
 
-			// Check that all checkout steps have persist-credentials: false
-			// We need to find all occurrences of actions/checkout and verify each has persist-credentials
-			checkoutLines := []string{}
+			// Parse the workflow to find checkouts and their associated jobs
+			checkoutsByJob := make(map[string][]string)
+			var currentJob string
 			lines := strings.Split(lockContentStr, "\n")
+			
 			for i, line := range lines {
+				// Detect job names: they should be indented with exactly 2 spaces and end with :
+				// and they should come under a "jobs:" section
+				if len(line) >= 3 && line[0:2] == "  " && line[2] != ' ' && strings.Contains(line, ":") {
+					// Extract the job name (everything before the colon, without leading spaces)
+					jobNameWithColon := strings.TrimSpace(line)
+					if strings.HasSuffix(jobNameWithColon, ":") {
+						currentJob = strings.TrimSuffix(jobNameWithColon, ":")
+					}
+				}
+				
 				if strings.Contains(line, "actions/checkout@") {
 					// Collect the next several lines to check for persist-credentials
 					context := ""
@@ -143,20 +168,47 @@ engine: claude
 							}
 						}
 					}
-					checkoutLines = append(checkoutLines, context)
+					if currentJob != "" {
+						checkoutsByJob[currentJob] = append(checkoutsByJob[currentJob], context)
+					}
 				}
 			}
 
-			if len(checkoutLines) == 0 {
+			if len(checkoutsByJob) == 0 {
 				t.Logf("Note: No checkout steps found in workflow, which may be expected for some configurations")
 				return
 			}
 
-			// Verify each checkout has persist-credentials: false
-			for idx, checkoutContext := range checkoutLines {
-				if !strings.Contains(checkoutContext, "persist-credentials: false") {
-					t.Errorf("%s: Checkout #%d missing persist-credentials: false\nContext:\n%s\nFull workflow:\n%s",
-						tt.description, idx+1, checkoutContext, lockContentStr)
+			// Determine which job(s) we expect to have persist-credentials: true
+			// For safe-output workflows, we expect the safe-output job to have true,
+			// but the agent job should still have false
+			expectTrueJobs := make(map[string]bool)
+			if strings.Contains(tt.name, "create-pull-request") {
+				expectTrueJobs["create_pull_request"] = true
+			}
+			if strings.Contains(tt.name, "push-to-pull-request-branch") {
+				expectTrueJobs["push_to_pull_request_branch"] = true
+			}
+			if strings.Contains(tt.name, "upload_assets") {
+				expectTrueJobs["upload_assets"] = true
+			}
+
+			// Verify each checkout has persist-credentials set correctly based on its job
+			for jobName, checkouts := range checkoutsByJob {
+				expectTrue := expectTrueJobs[jobName]
+				
+				for idx, checkoutContext := range checkouts {
+					if expectTrue {
+						if !strings.Contains(checkoutContext, "persist-credentials: true") {
+							t.Errorf("%s (job: %s): Checkout #%d missing persist-credentials: true\nContext:\n%s",
+								tt.description, jobName, idx+1, checkoutContext)
+						}
+					} else {
+						if !strings.Contains(checkoutContext, "persist-credentials: false") {
+							t.Errorf("%s (job: %s): Checkout #%d missing persist-credentials: false\nContext:\n%s",
+								tt.description, jobName, idx+1, checkoutContext)
+						}
+					}
 				}
 			}
 		})
