@@ -1799,7 +1799,7 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 		"",
 		"",
 		timeutil.FormatDuration(totalDuration),
-		console.FormatNumber(totalTokens),
+		formatNumber(totalTokens),
 		fmt.Sprintf("%.3f", totalCost),
 		fmt.Sprintf("%d", totalTurns),
 		fmt.Sprintf("%d", totalErrors),
