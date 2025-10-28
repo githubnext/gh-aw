@@ -218,13 +218,6 @@ func ApplyActionPinToStep(stepMap map[string]any, data *WorkflowData) map[string
 	return result
 }
 
-// ApplyActionPinToStepWithMode is deprecated, kept for backwards compatibility
-func ApplyActionPinToStepWithMode(stepMap map[string]any, strictMode bool) map[string]any {
-	// Create a minimal WorkflowData for backwards compatibility
-	data := &WorkflowData{StrictMode: strictMode}
-	return ApplyActionPinToStep(stepMap, data)
-}
-
 // extractActionRepo extracts the action repository from a uses string
 // For example:
 //   - "actions/checkout@v4" -> "actions/checkout"
@@ -270,13 +263,6 @@ func ApplyActionPinsToSteps(steps []any, data *WorkflowData) []any {
 		}
 	}
 	return result
-}
-
-// ApplyActionPinsToStepsWithMode is deprecated, kept for backwards compatibility
-func ApplyActionPinsToStepsWithMode(steps []any, strictMode bool) []any {
-	// Create a minimal WorkflowData for backwards compatibility
-	data := &WorkflowData{StrictMode: strictMode}
-	return ApplyActionPinsToSteps(steps, data)
 }
 
 // GetAllActionPinsSorted returns all action pins sorted by repository name
