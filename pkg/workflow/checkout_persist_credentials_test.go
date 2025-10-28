@@ -46,7 +46,7 @@ engine: claude
 			description: "Create issue job checkout should include persist-credentials: false",
 		},
 		{
-			name: "safe output create-pull-request checkout includes persist-credentials true",
+			name: "safe output create-pull-request checkout includes persist-credentials false",
 			frontmatter: `---
 on:
   push:
@@ -58,10 +58,10 @@ safe-outputs:
   create-pull-request:
 engine: claude
 ---`,
-			description: "Create pull request job checkout should include persist-credentials: true",
+			description: "Create pull request job checkout should include persist-credentials: false",
 		},
 		{
-			name: "safe output push-to-pull-request-branch checkout includes persist-credentials true",
+			name: "safe output push-to-pull-request-branch checkout includes persist-credentials false",
 			frontmatter: `---
 on:
   pull_request:
@@ -73,10 +73,10 @@ safe-outputs:
   push-to-pull-request-branch:
 engine: claude
 ---`,
-			description: "Push to PR branch job checkout should include persist-credentials: true",
+			description: "Push to PR branch job checkout should include persist-credentials: false",
 		},
 		{
-			name: "safe output upload_assets checkout includes persist-credentials true",
+			name: "safe output upload_assets checkout includes persist-credentials false",
 			frontmatter: `---
 on:
   workflow_dispatch:
@@ -87,7 +87,7 @@ safe-outputs:
   upload-assets:
 engine: claude
 ---`,
-			description: "Upload assets job checkout should include persist-credentials: true",
+			description: "Upload assets job checkout should include persist-credentials: false",
 		},
 		{
 			name: "safe output create-agent-task checkout includes persist-credentials false",
@@ -180,18 +180,8 @@ engine: claude
 			}
 
 			// Determine which job(s) we expect to have persist-credentials: true
-			// For safe-output workflows, we expect the safe-output job to have true,
-			// but the agent job should still have false
+			// All jobs now use persist-credentials: false and rely on git remote set-url for authentication
 			expectTrueJobs := make(map[string]bool)
-			if strings.Contains(tt.name, "create-pull-request") {
-				expectTrueJobs["create_pull_request"] = true
-			}
-			if strings.Contains(tt.name, "push-to-pull-request-branch") {
-				expectTrueJobs["push_to_pull_request_branch"] = true
-			}
-			if strings.Contains(tt.name, "upload_assets") {
-				expectTrueJobs["upload_assets"] = true
-			}
 
 			// Verify each checkout has persist-credentials set correctly based on its job
 			for jobName, checkouts := range checkoutsByJob {

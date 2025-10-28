@@ -123,7 +123,7 @@ func buildCheckoutRepository(steps []string, c *Compiler) []string {
 	steps = append(steps, "      - name: Checkout repository\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
 	steps = append(steps, "        with:\n")
-	steps = append(steps, "          persist-credentials: true\n")
+	steps = append(steps, "          persist-credentials: false\n")
 	steps = append(steps, "          fetch-depth: 0\n")
 	if c.trialMode {
 		if c.trialLogicalRepoSlug != "" {
