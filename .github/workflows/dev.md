@@ -7,7 +7,7 @@ concurrency:
 name: Dev
 engine: copilot
 permissions:
-  contents: write
+  contents: read
   actions: read
 tools:
   github:
