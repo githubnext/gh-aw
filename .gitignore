@@ -75,3 +75,4 @@ __pycache__/
 
 # Manual test scripts
 test_*.sh
+*.zip

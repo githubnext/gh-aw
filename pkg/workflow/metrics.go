@@ -298,6 +298,15 @@ func ExtractMCPServer(toolName string) string {
 	return toolName
 }
 
+// compiledPattern stores a pre-compiled regex with its metadata
+type compiledPattern struct {
+	regex        *regexp.Regexp
+	id           string
+	levelGroup   int
+	messageGroup int
+	severity     string
+}
+
 // CountErrorsAndWarningsWithPatterns extracts errors and warnings using regex patterns
 // This is more accurate than simple string matching and uses the same logic as validate_errors.cjs
 func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPattern) []LogError {
@@ -307,24 +316,35 @@ func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPatte
 		return errors
 	}
 
+	// Pre-compile all patterns once before processing lines (performance optimization)
+	compiledPatterns := make([]compiledPattern, 0, len(patterns))
+	for _, pattern := range patterns {
+		regex, err := regexp.Compile(pattern.Pattern)
+		if err != nil {
+			// Skip invalid patterns
+			continue
+		}
+		compiledPatterns = append(compiledPatterns, compiledPattern{
+			regex:        regex,
+			id:           pattern.ID,
+			levelGroup:   pattern.LevelGroup,
+			messageGroup: pattern.MessageGroup,
+			severity:     pattern.Severity,
+		})
+	}
+
 	lines := strings.Split(logContent, "\n")
 
 	for lineNum, line := range lines {
-		for _, pattern := range patterns {
-			regex, err := regexp.Compile(pattern.Pattern)
-			if err != nil {
-				// Skip invalid patterns
-				continue
-			}
-
-			matches := regex.FindAllStringSubmatch(line, -1)
+		for _, cp := range compiledPatterns {
+			matches := cp.regex.FindAllStringSubmatch(line, -1)
 			for _, match := range matches {
-				level := extractLevelFromMatch(match, pattern)
+				level := extractLevelFromMatchCompiled(match, cp)
 
 				// Extract message using the pattern's MessageGroup or full match
 				message := ""
-				if pattern.MessageGroup > 0 && pattern.MessageGroup < len(match) && match[pattern.MessageGroup] != "" {
-					message = match[pattern.MessageGroup]
+				if cp.messageGroup > 0 && cp.messageGroup < len(match) && match[cp.messageGroup] != "" {
+					message = match[cp.messageGroup]
 				} else if len(match) > 0 {
 					message = match[0]
 				}
@@ -338,7 +358,7 @@ func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPatte
 							Line:      lineNum + 1, // 1-based line numbering
 							Type:      "error",
 							Message:   message,
-							PatternID: pattern.ID,
+							PatternID: cp.id,
 						})
 					}
 				} else if strings.ToLower(level) == "warning" || strings.ToLower(level) == "warn" {
@@ -347,7 +367,7 @@ func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPatte
 							Line:      lineNum + 1, // 1-based line numbering
 							Type:      "warning",
 							Message:   message,
-							PatternID: pattern.ID,
+							PatternID: cp.id,
 						})
 					}
 				}
@@ -358,16 +378,16 @@ func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPatte
 	return errors
 }
 
-// extractLevelFromMatch extracts the error level from a regex match using the pattern configuration
-func extractLevelFromMatch(match []string, pattern ErrorPattern) string {
+// extractLevelFromMatchCompiled is the compiled-pattern version of extractLevelFromMatch
+func extractLevelFromMatchCompiled(match []string, cp compiledPattern) string {
 	// If Severity is explicitly set, use it
-	if pattern.Severity != "" {
-		return pattern.Severity
+	if cp.severity != "" {
+		return cp.severity
 	}
 
 	// If level group is specified and valid, use it
-	if pattern.LevelGroup > 0 && pattern.LevelGroup < len(match) && match[pattern.LevelGroup] != "" {
-		levelText := strings.ToLower(match[pattern.LevelGroup])
+	if cp.levelGroup > 0 && cp.levelGroup < len(match) && match[cp.levelGroup] != "" {
+		levelText := strings.ToLower(match[cp.levelGroup])
 		// Normalize common error/warning keywords
 		if strings.Contains(levelText, "err") || strings.Contains(levelText, "error") ||
 			strings.Contains(levelText, "fail") || strings.Contains(levelText, "fatal") {
@@ -376,7 +396,7 @@ func extractLevelFromMatch(match []string, pattern ErrorPattern) string {
 			return "warning"
 		}
 		// Return the original level text if it doesn't match common patterns
-		return match[pattern.LevelGroup]
+		return match[cp.levelGroup]
 	}
 
 	// Try to infer level from the full match content

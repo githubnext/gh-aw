@@ -164,54 +164,54 @@ warning: be careful`,
 	}
 }
 
-func TestExtractLevelFromMatch(t *testing.T) {
+func TestExtractLevelFromMatchCompiled(t *testing.T) {
 	tests := []struct {
 		name     string
 		match    []string
-		pattern  ErrorPattern
+		cp       compiledPattern
 		expected string
 	}{
 		{
 			name:     "valid level group",
 			match:    []string{"[ERROR] message", "timestamp", "ERROR", "message"},
-			pattern:  ErrorPattern{LevelGroup: 2},
+			cp:       compiledPattern{levelGroup: 2},
 			expected: "error", // Level is normalized to lowercase
 		},
 		{
 			name:     "level group out of bounds",
 			match:    []string{"error message"},
-			pattern:  ErrorPattern{LevelGroup: 5},
+			cp:       compiledPattern{levelGroup: 5},
 			expected: "error", // Should infer from content
 		},
 		{
 			name:     "no level group, infer error",
 			match:    []string{"something with error in it"},
-			pattern:  ErrorPattern{LevelGroup: 0},
+			cp:       compiledPattern{levelGroup: 0},
 			expected: "error",
 		},
 		{
 			name:     "no level group, infer warning",
 			match:    []string{"warning: be careful"},
-			pattern:  ErrorPattern{LevelGroup: 0},
+			cp:       compiledPattern{levelGroup: 0},
 			expected: "warning",
 		},
 		{
 			name:     "no level group, unknown",
 			match:    []string{"debug: some info"},
-			pattern:  ErrorPattern{LevelGroup: 0},
+			cp:       compiledPattern{levelGroup: 0},
 			expected: "unknown",
 		},
 		{
 			name:     "empty match",
 			match:    []string{},
-			pattern:  ErrorPattern{LevelGroup: 1},
+			cp:       compiledPattern{levelGroup: 1},
 			expected: "unknown",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractLevelFromMatch(tt.match, tt.pattern)
+			result := extractLevelFromMatchCompiled(tt.match, tt.cp)
 			if result != tt.expected {
 				t.Errorf("Expected %q, got %q", tt.expected, result)
 			}
