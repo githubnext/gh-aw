@@ -20,7 +20,7 @@ import (
 var compileLog = logger.New("cli:compile_command")
 
 // CompileWorkflowWithValidation compiles a workflow with always-on YAML validation for CLI usage
-func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string, verbose bool) error {
+func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string, verbose bool, runZizmorPerFile bool, strict bool) error {
 	// Compile the workflow first
 	if err := compiler.CompileWorkflow(filePath); err != nil {
 		return err
@@ -46,12 +46,19 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 		return fmt.Errorf("generated lock file is not valid YAML: %w", err)
 	}
 
+	// Run zizmor on the generated lock file if requested
+	if runZizmorPerFile {
+		if err := runZizmorOnFile(lockFile, verbose, strict); err != nil {
+			return fmt.Errorf("zizmor security scan failed: %w", err)
+		}
+	}
+
 	return nil
 }
 
 // CompileWorkflowDataWithValidation compiles from already-parsed WorkflowData with validation
 // This avoids re-parsing when the workflow data has already been parsed
-func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData *workflow.WorkflowData, filePath string, verbose bool) error {
+func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData *workflow.WorkflowData, filePath string, verbose bool, runZizmorPerFile bool, strict bool) error {
 	// Compile the workflow using already-parsed data
 	if err := compiler.CompileWorkflowData(workflowData, filePath); err != nil {
 		return err
@@ -75,6 +82,13 @@ func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData
 	var yamlValidationTest any
 	if err := yaml.Unmarshal(lockContent, &yamlValidationTest); err != nil {
 		return fmt.Errorf("generated lock file is not valid YAML: %w", err)
+	}
+
+	// Run zizmor on the generated lock file if requested
+	if runZizmorPerFile {
+		if err := runZizmorOnFile(lockFile, verbose, strict); err != nil {
+			return fmt.Errorf("zizmor security scan failed: %w", err)
+		}
 	}
 
 	return nil
@@ -235,7 +249,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			workflowDataList = append(workflowDataList, workflowData)
 
 			compileLog.Printf("Starting compilation of %s", resolvedFile)
-			if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose); err != nil {
+			if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose, zizmor && !noEmit, strict); err != nil {
 				// Always put error on a new line and don't wrap with "failed to compile workflow"
 				fmt.Fprintln(os.Stderr, err.Error())
 				errorMessages = append(errorMessages, err.Error())
@@ -301,25 +315,6 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				return workflowDataList, errors.New(errorMessages[0])
 			}
 			return workflowDataList, fmt.Errorf("compilation failed")
-		}
-
-		// Run zizmor security scanner if requested and compilation was successful
-		if zizmor && !noEmit {
-			// Resolve workflow directory path
-			if workflowDir == "" {
-				workflowDir = ".github/workflows"
-			}
-			absWorkflowDir := workflowDir
-			if !filepath.IsAbs(absWorkflowDir) {
-				gitRoot, err := findGitRoot()
-				if err == nil {
-					absWorkflowDir = filepath.Join(gitRoot, workflowDir)
-				}
-			}
-
-			if err := runZizmor(absWorkflowDir, verbose, strict); err != nil {
-				return workflowDataList, fmt.Errorf("zizmor security scan failed: %w", err)
-			}
 		}
 
 		return workflowDataList, nil
@@ -395,7 +390,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 		workflowDataList = append(workflowDataList, workflowData)
 
-		if err := CompileWorkflowDataWithValidation(compiler, workflowData, file, verbose); err != nil {
+		if err := CompileWorkflowDataWithValidation(compiler, workflowData, file, verbose, zizmor && !noEmit, strict); err != nil {
 			// Print the error to stderr (errors from CompileWorkflow are already formatted)
 			fmt.Fprintln(os.Stderr, err.Error())
 			errorCount++
@@ -480,13 +475,6 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	// Return error if any compilations failed
 	if errorCount > 0 {
 		return workflowDataList, fmt.Errorf("compilation failed")
-	}
-
-	// Run zizmor security scanner if requested and compilation was successful
-	if zizmor && !noEmit {
-		if err := runZizmor(workflowsDir, verbose, strict); err != nil {
-			return workflowDataList, fmt.Errorf("zizmor security scan failed: %w", err)
-		}
 	}
 
 	return workflowDataList, nil
@@ -590,7 +578,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		if verbose {
 			fmt.Fprintf(os.Stderr, "🔨 Initial compilation of %s...\n", markdownFile)
 		}
-		if err := CompileWorkflowWithValidation(compiler, markdownFile, verbose); err != nil {
+		if err := CompileWorkflowWithValidation(compiler, markdownFile, verbose, false, false); err != nil {
 			// Always show initial compilation errors on new line without wrapping
 			fmt.Fprintln(os.Stderr, err.Error())
 			stats.Errors++
@@ -702,7 +690,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 		if verbose {
 			fmt.Printf("🔨 Compiling: %s\n", file)
 		}
-		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
+		if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false); err != nil {
 			// Always show compilation errors on new line
 			fmt.Fprintln(os.Stderr, err.Error())
 			stats.Errors++
@@ -759,7 +747,7 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 			fmt.Fprintf(os.Stderr, "🔨 Compiling: %s\n", file)
 		}
 
-		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
+		if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false); err != nil {
 			// Always show compilation errors on new line
 			fmt.Fprintln(os.Stderr, err.Error())
 			stats.Errors++

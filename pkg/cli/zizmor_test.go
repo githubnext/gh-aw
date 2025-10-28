@@ -21,6 +21,8 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			stdout: `[
   {
     "ident": "excessive-permissions",
+    "desc": "overly broad permissions",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions",
     "determinations": {
       "severity": "Medium"
     },
@@ -30,6 +32,15 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
           "key": {
             "Local": {
               "given_path": "./.github/workflows/test.lock.yml"
+            }
+          },
+          "annotation": "uses write-all permissions"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 6,
+              "column": 4
             }
           }
         }
@@ -40,6 +51,7 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/test.lock.yml\n",
 			expectedOutput: []string{
 				"🌈 zizmor 1 warning in ./.github/workflows/test.lock.yml",
+				"✗   - [Medium] excessive-permissions at line 7, column 5: overly broad permissions",
 			},
 			expectError: false,
 		},
@@ -48,6 +60,8 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			stdout: `[
   {
     "ident": "excessive-permissions",
+    "desc": "overly broad permissions",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions",
     "determinations": {
       "severity": "Medium"
     },
@@ -58,6 +72,15 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
             "Local": {
               "given_path": "./.github/workflows/test.lock.yml"
             }
+          },
+          "annotation": "uses write-all permissions"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 6,
+              "column": 4
+            }
           }
         }
       }
@@ -65,6 +88,8 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
   },
   {
     "ident": "template-injection",
+    "desc": "template injection with untrusted input",
+    "url": "https://docs.zizmor.sh/audits/#template-injection",
     "determinations": {
       "severity": "High"
     },
@@ -74,6 +99,15 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
           "key": {
             "Local": {
               "given_path": "./.github/workflows/test.lock.yml"
+            }
+          },
+          "annotation": "may expand into attacker-controllable code"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 11,
+              "column": 23
             }
           }
         }
@@ -84,15 +118,17 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/test.lock.yml\n",
 			expectedOutput: []string{
 				"🌈 zizmor 2 warnings in ./.github/workflows/test.lock.yml",
+				"✗   - [Medium] excessive-permissions at line 7, column 5: overly broad permissions",
+				"✗   - [High] template-injection at line 12, column 24: template injection with untrusted input",
 			},
 			expectError: false,
 		},
 		{
-			name:   "file with no findings",
-			stdout: "[]",
-			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/clean.lock.yml\n",
+			name:           "file with no findings",
+			stdout:         "[]",
+			stderr:         " INFO audit: zizmor: 🌈 completed ./.github/workflows/clean.lock.yml\n",
 			expectedOutput: []string{
-				"🌈 zizmor 0 warnings in ./.github/workflows/clean.lock.yml",
+				// No output expected for 0 warnings
 			},
 			expectError: false,
 		},
@@ -101,6 +137,8 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			stdout: `[
   {
     "ident": "excessive-permissions",
+    "desc": "overly broad permissions",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions",
     "determinations": {
       "severity": "Medium"
     },
@@ -111,6 +149,15 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
             "Local": {
               "given_path": "./.github/workflows/test1.lock.yml"
             }
+          },
+          "annotation": "uses write-all permissions"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 6,
+              "column": 4
+            }
           }
         }
       }
@@ -118,6 +165,8 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
   },
   {
     "ident": "template-injection",
+    "desc": "template injection with untrusted input",
+    "url": "https://docs.zizmor.sh/audits/#template-injection",
     "determinations": {
       "severity": "High"
     },
@@ -128,6 +177,15 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
             "Local": {
               "given_path": "./.github/workflows/test2.lock.yml"
             }
+          },
+          "annotation": "may expand into attacker-controllable code"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 11,
+              "column": 23
+            }
           }
         }
       }
@@ -137,7 +195,9 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/test1.lock.yml\n INFO audit: zizmor: 🌈 completed ./.github/workflows/test2.lock.yml\n",
 			expectedOutput: []string{
 				"🌈 zizmor 1 warning in ./.github/workflows/test1.lock.yml",
+				"✗   - [Medium] excessive-permissions at line 7, column 5: overly broad permissions",
 				"🌈 zizmor 1 warning in ./.github/workflows/test2.lock.yml",
+				"✗   - [High] template-injection at line 12, column 24: template injection with untrusted input",
 			},
 			expectError: false,
 		},
@@ -146,6 +206,8 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			stdout: `[
   {
     "ident": "excessive-permissions",
+    "desc": "overly broad permissions",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions",
     "determinations": {
       "severity": "Medium"
     },
@@ -156,6 +218,15 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
             "Local": {
               "given_path": "./.github/workflows/test.lock.yml"
             }
+          },
+          "annotation": "uses write-all permissions"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 6,
+              "column": 4
+            }
           }
         }
       },
@@ -164,6 +235,15 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
           "key": {
             "Local": {
               "given_path": "./.github/workflows/test.lock.yml"
+            }
+          },
+          "annotation": "another location"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 10,
+              "column": 8
             }
           }
         }
@@ -174,6 +254,7 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/test.lock.yml\n",
 			expectedOutput: []string{
 				"🌈 zizmor 1 warning in ./.github/workflows/test.lock.yml",
+				"✗   - [Medium] excessive-permissions at line 7, column 5: overly broad permissions",
 			},
 			expectError: false,
 		},
