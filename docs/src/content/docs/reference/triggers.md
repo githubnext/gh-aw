@@ -109,7 +109,7 @@ permissions:
 engine: claude
 tools:
   github:
-    allowed: [add_pull_request_review_comment]
+    toolset: [pull_requests]
 safe-outputs:
   add-comment:
     max: 5

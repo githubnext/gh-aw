@@ -27,7 +27,7 @@ permissions:
 
 tools:
   github:
-    allowed: [add_issue_comment]
+    toolset: [issues]
 ---
 
 # Workflow Description
