@@ -189,11 +189,11 @@ jobs:
       - name: Cleanup any existing awf resources
         run: ./scripts/ci/cleanup.sh || true
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.351
+        run: npm install -g @github/copilot@0.0.352
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.20.0
+          docker pull ghcr.io/github/github-mcp-server:v0.20.1
           docker pull mcp/fetch
       - name: Setup Safe Outputs Collector MCP
         run: |
@@ -1003,7 +1003,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.20.0"
+                  "ghcr.io/github/github-mcp-server:v0.20.1"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -1513,7 +1513,7 @@ jobs:
           sudo -E awf --env-all \
             --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org \
             --log-level info \
-            "npx -y @github/copilot@0.0.351 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
+            "npx -y @github/copilot@0.0.352 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved Copilot logs to expected location
@@ -4340,7 +4340,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.351
+        run: npm install -g @github/copilot@0.0.352
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
