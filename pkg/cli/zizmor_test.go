@@ -91,9 +91,9 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:   "file with no findings",
-			stdout: "[]",
-			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/clean.lock.yml\n",
+			name:           "file with no findings",
+			stdout:         "[]",
+			stderr:         " INFO audit: zizmor: 🌈 completed ./.github/workflows/clean.lock.yml\n",
 			expectedOutput: []string{
 				// No output expected for 0 warnings
 			},

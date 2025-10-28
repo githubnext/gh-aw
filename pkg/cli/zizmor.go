@@ -200,7 +200,6 @@ func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
 	return nil
 }
 
-
 // parseAndDisplayZizmorOutput parses zizmor JSON output and displays it in the desired format
 // Returns the total number of warnings found
 func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, error) {
@@ -253,7 +252,7 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, erro
 	for _, filePath := range completedFiles {
 		findings := fileFindings[filePath]
 		count := len(findings)
-		
+
 		// Skip files with 0 warnings
 		if count == 0 {
 			continue
@@ -265,7 +264,7 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, erro
 			warningText = "warning"
 		}
 		fmt.Fprintf(os.Stderr, "🌈 zizmor %d %s in %s\n", count, warningText, filePath)
-		
+
 		// Display detailed findings
 		for _, finding := range findings {
 			severity := finding.Determinations.Severity
