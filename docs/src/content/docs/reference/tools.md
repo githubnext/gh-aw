@@ -119,7 +119,7 @@ tools:
 
 **Recommended Combinations**:
 - **Read-only workflows**: `toolset: [default]` or `toolset: [context, repos]`
-- **Issue/PR management**: `toolset: [default, discussions]` 
+- **Issue/PR/Discussion management**: `toolset: [default, discussions]` 
 - **CI/CD workflows**: `toolset: [default, actions]`
 - **Security workflows**: `toolset: [default, code_security, secret_protection]`
 - **Full access**: `toolset: [all]`
