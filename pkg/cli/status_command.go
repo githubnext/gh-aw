@@ -10,9 +10,12 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
+
+var statusLog = logger.New("cli:status_command")
 
 // WorkflowStatus represents the status of a single workflow for JSON output
 type WorkflowStatus struct {
@@ -25,6 +28,7 @@ type WorkflowStatus struct {
 }
 
 func StatusWorkflows(pattern string, verbose bool, jsonOutput bool) error {
+	statusLog.Printf("Checking workflow status: pattern=%s, jsonOutput=%v", pattern, jsonOutput)
 	if verbose && !jsonOutput {
 		fmt.Printf("Checking status of workflow files\n")
 		if pattern != "" {
@@ -34,10 +38,12 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool) error {
 
 	mdFiles, err := getMarkdownWorkflowFiles()
 	if err != nil {
+		statusLog.Printf("Failed to get markdown workflow files: %v", err)
 		fmt.Println(err.Error())
 		return nil
 	}
 
+	statusLog.Printf("Found %d markdown workflow files", len(mdFiles))
 	if len(mdFiles) == 0 {
 		if jsonOutput {
 			// Output empty array for JSON
@@ -56,8 +62,10 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool) error {
 	}
 
 	// Get GitHub workflows data
+	statusLog.Print("Fetching GitHub workflow status")
 	githubWorkflows, err := fetchGitHubWorkflows("", verbose && !jsonOutput)
 	if err != nil {
+		statusLog.Printf("Failed to fetch GitHub workflows: %v", err)
 		if verbose && !jsonOutput {
 			fmt.Printf("Verbose: Failed to fetch GitHub workflows: %v\n", err)
 		}
@@ -65,8 +73,11 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool) error {
 			fmt.Printf("Warning: Could not fetch GitHub workflow status: %v\n", err)
 		}
 		githubWorkflows = make(map[string]*GitHubWorkflow)
-	} else if verbose && !jsonOutput {
-		fmt.Printf("Successfully fetched %d GitHub workflows\n", len(githubWorkflows))
+	} else {
+		statusLog.Printf("Successfully fetched %d GitHub workflows", len(githubWorkflows))
+		if verbose && !jsonOutput {
+			fmt.Printf("Successfully fetched %d GitHub workflows\n", len(githubWorkflows))
+		}
 	}
 
 	// Build table configuration or JSON output
