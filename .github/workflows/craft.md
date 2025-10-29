@@ -2,7 +2,7 @@
 on:
   command:
     name: craft
-    events: [issue_comment, issues]
+    events: [issues]
 permissions:
   contents: read
   actions: read
@@ -10,7 +10,7 @@ engine: copilot
 tools:
   edit:
   bash:
-    - "gh aw compile --strict *"
+    - "*"
   github:
     toolsets: [default]
 steps:
@@ -33,7 +33,9 @@ You are an expert workflow designer for GitHub Agentic Workflows. Your task is t
 
 - **Repository**: ${{ github.repository }}
 - **Issue/Comment**: ${{ github.event.issue.number }}
-- **Request**: "${{ needs.activation.outputs.text }}"
+- **Request**: 
+
+<!-- ${{ needs.activation.outputs.text }} -->
 
 ## Your Mission
 

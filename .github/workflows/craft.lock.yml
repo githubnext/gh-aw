@@ -44,10 +44,6 @@
 
 name: "Workflow Craft Agent"
 "on":
-  issue_comment:
-    types:
-    - created
-    - edited
   issues:
     types:
     - opened
@@ -67,8 +63,7 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/craft')) ||
-      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/craft')) && (github.event.issue.pull_request == null)))
+      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/craft')))
     runs-on: ubuntu-latest
     permissions:
       discussions: write
@@ -1926,7 +1921,9 @@ jobs:
           
           - **Repository**: ${{ github.repository }}
           - **Issue/Comment**: ${{ github.event.issue.number }}
-          - **Request**: "${{ needs.activation.outputs.text }}"
+          - **Request**: 
+          
+          
           
           ## Your Mission
           
@@ -2422,30 +2419,6 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        # --allow-tool github
-        # --allow-tool safeoutputs
-        # --allow-tool shell(cat)
-        # --allow-tool shell(date)
-        # --allow-tool shell(echo)
-        # --allow-tool shell(gh aw compile --strict *)
-        # --allow-tool shell(git add:*)
-        # --allow-tool shell(git branch:*)
-        # --allow-tool shell(git checkout:*)
-        # --allow-tool shell(git commit:*)
-        # --allow-tool shell(git merge:*)
-        # --allow-tool shell(git rm:*)
-        # --allow-tool shell(git status)
-        # --allow-tool shell(git switch:*)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(pwd)
-        # --allow-tool shell(sort)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(uniq)
-        # --allow-tool shell(wc)
-        # --allow-tool shell(yq)
-        # --allow-tool write
         timeout-minutes: 15
         run: |
           set -o pipefail
@@ -2454,7 +2427,7 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(gh aw compile --strict *)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
@@ -4980,9 +4953,7 @@ jobs:
             });
 
   pre_activation:
-    if: >
-      (github.event_name == 'issues') && (contains(github.event.issue.body, '/craft')) || (github.event_name == 'issue_comment') &&
-      ((contains(github.event.comment.body, '/craft')) && (github.event.issue.pull_request == null))
+    if: (github.event_name == 'issues') && (contains(github.event.issue.body, '/craft'))
     runs-on: ubuntu-latest
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
