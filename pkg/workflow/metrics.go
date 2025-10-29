@@ -337,39 +337,42 @@ func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPatte
 
 	for lineNum, line := range lines {
 		for _, cp := range compiledPatterns {
-			matches := cp.regex.FindAllStringSubmatch(line, -1)
-			for _, match := range matches {
-				level := extractLevelFromMatchCompiled(match, cp)
+			// Find first match only - for error detection we don't need all matches
+			match := cp.regex.FindStringSubmatch(line)
+			if match == nil {
+				continue
+			}
 
-				// Extract message using the pattern's MessageGroup or full match
-				message := ""
-				if cp.messageGroup > 0 && cp.messageGroup < len(match) && match[cp.messageGroup] != "" {
-					message = match[cp.messageGroup]
-				} else if len(match) > 0 {
-					message = match[0]
+			level := extractLevelFromMatchCompiled(match, cp)
+
+			// Extract message using the pattern's MessageGroup or full match
+			message := ""
+			if cp.messageGroup > 0 && cp.messageGroup < len(match) && match[cp.messageGroup] != "" {
+				message = match[cp.messageGroup]
+			} else if len(match) > 0 {
+				message = match[0]
+			}
+
+			// Clean up the message
+			message = extractErrorMessage(message)
+
+			if strings.ToLower(level) == "error" {
+				if message != "" {
+					errors = append(errors, LogError{
+						Line:      lineNum + 1, // 1-based line numbering
+						Type:      "error",
+						Message:   message,
+						PatternID: cp.id,
+					})
 				}
-
-				// Clean up the message
-				message = extractErrorMessage(message)
-
-				if strings.ToLower(level) == "error" {
-					if message != "" {
-						errors = append(errors, LogError{
-							Line:      lineNum + 1, // 1-based line numbering
-							Type:      "error",
-							Message:   message,
-							PatternID: cp.id,
-						})
-					}
-				} else if strings.ToLower(level) == "warning" || strings.ToLower(level) == "warn" {
-					if message != "" {
-						errors = append(errors, LogError{
-							Line:      lineNum + 1, // 1-based line numbering
-							Type:      "warning",
-							Message:   message,
-							PatternID: cp.id,
-						})
-					}
+			} else if strings.ToLower(level) == "warning" || strings.ToLower(level) == "warn" {
+				if message != "" {
+					errors = append(errors, LogError{
+						Line:      lineNum + 1, // 1-based line numbering
+						Type:      "warning",
+						Message:   message,
+						PatternID: cp.id,
+					})
 				}
 			}
 		}
