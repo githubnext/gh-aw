@@ -211,16 +211,31 @@ The `--dependabot` flag cannot be used with specific workflow files or custom `-
 
 The `--zizmor` flag runs the [zizmor](https://github.com/zizmorcore/zizmor) security scanner on generated `.lock.yml` files to identify potential security vulnerabilities in compiled workflows. Zizmor analyzes workflows for excessive permissions, insecure practices, workflow misconfigurations, and supply chain risks.
 
-Security findings are displayed in IDE-parseable format with clickable file locations:
+Security findings are displayed in IDE-parseable format with clickable file locations and documentation URLs:
 
 ```
-./.github/workflows/workflow.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions
+./.github/workflows/workflow.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions (https://docs.zizmor.sh/audits/#excessive-permissions)
 5 |     steps:
 6 |       - uses: actions/checkout@v4
 7 |   permissions:
         ^^^^^^^^^^^^^
 8 |     contents: write
 9 |     issues: write
+```
+
+Each finding includes a direct link to the zizmor documentation explaining the security issue and how to resolve it.
+
+**Verbose Output:**
+
+When using `--verbose` with `--zizmor`, the Docker command used to run zizmor is displayed before execution, enabling manual reproduction:
+
+```bash
+gh aw compile --zizmor --verbose
+```
+
+Example verbose output:
+```
+ℹ Run zizmor directly: docker run --rm -v "/repo:/workdir" -w /workdir ghcr.io/zizmorcore/zizmor:latest --format json .github/workflows/workflow.lock.yml
 ```
 
 **Strict Mode Enforcement:**
