@@ -794,3 +794,97 @@ engine: copilot
 		t.Errorf("Expected non-strict workflow to succeed, but it failed: %v", err)
 	}
 }
+
+func TestStrictModeAllowsGitHubWorkflowExpression(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "github.workflow expression allowed in strict mode",
+			content: `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow with github.workflow
+
+This workflow uses ${{ github.workflow }} expression in the content.
+The workflow name is: ${{ github.workflow }}`,
+			expectError: false,
+		},
+		{
+			name: "github.workflow expression in complex condition",
+			content: `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Complex Expression Test
+
+Using github.workflow in a condition: ${{ github.workflow == 'my-workflow' && github.repository == 'owner/repo' }}`,
+			expectError: false,
+		},
+		{
+			name: "github.workflow with other allowed expressions",
+			content: `---
+on: issues
+permissions:
+  contents: read
+engine: copilot
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Multiple Expressions
+
+- Workflow: ${{ github.workflow }}
+- Repository: ${{ github.repository }}
+- Issue: ${{ github.event.issue.number }}
+- Actor: ${{ github.actor }}`,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir, err := os.MkdirTemp("", "strict-github-workflow-test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir)
+
+			testFile := filepath.Join(tmpDir, "test-workflow.md")
+			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler(false, "", "")
+			compiler.SetStrictMode(true)
+			err = compiler.CompileWorkflow(testFile)
+
+			if tt.expectError && err == nil {
+				t.Error("Expected compilation to fail but it succeeded")
+			} else if !tt.expectError && err != nil {
+				t.Errorf("Expected compilation to succeed but it failed: %v", err)
+			} else if tt.expectError && err != nil && tt.errorMsg != "" {
+				if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error containing '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+			}
+		})
+	}
+}
