@@ -112,9 +112,13 @@ func TestActionPinSHAsMatchVersionTags(t *testing.T) {
 		t.Skip("Skipping network-dependent test in short mode")
 	}
 
-	// Test all action pins
+	// Test all action pins in parallel for faster execution
 	for key, pin := range actionPins {
+		key := key // Capture for parallel execution
+		pin := pin // Capture for parallel execution
 		t.Run(key, func(t *testing.T) {
+			t.Parallel() // Run subtests in parallel
+
 			// Extract the repository URL from the repo field
 			// For actions like "actions/checkout", the URL is https://github.com/actions/checkout.git
 			// For actions like "github/codeql-action/upload-sarif", we need the base repo
@@ -212,6 +216,50 @@ func TestExtractActionRepo(t *testing.T) {
 	}
 }
 
+// TestExtractActionVersion tests the extractActionVersion function
+func TestExtractActionVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		uses     string
+		expected string
+	}{
+		{
+			name:     "action with version tag",
+			uses:     "actions/checkout@v4",
+			expected: "v4",
+		},
+		{
+			name:     "action with SHA",
+			uses:     "actions/setup-node@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+			expected: "08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+		},
+		{
+			name:     "action with subpath and version",
+			uses:     "github/codeql-action/upload-sarif@v3",
+			expected: "v3",
+		},
+		{
+			name:     "action without version",
+			uses:     "actions/checkout",
+			expected: "",
+		},
+		{
+			name:     "action with branch ref",
+			uses:     "actions/setup-python@main",
+			expected: "main",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractActionVersion(tt.uses)
+			if result != tt.expected {
+				t.Errorf("extractActionVersion(%q) = %q, want %q", tt.uses, result, tt.expected)
+			}
+		})
+	}
+}
+
 // TestApplyActionPinToStep tests the ApplyActionPinToStep function
 func TestApplyActionPinToStep(t *testing.T) {
 	tests := []struct {
@@ -272,7 +320,9 @@ func TestApplyActionPinToStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ApplyActionPinToStep(tt.stepMap)
+			// Create a minimal WorkflowData for testing
+			data := &WorkflowData{}
+			result := ApplyActionPinToStep(tt.stepMap, data)
 
 			// Check if uses field exists in result
 			if uses, hasUses := result["uses"]; hasUses {

@@ -21,7 +21,6 @@ safe-outputs:
   create-issue:
     title-prefix: "[ca] "
     labels: [automation, dependencies]
-    assignees: copilot
 timeout_minutes: 15
 ---
 

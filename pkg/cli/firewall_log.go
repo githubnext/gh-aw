@@ -317,14 +317,26 @@ func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error)
 	// Look for firewall logs in the run directory
 	// The logs could be in several locations depending on how they were uploaded
 
-	// First, check for a squid-logs or firewall-logs directory
-	possibleDirs := []string{
-		filepath.Join(runDir, "squid-logs"),
-		filepath.Join(runDir, "firewall-logs"),
+	// First, check for directories starting with squid-logs or firewall-logs
+	// The actual directories may have workflow-specific suffixes like:
+	// - squid-logs-smoke-copilot-firewall
+	// - squid-logs-changeset-generator
+	// - firewall-logs-{workflow-name}
+	entries, err := os.ReadDir(runDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read run directory: %w", err)
 	}
 
-	for _, logsDir := range possibleDirs {
-		if stat, err := os.Stat(logsDir); err == nil && stat.IsDir() {
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasPrefix(name, "squid-logs") || strings.HasPrefix(name, "firewall-logs") {
+			logsDir := filepath.Join(runDir, name)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found firewall logs directory: %s", name)))
+			}
 			return analyzeMultipleFirewallLogs(logsDir, verbose)
 		}
 	}

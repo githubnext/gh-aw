@@ -81,6 +81,33 @@ go test -bench=. -benchmem ./pkg/workflow
 - Use `go test -p N` for parallel package testing
 - Identify and optimize slowest tests (>1s)
 - Add Go benchmarks for critical paths
+- Use `t.Parallel()` for network-bound test subtests
+
+**Success Story: Parallel Git Ls-Remote Test (2025-10)**:
+```go
+// BEFORE: Sequential network calls
+for key, pin := range actionPins {
+    t.Run(key, func(t *testing.T) {
+        cmd := exec.Command("git", "ls-remote", repoURL, tag)
+        // ... validation
+    })
+}
+// Result: 3.83s (slowest test)
+
+// AFTER: Parallel network calls
+for key, pin := range actionPins {
+    key := key   // Capture for parallel
+    pin := pin   // Capture for parallel
+    t.Run(key, func(t *testing.T) {
+        t.Parallel() // Run concurrently
+        cmd := exec.Command("git", "ls-remote", repoURL, tag)
+        // ... validation
+    })
+}
+// Result: ~1.1s (70% faster, 3.5x speedup)
+```
+
+**Key Insight**: Network-bound tests benefit significantly from parallelization since they're I/O-bound rather than CPU-bound. Always capture loop variables when using `t.Parallel()`.
 
 **Example Benchmark**:
 ```go

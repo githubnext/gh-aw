@@ -186,6 +186,9 @@ type WorkflowData struct {
 	GitHubToken         string              // top-level github-token expression from frontmatter
 	ToolsStartupTimeout int                 // timeout in seconds for MCP server startup (0 = use engine default)
 	Features            map[string]bool     // feature flags from frontmatter
+	ActionCache         *ActionCache        // cache for action pin resolutions
+	ActionResolver      *ActionResolver     // resolver for action pins
+	StrictMode          bool                // strict mode for action pinning
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
@@ -810,7 +813,17 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		TrialMode:           c.trialMode,
 		TrialLogicalRepo:    c.trialLogicalRepoSlug,
 		GitHubToken:         extractStringValue(result.Frontmatter, "github-token"),
+		StrictMode:          c.strictMode,
 	}
+
+	// Initialize action cache and resolver
+	cwd, err := os.Getwd()
+	if err != nil {
+		cwd = "."
+	}
+	workflowData.ActionCache = NewActionCache(cwd)
+	_ = workflowData.ActionCache.Load() // Ignore errors if cache doesn't exist
+	workflowData.ActionResolver = NewActionResolver(workflowData.ActionCache)
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
 	// to avoid issues with nested keys (e.g., tools.mcps.*.env being confused with top-level env)
@@ -831,7 +844,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		var importedSteps []any
 		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &importedSteps); err == nil {
 			// Apply action pinning to imported steps
-			importedSteps = ApplyActionPinsToSteps(importedSteps)
+			importedSteps = ApplyActionPinsToSteps(importedSteps, workflowData)
 
 			// If there are main workflow steps, parse and merge them
 			if workflowData.CustomSteps != "" {
@@ -841,7 +854,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 					if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
 						if mainSteps, ok := mainStepsVal.([]any); ok {
 							// Apply action pinning to main steps
-							mainSteps = ApplyActionPinsToSteps(mainSteps)
+							mainSteps = ApplyActionPinsToSteps(mainSteps, workflowData)
 
 							// Prepend imported steps to main steps
 							allSteps := append(importedSteps, mainSteps...)
@@ -870,7 +883,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 			if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
 				if mainSteps, ok := mainStepsVal.([]any); ok {
 					// Apply action pinning to main steps
-					mainSteps = ApplyActionPinsToSteps(mainSteps)
+					mainSteps = ApplyActionPinsToSteps(mainSteps, workflowData)
 
 					// Convert back to YAML with "steps:" wrapper
 					stepsWrapper := map[string]any{"steps": mainSteps}
@@ -892,7 +905,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 			if postStepsVal, hasPostSteps := postStepsWrapper["post-steps"]; hasPostSteps {
 				if postSteps, ok := postStepsVal.([]any); ok {
 					// Apply action pinning to post steps
-					postSteps = ApplyActionPinsToSteps(postSteps)
+					postSteps = ApplyActionPinsToSteps(postSteps, workflowData)
 
 					// Convert back to YAML with "post-steps:" wrapper
 					stepsWrapper := map[string]any{"post-steps": postSteps}

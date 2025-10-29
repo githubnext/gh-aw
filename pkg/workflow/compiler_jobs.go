@@ -718,7 +718,7 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 					for _, step := range stepsList {
 						if stepMap, ok := step.(map[string]any); ok {
 							// Apply action pinning before converting to YAML
-							stepMap = ApplyActionPinToStep(stepMap)
+							stepMap = ApplyActionPinToStep(stepMap, data)
 
 							stepYAML, err := c.convertStepToYAML(stepMap)
 							if err != nil {

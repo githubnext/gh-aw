@@ -526,8 +526,7 @@ on:
 
   # Time when workflow should stop running. Supports multiple formats: absolute
   # dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or
-  # relative time deltas (+25h, +3d, +1d12h30m). Note: Minute-only units (e.g., +30m)
-  # are not allowed; use hours instead (e.g., +1h).
+  # relative time deltas (+25h, +3d, +1d12h30m)
   # (optional)
   stop-after: "example-value"
 
