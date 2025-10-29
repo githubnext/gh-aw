@@ -19,6 +19,8 @@ safe-outputs:
     max: 1
 
 timeout_minutes: 5
+imports:
+  - shared/reporting.md
 ---
 
 # Repository Tree Map Generator

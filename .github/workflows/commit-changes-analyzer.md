@@ -24,6 +24,8 @@ safe-outputs:
     category: "dev"
     max: 1
 timeout_minutes: 30
+imports:
+  - shared/reporting.md
 ---
 
 # Commit Changes Analyzer

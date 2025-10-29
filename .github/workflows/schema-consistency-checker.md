@@ -23,6 +23,8 @@ safe-outputs:
     title-prefix: "[Schema Consistency] "
     max: 1
 timeout_minutes: 30
+imports:
+  - shared/reporting.md
 ---
 
 # Schema Consistency Checker

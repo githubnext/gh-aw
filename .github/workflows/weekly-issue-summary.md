@@ -22,6 +22,8 @@ safe-outputs:
   create-discussion:
     title-prefix: "[Weekly Summary] "
     category: "Audits"
+imports:
+  - shared/reporting.md
 ---
 
 # Weekly Issue Summary

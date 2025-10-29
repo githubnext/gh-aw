@@ -30,6 +30,8 @@ tools:
   bash: [ ":*" ]
   github:
     toolsets: [all]
+imports:
+  - shared/reporting.md
 
 steps:
   - name: Checkout repository

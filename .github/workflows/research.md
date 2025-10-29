@@ -18,6 +18,7 @@ network:
 
 imports:
   - shared/mcp/tavily.md
+  - shared/reporting.md
 
 safe-outputs:
   create-discussion:
