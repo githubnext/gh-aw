@@ -10,11 +10,14 @@ engine: copilot
 tools:
   edit:
   bash:
-    - "gh extension install ."
-    - "gh extension remove gh-aw"
     - "gh aw compile --strict *"
   github:
     toolsets: [default]
+steps:
+  - name: Install gh-aw extension
+    run: |
+      gh extension remove gh-aw || true
+      gh extension install .
 timeout_minutes: 15
 safe-outputs:
   add-comment:
@@ -53,17 +56,7 @@ This file contains the complete specification for agentic workflow format includ
 - Safe outputs
 - Best practices
 
-### 2. Install gh-aw Extension
-
-Before compiling workflows, install the gh-aw extension in steps:
-
-```bash
-cd /home/runner/work/gh-aw/gh-aw
-gh extension remove gh-aw || true
-gh extension install .
-```
-
-### 3. Analyze the Request
+### 2. Analyze the Request
 
 Parse the user's request to understand:
 - **Workflow purpose**: What should this workflow do?
@@ -72,7 +65,7 @@ Parse the user's request to understand:
 - **Permissions**: What GitHub permissions are required?
 - **Safe outputs**: Should it create issues, comments, PRs, or discussions?
 
-### 4. Design the Workflow
+### 3. Design the Workflow
 
 Create a workflow that includes:
 
@@ -92,7 +85,7 @@ Create a workflow that includes:
 - Guidelines and constraints
 - Output format specifications
 
-### 5. Generate Workflow File
+### 4. Generate Workflow File
 
 Choose an appropriate filename based on the workflow's purpose:
 - Use kebab-case (e.g., `my-workflow.md`)
@@ -101,7 +94,7 @@ Choose an appropriate filename based on the workflow's purpose:
 
 Create the file in `.github/workflows/` using the `edit` tool with the `create` function.
 
-### 6. Compile the Workflow
+### 5. Compile the Workflow
 
 Use gh-aw to compile and validate the workflow:
 
@@ -115,7 +108,7 @@ If compilation fails:
 2. Fix the frontmatter or markdown content
 3. Recompile until successful
 
-### 7. Push Changes
+### 6. Push Changes
 
 **IMPORTANT**: Only commit the `.md` file, NOT the `.lock.yml` file.
 
@@ -126,7 +119,7 @@ After creating and compiling the workflow successfully, use the `push-to-pull-re
 
 You don't need to manually run git commands - the `push-to-pull-request-branch` safe output handles this for you.
 
-### 8. Report Results
+### 7. Report Results
 
 Add a comment to the issue with:
 - ✅ Confirmation that the workflow was created
@@ -267,13 +260,14 @@ Clear statement of the workflow's purpose.
 - **Use push-to-pull-request-branch**: Use the safe output to commit and push changes
 - **Repository agnostic**: Don't specialize for the gh-aw repository
 - **Clear communication**: Explain what you created in your comment
+- **Extension pre-installed**: The gh-aw extension is already installed via the workflow steps
 
 ## Begin Workflow Creation
 
 Now analyze the user's request: "${{ needs.activation.outputs.text }}"
 
 1. Load the documentation
-2. Install gh-aw extension
+2. Analyze the request
 3. Design and create the workflow
 4. Compile and validate
 5. Push changes using `push-to-pull-request-branch`

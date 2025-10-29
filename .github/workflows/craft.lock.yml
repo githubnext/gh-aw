@@ -996,6 +996,11 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           persist-credentials: false
+      - name: Install gh-aw extension
+        run: |-
+          gh extension remove gh-aw || true
+          gh extension install .
+
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -1944,17 +1949,7 @@ jobs:
           - Safe outputs
           - Best practices
           
-          ### 2. Install gh-aw Extension
-          
-          Before compiling workflows, install the gh-aw extension in steps:
-          
-          ```bash
-          cd /home/runner/work/gh-aw/gh-aw
-          gh extension remove gh-aw || true
-          gh extension install .
-          ```
-          
-          ### 3. Analyze the Request
+          ### 2. Analyze the Request
           
           Parse the user's request to understand:
           - **Workflow purpose**: What should this workflow do?
@@ -1963,7 +1958,7 @@ jobs:
           - **Permissions**: What GitHub permissions are required?
           - **Safe outputs**: Should it create issues, comments, PRs, or discussions?
           
-          ### 4. Design the Workflow
+          ### 3. Design the Workflow
           
           Create a workflow that includes:
           
@@ -1983,7 +1978,7 @@ jobs:
           - Guidelines and constraints
           - Output format specifications
           
-          ### 5. Generate Workflow File
+          ### 4. Generate Workflow File
           
           Choose an appropriate filename based on the workflow's purpose:
           - Use kebab-case (e.g., `my-workflow.md`)
@@ -1992,7 +1987,7 @@ jobs:
           
           Create the file in `.github/workflows/` using the `edit` tool with the `create` function.
           
-          ### 6. Compile the Workflow
+          ### 5. Compile the Workflow
           
           Use gh-aw to compile and validate the workflow:
           
@@ -2006,7 +2001,7 @@ jobs:
           2. Fix the frontmatter or markdown content
           3. Recompile until successful
           
-          ### 7. Push Changes
+          ### 6. Push Changes
           
           **IMPORTANT**: Only commit the `.md` file, NOT the `.lock.yml` file.
           
@@ -2017,7 +2012,7 @@ jobs:
           
           You don't need to manually run git commands - the `push-to-pull-request-branch` safe output handles this for you.
           
-          ### 8. Report Results
+          ### 7. Report Results
           
           Add a comment to the issue with:
           - ✅ Confirmation that the workflow was created
@@ -2158,13 +2153,14 @@ jobs:
           - **Use push-to-pull-request-branch**: Use the safe output to commit and push changes
           - **Repository agnostic**: Don't specialize for the gh-aw repository
           - **Clear communication**: Explain what you created in your comment
+          - **Extension pre-installed**: The gh-aw extension is already installed via the workflow steps
           
           ## Begin Workflow Creation
           
           Now analyze the user's request: "${{ needs.activation.outputs.text }}"
           
           1. Load the documentation
-          2. Install gh-aw extension
+          2. Analyze the request
           3. Design and create the workflow
           4. Compile and validate
           5. Push changes using `push-to-pull-request-branch`
@@ -2432,8 +2428,6 @@ jobs:
         # --allow-tool shell(date)
         # --allow-tool shell(echo)
         # --allow-tool shell(gh aw compile --strict *)
-        # --allow-tool shell(gh extension install .)
-        # --allow-tool shell(gh extension remove gh-aw)
         # --allow-tool shell(git add:*)
         # --allow-tool shell(git branch:*)
         # --allow-tool shell(git checkout:*)
@@ -2460,7 +2454,7 @@ jobs:
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(gh aw compile --strict *)' --allow-tool 'shell(gh extension install .)' --allow-tool 'shell(gh extension remove gh-aw)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(gh aw compile --strict *)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
