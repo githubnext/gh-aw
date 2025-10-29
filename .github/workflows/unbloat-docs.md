@@ -103,6 +103,7 @@ You are a technical documentation editor focused on **clarity and conciseness**.
 ## Context
 
 - **Repository**: ${{ github.repository }}
+- **Triggered by**: ${{ github.actor }}
 
 ## What is Documentation Bloat?
 

@@ -1161,6 +1161,7 @@ jobs:
           
           - **Repository**: ${{ github.repository }}
           - **Push Event**: ${{ github.event.after }}
+          - **Triggered by**: @${{ github.actor }}
           
           ## Your Task
           
