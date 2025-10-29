@@ -29,6 +29,8 @@ tools:
 safe-outputs:
   create-discussion:
     title-prefix: "📰 "
+imports:
+  - shared/reporting.md
 ---
 
 # The Daily Repository Chronicle

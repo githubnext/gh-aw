@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var resolverLog = logger.New("workflow:action_resolver")
 
 // ActionResolver handles resolving action SHAs using GitHub CLI
 type ActionResolver struct {
@@ -21,16 +25,24 @@ func NewActionResolver(cache *ActionCache) *ActionResolver {
 // ResolveSHA resolves the SHA for a given action@version using GitHub CLI
 // Returns the SHA and an error if resolution fails
 func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
+	resolverLog.Printf("Resolving SHA for action: %s@%s", repo, version)
+
 	// Check cache first
 	if sha, found := r.cache.Get(repo, version); found {
+		resolverLog.Printf("Cache hit for %s@%s: %s", repo, version, sha)
 		return sha, nil
 	}
+
+	resolverLog.Printf("Cache miss for %s@%s, querying GitHub API", repo, version)
 
 	// Resolve using GitHub CLI
 	sha, err := r.resolveFromGitHub(repo, version)
 	if err != nil {
+		resolverLog.Printf("Failed to resolve %s@%s: %v", repo, version, err)
 		return "", err
 	}
+
+	resolverLog.Printf("Successfully resolved %s@%s to SHA: %s", repo, version, sha)
 
 	// Cache the result
 	r.cache.Set(repo, version, sha)
@@ -42,10 +54,12 @@ func (r *ActionResolver) ResolveSHA(repo, version string) (string, error) {
 func (r *ActionResolver) resolveFromGitHub(repo, version string) (string, error) {
 	// Extract base repository (for actions like "github/codeql-action/upload-sarif")
 	baseRepo := extractBaseRepo(repo)
+	resolverLog.Printf("Extracted base repository: %s from %s", baseRepo, repo)
 
 	// Use gh api to get the git ref for the tag
 	// API endpoint: GET /repos/{owner}/{repo}/git/ref/tags/{tag}
 	apiPath := fmt.Sprintf("/repos/%s/git/ref/tags/%s", baseRepo, version)
+	resolverLog.Printf("Querying GitHub API: %s", apiPath)
 
 	cmd := exec.Command("gh", "api", apiPath, "--jq", ".object.sha")
 	output, err := cmd.Output()

@@ -10,8 +10,11 @@ import (
 	"strings"
 
 	"github.com/cli/go-gh/v2"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
+
+var packagesLog = logger.New("cli:packages")
 
 // Pre-compiled regexes for package processing (performance optimization)
 var (
@@ -20,6 +23,7 @@ var (
 
 // InstallPackage installs agentic workflows from a GitHub repository
 func InstallPackage(repoSpec string, verbose bool) error {
+	packagesLog.Printf("Installing package: %s", repoSpec)
 	if verbose {
 		fmt.Fprintf(os.Stderr, "Installing package: %s\n", repoSpec)
 	}
@@ -27,8 +31,11 @@ func InstallPackage(repoSpec string, verbose bool) error {
 	// Parse repository specification (org/repo[@version])
 	spec, err := parseRepoSpec(repoSpec)
 	if err != nil {
+		packagesLog.Printf("Failed to parse repository specification: %v", err)
 		return fmt.Errorf("invalid repository specification: %w", err)
 	}
+
+	packagesLog.Printf("Parsed repo spec: slug=%s, version=%s", spec.RepoSlug, spec.Version)
 
 	if verbose {
 		fmt.Fprintf(os.Stderr, "Repository: %s\n", spec.RepoSlug)
@@ -42,9 +49,11 @@ func InstallPackage(repoSpec string, verbose bool) error {
 	// Get global packages directory
 	packagesDir, err := getPackagesDir()
 	if err != nil {
+		packagesLog.Printf("Failed to determine packages directory: %v", err)
 		return fmt.Errorf("failed to determine packages directory: %w", err)
 	}
 
+	packagesLog.Printf("Using packages directory: %s", packagesDir)
 	if verbose {
 		fmt.Fprintf(os.Stderr, "Installing to global packages directory: %s\n", packagesDir)
 	}
@@ -76,16 +85,20 @@ func InstallPackage(repoSpec string, verbose bool) error {
 	}
 
 	// Download workflows from the repository
+	packagesLog.Printf("Downloading workflows to: %s", targetDir)
 	if err := downloadWorkflows(spec.RepoSlug, spec.Version, targetDir, verbose); err != nil {
+		packagesLog.Printf("Failed to download workflows: %v", err)
 		return fmt.Errorf("failed to download workflows: %w", err)
 	}
 
+	packagesLog.Printf("Successfully installed package: %s", spec.RepoSlug)
 	fmt.Fprintf(os.Stderr, "Successfully installed package: %s\n", spec.RepoSlug)
 	return nil
 }
 
 // downloadWorkflows downloads all .md files from the workflows directory of a GitHub repository
 func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
+	packagesLog.Printf("Downloading workflows from %s (version: %s) to %s", repo, version, targetDir)
 	if verbose {
 		fmt.Printf("Downloading workflows from %s/workflows...\n", repo)
 	}
@@ -93,9 +106,11 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 	// Create a temporary directory for cloning
 	tempDir, err := os.MkdirTemp("", "gh-aw-clone-*")
 	if err != nil {
+		packagesLog.Printf("Failed to create temp directory: %v", err)
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
+	packagesLog.Printf("Created temporary directory: %s", tempDir)
 
 	// Prepare clone arguments - handle SHA commits vs branches/tags differently
 	var cloneArgs []string
