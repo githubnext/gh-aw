@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/goccy/go-yaml"
 )
 
 var copilotSetupLog = logger.New("cli:copilot_setup")
@@ -56,6 +57,29 @@ jobs:
           gh aw version || ./gh-aw version
 `
 
+// WorkflowStep represents a GitHub Actions workflow step
+type WorkflowStep struct {
+	Name string         `yaml:"name,omitempty"`
+	Uses string         `yaml:"uses,omitempty"`
+	Run  string         `yaml:"run,omitempty"`
+	With map[string]any `yaml:"with,omitempty"`
+	Env  map[string]any `yaml:"env,omitempty"`
+}
+
+// WorkflowJob represents a GitHub Actions workflow job
+type WorkflowJob struct {
+	RunsOn      any            `yaml:"runs-on,omitempty"`
+	Permissions map[string]any `yaml:"permissions,omitempty"`
+	Steps       []WorkflowStep `yaml:"steps,omitempty"`
+}
+
+// Workflow represents a GitHub Actions workflow file
+type Workflow struct {
+	Name string                 `yaml:"name,omitempty"`
+	On   any                    `yaml:"on,omitempty"`
+	Jobs map[string]WorkflowJob `yaml:"jobs,omitempty"`
+}
+
 // ensureCopilotSetupSteps creates or updates .github/workflows/copilot-setup-steps.yml
 func ensureCopilotSetupSteps(verbose bool) error {
 	copilotSetupLog.Print("Creating copilot-setup-steps.yml")
@@ -80,9 +104,8 @@ func ensureCopilotSetupSteps(verbose bool) error {
 			return fmt.Errorf("failed to read existing copilot-setup-steps.yml: %w", err)
 		}
 
+		// Check if the extension install step is already present (quick check)
 		contentStr := string(content)
-
-		// Check if the extension install step is already present
 		if strings.Contains(contentStr, "gh extension install githubnext/gh-aw") ||
 			strings.Contains(contentStr, "Install gh-aw extension") {
 			copilotSetupLog.Print("Extension install step already exists, skipping update")
@@ -92,11 +115,25 @@ func ensureCopilotSetupSteps(verbose bool) error {
 			return nil
 		}
 
+		// Parse existing workflow
+		var workflow Workflow
+		if err := yaml.Unmarshal(content, &workflow); err != nil {
+			return fmt.Errorf("failed to parse existing copilot-setup-steps.yml: %w", err)
+		}
+
 		// Inject the extension install step
 		copilotSetupLog.Print("Injecting extension install step into existing file")
-		updatedContent := injectExtensionInstallStep(contentStr)
+		if err := injectExtensionInstallStep(&workflow); err != nil {
+			return fmt.Errorf("failed to inject extension install step: %w", err)
+		}
 
-		if err := os.WriteFile(setupStepsPath, []byte(updatedContent), 0644); err != nil {
+		// Marshal back to YAML
+		updatedContent, err := yaml.Marshal(&workflow)
+		if err != nil {
+			return fmt.Errorf("failed to marshal updated workflow: %w", err)
+		}
+
+		if err := os.WriteFile(setupStepsPath, updatedContent, 0644); err != nil {
 			return fmt.Errorf("failed to update copilot-setup-steps.yml: %w", err)
 		}
 		copilotSetupLog.Printf("Updated file with extension install step: %s", setupStepsPath)
@@ -116,107 +153,54 @@ func ensureCopilotSetupSteps(verbose bool) error {
 }
 
 // injectExtensionInstallStep injects the gh-aw extension install step into an existing workflow
-func injectExtensionInstallStep(content string) string {
+func injectExtensionInstallStep(workflow *Workflow) error {
 	// Define the extension install step to inject
-	extensionStep := `      - name: Install gh-aw extension
-        run: gh extension install githubnext/gh-aw
-        env:
-          GH_TOKEN: ${{ github.token }}`
+	extensionStep := WorkflowStep{
+		Name: "Install gh-aw extension",
+		Run:  "gh extension install githubnext/gh-aw",
+		Env: map[string]any{
+			"GH_TOKEN": "${{ github.token }}",
+		},
+	}
 
-	// Try to inject after "Set up Go" step
-	lines := strings.Split(content, "\n")
-	var result []string
-	injected := false
+	// Find the copilot-setup-steps job
+	job, exists := workflow.Jobs["copilot-setup-steps"]
+	if !exists {
+		return fmt.Errorf("copilot-setup-steps job not found in workflow")
+	}
 
-	for i := 0; i < len(lines); i++ {
-		line := lines[i]
-		result = append(result, line)
+	// Find the position to insert the step (after "Set up Go" or after "Checkout code")
+	insertPosition := -1
+	for i, step := range job.Steps {
+		if strings.Contains(step.Name, "Set up Go") {
+			insertPosition = i + 1
+			break
+		}
+	}
 
-		// If we find "Set up Go" and haven't injected yet
-		if !injected && strings.Contains(line, "- name: Set up Go") {
-			// Find the end of this step (next "- name:" at the same or less indentation)
-			stepIndent := len(line) - len(strings.TrimLeft(line, " "))
-
-			j := i + 1
-			for j < len(lines) {
-				nextLine := lines[j]
-				if strings.TrimSpace(nextLine) == "" {
-					result = append(result, nextLine)
-					j++
-					continue
-				}
-
-				nextIndent := len(nextLine) - len(strings.TrimLeft(nextLine, " "))
-				if strings.HasPrefix(strings.TrimSpace(nextLine), "- name:") && nextIndent <= stepIndent {
-					// Found the next step at same level, inject before it
-					result = append(result, "")
-					result = append(result, extensionStep)
-					injected = true
-					i = j - 1 // Will be incremented in the loop
-					break
-				}
-				result = append(result, nextLine)
-				j++
-			}
-
-			// If we reached the end without finding another step
-			if j >= len(lines) && !injected {
-				result = append(result, "")
-				result = append(result, extensionStep)
-				injected = true
+	// If Set up Go not found, try after Checkout
+	if insertPosition == -1 {
+		for i, step := range job.Steps {
+			if strings.Contains(step.Name, "Checkout") || strings.Contains(step.Uses, "checkout@") {
+				insertPosition = i + 1
 				break
 			}
 		}
 	}
 
-	if !injected {
-		// Fallback: try to inject after checkout step
-		result = []string{}
-		for i := 0; i < len(lines); i++ {
-			line := lines[i]
-			result = append(result, line)
-
-			if strings.Contains(line, "- name: Checkout code") || strings.Contains(line, "actions/checkout@") {
-				// Find the end of checkout step
-				stepIndent := len(line) - len(strings.TrimLeft(line, " "))
-
-				j := i + 1
-				for j < len(lines) {
-					nextLine := lines[j]
-					if strings.TrimSpace(nextLine) == "" {
-						result = append(result, nextLine)
-						j++
-						continue
-					}
-
-					nextIndent := len(nextLine) - len(strings.TrimLeft(nextLine, " "))
-					if strings.HasPrefix(strings.TrimSpace(nextLine), "- name:") && nextIndent <= stepIndent {
-						// Found the next step, inject before it
-						result = append(result, "")
-						result = append(result, extensionStep)
-						injected = true
-						i = j - 1
-						break
-					}
-					result = append(result, nextLine)
-					j++
-				}
-
-				if j >= len(lines) && !injected {
-					result = append(result, "")
-					result = append(result, extensionStep)
-					injected = true
-				}
-				break
-			}
-		}
+	// If still not found, append at the end
+	if insertPosition == -1 {
+		insertPosition = len(job.Steps)
 	}
 
-	// If still not injected, append at the end
-	if !injected {
-		result = append(result, "")
-		result = append(result, extensionStep)
-	}
+	// Insert the step at the determined position
+	newSteps := make([]WorkflowStep, 0, len(job.Steps)+1)
+	newSteps = append(newSteps, job.Steps[:insertPosition]...)
+	newSteps = append(newSteps, extensionStep)
+	newSteps = append(newSteps, job.Steps[insertPosition:]...)
 
-	return strings.Join(result, "\n")
+	job.Steps = newSteps
+	workflow.Jobs["copilot-setup-steps"] = job
+
+	return nil
 }
