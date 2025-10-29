@@ -77,24 +77,18 @@ steps:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
-      # Extract PR numbers from the data
-      PR_NUMBERS=$(jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json)
-      
       # Create logs directory
       mkdir -p /tmp/gh-aw/workflow-logs
       
       echo "Downloading workflow logs to extract turn counts..."
       
-      # For each PR, try to find associated workflow runs
-      # We'll download logs using gh-aw logs command for copilot engine
-      # This will give us the aw_info.json which contains turn counts
-      
       # Download logs for the last 30 days of copilot workflows
-      cd /tmp/gh-aw
+      # This will give us the aw_info.json which contains turn counts
+      ./gh-aw logs --engine copilot --start-date -30d -o /tmp/gh-aw/workflow-logs
       
-      # Use gh-aw to download copilot workflow logs
-      # We'll download to a temporary location then extract what we need
-      echo "Using gh-aw logs to download copilot workflow artifacts..."
+      # Verify logs were downloaded
+      echo "Downloaded workflow logs:"
+      ls -la /tmp/gh-aw/workflow-logs
 
 timeout_minutes: 20
 

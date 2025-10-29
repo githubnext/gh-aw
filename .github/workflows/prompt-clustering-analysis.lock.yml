@@ -120,7 +120,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Download workflow logs for PR analysis
-        run: "# Extract PR numbers from the data\nPR_NUMBERS=$(jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json)\n\n# Create logs directory\nmkdir -p /tmp/gh-aw/workflow-logs\n\necho \"Downloading workflow logs to extract turn counts...\"\n\n# For each PR, try to find associated workflow runs\n# We'll download logs using gh-aw logs command for copilot engine\n# This will give us the aw_info.json which contains turn counts\n\n# Download logs for the last 30 days of copilot workflows\ncd /tmp/gh-aw\n\n# Use gh-aw to download copilot workflow logs\n# We'll download to a temporary location then extract what we need\necho \"Using gh-aw logs to download copilot workflow artifacts...\"\n"
+        run: "# Create logs directory\nmkdir -p /tmp/gh-aw/workflow-logs\n\necho \"Downloading workflow logs to extract turn counts...\"\n\n# Download logs for the last 30 days of copilot workflows\n# This will give us the aw_info.json which contains turn counts\n./gh-aw logs --engine copilot --start-date -30d -o /tmp/gh-aw/workflow-logs\n\n# Verify logs were downloaded\necho \"Downloaded workflow logs:\"\nls -la /tmp/gh-aw/workflow-logs\n"
 
       - name: Create gh-aw temp directory
         run: |
