@@ -217,7 +217,7 @@ func TestEnsureMCPConfig_UpdatesExisting(t *testing.T) {
 	}
 }
 
-func TestEnsureCopilotSetupSteps_SkipsExisting(t *testing.T) {
+func TestEnsureCopilotSetupSteps_InjectsStep(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := t.TempDir()
 
@@ -240,10 +240,26 @@ func TestEnsureCopilotSetupSteps_SkipsExisting(t *testing.T) {
 		t.Fatalf("Failed to create workflows directory: %v", err)
 	}
 
-	// Create custom copilot-setup-steps.yml
+	// Create custom copilot-setup-steps.yml without extension install step
 	setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
-	customContent := []byte("# Custom setup steps\nname: Custom\n")
-	if err := os.WriteFile(setupStepsPath, customContent, 0644); err != nil {
+	customContent := `name: "Copilot Setup Steps"
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build code
+        run: make build
+`
+	if err := os.WriteFile(setupStepsPath, []byte(customContent), 0644); err != nil {
 		t.Fatalf("Failed to write custom setup steps: %v", err)
 	}
 
@@ -252,13 +268,90 @@ func TestEnsureCopilotSetupSteps_SkipsExisting(t *testing.T) {
 		t.Fatalf("ensureCopilotSetupSteps() returned error: %v", err)
 	}
 
-	// Verify the file was not overwritten
+	// Verify the extension install step was injected
 	content, err := os.ReadFile(setupStepsPath)
 	if err != nil {
 		t.Fatalf("Failed to read setup steps file: %v", err)
 	}
 
-	if string(content) != string(customContent) {
-		t.Errorf("Expected custom content to be preserved, but it was overwritten")
+	contentStr := string(content)
+	if !strings.Contains(contentStr, "Install gh-aw extension") {
+		t.Errorf("Expected extension install step to be injected")
+	}
+	if !strings.Contains(contentStr, "gh extension install githubnext/gh-aw") {
+		t.Errorf("Expected extension install command to be present")
+	}
+
+	// Verify it was injected after Set up Go step
+	goIndex := strings.Index(contentStr, "Set up Go")
+	extensionIndex := strings.Index(contentStr, "Install gh-aw extension")
+	buildIndex := strings.Index(contentStr, "Build code")
+
+	if goIndex == -1 || extensionIndex == -1 || buildIndex == -1 {
+		t.Fatalf("Could not find expected steps in file")
+	}
+
+	if !(goIndex < extensionIndex && extensionIndex < buildIndex) {
+		t.Errorf("Extension install step not in correct position (should be after Go setup, before Build)")
+	}
+}
+
+func TestEnsureCopilotSetupSteps_SkipsWhenStepExists(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+
+	// Change to temp directory
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWd)
+	}()
+	err = os.Chdir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Create copilot-setup-steps.yml that already has the extension install step
+	setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
+	customContent := `name: "Copilot Setup Steps"
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install gh-aw extension
+        run: gh extension install githubnext/gh-aw
+
+      - name: Build code
+        run: make build
+`
+	if err := os.WriteFile(setupStepsPath, []byte(customContent), 0644); err != nil {
+		t.Fatalf("Failed to write custom setup steps: %v", err)
+	}
+
+	// Call ensureCopilotSetupSteps
+	if err := ensureCopilotSetupSteps(false); err != nil {
+		t.Fatalf("ensureCopilotSetupSteps() returned error: %v", err)
+	}
+
+	// Verify the file was not modified (content should be the same)
+	content, err := os.ReadFile(setupStepsPath)
+	if err != nil {
+		t.Fatalf("Failed to read setup steps file: %v", err)
+	}
+
+	if string(content) != customContent {
+		t.Errorf("Expected file to remain unchanged when extension step already exists")
 	}
 }

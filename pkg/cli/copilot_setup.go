@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
@@ -39,30 +40,8 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Install gh CLI
-        run: |
-          if ! command -v gh &> /dev/null; then
-            echo "Installing GitHub CLI..."
-            type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
-            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-            && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
-            && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-            && sudo apt update \
-            && sudo apt install gh -y
-          else
-            echo "GitHub CLI already installed"
-          fi
-
       - name: Install gh-aw extension
-        run: |
-          # Install or update the gh-aw extension
-          if gh extension list | grep -q githubnext/gh-aw; then
-            echo "Upgrading gh-aw extension..."
-            gh extension upgrade githubnext/gh-aw
-          else
-            echo "Installing gh-aw extension..."
-            gh extension install githubnext/gh-aw
-          fi
+        run: gh extension install githubnext/gh-aw
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -94,9 +73,36 @@ func ensureCopilotSetupSteps(verbose bool) error {
 	// Check if file already exists
 	if _, err := os.Stat(setupStepsPath); err == nil {
 		copilotSetupLog.Printf("File already exists: %s", setupStepsPath)
-		// File exists, skip creation to avoid overwriting user customizations
+
+		// Read existing file to check if extension install step exists
+		content, err := os.ReadFile(setupStepsPath)
+		if err != nil {
+			return fmt.Errorf("failed to read existing copilot-setup-steps.yml: %w", err)
+		}
+
+		contentStr := string(content)
+
+		// Check if the extension install step is already present
+		if strings.Contains(contentStr, "gh extension install githubnext/gh-aw") ||
+			strings.Contains(contentStr, "Install gh-aw extension") {
+			copilotSetupLog.Print("Extension install step already exists, skipping update")
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Skipping %s (already has gh-aw extension install step)\n", setupStepsPath)
+			}
+			return nil
+		}
+
+		// Inject the extension install step
+		copilotSetupLog.Print("Injecting extension install step into existing file")
+		updatedContent := injectExtensionInstallStep(contentStr)
+
+		if err := os.WriteFile(setupStepsPath, []byte(updatedContent), 0644); err != nil {
+			return fmt.Errorf("failed to update copilot-setup-steps.yml: %w", err)
+		}
+		copilotSetupLog.Printf("Updated file with extension install step: %s", setupStepsPath)
+
 		if verbose {
-			fmt.Fprintf(os.Stderr, "Skipping %s (already exists)\n", setupStepsPath)
+			fmt.Fprintf(os.Stderr, "Updated %s with gh-aw extension install step\n", setupStepsPath)
 		}
 		return nil
 	}
@@ -107,4 +113,110 @@ func ensureCopilotSetupSteps(verbose bool) error {
 	copilotSetupLog.Printf("Created file: %s", setupStepsPath)
 
 	return nil
+}
+
+// injectExtensionInstallStep injects the gh-aw extension install step into an existing workflow
+func injectExtensionInstallStep(content string) string {
+	// Define the extension install step to inject
+	extensionStep := `      - name: Install gh-aw extension
+        run: gh extension install githubnext/gh-aw
+        env:
+          GH_TOKEN: ${{ github.token }}`
+
+	// Try to inject after "Set up Go" step
+	lines := strings.Split(content, "\n")
+	var result []string
+	injected := false
+
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		result = append(result, line)
+
+		// If we find "Set up Go" and haven't injected yet
+		if !injected && strings.Contains(line, "- name: Set up Go") {
+			// Find the end of this step (next "- name:" at the same or less indentation)
+			stepIndent := len(line) - len(strings.TrimLeft(line, " "))
+
+			j := i + 1
+			for j < len(lines) {
+				nextLine := lines[j]
+				if strings.TrimSpace(nextLine) == "" {
+					result = append(result, nextLine)
+					j++
+					continue
+				}
+
+				nextIndent := len(nextLine) - len(strings.TrimLeft(nextLine, " "))
+				if strings.HasPrefix(strings.TrimSpace(nextLine), "- name:") && nextIndent <= stepIndent {
+					// Found the next step at same level, inject before it
+					result = append(result, "")
+					result = append(result, extensionStep)
+					injected = true
+					i = j - 1 // Will be incremented in the loop
+					break
+				}
+				result = append(result, nextLine)
+				j++
+			}
+
+			// If we reached the end without finding another step
+			if j >= len(lines) && !injected {
+				result = append(result, "")
+				result = append(result, extensionStep)
+				injected = true
+				break
+			}
+		}
+	}
+
+	if !injected {
+		// Fallback: try to inject after checkout step
+		result = []string{}
+		for i := 0; i < len(lines); i++ {
+			line := lines[i]
+			result = append(result, line)
+
+			if strings.Contains(line, "- name: Checkout code") || strings.Contains(line, "actions/checkout@") {
+				// Find the end of checkout step
+				stepIndent := len(line) - len(strings.TrimLeft(line, " "))
+
+				j := i + 1
+				for j < len(lines) {
+					nextLine := lines[j]
+					if strings.TrimSpace(nextLine) == "" {
+						result = append(result, nextLine)
+						j++
+						continue
+					}
+
+					nextIndent := len(nextLine) - len(strings.TrimLeft(nextLine, " "))
+					if strings.HasPrefix(strings.TrimSpace(nextLine), "- name:") && nextIndent <= stepIndent {
+						// Found the next step, inject before it
+						result = append(result, "")
+						result = append(result, extensionStep)
+						injected = true
+						i = j - 1
+						break
+					}
+					result = append(result, nextLine)
+					j++
+				}
+
+				if j >= len(lines) && !injected {
+					result = append(result, "")
+					result = append(result, extensionStep)
+					injected = true
+				}
+				break
+			}
+		}
+	}
+
+	// If still not injected, append at the end
+	if !injected {
+		result = append(result, "")
+		result = append(result, extensionStep)
+	}
+
+	return strings.Join(result, "\n")
 }
