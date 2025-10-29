@@ -12,7 +12,7 @@ import (
 var initLog = logger.New("cli:init")
 
 // InitRepository initializes the repository for agentic workflows
-func InitRepository(verbose bool) error {
+func InitRepository(verbose bool, mcp bool) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
 
 	// Ensure we're in a git repository
@@ -72,12 +72,39 @@ func InitRepository(verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created getting started guide"))
 	}
 
+	// Configure MCP if requested
+	if mcp {
+		initLog.Print("Configuring GitHub Copilot Agent MCP integration")
+
+		// Create copilot-setup-steps.yml
+		if err := ensureCopilotSetupSteps(verbose); err != nil {
+			initLog.Printf("Failed to create copilot-setup-steps.yml: %v", err)
+			return fmt.Errorf("failed to create copilot-setup-steps.yml: %w", err)
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .github/workflows/copilot-setup-steps.yml"))
+		}
+
+		// Create .vscode/mcp.json
+		if err := ensureMCPConfig(verbose); err != nil {
+			initLog.Printf("Failed to create MCP config: %v", err)
+			return fmt.Errorf("failed to create MCP config: %w", err)
+		}
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .vscode/mcp.json"))
+		}
+	}
+
 	initLog.Print("Repository initialization completed successfully")
 
 	// Display success message with next steps
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Repository initialized for agentic workflows!"))
 	fmt.Fprintln(os.Stderr, "")
+	if mcp {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("✓ GitHub Copilot Agent MCP integration configured"))
+		fmt.Fprintln(os.Stderr, "")
+	}
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Start a chat and copy the following prompt to create a new workflow:"))
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "     activate @.github/prompts/create-agentic-workflow.prompt.md")
