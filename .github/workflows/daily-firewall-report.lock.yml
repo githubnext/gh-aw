@@ -161,6 +161,13 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.20.1
+      - name: Install gh-aw extension
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Installing gh-aw extension..."
+          gh extension install githubnext/gh-aw
+          gh aw --version
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -956,6 +963,15 @@ jobs:
           cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
+              "agentic_workflows": {
+                "type": "local",
+                "command": "gh",
+                "args": ["aw", "mcp-server"],
+                "tools": ["*"],
+                "env": {
+                  "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
+                }
+              },
               "github": {
                 "type": "local",
                 "command": "docker",
@@ -1092,29 +1108,78 @@ jobs:
           ### Step 1: Identify Workflows with Firewall Feature
           
           1. List all workflows in the repository
-          2. For each workflow that has `features.firewall: true` in its frontmatter, note the workflow name
+          2. For each workflow that has `network.firewall: true` in its frontmatter, note the workflow name
           3. Create a list of all firewall-enabled workflows
+          
+          **Example frontmatter structure:**
+          ```yaml
+          network:
+            firewall: true
+          ```
+          
+          **Note:** The firewall field is under `network`, not `features`.
           
           ### Step 2: Collect Recent Workflow Runs
           
           For each firewall-enabled workflow:
           1. Get up to 10 workflow runs that occurred within the past 7 days (if there are fewer than 10 runs in that window, include all available; if there are more, include only the most recent 10)
-          2. Download the firewall logs artifact (named `squid-logs-{workflow-name}`) from each run
-             - **Note:** `{workflow-name}` refers to the workflow file name (e.g., `dev.firewall`), not the display name. Any special characters or spaces in the file name are preserved as-is in the artifact name. For example, if the workflow file is `dev.firewall.md`, the artifact will be named `squid-logs-dev.firewall`.
+          2. For each run ID, use the `audit` tool from the agentic-workflows MCP server with `--json` flag to get detailed firewall information
           3. Store the run ID, workflow name, and timestamp for tracking
+          
+          **Using the audit tool:**
+          ```bash
+          # Get firewall analysis in JSON format
+          gh aw audit <run-id> --json
+          
+          # Example jq filter to extract firewall data:
+          gh aw audit <run-id> --json | jq '{
+            run_id: .overview.run_id,
+            workflow: .overview.workflow_name,
+            firewall: .firewall_analysis // {},
+            denied_domains: .firewall_analysis.denied_domains // [],
+            allowed_domains: .firewall_analysis.allowed_domains // [],
+            total_requests: .firewall_analysis.total_requests // 0,
+            denied_requests: .firewall_analysis.denied_requests // 0
+          }'
+          ```
+          
+          **Important:** Do NOT manually download and parse firewall log files. Always use the `audit` tool which provides structured firewall analysis data including:
+          - Total requests, allowed requests, denied requests
+          - Lists of allowed and denied domains
+          - Request statistics per domain
           
           ### Step 3: Parse and Analyze Firewall Logs
           
-          For each downloaded firewall log:
-          1. Parse the access log files to extract domain information
-          2. Categorize domains as:
-             - **Allowed**: Successfully accessed domains
-             - **Denied/Rejected**: Blocked domains
-          3. Track the following metrics per workflow:
-             - Total requests
-             - Allowed requests count
-             - Denied requests count
-             - List of unique denied domains
+          Use the JSON output from the `audit` tool to extract firewall information. The `firewall_analysis` field in the audit JSON contains:
+          - `total_requests` - Total number of network requests
+          - `allowed_requests` - Count of allowed requests
+          - `denied_requests` - Count of denied/blocked requests
+          - `allowed_domains` - Array of unique allowed domains
+          - `denied_domains` - Array of unique denied/blocked domains
+          - `requests_by_domain` - Object mapping domains to request statistics (allowed/denied counts)
+          
+          **Example jq filter for aggregating denied domains:**
+          ```bash
+          # Get only denied domains across multiple runs
+          gh aw audit <run-id> --json | jq -r '.firewall_analysis.denied_domains[]? // empty'
+          
+          # Get denied domain statistics with counts
+          gh aw audit <run-id> --json | jq -r '
+            .firewall_analysis.requests_by_domain // {} | 
+            to_entries[] | 
+            select(.value.denied > 0) | 
+            "\(.key): \(.value.denied) denied, \(.value.allowed) allowed"
+          '
+          ```
+          
+          For each workflow run with firewall data:
+          1. Extract the firewall analysis from the audit JSON output
+          2. Track the following metrics per workflow:
+             - Total requests (from `total_requests`)
+             - Allowed requests count (from `allowed_requests`)
+             - Denied requests count (from `denied_requests`)
+             - List of unique denied domains (from `denied_domains`)
+             - Domain-level statistics (from `requests_by_domain`)
           
           ### Step 4: Aggregate Results
           
