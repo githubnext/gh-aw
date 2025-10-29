@@ -70,6 +70,13 @@ func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
 		relPath,
 	)
 
+	// In verbose mode, show the command that users can run directly
+	if verbose {
+		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir ghcr.io/zizmorcore/zizmor:latest --format json %s",
+			gitRoot, relPath)
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run zizmor directly: "+dockerCmd))
+	}
+
 	// Capture output
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -190,6 +197,7 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, erro
 			severity := finding.Determinations.Severity
 			ident := finding.Ident
 			desc := finding.Desc
+			url := finding.URL
 
 			// Find the primary location (first location in the list)
 			if len(finding.Locations) > 0 {
@@ -219,6 +227,12 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, erro
 					errorType = "error"
 				}
 
+				// Build message with URL link if available
+				message := fmt.Sprintf("[%s] %s: %s", severity, ident, desc)
+				if url != "" {
+					message = fmt.Sprintf("%s (%s)", message, url)
+				}
+
 				// Create and format CompilerError
 				compilerErr := console.CompilerError{
 					Position: console.ErrorPosition{
@@ -227,7 +241,7 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, erro
 						Column: colNum,
 					},
 					Type:    errorType,
-					Message: fmt.Sprintf("[%s] %s: %s", severity, ident, desc),
+					Message: message,
 					Context: context,
 				}
 

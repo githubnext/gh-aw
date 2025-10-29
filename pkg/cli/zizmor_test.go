@@ -50,7 +50,7 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 ]`,
 			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/test.lock.yml\n",
 			expectedOutput: []string{
-				"./.github/workflows/test.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions",
+				"./.github/workflows/test.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions (https://docs.zizmor.sh/audits/#excessive-permissions)",
 			},
 			expectError: false,
 		},
@@ -116,8 +116,8 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 ]`,
 			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/test.lock.yml\n",
 			expectedOutput: []string{
-				"./.github/workflows/test.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions",
-				"./.github/workflows/test.lock.yml:12:24: error: [High] template-injection: template injection with untrusted input",
+				"./.github/workflows/test.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions (https://docs.zizmor.sh/audits/#excessive-permissions)",
+				"./.github/workflows/test.lock.yml:12:24: error: [High] template-injection: template injection with untrusted input (https://docs.zizmor.sh/audits/#template-injection)",
 			},
 			expectError: false,
 		},
@@ -192,8 +192,8 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 ]`,
 			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/test1.lock.yml\n INFO audit: zizmor: 🌈 completed ./.github/workflows/test2.lock.yml\n",
 			expectedOutput: []string{
-				"./.github/workflows/test1.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions",
-				"./.github/workflows/test2.lock.yml:12:24: error: [High] template-injection: template injection with untrusted input",
+				"./.github/workflows/test1.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions (https://docs.zizmor.sh/audits/#excessive-permissions)",
+				"./.github/workflows/test2.lock.yml:12:24: error: [High] template-injection: template injection with untrusted input (https://docs.zizmor.sh/audits/#template-injection)",
 			},
 			expectError: false,
 		},
@@ -249,7 +249,7 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 ]`,
 			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/test.lock.yml\n",
 			expectedOutput: []string{
-				"./.github/workflows/test.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions",
+				"./.github/workflows/test.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions (https://docs.zizmor.sh/audits/#excessive-permissions)",
 			},
 			expectError: false,
 		},
