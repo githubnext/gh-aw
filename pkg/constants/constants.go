@@ -18,7 +18,7 @@ const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 const DefaultClaudeCodeVersion = "2.0.28"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
-const DefaultCopilotVersion = "0.0.352"
+const DefaultCopilotVersion = "0.0.353"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion = "0.50.0"

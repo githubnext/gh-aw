@@ -452,7 +452,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           cache: npm
           cache-dependency-path: pkg/workflow/js/package-lock.json
@@ -532,7 +532,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.352
+        run: npm install -g @github/copilot@0.0.353
       - name: Downloading container images
         run: |
           set -e
@@ -4593,7 +4593,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.352
+        run: npm install -g @github/copilot@0.0.353
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
