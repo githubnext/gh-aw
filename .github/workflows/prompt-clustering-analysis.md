@@ -36,25 +36,8 @@ cache:
 tools:
   cache-memory: true
   github:
-    allowed:
-      - search_pull_requests
-      - pull_request_read
-      - list_pull_requests
-      - get_file_contents
-      - list_commits
-      - get_commit
-  bash:
-    - "find .github -name '*.md'"
-    - "find .github -type f -exec cat {} +"
-    - "ls -la .github"
-    - "git log --oneline"
-    - "git diff"
-    - "gh pr list *"
-    - "gh search prs *"
-    - "jq *"
-    - "/tmp/gh-aw/jqschema.sh"
-    - "python3 *"
-    - "pip3 *"
+    toolsets: [repos, pull_requests]
+  bash: ["*"]
 
 steps:
   - name: Install Python dependencies
