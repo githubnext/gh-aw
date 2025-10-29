@@ -33,6 +33,7 @@ You are a code quality assistant that uses ast-grep to detect problematic Go cod
 
 - **Repository**: ${{ github.repository }}
 - **Push Event**: ${{ github.event.after }}
+- **Triggered by**: @${{ github.actor }}
 
 ## Your Task
 

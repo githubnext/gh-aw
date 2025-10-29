@@ -435,53 +435,50 @@ func TestExpressionSafetyComprehensive(t *testing.T) {
 		errContains string
 		description string
 	}{
-		// Complex unauthorized expressions
+		// Complex allowed expressions
 		{
-			name:        "complex unauthorized logical expression",
+			name:        "complex allowed logical expression",
 			content:     "${{ (github.workflow && github.repository) || (github.run_id && github.actor) }}",
-			wantErr:     true,
-			errContains: "github.workflow",
-			description: "Complex logical expressions with unauthorized terms should fail",
+			wantErr:     false,
+			description: "Complex logical expressions with allowed terms should pass",
 		},
 		{
-			name:        "nested unauthorized expression with NOT",
+			name:        "nested allowed expression with NOT",
 			content:     "${{ !((github.workflow || github.repository) && github.run_id) }}",
-			wantErr:     true,
-			errContains: "github.workflow",
-			description: "Nested expressions with NOT and unauthorized terms should fail",
+			wantErr:     false,
+			description: "Nested expressions with NOT and allowed terms should pass",
 		},
 		{
-			name:        "mixed unauthorized expressions in markdown",
+			name:        "mixed allowed expressions in markdown",
 			content:     "Repository: ${{ github.repository }}, workflow: ${{ github.workflow && github.actor }}, run: ${{ github.run_id || github.run_number }}",
-			wantErr:     true,
-			errContains: "github.workflow",
-			description: "Multiple complex expressions in markdown should fail if any terms are unauthorized",
+			wantErr:     false,
+			description: "Multiple complex expressions in markdown should pass if all terms are allowed",
 		},
 
 		// Complex unauthorized expressions
 		{
-			name:        "unauthorized in complex expression - both workflow and secrets",
+			name:        "unauthorized in complex expression",
 			content:     "${{ (github.workflow && secrets.TOKEN) || github.repository }}",
 			wantErr:     true,
 			errContains: "secrets.TOKEN",
 			description: "Unauthorized terms in complex expressions should be caught",
 		},
 		{
-			name:        "unauthorized with NOT operator - both secrets and workflow",
+			name:        "unauthorized with NOT operator",
 			content:     "${{ !secrets.PRIVATE_KEY && github.workflow }}",
 			wantErr:     true,
 			errContains: "secrets.PRIVATE_KEY",
 			description: "Unauthorized terms with NOT should be caught",
 		},
 		{
-			name:        "deeply nested unauthorized - workflow, actor and secrets",
+			name:        "deeply nested unauthorized",
 			content:     "${{ ((github.workflow || github.repository) && (github.actor || secrets.HIDDEN)) }}",
 			wantErr:     true,
 			errContains: "secrets.HIDDEN",
 			description: "Unauthorized terms in deeply nested expressions should be caught",
 		},
 		{
-			name:        "multiple unauthorized in same expression - secrets and workflow",
+			name:        "multiple unauthorized in same expression",
 			content:     "${{ secrets.TOKEN && env.PRIVATE_VAR && github.workflow }}",
 			wantErr:     true,
 			errContains: "secrets.TOKEN",
@@ -494,30 +491,27 @@ func TestExpressionSafetyComprehensive(t *testing.T) {
 			content:     "Valid: ${{ github.workflow && github.repository }}, Invalid: ${{ secrets.TOKEN }}",
 			wantErr:     true,
 			errContains: "secrets.TOKEN",
-			description: "Should catch unauthorized expressions even when other expressions mix authorized and unauthorized",
+			description: "Should catch unauthorized expressions even when other expressions are valid",
 		},
 		{
-			name:        "complex function calls with unauthorized workflow",
+			name:        "complex function calls with authorization",
 			content:     "${{ github.workflow && github.repository }}",
-			wantErr:     true,
-			errContains: "github.workflow",
-			description: "Complex expressions with unauthorized simple terms should fail",
+			wantErr:     false,
+			description: "Complex expressions with only allowed simple terms should pass",
 		},
 
 		// Edge cases
 		{
-			name:        "expression with unauthorized simple terms only",
+			name:        "expression with simple terms only",
 			content:     "${{ github.workflow && github.repository }}",
-			wantErr:     true,
-			errContains: "github.workflow",
-			description: "Expressions with unauthorized simple terms should be parsed and flagged correctly",
+			wantErr:     false,
+			description: "Expressions with only simple allowed terms should be parsed correctly",
 		},
 		{
-			name:        "complex real-world expression with unauthorized terms",
+			name:        "complex real-world expression with only allowed terms",
 			content:     "${{ (github.workflow && github.repository) || (github.actor && !github.run_id) }}",
-			wantErr:     true,
-			errContains: "github.workflow",
-			description: "Complex expressions with unauthorized simple terms should be flagged correctly",
+			wantErr:     false,
+			description: "Complex expressions with only simple allowed terms should work correctly",
 		},
 	}
 

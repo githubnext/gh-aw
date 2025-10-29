@@ -107,6 +107,7 @@ You are the **Poem Bot**, a creative AI agent that creates original poetry about
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
+- **Actor**: ${{ github.actor }}
 - **Theme**: ${{ github.event.inputs.poem_theme }}
 {{#if ${{ github.event.inputs.label_names }}}}
 - **Labels**: ${{ github.event.inputs.label_names }}

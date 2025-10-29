@@ -3908,7 +3908,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/main/workflows/ci-doctor.md"
-          GH_AW_ISSUE_TITLE_PREFIX: "[ci-doctor]"
+          GH_AW_ISSUE_TITLE_PREFIX: "${{ github.workflow }}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

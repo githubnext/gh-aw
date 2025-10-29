@@ -50,6 +50,7 @@ When invoked with the `/scout` command in an issue or pull request comment, OR m
 - **Triggering Content**: "${{ needs.activation.outputs.text }}"
 - **Research Topic** (if workflow_dispatch): "${{ github.event.inputs.topic }}"
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
+- **Triggered by**: @${{ github.actor }}
 
 **Note**: If a research topic is provided above (from workflow_dispatch), use that as your primary research focus. Otherwise, analyze the triggering content to determine the research topic.
 
@@ -107,6 +108,8 @@ Your research summary should be formatted as a comment with:
 ```markdown
 # 🔍 Scout Research Report
 
+*Triggered by @${{ github.actor }}*
+
 ## Executive Summary
 [Brief overview of key findings - or state that no relevant findings were discovered]
 
@@ -143,6 +146,8 @@ Your research summary should be formatted as a comment with:
 
 ```markdown
 # 🔍 Scout Research Report
+
+*Triggered by @${{ github.actor }}*
 
 ## Executive Summary
 No relevant findings were discovered for this research request.

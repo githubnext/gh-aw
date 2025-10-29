@@ -12,7 +12,7 @@ permissions: read-all
 safe-outputs:
   add-comment: null
   create-issue:
-    title-prefix: "[ci-doctor]"
+    title-prefix: ${{ github.workflow }}
 source: githubnext/agentics/workflows/ci-doctor.md
 timeout_minutes: 10
 tools:
