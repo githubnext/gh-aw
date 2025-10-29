@@ -280,7 +280,7 @@ function formatChangesetBody(text) {
  */
 function isGitTreeClean() {
   try {
-    const output = execSync('git status --porcelain', { encoding: 'utf8' });
+    const output = execSync('git status --porcelain --untracked-files=no', { encoding: 'utf8' });
     return output.trim() === '';
   } catch (error) {
     throw new Error('Failed to check git status. Are you in a git repository?');
