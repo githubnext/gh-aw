@@ -90,7 +90,7 @@ steps:
         # Download full PR data with all available fields
         gh pr view "$pr_number" \
           --repo ${{ github.repository }} \
-          --json number,title,state,body,author,assignees,labels,createdAt,updatedAt,closedAt,mergedAt,mergedBy,comments,reviews,commits,files,additions,deletions,changedFiles,reviewDecision,isDraft,milestone,url \
+          --json additions,assignees,author,autoMergeRequest,baseRefName,baseRefOid,body,changedFiles,closed,closedAt,closingIssuesReferences,comments,commits,createdAt,deletions,files,fullDatabaseId,headRefName,headRefOid,headRepository,headRepositoryOwner,id,isCrossRepository,isDraft,labels,latestReviews,maintainerCanModify,mergeCommit,mergeStateStatus,mergeable,mergedAt,mergedBy,milestone,number,potentialMergeCommit,projectCards,projectItems,reactionGroups,reviewDecision,reviewRequests,reviews,state,statusCheckRollup,title,updatedAt,url \
           > /tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json
         
         echo "Downloaded PR #$pr_number"
