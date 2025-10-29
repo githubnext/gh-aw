@@ -62,7 +62,7 @@ steps:
       # Using --author flag for server-side filtering (no jq needed!)
       echo "Fetching Copilot PRs from the last 30 days..."
       gh search prs --repo ${{ github.repository }} \
-        --author "@copilot" \
+        --author "app/copilot" \
         --created ">=$DATE_30_DAYS_AGO" \
         --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository \
         --limit 1000 \
@@ -117,9 +117,9 @@ jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today) | .number]' /tmp/gh
 
 Search for pull requests created by Copilot in the last 24 hours.
 
-**Important**: The Copilot coding agent creates PRs under the username `Copilot` (user ID 198982749, a Bot account).
+**Important**: The Copilot coding agent creates PRs under the GitHub App `app/copilot` (user ID 198982749, a Bot account).
 
-**Recommended Approach**: The workflow uses `gh search prs --author "@copilot"` which provides server-side filtering for both date and author, combining efficiency with simplicity.
+**Recommended Approach**: The workflow uses `gh search prs --author "app/copilot"` which provides server-side filtering for both date and author, combining efficiency with simplicity.
 
 Use the GitHub tools with one of these strategies:
 
@@ -128,7 +128,7 @@ Use the GitHub tools with one of these strategies:
    # Server-side filtering for both date and author (current workflow approach)
    DATE=$(date -d '24 hours ago' '+%Y-%m-%d')
    gh search prs --repo ${{ github.repository }} \
-     --author "@copilot" \
+     --author "app/copilot" \
      --created ">=$DATE" \
      --limit 1000 \
      --json number,title,state,createdAt,closedAt,author
