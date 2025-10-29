@@ -15,6 +15,7 @@ safe-outputs:
     max: 1
 
 tools:
+  agentic-workflows:
   github:
     toolsets:
       - default
@@ -56,36 +57,63 @@ network:
 
 For each firewall-enabled workflow:
 1. Get up to 10 workflow runs that occurred within the past 7 days (if there are fewer than 10 runs in that window, include all available; if there are more, include only the most recent 10)
-2. Download the firewall logs artifact (named `squid-logs-{workflow-name}`) from each run
-   - **Note:** `{workflow-name}` refers to the workflow file name (e.g., `dev.firewall`), not the display name. Any special characters or spaces in the file name are preserved as-is in the artifact name. For example, if the workflow file is `dev.firewall.md`, the artifact will be named `squid-logs-dev.firewall`.
-   - **Artifact contents:** Each artifact contains Squid proxy logs:
-     - `access.log` - HTTP requests with domains, status codes, and connection types
-     - `cache.log` - Cache operations and errors (typically less relevant for domain analysis)
+2. For each run ID, use the `audit` tool from the agentic-workflows MCP server with `--json` flag to get detailed firewall information
 3. Store the run ID, workflow name, and timestamp for tracking
+
+**Using the audit tool:**
+```bash
+# Get firewall analysis in JSON format
+gh aw audit <run-id> --json
+
+# Example jq filter to extract firewall data:
+gh aw audit <run-id> --json | jq '{
+  run_id: .overview.run_id,
+  workflow: .overview.workflow_name,
+  firewall: .firewall_analysis // {},
+  denied_domains: .firewall_analysis.denied_domains // [],
+  allowed_domains: .firewall_analysis.allowed_domains // [],
+  total_requests: .firewall_analysis.total_requests // 0,
+  denied_requests: .firewall_analysis.denied_requests // 0
+}'
+```
+
+**Important:** Do NOT manually download and parse firewall log files. Always use the `audit` tool which provides structured firewall analysis data including:
+- Total requests, allowed requests, denied requests
+- Lists of allowed and denied domains
+- Request statistics per domain
 
 ### Step 3: Parse and Analyze Firewall Logs
 
-For each downloaded firewall log:
-1. Parse the access log files to extract domain information
-   - **Squid native log format:** Each line contains space-separated fields:
-     ```
-     timestamp source_ip:source_port target_domain:target_port target_ip:target_port http_version method status_code connection_type:hierarchy domain:port user_agent
-     ```
-   - **Example log line:**
-     ```
-     1761610340.601 172.30.0.20:46014 api.github.com:443 140.82.116.6:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"
-     ```
-   - **Parsing rules:**
-     - **Allowed requests:** Lines with `TCP_*` connection types (e.g., `TCP_TUNNEL`, `TCP_MISS`, `TCP_HIT`)
-     - **Denied/Rejected requests:** Lines with `error:` in the connection type field or `NONE_NONE` status
-2. Categorize domains as:
-   - **Allowed**: Successfully accessed domains
-   - **Denied/Rejected**: Blocked domains
-3. Track the following metrics per workflow:
-   - Total requests
-   - Allowed requests count
-   - Denied requests count
-   - List of unique denied domains
+Use the JSON output from the `audit` tool to extract firewall information. The `firewall_analysis` field in the audit JSON contains:
+- `total_requests` - Total number of network requests
+- `allowed_requests` - Count of allowed requests
+- `denied_requests` - Count of denied/blocked requests
+- `allowed_domains` - Array of unique allowed domains
+- `denied_domains` - Array of unique denied/blocked domains
+- `requests_by_domain` - Object mapping domains to request statistics (allowed/denied counts)
+
+**Example jq filter for aggregating denied domains:**
+```bash
+# Get only denied domains across multiple runs
+gh aw audit <run-id> --json | jq -r '.firewall_analysis.denied_domains[]? // empty'
+
+# Get denied domain statistics with counts
+gh aw audit <run-id> --json | jq -r '
+  .firewall_analysis.requests_by_domain // {} | 
+  to_entries[] | 
+  select(.value.denied > 0) | 
+  "\(.key): \(.value.denied) denied, \(.value.allowed) allowed"
+'
+```
+
+For each workflow run with firewall data:
+1. Extract the firewall analysis from the audit JSON output
+2. Track the following metrics per workflow:
+   - Total requests (from `total_requests`)
+   - Allowed requests count (from `allowed_requests`)
+   - Denied requests count (from `denied_requests`)
+   - List of unique denied domains (from `denied_domains`)
+   - Domain-level statistics (from `requests_by_domain`)
 
 ### Step 4: Aggregate Results
 
