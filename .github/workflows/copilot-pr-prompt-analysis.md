@@ -59,7 +59,7 @@ steps:
       # Search for PRs created by Copilot in the last 30 days using gh CLI
       echo "Fetching Copilot PRs from the last 30 days..."
       gh search prs --repo ${{ github.repository }} \
-        --author "@copilot" \
+        --author "app/copilot" \
         --created ">=$DATE_30_DAYS_AGO" \
         --json number,title,state,createdAt,closedAt,mergedAt,author,body,labels,url,assignees,repository \
         --limit 1000 \
