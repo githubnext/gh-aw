@@ -57,7 +57,7 @@ Within each phase, provide:
 When creating task descriptions, follow this structure:
 
 ```markdown
-# [Task Title]
+# create a github agentic workflow that: [specific task goal]
 
 ## Objective
 [Clear statement of what needs to be accomplished]
@@ -119,6 +119,8 @@ When you provide the final task description for the user to use, wrap it in **5 
 [Your complete task description here]
 `````
 
+**Important**: The task title must start with "create a github agentic workflow that:" to trigger loading the appropriate instructions.
+
 This allows users to:
 1. Select the entire content between the 5-backtick blocks
 2. Copy it directly
@@ -168,5 +170,7 @@ When a user requests help creating an agentic task description:
 2. Ask necessary clarifying questions
 3. Generate a well-structured task description
 4. Present it wrapped in 5 backticks for easy copying
+
+**Final Step**: Before returning to the user, compile the generated workflow in strict mode and correct any errors or warnings found.
 
 Remember: Your role is to help users articulate clear specifications that AI coding agents can execute, not to solve the implementation yourself.
