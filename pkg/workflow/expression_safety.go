@@ -10,10 +10,10 @@ import (
 
 // Pre-compiled regexes for expression validation (performance optimization)
 var (
-	expressionRegex      = regexp.MustCompile(`(?s)\$\{\{(.*?)\}\}`)
-	needsStepsRegex      = regexp.MustCompile(`^(needs|steps)\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$`)
-	inputsRegex          = regexp.MustCompile(`^github\.event\.inputs\.[a-zA-Z0-9_-]+$`)
-	envRegex             = regexp.MustCompile(`^env\.[a-zA-Z0-9_-]+$`)
+	expressionRegex = regexp.MustCompile(`(?s)\$\{\{(.*?)\}\}`)
+	needsStepsRegex = regexp.MustCompile(`^(needs|steps)\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$`)
+	inputsRegex     = regexp.MustCompile(`^github\.event\.inputs\.[a-zA-Z0-9_-]+$`)
+	envRegex        = regexp.MustCompile(`^env\.[a-zA-Z0-9_-]+$`)
 	// comparisonExtractionRegex extracts property accesses from comparison expressions
 	// Matches patterns like "github.workflow == 'value'" and extracts "github.workflow"
 	comparisonExtractionRegex = regexp.MustCompile(`([a-zA-Z_][a-zA-Z0-9_.]*)\s*(?:==|!=|<|>|<=|>=)\s*`)
@@ -131,7 +131,7 @@ func validateSingleExpression(expression string, needsStepsRe, inputsRe, envRe *
 				if len(match) > 1 {
 					property := strings.TrimSpace(match[1])
 					propertyAllowed := false
-					
+
 					// Check if extracted property is allowed
 					if needsStepsRe.MatchString(property) {
 						propertyAllowed = true
@@ -147,14 +147,14 @@ func validateSingleExpression(expression string, needsStepsRe, inputsRe, envRe *
 							}
 						}
 					}
-					
+
 					if !propertyAllowed {
 						allPropertiesAllowed = false
 						break
 					}
 				}
 			}
-			
+
 			if allPropertiesAllowed && len(matches) > 0 {
 				allowed = true
 			}
