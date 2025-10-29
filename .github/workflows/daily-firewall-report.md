@@ -22,6 +22,8 @@ tools:
   bash:
     - "*"
   edit:
+imports:
+  - shared/reporting.md
 ---
 
 # Daily Firewall Logs Collector and Reporter

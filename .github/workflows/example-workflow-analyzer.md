@@ -16,6 +16,8 @@ safe-outputs:
     title-prefix: "[workflow-analysis] "
     category: "Audits"
 timeout_minutes: 10
+imports:
+  - shared/reporting.md
 ---
 
 # Weekly Workflow Analysis

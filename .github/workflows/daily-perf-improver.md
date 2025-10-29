@@ -33,6 +33,8 @@ tools:
   #
   # By default this workflow allows all bash commands within the confine of Github Actions VM 
   bash: [ ":*" ]
+imports:
+  - shared/reporting.md
 
 steps:
   - name: Checkout repository
