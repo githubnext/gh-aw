@@ -1019,8 +1019,16 @@ jobs:
           ### Step 1: Identify Workflows with Firewall Feature
           
           1. List all workflows in the repository
-          2. For each workflow that has `features.firewall: true` in its frontmatter, note the workflow name
+          2. For each workflow that has `network.firewall: true` in its frontmatter, note the workflow name
           3. Create a list of all firewall-enabled workflows
+          
+          **Example frontmatter structure:**
+          ```yaml
+          network:
+            firewall: true
+          ```
+          
+          **Note:** The firewall field is under `network`, not `features`.
           
           ### Step 2: Collect Recent Workflow Runs
           
@@ -1028,12 +1036,26 @@ jobs:
           1. Get up to 10 workflow runs that occurred within the past 7 days (if there are fewer than 10 runs in that window, include all available; if there are more, include only the most recent 10)
           2. Download the firewall logs artifact (named `squid-logs-{workflow-name}`) from each run
              - **Note:** `{workflow-name}` refers to the workflow file name (e.g., `dev.firewall`), not the display name. Any special characters or spaces in the file name are preserved as-is in the artifact name. For example, if the workflow file is `dev.firewall.md`, the artifact will be named `squid-logs-dev.firewall`.
+             - **Artifact contents:** Each artifact contains Squid proxy logs:
+               - `access.log` - HTTP requests with domains, status codes, and connection types
+               - `cache.log` - Cache operations and errors (typically less relevant for domain analysis)
           3. Store the run ID, workflow name, and timestamp for tracking
           
           ### Step 3: Parse and Analyze Firewall Logs
           
           For each downloaded firewall log:
           1. Parse the access log files to extract domain information
+             - **Squid native log format:** Each line contains space-separated fields:
+               ```
+               timestamp source_ip:source_port target_domain:target_port target_ip:target_port http_version method status_code connection_type:hierarchy domain:port user_agent
+               ```
+             - **Example log line:**
+               ```
+               1761610340.601 172.30.0.20:46014 api.github.com:443 140.82.116.6:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"
+               ```
+             - **Parsing rules:**
+               - **Allowed requests:** Lines with `TCP_*` connection types (e.g., `TCP_TUNNEL`, `TCP_MISS`, `TCP_HIT`)
+               - **Denied/Rejected requests:** Lines with `error:` in the connection type field or `NONE_NONE` status
           2. Categorize domains as:
              - **Allowed**: Successfully accessed domains
              - **Denied/Rejected**: Blocked domains
