@@ -25,9 +25,9 @@ type ActionPin struct {
 
 // ActionPinsData represents the structure of the embedded JSON file
 type ActionPinsData struct {
-	Version     string                `json:"version"`
-	Description string                `json:"description"`
-	Actions     map[string]ActionPin  `json:"actions"`
+	Version     string               `json:"version"`
+	Description string               `json:"description"`
+	Actions     map[string]ActionPin `json:"actions"`
 }
 
 // actionPins maps action repository to their default pinned versions
