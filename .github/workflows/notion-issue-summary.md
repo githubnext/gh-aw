@@ -9,7 +9,7 @@ on:
 permissions:
   contents: read
   issues: read
-  actions: read
+  pull-requests: read
 tools:
   github:
 imports:

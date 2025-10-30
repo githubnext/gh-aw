@@ -44,6 +44,8 @@ name: "Daily Firewall Logs Collector and Reporter"
 permissions:
   actions: read
   contents: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -52,7 +54,7 @@ run-name: "Daily Firewall Logs Collector and Reporter"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -76,6 +78,8 @@ jobs:
     permissions:
       actions: read
       contents: read
+      issues: read
+      pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
@@ -3525,7 +3529,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -4001,7 +4005,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     timeout-minutes: 5

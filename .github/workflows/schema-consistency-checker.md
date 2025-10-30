@@ -5,15 +5,15 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  actions: read
-  discussions: write
+  discussions: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   edit:
   bash: ["*"]
   github:
     mode: remote
-    read-only: false
     toolsets: [default, discussions]
   cache-memory:
     key: schema-consistency-cache-${{ github.workflow }}

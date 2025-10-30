@@ -9,7 +9,8 @@ on:
 
 permissions:
   contents: read
-  actions: read
+  issues: read
+  pull-requests: read
 
 engine: claude
 timeout_minutes: 10

@@ -6,8 +6,8 @@ on:
   reaction: "eyes"
 permissions:
   contents: read
-  actions: read
-  models: read
+  issues: read
+  pull-requests: read
 safe-outputs:
   add-labels:
     allowed: [bug, feature, enhancement, documentation]

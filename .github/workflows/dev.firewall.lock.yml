@@ -26,8 +26,9 @@ name: "Dev Firewall"
   workflow_dispatch: null
 
 permissions:
-  actions: read
   contents: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   cancel-in-progress: true
@@ -37,7 +38,7 @@ run-name: "Dev Firewall"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -59,8 +60,9 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
+      issues: read
+      pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     steps:

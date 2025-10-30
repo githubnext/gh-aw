@@ -45,8 +45,8 @@ name: "Smoke Claude"
   workflow_dispatch: null
 
 permissions:
-  actions: read
   contents: read
+  issues: read
   pull-requests: read
 
 concurrency:
@@ -61,7 +61,7 @@ jobs:
     if: >
       (needs.pre_activation.outputs.activated == 'true') && ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') ||
       (github.event.label.name == 'smoke')))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -83,8 +83,8 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
+      issues: read
       pull-requests: read
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
@@ -2991,7 +2991,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled())
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       issues: write
@@ -3540,7 +3540,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     timeout-minutes: 5
@@ -3669,7 +3669,7 @@ jobs:
 
   pre_activation:
     if: (github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:

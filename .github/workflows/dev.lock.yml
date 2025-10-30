@@ -32,8 +32,9 @@ name: "Dev"
   workflow_dispatch: null
 
 permissions:
-  actions: read
   contents: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   cancel-in-progress: true
@@ -43,7 +44,7 @@ run-name: "Dev"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -65,8 +66,9 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
+      issues: read
+      pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
@@ -3446,7 +3448,7 @@ jobs:
   missing_tool:
     needs: agent
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     timeout-minutes: 5
@@ -3579,7 +3581,7 @@ jobs:
       ((!cancelled()) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&
       (((github.event.issue.number) &&
       (github.event.issue.pull_request)) || (github.event.pull_request))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
       issues: read

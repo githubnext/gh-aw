@@ -22,7 +22,8 @@ roles:
 # Minimal permissions - safe-outputs handles write operations
 permissions:
   contents: read
-  actions: read
+  issues: read
+  pull-requests: read
 
 # AI engine configuration
 engine:
