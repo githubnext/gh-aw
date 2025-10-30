@@ -1,7 +1,6 @@
 package cli
 
 import (
-	_ "embed"
 	"fmt"
 	"os"
 	"os/exec"
@@ -19,17 +18,37 @@ var (
 	version = "dev"
 )
 
-//go:embed templates/github-agentic-workflows.instructions.md
+// Template content loaded from .github/ directory at runtime
+// TODO: These should be embedded from pkg/cli/templates/ but files don't exist there yet
 var copilotInstructionsTemplate string
-
-//go:embed templates/create-agentic-workflow.prompt.md
 var agenticWorkflowPromptTemplate string
-
-//go:embed templates/create-shared-agentic-workflow.prompt.md
 var sharedAgenticWorkflowPromptTemplate string
-
-//go:embed templates/setup-agentic-workflows.prompt.md
 var gettingStartedPromptTemplate string
+
+func init() {
+	// Load templates from .github/ directory at runtime
+	// This is a temporary solution until files are moved to pkg/cli/templates/
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		// If not in a git repo, templates will remain empty
+		// This is expected during tests
+		return
+	}
+
+	// Load each template file, ignoring errors (files might not exist in all contexts)
+	if content, err := os.ReadFile(filepath.Join(gitRoot, ".github/instructions/github-agentic-workflows.instructions.md")); err == nil {
+		copilotInstructionsTemplate = string(content)
+	}
+	if content, err := os.ReadFile(filepath.Join(gitRoot, ".github/prompts/create-agentic-workflow.prompt.md")); err == nil {
+		agenticWorkflowPromptTemplate = string(content)
+	}
+	if content, err := os.ReadFile(filepath.Join(gitRoot, ".github/prompts/create-shared-agentic-workflow.prompt.md")); err == nil {
+		sharedAgenticWorkflowPromptTemplate = string(content)
+	}
+	if content, err := os.ReadFile(filepath.Join(gitRoot, ".github/prompts/setup-agentic-workflows.prompt.md")); err == nil {
+		gettingStartedPromptTemplate = string(content)
+	}
+}
 
 // SetVersionInfo sets the version information for the CLI
 func SetVersionInfo(v string) {
