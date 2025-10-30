@@ -220,8 +220,8 @@ func TestBuildThreatDetectionJob(t *testing.T) {
 				if job.Name != constants.DetectionJobName {
 					t.Errorf("Expected job name 'detection', got %q", job.Name)
 				}
-				if job.RunsOn != "runs-on: ubuntu-latest" {
-					t.Errorf("Expected ubuntu-latest runner, got %q", job.RunsOn)
+				if job.RunsOn != "runs-on: ubuntu-slim" {
+					t.Errorf("Expected ubuntu-slim runner (default), got %q", job.RunsOn)
 				}
 				if job.Permissions != "permissions: {}" {
 					t.Errorf("Expected 'permissions: {}', got %q", job.Permissions)
