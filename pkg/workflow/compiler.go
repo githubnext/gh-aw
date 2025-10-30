@@ -333,6 +333,29 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		}
 	}
 
+	// Validate GitHub tools against enabled toolsets
+	log.Printf("Validating GitHub tools against enabled toolsets")
+	if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub {
+		// Extract allowed tools and enabled toolsets
+		allowedTools := getGitHubAllowedTools(githubTool)
+		toolsetsStr := getGitHubToolsets(githubTool)
+		enabledToolsets := ParseGitHubToolsets(toolsetsStr)
+		
+		// Validate that all allowed tools have their toolsets enabled
+		if err := ValidateGitHubToolsAgainstToolsets(allowedTools, enabledToolsets); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: err.Error(),
+			})
+			return errors.New(formattedErr)
+		}
+	}
+
 	// Note: Markdown content size is now handled by splitting into multiple steps in generatePrompt
 
 	log.Printf("Workflow: %s, Tools: %d", workflowData.Name, len(workflowData.Tools))
