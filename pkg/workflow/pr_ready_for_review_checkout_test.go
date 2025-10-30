@@ -76,9 +76,7 @@ on:
     types: [ready_for_review]
 permissions:
   issues: write
-engine: claude
-tools:
-  github: false
+engine: codex
 ---
 
 # Test Workflow
