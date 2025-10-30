@@ -16,7 +16,7 @@
       "description": "URL for HTTP MCP connections"
     },
     "command": {
-      "type": "string", 
+      "type": "string",
       "description": "Command for stdio MCP connections"
     },
     "container": {
@@ -95,12 +95,7 @@
       "description": "Version or tag for container images"
     }
   },
-  "anyOf": [
-    {"required": ["type"]},
-    {"required": ["url"]},
-    {"required": ["command"]},
-    {"required": ["container"]}
-  ],
+  "anyOf": [{ "required": ["type"] }, { "required": ["url"] }, { "required": ["command"] }, { "required": ["container"] }],
   "additionalProperties": false,
   "allOf": [
     {
@@ -114,11 +109,7 @@
       "then": {
         "required": ["url"],
         "not": {
-          "anyOf": [
-            {"required": ["command"]},
-            {"required": ["container"]},
-            {"required": ["network"]}
-          ]
+          "anyOf": [{ "required": ["command"] }, { "required": ["container"] }, { "required": ["network"] }]
         }
       }
     },
@@ -131,15 +122,9 @@
         }
       },
       "then": {
-        "anyOf": [
-          {"required": ["command"]},
-          {"required": ["container"]}
-        ],
+        "anyOf": [{ "required": ["command"] }, { "required": ["container"] }],
         "not": {
-          "allOf": [
-            {"required": ["command"]},
-            {"required": ["container"]}
-          ]
+          "allOf": [{ "required": ["command"] }, { "required": ["container"] }]
         }
       }
     },
@@ -159,10 +144,7 @@
     },
     {
       "if": {
-        "anyOf": [
-          {"required": ["command"]},
-          {"required": ["container"]}
-        ]
+        "anyOf": [{ "required": ["command"] }, { "required": ["container"] }]
       },
       "then": {
         "not": {

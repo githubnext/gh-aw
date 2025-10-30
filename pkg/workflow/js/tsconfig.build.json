@@ -31,12 +31,6 @@
     "alwaysStrict": false,
     "removeComments": true
   },
-  "include": [
-    "types/*.d.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "*.test.cjs",
-    "*.test.ts"
-  ]
+  "include": ["types/*.d.ts"],
+  "exclude": ["node_modules", "*.test.cjs", "*.test.ts"]
 }
