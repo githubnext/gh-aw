@@ -138,6 +138,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, "--model", workflowData.EngineConfig.Model)
 	}
 
+	// Add --agent flag if agent file is specified
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Agent != "" {
+		copilotArgs = append(copilotArgs, "--agent", workflowData.EngineConfig.Agent)
+	}
+
 	// Add tool permission arguments based on configuration
 	toolArgs := e.computeCopilotToolArguments(workflowData.Tools, workflowData.SafeOutputs)
 	copilotArgs = append(copilotArgs, toolArgs...)

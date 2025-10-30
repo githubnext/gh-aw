@@ -167,11 +167,24 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "          set -o pipefail")
 	stepLines = append(stepLines, "          # Execute Claude Code CLI with prompt from file")
 
+	// Build the prompt command - prepend agent file content if specified
+	var promptCommand string
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Agent != "" {
+		// Extract markdown body from agent file and prepend to prompt
+		stepLines = append(stepLines, "          # Extract markdown body from agent file (skip frontmatter)")
+		stepLines = append(stepLines, fmt.Sprintf("          AGENT_CONTENT=$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)", workflowData.EngineConfig.Agent))
+		stepLines = append(stepLines, "          # Combine agent content with prompt")
+		stepLines = append(stepLines, "          PROMPT_TEXT=$(printf '%s\\n\\n%s' \"$AGENT_CONTENT\" \"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\")")
+		promptCommand = "\"$PROMPT_TEXT\""
+	} else {
+		promptCommand = "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
+	}
+
 	// Build the command string with proper argument formatting
 	// Use claude command directly (installed via npm install -g)
 	commandParts := []string{"claude"}
 	commandParts = append(commandParts, claudeArgs...)
-	commandParts = append(commandParts, "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)")
+	commandParts = append(commandParts, promptCommand)
 
 	// Join command parts with proper escaping for complex arguments
 	command := ""

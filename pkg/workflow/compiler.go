@@ -275,6 +275,12 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		return errors.New(formattedErr)
 	}
 
+	// Validate agent file exists if specified in engine config
+	log.Printf("Validating agent file if specified")
+	if err := c.validateAgentFile(workflowData, markdownPath); err != nil {
+		return err
+	}
+
 	// Validate permissions against GitHub MCP toolsets
 	log.Printf("Validating permissions for GitHub MCP toolsets")
 	if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub {
