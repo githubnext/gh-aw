@@ -76,3 +76,6 @@ __pycache__/
 # Manual test scripts
 test_*.sh
 *.zip
+
+# Generated template files (copied from .github during build)
+pkg/cli/templates/

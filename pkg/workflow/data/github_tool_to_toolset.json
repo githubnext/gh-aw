@@ -1,0 +1,69 @@
+{
+  "get_me": "context",
+  "get_teams": "context",
+  "get_team_members": "context",
+
+  "get_repository": "repos",
+  "get_file_contents": "repos",
+  "search_code": "repos",
+  "list_commits": "repos",
+  "get_commit": "repos",
+  "get_latest_release": "repos",
+  "list_releases": "repos",
+  "get_release_by_tag": "repos",
+  "get_tag": "repos",
+  "list_tags": "repos",
+  "list_branches": "repos",
+
+  "issue_read": "issues",
+  "list_issues": "issues",
+  "create_issue": "issues",
+  "update_issue": "issues",
+  "search_issues": "issues",
+  "add_reaction": "issues",
+  "create_issue_comment": "issues",
+
+  "pull_request_read": "pull_requests",
+  "list_pull_requests": "pull_requests",
+  "get_pull_request": "pull_requests",
+  "create_pull_request": "pull_requests",
+  "search_pull_requests": "pull_requests",
+
+  "list_workflows": "actions",
+  "list_workflow_runs": "actions",
+  "get_workflow_run": "actions",
+  "download_workflow_run_artifact": "actions",
+  "get_workflow_run_usage": "actions",
+  "list_workflow_jobs": "actions",
+  "get_job_logs": "actions",
+  "list_workflow_run_artifacts": "actions",
+
+  "list_code_scanning_alerts": "code_security",
+  "get_code_scanning_alert": "code_security",
+  "create_code_scanning_alert": "code_security",
+
+  "list_discussions": "discussions",
+  "create_discussion": "discussions",
+
+  "create_gist": "gists",
+  "list_gists": "gists",
+
+  "get_label": "labels",
+  "list_labels": "labels",
+  "create_label": "labels",
+
+  "list_notifications": "notifications",
+  "mark_notifications_read": "notifications",
+
+  "get_organization": "orgs",
+  "list_organizations": "orgs",
+
+  "list_secret_scanning_alerts": "secret_protection",
+  "get_secret_scanning_alert": "secret_protection",
+
+  "get_user": "users",
+  "list_users": "users",
+
+  "search_repositories": "search",
+  "search_users": "search"
+}

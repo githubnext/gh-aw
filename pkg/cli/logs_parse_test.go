@@ -2,122 +2,133 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
-// func TestParseAgentLog(t *testing.T) {
-// 	// Create a temporary directory for the test
-// 	tempDir := t.TempDir()
+func TestParseAgentLog(t *testing.T) {
+	// Check if node is available
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("Skipping test - node not available")
+	}
 
-// 	// Create a mock agent-stdio.log file with Claude log format
-// 	agentStdioPath := filepath.Join(tempDir, "agent-stdio.log")
-// 	mockLogContent := `[
-// 		{"type": "text", "text": "Starting task"},
-// 		{"type": "tool_use", "id": "1", "name": "bash", "input": {"command": "echo hello"}},
-// 		{"type": "tool_result", "tool_use_id": "1", "content": "hello"}
-// 	]`
-// 	if err := os.WriteFile(agentStdioPath, []byte(mockLogContent), 0644); err != nil {
-// 		t.Fatalf("Failed to create mock agent-stdio.log: %v", err)
-// 	}
+	// Create a temporary directory for the test
+	tempDir := t.TempDir()
 
-// 	// Create a mock aw_info.json with Claude engine
-// 	awInfoPath := filepath.Join(tempDir, "aw_info.json")
-// 	awInfoContent := `{"engine_id": "claude"}`
-// 	if err := os.WriteFile(awInfoPath, []byte(awInfoContent), 0644); err != nil {
-// 		t.Fatalf("Failed to create mock aw_info.json: %v", err)
-// 	}
+	// Create a mock agent-stdio.log file with Claude log format
+	agentStdioPath := filepath.Join(tempDir, "agent-stdio.log")
+	mockLogContent := `[
+		{"type": "text", "text": "Starting task"},
+		{"type": "tool_use", "id": "1", "name": "bash", "input": {"command": "echo hello"}},
+		{"type": "tool_result", "tool_use_id": "1", "content": "hello"}
+	]`
+	if err := os.WriteFile(agentStdioPath, []byte(mockLogContent), 0644); err != nil {
+		t.Fatalf("Failed to create mock agent-stdio.log: %v", err)
+	}
 
-// 	// Get the Claude engine
-// 	registry := workflow.GetGlobalEngineRegistry()
-// 	engine, err := registry.GetEngine("claude")
-// 	if err != nil {
-// 		t.Fatalf("Failed to get Claude engine: %v", err)
-// 	}
+	// Create a mock aw_info.json with Claude engine
+	awInfoPath := filepath.Join(tempDir, "aw_info.json")
+	awInfoContent := `{"engine_id": "claude"}`
+	if err := os.WriteFile(awInfoPath, []byte(awInfoContent), 0644); err != nil {
+		t.Fatalf("Failed to create mock aw_info.json: %v", err)
+	}
 
-// 	// Run the parser
-// 	err = parseAgentLog(tempDir, engine, true)
-// 	if err != nil {
-// 		t.Fatalf("parseAgentLog failed: %v", err)
-// 	}
+	// Get the Claude engine
+	registry := workflow.GetGlobalEngineRegistry()
+	engine, err := registry.GetEngine("claude")
+	if err != nil {
+		t.Fatalf("Failed to get Claude engine: %v", err)
+	}
 
-// 	// Check that log.md was created
-// 	logMdPath := filepath.Join(tempDir, "log.md")
-// 	if _, err := os.Stat(logMdPath); os.IsNotExist(err) {
-// 		t.Fatalf("log.md was not created")
-// 	}
+	// Run the parser
+	err = parseAgentLog(tempDir, engine, true)
+	if err != nil {
+		t.Fatalf("parseAgentLog failed: %v", err)
+	}
 
-// 	// Read the content and verify it's not empty
-// 	content, err := os.ReadFile(logMdPath)
-// 	if err != nil {
-// 		t.Fatalf("Failed to read log.md: %v", err)
-// 	}
+	// Check that log.md was created
+	logMdPath := filepath.Join(tempDir, "log.md")
+	if _, err := os.Stat(logMdPath); os.IsNotExist(err) {
+		t.Fatalf("log.md was not created")
+	}
 
-// 	if len(content) == 0 {
-// 		t.Fatalf("log.md is empty")
-// 	}
+	// Read the content and verify it's not empty
+	content, err := os.ReadFile(logMdPath)
+	if err != nil {
+		t.Fatalf("Failed to read log.md: %v", err)
+	}
 
-// 	// The content should contain markdown formatting
-// 	contentStr := string(content)
-// 	if len(contentStr) < 10 {
-// 		t.Errorf("log.md content seems too short: %d bytes", len(contentStr))
-// 	}
-// }
+	if len(content) == 0 {
+		t.Fatalf("log.md is empty")
+	}
 
-// func TestParseAgentLogWithAgentOutputDir(t *testing.T) {
-// 	// Create a temporary directory for the test
-// 	tempDir := t.TempDir()
+	// The content should contain markdown formatting
+	contentStr := string(content)
+	if len(contentStr) < 10 {
+		t.Errorf("log.md content seems too short: %d bytes", len(contentStr))
+	}
+}
 
-// 	// Create a mock agent_output directory with a log file
-// 	agentOutputDir := filepath.Join(tempDir, "agent_output")
-// 	if err := os.MkdirAll(agentOutputDir, 0755); err != nil {
-// 		t.Fatalf("Failed to create agent_output directory: %v", err)
-// 	}
+func TestParseAgentLogWithAgentOutputDir(t *testing.T) {
+	// Check if node is available
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("Skipping test - node not available")
+	}
 
-// 	agentLogPath := filepath.Join(agentOutputDir, "output.log")
-// 	mockLogContent := `Testing Copilot CLI log output with timestamps and debug info`
-// 	if err := os.WriteFile(agentLogPath, []byte(mockLogContent), 0644); err != nil {
-// 		t.Fatalf("Failed to create mock log in agent_output: %v", err)
-// 	}
+	// Create a temporary directory for the test
+	tempDir := t.TempDir()
 
-// 	// Create a mock aw_info.json with Copilot engine
-// 	awInfoPath := filepath.Join(tempDir, "aw_info.json")
-// 	awInfoContent := `{"engine_id": "copilot"}`
-// 	if err := os.WriteFile(awInfoPath, []byte(awInfoContent), 0644); err != nil {
-// 		t.Fatalf("Failed to create mock aw_info.json: %v", err)
-// 	}
+	// Create a mock agent_output directory with a log file
+	agentOutputDir := filepath.Join(tempDir, "agent_output")
+	if err := os.MkdirAll(agentOutputDir, 0755); err != nil {
+		t.Fatalf("Failed to create agent_output directory: %v", err)
+	}
 
-// 	// Get the Copilot engine
-// 	registry := workflow.GetGlobalEngineRegistry()
-// 	engine, err := registry.GetEngine("copilot")
-// 	if err != nil {
-// 		t.Fatalf("Failed to get Copilot engine: %v", err)
-// 	}
+	agentLogPath := filepath.Join(agentOutputDir, "output.log")
+	mockLogContent := `Testing Copilot CLI log output with timestamps and debug info`
+	if err := os.WriteFile(agentLogPath, []byte(mockLogContent), 0644); err != nil {
+		t.Fatalf("Failed to create mock log in agent_output: %v", err)
+	}
 
-// 	// Run the parser
-// 	err = parseAgentLog(tempDir, engine, true)
-// 	if err != nil {
-// 		t.Fatalf("parseAgentLog failed: %v", err)
-// 	}
+	// Create a mock aw_info.json with Copilot engine
+	awInfoPath := filepath.Join(tempDir, "aw_info.json")
+	awInfoContent := `{"engine_id": "copilot"}`
+	if err := os.WriteFile(awInfoPath, []byte(awInfoContent), 0644); err != nil {
+		t.Fatalf("Failed to create mock aw_info.json: %v", err)
+	}
 
-// 	// Check that log.md was created
-// 	logMdPath := filepath.Join(tempDir, "log.md")
-// 	if _, err := os.Stat(logMdPath); os.IsNotExist(err) {
-// 		t.Fatalf("log.md was not created")
-// 	}
+	// Get the Copilot engine
+	registry := workflow.GetGlobalEngineRegistry()
+	engine, err := registry.GetEngine("copilot")
+	if err != nil {
+		t.Fatalf("Failed to get Copilot engine: %v", err)
+	}
 
-// 	// Read the content and verify it's not empty
-// 	content, err := os.ReadFile(logMdPath)
-// 	if err != nil {
-// 		t.Fatalf("Failed to read log.md: %v", err)
-// 	}
+	// Run the parser
+	err = parseAgentLog(tempDir, engine, true)
+	if err != nil {
+		t.Fatalf("parseAgentLog failed: %v", err)
+	}
 
-// 	if len(content) == 0 {
-// 		t.Fatalf("log.md is empty")
-// 	}
-// }
+	// Check that log.md was created
+	logMdPath := filepath.Join(tempDir, "log.md")
+	if _, err := os.Stat(logMdPath); os.IsNotExist(err) {
+		t.Fatalf("log.md was not created")
+	}
+
+	// Read the content and verify it's not empty
+	content, err := os.ReadFile(logMdPath)
+	if err != nil {
+		t.Fatalf("Failed to read log.md: %v", err)
+	}
+
+	if len(content) == 0 {
+		t.Fatalf("log.md is empty")
+	}
+}
 
 func TestParseAgentLogNoAgentOutput(t *testing.T) {
 	// Create a temporary directory without agent logs

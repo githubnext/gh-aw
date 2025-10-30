@@ -4,9 +4,7 @@ on:
     - cron: "0 15 * * 1"  # Weekly on Mondays at 3 PM UTC
   workflow_dispatch:
 permissions:
-  contents: read
   issues: read
-  actions: read
 engine: copilot
 network:
   firewall: true
@@ -15,6 +13,8 @@ tools:
   bash:
     - "*"
   github:
+    toolsets: 
+      - issues
     allowed:
       - search_issues
       - issue_read

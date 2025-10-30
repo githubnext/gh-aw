@@ -1822,8 +1822,9 @@ safe-outputs:
     {}
 
   # Runner specification for all safe-outputs jobs (activation, create-issue,
-  # add-comment, etc.). Single runner label (e.g., 'ubuntu-latest',
-  # 'windows-latest', 'self-hosted')
+  # add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest',
+  # 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'.
+  # See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/
   # (optional)
   runs-on: "example-value"
 

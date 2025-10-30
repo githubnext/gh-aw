@@ -99,6 +99,7 @@ type ImportsResult struct {
 	MergedRuntimes    string   // Merged runtimes configuration from all imports
 	MergedServices    string   // Merged services configuration from all imports
 	MergedNetwork     string   // Merged network configuration from all imports
+	MergedPermissions string   // Merged permissions configuration from all imports
 	ImportedFiles     []string // List of imported file paths (for manifest)
 }
 
@@ -406,6 +407,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var runtimesBuilder strings.Builder
 	var servicesBuilder strings.Builder
 	var networkBuilder strings.Builder
+	var permissionsBuilder strings.Builder
 	var engines []string
 	var safeOutputs []string
 	var processedFiles []string
@@ -508,6 +510,12 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		if err == nil && networkContent != "" && networkContent != "{}" {
 			networkBuilder.WriteString(networkContent + "\n")
 		}
+
+		// Extract permissions from imported file
+		permissionsContent, err := ExtractPermissionsFromContent(string(content))
+		if err == nil && permissionsContent != "" && permissionsContent != "{}" {
+			permissionsBuilder.WriteString(permissionsContent + "\n")
+		}
 	}
 
 	return &ImportsResult{
@@ -520,6 +528,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		MergedRuntimes:    runtimesBuilder.String(),
 		MergedServices:    servicesBuilder.String(),
 		MergedNetwork:     networkBuilder.String(),
+		MergedPermissions: permissionsBuilder.String(),
 		ImportedFiles:     processedFiles,
 	}, nil
 }
@@ -973,6 +982,11 @@ func extractServicesFromContent(content string) (string, error) {
 // extractNetworkFromContent extracts network section from frontmatter as JSON string
 func extractNetworkFromContent(content string) (string, error) {
 	return extractFrontmatterField(content, "network", "{}")
+}
+
+// ExtractPermissionsFromContent extracts permissions section from frontmatter as JSON string
+func ExtractPermissionsFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "permissions", "{}")
 }
 
 // extractFrontmatterField extracts a specific field from frontmatter as JSON string
