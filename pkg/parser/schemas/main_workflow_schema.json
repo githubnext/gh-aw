@@ -879,37 +879,25 @@
             {
               "command": {
                 "name": "mergefest",
-                "events": [
-                  "pull_request_comment"
-                ]
+                "events": ["pull_request_comment"]
               }
             },
             {
               "workflow_run": {
-                "workflows": [
-                  "Dev"
-                ],
-                "types": [
-                  "completed"
-                ],
-                "branches": [
-                  "copilot/**"
-                ]
+                "workflows": ["Dev"],
+                "types": ["completed"],
+                "branches": ["copilot/**"]
               }
             },
             {
               "pull_request": {
-                "types": [
-                  "ready_for_review"
-                ]
+                "types": ["ready_for_review"]
               },
               "workflow_dispatch": null
             },
             {
               "push": {
-                "branches": [
-                  "main"
-                ]
+                "branches": ["main"]
               }
             }
           ]
@@ -1661,11 +1649,7 @@
               "additionalProperties": false,
               "examples": [
                 {
-                  "toolsets": [
-                    "pull_requests",
-                    "actions",
-                    "repos"
-                  ]
+                  "toolsets": ["pull_requests", "actions", "repos"]
                 },
                 {
                   "allowed": [
@@ -1681,10 +1665,7 @@
                   "read-only": true
                 },
                 {
-                  "toolsets": [
-                    "pull_requests",
-                    "repos"
-                  ]
+                  "toolsets": ["pull_requests", "repos"]
                 }
               ]
             }
@@ -1692,21 +1673,14 @@
           "examples": [
             null,
             {
-              "toolsets": [
-                "pull_requests",
-                "actions",
-                "repos"
-              ]
+              "toolsets": ["pull_requests", "actions", "repos"]
             },
             {
               "allowed": ["search_pull_requests", "pull_request_read", "get_file_contents"]
             },
             {
               "read-only": true,
-              "toolsets": [
-                "repos",
-                "issues"
-              ]
+              "toolsets": ["repos", "issues"]
             }
           ]
         },
@@ -2175,18 +2149,12 @@
               "examples": [
                 {
                   "title-prefix": "[ca] ",
-                  "labels": [
-                    "automation",
-                    "dependencies"
-                  ],
+                  "labels": ["automation", "dependencies"],
                   "assignees": "copilot"
                 },
                 {
                   "title-prefix": "[duplicate-code] ",
-                  "labels": [
-                    "code-quality",
-                    "automated-analysis"
-                  ],
+                  "labels": ["code-quality", "automated-analysis"],
                   "assignees": "copilot"
                 },
                 {
@@ -2412,19 +2380,13 @@
               "examples": [
                 {
                   "title-prefix": "[docs] ",
-                  "labels": [
-                    "documentation",
-                    "automation"
-                  ],
+                  "labels": ["documentation", "automation"],
                   "reviewers": "copilot",
                   "draft": false
                 },
                 {
                   "title-prefix": "[security-fix] ",
-                  "labels": [
-                    "security",
-                    "automated-fix"
-                  ],
+                  "labels": ["security", "automated-fix"],
                   "reviewers": "copilot"
                 }
               ]
@@ -2745,10 +2707,7 @@
         "staged": {
           "type": "boolean",
           "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)",
-          "examples": [
-            true,
-            false
-          ]
+          "examples": [true, false]
         },
         "env": {
           "type": "object",

@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	_ "embed"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -10,90 +12,73 @@ import (
 
 var permissionsValidatorLog = logger.New("workflow:permissions_validator")
 
+//go:embed data/github_toolsets_permissions.json
+var githubToolsetsPermissionsJSON []byte
+
 // GitHubToolsetPermissions maps GitHub MCP toolsets to their required permissions
 type GitHubToolsetPermissions struct {
 	ReadPermissions  []PermissionScope
 	WritePermissions []PermissionScope
+	Tools            []string // List of tools in this toolset (for verification)
+}
+
+// GitHubToolsetsData represents the structure of the embedded JSON file
+type GitHubToolsetsData struct {
+	Version     string `json:"version"`
+	Description string `json:"description"`
+	Toolsets    map[string]struct {
+		Description      string   `json:"description"`
+		ReadPermissions  []string `json:"read_permissions"`
+		WritePermissions []string `json:"write_permissions"`
+		Tools            []string `json:"tools"`
+	} `json:"toolsets"`
 }
 
 // toolsetPermissionsMap defines the mapping of GitHub MCP toolsets to required permissions
-var toolsetPermissionsMap = map[string]GitHubToolsetPermissions{
-	"context": {
-		ReadPermissions:  []PermissionScope{},
-		WritePermissions: []PermissionScope{},
-	},
-	"repos": {
-		ReadPermissions:  []PermissionScope{PermissionContents},
-		WritePermissions: []PermissionScope{PermissionContents},
-	},
-	"issues": {
-		ReadPermissions:  []PermissionScope{PermissionIssues},
-		WritePermissions: []PermissionScope{PermissionIssues},
-	},
-	"pull_requests": {
-		ReadPermissions:  []PermissionScope{PermissionPullRequests},
-		WritePermissions: []PermissionScope{PermissionPullRequests},
-	},
-	"actions": {
-		ReadPermissions:  []PermissionScope{PermissionActions},
-		WritePermissions: []PermissionScope{},
-	},
-	"code_security": {
-		ReadPermissions:  []PermissionScope{PermissionSecurityEvents},
-		WritePermissions: []PermissionScope{PermissionSecurityEvents},
-	},
-	"dependabot": {
-		ReadPermissions:  []PermissionScope{PermissionSecurityEvents},
-		WritePermissions: []PermissionScope{},
-	},
-	"discussions": {
-		ReadPermissions:  []PermissionScope{PermissionDiscussions},
-		WritePermissions: []PermissionScope{PermissionDiscussions},
-	},
-	"experiments": {
-		ReadPermissions:  []PermissionScope{},
-		WritePermissions: []PermissionScope{},
-	},
-	"gists": {
-		ReadPermissions:  []PermissionScope{},
-		WritePermissions: []PermissionScope{},
-	},
-	"labels": {
-		ReadPermissions:  []PermissionScope{PermissionIssues},
-		WritePermissions: []PermissionScope{PermissionIssues},
-	},
-	"notifications": {
-		ReadPermissions:  []PermissionScope{},
-		WritePermissions: []PermissionScope{},
-	},
-	"orgs": {
-		ReadPermissions:  []PermissionScope{},
-		WritePermissions: []PermissionScope{},
-	},
-	"projects": {
-		ReadPermissions:  []PermissionScope{PermissionRepositoryProj},
-		WritePermissions: []PermissionScope{PermissionRepositoryProj},
-	},
-	"secret_protection": {
-		ReadPermissions:  []PermissionScope{PermissionSecurityEvents},
-		WritePermissions: []PermissionScope{},
-	},
-	"security_advisories": {
-		ReadPermissions:  []PermissionScope{PermissionSecurityEvents},
-		WritePermissions: []PermissionScope{PermissionSecurityEvents},
-	},
-	"stargazers": {
-		ReadPermissions:  []PermissionScope{},
-		WritePermissions: []PermissionScope{},
-	},
-	"users": {
-		ReadPermissions:  []PermissionScope{},
-		WritePermissions: []PermissionScope{},
-	},
-	"search": {
-		ReadPermissions:  []PermissionScope{},
-		WritePermissions: []PermissionScope{},
-	},
+// This is loaded from the embedded JSON file at initialization
+var toolsetPermissionsMap map[string]GitHubToolsetPermissions
+
+// init loads the GitHub toolsets and permissions from the embedded JSON
+func init() {
+	permissionsValidatorLog.Print("Loading GitHub toolsets permissions from embedded JSON")
+
+	var data GitHubToolsetsData
+	if err := json.Unmarshal(githubToolsetsPermissionsJSON, &data); err != nil {
+		panic(fmt.Sprintf("failed to load GitHub toolsets permissions from JSON: %v", err))
+	}
+
+	// Convert JSON data to internal format
+	toolsetPermissionsMap = make(map[string]GitHubToolsetPermissions)
+	for toolsetName, toolsetData := range data.Toolsets {
+		// Convert string permission names to PermissionScope types
+		readPerms := make([]PermissionScope, len(toolsetData.ReadPermissions))
+		for i, perm := range toolsetData.ReadPermissions {
+			readPerms[i] = PermissionScope(perm)
+		}
+
+		writePerms := make([]PermissionScope, len(toolsetData.WritePermissions))
+		for i, perm := range toolsetData.WritePermissions {
+			writePerms[i] = PermissionScope(perm)
+		}
+
+		toolsetPermissionsMap[toolsetName] = GitHubToolsetPermissions{
+			ReadPermissions:  readPerms,
+			WritePermissions: writePerms,
+			Tools:            toolsetData.Tools,
+		}
+	}
+
+	permissionsValidatorLog.Printf("Loaded %d GitHub toolsets from JSON", len(toolsetPermissionsMap))
+}
+
+// GetToolsetsData returns the parsed GitHub toolsets data (for use by workflows)
+func GetToolsetsData() GitHubToolsetsData {
+	var data GitHubToolsetsData
+	if err := json.Unmarshal(githubToolsetsPermissionsJSON, &data); err != nil {
+		// This should never happen as we validate in init
+		panic(fmt.Sprintf("failed to parse GitHub toolsets data: %v", err))
+	}
+	return data
 }
 
 // PermissionsValidationResult contains the result of permissions validation
