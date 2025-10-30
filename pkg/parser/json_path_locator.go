@@ -5,8 +5,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
+
+var jsonPathLog = logger.New("parser:json_path_locator")
 
 // JSONPathLocation represents a location in YAML source corresponding to a JSON path
 type JSONPathLocation struct {
@@ -56,6 +59,8 @@ func convertInstanceLocationToJSONPath(location []string) string {
 
 // LocateJSONPathInYAML finds the line/column position of a JSON path in YAML source
 func LocateJSONPathInYAML(yamlContent string, jsonPath string) JSONPathLocation {
+	jsonPathLog.Printf("Locating JSON path in YAML: %s", jsonPath)
+
 	if jsonPath == "" {
 		// Root level error - return start of content
 		return JSONPathLocation{Line: 1, Column: 1, Found: true}
@@ -67,8 +72,11 @@ func LocateJSONPathInYAML(yamlContent string, jsonPath string) JSONPathLocation 
 		return JSONPathLocation{Line: 1, Column: 1, Found: true}
 	}
 
+	jsonPathLog.Printf("Parsed %d path segments", len(pathSegments))
+
 	// Use a more sophisticated line-by-line approach to find the path
 	location := findPathInYAMLLines(yamlContent, pathSegments)
+	jsonPathLog.Printf("Location result: line=%d, column=%d, found=%v", location.Line, location.Column, location.Found)
 	return location
 }
 
@@ -278,6 +286,8 @@ func findFirstAdditionalProperty(yamlContent string, propertyNames []string) JSO
 // findAdditionalPropertyInNestedContext finds additional properties within a specific nested JSON path context
 // It extracts the sub-YAML content for the JSON path and searches within it for better efficiency
 func findAdditionalPropertyInNestedContext(yamlContent string, jsonPath string, propertyNames []string) JSONPathLocation {
+	jsonPathLog.Printf("Finding additional property in nested context: path=%s, properties=%v", jsonPath, propertyNames)
+
 	// Parse the path segments to understand the nesting structure
 	pathSegments := parseJSONPath(jsonPath)
 	if len(pathSegments) == 0 {
@@ -288,9 +298,12 @@ func findAdditionalPropertyInNestedContext(yamlContent string, jsonPath string, 
 	// Find the nested section that corresponds to the JSON path
 	nestedSection := findNestedSection(yamlContent, pathSegments)
 	if nestedSection.startLine == -1 {
+		jsonPathLog.Print("Nested section not found, falling back to global search")
 		// If we can't find the nested section, fall back to global search
 		return findFirstAdditionalProperty(yamlContent, propertyNames)
 	}
+
+	jsonPathLog.Printf("Found nested section: startLine=%d, endLine=%d", nestedSection.startLine, nestedSection.endLine)
 
 	// Extract the sub-YAML content for the identified nested section
 	lines := strings.Split(yamlContent, "\n")
