@@ -404,13 +404,13 @@ func TestFormatValidationMessage(t *testing.T) {
 			},
 			strict: false,
 			expectContains: []string{
-				"ERROR: Missing required permissions",
-				"contents: write",
-				"issues: write",
-				"Required by toolsets:",
-				"repos: needs contents",
-				"issues: needs issues",
-				"Suggested fix:",
+				"Missing required permissions for github toolsets:",
+				"contents: write (required by repos)",
+				"issues: write (required by issues)",
+				"Add to your workflow frontmatter:",
+			},
+			expectNotContains: []string{
+				"ERROR:",
 			},
 		},
 		{
@@ -424,10 +424,13 @@ func TestFormatValidationMessage(t *testing.T) {
 			},
 			strict: false,
 			expectContains: []string{
-				"WARNING: Over-provisioned permissions",
-				"actions: read (not required",
-				"discussions: write (not required",
-				"Principle of least privilege",
+				"Over-provisioned permissions detected for github toolsets:",
+				"actions: read (not required)",
+				"discussions: write (not required)",
+				"Only grant permissions that are needed.",
+			},
+			expectNotContains: []string{
+				"WARNING:",
 			},
 		},
 		{
@@ -440,11 +443,12 @@ func TestFormatValidationMessage(t *testing.T) {
 			},
 			strict: true,
 			expectContains: []string{
-				"WARNING: Over-provisioned permissions",
+				"Over-provisioned permissions detected for github toolsets:",
 				"actions: read",
 			},
 			expectNotContains: []string{
 				"ERROR:",
+				"WARNING:",
 			},
 		},
 		{
@@ -460,10 +464,14 @@ func TestFormatValidationMessage(t *testing.T) {
 			},
 			strict: false,
 			expectContains: []string{
-				"ERROR: Missing required permissions",
+				"Missing required permissions for github toolsets:",
 				"contents: write",
-				"WARNING: Over-provisioned permissions",
+				"Over-provisioned permissions detected for github toolsets:",
 				"actions: read",
+			},
+			expectNotContains: []string{
+				"ERROR:",
+				"WARNING:",
 			},
 		},
 	}
@@ -533,7 +541,7 @@ func TestValidatePermissions_ComplexScenarios(t *testing.T) {
 				"read-only": false,
 			},
 			expectMsg: []string{
-				"ERROR: Missing required permissions",
+				"Missing required permissions for github toolsets:",
 				"contents: write",
 				"issues: write",
 				"pull-requests: write",
@@ -547,7 +555,7 @@ func TestValidatePermissions_ComplexScenarios(t *testing.T) {
 				"read-only": false,
 			},
 			expectMsg: []string{
-				"WARNING: Over-provisioned permissions",
+				"Over-provisioned permissions detected for github toolsets:",
 			},
 		},
 		{
@@ -558,7 +566,7 @@ func TestValidatePermissions_ComplexScenarios(t *testing.T) {
 				"read-only": false,
 			},
 			expectMsg: []string{
-				"ERROR: Missing required permissions",
+				"Missing required permissions for github toolsets:",
 				"discussions: write",
 			},
 		},

@@ -4203,7 +4203,7 @@ permissions:
   issues: write
 tools:
   github:
-    allowed: [list_issues, create_issue]
+    toolsets: [repos, issues]
 engine: claude
 ---
 
