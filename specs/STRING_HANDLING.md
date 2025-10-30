@@ -429,7 +429,7 @@ When adding new string handling functions:
 2. **Use the decision tree** - Ensure you're using the right function for your use case
 3. **Consider security** - For user-provided content, always use `sanitizeContent` or similar
 4. **Document sync requirements** - If creating duplicates (avoid if possible), add clear comments about sync requirements
-5. **Add to this document** - Update STRING_HANDLING.md with new functions
+5. **Add to this document** - Update specs/STRING_HANDLING.md with new functions
 6. **Write tests** - Ensure edge cases are covered, especially for security-critical functions
 
 ## Security Considerations

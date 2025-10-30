@@ -47,7 +47,7 @@ This document summarizes the comprehensive audit of string normalization, saniti
 
 ### Documentation Deliverables
 
-1. **`STRING_HANDLING.md`** (Repository Root)
+1. **`specs/STRING_HANDLING.md`**
    - Complete inventory of all 35 functions
    - Decision tree for choosing appropriate function
    - Categorized by purpose (workflow names, security, identifiers, etc.)
@@ -91,7 +91,7 @@ This document summarizes the comprehensive audit of string normalization, saniti
 
 ### Immediate (Week 1)
 
-1. **Review documentation** - Team reviews `STRING_HANDLING.md` and recommendations
+1. **Review documentation** - Team reviews `specs/STRING_HANDLING.md` and recommendations
 2. **Create follow-up issues** - Based on consolidation recommendations
 3. **Prioritize security work** - Schedule Priority 1 consolidations
 
@@ -99,7 +99,7 @@ This document summarizes the comprehensive audit of string normalization, saniti
 
 4. **Implement Priority 1** - Consolidate security-critical duplications
 5. **Address inconsistencies** - Fix Priority 2 Go/JS mismatch
-6. **Update documentation** - Reflect new structure in STRING_HANDLING.md
+6. **Update documentation** - Reflect new structure in specs/STRING_HANDLING.md
 
 ### Long-term (Future sprints)
 
@@ -120,7 +120,7 @@ Cleaning MCP tool IDs? → cleanMCPToolID (Go)
 Normalizing whitespace? → normalizeWhitespace or NormalizeExpressionForComparison (Go)
 ```
 
-Full decision tree available in `STRING_HANDLING.md`.
+Full decision tree available in `specs/STRING_HANDLING.md`.
 
 ## Success Metrics
 
@@ -158,14 +158,14 @@ Full decision tree available in `STRING_HANDLING.md`.
 ## Files Modified/Created
 
 ### This PR
-- ✅ `STRING_HANDLING.md` (new, repository root)
+- ✅ `specs/STRING_HANDLING.md` (new)
 - ✅ `docs/string-handling-consolidation-recommendations.md` (new)
 
 ### Future PRs (Recommended)
 - Create `pkg/workflow/js/utils/sanitize.cjs`
 - Create `pkg/workflow/js/utils/branch.cjs`
 - Update 7 JavaScript files to import from utilities
-- Update `STRING_HANDLING.md` to reflect new structure
+- Update `specs/STRING_HANDLING.md` to reflect new structure
 
 ## Team Impact
 
@@ -173,7 +173,7 @@ Full decision tree available in `STRING_HANDLING.md`.
 - **Benefit**: Clear guidance on which function to use
 - **Benefit**: Reduced confusion about duplicates
 - **Benefit**: Easier to find appropriate function
-- **Action**: Review `STRING_HANDLING.md` when working with strings
+- **Action**: Review `specs/STRING_HANDLING.md` when working with strings
 
 ### Security Team
 - **Benefit**: Single source of truth for security-critical sanitization
@@ -201,7 +201,7 @@ A: Those aren't string transformation functions - they clean up files/resources.
 
 **Q: How do we prevent duplications in the future?**  
 A: 
-1. Make `STRING_HANDLING.md` required reading for new contributors
+1. Make `specs/STRING_HANDLING.md` required reading for new contributors
 2. Add to code review checklist
 3. Consider pre-commit hooks to detect new duplications
 4. Quarterly audits
@@ -222,4 +222,4 @@ This audit successfully:
 **Audit Date**: 2024-10-30  
 **Auditor**: GitHub Copilot (copilot/audit-string-normalization-patterns)  
 **Related Issue**: githubnext/gh-aw#2773  
-**Documentation**: `STRING_HANDLING.md`, `docs/string-handling-consolidation-recommendations.md`
+**Documentation**: `specs/STRING_HANDLING.md`, `docs/string-handling-consolidation-recommendations.md`

@@ -1,6 +1,6 @@
 # String Handling Consolidation Recommendations
 
-This document outlines specific recommendations for consolidating string handling functions identified in the comprehensive audit (see `STRING_HANDLING.md` in the repository root).
+This document outlines specific recommendations for consolidating string handling functions identified in the comprehensive audit (see `specs/STRING_HANDLING.md`).
 
 ## Executive Summary
 
@@ -294,7 +294,7 @@ pkg/workflow/js/
    - Or document intentional difference
 
 5. **Day 5**: Code review and documentation
-   - Update `STRING_HANDLING.md` with new structure
+   - Update `specs/STRING_HANDLING.md` with new structure
    - Add JSDoc comments to utility modules
    - Update any affected documentation
 
@@ -414,4 +414,4 @@ Total estimated effort for Priority 1: **3-4 hours**
 
 **Document Version**: 1.0  
 **Date**: 2024-10-30  
-**Related**: `STRING_HANDLING.md` (repository root)
+**Related**: `specs/STRING_HANDLING.md`

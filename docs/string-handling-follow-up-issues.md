@@ -1,6 +1,6 @@
 # Follow-Up Issues for String Handling Consolidation
 
-Based on the comprehensive audit documented in `STRING_HANDLING.md` and `docs/string-handling-consolidation-recommendations.md`, here are the recommended follow-up issues to create.
+Based on the comprehensive audit documented in `specs/STRING_HANDLING.md` and `docs/string-handling-consolidation-recommendations.md`, here are the recommended follow-up issues to create.
 
 ## Issue 1: [High Priority] Consolidate JavaScript Sanitization Functions
 
@@ -68,7 +68,7 @@ module.exports = {
 - [ ] Update `safe_outputs_mcp_server.cjs` to import from utilities
 - [ ] Add tests for utility modules
 - [ ] Run full test suite to verify no regressions
-- [ ] Update `STRING_HANDLING.md` to reflect new structure
+- [ ] Update `specs/STRING_HANDLING.md` to reflect new structure
 
 ### Benefits
 - Single source of truth for security-critical code
@@ -86,9 +86,9 @@ module.exports = {
 6. Test edge cases and security scenarios
 
 ### References
-- Audit document: `STRING_HANDLING.md`
+- Audit document: `specs/STRING_HANDLING.md`
 - Recommendations: `docs/string-handling-consolidation-recommendations.md`
-- Summary: `docs/string-handling-audit-summary.md`
+- Summary: `specs/string-handling-audit-summary.md`
 
 ---
 
@@ -146,7 +146,7 @@ If the JavaScript version must remain different (e.g., for firewall log compatib
 - [ ] If safe, add hyphen consolidation to JavaScript version
 - [ ] If not safe, add detailed comments explaining the difference
 - [ ] Update tests to cover the change
-- [ ] Update `STRING_HANDLING.md` to document decision
+- [ ] Update `specs/STRING_HANDLING.md` to document decision
 
 ### Benefits
 - Consistent behavior across Go and JavaScript
@@ -156,7 +156,7 @@ If the JavaScript version must remain different (e.g., for firewall log compatib
 ### References
 - Go implementation: `pkg/workflow/strings.go`
 - JavaScript implementation: `pkg/workflow/js/parse_firewall_logs.cjs`
-- Documentation: `STRING_HANDLING.md`
+- Documentation: `specs/STRING_HANDLING.md`
 
 ---
 
@@ -206,7 +206,7 @@ This issue should be completed AFTER Issue #1 (consolidation). The consolidation
 
 ### References
 - Related to Issue #1
-- Documentation: `STRING_HANDLING.md`
+- Documentation: `specs/STRING_HANDLING.md`
 
 ---
 
@@ -254,7 +254,7 @@ This is a larger refactoring that affects:
 3. Evaluate after JavaScript utilities are established
 
 ### References
-- Documentation: `STRING_HANDLING.md`
+- Documentation: `specs/STRING_HANDLING.md`
 - Related to Issue #3 (JavaScript utilities)
 
 ---
@@ -272,7 +272,7 @@ This is a larger refactoring that affects:
 ### Success Criteria
 - [ ] All critical duplications eliminated (Issue #1)
 - [ ] Go/JS consistency achieved or documented (Issue #2)
-- [ ] Clear documentation maintained in `STRING_HANDLING.md`
+- [ ] Clear documentation maintained in `specs/STRING_HANDLING.md`
 - [ ] No test regressions
 - [ ] Team has clear guidance on string handling
 
@@ -280,4 +280,4 @@ This is a larger refactoring that affects:
 
 **Created**: 2024-10-30  
 **Based on**: String Handling Audit (githubnext/gh-aw#2773)  
-**Documentation**: `STRING_HANDLING.md`, `docs/string-handling-consolidation-recommendations.md`
+**Documentation**: `specs/STRING_HANDLING.md`, `docs/string-handling-consolidation-recommendations.md`
