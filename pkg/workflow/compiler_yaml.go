@@ -117,6 +117,9 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	yamlContent := yaml.String()
 
+	// Add version comments to action pins
+	yamlContent = AddVersionCommentsToYAML(yamlContent)
+
 	// Collect used action pins from the generated YAML and add them to the header
 	usedPins := collectUsedActionPins(yamlContent)
 	pinnedActionsComment := generatePinnedActionsComment(usedPins)

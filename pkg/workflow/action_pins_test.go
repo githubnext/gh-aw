@@ -80,33 +80,17 @@ func TestGetActionPinReturnsValidSHA(t *testing.T) {
 		t.Run(tt.repo, func(t *testing.T) {
 			result := GetActionPin(tt.repo)
 
-			// Check that the result contains a SHA and version comment
-			// Expected format: repo@sha # version
+			// Check that the result contains a SHA (40-char hex after @)
 			parts := strings.Split(result, "@")
 			if len(parts) != 2 {
 				t.Errorf("GetActionPin(%s) = %s, expected format repo@sha", tt.repo, result)
 				return
 			}
 
-			// Split the second part to extract SHA and version comment
-			shaAndComment := strings.Split(parts[1], " # ")
-			if len(shaAndComment) != 2 {
-				t.Errorf("GetActionPin(%s) = %s, expected format repo@sha # version", tt.repo, result)
-				return
-			}
-
-			sha := shaAndComment[0]
-			version := shaAndComment[1]
-
 			if tt.wantSHA {
-				if !isValidSHA(sha) {
+				if !isValidSHA(parts[1]) {
 					t.Errorf("GetActionPin(%s) = %s, expected SHA to be 40-char hex", tt.repo, result)
 				}
-			}
-
-			// Verify that version is non-empty
-			if version == "" {
-				t.Errorf("GetActionPin(%s) = %s, expected non-empty version comment", tt.repo, result)
 			}
 		})
 	}
@@ -300,7 +284,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@v5",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5",
+			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
 		},
 		{
 			name: "step with pinned action (setup-node)",
@@ -312,7 +296,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4",
+			expectedUses: "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
 		},
 		{
 			name: "step with unpinned action",
@@ -339,7 +323,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				"uses": "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
 			},
 			expectPinned: true,
-			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5",
+			expectedUses: "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8",
 		},
 	}
 

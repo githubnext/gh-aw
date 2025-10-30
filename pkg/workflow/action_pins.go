@@ -74,7 +74,7 @@ func GetActionPin(actionRepo string) string {
 	actionPins := getActionPins()
 	for _, pin := range actionPins {
 		if pin.Repo == actionRepo {
-			return actionRepo + "@" + pin.SHA + " # " + pin.Version
+			return actionRepo + "@" + pin.SHA
 		}
 	}
 	// If no pin exists, return empty string to signal that this action is not pinned
@@ -93,7 +93,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 			if data.ActionCache != nil {
 				_ = data.ActionCache.Save()
 			}
-			return actionRepo + "@" + sha + " # " + version, nil
+			return actionRepo + "@" + sha, nil
 		}
 	}
 
@@ -103,14 +103,14 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 		if pin.Repo == actionRepo {
 			// Check if the version matches the hardcoded version
 			if pin.Version == version {
-				return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
+				return actionRepo + "@" + pin.SHA, nil
 			}
 			// Version mismatch, but we can still use the hardcoded SHA if we're not in strict mode
 			if !data.StrictMode {
 				warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
 					actionRepo, version, actionRepo, pin.Version)
 				fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
-				return actionRepo + "@" + pin.SHA + " # " + pin.Version, nil
+				return actionRepo + "@" + pin.SHA, nil
 			}
 			break
 		}
@@ -245,4 +245,45 @@ func GetActionPinByRepo(repo string) (ActionPin, bool) {
 		}
 	}
 	return ActionPin{}, false
+}
+
+// AddVersionCommentsToYAML adds version comments to action pins in generated YAML
+// This function post-processes YAML content to add " # vX" comments after SHA-pinned actions
+func AddVersionCommentsToYAML(yamlContent string) string {
+	lines := strings.Split(yamlContent, "\n")
+	actionPins := getActionPins()
+	
+	// Create a map for quick lookup: SHA -> Version
+	shaToVersion := make(map[string]string)
+	for _, pin := range actionPins {
+		shaToVersion[pin.SHA] = pin.Version
+	}
+	
+	var result strings.Builder
+	for _, line := range lines {
+		// Check if line contains "uses:" followed by an action@sha
+		if strings.Contains(line, "uses:") {
+			// Try to find a SHA in the line
+			for sha, version := range shaToVersion {
+				if strings.Contains(line, "@"+sha) {
+					// Check if comment already exists
+					if !strings.Contains(line, " # ") {
+						// Add version comment before the newline
+						line = strings.TrimRight(line, "\n") + " # " + version
+					}
+					break
+				}
+			}
+		}
+		result.WriteString(line)
+		result.WriteString("\n")
+	}
+	
+	// Remove the last extra newline
+	resultStr := result.String()
+	if len(resultStr) > 0 && resultStr[len(resultStr)-1] == '\n' {
+		resultStr = resultStr[:len(resultStr)-1]
+	}
+	
+	return resultStr
 }
