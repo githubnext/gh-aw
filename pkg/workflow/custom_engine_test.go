@@ -129,7 +129,7 @@ func TestCustomEngineGetExecutionStepsWithIdAndContinueOnError(t *testing.T) {
 				"name":              "Setup with ID",
 				"id":                "setup-step",
 				"continue-on-error": true,
-				"uses":              "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+				"uses":              "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
 				"with": map[string]any{
 					"node-version": "18",
 				},
@@ -199,7 +199,7 @@ func TestCustomEngineGetExecutionStepsWithSteps(t *testing.T) {
 		Steps: []map[string]any{
 			{
 				"name": "Setup Node.js",
-				"uses": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+				"uses": "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
 				"with": map[string]any{
 					"node-version": "18",
 				},
@@ -229,8 +229,8 @@ func TestCustomEngineGetExecutionStepsWithSteps(t *testing.T) {
 		if !strings.Contains(firstStepContent, "name: Setup Node.js") {
 			t.Errorf("Expected first step to contain 'name: Setup Node.js', got:\n%s", firstStepContent)
 		}
-		if !strings.Contains(firstStepContent, "uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020") {
-			t.Errorf("Expected first step to contain 'uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020', got:\n%s", firstStepContent)
+		if !strings.Contains(firstStepContent, "uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903") {
+			t.Errorf("Expected first step to contain 'uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903', got:\n%s", firstStepContent)
 		}
 	}
 
