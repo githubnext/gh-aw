@@ -35,7 +35,7 @@ engine:
   id: custom
   steps:
     - name: Setup Node.js
-      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
       with:
         node-version: '18'
     - name: Run tests
@@ -49,7 +49,7 @@ engine:
 This workflow uses the custom engine to execute defined steps.`,
 			shouldContain: []string{
 				"- name: Setup Node.js",
-				"uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+				"uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
 				"node-version: \"18\"",
 				"- name: Run tests",
 				"echo \"Running tests...\"",
@@ -129,7 +129,7 @@ Simple custom workflow with one step.`,
 			}
 
 			// Verify that the custom steps are properly formatted YAML
-			if !strings.Contains(contentStr, "name: Setup Node.js") || !strings.Contains(contentStr, "uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020") {
+			if !strings.Contains(contentStr, "name: Setup Node.js") || !strings.Contains(contentStr, "uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903") {
 				// This is expected for the first test only
 				if test.name == "custom engine with simple steps" {
 					t.Error("Custom engine steps were not properly formatted in the generated workflow")

@@ -296,7 +296,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 				},
 			},
 			expectPinned: true,
-			expectedUses: "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+			expectedUses: "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
 		},
 		{
 			name: "step with unpinned action",
@@ -413,7 +413,7 @@ func TestGetActionPinByRepo(t *testing.T) {
 			repo:         "actions/setup-node",
 			expectExists: true,
 			expectRepo:   "actions/setup-node",
-			expectVer:    "v4",
+			expectVer:    "v6",
 		},
 		{
 			repo:         "unknown/action",

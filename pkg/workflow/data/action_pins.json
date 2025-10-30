@@ -27,7 +27,7 @@
       "version": "v5",
       "sha": "a26af69be951a213d495a4c3e4e4022e16d87065"
     },
-    "actions/setup-node@v6": {
+    "actions/setup-node": {
       "repo": "actions/setup-node",
       "version": "v6",
       "sha": "2028fbc5c25fe9cf00d9f06a71cc4710d4507903"
@@ -41,6 +41,11 @@
       "repo": "actions/cache",
       "version": "v4",
       "sha": "0057852bfaa89a56745cba8c7296529d2fc39830"
+    },
+    "actions/setup-dotnet": {
+      "repo": "actions/setup-dotnet",
+      "version": "v4",
+      "sha": "67a3573c9a986a3f9c594539f4ab511d57bb3ce9"
     },
     "actions/setup-java": {
       "repo": "actions/setup-java",
