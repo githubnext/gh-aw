@@ -24,6 +24,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
@@ -123,6 +124,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
@@ -245,6 +247,8 @@ func TestEngineOutputCleanupExcludesTmpFiles(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]

@@ -13,6 +13,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 safe-outputs:
   create-pull-request: {}
@@ -203,6 +205,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 `
 			if tc.safeOutputs != "" {

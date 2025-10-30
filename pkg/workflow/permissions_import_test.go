@@ -102,7 +102,6 @@ func TestPermissionsImportIntegration(t *testing.T) {
 	sharedWorkflowContent := `---
 permissions:
   actions: read
----
 
 # Shared workflow with permissions
 `
@@ -206,7 +205,8 @@ tools:
 		sharedWorkflowUpgradeContent := `---
 permissions:
   contents: write
----
+  issues: read
+  pull-requests: read
 
 # Shared workflow with write permission
 `
@@ -295,7 +295,7 @@ func TestExtractPermissionsFromContent(t *testing.T) {
 permissions:
   contents: read
   issues: write
----
+  pull-requests: read
 # Content`,
 			expected: `{"contents":"read","issues":"write"}`,
 			wantErr:  false,

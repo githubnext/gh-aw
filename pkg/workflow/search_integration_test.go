@@ -20,6 +20,8 @@ func TestWebSearchValidationForCopilot(t *testing.T) {
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 tools:
   web-search:
@@ -86,6 +88,8 @@ func TestWebSearchValidationForClaude(t *testing.T) {
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   web-search:
@@ -139,6 +143,8 @@ func TestWebSearchValidationForCodex(t *testing.T) {
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: codex
 tools:
   web-search:
@@ -181,6 +187,8 @@ func TestNoWebSearchNoValidation(t *testing.T) {
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 tools:
   github:

@@ -22,7 +22,7 @@ on:
     types: [opened]
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [issues]
 engine: claude
 ---`,
 			expectedHasCheckout: true,
@@ -39,7 +39,7 @@ permissions:
   pull-requests: read
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [issues, pull_requests]
 engine: claude
 ---`,
 			expectedHasCheckout: false,
@@ -54,9 +54,10 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [repos, issues, pull_requests]
 engine: claude
 ---`,
 			expectedHasCheckout: true,
@@ -71,9 +72,10 @@ on:
 permissions:
   contents: write
   issues: write
+  pull-requests: read
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [repos, issues, pull_requests]
 engine: claude
 ---`,
 			expectedHasCheckout: true,
@@ -88,7 +90,7 @@ on:
 permissions: read-all
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [issues]
 engine: claude
 ---`,
 			expectedHasCheckout: true,
@@ -103,7 +105,7 @@ on:
 permissions: write-all
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [issues]
 engine: claude
 ---`,
 			expectedHasCheckout: true,
@@ -118,6 +120,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 steps:
   - name: Custom checkout
     uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -127,7 +130,7 @@ steps:
     run: echo "custom setup"
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [issues]
 engine: claude
 ---`,
 			expectedHasCheckout: false,
@@ -142,6 +145,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 steps:
   - name: Setup Node
     uses: actions/setup-node@v4
@@ -151,7 +155,7 @@ steps:
     run: npm install
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [issues]
 engine: claude
 ---`,
 			expectedHasCheckout: true,
@@ -175,7 +179,7 @@ steps:
     run: npm install
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [issues, pull_requests]
 engine: claude
 ---`,
 			expectedHasCheckout: false,

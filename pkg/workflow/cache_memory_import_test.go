@@ -41,6 +41,8 @@ name: Test Import Only
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 imports:
   - shared/cache-config.md

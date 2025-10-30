@@ -37,6 +37,8 @@ func TestCompileDependabotIntegration(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 steps:
   - run: npx @playwright/mcp@latest --help
 ---
@@ -159,6 +161,8 @@ func TestCompileDependabotNoDependencies(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 ---
 
 # Test Workflow
@@ -239,6 +243,8 @@ func TestCompileDependabotPreserveExisting(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 steps:
   - run: npx @playwright/mcp@latest --help
 ---
@@ -348,6 +354,8 @@ func TestCompileDependabotMergeExistingNpm(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 steps:
   - run: npx @playwright/mcp@latest --help
 ---

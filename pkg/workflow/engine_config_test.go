@@ -316,6 +316,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine: claude
 ---
 
@@ -332,6 +333,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine:
   id: claude
   version: beta
@@ -351,6 +353,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine:
   id: codex
   model: gpt-4o

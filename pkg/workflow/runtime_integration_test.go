@@ -20,6 +20,8 @@ func TestCompileWorkflowWithRuntimes(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 runtimes:
   node:
@@ -109,6 +111,8 @@ runtimes:
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 imports:
   - shared/shared-runtimes.md
@@ -195,6 +199,8 @@ func TestCompileWorkflowWithRuntimesAppliedToSteps(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 steps:
   - name: Install dependencies
@@ -251,6 +257,8 @@ func TestCompileWorkflowWithCustomActionRepo(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 steps:
   - name: Install dependencies

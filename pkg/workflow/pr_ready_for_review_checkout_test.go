@@ -22,6 +22,8 @@ on:
     types: [ready_for_review]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -38,6 +40,8 @@ on:
     types: [opened]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -54,6 +58,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -150,6 +156,8 @@ on:
     types: [ready_for_review, opened]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 

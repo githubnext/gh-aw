@@ -25,6 +25,7 @@ timeout_minutes: 10
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues, create_issue]
@@ -173,7 +174,9 @@ on:
   issues:
     types: [opened]
 permissions:
+  contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [add_issue_comment]
@@ -195,7 +198,9 @@ on:
   issues:
     types: [opened]
 permissions:
+  contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [add_issue_comment]
@@ -1570,6 +1575,8 @@ func TestWorkflowNameWithColon(t *testing.T) {
 timeout_minutes: 10
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
@@ -1725,6 +1732,8 @@ timeout_minutes: 15
 permissions:
   contents: read
   models: read
+  issues: read
+  pull-requests: read
 
 mcp-servers:
   notionApi:
@@ -2538,6 +2547,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [get_issue]
@@ -2922,6 +2932,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [get_issue]
@@ -2987,6 +2998,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3006,6 +3018,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3024,6 +3037,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3044,6 +3058,7 @@ if: github.actor != 'dependabot[bot]'
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3065,6 +3080,7 @@ if: github.actor != 'dependabot[bot]'
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3083,6 +3099,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3171,6 +3188,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3191,6 +3209,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3210,6 +3229,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3232,6 +3252,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3352,6 +3373,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues
@@ -3373,6 +3395,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 invalid: yaml: syntax
   more: bad
 engine: claude
@@ -3411,6 +3434,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: ["list_issues]
@@ -3431,6 +3455,8 @@ Invalid YAML with unclosed quote.`,
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 permissions:
   issues: write
 engine: claude
@@ -3451,6 +3477,7 @@ on: push
 permissions:
   contents: read
   issues: yes_please
+  pull-requests: read
 engine: claude
 ---
 
@@ -3513,6 +3540,8 @@ on: push
 timeout_minutes: 05.5
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -3535,6 +3564,8 @@ tools:
   claude: [
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -3755,6 +3786,8 @@ name: Test Cache Workflow
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 cache:
   key: node-modules-${{ hashFiles('package-lock.json') }}
@@ -3786,6 +3819,8 @@ name: Test Multi Cache Workflow
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 cache:
   - key: node-modules-${{ hashFiles('package-lock.json') }}
@@ -3829,6 +3864,8 @@ name: Test Full Cache Workflow
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 cache:
   key: full-cache-${{ github.sha }}
@@ -3921,6 +3958,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
@@ -4014,6 +4052,7 @@ on: issues
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
@@ -4201,6 +4240,7 @@ on:
 permissions:
   contents: write
   issues: write
+  pull-requests: read
 tools:
   github:
     toolsets: [repos, issues]
@@ -4371,6 +4411,8 @@ on: push
 permissions:
   contents: read
 %s
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -4733,6 +4775,8 @@ on: push
 permissions:
   contents: read
 %s
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -4897,6 +4941,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -4922,6 +4967,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -4948,6 +4994,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -4972,6 +5019,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -4996,6 +5044,7 @@ if: github.actor != 'dependabot[bot]'
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5018,6 +5067,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5040,6 +5090,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5062,6 +5113,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5083,6 +5135,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5171,6 +5224,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5197,6 +5251,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5217,6 +5272,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5236,6 +5292,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5446,6 +5503,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   github:
@@ -5466,6 +5525,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   github:
@@ -5482,6 +5543,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   github:
@@ -5610,6 +5673,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [get_issue]
@@ -5627,6 +5691,8 @@ on:
   stop-after: +1h
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 tools:
   github:
     allowed: [list_commits]
@@ -5645,6 +5711,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [get_issue]
@@ -5742,6 +5809,8 @@ func TestPostStepsIndentationFix(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
@@ -5852,6 +5921,8 @@ func TestPromptUploadArtifact(t *testing.T) {
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 ---
 
