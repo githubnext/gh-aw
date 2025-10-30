@@ -163,7 +163,7 @@ func TestValidateExpressionSafety(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateExpressionSafety(tt.content)
+			err := validateExpressionSafety(tt.content, false)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error but got none")
@@ -233,7 +233,7 @@ func TestValidateExpressionSafetyEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateExpressionSafety(tt.content)
+			err := validateExpressionSafety(tt.content, false)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error for %s but got none", tt.description)
@@ -312,7 +312,7 @@ func TestValidateExpressionSafetyWithParser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateExpressionSafety(tt.content)
+			err := validateExpressionSafety(tt.content, false)
 
 			if tt.wantErr {
 				if err == nil {
@@ -334,7 +334,7 @@ func TestValidateExpressionSafetyWithParser(t *testing.T) {
 func TestUnauthorizedExpressionErrorFormat(t *testing.T) {
 	// Test that the error message is properly formatted with line breaks
 	content := "Test: ${{ github.inputs.test }}"
-	err := validateExpressionSafety(content)
+	err := validateExpressionSafety(content, false)
 
 	if err == nil {
 		t.Fatal("Expected error for unauthorized expression")

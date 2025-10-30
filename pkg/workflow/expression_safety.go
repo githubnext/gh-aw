@@ -17,8 +17,16 @@ var (
 )
 
 // validateExpressionSafety checks that all GitHub Actions expressions in the markdown content
-// are in the allowed list and returns an error if any unauthorized expressions are found
-func validateExpressionSafety(markdownContent string) error {
+// are in the allowed list and returns an error if any unauthorized expressions are found.
+// If strictMode is true, it first checks for common typos and provides helpful error messages.
+func validateExpressionSafety(markdownContent string, strictMode bool) error {
+	// In strict mode, check for forbidden expressions first and provide helpful error messages
+	if strictMode {
+		if err := checkForbiddenExpressions(markdownContent); err != nil {
+			return err
+		}
+	}
+
 	// Regular expression to match GitHub Actions expressions: ${{ ... }}
 	// Use (?s) flag to enable dotall mode so . matches newlines to capture multiline expressions
 	// Use non-greedy matching with .*? to handle nested braces properly
@@ -119,6 +127,54 @@ func validateSingleExpression(expression string, needsStepsRe, inputsRe, envRe *
 
 	if !allowed {
 		*unauthorizedExpressions = append(*unauthorizedExpressions, expression)
+	}
+
+	return nil
+}
+
+// checkForbiddenExpressions checks for common typo expressions in strict mode
+// and provides helpful error messages for users
+func checkForbiddenExpressions(markdownContent string) error {
+	// Find all expressions in the markdown content
+	matches := expressionRegex.FindAllStringSubmatch(markdownContent, -1)
+
+	// List of forbidden expression patterns in strict mode
+	forbiddenPatterns := []string{
+		"git.workflow",
+		"git.agent",
+	}
+
+	var foundForbidden []string
+
+	for _, match := range matches {
+		if len(match) < 2 {
+			continue
+		}
+
+		// Extract the expression content (everything between ${{ and }})
+		expression := strings.TrimSpace(match[1])
+
+		// Check if this expression contains any forbidden pattern
+		for _, forbidden := range forbiddenPatterns {
+			if strings.Contains(expression, forbidden) {
+				foundForbidden = append(foundForbidden, expression)
+				break
+			}
+		}
+	}
+
+	// If we found forbidden expressions, return an error
+	if len(foundForbidden) > 0 {
+		var errMsg strings.Builder
+		errMsg.WriteString("strict mode: forbidden expressions found (common typos):\n")
+		for _, expr := range foundForbidden {
+			errMsg.WriteString(fmt.Sprintf("  - %s\n", expr))
+		}
+		errMsg.WriteString("\nDid you mean:\n")
+		errMsg.WriteString("  - github.workflow instead of git.workflow\n")
+		errMsg.WriteString("  - github.actor instead of git.agent")
+
+		return fmt.Errorf("%s", errMsg.String())
 	}
 
 	return nil

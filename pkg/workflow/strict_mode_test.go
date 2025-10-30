@@ -794,3 +794,170 @@ engine: copilot
 		t.Errorf("Expected non-strict workflow to succeed, but it failed: %v", err)
 	}
 }
+
+func TestStrictModeForbiddenExpressions(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "git.workflow expression refused in strict mode",
+			content: `---
+on: push
+strict: true
+permissions:
+  contents: read
+engine: copilot
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow
+
+Use ${{ git.workflow }} in this test.`,
+			expectError: true,
+			errorMsg:    "strict mode: forbidden expressions found",
+		},
+		{
+			name: "git.agent expression refused in strict mode",
+			content: `---
+on: push
+strict: true
+permissions:
+  contents: read
+engine: copilot
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow
+
+The agent is ${{ git.agent }}.`,
+			expectError: true,
+			errorMsg:    "strict mode: forbidden expressions found",
+		},
+		{
+			name: "both git.workflow and git.agent refused in strict mode",
+			content: `---
+on: push
+strict: true
+permissions:
+  contents: read
+engine: copilot
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow
+
+Workflow: ${{ git.workflow }}
+Agent: ${{ git.agent }}`,
+			expectError: true,
+			errorMsg:    "strict mode: forbidden expressions found",
+		},
+		{
+			name: "github.workflow allowed in strict mode",
+			content: `---
+on: push
+strict: true
+permissions:
+  contents: read
+engine: copilot
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow
+
+Use ${{ github.workflow }} in this test.`,
+			expectError: false,
+		},
+		{
+			name: "github.actor allowed in strict mode",
+			content: `---
+on: push
+strict: true
+permissions:
+  contents: read
+engine: copilot
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow
+
+The actor is ${{ github.actor }}.`,
+			expectError: false,
+		},
+		{
+			name: "git.workflow fails expression validation in non-strict mode",
+			content: `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+---
+
+# Test Workflow
+
+Use ${{ git.workflow }} in this test.`,
+			expectError: true, // Still fails because git.workflow is not in allowed expressions
+			errorMsg:    "unauthorized expressions",
+		},
+		{
+			name: "git.workflow in complex expression refused in strict mode",
+			content: `---
+on: push
+strict: true
+permissions:
+  contents: read
+engine: copilot
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow
+
+Workflow name: ${{ git.workflow || 'default' }}`,
+			expectError: true,
+			errorMsg:    "strict mode: forbidden expressions found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir, err := os.MkdirTemp("", "strict-expressions-test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir)
+
+			testFile := filepath.Join(tmpDir, "test-workflow.md")
+			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler(false, "", "")
+			// Don't set strict mode via CLI - let frontmatter control it
+			err = compiler.CompileWorkflow(testFile)
+
+			if tt.expectError && err == nil {
+				t.Error("Expected compilation to fail but it succeeded")
+			} else if !tt.expectError && err != nil {
+				t.Errorf("Expected compilation to succeed but it failed: %v", err)
+			} else if tt.expectError && err != nil && tt.errorMsg != "" {
+				if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error containing '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+			}
+		})
+	}
+}

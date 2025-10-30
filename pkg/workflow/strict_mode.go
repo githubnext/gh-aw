@@ -8,6 +8,8 @@ import (
 // Note: Strict mode also affects zizmor security scanner behavior (see pkg/cli/zizmor.go)
 // When zizmor is enabled with --zizmor flag, strict mode will treat any security
 // findings as compilation errors rather than warnings.
+// Expression validation for forbidden patterns (git.workflow, git.agent) is now handled
+// in validateExpressionSafety() which is called earlier in the compilation process.
 func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermissions *NetworkPermissions) error {
 	if !c.strictMode {
 		return nil

@@ -183,6 +183,7 @@ type WorkflowData struct {
 	SafetyPrompt        bool                // whether to include XPIA safety prompt (default true)
 	Runtimes            map[string]any      // runtime version overrides from frontmatter
 	ToolsTimeout        int                 // timeout in seconds for tool/MCP operations (0 = use engine default)
+	IsStrictMode        bool                // whether strict mode is enabled for this workflow
 	GitHubToken         string              // top-level github-token expression from frontmatter
 	ToolsStartupTimeout int                 // timeout in seconds for MCP server startup (0 = use engine default)
 	Features            map[string]bool     // feature flags from frontmatter
@@ -261,8 +262,9 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	log.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
 
 	// Validate expression safety - check that all GitHub Actions expressions are in the allowed list
+	// In strict mode, this also checks for common typos like git.workflow and provides helpful error messages
 	log.Printf("Validating expression safety")
-	if err := validateExpressionSafety(workflowData.MarkdownContent); err != nil {
+	if err := validateExpressionSafety(workflowData.MarkdownContent, workflowData.IsStrictMode); err != nil {
 		formattedErr := console.FormatError(console.CompilerError{
 			Position: console.ErrorPosition{
 				File:   markdownPath,
@@ -791,6 +793,17 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Check if the markdown content uses the text output
 	needsTextOutput := c.detectTextOutputUsage(markdownContent)
 
+	// Determine if strict mode is enabled for this workflow
+	// Combine CLI flag with frontmatter setting (CLI flag takes precedence)
+	isStrictMode := c.strictMode
+	if !isStrictMode {
+		if strictValue, exists := result.Frontmatter["strict"]; exists {
+			if strictBool, ok := strictValue.(bool); ok && strictBool {
+				isStrictMode = true
+			}
+		}
+	}
+
 	// Build workflow data
 	workflowData := &WorkflowData{
 		Name:                workflowName,
@@ -808,6 +821,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		NetworkPermissions:  networkPermissions,
 		NeedsTextOutput:     needsTextOutput,
 		SafetyPrompt:        safetyPrompt,
+		IsStrictMode:        isStrictMode,
 		ToolsTimeout:        toolsTimeout,
 		ToolsStartupTimeout: toolsStartupTimeout,
 		TrialMode:           c.trialMode,

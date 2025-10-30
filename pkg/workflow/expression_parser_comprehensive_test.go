@@ -517,7 +517,7 @@ func TestExpressionSafetyComprehensive(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateExpressionSafety(tt.content)
+			err := validateExpressionSafety(tt.content, false)
 
 			if tt.wantErr && err == nil {
 				t.Errorf("Expected error for %s but got none", tt.description)
@@ -569,7 +569,7 @@ This workflow uses several expressions:
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		err := validateExpressionSafety(content)
+		err := validateExpressionSafety(content, false)
 		if err != nil {
 			b.Fatalf("Safety validation error: %v", err)
 		}
