@@ -52,14 +52,14 @@ func TestValidatePermissions(t *testing.T) {
 		{
 			name:                "Multiple missing permissions fails validation",
 			topPermissionsYAML:  "",
-			importedPermissions: `{"actions":"read"}` + "\n" + `{"issues":"write"}`,
+			importedPermissions: strings.Join([]string{`{"actions":"read"}`, `{"issues":"write"}`}, "\n"),
 			expectError:         true,
 			errorContains:       "Missing permissions",
 		},
 		{
 			name:                "All required permissions present passes validation",
 			topPermissionsYAML:  "permissions:\n  contents: write\n  issues: read\n  actions: read\n  pull-requests: write",
-			importedPermissions: `{"actions":"read"}` + "\n" + `{"contents":"write"}` + "\n" + `{"pull-requests":"write"}`,
+			importedPermissions: strings.Join([]string{`{"actions":"read"}`, `{"contents":"write"}`, `{"pull-requests":"write"}`}, "\n"),
 			expectError:         false,
 		},
 		{
