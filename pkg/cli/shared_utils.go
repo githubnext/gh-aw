@@ -9,7 +9,10 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var sharedUtilsLog = logger.New("cli:shared_utils")
 
 // PullRequest represents a GitHub Pull Request
 type PullRequest struct {
@@ -24,6 +27,8 @@ type PullRequest struct {
 // AutoMergePullRequestsCreatedAfter checks for open PRs in the repository created after a specific time and auto-merges them
 // This function filters PRs to only those created after the specified time to avoid merging unrelated PRs
 func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, verbose bool) error {
+	sharedUtilsLog.Printf("Checking for PRs in repo=%s created after %s", repoSlug, createdAfter.Format(time.RFC3339))
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Checking for open pull requests in %s created after %s", repoSlug, createdAfter.Format(time.RFC3339))))
 	}
@@ -32,6 +37,7 @@ func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, 
 	listCmd := exec.Command("gh", "pr", "list", "--repo", repoSlug, "--json", "number,title,isDraft,mergeable,createdAt,updatedAt")
 	output, err := listCmd.Output()
 	if err != nil {
+		sharedUtilsLog.Printf("Failed to list pull requests: %v", err)
 		return fmt.Errorf("failed to list pull requests: %w", err)
 	}
 
@@ -58,12 +64,14 @@ func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, 
 	}
 
 	if len(eligiblePRs) == 0 {
+		sharedUtilsLog.Print("No eligible PRs found for auto-merge")
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No pull requests found created after %s", createdAfter.Format(time.RFC3339))))
 		}
 		return nil
 	}
 
+	sharedUtilsLog.Printf("Found %d eligible PRs for auto-merge", len(eligiblePRs))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d pull request(s) created after workflow start time", len(eligiblePRs))))
 
 	for _, pr := range eligiblePRs {
@@ -110,6 +118,8 @@ func AutoMergePullRequestsLegacy(repoSlug string, verbose bool) error {
 
 // WaitForWorkflowCompletion waits for a workflow run to complete, with a specified timeout
 func WaitForWorkflowCompletion(repoSlug, runID string, timeoutMinutes int, verbose bool) error {
+	sharedUtilsLog.Printf("Waiting for workflow completion: repo=%s, runID=%s, timeout=%d minutes", repoSlug, runID, timeoutMinutes)
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Waiting for workflow completion (timeout: %d minutes)", timeoutMinutes)))
 	}

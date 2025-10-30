@@ -3,25 +3,34 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var concurrencyLog = logger.New("workflow:concurrency")
 
 // GenerateConcurrencyConfig generates the concurrency configuration for a workflow
 // based on its trigger types and characteristics.
 func GenerateConcurrencyConfig(workflowData *WorkflowData, isCommandTrigger bool) string {
+	concurrencyLog.Printf("Generating concurrency config: isCommandTrigger=%v", isCommandTrigger)
+
 	// Don't override if already set
 	if workflowData.Concurrency != "" {
+		concurrencyLog.Print("Using existing concurrency configuration from workflow data")
 		return workflowData.Concurrency
 	}
 
 	// Build concurrency group keys using the original workflow-specific logic
 	keys := buildConcurrencyGroupKeys(workflowData, isCommandTrigger)
 	groupValue := strings.Join(keys, "-")
+	concurrencyLog.Printf("Built concurrency group: %s", groupValue)
 
 	// Build the concurrency configuration
 	concurrencyConfig := fmt.Sprintf("concurrency:\n  group: \"%s\"", groupValue)
 
 	// Add cancel-in-progress if appropriate
 	if shouldEnableCancelInProgress(workflowData, isCommandTrigger) {
+		concurrencyLog.Print("Enabling cancel-in-progress for concurrency group")
 		concurrencyConfig += "\n  cancel-in-progress: true"
 	}
 
@@ -31,14 +40,18 @@ func GenerateConcurrencyConfig(workflowData *WorkflowData, isCommandTrigger bool
 // GenerateJobConcurrencyConfig generates the agent concurrency configuration
 // for the agent job based on engine.concurrency field
 func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
+	concurrencyLog.Print("Generating job-level concurrency config")
+
 	// If concurrency is explicitly configured in engine, use it
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Concurrency != "" {
+		concurrencyLog.Print("Using engine-configured concurrency")
 		return workflowData.EngineConfig.Concurrency
 	}
 
 	// Check if this workflow has special trigger handling (issues, PRs, discussions, push, command)
 	// For these cases, no default concurrency should be applied at agent level
 	if hasSpecialTriggers(workflowData) {
+		concurrencyLog.Print("Workflow has special triggers, skipping default job concurrency")
 		return ""
 	}
 
