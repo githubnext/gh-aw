@@ -149,8 +149,8 @@ engine: codex
 # Test Workflow
 Test workflow with permissions but checkout should be conditional.
 `,
-			expectPRCheckout: true,  // Changed: now has contents permission, so checkout is added
-			expectPRPrompt:   true,  // Changed: now has permissions, so PR prompt is added
+			expectPRCheckout: true, // Changed: now has contents permission, so checkout is added
+			expectPRPrompt:   true, // Changed: now has permissions, so PR prompt is added
 		},
 	}
 
