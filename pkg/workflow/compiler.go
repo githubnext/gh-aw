@@ -935,14 +935,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Initialize and load action pin manager
 	workflowData.ActionPinManager = NewActionPinManager(cwd)
-	if err := workflowData.ActionPinManager.LoadBuiltinPins(); err != nil {
-		return nil, fmt.Errorf("failed to load builtin action pins: %w", err)
-	}
-	if err := workflowData.ActionPinManager.LoadCustomPins(); err != nil {
-		return nil, fmt.Errorf("failed to load custom action pins: %w", err)
-	}
-	if err := workflowData.ActionPinManager.MergePins(); err != nil {
-		return nil, fmt.Errorf("failed to merge action pins: %w", err)
+	if err := workflowData.ActionPinManager.Initialize(); err != nil {
+		return nil, fmt.Errorf("failed to initialize action pin manager: %w", err)
 	}
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction

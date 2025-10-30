@@ -23,9 +23,9 @@ func TestActionPinManagerLoadBuiltinPins(t *testing.T) {
 		t.Error("Expected builtin pins to be loaded, but got empty map")
 	}
 
-	// Check for a specific builtin pin
-	if _, exists := manager.builtinPins["actions/checkout"]; !exists {
-		t.Error("Expected actions/checkout in builtin pins")
+	// Check for a specific builtin pin (with version in key)
+	if _, exists := manager.builtinPins["actions/checkout@v5"]; !exists {
+		t.Error("Expected actions/checkout@v5 in builtin pins")
 	}
 }
 
@@ -72,8 +72,8 @@ func TestActionPinManagerLoadCustomPins(t *testing.T) {
 		t.Errorf("Expected 1 custom pin, got %d", len(manager.customPins))
 	}
 
-	if pin, exists := manager.customPins["custom/action"]; !exists {
-		t.Error("Expected custom/action in custom pins")
+	if pin, exists := manager.customPins["custom/action@v1"]; !exists {
+		t.Error("Expected custom/action@v1 in custom pins")
 	} else if pin.SHA != "1234567890123456789012345678901234567890" {
 		t.Errorf("Expected custom pin SHA to be 1234567890123456789012345678901234567890, got %s", pin.SHA)
 	}
@@ -107,7 +107,7 @@ func TestActionPinManagerMergePins(t *testing.T) {
 	}
 
 	// Add a custom pin
-	manager.customPins["custom/action"] = ActionPin{
+	manager.customPins["custom/action@v1"] = ActionPin{
 		Repo:    "custom/action",
 		Version: "v1",
 		SHA:     "1234567890123456789012345678901234567890",
@@ -125,13 +125,13 @@ func TestActionPinManagerMergePins(t *testing.T) {
 	}
 
 	// Check that custom pin is in merged pins
-	if _, exists := manager.mergedPins["custom/action"]; !exists {
-		t.Error("Expected custom/action in merged pins")
+	if _, exists := manager.mergedPins["custom/action@v1"]; !exists {
+		t.Error("Expected custom/action@v1 in merged pins")
 	}
 
 	// Check that a builtin pin is still in merged pins
-	if _, exists := manager.mergedPins["actions/checkout"]; !exists {
-		t.Error("Expected actions/checkout in merged pins")
+	if _, exists := manager.mergedPins["actions/checkout@v5"]; !exists {
+		t.Error("Expected actions/checkout@v5 in merged pins")
 	}
 }
 
@@ -145,11 +145,10 @@ func TestActionPinManagerMergePinsConflict(t *testing.T) {
 		t.Fatalf("Failed to load builtin pins: %v", err)
 	}
 
-	// Add a custom pin that conflicts with a builtin pin
-	builtinCheckout := manager.builtinPins["actions/checkout"]
-	manager.customPins["actions/checkout"] = ActionPin{
+	// Add a custom pin that conflicts with a builtin pin (same repo@version, different SHA)
+	manager.customPins["actions/checkout@v5"] = ActionPin{
 		Repo:    "actions/checkout",
-		Version: builtinCheckout.Version, // Same version
+		Version: "v5", // Same version as builtin
 		SHA:     "0000000000000000000000000000000000000000", // Different SHA
 	}
 
@@ -259,16 +258,16 @@ func TestActionPinManagerSaveNonBuiltinPins(t *testing.T) {
 		t.Errorf("Expected 2 non-builtin pins, got %d", len(savedData.Actions))
 	}
 
-	// Verify custom/action is saved
-	if pin, exists := savedData.Actions["custom/action"]; !exists {
-		t.Error("Expected custom/action in saved non-builtin pins")
+	// Verify custom/action@v1 is saved (using repo@version key)
+	if pin, exists := savedData.Actions["custom/action@v1"]; !exists {
+		t.Error("Expected custom/action@v1 in saved non-builtin pins")
 	} else if pin.SHA != "1234567890123456789012345678901234567890" {
 		t.Errorf("Expected SHA to be 1234567890123456789012345678901234567890, got %s", pin.SHA)
 	}
 
 	// Verify actions/checkout is NOT saved (it's builtin)
-	if _, exists := savedData.Actions["actions/checkout"]; exists {
-		t.Error("Did not expect actions/checkout in saved non-builtin pins")
+	if _, exists := savedData.Actions["actions/checkout@v5"]; exists {
+		t.Error("Did not expect actions/checkout@v5 in saved non-builtin pins")
 	}
 }
 

@@ -56,6 +56,20 @@ func NewActionPinManager(repoRoot string) *ActionPinManager {
 	}
 }
 
+// Initialize loads and merges all pins
+func (m *ActionPinManager) Initialize() error {
+	if err := m.LoadBuiltinPins(); err != nil {
+		return err
+	}
+	if err := m.LoadCustomPins(); err != nil {
+		return err
+	}
+	if err := m.MergePins(); err != nil {
+		return err
+	}
+	return nil
+}
+
 // LoadBuiltinPins loads the builtin action pins from embedded JSON
 func (m *ActionPinManager) LoadBuiltinPins() error {
 	actionPinsLog.Print("Loading builtin action pins from embedded JSON")
@@ -66,7 +80,9 @@ func (m *ActionPinManager) LoadBuiltinPins() error {
 		return fmt.Errorf("failed to load builtin action pins: %w", err)
 	}
 
-	for key, pin := range data.Actions {
+	for _, pin := range data.Actions {
+		// Use repo@version as key to support multiple versions of the same action
+		key := pin.Repo + "@" + pin.Version
 		m.builtinPins[key] = pin
 	}
 
@@ -96,7 +112,9 @@ func (m *ActionPinManager) LoadCustomPins() error {
 		return fmt.Errorf("failed to unmarshal custom action pins JSON: %w", err)
 	}
 
-	for key, pin := range customData.Actions {
+	for _, pin := range customData.Actions {
+		// Use repo@version as key to support multiple versions of the same action
+		key := pin.Repo + "@" + pin.Version
 		m.customPins[key] = pin
 	}
 
@@ -165,15 +183,14 @@ func (m *ActionPinManager) GetMergedPins() []ActionPin {
 // FindPin finds a pin by repo and version in the merged pins
 func (m *ActionPinManager) FindPin(repo, version string) (ActionPin, bool) {
 	if version != "" {
-		// Try to find exact match with version first
-		for _, pin := range m.mergedPins {
-			if pin.Repo == repo && pin.Version == version {
-				return pin, true
-			}
+		// Try exact match with version first (O(1) lookup)
+		key := repo + "@" + version
+		if pin, exists := m.mergedPins[key]; exists {
+			return pin, true
 		}
 	}
 
-	// Try to find any version of this repo
+	// Try to find any version of this repo (requires iteration)
 	for _, pin := range m.mergedPins {
 		if pin.Repo == repo {
 			return pin, true
@@ -191,9 +208,12 @@ func (m *ActionPinManager) SaveNonBuiltinPins(resolvedPins []ActionPin) error {
 	// Filter out builtin pins
 	nonBuiltinPins := make(map[string]ActionPin)
 	for _, pin := range resolvedPins {
-		key := pin.Repo
+		// Use repo@version as key to support multiple versions
+		key := pin.Repo + "@" + pin.Version
 		if _, isBuiltin := m.builtinPins[key]; !isBuiltin {
-			nonBuiltinPins[key] = pin
+			// Use repo as key in saved file (matching JSON structure)
+			// If there are multiple versions, last one wins (could be improved)
+			nonBuiltinPins[pin.Repo+"@"+pin.Version] = pin
 		}
 	}
 
