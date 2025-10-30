@@ -10,7 +10,7 @@ on:
 permissions: read-all
 
 engine:
-  id: claude
+  id: copilot
   custom-agent: .github/agents/technical-doc-writer.md
 
 network:
