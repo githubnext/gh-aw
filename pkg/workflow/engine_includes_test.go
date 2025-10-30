@@ -449,8 +449,9 @@ This workflow imports a custom engine with steps.
 	}
 	// Since ai-inference is not in hardcoded pins, it will either be dynamically resolved
 	// (if gh CLI is available) or remain as @v1 (if resolution fails)
-	if !strings.Contains(lockStr, "uses: actions/ai-inference@") {
-		t.Error("Expected lock file to contain 'uses: actions/ai-inference@' (either @v1 or @<sha>)")
+	// The uses field might be quoted if it contains special characters like the version comment
+	if !strings.Contains(lockStr, "actions/ai-inference@") {
+		t.Error("Expected lock file to contain 'actions/ai-inference@' (either @v1 or @<sha>)")
 	}
 	if !strings.Contains(lockStr, "prompt-file:") {
 		t.Error("Expected lock file to contain 'prompt-file:' parameter")
