@@ -1683,9 +1683,19 @@ jobs:
           
           5. **Commit and Push Changes**:
              - Git is already configured by pre-step
-             - Add and commit the changeset file to the current pull request branch
-             - Use the push-to-pull-request-branch tool from safe-outputs to push changes
-             - The changeset will be added directly to this pull request
+             - Add and commit the changeset file using git commands:
+               ```bash
+               git add .changeset/<filename> && git commit -m "Add changeset"
+               ```
+             - **CRITICAL**: You MUST call the `push_to_pull_request_branch` tool to push your changes:
+               ```javascript
+               push_to_pull_request_branch({
+                 message: "Add changeset for this pull request"
+               })
+               ```
+             - The `branch` parameter is optional - it will automatically detect the current PR branch
+             - This tool call is REQUIRED for your changes to be pushed to the pull request
+             - **WARNING**: If you don't call this tool, your changeset file will NOT be pushed and the job will be skipped
           
           ## Guidelines
           
