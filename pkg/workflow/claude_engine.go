@@ -287,11 +287,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	return steps
 }
 
-// convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
-func (e *ClaudeEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	return ConvertStepToYAML(stepMap)
-}
-
 // GetLogParserScriptId returns the JavaScript script name for parsing Claude logs
 func (e *ClaudeEngine) GetLogParserScriptId() string {
 	return "parse_claude_log"

@@ -328,11 +328,6 @@ COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 	return steps
 }
 
-// convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
-func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	return ConvertStepToYAML(stepMap)
-}
-
 // GetSquidLogsSteps returns the steps for collecting and uploading Squid logs
 func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubActionStep {
 	var steps []GitHubActionStep
