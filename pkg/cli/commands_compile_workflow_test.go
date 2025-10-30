@@ -570,6 +570,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 ---
 
 # Test Workflow
@@ -617,6 +619,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 ---
 
 # Test Workflow

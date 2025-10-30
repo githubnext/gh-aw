@@ -275,6 +275,64 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		return errors.New(formattedErr)
 	}
 
+	// Validate permissions against GitHub MCP toolsets
+	log.Printf("Validating permissions for GitHub MCP toolsets")
+	if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub {
+		// Parse permissions from the workflow data
+		// WorkflowData.Permissions contains the raw YAML string (including "permissions:" prefix)
+		permissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
+		
+		// Validate permissions
+		validationResult := ValidatePermissions(permissions, githubTool)
+		
+		if validationResult.HasValidationIssues {
+			// Format the validation message
+			message := FormatValidationMessage(validationResult, c.strictMode)
+			
+			if len(validationResult.MissingPermissions) > 0 {
+				// Missing permissions are always errors
+				formattedErr := console.FormatError(console.CompilerError{
+					Position: console.ErrorPosition{
+						File:   markdownPath,
+						Line:   1,
+						Column: 1,
+					},
+					Type:    "error",
+					Message: message,
+				})
+				return errors.New(formattedErr)
+			}
+			
+			if len(validationResult.ExcessPermissions) > 0 {
+				// Excess permissions are warnings by default, errors in strict mode
+				if c.strictMode {
+					formattedErr := console.FormatError(console.CompilerError{
+						Position: console.ErrorPosition{
+							File:   markdownPath,
+							Line:   1,
+							Column: 1,
+						},
+						Type:    "error",
+						Message: message,
+					})
+					return errors.New(formattedErr)
+				} else {
+					formattedWarning := console.FormatError(console.CompilerError{
+						Position: console.ErrorPosition{
+							File:   markdownPath,
+							Line:   1,
+							Column: 1,
+						},
+						Type:    "warning",
+						Message: message,
+					})
+					fmt.Fprintln(os.Stderr, formattedWarning)
+					c.IncrementWarningCount()
+				}
+			}
+		}
+	}
+
 	// Note: Markdown content size is now handled by splitting into multiple steps in generatePrompt
 
 	log.Printf("Workflow: %s, Tools: %d", workflowData.Name, len(workflowData.Tools))
