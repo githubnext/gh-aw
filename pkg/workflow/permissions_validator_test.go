@@ -5,76 +5,6 @@ import (
 	"testing"
 )
 
-func TestParseToolsets(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected []string
-	}{
-		{
-			name:     "Empty string returns default",
-			input:    "",
-			expected: []string{"context", "repos", "issues", "pull_requests", "users"},
-		},
-		{
-			name:     "Default expands to default toolsets",
-			input:    "default",
-			expected: []string{"context", "repos", "issues", "pull_requests", "users"},
-		},
-		{
-			name:     "Specific toolsets",
-			input:    "repos,issues",
-			expected: []string{"repos", "issues"},
-		},
-		{
-			name:     "Default plus additional",
-			input:    "default,discussions",
-			expected: []string{"context", "repos", "issues", "pull_requests", "users", "discussions"},
-		},
-		{
-			name:  "All expands to all toolsets",
-			input: "all",
-			// Should include all 19 toolsets
-			expected: nil, // We'll check the count instead
-		},
-		{
-			name:     "Deduplication",
-			input:    "repos,issues,repos",
-			expected: []string{"repos", "issues"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := parseToolsets(tt.input)
-
-			if tt.name == "All expands to all toolsets" {
-				// Check that all toolsets are present
-				if len(result) != len(toolsetPermissionsMap) {
-					t.Errorf("Expected %d toolsets for 'all', got %d", len(toolsetPermissionsMap), len(result))
-				}
-			} else {
-				if len(result) != len(tt.expected) {
-					t.Errorf("Expected %d toolsets, got %d: %v", len(tt.expected), len(result), result)
-					return
-				}
-
-				// Check that all expected toolsets are present (order doesn't matter)
-				resultMap := make(map[string]bool)
-				for _, ts := range result {
-					resultMap[ts] = true
-				}
-
-				for _, expected := range tt.expected {
-					if !resultMap[expected] {
-						t.Errorf("Expected toolset %s not found in result: %v", expected, result)
-					}
-				}
-			}
-		})
-	}
-}
-
 func TestCollectRequiredPermissions(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -124,7 +54,7 @@ func TestCollectRequiredPermissions(t *testing.T) {
 		},
 		{
 			name:     "Default toolsets in read-write mode",
-			toolsets: defaultToolsets,
+			toolsets: DefaultGitHubToolsets,
 			readOnly: false,
 			expected: map[PermissionScope]PermissionLevel{
 				PermissionContents:     PermissionWrite,
@@ -581,7 +511,7 @@ func TestToolsetPermissionsMapping(t *testing.T) {
 	}
 
 	// Verify that default toolsets are valid
-	for _, toolset := range defaultToolsets {
+	for _, toolset := range DefaultGitHubToolsets {
 		if _, exists := toolsetPermissionsMap[toolset]; !exists {
 			t.Errorf("Default toolset %q not defined in toolsetPermissionsMap", toolset)
 		}

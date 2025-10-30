@@ -96,9 +96,6 @@ var toolsetPermissionsMap = map[string]GitHubToolsetPermissions{
 	},
 }
 
-// defaultToolsets defines the toolsets that are enabled when "default" is specified
-var defaultToolsets = []string{"context", "repos", "issues", "pull_requests", "users"}
-
 // PermissionsValidationResult contains the result of permissions validation
 type PermissionsValidationResult struct {
 	MissingPermissions     map[PermissionScope]PermissionLevel // Permissions required but not granted
@@ -133,7 +130,7 @@ func ValidatePermissions(permissions *Permissions, githubTool any) *PermissionsV
 	permissionsValidatorLog.Printf("Validating toolsets: %s, read-only: %v", toolsetsStr, readOnly)
 
 	// Parse toolsets
-	toolsets := parseToolsets(toolsetsStr)
+	toolsets := ParseGitHubToolsets(toolsetsStr)
 	if len(toolsets) == 0 {
 		permissionsValidatorLog.Print("No toolsets to validate")
 		return result
@@ -156,50 +153,6 @@ func ValidatePermissions(permissions *Permissions, githubTool any) *PermissionsV
 	result.HasValidationIssues = len(result.MissingPermissions) > 0 || len(result.ExcessPermissions) > 0
 
 	return result
-}
-
-// parseToolsets parses the toolsets string and expands "default" and "all"
-func parseToolsets(toolsetsStr string) []string {
-	if toolsetsStr == "" {
-		return defaultToolsets
-	}
-
-	toolsets := strings.Split(toolsetsStr, ",")
-	var expanded []string
-	seenToolsets := make(map[string]bool)
-
-	for _, toolset := range toolsets {
-		toolset = strings.TrimSpace(toolset)
-		if toolset == "" {
-			continue
-		}
-
-		if toolset == "default" {
-			// Add default toolsets
-			for _, dt := range defaultToolsets {
-				if !seenToolsets[dt] {
-					expanded = append(expanded, dt)
-					seenToolsets[dt] = true
-				}
-			}
-		} else if toolset == "all" {
-			// Add all toolsets
-			for t := range toolsetPermissionsMap {
-				if !seenToolsets[t] {
-					expanded = append(expanded, t)
-					seenToolsets[t] = true
-				}
-			}
-		} else {
-			// Add individual toolset
-			if !seenToolsets[toolset] {
-				expanded = append(expanded, toolset)
-				seenToolsets[toolset] = true
-			}
-		}
-	}
-
-	return expanded
 }
 
 // containsAllToolset checks if the original toolsets string contains "all"
