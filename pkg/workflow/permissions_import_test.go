@@ -11,58 +11,58 @@ import (
 
 func TestMergePermissions(t *testing.T) {
 	tests := []struct {
-		name                 string
-		topPermissionsYAML   string
-		importedPermissions  string
-		expectedContains     []string
-		expectedNotContains  []string
+		name                string
+		topPermissionsYAML  string
+		importedPermissions string
+		expectedContains    []string
+		expectedNotContains []string
 	}{
 		{
-			name:               "No imported permissions returns top-level unchanged",
-			topPermissionsYAML: "permissions:\n  contents: read",
+			name:                "No imported permissions returns top-level unchanged",
+			topPermissionsYAML:  "permissions:\n  contents: read",
 			importedPermissions: "",
 			expectedContains:    []string{"contents: read"},
 		},
 		{
-			name:               "Empty imported permissions returns top-level unchanged",
-			topPermissionsYAML: "permissions:\n  contents: read",
+			name:                "Empty imported permissions returns top-level unchanged",
+			topPermissionsYAML:  "permissions:\n  contents: read",
 			importedPermissions: "{}",
 			expectedContains:    []string{"contents: read"},
 		},
 		{
-			name:               "Merge adds new permission",
-			topPermissionsYAML: "permissions:\n  contents: read",
+			name:                "Merge adds new permission",
+			topPermissionsYAML:  "permissions:\n  contents: read",
 			importedPermissions: `{"actions":"read"}`,
 			expectedContains:    []string{"contents: read", "actions: read"},
 		},
 		{
-			name:               "Merge upgrades read to write",
-			topPermissionsYAML: "permissions:\n  contents: read",
+			name:                "Merge upgrades read to write",
+			topPermissionsYAML:  "permissions:\n  contents: read",
 			importedPermissions: `{"contents":"write"}`,
 			expectedContains:    []string{"contents: write"},
 			expectedNotContains: []string{"contents: read"},
 		},
 		{
-			name:               "Merge keeps write when import has read",
-			topPermissionsYAML: "permissions:\n  contents: write",
+			name:                "Merge keeps write when import has read",
+			topPermissionsYAML:  "permissions:\n  contents: write",
 			importedPermissions: `{"contents":"read"}`,
 			expectedContains:    []string{"contents: write"},
 		},
 		{
-			name:               "Merge multiple permissions from import",
-			topPermissionsYAML: "",
+			name:                "Merge multiple permissions from import",
+			topPermissionsYAML:  "",
 			importedPermissions: `{"actions":"read"}` + "\n" + `{"issues":"write"}`,
 			expectedContains:    []string{"actions: read", "issues: write"},
 		},
 		{
-			name:               "Merge with empty top-level permissions",
-			topPermissionsYAML: "",
+			name:                "Merge with empty top-level permissions",
+			topPermissionsYAML:  "",
 			importedPermissions: `{"actions":"read"}`,
 			expectedContains:    []string{"actions: read"},
 		},
 		{
-			name:               "Merge complex scenario",
-			topPermissionsYAML: "permissions:\n  contents: read\n  issues: read",
+			name:                "Merge complex scenario",
+			topPermissionsYAML:  "permissions:\n  contents: read\n  issues: read",
 			importedPermissions: `{"actions":"read"}` + "\n" + `{"contents":"write"}` + "\n" + `{"pull-requests":"write"}`,
 			expectedContains:    []string{"contents: write", "issues: read", "actions: read", "pull-requests: write"},
 		},

@@ -202,7 +202,7 @@ func (c *Compiler) MergePermissions(topPermissionsYAML string, importedPermissio
 		// Merge each permission from the imported map
 		for scopeStr, levelValue := range importedPermsMap {
 			scope := PermissionScope(scopeStr)
-			
+
 			// Parse the level - it might be a string or already unmarshaled
 			var level PermissionLevel
 			if levelStr, ok := levelValue.(string); ok {
