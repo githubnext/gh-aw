@@ -1,17 +1,17 @@
 ---
-# Ollama LlamaGuard Threat Scanning
+# Ollama Llama Guard 3 Threat Scanning
 # Instructions for adding Ollama-based threat scanning to agentic workflows
 #
 # This file provides documentation and example configuration for using
-# Ollama with the LlamaGuard-1b model to scan safe outputs and patches.
+# Ollama with the Llama Guard 3:1b model to scan safe outputs and patches.
 #
 # Note: Ollama operations can be resource-intensive. Ensure your workflow has
 # adequate timeout_minutes (recommended: 20+ minutes for model download and scanning).
 ---
 
-# Ollama LlamaGuard Threat Scanning
+# Ollama Llama Guard 3 Threat Scanning
 
-This guide explains how to add Ollama-based threat scanning using the LlamaGuard-1b model to your agentic workflows.
+This guide explains how to add Ollama-based threat scanning using the Llama Guard 3:1b model to your agentic workflows.
 
 ## Quick Start
 
@@ -25,7 +25,7 @@ safe-outputs:
   create-pull-request:
   threat-detection:
     steps:
-      - name: Ollama LlamaGuard Threat Scan
+      - name: Ollama Llama Guard 3 Threat Scan
         id: ollama-scan
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
@@ -91,29 +91,29 @@ safe-outputs:
               }
             }
             
-            // ===== DOWNLOAD LLAMAGUARD MODEL =====
-            core.info('📥 Downloading LlamaGuard-1b model...');
+            // ===== DOWNLOAD LLAMA GUARD 3 MODEL =====
+            core.info('📥 Downloading Llama Guard 3:1b model...');
             core.info('This may take several minutes...');
             try {
               const startTime = Date.now();
-              await exec.exec('ollama', ['pull', 'llamaguard']);
+              await exec.exec('ollama', ['pull', 'llama-guard3:1b']);
               
               const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
               core.info(`✅ Model downloaded successfully in ${elapsed}s`);
               
               // Verify model is available
               const modelsOutput = await exec.getExecOutput('ollama', ['list']);
-              if (!modelsOutput.stdout.includes('llamaguard')) {
-                throw new Error('LlamaGuard model not found after download');
+              if (!modelsOutput.stdout.includes('llama-guard3')) {
+                throw new Error('Llama Guard 3 model not found after download');
               }
-              core.info('✅ LlamaGuard model ready');
+              core.info('✅ Llama Guard 3 model ready');
             } catch (error) {
               core.setFailed(`Failed to download model: ${error instanceof Error ? error.message : String(error)}`);
               throw error;
             }
             
             // ===== SCAN SAFE OUTPUTS =====
-            core.info('🔍 Starting LlamaGuard threat scan...');
+            core.info('🔍 Starting Llama Guard 3 threat scan...');
             const scanDir = '/tmp/gh-aw/threat-detection';
             const files = [
               { path: path.join(scanDir, 'agent_output.json'), name: 'Agent Output' },
@@ -143,26 +143,33 @@ safe-outputs:
                   : fileContent;
                 
                 const prompt = `Analyze the following content for security threats, malicious code, or harmful patterns:\n\n${content}`;
-                const promptFile = `/tmp/gh-aw/ollama-prompt-${Date.now()}.txt`;
-                fs.writeFileSync(promptFile, prompt);
                 
-                core.info('🤖 Running LlamaGuard analysis...');
+                core.info('🤖 Running Llama Guard 3 analysis...');
                 const scanStart = Date.now();
                 
                 let output = '';
                 try {
-                  const result = await exec.getExecOutput('sh', ['-c', `ollama run llamaguard < ${promptFile}`]);
-                  output = result.stdout;
+                  const response = await exec.getExecOutput('curl', [
+                    '-X', 'POST',
+                    'http://localhost:11434/api/chat',
+                    '-H', 'Content-Type: application/json',
+                    '-d', JSON.stringify({
+                      model: 'llama-guard3:1b',
+                      messages: [{ role: 'user', content: prompt }],
+                      stream: false
+                    })
+                  ]);
+                  const apiResult = JSON.parse(response.stdout);
+                  output = apiResult.message?.content || '';
                 } catch (error) {
-                  core.warning(`LlamaGuard execution error: ${error instanceof Error ? error.message : String(error)}`);
+                  core.warning(`Llama Guard 3 execution error: ${error instanceof Error ? error.message : String(error)}`);
                   output = error.stdout || '';
                 }
                 
                 const scanElapsed = ((Date.now() - scanStart) / 1000).toFixed(1);
                 core.info(`Analysis completed in ${scanElapsed}s`);
-                fs.unlinkSync(promptFile);
                 
-                core.info(`\n📊 LlamaGuard Response:\n${output}`);
+                core.info(`\n📊 Llama Guard 3 Response:\n${output}`);
                 
                 const isUnsafe = output.toLowerCase().includes('unsafe') || 
                                 output.toLowerCase().includes('malicious') ||
@@ -199,7 +206,7 @@ safe-outputs:
             
             // Summary
             core.info('\n' + '='.repeat(60));
-            core.info('🔍 LlamaGuard Scan Summary');
+            core.info('🔍 Llama Guard 3 Scan Summary');
             core.info('='.repeat(60));
             for (const result of results) {
               const status = result.safe ? '✅ SAFE' : '❌ UNSAFE';
@@ -211,7 +218,7 @@ safe-outputs:
             core.info('='.repeat(60));
             
             if (threatsDetected) {
-              core.setFailed('❌ LlamaGuard detected potential security threats in the safe outputs or patches');
+              core.setFailed('❌ Llama Guard 3 detected potential security threats in the safe outputs or patches');
             } else {
               core.info('✅ All scanned content appears safe');
             }
@@ -228,14 +235,14 @@ safe-outputs:
           if-no-files-found: ignore
 ---
 
-# Ollama LlamaGuard Threat Scanning
+# Ollama Llama Guard 3 Threat Scanning
 
-This shared workflow adds Ollama-based threat scanning using the LlamaGuard-1b model to analyze safe outputs and code patches for security threats.
+This shared workflow adds Ollama-based threat scanning using the Llama Guard 3:1b model to analyze safe outputs and code patches for security threats.
 
 ## Features
 
 - **Automatic Ollama Installation**: Installs Ollama on the GitHub Actions runner
-- **Model Pre-download**: Downloads the llamaguard-1b model before scanning
+- **Model Pre-download**: Downloads the llama-guard3:1b model before scanning
 - **Safe Output Scanning**: Scans agent output files and code patches
 - **Automatic Failure**: Fails the workflow if threats are detected
 - **Detailed Logging**: Provides comprehensive logging of all operations
@@ -244,13 +251,13 @@ This shared workflow adds Ollama-based threat scanning using the LlamaGuard-1b m
 
 1. **Installation**: Downloads and installs Ollama
 2. **Service Start**: Starts the Ollama service in the background
-3. **Model Download**: Pulls the LlamaGuard model (may take several minutes)
-4. **Scanning**: Analyzes agent outputs and patches for threats
-5. **Results**: Parses LlamaGuard responses and fails if unsafe content is detected
+3. **Model Download**: Pulls the Llama Guard 3 model (may take several minutes)
+4. **Scanning**: Analyzes agent outputs and patches for threats via HTTP API
+5. **Results**: Parses Llama Guard 3 responses and fails if unsafe content is detected
 
-## LlamaGuard Model
+## Llama Guard 3 Model
 
-LlamaGuard is a safeguard model designed to detect potentially harmful content including:
+Llama Guard 3 is a safeguard model designed to detect potentially harmful content including:
 - Malicious code patterns
 - Security vulnerabilities
 - Harmful instructions
@@ -305,7 +312,7 @@ The scan results are uploaded as artifacts including:
 
 This Ollama scanning complements the existing AI-based threat detection:
 - Existing: Uses Claude/Copilot to analyze context and intent
-- Ollama: Uses specialized LlamaGuard model for pattern-based threat detection
+- Ollama: Uses specialized Llama Guard 3 model for pattern-based threat detection
 - Together they provide defense-in-depth security analysis
 
 ## Troubleshooting
@@ -326,9 +333,9 @@ This Ollama scanning complements the existing AI-based threat detection:
 - Verify port 11434 is not already in use
 
 **Scan produces false positives:**
-- Review LlamaGuard response in step logs
+- Review Llama Guard 3 response in step logs
 - Adjust threat keywords in the scanning logic
-- Consider customizing the prompt sent to LlamaGuard
+- Consider customizing the prompt sent to Llama Guard 3
 
 **Out of memory errors:**
 - Reduce maxChars truncation limit (default: 8000)
