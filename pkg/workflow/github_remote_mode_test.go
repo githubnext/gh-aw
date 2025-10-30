@@ -27,11 +27,14 @@ func TestGitHubRemoteModeConfiguration(t *testing.T) {
 		{
 			name: "Remote mode with default token",
 			frontmatter: `---
+on: issues
+permissions:
+  issues: write
 engine: claude
 tools:
   github:
     mode: remote
-    allowed: [list_issues, create_issue]
+    toolsets: [issues]
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
@@ -41,12 +44,15 @@ tools:
 		{
 			name: "Remote mode with custom token",
 			frontmatter: `---
+on: issues
+permissions:
+  issues: write
 engine: claude
 tools:
   github:
     mode: remote
     github-token: "${{ secrets.CUSTOM_PAT }}"
-    allowed: [list_issues, create_issue]
+    toolsets: [issues]
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
@@ -56,12 +62,15 @@ tools:
 		{
 			name: "Remote mode with read-only",
 			frontmatter: `---
+on: issues
+permissions:
+  issues: read
 engine: claude
 tools:
   github:
     mode: remote
     read-only: true
-    allowed: [list_issues]
+    toolsets: [issues]
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
@@ -71,10 +80,13 @@ tools:
 		{
 			name: "Local mode (default)",
 			frontmatter: `---
+on: issues
+permissions:
+  issues: write
 engine: claude
 tools:
   github:
-    allowed: [list_issues, create_issue]
+    toolsets: [issues]
 ---`,
 			expectedType:  "local",
 			expectedURL:   "",
@@ -84,11 +96,14 @@ tools:
 		{
 			name: "Copilot remote mode with default token",
 			frontmatter: `---
+on: issues
+permissions:
+  issues: write
 engine: copilot
 tools:
   github:
     mode: remote
-    allowed: [list_issues, create_issue]
+    toolsets: [issues]
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
@@ -98,12 +113,15 @@ tools:
 		{
 			name: "Copilot remote mode with read-only",
 			frontmatter: `---
+on: issues
+permissions:
+  issues: read
 engine: copilot
 tools:
   github:
     mode: remote
     read-only: true
-    allowed: [list_issues]
+    toolsets: [issues]
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
@@ -113,12 +131,15 @@ tools:
 		{
 			name: "Codex remote mode with default token",
 			frontmatter: `---
+on: issues
+permissions:
+  issues: write
 engine: codex
 tools:
   github:
     mode: remote
     read-only: false
-    allowed: [list_issues, create_issue]
+    toolsets: [issues]
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
@@ -128,13 +149,16 @@ tools:
 		{
 			name: "Codex remote mode with custom token",
 			frontmatter: `---
+on: issues
+permissions:
+  issues: write
 engine: codex
 tools:
   github:
     mode: remote
     read-only: false
     github-token: "${{ secrets.CUSTOM_PAT }}"
-    allowed: [list_issues, create_issue]
+    toolsets: [issues]
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
@@ -144,12 +168,15 @@ tools:
 		{
 			name: "Codex remote mode with read-only",
 			frontmatter: `---
+on: issues
+permissions:
+  issues: read
 engine: codex
 tools:
   github:
     mode: remote
     read-only: true
-    allowed: [list_issues]
+    toolsets: [issues]
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp-readonly/",

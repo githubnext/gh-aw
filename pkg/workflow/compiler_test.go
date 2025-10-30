@@ -2550,7 +2550,7 @@ permissions:
   pull-requests: read
 tools:
   github:
-    allowed: [get_issue]
+    toolsets: [issues]
 timeout_minutes: 5
 ---
 
@@ -4410,9 +4410,9 @@ func TestCustomStepsIndentation(t *testing.T) {
 on: push
 permissions:
   contents: read
-%s
   issues: read
   pull-requests: read
+%s
 engine: claude
 ---
 
@@ -4774,9 +4774,9 @@ func TestCustomStepsEdgeCases(t *testing.T) {
 on: push
 permissions:
   contents: read
-%s
   issues: read
   pull-requests: read
+%s
 engine: claude
 ---
 
