@@ -18,7 +18,7 @@ var safeOutputsLog = logger.New("workflow:safe_outputs")
 // formatSafeOutputsRunsOn formats the runs-on value from SafeOutputsConfig for job output
 func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) string {
 	if safeOutputs == nil || safeOutputs.RunsOn == "" {
-		return "runs-on: ubuntu-latest" // Default
+		return "runs-on: ubuntu-slim" // Default - See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/
 	}
 
 	return fmt.Sprintf("runs-on: %s", safeOutputs.RunsOn)
