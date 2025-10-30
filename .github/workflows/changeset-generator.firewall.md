@@ -15,9 +15,7 @@ safe-outputs:
   push-to-pull-request-branch:
     commit-title-suffix: " [skip-ci]"
   threat-detection:
-    engine:
-      id: custom
-      steps: []
+    engine: false
     steps:
       - name: Ollama LlamaGuard Threat Scan
         id: ollama-scan

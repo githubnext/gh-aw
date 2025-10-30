@@ -4622,10 +4622,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Ensure log file exists
-        run: |
-          echo "Custom steps execution completed" >> /tmp/gh-aw/threat-detection/detection.log
-          touch /tmp/gh-aw/threat-detection/detection.log
+      # AI engine disabled for threat detection (engine: false)
       - name: Parse threat detection results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:

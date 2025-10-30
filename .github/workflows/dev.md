@@ -14,9 +14,7 @@ tools:
   edit:
 safe-outputs:
   threat-detection:
-    engine:
-      id: custom
-      steps: []
+    engine: false
     steps:
       - name: Ollama LlamaGuard Threat Scan
         id: ollama-scan

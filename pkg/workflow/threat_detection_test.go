@@ -748,3 +748,45 @@ func TestBuildWorkflowContextEnvVarsExcludesMarkdown(t *testing.T) {
 		t.Error("Environment variables should not include WORKFLOW_MARKDOWN")
 	}
 }
+
+
+func TestThreatDetectionEngineFalse(t *testing.T) {
+compiler := NewCompiler(false, "", "test")
+
+// Test that engine: false is properly parsed
+frontmatter := map[string]any{
+"safe-outputs": map[string]any{
+"create-issue": map[string]any{},
+"threat-detection": map[string]any{
+"engine": false,
+"steps": []any{
+map[string]any{
+"name": "Custom Scan",
+"run":  "echo 'Custom scan'",
+},
+},
+},
+},
+}
+
+config := compiler.extractSafeOutputsConfig(frontmatter)
+if config == nil {
+t.Fatal("Expected safe outputs config to be created")
+}
+
+if config.ThreatDetection == nil {
+t.Fatal("Expected threat detection to be enabled")
+}
+
+if !config.ThreatDetection.EngineDisabled {
+t.Error("Expected EngineDisabled to be true when engine: false")
+}
+
+if config.ThreatDetection.EngineConfig != nil {
+t.Error("Expected EngineConfig to be nil when engine: false")
+}
+
+if len(config.ThreatDetection.Steps) != 1 {
+t.Fatalf("Expected 1 custom step, got %d", len(config.ThreatDetection.Steps))
+}
+}
