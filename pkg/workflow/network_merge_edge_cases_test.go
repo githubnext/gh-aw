@@ -31,6 +31,10 @@ network:
 		workflowContent := `---
 on: issues
 engine: claude
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
 network:
   allowed:
     - github.com
@@ -81,6 +85,10 @@ network: {}
 		workflowContent := `---
 on: issues
 engine: claude
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
 network:
   allowed:
     - github.com

@@ -36,6 +36,8 @@ This file provides network access to example.com domains.
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 network:
   allowed:
