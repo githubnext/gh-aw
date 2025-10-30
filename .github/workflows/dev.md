@@ -8,7 +8,8 @@ name: Dev
 engine: copilot
 permissions:
   contents: read
-  actions: read
+  issues: read
+  pull-requests: read
 tools:
   edit:
 safe-outputs:

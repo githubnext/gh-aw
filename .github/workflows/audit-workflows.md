@@ -5,7 +5,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  actions: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   cache-memory: true

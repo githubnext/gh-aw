@@ -9,7 +9,8 @@ on:
         type: string
 permissions:
   contents: read
-  actions: read
+  issues: read
+  pull-requests: read
 engine:
   id: claude
   max-turns: 100

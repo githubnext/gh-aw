@@ -44,9 +44,10 @@ name: "Schema Consistency Checker"
   workflow_dispatch: null
 
 permissions:
-  actions: read
   contents: read
-  discussions: write
+  discussions: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -55,7 +56,7 @@ run-name: "Schema Consistency Checker"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -77,9 +78,10 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
-      discussions: write
+      discussions: read
+      issues: read
+      pull-requests: read
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
     env:
@@ -1091,6 +1093,7 @@ jobs:
                 "url": "https://api.githubcopilot.com/mcp/",
                 "headers": {
                   "Authorization": "Bearer ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+                  "X-MCP-Readonly": "true",
                   "X-MCP-Toolsets": "default,discussions"
                 }
               },
@@ -3445,7 +3448,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -3932,7 +3935,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     timeout-minutes: 5

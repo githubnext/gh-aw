@@ -6,6 +6,11 @@ on:
 permissions:
   contents: read
   actions: read
+  discussions: read
+  issues: read
+  pull-requests: read
+  repository-projects: read
+  security-events: read
 engine: claude
 tools:
   github:

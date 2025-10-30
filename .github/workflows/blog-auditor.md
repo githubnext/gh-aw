@@ -5,7 +5,8 @@ on:
     - cron: "0 12 * * 3"  # Weekly on Wednesday at 12:00 UTC
 permissions:
   contents: read
-  actions: read
+  issues: read
+  pull-requests: read
 engine: claude
 network:
   allowed:

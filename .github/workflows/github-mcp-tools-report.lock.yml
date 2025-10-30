@@ -49,6 +49,11 @@ name: "GitHub MCP Remote Server Tools Report Generator"
 permissions:
   actions: read
   contents: read
+  discussions: read
+  issues: read
+  pull-requests: read
+  repository-projects: read
+  security-events: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -57,7 +62,7 @@ run-name: "GitHub MCP Remote Server Tools Report Generator"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -81,6 +86,11 @@ jobs:
     permissions:
       actions: read
       contents: read
+      discussions: read
+      issues: read
+      pull-requests: read
+      repository-projects: read
+      security-events: read
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
     env:
@@ -1427,7 +1437,7 @@ jobs:
           - ✅ Saves current tools list to cache for next run
           - ✅ **Creates/updates `.github/instructions/github-mcp-server.instructions.md`** with comprehensive documentation
           - ✅ **Identifies and documents recommended default toolsets** with rationale
-          - ✅ **Updates default toolsets** in documentation files (github-agentic-workflows.instructions.md and templates/instructions.md)
+          - ✅ **Updates default toolsets** in documentation files (github-agentic-workflows.instructions.md)
           - ✅ Organizes tools by their appropriate toolset categories
           - ✅ Provides clear descriptions and usage information
           - ✅ Is formatted as a well-structured markdown document
@@ -1467,7 +1477,6 @@ jobs:
              - Format the documentation according to the repository's documentation standards
           7. **Update default toolsets documentation** in:
              - `.github/instructions/github-agentic-workflows.instructions.md` (line 126)
-             - `pkg/cli/templates/instructions.md` (line 126)
              - Use the recommended default toolsets identified in step 6
              - Ensure consistency across all documentation files
           8. Create a GitHub discussion with the complete tools report
@@ -1525,13 +1534,13 @@ jobs:
              - Consider which tools are most commonly needed across different workflow types
              - Evaluate the current defaults: `context`, `repos`, `issues`, `pull_requests`, `users`
              - Determine if these defaults should be updated based on actual tool availability and usage patterns
+             - Document your rationale for the recommended defaults
           PROMPT_EOF
       - name: Append prompt (part 2)
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
-             - Document your rationale for the recommended defaults
           6. **Create comprehensive documentation file**: Create/update `.github/instructions/github-mcp-server.instructions.md` with:
              - Overview of GitHub MCP server (remote vs local mode)
              - Complete list of available tools organized by toolset
@@ -1545,7 +1554,6 @@ jobs:
              - Best practices for toolset selection
           7. **Update documentation references**: Update the default toolsets list in:
              - `.github/instructions/github-agentic-workflows.instructions.md` (search for "Default toolsets (if not specified)")
-             - `pkg/cli/templates/instructions.md` (search for "Default toolsets (if not specified)")
           8. **Document**: Categorize tools appropriately and create comprehensive documentation
           9. **Save for next run**: Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json`
           10. **Generate report**: Create the final markdown report including change tracking and inconsistency detection
@@ -3635,7 +3643,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -3883,7 +3891,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
       issues: write
@@ -4632,7 +4640,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     timeout-minutes: 5

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  actions: read
+  pull-requests: read
   security-events: read
 engine: claude
 tools:
