@@ -141,7 +141,7 @@ on:
     types: [created]
 permissions:
   issues: write
-engine: claude
+engine: codex
 ---
 
 # Test Workflow

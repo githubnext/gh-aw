@@ -126,7 +126,6 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 		githubTool         any
 		expectMissing      map[PermissionScope]PermissionLevel
 		expectMissingCount int
-		expectExcessCount  int
 		expectHasIssues    bool
 	}{
 		{
@@ -135,7 +134,6 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 			githubTool:         nil,
 			expectMissing:      map[PermissionScope]PermissionLevel{},
 			expectMissingCount: 0,
-			expectExcessCount:  0,
 			expectHasIssues:    false,
 		},
 		{
@@ -145,7 +143,6 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 				"toolsets": []string{"default"},
 			},
 			expectMissingCount: 3, // contents, issues, pull-requests
-			expectExcessCount:  0,
 			expectHasIssues:    true,
 		},
 		{
@@ -160,7 +157,6 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 				"read-only": false,
 			},
 			expectMissingCount: 0,
-			expectExcessCount:  0,
 			expectHasIssues:    false,
 		},
 		{
@@ -175,7 +171,6 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 				"read-only": false, // Need write permissions
 			},
 			expectMissingCount: 3, // All need write
-			expectExcessCount:  0,
 			expectHasIssues:    true,
 		},
 		{
@@ -190,7 +185,6 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 				"read-only": true,
 			},
 			expectMissingCount: 0,
-			expectExcessCount:  0,
 			expectHasIssues:    false,
 		},
 		{
@@ -203,7 +197,6 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 				"read-only": false,
 			},
 			expectMissingCount: 1, // Missing issues: write
-			expectExcessCount:  0,
 			expectHasIssues:    true,
 		},
 		{
@@ -215,7 +208,6 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 				"toolsets": []string{"actions"},
 			},
 			expectMissingCount: 0,
-			expectExcessCount:  0,
 			expectHasIssues:    false,
 		},
 	}
@@ -227,11 +219,6 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 			if len(result.MissingPermissions) != tt.expectMissingCount {
 				t.Errorf("Expected %d missing permissions, got %d: %v",
 					tt.expectMissingCount, len(result.MissingPermissions), result.MissingPermissions)
-			}
-
-			if len(result.ExcessPermissions) != tt.expectExcessCount {
-				t.Errorf("Expected %d excess permissions, got %d: %v",
-					tt.expectExcessCount, len(result.ExcessPermissions), result.ExcessPermissions)
 			}
 
 			if result.HasValidationIssues != tt.expectHasIssues {
@@ -249,125 +236,6 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 						t.Errorf("Missing permission %s: expected level %s, got %s", scope, expectedLevel, actualLevel)
 					}
 				}
-			}
-		})
-	}
-}
-
-func TestValidatePermissions_ExcessPermissions(t *testing.T) {
-	tests := []struct {
-		name               string
-		permissions        *Permissions
-		githubTool         any
-		expectExcessCount  int
-		expectMissingCount int
-		expectHasIssues    bool
-	}{
-		{
-			name: "No excess permissions when using 'all' toolset",
-			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionWrite,
-				PermissionIssues:   PermissionWrite,
-				PermissionActions:  PermissionRead,
-			}),
-			githubTool: map[string]any{
-				"toolsets":  []string{"all"},
-				"read-only": false,
-			},
-			expectExcessCount: 0, // 'all' disables excess checking
-			// But we still expect missing permissions for toolsets not covered
-			expectMissingCount: 4, // discussions, pull-requests, repository-projects, security-events
-			expectHasIssues:    true,
-		},
-		{
-			name: "Excess permissions for specific toolsets",
-			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionWrite,
-				PermissionIssues:   PermissionWrite,
-				PermissionActions:  PermissionRead,
-			}),
-			githubTool: map[string]any{
-				"toolsets":  []string{"repos"},
-				"read-only": false,
-			},
-			expectExcessCount:  2, // issues and actions not needed
-			expectMissingCount: 0,
-			expectHasIssues:    true,
-		},
-		{
-			name: "Write permission when only read needed",
-			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-				PermissionActions: PermissionWrite,
-			}),
-			githubTool: map[string]any{
-				"toolsets":  []string{"actions"},
-				"read-only": false,
-			},
-			expectExcessCount:  1, // actions only needs read
-			expectMissingCount: 0,
-			expectHasIssues:    true,
-		},
-		{
-			name: "No excess in read-only mode with read permissions",
-			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionRead,
-			}),
-			githubTool: map[string]any{
-				"toolsets":  []string{"repos"},
-				"read-only": true,
-			},
-			expectExcessCount:  0,
-			expectMissingCount: 0,
-			expectHasIssues:    false,
-		},
-		{
-			name: "Excess write permission in read-only mode",
-			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionWrite,
-			}),
-			githubTool: map[string]any{
-				"toolsets":  []string{"repos"},
-				"read-only": true,
-			},
-			expectExcessCount:  1, // write not needed in read-only
-			expectMissingCount: 0,
-			expectHasIssues:    true,
-		},
-		{
-			name: "Default toolsets with extra permissions",
-			permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionWrite,
-				PermissionIssues:       PermissionWrite,
-				PermissionPullRequests: PermissionWrite,
-				PermissionDiscussions:  PermissionWrite,
-				PermissionActions:      PermissionRead,
-			}),
-			githubTool: map[string]any{
-				"toolsets":  []string{"default"},
-				"read-only": false,
-			},
-			expectExcessCount:  2, // discussions and actions not in default
-			expectMissingCount: 0,
-			expectHasIssues:    true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := ValidatePermissions(tt.permissions, tt.githubTool)
-
-			if len(result.ExcessPermissions) != tt.expectExcessCount {
-				t.Errorf("Expected %d excess permissions, got %d: %v",
-					tt.expectExcessCount, len(result.ExcessPermissions), result.ExcessPermissions)
-			}
-
-			if len(result.MissingPermissions) != tt.expectMissingCount {
-				t.Errorf("Expected %d missing permissions, got %d: %v",
-					tt.expectMissingCount, len(result.MissingPermissions), result.MissingPermissions)
-			}
-
-			if result.HasValidationIssues != tt.expectHasIssues {
-				t.Errorf("Expected HasValidationIssues=%v, got %v", tt.expectHasIssues, result.HasValidationIssues)
 			}
 		})
 	}
@@ -411,67 +279,6 @@ func TestFormatValidationMessage(t *testing.T) {
 			},
 			expectNotContains: []string{
 				"ERROR:",
-			},
-		},
-		{
-			name: "Excess permissions warning",
-			result: &PermissionsValidationResult{
-				HasValidationIssues: true,
-				ExcessPermissions: map[PermissionScope]PermissionLevel{
-					PermissionActions:     PermissionRead,
-					PermissionDiscussions: PermissionWrite,
-				},
-			},
-			strict: false,
-			expectContains: []string{
-				"Over-provisioned permissions detected for github toolsets:",
-				"actions: read (not required)",
-				"discussions: write (not required)",
-				"Only grant permissions that are needed.",
-			},
-			expectNotContains: []string{
-				"WARNING:",
-			},
-		},
-		{
-			name: "Excess permissions warning in strict mode",
-			result: &PermissionsValidationResult{
-				HasValidationIssues: true,
-				ExcessPermissions: map[PermissionScope]PermissionLevel{
-					PermissionActions: PermissionRead,
-				},
-			},
-			strict: true,
-			expectContains: []string{
-				"Over-provisioned permissions detected for github toolsets:",
-				"actions: read",
-			},
-			expectNotContains: []string{
-				"ERROR:",
-				"WARNING:",
-			},
-		},
-		{
-			name: "Both missing and excess permissions",
-			result: &PermissionsValidationResult{
-				HasValidationIssues: true,
-				MissingPermissions: map[PermissionScope]PermissionLevel{
-					PermissionContents: PermissionWrite,
-				},
-				ExcessPermissions: map[PermissionScope]PermissionLevel{
-					PermissionActions: PermissionRead,
-				},
-			},
-			strict: false,
-			expectContains: []string{
-				"Missing required permissions for github toolsets:",
-				"contents: write",
-				"Over-provisioned permissions detected for github toolsets:",
-				"actions: read",
-			},
-			expectNotContains: []string{
-				"ERROR:",
-				"WARNING:",
 			},
 		},
 	}
@@ -545,17 +352,6 @@ func TestValidatePermissions_ComplexScenarios(t *testing.T) {
 				"contents: write",
 				"issues: write",
 				"pull-requests: write",
-			},
-		},
-		{
-			name:        "Shorthand write-all with specific toolsets",
-			permissions: NewPermissionsWriteAll(),
-			githubTool: map[string]any{
-				"toolsets":  []string{"repos"},
-				"read-only": false,
-			},
-			expectMsg: []string{
-				"Over-provisioned permissions detected for github toolsets:",
 			},
 		},
 		{

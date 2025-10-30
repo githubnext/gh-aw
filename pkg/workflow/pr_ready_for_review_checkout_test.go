@@ -76,7 +76,7 @@ on:
     types: [ready_for_review]
 permissions:
   issues: write
-engine: claude
+engine: codex
 ---
 
 # Test Workflow

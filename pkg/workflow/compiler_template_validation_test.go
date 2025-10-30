@@ -23,6 +23,7 @@ func TestCompilerRejectsIncludesInTemplateRegions(t *testing.T) {
 on: issues
 permissions:
   issues: write
+---
 
 # Valid Workflow
 
@@ -39,6 +40,7 @@ This is valid.
 on: issues
 permissions:
   issues: write
+---
 
 # Invalid Workflow
 
@@ -55,6 +57,7 @@ This should fail.
 on: pull_request
 permissions:
   pull-requests: write
+---
 
 # Invalid Workflow with Import
 
@@ -70,6 +73,7 @@ permissions:
 on: issues
 permissions:
   issues: write
+---
 
 # Valid Complex Workflow
 
