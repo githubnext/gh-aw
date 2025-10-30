@@ -324,6 +324,98 @@
           "additionalProperties": false
         }
       ]
+    },
+    "permissions": {
+      "description": "GitHub Actions permissions for the workflow (merged with main workflow permissions)",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Permission scopes and levels",
+          "properties": {
+            "actions": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for GitHub Actions"
+            },
+            "checks": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for checks"
+            },
+            "contents": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for repository contents"
+            },
+            "deployments": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for deployments"
+            },
+            "discussions": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for discussions"
+            },
+            "id-token": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for ID token"
+            },
+            "issues": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for issues"
+            },
+            "metadata": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for metadata"
+            },
+            "packages": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for packages"
+            },
+            "pages": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for GitHub Pages"
+            },
+            "pull-requests": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for pull requests"
+            },
+            "repository-projects": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for repository projects"
+            },
+            "security-events": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for security events"
+            },
+            "statuses": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for commit statuses"
+            },
+            "attestations": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for attestations"
+            },
+            "models": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for AI models"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     }
   },
   "additionalProperties": false,

@@ -355,6 +355,36 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		}
 	}
 
+	// Validate permissions for agentic-workflows tool
+	log.Printf("Validating permissions for agentic-workflows tool")
+	if _, hasAgenticWorkflows := workflowData.Tools["agentic-workflows"]; hasAgenticWorkflows {
+		// Parse permissions from the workflow data
+		permissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
+
+		// Check if actions: read permission exists
+		actionsLevel, hasActions := permissions.Get(PermissionActions)
+		if !hasActions || actionsLevel == PermissionNone {
+			// Missing actions: read permission
+			message := "ERROR: Missing required permission for agentic-workflows tool:\n"
+			message += "  - actions: read\n\n"
+			message += "The agentic-workflows tool requires actions: read permission to access GitHub Actions data.\n\n"
+			message += "Suggested fix: Add the following to your workflow frontmatter:\n"
+			message += "permissions:\n"
+			message += "  actions: read"
+
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: message,
+			})
+			return errors.New(formattedErr)
+		}
+	}
+
 	// Note: Markdown content size is now handled by splitting into multiple steps in generatePrompt
 
 	log.Printf("Workflow: %s, Tools: %d", workflowData.Name, len(workflowData.Tools))
@@ -636,6 +666,15 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		networkPermissions, err = c.MergeNetworkPermissions(networkPermissions, importsResult.MergedNetwork)
 		if err != nil {
 			return nil, fmt.Errorf("failed to merge network permissions: %w", err)
+		}
+	}
+
+	// Validate permissions from imports against top-level permissions
+	// Extract top-level permissions first
+	topLevelPermissions := c.extractPermissions(result.Frontmatter)
+	if importsResult.MergedPermissions != "" {
+		if err := c.ValidatePermissions(topLevelPermissions, importsResult.MergedPermissions); err != nil {
+			return nil, fmt.Errorf("permission validation failed: %w", err)
 		}
 	}
 
