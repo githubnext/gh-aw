@@ -90,7 +90,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Node.js
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           cache: npm
           cache-dependency-path: pkg/workflow/js/package-lock.json
@@ -171,7 +171,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.28
+        run: npm install -g @anthropic-ai/claude-code@2.0.29
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -4027,7 +4027,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.28
+        run: npm install -g @anthropic-ai/claude-code@2.0.29
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
