@@ -670,10 +670,10 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 	markdownDir := filepath.Dir(markdownPath)
 	// Workflow is in .github/workflows, so go up two levels to get to repo root
 	repoRoot := filepath.Join(markdownDir, "../..")
-	
+
 	var resolvedAgentPath string
 	var foundInDefaultLocation bool
-	
+
 	// First, try the default .github/agents/ location
 	defaultAgentPath := filepath.Join(repoRoot, ".github/agents", agentPath)
 	defaultAgentPath = filepath.Clean(defaultAgentPath)
