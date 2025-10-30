@@ -31,25 +31,20 @@ safe-outputs:
         with:
           script: |
             const fs = require('fs');
-            const { execSync, spawn } = require('child_process');
             const path = require('path');
             
             // ===== INSTALL OLLAMA =====
             core.info('🚀 Starting Ollama installation...');
             try {
               core.info('📥 Downloading Ollama installer...');
-              execSync('curl -fsSL https://ollama.com/install.sh -o /tmp/install-ollama.sh', {
-                stdio: ['ignore', process.stdout, process.stderr]
-              });
+              await exec.exec('curl', ['-fsSL', 'https://ollama.com/install.sh', '-o', '/tmp/install-ollama.sh']);
               
               core.info('📦 Installing Ollama...');
-              execSync('sh /tmp/install-ollama.sh', {
-                stdio: ['ignore', process.stdout, process.stderr]
-              });
+              await exec.exec('sh', ['/tmp/install-ollama.sh']);
               
               core.info('✅ Verifying Ollama installation...');
-              const version = execSync('ollama --version', { encoding: 'utf8' });
-              core.info(`Ollama version: ${version.trim()}`);
+              const versionOutput = await exec.getExecOutput('ollama', ['--version']);
+              core.info(`Ollama version: ${versionOutput.stdout.trim()}`);
               core.info('✅ Ollama installed successfully');
             } catch (error) {
               core.setFailed(`Failed to install Ollama: ${error instanceof Error ? error.message : String(error)}`);
@@ -63,24 +58,27 @@ safe-outputs:
               fs.mkdirSync(logDir, { recursive: true });
             }
             
-            const ollamaProcess = spawn('ollama', ['serve'], {
+            // Start Ollama service in background
+            const ollamaServeLog = fs.openSync(`${logDir}/ollama-serve.log`, 'w');
+            const ollamaServeErrLog = fs.openSync(`${logDir}/ollama-serve-error.log`, 'w');
+            exec.exec('ollama', ['serve'], {
               detached: true,
-              stdio: ['ignore',
-                fs.openSync(`${logDir}/ollama-serve.log`, 'w'),
-                fs.openSync(`${logDir}/ollama-serve-error.log`, 'w')
-              ]
+              silent: true,
+              outStream: fs.createWriteStream(`${logDir}/ollama-serve.log`),
+              errStream: fs.createWriteStream(`${logDir}/ollama-serve-error.log`)
+            }).then(() => {
+              core.info('Ollama service started in background');
+            }).catch(err => {
+              core.warning(`Ollama service background start: ${err.message}`);
             });
-            ollamaProcess.unref();
-            core.info(`Ollama service started with PID: ${ollamaProcess.pid}`);
             
             // Wait for service to be ready
             core.info('⏳ Waiting for Ollama service to be ready...');
             let retries = 30;
             while (retries > 0) {
               try {
-                execSync('curl -f http://localhost:11434/api/version', {
-                  stdio: 'pipe',
-                  timeout: 2000
+                await exec.exec('curl', ['-f', 'http://localhost:11434/api/version'], {
+                  silent: true
                 });
                 core.info('✅ Ollama service is ready');
                 break;
@@ -98,17 +96,14 @@ safe-outputs:
             core.info('This may take several minutes...');
             try {
               const startTime = Date.now();
-              execSync('ollama pull llamaguard', {
-                stdio: ['ignore', process.stdout, process.stderr],
-                timeout: 600000 // 10 minute timeout
-              });
+              await exec.exec('ollama', ['pull', 'llamaguard']);
               
               const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
               core.info(`✅ Model downloaded successfully in ${elapsed}s`);
               
               // Verify model is available
-              const models = execSync('ollama list', { encoding: 'utf8' });
-              if (!models.includes('llamaguard')) {
+              const modelsOutput = await exec.getExecOutput('ollama', ['list']);
+              if (!modelsOutput.stdout.includes('llamaguard')) {
                 throw new Error('LlamaGuard model not found after download');
               }
               core.info('✅ LlamaGuard model ready');
@@ -156,11 +151,8 @@ safe-outputs:
                 
                 let output = '';
                 try {
-                  output = execSync(`ollama run llamaguard < ${promptFile}`, {
-                    encoding: 'utf8',
-                    timeout: 120000,
-                    maxBuffer: 1024 * 1024 * 10
-                  });
+                  const result = await exec.getExecOutput('sh', ['-c', `ollama run llamaguard < ${promptFile}`]);
+                  output = result.stdout;
                 } catch (error) {
                   core.warning(`LlamaGuard execution error: ${error instanceof Error ? error.message : String(error)}`);
                   output = error.stdout || '';
@@ -218,44 +210,12 @@ safe-outputs:
             }
             core.info('='.repeat(60));
             
-            // Upload results artifact
-            try {
-              const artifactName = 'ollama-scan-results';
-              core.info(`\n📤 Uploading results artifact: ${artifactName}`);
-              // Note: Artifact upload happens via separate upload-artifact step if needed
-            } catch (error) {
-              core.warning(`Note: Artifact upload should be handled by a separate step if needed`);
-            }
-            
             if (threatsDetected) {
               core.setFailed('❌ LlamaGuard detected potential security threats in the safe outputs or patches');
             } else {
               core.info('✅ All scanned content appears safe');
             }
-
-timeout_minutes: 20
----
-
-# Your workflow content
-```
-            // Summary
-            core.info('\n' + '='.repeat(60));
-            core.info('🔍 LlamaGuard Scan Summary');
-            core.info('='.repeat(60));
-            for (const result of results) {
-              const status = result.safe ? '✅ SAFE' : '❌ UNSAFE';
-              core.info(`${status} - ${result.file}`);
-              if (!result.safe && result.response) {
-                core.info(`  Reason: ${result.response.substring(0, 200)}`);
-              }
-            }
-            core.info('='.repeat(60));
-            
-            if (threatsDetected) {
-              core.setFailed('❌ LlamaGuard detected potential security threats in the safe outputs or patches');
-            } else {
-              core.info('✅ All scanned content appears safe');
-            }
+      
       
       - name: Upload scan results
         if: always()
