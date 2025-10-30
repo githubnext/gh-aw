@@ -244,6 +244,7 @@ help:
 	@echo "  validate-workflows - Validate compiled workflow lock files"
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"
+	@echo "  sync-templates   - Sync templates from .github to pkg/cli/templates (runs automatically during build)"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
 	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
