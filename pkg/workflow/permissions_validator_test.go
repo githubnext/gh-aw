@@ -241,7 +241,6 @@ func TestValidatePermissions_MissingPermissions(t *testing.T) {
 	}
 }
 
-
 func TestFormatValidationMessage(t *testing.T) {
 	tests := []struct {
 		name              string
