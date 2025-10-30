@@ -22,7 +22,7 @@ on:
     types: [opened]
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [issues]
 engine: claude
 ---`,
 			expectedHasCheckout: true,
@@ -39,7 +39,7 @@ permissions:
   pull-requests: read
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [issues, pull_requests]
 engine: claude
 ---`,
 			expectedHasCheckout: false,
@@ -57,7 +57,7 @@ permissions:
   pull-requests: read
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [repos, issues, pull_requests]
 engine: claude
 ---`,
 			expectedHasCheckout: true,
@@ -75,7 +75,7 @@ permissions:
   pull-requests: read
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [repos, issues, pull_requests]
 engine: claude
 ---`,
 			expectedHasCheckout: true,
@@ -90,7 +90,7 @@ on:
 permissions: read-all
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [issues]
 engine: claude
 ---`,
 			expectedHasCheckout: true,
@@ -105,7 +105,7 @@ on:
 permissions: write-all
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [issues]
 engine: claude
 ---`,
 			expectedHasCheckout: true,
@@ -130,7 +130,7 @@ steps:
     run: echo "custom setup"
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [issues]
 engine: claude
 ---`,
 			expectedHasCheckout: false,
@@ -155,7 +155,7 @@ steps:
     run: npm install
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [issues]
 engine: claude
 ---`,
 			expectedHasCheckout: true,
@@ -179,7 +179,7 @@ steps:
     run: npm install
 tools:
   github:
-    allowed: [list_issues]
+    toolsets: [issues, pull_requests]
 engine: claude
 ---`,
 			expectedHasCheckout: false,
