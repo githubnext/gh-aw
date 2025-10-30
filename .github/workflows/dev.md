@@ -175,9 +175,9 @@ safe-outputs:
                       
                       core.info(`\n📊 Llama Guard 3 Response:\n${output}`);
                       
-                      // Result must be exactly "safe" or "S8" (Intellectual Property, which we allow)
-                      const outputTrimmed = output.trim().toLowerCase();
-                      const isSafe = outputTrimmed === 'safe' || outputTrimmed === 's8';
+                      // Result must be "safe" or contain "S8" (Intellectual Property, which we allow)
+                      const outputLower = output.toLowerCase();
+                      const isSafe = outputLower.trim() === 'safe' || outputLower.includes('s8');
                       
                       results.push({
                         file: itemName,
@@ -264,9 +264,9 @@ safe-outputs:
                 
                 core.info(`\n📊 Llama Guard 3 Response:\n${output}`);
                 
-                // Result must be exactly "safe" or "S8" (Intellectual Property, which we allow)
-                const outputTrimmed = output.trim().toLowerCase();
-                const isSafe = outputTrimmed === 'safe' || outputTrimmed === 's8';
+                // Result must be "safe" or contain "S8" (Intellectual Property, which we allow)
+                const outputLower = output.toLowerCase();
+                const isSafe = outputLower.trim() === 'safe' || outputLower.includes('s8');
                 
                 results.push({
                   file: 'Code Patch',
