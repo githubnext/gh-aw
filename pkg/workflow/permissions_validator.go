@@ -166,16 +166,6 @@ func containsAllToolset(toolsetsStr string) bool {
 	return false
 }
 
-// containsToolset checks if a slice contains a specific toolset
-func containsToolset(toolsets []string, target string) bool {
-	for _, t := range toolsets {
-		if t == target {
-			return true
-		}
-	}
-	return false
-}
-
 // collectRequiredPermissions collects all required permissions for the given toolsets
 func collectRequiredPermissions(toolsets []string, readOnly bool) map[PermissionScope]PermissionLevel {
 	required := make(map[PermissionScope]PermissionLevel)

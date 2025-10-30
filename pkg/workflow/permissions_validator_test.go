@@ -121,19 +121,19 @@ func TestCollectRequiredPermissions(t *testing.T) {
 
 func TestValidatePermissions_MissingPermissions(t *testing.T) {
 	tests := []struct {
-		name                string
-		permissions         *Permissions
-		githubTool          any
-		expectMissing       map[PermissionScope]PermissionLevel
-		expectMissingCount  int
-		expectExcessCount   int
-		expectHasIssues     bool
+		name               string
+		permissions        *Permissions
+		githubTool         any
+		expectMissing      map[PermissionScope]PermissionLevel
+		expectMissingCount int
+		expectExcessCount  int
+		expectHasIssues    bool
 	}{
 		{
-			name:        "No GitHub tool configured",
-			permissions: NewPermissions(),
-			githubTool:  nil,
-			expectMissing: map[PermissionScope]PermissionLevel{},
+			name:               "No GitHub tool configured",
+			permissions:        NewPermissions(),
+			githubTool:         nil,
+			expectMissing:      map[PermissionScope]PermissionLevel{},
 			expectMissingCount: 0,
 			expectExcessCount:  0,
 			expectHasIssues:    false,
@@ -375,11 +375,11 @@ func TestValidatePermissions_ExcessPermissions(t *testing.T) {
 
 func TestFormatValidationMessage(t *testing.T) {
 	tests := []struct {
-		name               string
-		result             *PermissionsValidationResult
-		strict             bool
-		expectContains     []string
-		expectNotContains  []string
+		name              string
+		result            *PermissionsValidationResult
+		strict            bool
+		expectContains    []string
+		expectNotContains []string
 	}{
 		{
 			name: "No validation issues",
@@ -551,7 +551,7 @@ func TestValidatePermissions_ComplexScenarios(t *testing.T) {
 			},
 		},
 		{
-			name: "All: read with discussions toolset",
+			name:        "All: read with discussions toolset",
 			permissions: NewPermissionsAllRead(),
 			githubTool: map[string]any{
 				"toolsets":  []string{"discussions"},

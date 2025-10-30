@@ -126,7 +126,7 @@ func TestValidateGitHubToolsAgainstToolsets(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Expand special toolsets (default, all) for testing
 			expandedToolsets := expandToolsetsForTesting(tt.enabledToolsets)
-			
+
 			err := ValidateGitHubToolsAgainstToolsets(tt.allowedTools, expandedToolsets)
 
 			if tt.expectError {
@@ -240,24 +240,24 @@ func TestGitHubToolToToolsetMap_Completeness(t *testing.T) {
 func TestGitHubToolToToolsetMap_ConsistencyWithDocumentation(t *testing.T) {
 	// Sample of tools that should be in the map based on documentation
 	expectedMappings := map[string]string{
-		"get_me":                         "context",
-		"get_repository":                 "repos",
-		"get_file_contents":              "repos",
-		"list_issues":                    "issues",
-		"create_issue":                   "issues",
-		"pull_request_read":              "pull_requests",
-		"search_pull_requests":           "pull_requests",
-		"list_workflows":                 "actions",
-		"get_workflow_run":               "actions",
-		"list_code_scanning_alerts":      "code_security",
-		"create_discussion":              "discussions",
-		"create_gist":                    "gists",
-		"get_label":                      "labels",
-		"list_notifications":             "notifications",
-		"get_organization":               "orgs",
-		"get_user":                       "users",
-		"search_repositories":            "search",
-		"list_secret_scanning_alerts":    "secret_protection",
+		"get_me":                      "context",
+		"get_repository":              "repos",
+		"get_file_contents":           "repos",
+		"list_issues":                 "issues",
+		"create_issue":                "issues",
+		"pull_request_read":           "pull_requests",
+		"search_pull_requests":        "pull_requests",
+		"list_workflows":              "actions",
+		"get_workflow_run":            "actions",
+		"list_code_scanning_alerts":   "code_security",
+		"create_discussion":           "discussions",
+		"create_gist":                 "gists",
+		"get_label":                   "labels",
+		"list_notifications":          "notifications",
+		"get_organization":            "orgs",
+		"get_user":                    "users",
+		"search_repositories":         "search",
+		"list_secret_scanning_alerts": "secret_protection",
 	}
 
 	for tool, expectedToolset := range expectedMappings {

@@ -9,25 +9,25 @@ var GitHubToolToToolsetMap = map[string]string{
 	"get_team_members": "context",
 
 	// Repos Toolset
-	"get_repository":    "repos",
-	"get_file_contents": "repos",
-	"search_code":       "repos",
-	"list_commits":      "repos",
-	"get_commit":        "repos",
+	"get_repository":     "repos",
+	"get_file_contents":  "repos",
+	"search_code":        "repos",
+	"list_commits":       "repos",
+	"get_commit":         "repos",
 	"get_latest_release": "repos",
-	"list_releases":     "repos",
+	"list_releases":      "repos",
 	"get_release_by_tag": "repos",
-	"get_tag":           "repos",
-	"list_tags":         "repos",
-	"list_branches":     "repos",
+	"get_tag":            "repos",
+	"list_tags":          "repos",
+	"list_branches":      "repos",
 
 	// Issues Toolset
-	"issue_read":          "issues",
-	"list_issues":         "issues",
-	"create_issue":        "issues",
-	"update_issue":        "issues",
-	"search_issues":       "issues",
-	"add_reaction":        "issues",
+	"issue_read":           "issues",
+	"list_issues":          "issues",
+	"create_issue":         "issues",
+	"update_issue":         "issues",
+	"search_issues":        "issues",
+	"add_reaction":         "issues",
 	"create_issue_comment": "issues",
 
 	// Pull Requests Toolset
@@ -38,18 +38,18 @@ var GitHubToolToToolsetMap = map[string]string{
 	"search_pull_requests": "pull_requests",
 
 	// Actions Toolset
-	"list_workflows":                  "actions",
-	"list_workflow_runs":              "actions",
-	"get_workflow_run":                "actions",
-	"download_workflow_run_artifact":  "actions",
-	"get_workflow_run_usage":          "actions",
-	"list_workflow_jobs":              "actions",
-	"get_job_logs":                    "actions",
-	"list_workflow_run_artifacts":     "actions",
+	"list_workflows":                 "actions",
+	"list_workflow_runs":             "actions",
+	"get_workflow_run":               "actions",
+	"download_workflow_run_artifact": "actions",
+	"get_workflow_run_usage":         "actions",
+	"list_workflow_jobs":             "actions",
+	"get_job_logs":                   "actions",
+	"list_workflow_run_artifacts":    "actions",
 
 	// Code Security Toolset
-	"list_code_scanning_alerts": "code_security",
-	"get_code_scanning_alert":   "code_security",
+	"list_code_scanning_alerts":  "code_security",
+	"get_code_scanning_alert":    "code_security",
 	"create_code_scanning_alert": "code_security",
 
 	// Dependabot Toolset
@@ -72,8 +72,8 @@ var GitHubToolToToolsetMap = map[string]string{
 	"create_label": "labels",
 
 	// Notifications Toolset
-	"list_notifications":       "notifications",
-	"mark_notifications_read":  "notifications",
+	"list_notifications":      "notifications",
+	"mark_notifications_read": "notifications",
 
 	// Organizations Toolset
 	"get_organization":   "orgs",

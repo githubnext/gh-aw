@@ -54,10 +54,8 @@ func (e *GitHubToolsetValidationError) Error() string {
 	// Build the toolsets list
 	var allToolsets []string
 	allToolsets = append(allToolsets, "default") // Start with default
-	for _, toolset := range toolsets {
-		allToolsets = append(allToolsets, toolset)
-	}
-	
+	allToolsets = append(allToolsets, toolsets...)
+
 	for _, toolset := range allToolsets {
 		lines = append(lines, fmt.Sprintf("      - %s", toolset))
 	}

@@ -7,11 +7,11 @@ import (
 func TestDefaultGitHubToolsets(t *testing.T) {
 	// Verify the default toolsets match the documented defaults
 	expected := []string{"context", "repos", "issues", "pull_requests", "users"}
-	
+
 	if len(DefaultGitHubToolsets) != len(expected) {
 		t.Errorf("Expected %d default toolsets, got %d", len(expected), len(DefaultGitHubToolsets))
 	}
-	
+
 	for i, toolset := range expected {
 		if i >= len(DefaultGitHubToolsets) || DefaultGitHubToolsets[i] != toolset {
 			t.Errorf("Expected default toolset[%d] to be %s, got %s", i, toolset, DefaultGitHubToolsets[i])

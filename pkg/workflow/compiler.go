@@ -281,14 +281,14 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		// Parse permissions from the workflow data
 		// WorkflowData.Permissions contains the raw YAML string (including "permissions:" prefix)
 		permissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
-		
+
 		// Validate permissions
 		validationResult := ValidatePermissions(permissions, githubTool)
-		
+
 		if validationResult.HasValidationIssues {
 			// Format the validation message
 			message := FormatValidationMessage(validationResult, c.strictMode)
-			
+
 			if len(validationResult.MissingPermissions) > 0 {
 				// Missing permissions are always errors
 				formattedErr := console.FormatError(console.CompilerError{
@@ -302,7 +302,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 				})
 				return errors.New(formattedErr)
 			}
-			
+
 			if len(validationResult.ExcessPermissions) > 0 {
 				// Excess permissions are warnings by default, errors in strict mode
 				if c.strictMode {
@@ -340,7 +340,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		allowedTools := getGitHubAllowedTools(githubTool)
 		toolsetsStr := getGitHubToolsets(githubTool)
 		enabledToolsets := ParseGitHubToolsets(toolsetsStr)
-		
+
 		// Validate that all allowed tools have their toolsets enabled
 		if err := ValidateGitHubToolsAgainstToolsets(allowedTools, enabledToolsets); err != nil {
 			formattedErr := console.FormatError(console.CompilerError{
