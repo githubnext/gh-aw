@@ -9,6 +9,7 @@ if: github.event.pull_request.base.ref == github.event.repository.default_branch
 permissions:
   contents: read
   pull-requests: read
+  issues: read
 engine: copilot
 safe-outputs:
   push-to-pull-request-branch:

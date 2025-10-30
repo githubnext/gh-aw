@@ -10,6 +10,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  
 name: Smoke Claude
 engine: claude
 tools:

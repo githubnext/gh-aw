@@ -333,7 +333,7 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 	return strings.Join(lines, "\n")
 }
 
-// formatExcessPermissionsMessage formats the excess permissions warning/error message
+// formatExcessPermissionsMessage formats the excess permissions warning message
 func formatExcessPermissionsMessage(result *PermissionsValidationResult, strict bool) string {
 	var scopes []string
 	for scope := range result.ExcessPermissions {
@@ -342,10 +342,8 @@ func formatExcessPermissionsMessage(result *PermissionsValidationResult, strict 
 	sort.Strings(scopes)
 
 	var lines []string
+	// Always use WARNING prefix (strict mode warns, regular mode is silent)
 	prefix := "WARNING"
-	if strict {
-		prefix = "ERROR"
-	}
 
 	lines = append(lines, fmt.Sprintf("%s: Over-provisioned permissions detected for GitHub MCP toolsets:", prefix))
 

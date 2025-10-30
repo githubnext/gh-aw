@@ -7,10 +7,12 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  actions: read
 engine: claude
 tools:
   agentic-workflows:
   github:
+    toolsets: [default, actions]
     allowed: [get_workflow_run, list_workflow_runs]
 safe-outputs:
   create-discussion:

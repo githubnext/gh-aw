@@ -7,6 +7,7 @@ permissions:
    contents: read
    issues: read
    pull-requests: read
+   actions: read
 engine: claude
 tools:
   cache-memory: true

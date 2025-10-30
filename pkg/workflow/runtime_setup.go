@@ -83,7 +83,7 @@ var knownRuntimes = []*Runtime{
 		ID:             "node",
 		Name:           "Node.js",
 		ActionRepo:     "actions/setup-node",
-		ActionVersion:  "v4",
+		ActionVersion:  "v6",
 		VersionField:   "node-version",
 		DefaultVersion: constants.DefaultNodeVersion,
 		Commands:       []string{"node", "npm", "npx", "yarn", "pnpm"},

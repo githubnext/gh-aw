@@ -6,6 +6,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  issues: read
 engine: copilot
 network: 
    allowed: [defaults, node, "api.github.com", "ghcr.io"]
