@@ -638,3 +638,48 @@ func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingA
 		c.IncrementWarningCount()
 	}
 }
+
+// validateAgentFile validates that the agent file specified in engine config exists
+func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath string) error {
+	// Check if agent field is specified in engine config
+	if workflowData.EngineConfig == nil || workflowData.EngineConfig.Agent == "" {
+		return nil // No agent file specified, no validation needed
+	}
+
+	agentPath := workflowData.EngineConfig.Agent
+	validationLog.Printf("Validating agent file exists: %s", agentPath)
+
+	// Check if the file exists
+	if _, err := os.Stat(agentPath); err != nil {
+		if os.IsNotExist(err) {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("agent file '%s' does not exist. Ensure the file exists in the repository and the path is correct.", agentPath),
+			})
+			return errors.New(formattedErr)
+		}
+		// Other error (permissions, etc.)
+		formattedErr := console.FormatError(console.CompilerError{
+			Position: console.ErrorPosition{
+				File:   markdownPath,
+				Line:   1,
+				Column: 1,
+			},
+			Type:    "error",
+			Message: fmt.Sprintf("failed to access agent file '%s': %v", agentPath, err),
+		})
+		return errors.New(formattedErr)
+	}
+
+	if c.verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+			fmt.Sprintf("✓ Agent file exists: %s", agentPath)))
+	}
+
+	return nil
+}
