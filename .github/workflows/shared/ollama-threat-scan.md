@@ -1,21 +1,29 @@
 ---
-name: Changeset Generator
-on:
-  pull_request:
-    types: [ready_for_review]
-  workflow_dispatch:
-  reaction: "rocket"
-if: github.event.pull_request.base.ref == github.event.repository.default_branch
-permissions:
-  contents: read
-  pull-requests: read
-  issues: read
-engine: copilot
+# Ollama Llama Guard 3 Threat Scanning
+# Instructions for adding Ollama-based threat scanning to agentic workflows
+#
+# This file provides documentation and example configuration for using
+# Ollama with the Llama Guard 3:1b model to scan safe outputs and patches.
+#
+# Note: Ollama operations can be resource-intensive. Ensure your workflow has
+# adequate timeout_minutes (recommended: 20+ minutes for model download and scanning).
+---
+
+# Ollama Llama Guard 3 Threat Scanning
+
+This guide explains how to add Ollama-based threat scanning using the Llama Guard 3:1b model to your agentic workflows.
+
+## Quick Start
+
+Add the following single step to your workflow frontmatter:
+
+```yaml
+---
+on: push
+
 safe-outputs:
-  push-to-pull-request-branch:
-    commit-title-suffix: " [skip-ci]"
+  create-pull-request:
   threat-detection:
-    engine: false
     steps:
       - name: Ollama Llama Guard 3 Threat Scan
         id: ollama-scan
@@ -318,6 +326,7 @@ safe-outputs:
               core.info('✅ All scanned content appears safe');
             }
       
+      
       - name: Upload scan results
         if: always()
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
@@ -327,82 +336,111 @@ safe-outputs:
             /tmp/gh-aw/threat-detection/ollama-scan-results.json
             /tmp/gh-aw/ollama-logs/
           if-no-files-found: ignore
-timeout_minutes: 20
-network:
-  firewall: true
-tools:
-  bash:
-    - "*"
-  edit:
-imports:
-  - shared/changeset-format.md
-  - shared/jqschema.md
-steps:
-  - name: Setup changeset directory
-    run: |
-      mkdir -p .changeset
-      git config user.name "github-actions[bot]"
-      git config user.email "github-actions[bot]@users.noreply.github.com"
 ---
 
-# Changeset Generator
+# Ollama Llama Guard 3 Threat Scanning
 
-You are the Changeset Generator agent - responsible for automatically creating changeset files when a pull request becomes ready for review.
+This shared workflow adds Ollama-based threat scanning using the Llama Guard 3:1b model to analyze safe outputs and code patches for security threats.
 
-## Mission
+## Features
 
-When a pull request is marked as ready for review, analyze the changes and create a properly formatted changeset file that documents the changes according to the changeset specification.
+- **Automatic Ollama Installation**: Installs Ollama on the GitHub Actions runner
+- **Model Pre-download**: Downloads the llama-guard3:1b model before scanning
+- **Safe Output Scanning**: Scans agent output files and code patches
+- **Automatic Failure**: Fails the workflow if threats are detected
+- **Detailed Logging**: Provides comprehensive logging of all operations
 
-## Current Context
+## How It Works
 
-- **Repository**: ${{ github.repository }}
-- **Pull Request Number**: ${{ github.event.pull_request.number }}
-- **Pull Request Content**: "${{ needs.activation.outputs.text }}"
+1. **Installation**: Downloads and installs Ollama
+2. **Service Start**: Starts the Ollama service in the background
+3. **Model Download**: Pulls the Llama Guard 3 model (may take several minutes)
+4. **Scanning**: Analyzes agent outputs and patches for threats via HTTP API
+5. **Results**: Parses Llama Guard 3 responses and fails if unsafe content is detected
 
-**IMPORTANT - Token Optimization**: The pull request content above is already sanitized and available. DO NOT use `pull_request_read` or similar GitHub API tools to fetch PR details - you already have everything you need in the context above. Using API tools wastes 40k+ tokens per call.
+## Llama Guard 3 Model
 
-## Task
+Llama Guard 3 is a safeguard model designed to detect potentially harmful content including:
+- Malicious code patterns
+- Security vulnerabilities
+- Harmful instructions
+- Data exfiltration attempts
+- Backdoors and exploits
 
-Your task is to:
+## Performance Notes
 
-1. **Analyze the Pull Request**: Review the pull request title and description above to understand what has been modified.
+- **Model Download**: First run may take 5-10 minutes to download the model
+- **Scanning**: Each file scan typically takes 10-30 seconds
+- **Resource Usage**: Requires adequate CPU and memory on the runner
+- **Recommended Timeout**: Set workflow `timeout_minutes` to at least 20 minutes
+- **Content Truncation**: Files larger than 8KB are automatically truncated for analysis
 
-2. **Use the repository name as the package identifier** (gh-aw)
+## Usage Example
 
-3. **Determine the Change Type**:
-   - **major**: Major breaking changes (X.0.0) - Very unlikely, probably should be **minor**
-   - **minor**: Breaking changes in the CLI (0.X.0) - indicated by "BREAKING CHANGE" or major API changes
-   - **patch**: Bug fixes, docs, refactoring, internal changes, tooling, new shared workflows (0.0.X)
-   
-   **Important**: Internal changes, tooling, and documentation are always "patch" level.
+Copy the complete YAML configuration from the top of this file into your workflow's `safe-outputs.threat-detection.steps` section.
 
-4. **Generate the Changeset File**:
-   - Create file in `.changeset/` directory (already created by pre-step)
-   - Use format from the changeset format reference above
-   - Filename: `<type>-<short-description>.md` (e.g., `patch-fix-bug.md`)
+Example:
 
-5. **Commit and Push Changes**:
-   - Git is already configured by pre-step
-   - Add and commit the changeset file using git commands:
-     ```bash
-     git add .changeset/<filename> && git commit -m "Add changeset"
-     ```
-   - **CRITICAL**: You MUST call the `push_to_pull_request_branch` tool to push your changes:
-     ```javascript
-     push_to_pull_request_branch({
-       message: "Add changeset for this pull request"
-     })
-     ```
-   - The `branch` parameter is optional - it will automatically detect the current PR branch
-   - This tool call is REQUIRED for your changes to be pushed to the pull request
-   - **WARNING**: If you don't call this tool, your changeset file will NOT be pushed and the job will be skipped
+```yaml
+---
+on:
+  pull_request:
+    types: [opened, synchronize]
 
-## Guidelines
+permissions:
+  contents: read
+  actions: read
 
-- **Be Accurate**: Analyze the PR content carefully to determine the correct change type
-- **Be Clear**: The changeset description should clearly explain what changed
-- **Be Concise**: Keep descriptions brief but informative
-- **Follow Conventions**: Use the exact changeset format specified above
-- **Single Package Default**: If unsure about package structure, default to "gh-aw"
-- **Smart Naming**: Use descriptive filenames that indicate the change (e.g., `patch-fix-rendering-bug.md`)
+engine: copilot
 
+safe-outputs:
+  create-pull-request:
+  threat-detection:
+    steps:
+      # Copy all steps from the Quick Start section above
+
+timeout_minutes: 20
+---
+
+# Your workflow prompt here
+```
+
+## Output Artifacts
+
+The scan results are uploaded as artifacts including:
+- `ollama-scan-results.json`: Detailed JSON results for each scanned file with safe/unsafe status
+- Ollama service logs (`/tmp/gh-aw/ollama-logs/`) for debugging
+
+## Integration with Existing Threat Detection
+
+This Ollama scanning complements the existing AI-based threat detection:
+- Existing: Uses Claude/Copilot to analyze context and intent
+- Ollama: Uses specialized Llama Guard 3 model for pattern-based threat detection
+- Together they provide defense-in-depth security analysis
+
+## Troubleshooting
+
+**Ollama installation fails:**
+- Check runner has internet access to ollama.com
+- Verify curl is available on the runner
+- Review installation logs in step output
+
+**Model download times out:**
+- Increase timeout in the download step (default: 600 seconds)
+- Check network bandwidth  
+- Model is ~3-4GB and may take 5-10 minutes on first download
+
+**Service not ready:**
+- Increase wait loop iterations (default: 30 seconds)
+- Check `/tmp/gh-aw/ollama-logs/ollama-serve-error.log` for startup errors
+- Verify port 11434 is not already in use
+
+**Scan produces false positives:**
+- Review Llama Guard 3 response in step logs
+- Adjust threat keywords in the scanning logic
+- Consider customizing the prompt sent to Llama Guard 3
+
+**Out of memory errors:**
+- Reduce maxChars truncation limit (default: 8000)
+- Scan fewer files or smaller chunks
+- Use a runner with more memory

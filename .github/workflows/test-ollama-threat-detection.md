@@ -1,21 +1,21 @@
 ---
-name: Changeset Generator
 on:
-  pull_request:
-    types: [ready_for_review]
   workflow_dispatch:
-  reaction: "rocket"
-if: github.event.pull_request.base.ref == github.event.repository.default_branch
+
 permissions:
   contents: read
-  pull-requests: read
+  actions: read
   issues: read
+  pull-requests: read
+
 engine: copilot
+
 safe-outputs:
-  push-to-pull-request-branch:
-    commit-title-suffix: " [skip-ci]"
+  create-issue:
+    title-prefix: "[test] "
+    labels: [test]
+    max: 1
   threat-detection:
-    engine: false
     steps:
       - name: Ollama Llama Guard 3 Threat Scan
         id: ollama-scan
@@ -318,6 +318,7 @@ safe-outputs:
               core.info('✅ All scanned content appears safe');
             }
       
+      
       - name: Upload scan results
         if: always()
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
@@ -327,82 +328,12 @@ safe-outputs:
             /tmp/gh-aw/threat-detection/ollama-scan-results.json
             /tmp/gh-aw/ollama-logs/
           if-no-files-found: ignore
+
 timeout_minutes: 20
-network:
-  firewall: true
-tools:
-  bash:
-    - "*"
-  edit:
-imports:
-  - shared/changeset-format.md
-  - shared/jqschema.md
-steps:
-  - name: Setup changeset directory
-    run: |
-      mkdir -p .changeset
-      git config user.name "github-actions[bot]"
-      git config user.email "github-actions[bot]@users.noreply.github.com"
 ---
 
-# Changeset Generator
+# Test Ollama Threat Scanning
 
-You are the Changeset Generator agent - responsible for automatically creating changeset files when a pull request becomes ready for review.
+This is a test workflow to verify the Ollama Llama Guard 3 threat scanning configuration.
 
-## Mission
-
-When a pull request is marked as ready for review, analyze the changes and create a properly formatted changeset file that documents the changes according to the changeset specification.
-
-## Current Context
-
-- **Repository**: ${{ github.repository }}
-- **Pull Request Number**: ${{ github.event.pull_request.number }}
-- **Pull Request Content**: "${{ needs.activation.outputs.text }}"
-
-**IMPORTANT - Token Optimization**: The pull request content above is already sanitized and available. DO NOT use `pull_request_read` or similar GitHub API tools to fetch PR details - you already have everything you need in the context above. Using API tools wastes 40k+ tokens per call.
-
-## Task
-
-Your task is to:
-
-1. **Analyze the Pull Request**: Review the pull request title and description above to understand what has been modified.
-
-2. **Use the repository name as the package identifier** (gh-aw)
-
-3. **Determine the Change Type**:
-   - **major**: Major breaking changes (X.0.0) - Very unlikely, probably should be **minor**
-   - **minor**: Breaking changes in the CLI (0.X.0) - indicated by "BREAKING CHANGE" or major API changes
-   - **patch**: Bug fixes, docs, refactoring, internal changes, tooling, new shared workflows (0.0.X)
-   
-   **Important**: Internal changes, tooling, and documentation are always "patch" level.
-
-4. **Generate the Changeset File**:
-   - Create file in `.changeset/` directory (already created by pre-step)
-   - Use format from the changeset format reference above
-   - Filename: `<type>-<short-description>.md` (e.g., `patch-fix-bug.md`)
-
-5. **Commit and Push Changes**:
-   - Git is already configured by pre-step
-   - Add and commit the changeset file using git commands:
-     ```bash
-     git add .changeset/<filename> && git commit -m "Add changeset"
-     ```
-   - **CRITICAL**: You MUST call the `push_to_pull_request_branch` tool to push your changes:
-     ```javascript
-     push_to_pull_request_branch({
-       message: "Add changeset for this pull request"
-     })
-     ```
-   - The `branch` parameter is optional - it will automatically detect the current PR branch
-   - This tool call is REQUIRED for your changes to be pushed to the pull request
-   - **WARNING**: If you don't call this tool, your changeset file will NOT be pushed and the job will be skipped
-
-## Guidelines
-
-- **Be Accurate**: Analyze the PR content carefully to determine the correct change type
-- **Be Clear**: The changeset description should clearly explain what changed
-- **Be Concise**: Keep descriptions brief but informative
-- **Follow Conventions**: Use the exact changeset format specified above
-- **Single Package Default**: If unsure about package structure, default to "gh-aw"
-- **Smart Naming**: Use descriptive filenames that indicate the change (e.g., `patch-fix-rendering-bug.md`)
-
+Create a simple test issue to demonstrate the workflow executes successfully with threat detection enabled.
