@@ -6,14 +6,12 @@ on:
 permissions:
   contents: read
   actions: read
-  discussions: write
 engine: claude
 tools:
   edit:
   bash: ["*"]
   github:
     mode: remote
-    read-only: false
     toolsets: [default, discussions]
   cache-memory:
     key: schema-consistency-cache-${{ github.workflow }}
