@@ -270,7 +270,7 @@ A successful report:
 - ✅ Saves current tools list to cache for next run
 - ✅ **Creates/updates `.github/instructions/github-mcp-server.instructions.md`** with comprehensive documentation
 - ✅ **Identifies and documents recommended default toolsets** with rationale
-- ✅ **Updates default toolsets** in documentation files (github-agentic-workflows.instructions.md and templates/instructions.md)
+- ✅ **Updates default toolsets** in documentation files (github-agentic-workflows.instructions.md)
 - ✅ Organizes tools by their appropriate toolset categories
 - ✅ Provides clear descriptions and usage information
 - ✅ Is formatted as a well-structured markdown document
@@ -310,7 +310,6 @@ Your output MUST:
    - Format the documentation according to the repository's documentation standards
 7. **Update default toolsets documentation** in:
    - `.github/instructions/github-agentic-workflows.instructions.md` (line 126)
-   - `pkg/cli/templates/instructions.md` (line 126)
    - Use the recommended default toolsets identified in step 6
    - Ensure consistency across all documentation files
 8. Create a GitHub discussion with the complete tools report
@@ -382,7 +381,6 @@ Begin your tool discovery now. Follow these steps:
    - Best practices for toolset selection
 7. **Update documentation references**: Update the default toolsets list in:
    - `.github/instructions/github-agentic-workflows.instructions.md` (search for "Default toolsets (if not specified)")
-   - `pkg/cli/templates/instructions.md` (search for "Default toolsets (if not specified)")
 8. **Document**: Categorize tools appropriately and create comprehensive documentation
 9. **Save for next run**: Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json`
 10. **Generate report**: Create the final markdown report including change tracking and inconsistency detection
