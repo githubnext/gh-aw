@@ -252,13 +252,13 @@ func GetActionPinByRepo(repo string) (ActionPin, bool) {
 func AddVersionCommentsToYAML(yamlContent string) string {
 	lines := strings.Split(yamlContent, "\n")
 	actionPins := getActionPins()
-	
+
 	// Create a map for quick lookup: SHA -> Version
 	shaToVersion := make(map[string]string)
 	for _, pin := range actionPins {
 		shaToVersion[pin.SHA] = pin.Version
 	}
-	
+
 	var result strings.Builder
 	for _, line := range lines {
 		// Check if line contains "uses:" followed by an action@sha
@@ -278,12 +278,12 @@ func AddVersionCommentsToYAML(yamlContent string) string {
 		result.WriteString(line)
 		result.WriteString("\n")
 	}
-	
+
 	// Remove the last extra newline
 	resultStr := result.String()
 	if len(resultStr) > 0 && resultStr[len(resultStr)-1] == '\n' {
 		resultStr = resultStr[:len(resultStr)-1]
 	}
-	
+
 	return resultStr
 }
