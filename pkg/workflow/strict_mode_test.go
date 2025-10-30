@@ -91,8 +91,12 @@ on: push
 permissions:
   contents: read
   issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
+network:
+  allowed:
+    - "api.example.com"
 ---
 
 # Test Workflow`,

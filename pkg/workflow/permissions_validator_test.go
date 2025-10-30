@@ -431,7 +431,7 @@ func TestFormatValidationMessage(t *testing.T) {
 			},
 		},
 		{
-			name: "Excess permissions error in strict mode",
+			name: "Excess permissions warning in strict mode",
 			result: &PermissionsValidationResult{
 				HasValidationIssues: true,
 				ExcessPermissions: map[PermissionScope]PermissionLevel{
@@ -440,11 +440,11 @@ func TestFormatValidationMessage(t *testing.T) {
 			},
 			strict: true,
 			expectContains: []string{
-				"ERROR: Over-provisioned permissions",
+				"WARNING: Over-provisioned permissions",
 				"actions: read",
 			},
 			expectNotContains: []string{
-				"WARNING:",
+				"ERROR:",
 			},
 		},
 		{
