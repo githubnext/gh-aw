@@ -292,13 +292,13 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 	sort.Strings(scopes)
 
 	var lines []string
-	
+
 	// Build permission list with toolset details inline
 	var permLines []string
 	for _, scopeStr := range scopes {
 		scope := PermissionScope(scopeStr)
 		level := result.MissingPermissions[scope]
-		
+
 		// Find which toolsets need this permission
 		var requiredBy []string
 		if len(result.MissingToolsetDetails) > 0 {
@@ -311,7 +311,7 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 				}
 			}
 		}
-		
+
 		// Format: "- scope: level (required by toolset1, toolset2)"
 		if len(requiredBy) > 0 {
 			sort.Strings(requiredBy)
