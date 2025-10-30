@@ -171,6 +171,12 @@ func (e *BaseEngine) GetLogFileForParsing() string {
 	return "/tmp/gh-aw/agent-stdio.log"
 }
 
+// convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
+// This is a shared implementation inherited by all engines that embed BaseEngine
+func (e *BaseEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
+	return ConvertStepToYAML(stepMap)
+}
+
 // EngineRegistry manages available agentic engines
 type EngineRegistry struct {
 	engines map[string]CodingAgentEngine

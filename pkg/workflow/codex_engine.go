@@ -172,11 +172,6 @@ codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, ful
 	return steps
 }
 
-// convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
-func (e *CodexEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	return ConvertStepToYAML(stepMap)
-}
-
 // expandNeutralToolsToCodexTools converts neutral tools to Codex-specific tools format
 // This ensures that playwright tools get the same allowlist as the copilot agent
 func (e *CodexEngine) expandNeutralToolsToCodexTools(tools map[string]any) map[string]any {
