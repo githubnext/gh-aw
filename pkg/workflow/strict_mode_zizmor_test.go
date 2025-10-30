@@ -24,6 +24,8 @@ on: push
 strict: true
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 network:
   allowed:

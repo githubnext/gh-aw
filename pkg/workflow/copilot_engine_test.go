@@ -865,6 +865,8 @@ func TestCopilotEngineLogParsingUsesCorrectLogFile(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 tools:
   github:

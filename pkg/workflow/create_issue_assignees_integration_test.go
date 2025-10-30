@@ -23,6 +23,8 @@ on:
     types: [opened]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 safe-outputs:
   create-issue:
@@ -146,6 +148,8 @@ on:
     types: [opened]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 safe-outputs:
   create-issue:
@@ -208,6 +212,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 safe-outputs:
   create-issue:
@@ -271,6 +277,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 safe-outputs:
   create-issue:

@@ -30,6 +30,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine:
   id: custom
   steps:

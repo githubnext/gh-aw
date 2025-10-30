@@ -65,6 +65,8 @@ This is common setup content that should be prepended.
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 imports:
   - shared/common.md
@@ -84,6 +86,8 @@ This is the main workflow content.`,
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 imports:
   - shared/common.md
@@ -188,6 +192,8 @@ This comes from @include directive.`
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 imports:
   - shared/import.md

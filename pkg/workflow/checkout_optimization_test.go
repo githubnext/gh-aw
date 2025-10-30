@@ -54,6 +54,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
@@ -71,6 +72,7 @@ on:
 permissions:
   contents: write
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
@@ -118,6 +120,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 steps:
   - name: Custom checkout
     uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -142,6 +145,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 steps:
   - name: Setup Node
     uses: actions/setup-node@v4

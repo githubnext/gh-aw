@@ -25,6 +25,7 @@ timeout_minutes: 10
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues, create_issue]
@@ -65,6 +66,7 @@ timeout_minutes: 10
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues, create_issue]

@@ -25,6 +25,7 @@ permissions:
   contents: read
   issues: read
   actions: read
+  pull-requests: read
 engine: copilot
 tools:
   github:
@@ -48,6 +49,7 @@ permissions:
   contents: write
   issues: write
   actions: read
+  pull-requests: read
 engine: copilot
 tools:
   github:
@@ -65,6 +67,8 @@ tools:
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 tools:
   github:
@@ -86,6 +90,8 @@ network:
 on: push
 permissions:
   contents: write
+  issues: read
+  pull-requests: read
 engine: copilot
 tools:
   github:
@@ -211,6 +217,7 @@ permissions:
   contents: write
   issues: write
   actions: read
+  pull-requests: read
 engine: copilot
 tools:
   github:

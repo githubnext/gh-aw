@@ -20,6 +20,8 @@ func TestTemplateRenderingStep(t *testing.T) {
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
@@ -125,6 +127,8 @@ func TestTemplateRenderingStepSkipped(t *testing.T) {
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 tools:
   edit:
   web-fetch:
@@ -182,6 +186,8 @@ func TestTemplateRenderingStepWithGitHubTool(t *testing.T) {
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]

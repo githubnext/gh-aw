@@ -21,6 +21,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine:
   id: claude
   max-turns: 3
@@ -42,6 +44,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   github:
@@ -61,6 +65,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine:
   id: claude
   max-turns: 10
@@ -176,6 +182,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine:
   id: claude
   max-turns: 5
@@ -191,6 +199,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine:
   id: claude
   max-turns: "invalid"
@@ -206,6 +216,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine:
   id: claude
   max-turns: 0
@@ -250,6 +262,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine:
   id: custom
   max-turns: 5

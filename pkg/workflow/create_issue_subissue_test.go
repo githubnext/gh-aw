@@ -81,6 +81,8 @@ on:
     types: [opened]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 safe-outputs:
   create-issue:

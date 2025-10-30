@@ -194,6 +194,8 @@ on:
     types: [created, edited]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
