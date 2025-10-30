@@ -38,7 +38,7 @@ network:
 			strictMode:             true,
 			expectCompileSuccess:   true,
 			expectWarning:          true,
-			expectedWarningMessage: "WARNING: Over-provisioned permissions",
+			expectedWarningMessage: "Over-provisioned permissions detected for github toolsets:",
 		},
 		{
 			name: "Excess permissions in regular mode - should ignore silently",
@@ -188,14 +188,14 @@ tools:
 
 			// Check for warnings
 			if tt.expectWarning {
-				if !strings.Contains(output, "WARNING") {
+				if !strings.Contains(output, "warning:") {
 					t.Errorf("Expected warning in output but none found. Output: %s", output)
 				}
 				if tt.expectedWarningMessage != "" && !strings.Contains(output, tt.expectedWarningMessage) {
 					t.Errorf("Expected warning message containing '%s' but got: %s", tt.expectedWarningMessage, output)
 				}
 			} else {
-				if strings.Contains(output, "WARNING") {
+				if strings.Contains(output, "warning:") {
 					t.Errorf("Did not expect warning but found one. Output: %s", output)
 				}
 			}

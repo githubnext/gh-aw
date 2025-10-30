@@ -292,37 +292,39 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 	sort.Strings(scopes)
 
 	var lines []string
-	lines = append(lines, "ERROR: Missing required permissions for GitHub MCP toolsets:")
-
+	
+	// Build permission list with toolset details inline
+	var permLines []string
 	for _, scopeStr := range scopes {
 		scope := PermissionScope(scopeStr)
 		level := result.MissingPermissions[scope]
-		lines = append(lines, fmt.Sprintf("  - %s: %s", scope, level))
-	}
-
-	// Add toolset details
-	if len(result.MissingToolsetDetails) > 0 {
-		lines = append(lines, "")
-		lines = append(lines, "Required by toolsets:")
-
-		var toolsetNames []string
-		for toolset := range result.MissingToolsetDetails {
-			toolsetNames = append(toolsetNames, toolset)
-		}
-		sort.Strings(toolsetNames)
-
-		for _, toolset := range toolsetNames {
-			scopes := result.MissingToolsetDetails[toolset]
-			scopeStrs := make([]string, len(scopes))
-			for i, s := range scopes {
-				scopeStrs[i] = string(s)
+		
+		// Find which toolsets need this permission
+		var requiredBy []string
+		if len(result.MissingToolsetDetails) > 0 {
+			for toolset, toolsetScopes := range result.MissingToolsetDetails {
+				for _, ts := range toolsetScopes {
+					if ts == scope {
+						requiredBy = append(requiredBy, toolset)
+						break
+					}
+				}
 			}
-			lines = append(lines, fmt.Sprintf("  - %s: needs %s", toolset, strings.Join(scopeStrs, ", ")))
+		}
+		
+		// Format: "- scope: level (required by toolset1, toolset2)"
+		if len(requiredBy) > 0 {
+			sort.Strings(requiredBy)
+			permLines = append(permLines, fmt.Sprintf("  - %s: %s (required by %s)", scope, level, strings.Join(requiredBy, ", ")))
+		} else {
+			permLines = append(permLines, fmt.Sprintf("  - %s: %s", scope, level))
 		}
 	}
 
+	lines = append(lines, "Missing required permissions for github toolsets:")
+	lines = append(lines, permLines...)
 	lines = append(lines, "")
-	lines = append(lines, "Suggested fix: Add the following to your workflow frontmatter:")
+	lines = append(lines, "Add to your workflow frontmatter:")
 	lines = append(lines, "permissions:")
 	for _, scopeStr := range scopes {
 		scope := PermissionScope(scopeStr)
@@ -342,20 +344,16 @@ func formatExcessPermissionsMessage(result *PermissionsValidationResult, strict 
 	sort.Strings(scopes)
 
 	var lines []string
-	// Always use WARNING prefix (strict mode warns, regular mode is silent)
-	prefix := "WARNING"
-
-	lines = append(lines, fmt.Sprintf("%s: Over-provisioned permissions detected for GitHub MCP toolsets:", prefix))
+	lines = append(lines, "Over-provisioned permissions detected for github toolsets:")
 
 	for _, scopeStr := range scopes {
 		scope := PermissionScope(scopeStr)
 		level := result.ExcessPermissions[scope]
-		lines = append(lines, fmt.Sprintf("  - %s: %s (not required by configured toolsets)", scope, level))
+		lines = append(lines, fmt.Sprintf("  - %s: %s (not required)", scope, level))
 	}
 
 	lines = append(lines, "")
-	lines = append(lines, "Principle of least privilege: Only grant permissions that are needed.")
-	lines = append(lines, "Consider removing these permissions or adjusting your toolsets configuration.")
+	lines = append(lines, "Only grant permissions that are needed.")
 
 	return strings.Join(lines, "\n")
 }
