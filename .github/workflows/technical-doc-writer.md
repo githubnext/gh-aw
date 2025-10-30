@@ -61,11 +61,6 @@ tools:
       - add_reaction
   edit:
   bash:
-    - "find .github/workflows -name '*.md'"
-    - "ls -la docs"
-    - "make*"
-    - "npm ci"
-    - "npm run*"
 
 timeout_minutes: 10
 
