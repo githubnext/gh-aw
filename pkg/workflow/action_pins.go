@@ -236,12 +236,6 @@ func ApplyActionPinsToSteps(steps []any, data *WorkflowData) []any {
 	return result
 }
 
-// GetAllActionPinsSorted returns all action pins sorted by version (descending) and repository name
-// Note: getActionPins() already returns sorted pins, so this is just a convenience wrapper
-func GetAllActionPinsSorted() []ActionPin {
-	return getActionPins()
-}
-
 // GetActionPinByRepo returns the ActionPin for a given repository, if it exists
 func GetActionPinByRepo(repo string) (ActionPin, bool) {
 	actionPins := getActionPins()

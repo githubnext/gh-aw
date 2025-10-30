@@ -361,13 +361,13 @@ func TestApplyActionPinToStep(t *testing.T) {
 	}
 }
 
-// TestGetAllActionPinsSorted tests the GetAllActionPinsSorted function
-func TestGetAllActionPinsSorted(t *testing.T) {
-	pins := GetAllActionPinsSorted()
+// TestGetActionPinsSorting tests that getActionPins returns sorted action pins
+func TestGetActionPinsSorting(t *testing.T) {
+	pins := getActionPins()
 
 	// Verify we got all the pins (should be 16)
 	if len(pins) != 16 {
-		t.Errorf("GetAllActionPinsSorted() returned %d pins, expected 16", len(pins))
+		t.Errorf("getActionPins() returned %d pins, expected 16", len(pins))
 	}
 
 	// Verify they are sorted by version (descending) then by repository name (ascending)
