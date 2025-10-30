@@ -2,20 +2,28 @@ package workflow
 
 import (
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var fetchLog = logger.New("workflow:fetch")
 
 // AddMCPFetchServerIfNeeded adds the mcp/fetch dockerized MCP server to the tools configuration
 // if the engine doesn't have built-in web-fetch support and web-fetch tool is requested
 func AddMCPFetchServerIfNeeded(tools map[string]any, engine CodingAgentEngine) (map[string]any, []string) {
 	// Check if web-fetch tool is requested
 	if _, hasWebFetch := tools["web-fetch"]; !hasWebFetch {
+		fetchLog.Print("web-fetch tool not requested, skipping MCP fetch server")
 		return tools, nil
 	}
 
 	// If the engine already supports web-fetch, no need to add MCP server
 	if engine.SupportsWebFetch() {
+		fetchLog.Print("Engine has built-in web-fetch support, skipping MCP fetch server")
 		return tools, nil
 	}
+
+	fetchLog.Print("Adding MCP fetch server for web-fetch tool")
 
 	// Create a copy of the tools map to avoid modifying the original
 	updatedTools := make(map[string]any)
@@ -37,6 +45,8 @@ func AddMCPFetchServerIfNeeded(tools map[string]any, engine CodingAgentEngine) (
 	// Add the web-fetch server to the tools
 	updatedTools["web-fetch"] = webFetchConfig
 
+	fetchLog.Print("Successfully added web-fetch MCP server configuration")
+
 	// Return the updated tools and the list of added MCP servers
 	return updatedTools, []string{"web-fetch"}
 }
@@ -45,6 +55,8 @@ func AddMCPFetchServerIfNeeded(tools map[string]any, engine CodingAgentEngine) (
 // This is a shared function that can be used by all engines
 // includeTools parameter adds "tools": ["*"] field for engines that require it (e.g., Copilot)
 func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent string, isLast bool, includeTools bool) {
+	fetchLog.Printf("Rendering MCP fetch server config: format=%s, includeTools=%v", format, includeTools)
+
 	switch format {
 	case "json":
 		// JSON format (for Claude, Copilot, Custom engines)
