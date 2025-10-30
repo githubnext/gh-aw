@@ -247,6 +247,7 @@ COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 		"GITHUB_STEP_SUMMARY":       "${{ env.GITHUB_STEP_SUMMARY }}",
 		"GITHUB_HEAD_REF":           "${{ github.head_ref }}",
 		"GITHUB_REF_NAME":           "${{ github.ref_name }}",
+		"GITHUB_WORKSPACE":          "${{ github.workspace }}",
 	}
 
 	// Always add GH_AW_PROMPT for agentic workflows

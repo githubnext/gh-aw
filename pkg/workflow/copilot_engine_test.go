@@ -99,6 +99,10 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected GITHUB_REF_NAME environment variable in step content:\n%s", stepContent)
 	}
 
+	if !strings.Contains(stepContent, "GITHUB_WORKSPACE: ${{ github.workspace }}") {
+		t.Errorf("Expected GITHUB_WORKSPACE environment variable in step content:\n%s", stepContent)
+	}
+
 	// Test that GH_AW_SAFE_OUTPUTS is not present when SafeOutputs is nil
 	if strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS") {
 		t.Error("Expected GH_AW_SAFE_OUTPUTS to not be present when SafeOutputs is nil")
