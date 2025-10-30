@@ -20,11 +20,6 @@
       "version": "v5",
       "sha": "d35c59abb061a4a6fb18e82ac0862c26744d6ab5"
     },
-    "actions/setup-node@v4": {
-      "repo": "actions/setup-node",
-      "version": "v4",
-      "sha": "49933ea5288caeca8642d1e84afbd3f7d6820020"
-    },
     "actions/setup-node@v5": {
       "repo": "actions/setup-node",
       "version": "v5",
