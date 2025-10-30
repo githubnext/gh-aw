@@ -26,6 +26,7 @@ func TestActionPinsExist(t *testing.T) {
 		"astral-sh/setup-uv",
 	}
 
+	actionPins := getActionPins()
 	for _, action := range expectedActions {
 		pin, exists := actionPins[action]
 		if !exists {
@@ -112,6 +113,7 @@ func TestActionPinSHAsMatchVersionTags(t *testing.T) {
 		t.Skip("Skipping network-dependent test in short mode")
 	}
 
+	actionPins := getActionPins()
 	// Test all action pins in parallel for faster execution
 	for key, pin := range actionPins {
 		key := key // Capture for parallel execution
@@ -355,6 +357,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 // TestGetAllActionPinsSorted tests the GetAllActionPinsSorted function
 func TestGetAllActionPinsSorted(t *testing.T) {
 	pins := GetAllActionPinsSorted()
+	actionPins := getActionPins()
 
 	// Verify we got all the pins
 	if len(pins) != len(actionPins) {

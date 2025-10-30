@@ -30,13 +30,10 @@ type ActionPinsData struct {
 	Actions     map[string]ActionPin `json:"actions"`
 }
 
-// actionPins maps action repository to their default pinned versions
-// This is loaded from the embedded JSON file at initialization
-var actionPins map[string]ActionPin
-
-// init loads the action pins from the embedded JSON file
-func init() {
-	actionPinsLog.Print("Loading action pins from embedded JSON")
+// getActionPins unmarshals and returns the action pins from the embedded JSON
+// This is called on-demand rather than cached globally
+func getActionPins() map[string]ActionPin {
+	actionPinsLog.Print("Unmarshaling action pins from embedded JSON")
 
 	var data ActionPinsData
 	if err := json.Unmarshal(actionPinsJSON, &data); err != nil {
@@ -44,14 +41,15 @@ func init() {
 		panic(fmt.Sprintf("failed to load action pins: %v", err))
 	}
 
-	actionPins = data.Actions
-	actionPinsLog.Printf("Successfully loaded %d action pins from JSON", len(actionPins))
+	actionPinsLog.Printf("Successfully unmarshaled %d action pins from JSON", len(data.Actions))
+	return data.Actions
 }
 
 // GetActionPin returns the pinned action reference for a given action repository
 // It uses the golden/default version defined in actionPins
 // If no pin is found, it returns an empty string
 func GetActionPin(actionRepo string) string {
+	actionPins := getActionPins()
 	if pin, exists := actionPins[actionRepo]; exists {
 		return actionRepo + "@" + pin.SHA
 	}
@@ -76,6 +74,7 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 	}
 
 	// Dynamic resolution failed, try hardcoded pins
+	actionPins := getActionPins()
 	if pin, exists := actionPins[actionRepo]; exists {
 		// Check if the version matches the hardcoded version
 		if pin.Version == version {
@@ -212,6 +211,8 @@ func ApplyActionPinsToSteps(steps []any, data *WorkflowData) []any {
 
 // GetAllActionPinsSorted returns all action pins sorted by repository name
 func GetAllActionPinsSorted() []ActionPin {
+	actionPins := getActionPins()
+
 	// Collect all pins into a slice
 	pins := make([]ActionPin, 0, len(actionPins))
 	for _, pin := range actionPins {
@@ -232,6 +233,7 @@ func GetAllActionPinsSorted() []ActionPin {
 
 // GetActionPinByRepo returns the ActionPin for a given repository, if it exists
 func GetActionPinByRepo(repo string) (ActionPin, bool) {
+	actionPins := getActionPins()
 	pin, exists := actionPins[repo]
 	return pin, exists
 }
