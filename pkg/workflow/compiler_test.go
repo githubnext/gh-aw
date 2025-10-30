@@ -2467,7 +2467,7 @@ permissions:
   pull-requests: write
 tools:
   github:
-    allowed: [get_issue]
+    toolsets: [issues]
 timeout_minutes: 5
 ---
 

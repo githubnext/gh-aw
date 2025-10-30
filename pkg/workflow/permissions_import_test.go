@@ -102,6 +102,7 @@ func TestPermissionsImportIntegration(t *testing.T) {
 	sharedWorkflowContent := `---
 permissions:
   actions: read
+---
 
 # Shared workflow with permissions
 `
@@ -207,6 +208,7 @@ permissions:
   contents: write
   issues: read
   pull-requests: read
+---
 
 # Shared workflow with write permission
 `

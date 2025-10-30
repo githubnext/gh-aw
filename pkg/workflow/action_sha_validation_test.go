@@ -21,6 +21,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+---
 
 # Test Workflow
 This is a test workflow to verify SHA pinning.
@@ -147,6 +148,7 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+---
 
 # Simple Test
 Just a simple test workflow.

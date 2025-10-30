@@ -142,6 +142,8 @@ on:
 permissions:
   issues: write
 engine: claude
+tools:
+  github: false
 ---
 
 # Test Workflow
