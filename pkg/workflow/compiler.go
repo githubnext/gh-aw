@@ -617,6 +617,27 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
+	// Merge permissions from imports with top-level permissions
+	// Extract top-level permissions first
+	topLevelPermissions := c.extractPermissions(result.Frontmatter)
+	if importsResult.MergedPermissions != "" {
+		topLevelPermissions, err = c.MergePermissions(topLevelPermissions, importsResult.MergedPermissions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge permissions: %w", err)
+		}
+		// Update frontmatter with merged permissions for later extraction
+		if topLevelPermissions != "" {
+			// Parse the YAML string back to a map to store in frontmatter
+			var permissionsMap map[string]any
+			if err := yaml.Unmarshal([]byte(topLevelPermissions), &permissionsMap); err == nil {
+				// Extract just the permissions content (without "permissions:" prefix)
+				if perms, hasPerms := permissionsMap["permissions"]; hasPerms {
+					result.Frontmatter["permissions"] = perms
+				}
+			}
+		}
+	}
+
 	// Process @include directives to extract engine configurations and check for conflicts
 	includedEngines, err := parser.ExpandIncludesForEngines(result.Markdown, markdownDir)
 	if err != nil {

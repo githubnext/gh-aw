@@ -149,3 +149,100 @@ func (c *Compiler) MergeNetworkPermissions(topNetwork *NetworkPermissions, impor
 
 	return result, nil
 }
+
+// MergePermissions merges permissions from imports with top-level permissions
+// Takes the top-level permissions YAML string and imported permissions JSON string
+// Returns the merged permissions YAML string
+func (c *Compiler) MergePermissions(topPermissionsYAML string, importedPermissionsJSON string) (string, error) {
+	importsLog.Print("Merging permissions from imports")
+
+	// If no imported permissions, return top-level permissions as-is
+	if importedPermissionsJSON == "" || importedPermissionsJSON == "{}" {
+		importsLog.Print("No imported permissions to merge")
+		return topPermissionsYAML, nil
+	}
+
+	// Parse top-level permissions if they exist
+	var topPerms *Permissions
+	if topPermissionsYAML != "" {
+		topPerms = NewPermissionsParser(topPermissionsYAML).ToPermissions()
+	} else {
+		topPerms = NewPermissions()
+	}
+
+	// Split by newlines to handle multiple JSON objects from different imports
+	lines := strings.Split(importedPermissionsJSON, "\n")
+	importsLog.Printf("Processing %d permission definition lines", len(lines))
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || line == "{}" {
+			continue
+		}
+
+		// Parse JSON line to permissions map
+		var importedPermsMap map[string]any
+		if err := json.Unmarshal([]byte(line), &importedPermsMap); err != nil {
+			continue // Skip invalid lines
+		}
+
+		// Convert imported permissions to Permissions struct
+		// Handle shorthand forms like "read-all", "write-all", etc.
+		if len(importedPermsMap) == 1 {
+			for key := range importedPermsMap {
+				// Check for shorthand
+				if key == "read-all" || key == "write-all" || key == "read" || key == "write" || key == "none" {
+					// Shorthand not supported in imports - skip
+					importsLog.Printf("Skipping shorthand permission in import: %s", key)
+					continue
+				}
+			}
+		}
+
+		// Merge each permission from the imported map
+		for scopeStr, levelValue := range importedPermsMap {
+			scope := PermissionScope(scopeStr)
+			
+			// Parse the level - it might be a string or already unmarshaled
+			var level PermissionLevel
+			if levelStr, ok := levelValue.(string); ok {
+				level = PermissionLevel(levelStr)
+			} else {
+				// Skip invalid level values
+				continue
+			}
+
+			// Get current level for this scope
+			currentLevel, exists := topPerms.Get(scope)
+
+			// Merge logic: take the higher permission level
+			// write > read > none
+			shouldUpdate := false
+			if !exists {
+				shouldUpdate = true
+			} else if level == PermissionWrite && currentLevel != PermissionWrite {
+				shouldUpdate = true
+			} else if level == PermissionRead && currentLevel == PermissionNone {
+				shouldUpdate = true
+			}
+
+			if shouldUpdate {
+				topPerms.Set(scope, level)
+				importsLog.Printf("Merged permission: %s: %s", scope, level)
+			}
+		}
+	}
+
+	// Convert back to YAML string
+	mergedYAML := topPerms.RenderToYAML()
+
+	// Adjust indentation from 6 spaces to 2 spaces for workflow-level permissions
+	lines = strings.Split(mergedYAML, "\n")
+	for i := 1; i < len(lines); i++ {
+		if strings.HasPrefix(lines[i], "      ") {
+			lines[i] = "  " + lines[i][6:]
+		}
+	}
+
+	return strings.Join(lines, "\n"), nil
+}
