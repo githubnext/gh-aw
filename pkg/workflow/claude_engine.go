@@ -174,7 +174,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		stepLines = append(stepLines, "          # Extract markdown body from agent file (skip frontmatter)")
 		stepLines = append(stepLines, fmt.Sprintf("          AGENT_CONTENT=$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)", workflowData.EngineConfig.Agent))
 		stepLines = append(stepLines, "          # Combine agent content with prompt")
-		promptCommand = "\"$AGENT_CONTENT\n\n$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\""
+		stepLines = append(stepLines, "          PROMPT_TEXT=$(printf '%s\\n\\n%s' \"$AGENT_CONTENT\" \"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\")")
+		promptCommand = "\"$PROMPT_TEXT\""
 	} else {
 		promptCommand = "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	}
