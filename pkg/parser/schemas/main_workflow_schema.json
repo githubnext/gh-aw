@@ -5,18 +5,12 @@
     "name": {
       "type": "string",
       "description": "Workflow name that appears in the GitHub Actions interface. If not specified, defaults to the filename without extension.",
-      "examples": [
-        "Copilot Agent PR Analysis",
-        "Dev Hawk",
-        "Smoke Claude"
-      ]
+      "examples": ["Copilot Agent PR Analysis", "Dev Hawk", "Smoke Claude"]
     },
     "description": {
       "type": "string",
       "description": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)",
-      "examples": [
-        "Quickstart for using the GitHub Actions library"
-      ]
+      "examples": ["Quickstart for using the GitHub Actions library"]
     },
     "source": {
       "type": "string",
@@ -34,18 +28,9 @@
         "description": "Workflow specification in format owner/repo/path@ref"
       },
       "examples": [
-        [
-          "shared/jqschema.md",
-          "shared/reporting.md"
-        ],
-        [
-          "shared/mcp/gh-aw.md",
-          "shared/jqschema.md",
-          "shared/reporting.md"
-        ],
-        [
-          "../instructions/documentation.instructions.md"
-        ]
+        ["shared/jqschema.md", "shared/reporting.md"],
+        ["shared/mcp/gh-aw.md", "shared/jqschema.md", "shared/reporting.md"],
+        ["../instructions/documentation.instructions.md"]
       ]
     },
     "on": {
@@ -54,11 +39,7 @@
         {
           "type": "string",
           "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call')",
-          "examples": [
-            "push",
-            "issues",
-            "workflow_dispatch"
-          ]
+          "examples": ["push", "issues", "workflow_dispatch"]
         },
         {
           "type": "object",
@@ -335,11 +316,7 @@
                   "description": "Types of issue comment events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "edited",
-                      "deleted"
-                    ]
+                    "enum": ["created", "edited", "deleted"]
                   }
                 }
               }
@@ -383,11 +360,7 @@
                   "description": "Types of discussion comment events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "edited",
-                      "deleted"
-                    ]
+                    "enum": ["created", "edited", "deleted"]
                   }
                 }
               }
@@ -403,9 +376,7 @@
                     "description": "Cron expression for schedule"
                   }
                 },
-                "required": [
-                  "cron"
-                ],
+                "required": ["cron"],
                 "additionalProperties": false
               }
             },
@@ -441,11 +412,7 @@
                           },
                           "type": {
                             "type": "string",
-                            "enum": [
-                              "string",
-                              "choice",
-                              "boolean"
-                            ],
+                            "enum": ["string", "choice", "boolean"],
                             "description": "Input type"
                           },
                           "options": {
@@ -479,11 +446,7 @@
                   "description": "Types of workflow run events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "completed",
-                      "requested",
-                      "in_progress"
-                    ]
+                    "enum": ["completed", "requested", "in_progress"]
                   }
                 },
                 "branches": {
@@ -512,15 +475,7 @@
                   "description": "Types of release events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "published",
-                      "unpublished",
-                      "created",
-                      "edited",
-                      "deleted",
-                      "prereleased",
-                      "released"
-                    ]
+                    "enum": ["published", "unpublished", "created", "edited", "deleted", "prereleased", "released"]
                   }
                 }
               }
@@ -535,11 +490,7 @@
                   "description": "Types of pull request review comment events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "edited",
-                      "deleted"
-                    ]
+                    "enum": ["created", "edited", "deleted"]
                   }
                 }
               }
@@ -554,11 +505,7 @@
                   "description": "Types of branch protection rule events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "edited",
-                      "deleted"
-                    ]
+                    "enum": ["created", "edited", "deleted"]
                   }
                 }
               }
@@ -573,12 +520,7 @@
                   "description": "Types of check run events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "rerequested",
-                      "completed",
-                      "requested_action"
-                    ]
+                    "enum": ["created", "rerequested", "completed", "requested_action"]
                   }
                 }
               }
@@ -593,9 +535,7 @@
                   "description": "Types of check suite events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "completed"
-                    ]
+                    "enum": ["completed"]
                   }
                 }
               }
@@ -688,11 +628,7 @@
                   "description": "Types of label events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "edited",
-                      "deleted"
-                    ]
+                    "enum": ["created", "edited", "deleted"]
                   }
                 }
               }
@@ -707,9 +643,7 @@
                   "description": "Types of merge group events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "checks_requested"
-                    ]
+                    "enum": ["checks_requested"]
                   }
                 }
               }
@@ -724,13 +658,7 @@
                   "description": "Types of milestone events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "created",
-                      "closed",
-                      "opened",
-                      "edited",
-                      "deleted"
-                    ]
+                    "enum": ["created", "closed", "opened", "edited", "deleted"]
                   }
                 }
               }
@@ -852,11 +780,7 @@
                   "description": "Types of pull request review events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "submitted",
-                      "edited",
-                      "dismissed"
-                    ]
+                    "enum": ["submitted", "edited", "dismissed"]
                   }
                 }
               }
@@ -871,10 +795,7 @@
                   "description": "Types of registry package events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "published",
-                      "updated"
-                    ]
+                    "enum": ["published", "updated"]
                   }
                 }
               }
@@ -916,9 +837,7 @@
                   "description": "Types of watch events",
                   "items": {
                     "type": "string",
-                    "enum": [
-                      "started"
-                    ]
+                    "enum": ["started"]
                   }
                 }
               }
@@ -942,17 +861,7 @@
             },
             "reaction": {
               "type": "string",
-              "enum": [
-                "+1",
-                "-1",
-                "laugh",
-                "confused",
-                "heart",
-                "hooray",
-                "rocket",
-                "eyes",
-                "none"
-              ],
+              "enum": ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes", "none"],
               "default": "eyes",
               "description": "AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused, heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to 'eyes' if not specified."
             }
@@ -1027,12 +936,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": [
-            "read-all",
-            "write-all",
-            "read",
-            "write"
-          ],
+          "enum": ["read-all", "write-all", "read", "write"],
           "description": "Simple permissions string: 'read-all' (all read permissions), 'write-all' (all write permissions), 'read' or 'write' (basic level)"
         },
         {
@@ -1042,136 +946,75 @@
           "properties": {
             "actions": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for GitHub Actions workflows and runs (read: view workflows, write: manage workflows, none: no access)"
             },
             "attestations": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for artifact attestations (read: view attestations, write: create attestations, none: no access)"
             },
             "checks": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for repository checks and status checks (read: view checks, write: create/update checks, none: no access)"
             },
             "contents": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for repository contents (read: view files, write: modify files/branches, none: no access)"
             },
             "deployments": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for repository deployments (read: view deployments, write: create/update deployments, none: no access)"
             },
             "discussions": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for repository discussions (read: view discussions, write: create/update discussions, none: no access)"
             },
             "id-token": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ]
+              "enum": ["read", "write", "none"]
             },
             "issues": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ],
+              "enum": ["read", "write", "none"],
               "description": "Permission for repository issues (read: view issues, write: create/update/close issues, none: no access)"
             },
             "models": {
               "type": "string",
-              "enum": [
-                "read",
-                "none"
-              ],
+              "enum": ["read", "none"],
               "description": "Permission for GitHub Copilot models (read: access AI models for agentic workflows, none: no access)"
             },
             "packages": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ]
+              "enum": ["read", "write", "none"]
             },
             "pages": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ]
+              "enum": ["read", "write", "none"]
             },
             "pull-requests": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ]
+              "enum": ["read", "write", "none"]
             },
             "repository-projects": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ]
+              "enum": ["read", "write", "none"]
             },
             "security-events": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ]
+              "enum": ["read", "write", "none"]
             },
             "statuses": {
               "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "none"
-              ]
+              "enum": ["read", "write", "none"]
             },
             "all": {
               "type": "string",
-              "enum": [
-                "read"
-              ],
+              "enum": ["read"],
               "description": "Permission shorthand that applies read access to all permission scopes. Can be combined with specific write permissions to override individual scopes. 'write' is not allowed for all."
             }
           }
@@ -1181,10 +1024,7 @@
     "run-name": {
       "type": "string",
       "description": "Custom name for workflow runs that appears in the GitHub Actions interface (supports GitHub expressions like ${{ github.event.issue.title }})",
-      "examples": [
-        "Deploy to ${{ github.event.inputs.environment }}",
-        "Build #${{ github.run_number }}"
-      ]
+      "examples": ["Deploy to ${{ github.event.inputs.environment }}", "Build #${{ github.run_number }}"]
     },
     "jobs": {
       "type": "object",
@@ -1330,21 +1170,14 @@
     "timeout_minutes": {
       "type": "integer",
       "description": "Workflow timeout in minutes. Defaults to 15 minutes for agentic workflows. Has sensible defaults and can typically be omitted.",
-      "examples": [
-        5,
-        10,
-        30
-      ]
+      "examples": [5, 10, 30]
     },
     "concurrency": {
       "oneOf": [
         {
           "type": "string",
           "description": "Simple concurrency group name to prevent multiple runs. Agentic workflows automatically generate enhanced concurrency policies.",
-          "examples": [
-            "my-workflow-group",
-            "workflow-${{ github.ref }}"
-          ]
+          "examples": ["my-workflow-group", "workflow-${{ github.ref }}"]
         },
         {
           "type": "object",
@@ -1360,9 +1193,7 @@
               "description": "Whether to cancel in-progress workflows in the same concurrency group when a new one starts"
             }
           },
-          "required": [
-            "group"
-          ],
+          "required": ["group"],
           "examples": [
             {
               "group": "dev-workflow-${{ github.ref }}",
@@ -1419,9 +1250,7 @@
               "description": "A deployment URL"
             }
           },
-          "required": [
-            "name"
-          ],
+          "required": ["name"],
           "additionalProperties": false
         }
       ]
@@ -1487,9 +1316,7 @@
               "description": "Additional Docker container options"
             }
           },
-          "required": [
-            "image"
-          ],
+          "required": ["image"],
           "additionalProperties": false
         }
       ]
@@ -1557,9 +1384,7 @@
                 "description": "Additional Docker container options"
               }
             },
-            "required": [
-              "image"
-            ],
+            "required": ["image"],
             "additionalProperties": false
           }
         ]
@@ -1570,24 +1395,13 @@
       "examples": [
         "defaults",
         {
-          "allowed": [
-            "defaults",
-            "github"
-          ]
+          "allowed": ["defaults", "github"]
         },
         {
-          "allowed": [
-            "defaults",
-            "python",
-            "node",
-            "*.example.com"
-          ]
+          "allowed": ["defaults", "python", "node", "*.example.com"]
         },
         {
-          "allowed": [
-            "api.openai.com",
-            "*.github.com"
-          ],
+          "allowed": ["api.openai.com", "*.github.com"],
           "firewall": {
             "version": "v1.0.0",
             "log-level": "debug"
@@ -1597,9 +1411,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": [
-            "defaults"
-          ],
+          "enum": ["defaults"],
           "description": "Use default network permissions (basic infrastructure: certificates, JSON schema, Ubuntu, etc.)"
         },
         {
@@ -1627,9 +1439,7 @@
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "disable"
-                  ],
+                  "enum": ["disable"],
                   "description": "Disable AWF firewall (triggers warning if allowed != *, error in strict mode if allowed is not * or engine does not support firewall)"
                 },
                 {
@@ -1650,12 +1460,7 @@
                     "log-level": {
                       "type": "string",
                       "description": "AWF log level (default: info). Valid values: debug, info, warn, error",
-                      "enum": [
-                        "debug",
-                        "info",
-                        "warn",
-                        "error"
-                      ]
+                      "enum": ["debug", "info", "warn", "error"]
                     }
                   },
                   "additionalProperties": false
@@ -1800,10 +1605,7 @@
                 },
                 "mode": {
                   "type": "string",
-                  "enum": [
-                    "local",
-                    "remote"
-                  ],
+                  "enum": ["local", "remote"],
                   "description": "MCP server mode: 'local' (Docker-based, default) or 'remote' (hosted at api.githubcopilot.com)"
                 },
                 "version": {
@@ -1897,11 +1699,7 @@
               ]
             },
             {
-              "allowed": [
-                "search_pull_requests",
-                "pull_request_read",
-                "get_file_contents"
-              ]
+              "allowed": ["search_pull_requests", "pull_request_read", "get_file_contents"]
             },
             {
               "read-only": true,
@@ -1947,16 +1745,8 @@
               "echo",
               "ls"
             ],
-            [
-              "echo",
-              "ls",
-              "cat"
-            ],
-            [
-              "gh pr list *",
-              "gh search prs *",
-              "jq *"
-            ]
+            ["echo", "ls", "cat"],
+            ["gh pr list *", "gh search prs *", "jq *"]
           ]
         },
         "web-fetch": {
@@ -2056,10 +1846,7 @@
               "description": "Enable agentic-workflows tool with default settings (same as true)"
             }
           ],
-          "examples": [
-            true,
-            null
-          ]
+          "examples": [true, null]
         },
         "cache-memory": {
           "description": "Cache memory MCP configuration for persistent memory storage",
@@ -2174,11 +1961,7 @@
           "type": "integer",
           "minimum": 1,
           "description": "Timeout in seconds for tool/MCP server operations. Applies to all tools and MCP servers if supported by the engine. Default varies by engine (Claude: 60s, Codex: 120s).",
-          "examples": [
-            60,
-            120,
-            300
-          ]
+          "examples": [60, 120, 300]
         },
         "startup-timeout": {
           "type": "integer",
@@ -2249,25 +2032,17 @@
               "description": "If true, only checks if cache entry exists and skips download"
             }
           },
-          "required": [
-            "key",
-            "path"
-          ],
+          "required": ["key", "path"],
           "additionalProperties": false,
           "examples": [
             {
               "key": "node-modules-${{ hashFiles('package-lock.json') }}",
               "path": "node_modules",
-              "restore-keys": [
-                "node-modules-"
-              ]
+              "restore-keys": ["node-modules-"]
             },
             {
               "key": "build-cache-${{ github.sha }}",
-              "path": [
-                "dist",
-                ".cache"
-              ],
+              "path": ["dist", ".cache"],
               "restore-keys": "build-cache-",
               "fail-on-cache-miss": false
             }
@@ -2326,10 +2101,7 @@
                 "description": "If true, only checks if cache entry exists and skips download"
               }
             },
-            "required": [
-              "key",
-              "path"
-            ],
+            "required": ["key", "path"],
             "additionalProperties": false
           }
         }
@@ -2624,11 +2396,7 @@
                 },
                 "if-no-changes": {
                   "type": "string",
-                  "enum": [
-                    "warn",
-                    "error",
-                    "ignore"
-                  ],
+                  "enum": ["warn", "error", "ignore"],
                   "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
                 },
                 "target-repo": {
@@ -2688,10 +2456,7 @@
                 "side": {
                   "type": "string",
                   "description": "Side of the diff for comments: 'LEFT' or 'RIGHT' (default: 'RIGHT')",
-                  "enum": [
-                    "LEFT",
-                    "RIGHT"
-                  ]
+                  "enum": ["LEFT", "RIGHT"]
                 },
                 "target": {
                   "type": "string",
@@ -2875,11 +2640,7 @@
                 },
                 "if-no-changes": {
                   "type": "string",
-                  "enum": [
-                    "warn",
-                    "error",
-                    "ignore"
-                  ],
+                  "enum": ["warn", "error", "ignore"],
                   "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
                 },
                 "commit-title-suffix": {
@@ -3135,11 +2896,7 @@
                         },
                         "type": {
                           "type": "string",
-                          "enum": [
-                            "string",
-                            "boolean",
-                            "choice"
-                          ],
+                          "enum": ["string", "boolean", "choice"],
                           "description": "Input parameter type",
                           "default": "string"
                         },
@@ -3181,9 +2938,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": [
-            "all"
-          ],
+          "enum": ["all"],
           "description": "Allow any authenticated user to trigger the workflow (\u26a0\ufe0f disables permission checking entirely - use with caution)"
         },
         {
@@ -3191,13 +2946,7 @@
           "description": "List of repository permission levels that can trigger the workflow. Permission checks are automatically applied to potentially unsafe triggers.",
           "items": {
             "type": "string",
-            "enum": [
-              "admin",
-              "maintainer",
-              "maintain",
-              "write",
-              "triage"
-            ],
+            "enum": ["admin", "maintainer", "maintain", "write", "triage"],
             "description": "Repository permission level: 'admin' (full access), 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage' (issue management)"
           },
           "minItems": 1
@@ -3263,23 +3012,17 @@
       "additionalProperties": false,
       "anyOf": [
         {
-          "required": [
-            "uses"
-          ]
+          "required": ["uses"]
         },
         {
-          "required": [
-            "run"
-          ]
+          "required": ["run"]
         }
       ]
     },
     "strict": {
       "type": "boolean",
       "description": "Enable strict mode validation: require timeout, refuse write permissions, require network configuration. Defaults to false.",
-      "examples": [
-        true
-      ]
+      "examples": [true]
     },
     "runtimes": {
       "type": "object",
@@ -3346,12 +3089,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": [
-            "claude",
-            "codex",
-            "copilot",
-            "custom"
-          ],
+          "enum": ["claude", "codex", "copilot", "custom"],
           "description": "Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub Copilot CLI), 'codex' (OpenAI Codex CLI), or 'custom' (user-defined steps)"
         },
         {
@@ -3360,12 +3098,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "enum": [
-                "claude",
-                "codex",
-                "custom",
-                "copilot"
-              ],
+              "enum": ["claude", "codex", "custom", "copilot"],
               "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps)"
             },
             "version": {
@@ -3399,9 +3132,7 @@
                       "description": "Whether to cancel in-progress runs of the same concurrency group. Defaults to false for agentic workflow runs."
                     }
                   },
-                  "required": [
-                    "group"
-                  ],
+                  "required": ["group"],
                   "additionalProperties": false
                 }
               ],
@@ -3456,9 +3187,7 @@
                     "description": "Human-readable description of what this pattern matches"
                   }
                 },
-                "required": [
-                  "pattern"
-                ],
+                "required": ["pattern"],
                 "additionalProperties": false
               }
             },
@@ -3478,9 +3207,7 @@
               "description": "Optional path to an agent configuration file. For copilot engine, this is passed as --agent flag. For claude and codex engines, the markdown body from the agent file is injected as a system prompt."
             }
           },
-          "required": [
-            "id"
-          ],
+          "required": ["id"],
           "additionalProperties": false
         }
       ]
@@ -3491,10 +3218,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": [
-            "stdio",
-            "local"
-          ],
+          "enum": ["stdio", "local"],
           "description": "MCP connection type for stdio (local is an alias for stdio)"
         },
         "registry": {
@@ -3574,41 +3298,29 @@
       "additionalProperties": false,
       "anyOf": [
         {
-          "required": [
-            "command"
-          ]
+          "required": ["command"]
         },
         {
-          "required": [
-            "container"
-          ]
+          "required": ["container"]
         }
       ],
       "not": {
         "allOf": [
           {
-            "required": [
-              "command"
-            ]
+            "required": ["command"]
           },
           {
-            "required": [
-              "container"
-            ]
+            "required": ["container"]
           }
         ]
       },
       "allOf": [
         {
           "if": {
-            "required": [
-              "network"
-            ]
+            "required": ["network"]
           },
           "then": {
-            "required": [
-              "container"
-            ]
+            "required": ["container"]
           }
         }
       ]
@@ -3648,20 +3360,14 @@
           }
         }
       },
-      "required": [
-        "url"
-      ],
+      "required": ["url"],
       "additionalProperties": false
     },
     "github_token": {
       "type": "string",
       "pattern": "^\\$\\{\\{\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*(\\s*\\|\\|\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*)*\\s*\\}\\}$",
       "description": "GitHub token expression using secrets. Pattern details: `[A-Za-z_][A-Za-z0-9_]*` matches a valid secret name (starts with a letter or underscore, followed by letters, digits, or underscores). The full pattern matches expressions like `${{ secrets.NAME }}` or `${{ secrets.NAME1 || secrets.NAME2 }}`.",
-      "examples": [
-        "${{ secrets.GITHUB_TOKEN }}",
-        "${{ secrets.CUSTOM_PAT }}",
-        "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-      ]
+      "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.CUSTOM_PAT }}", "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"]
     }
   }
 }

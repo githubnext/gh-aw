@@ -195,11 +195,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": [
-            "claude",
-            "codex",
-            "custom"
-          ],
+          "enum": ["claude", "codex", "custom"],
           "description": "Simple engine name (claude, codex, or custom)"
         },
         {
@@ -208,11 +204,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "enum": [
-                "claude",
-                "codex",
-                "custom"
-              ],
+              "enum": ["claude", "codex", "custom"],
               "description": "Agent CLI identifier (claude, codex, or custom)"
             },
             "version": {
@@ -243,9 +235,7 @@
               }
             }
           },
-          "required": [
-            "id"
-          ],
+          "required": ["id"],
           "additionalProperties": false
         }
       ]
@@ -426,10 +416,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": [
-            "stdio",
-            "local"
-          ],
+          "enum": ["stdio", "local"],
           "description": "MCP connection type for stdio (local is an alias for stdio)"
         },
         "registry": {
@@ -523,41 +510,29 @@
       "additionalProperties": false,
       "anyOf": [
         {
-          "required": [
-            "command"
-          ]
+          "required": ["command"]
         },
         {
-          "required": [
-            "container"
-          ]
+          "required": ["container"]
         }
       ],
       "not": {
         "allOf": [
           {
-            "required": [
-              "command"
-            ]
+            "required": ["command"]
           },
           {
-            "required": [
-              "container"
-            ]
+            "required": ["container"]
           }
         ]
       },
       "allOf": [
         {
           "if": {
-            "required": [
-              "network"
-            ]
+            "required": ["network"]
           },
           "then": {
-            "required": [
-              "container"
-            ]
+            "required": ["container"]
           }
         }
       ]
@@ -597,9 +572,7 @@
           }
         }
       },
-      "required": [
-        "url"
-      ],
+      "required": ["url"],
       "additionalProperties": false
     },
     "safe_job": {
@@ -692,12 +665,7 @@
                 },
                 "type": {
                   "type": "string",
-                  "enum": [
-                    "string",
-                    "number",
-                    "boolean",
-                    "choice"
-                  ],
+                  "enum": ["string", "number", "boolean", "choice"],
                   "description": "Input type"
                 },
                 "options": {
@@ -723,9 +691,7 @@
           "description": "Custom output message"
         }
       },
-      "required": [
-        "inputs"
-      ],
+      "required": ["inputs"],
       "additionalProperties": false
     }
   }
