@@ -1148,11 +1148,11 @@ Analyze issues and create follow-up items with Copilot assigned for automated as
 
 ## Custom runner image
 
-You can specify the `runs-on` field in the `safe-outputs:` section to use a custom GitHub Actions runner image for all safe output jobs.
+You can specify the `runs-on` field in the `safe-outputs:` section to use a custom GitHub Actions runner image for all safe output jobs (including pre-activation, activation, and update_reaction jobs). The default is `ubuntu-slim`, which provides a lightweight, cost-effective 1 vCPU Linux runner. See the [GitHub blog post](https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/) for details.
 
 ```yaml
 safe-outputs:
-  runs-on: ubuntu-22.04                # Optional: custom runner image for all safe output jobs
+  runs-on: ubuntu-22.04                # Optional: custom runner image (defaults to ubuntu-slim)
   create-issue:
   add-comment:
 ```

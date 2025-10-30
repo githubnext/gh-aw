@@ -19,7 +19,7 @@ var (
 	version = "dev"
 )
 
-//go:embed templates/instructions.md
+//go:embed templates/github-agentic-workflows.instructions.md
 var copilotInstructionsTemplate string
 
 //go:embed templates/create-agentic-workflow.prompt.md

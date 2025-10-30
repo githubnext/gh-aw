@@ -24,7 +24,7 @@ safe-outputs:
 # Test Workflow
 
 This is a test workflow.`,
-			expectedRunsOn: "runs-on: ubuntu-latest",
+			expectedRunsOn: "runs-on: ubuntu-slim",
 		},
 		{
 			name: "custom runs-on string",
@@ -139,8 +139,8 @@ This is a test workflow.`
 			if jobStart != -1 {
 				// Look for runs-on within the next 500 characters of this job
 				jobSection := yamlStr[jobStart : jobStart+500]
-				if strings.Contains(jobSection, "runs-on: ubuntu-latest") {
-					t.Errorf("Job %q still uses default 'runs-on: ubuntu-latest' instead of custom runner.\nJob section:\n%s", jobName, jobSection)
+				if strings.Contains(jobSection, "runs-on: ubuntu-slim") {
+					t.Errorf("Job %q still uses default 'runs-on: ubuntu-slim' instead of custom runner.\nJob section:\n%s", jobName, jobSection)
 				}
 				if !strings.Contains(jobSection, expectedRunsOn) {
 					t.Errorf("Job %q does not use expected %q.\nJob section:\n%s", jobName, expectedRunsOn, jobSection)
@@ -161,14 +161,14 @@ func TestFormatSafeOutputsRunsOnEdgeCases(t *testing.T) {
 		{
 			name:           "nil safe outputs config",
 			safeOutputs:    nil,
-			expectedRunsOn: "runs-on: ubuntu-latest",
+			expectedRunsOn: "runs-on: ubuntu-slim",
 		},
 		{
 			name: "safe outputs config with nil runs-on",
 			safeOutputs: &SafeOutputsConfig{
 				RunsOn: "",
 			},
-			expectedRunsOn: "runs-on: ubuntu-latest",
+			expectedRunsOn: "runs-on: ubuntu-slim",
 		},
 	}
 

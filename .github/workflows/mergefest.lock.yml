@@ -61,7 +61,7 @@ jobs:
     if: >
       (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/mergefest')) &&
       (github.event.issue.pull_request != null)))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       discussions: write
       issues: write
@@ -4348,7 +4348,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     timeout-minutes: 5
@@ -4478,7 +4478,7 @@ jobs:
   pre_activation:
     if: >
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/mergefest')) && (github.event.issue.pull_request != null))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
     steps:
@@ -4620,7 +4620,7 @@ jobs:
       ((!cancelled()) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&
       (((github.event.issue.number) &&
       (github.event.issue.pull_request)) || (github.event.pull_request))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
       issues: read
@@ -4988,7 +4988,7 @@ jobs:
     if: >
       (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!contains(needs.agent.outputs.output_types, 'add_comment'))) &&
       (!contains(needs.agent.outputs.output_types, 'create_pull_request'))) && (!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write

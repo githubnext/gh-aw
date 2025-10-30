@@ -275,6 +275,12 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		return errors.New(formattedErr)
 	}
 
+	// Validate agent file exists if specified in engine config
+	log.Printf("Validating agent file if specified")
+	if err := c.validateAgentFile(workflowData, markdownPath); err != nil {
+		return err
+	}
+
 	// Validate permissions against GitHub MCP toolsets
 	log.Printf("Validating permissions for GitHub MCP toolsets")
 	if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub {
@@ -330,6 +336,58 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 					c.IncrementWarningCount()
 				}
 			}
+		}
+	}
+
+	// Validate GitHub tools against enabled toolsets
+	log.Printf("Validating GitHub tools against enabled toolsets")
+	if workflowData.ParsedTools != nil && workflowData.ParsedTools.GitHub != nil {
+		// Extract allowed tools and enabled toolsets from ParsedTools
+		allowedTools := workflowData.ParsedTools.GitHub.Allowed
+		enabledToolsets := ParseGitHubToolsets(strings.Join(workflowData.ParsedTools.GitHub.Toolset, ","))
+
+		// Validate that all allowed tools have their toolsets enabled
+		if err := ValidateGitHubToolsAgainstToolsets(allowedTools, enabledToolsets); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: err.Error(),
+			})
+			return errors.New(formattedErr)
+		}
+	}
+
+	// Validate permissions for agentic-workflows tool
+	log.Printf("Validating permissions for agentic-workflows tool")
+	if _, hasAgenticWorkflows := workflowData.Tools["agentic-workflows"]; hasAgenticWorkflows {
+		// Parse permissions from the workflow data
+		permissions := NewPermissionsParser(workflowData.Permissions).ToPermissions()
+
+		// Check if actions: read permission exists
+		actionsLevel, hasActions := permissions.Get(PermissionActions)
+		if !hasActions || actionsLevel == PermissionNone {
+			// Missing actions: read permission
+			message := "ERROR: Missing required permission for agentic-workflows tool:\n"
+			message += "  - actions: read\n\n"
+			message += "The agentic-workflows tool requires actions: read permission to access GitHub Actions data.\n\n"
+			message += "Suggested fix: Add the following to your workflow frontmatter:\n"
+			message += "permissions:\n"
+			message += "  actions: read"
+
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: message,
+			})
+			return errors.New(formattedErr)
 		}
 	}
 
@@ -614,6 +672,15 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		networkPermissions, err = c.MergeNetworkPermissions(networkPermissions, importsResult.MergedNetwork)
 		if err != nil {
 			return nil, fmt.Errorf("failed to merge network permissions: %w", err)
+		}
+	}
+
+	// Validate permissions from imports against top-level permissions
+	// Extract top-level permissions first
+	topLevelPermissions := c.extractPermissions(result.Frontmatter)
+	if importsResult.MergedPermissions != "" {
+		if err := c.ValidatePermissions(topLevelPermissions, importsResult.MergedPermissions); err != nil {
+			return nil, fmt.Errorf("permission validation failed: %w", err)
 		}
 	}
 

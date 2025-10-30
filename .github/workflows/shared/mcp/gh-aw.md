@@ -1,4 +1,6 @@
 ---
+permissions:
+  actions: read
 mcp-servers:
   gh-aw:
     type: http

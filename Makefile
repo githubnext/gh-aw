@@ -13,7 +13,7 @@ all: build
 
 # Build the binary, run make deps before this
 .PHONY: build
-build:
+build: sync-templates
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
 
 # Build for all platforms
@@ -137,6 +137,11 @@ fmt:
 fmt-cjs:
 	cd pkg/workflow/js && npm run format:cjs
 
+# Format JSON files in pkg directory
+.PHONY: fmt-json
+fmt-json:
+	prettier --write 'pkg/**/*.json' --ignore-path /dev/null
+
 # Check formatting
 .PHONY: fmt-check
 fmt-check:
@@ -150,14 +155,27 @@ fmt-check:
 fmt-check-cjs:
 	cd pkg/workflow/js && npm run lint:cjs
 
+# Check JSON file formatting in pkg directory
+.PHONY: fmt-check-json
+fmt-check-json:
+	@if ! prettier --check 'pkg/**/*.json' --ignore-path /dev/null 2>&1 | grep -q "All matched files use Prettier code style"; then \
+		echo "JSON files are not formatted. Run 'make fmt-json' to fix."; \
+		exit 1; \
+	fi
+
 # Lint JavaScript (.cjs) files 
 .PHONY: lint-cjs
 lint-cjs: fmt-check-cjs
 	@echo "✓ JavaScript formatting validated"
 
+# Lint JSON files
+.PHONY: lint-json
+lint-json: fmt-check-json
+	@echo "✓ JSON formatting validated"
+
 # Validate all project files
 .PHONY: lint
-lint: fmt-check lint-cjs golint
+lint: fmt-check fmt-check-json lint-cjs golint
 	@echo "✓ All validations passed"
 
 # Install the binary locally
@@ -176,9 +194,20 @@ generate-schema-docs:
 generate-status-badges:
 	node scripts/generate-status-badges.js
 
+# Sync templates from .github to pkg/cli/templates
+.PHONY: sync-templates
+sync-templates:
+	@echo "Syncing templates from .github to pkg/cli/templates..."
+	@mkdir -p pkg/cli/templates
+	@cp .github/instructions/github-agentic-workflows.instructions.md pkg/cli/templates/
+	@cp .github/prompts/create-agentic-workflow.prompt.md pkg/cli/templates/
+	@cp .github/prompts/create-shared-agentic-workflow.prompt.md pkg/cli/templates/
+	@cp .github/prompts/setup-agentic-workflows.prompt.md pkg/cli/templates/
+	@echo "✓ Templates synced successfully"
+
 # Recompile all workflow files
 .PHONY: recompile
-recompile: build
+recompile: sync-templates build
 	./$(BINARY_NAME) init
 	./$(BINARY_NAME) compile --validate --verbose --purge
 	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate --verbose --purge
@@ -208,7 +237,7 @@ release: test
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt fmt-cjs lint build test-all recompile dependabot generate-schema-docs generate-status-badges
+agent-finish: deps-dev fmt fmt-cjs fmt-json lint build test-all recompile dependabot generate-schema-docs generate-status-badges
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -227,12 +256,16 @@ help:
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
 	@echo "  fmt-cjs          - Format JavaScript (.cjs and .js) files"
+	@echo "  fmt-json         - Format JSON files in pkg directory"
 	@echo "  fmt-check        - Check code formatting"
 	@echo "  fmt-check-cjs    - Check JavaScript (.cjs) file formatting"
+	@echo "  fmt-check-json   - Check JSON file formatting in pkg directory"
 	@echo "  lint-cjs         - Lint JavaScript (.cjs) files"
+	@echo "  lint-json        - Lint JSON files in pkg directory"
 	@echo "  validate-workflows - Validate compiled workflow lock files"
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"
+	@echo "  sync-templates   - Sync templates from .github to pkg/cli/templates (runs automatically during build)"
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
 	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
