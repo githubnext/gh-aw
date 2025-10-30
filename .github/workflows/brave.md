@@ -5,7 +5,8 @@ on:
     events: [issue_comment]
 permissions:
   contents: read
-  actions: read
+  issues: read
+  pull-requests: read
 engine: copilot
 strict: true
 imports:

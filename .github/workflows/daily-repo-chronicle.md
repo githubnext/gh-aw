@@ -16,6 +16,9 @@ tools:
   bash:
     - "*"
   github:
+    toolsets:
+      - default
+      - discussions
     allowed:
       - list_pull_requests
       - list_issues

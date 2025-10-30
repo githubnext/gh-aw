@@ -10,6 +10,10 @@ permissions:
   pull-requests: read
 engine: claude
 tools:
+  github:
+   toolsets:
+      - default
+      - actions
   cache-memory: true
   timeout: 300
 safe-outputs:

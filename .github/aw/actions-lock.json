@@ -25,6 +25,11 @@
       "version": "v5",
       "sha": "a0853c24544627f65ddf259abe73b1d18a591444"
     },
+    "actions/setup-node@v6": {
+      "repo": "actions/setup-node",
+      "version": "v6",
+      "sha": "2028fbc5c25fe9cf00d9f06a71cc4710d4507903"
+    },
     "actions/upload-artifact@v4": {
       "repo": "actions/upload-artifact",
       "version": "v4",

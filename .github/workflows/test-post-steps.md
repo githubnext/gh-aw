@@ -7,12 +7,12 @@ on:
 
 permissions:
   contents: read
-  actions: read
 
 engine: copilot
 
 tools:
   github:
+    toolsets: [repos]
     allowed: [get_repository]
 
 # Steps that run after AI execution
