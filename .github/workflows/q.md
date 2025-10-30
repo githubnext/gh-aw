@@ -6,6 +6,7 @@ on:
   reaction: rocket
 permissions:
   contents: read
+  actions: read
   issues: read
   pull-requests: read
 roles: [admin, maintainer, write]
@@ -15,6 +16,10 @@ imports:
   - shared/mcp/serena.md
   - shared/mcp/tavily.md
 tools:
+  github:
+    toolsets:
+      - default
+      - actions
   cache-memory: true
 safe-outputs:
   add-comment:
