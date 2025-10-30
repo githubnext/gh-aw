@@ -11,7 +11,7 @@ permissions: read-all
 
 engine:
   id: copilot
-  custom-agent: .github/agents/technical-doc-writer.md
+  custom-agent: technical-doc-writer.md
 
 network:
   allowed:
