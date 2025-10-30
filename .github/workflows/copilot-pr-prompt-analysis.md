@@ -61,7 +61,7 @@ steps:
       gh search prs --repo ${{ github.repository }} \
         --author "app/copilot" \
         --created ">=$DATE_30_DAYS_AGO" \
-        --json number,title,state,createdAt,closedAt,mergedAt,author,body,labels,url,assignees,repository \
+        --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository \
         --limit 1000 \
         > /tmp/gh-aw/pr-data/copilot-prs.json
 
@@ -116,17 +116,19 @@ For each PR in the dataset:
    - Handle cases where body is null or empty
 
 2. **Categorize the PR outcome**:
-   - **Merged**: `mergedAt` is not null
-   - **Closed (not merged)**: `state` is "CLOSED" and `mergedAt` is null
+   - **Note**: The `gh search prs` command doesn't return `mergedAt` in its JSON output
+   - To determine merge status, you'll need to use `gh pr view <number> --json mergedAt` for each PR
+   - **Merged**: Use `gh pr view` to check if `mergedAt` is not null
+   - **Closed (not merged)**: `state` is "CLOSED" and PR was not merged
    - **Open**: `state` is "OPEN"
 
 3. **Extract key information**:
    - PR number and URL
    - PR title
    - Full prompt text from body
-   - Outcome category (Merged/Closed/Open)
+   - Outcome category (Merged/Closed/Open) - requires additional `gh pr view` calls
    - Creation date
-   - Merge/close date (if applicable)
+   - Merge/close date (if applicable) - use `gh pr view <number> --json mergedAt,closedAt` to get these
 
 ### Phase 3: Analyze Prompt Patterns
 
