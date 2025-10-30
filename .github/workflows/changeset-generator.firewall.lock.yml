@@ -4726,23 +4726,32 @@ jobs:
             }
 
             // ===== DOWNLOAD LLAMA GUARD 3 MODEL =====
-            core.info('📥 Downloading Llama Guard 3:1b model...');
-            core.info('This may take several minutes...');
+            core.info('📥 Checking for Llama Guard 3:1b model...');
             try {
-              const startTime = Date.now();
-              await exec.exec('ollama', ['pull', 'llama-guard3:1b']);
-
-              const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-              core.info(`✅ Model downloaded successfully in ${elapsed}s`);
-
-              // Verify model is available
+              // Check if model is already available
               const modelsOutput = await exec.getExecOutput('ollama', ['list']);
-              if (!modelsOutput.stdout.includes('llama-guard3')) {
-                throw new Error('Llama Guard 3 model not found after download');
+              const modelExists = modelsOutput.stdout.includes('llama-guard3');
+
+              if (modelExists) {
+                core.info('✅ Llama Guard 3 model already available');
+              } else {
+                core.info('📥 Downloading Llama Guard 3:1b model...');
+                core.info('This may take several minutes...');
+                const startTime = Date.now();
+                await exec.exec('ollama', ['pull', 'llama-guard3:1b']);
+
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                core.info(`✅ Model downloaded successfully in ${elapsed}s`);
+
+                // Verify model is now available
+                const verifyOutput = await exec.getExecOutput('ollama', ['list']);
+                if (!verifyOutput.stdout.includes('llama-guard3')) {
+                  throw new Error('Llama Guard 3 model not found after download');
+                }
               }
               core.info('✅ Llama Guard 3 model ready');
             } catch (error) {
-              core.setFailed(`Failed to download model: ${error instanceof Error ? error.message : String(error)}`);
+              core.setFailed(`Failed to prepare model: ${error instanceof Error ? error.message : String(error)}`);
               throw error;
             }
 
