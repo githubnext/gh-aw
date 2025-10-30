@@ -175,20 +175,20 @@ safe-outputs:
                       
                       core.info(`\n📊 Llama Guard 3 Response:\n${output}`);
                       
-                      // Check if unsafe, but ignore S8 (Intellectual Property) violations
-                      const outputLower = output.toLowerCase();
-                      const isUnsafe = outputLower.includes('unsafe') && !outputLower.includes('s8');
+                      // Result must be exactly "safe" or "S8" (Intellectual Property, which we allow)
+                      const outputTrimmed = output.trim().toLowerCase();
+                      const isSafe = outputTrimmed === 'safe' || outputTrimmed === 's8';
                       
                       results.push({
                         file: itemName,
                         path: agentOutputPath,
                         itemIndex: i,
                         itemType: item.type,
-                        safe: !isUnsafe,
+                        safe: isSafe,
                         response: output.trim()
                       });
                       
-                      if (isUnsafe) {
+                      if (!isSafe) {
                         threatsDetected = true;
                         core.warning(`⚠️  Potential threat detected in ${itemName}`);
                       }
@@ -264,18 +264,18 @@ safe-outputs:
                 
                 core.info(`\n📊 Llama Guard 3 Response:\n${output}`);
                 
-                // Check if unsafe, but ignore S8 (Intellectual Property) violations
-                const outputLower = output.toLowerCase();
-                const isUnsafe = outputLower.includes('unsafe') && !outputLower.includes('s8');
+                // Result must be exactly "safe" or "S8" (Intellectual Property, which we allow)
+                const outputTrimmed = output.trim().toLowerCase();
+                const isSafe = outputTrimmed === 'safe' || outputTrimmed === 's8';
                 
                 results.push({
                   file: 'Code Patch',
                   path: patchPath,
-                  safe: !isUnsafe,
+                  safe: isSafe,
                   response: output.trim()
                 });
                 
-                if (isUnsafe) {
+                if (!isSafe) {
                   threatsDetected = true;
                   core.warning(`⚠️  Potential threat detected in Code Patch`);
                 }
