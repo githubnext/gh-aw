@@ -24,8 +24,6 @@
 # ```
 #
 # Pinned GitHub Actions:
-#   - actions/checkout@v5 (08c6903cd8c0fde910a37f88322edcfb5dd907a8)
-#     https://github.com/actions/checkout/commit/08c6903cd8c0fde910a37f88322edcfb5dd907a8
 #   - actions/download-artifact@v5 (634f93cb2916e3fdff6788551b99b062d0335ce0)
 #     https://github.com/actions/download-artifact/commit/634f93cb2916e3fdff6788551b99b062d0335ce0
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
@@ -42,8 +40,6 @@ name: "Weekly Issue Summary"
   workflow_dispatch: null
 
 permissions:
-  actions: read
-  contents: read
   issues: read
 
 concurrency:
@@ -53,7 +49,7 @@ run-name: "Weekly Issue Summary"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -75,8 +71,6 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: read
       issues: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
@@ -87,10 +81,6 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          persist-credentials: false
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -104,43 +94,6 @@ jobs:
           SERVER_URL="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${{ github.repository }}.git"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Checkout PR branch
-        if: |
-          github.event.pull_request
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        with:
-          script: |
-            async function main() {
-              const eventName = context.eventName;
-              const pullRequest = context.payload.pull_request;
-              if (!pullRequest) {
-                core.info("No pull request context available, skipping checkout");
-                return;
-              }
-              core.info(`Event: ${eventName}`);
-              core.info(`Pull Request #${pullRequest.number}`);
-              try {
-                if (eventName === "pull_request") {
-                  const branchName = pullRequest.head.ref;
-                  core.info(`Checking out PR branch: ${branchName}`);
-                  await exec.exec("git", ["fetch", "origin", branchName]);
-                  await exec.exec("git", ["checkout", branchName]);
-                  core.info(`✅ Successfully checked out branch: ${branchName}`);
-                } else {
-                  const prNumber = pullRequest.number;
-                  core.info(`Checking out PR #${prNumber} using gh pr checkout`);
-                  await exec.exec("gh", ["pr", "checkout", prNumber.toString()], {
-                    env: { ...process.env, GH_TOKEN: process.env.GITHUB_TOKEN },
-                  });
-                  core.info(`✅ Successfully checked out PR #${prNumber}`);
-                }
-              } catch (error) {
-                core.setFailed(`Failed to checkout PR branch: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
       - name: Validate COPILOT_CLI_TOKEN secret
         run: |
           if [ -z "$COPILOT_CLI_TOKEN" ]; then
@@ -980,7 +933,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=default",
+                  "GITHUB_TOOLSETS=issues",
                   "ghcr.io/github/github-mcp-server:v0.20.1"
                 ],
                 "tools": [
@@ -3754,7 +3707,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -4231,7 +4184,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     timeout-minutes: 5
