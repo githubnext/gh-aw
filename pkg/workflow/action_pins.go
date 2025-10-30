@@ -31,8 +31,9 @@ type ActionPinsData struct {
 }
 
 // getActionPins unmarshals and returns the action pins from the embedded JSON
+// Returns a sorted slice of action pins (by version descending, then by repo name)
 // This is called on-demand rather than cached globally
-func getActionPins() map[string]ActionPin {
+func getActionPins() []ActionPin {
 	actionPinsLog.Print("Unmarshaling action pins from embedded JSON")
 
 	var data ActionPinsData
@@ -41,8 +42,29 @@ func getActionPins() map[string]ActionPin {
 		panic(fmt.Sprintf("failed to load action pins: %v", err))
 	}
 
-	actionPinsLog.Printf("Successfully unmarshaled %d action pins from JSON", len(data.Actions))
-	return data.Actions
+	// Convert map to sorted slice
+	pins := make([]ActionPin, 0, len(data.Actions))
+	for _, pin := range data.Actions {
+		pins = append(pins, pin)
+	}
+
+	// Sort by version (descending) then by repo name (ascending)
+	for i := 0; i < len(pins); i++ {
+		for j := i + 1; j < len(pins); j++ {
+			// Compare versions first (descending)
+			if pins[i].Version < pins[j].Version {
+				pins[i], pins[j] = pins[j], pins[i]
+			} else if pins[i].Version == pins[j].Version {
+				// Same version, sort by repo name (ascending)
+				if pins[i].Repo > pins[j].Repo {
+					pins[i], pins[j] = pins[j], pins[i]
+				}
+			}
+		}
+	}
+
+	actionPinsLog.Printf("Successfully unmarshaled and sorted %d action pins from JSON", len(pins))
+	return pins
 }
 
 // GetActionPin returns the pinned action reference for a given action repository
@@ -50,8 +72,10 @@ func getActionPins() map[string]ActionPin {
 // If no pin is found, it returns an empty string
 func GetActionPin(actionRepo string) string {
 	actionPins := getActionPins()
-	if pin, exists := actionPins[actionRepo]; exists {
-		return actionRepo + "@" + pin.SHA
+	for _, pin := range actionPins {
+		if pin.Repo == actionRepo {
+			return actionRepo + "@" + pin.SHA
+		}
 	}
 	// If no pin exists, return empty string to signal that this action is not pinned
 	return ""
@@ -75,17 +99,20 @@ func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (strin
 
 	// Dynamic resolution failed, try hardcoded pins
 	actionPins := getActionPins()
-	if pin, exists := actionPins[actionRepo]; exists {
-		// Check if the version matches the hardcoded version
-		if pin.Version == version {
-			return actionRepo + "@" + pin.SHA, nil
-		}
-		// Version mismatch, but we can still use the hardcoded SHA if we're not in strict mode
-		if !data.StrictMode {
-			warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
-				actionRepo, version, actionRepo, pin.Version)
-			fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
-			return actionRepo + "@" + pin.SHA, nil
+	for _, pin := range actionPins {
+		if pin.Repo == actionRepo {
+			// Check if the version matches the hardcoded version
+			if pin.Version == version {
+				return actionRepo + "@" + pin.SHA, nil
+			}
+			// Version mismatch, but we can still use the hardcoded SHA if we're not in strict mode
+			if !data.StrictMode {
+				warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
+					actionRepo, version, actionRepo, pin.Version)
+				fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
+				return actionRepo + "@" + pin.SHA, nil
+			}
+			break
 		}
 	}
 
@@ -209,31 +236,19 @@ func ApplyActionPinsToSteps(steps []any, data *WorkflowData) []any {
 	return result
 }
 
-// GetAllActionPinsSorted returns all action pins sorted by repository name
+// GetAllActionPinsSorted returns all action pins sorted by version (descending) and repository name
+// Note: getActionPins() already returns sorted pins, so this is just a convenience wrapper
 func GetAllActionPinsSorted() []ActionPin {
-	actionPins := getActionPins()
-
-	// Collect all pins into a slice
-	pins := make([]ActionPin, 0, len(actionPins))
-	for _, pin := range actionPins {
-		pins = append(pins, pin)
-	}
-
-	// Sort by repository name for consistent output
-	for i := 0; i < len(pins); i++ {
-		for j := i + 1; j < len(pins); j++ {
-			if pins[i].Repo > pins[j].Repo {
-				pins[i], pins[j] = pins[j], pins[i]
-			}
-		}
-	}
-
-	return pins
+	return getActionPins()
 }
 
 // GetActionPinByRepo returns the ActionPin for a given repository, if it exists
 func GetActionPinByRepo(repo string) (ActionPin, bool) {
 	actionPins := getActionPins()
-	pin, exists := actionPins[repo]
-	return pin, exists
+	for _, pin := range actionPins {
+		if pin.Repo == repo {
+			return pin, true
+		}
+	}
+	return ActionPin{}, false
 }

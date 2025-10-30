@@ -28,8 +28,16 @@ func TestActionPinsExist(t *testing.T) {
 
 	actionPins := getActionPins()
 	for _, action := range expectedActions {
-		pin, exists := actionPins[action]
-		if !exists {
+		var pin ActionPin
+		found := false
+		for _, p := range actionPins {
+			if p.Repo == action {
+				pin = p
+				found = true
+				break
+			}
+		}
+		if !found {
 			t.Errorf("Missing action pin for %s", action)
 			continue
 		}
@@ -115,10 +123,9 @@ func TestActionPinSHAsMatchVersionTags(t *testing.T) {
 
 	actionPins := getActionPins()
 	// Test all action pins in parallel for faster execution
-	for key, pin := range actionPins {
-		key := key // Capture for parallel execution
+	for _, pin := range actionPins {
 		pin := pin // Capture for parallel execution
-		t.Run(key, func(t *testing.T) {
+		t.Run(pin.Repo, func(t *testing.T) {
 			t.Parallel() // Run subtests in parallel
 
 			// Extract the repository URL from the repo field
@@ -357,17 +364,20 @@ func TestApplyActionPinToStep(t *testing.T) {
 // TestGetAllActionPinsSorted tests the GetAllActionPinsSorted function
 func TestGetAllActionPinsSorted(t *testing.T) {
 	pins := GetAllActionPinsSorted()
-	actionPins := getActionPins()
 
-	// Verify we got all the pins
-	if len(pins) != len(actionPins) {
-		t.Errorf("GetAllActionPinsSorted() returned %d pins, expected %d", len(pins), len(actionPins))
+	// Verify we got all the pins (should be 16)
+	if len(pins) != 16 {
+		t.Errorf("GetAllActionPinsSorted() returned %d pins, expected 16", len(pins))
 	}
 
-	// Verify they are sorted by repository name
+	// Verify they are sorted by version (descending) then by repository name (ascending)
 	for i := 0; i < len(pins)-1; i++ {
-		if pins[i].Repo >= pins[i+1].Repo {
-			t.Errorf("Pins not sorted correctly: %s should come before %s", pins[i].Repo, pins[i+1].Repo)
+		if pins[i].Version < pins[i+1].Version {
+			t.Errorf("Pins not sorted correctly by version: %s (v%s) should come before %s (v%s)",
+				pins[i].Repo, pins[i].Version, pins[i+1].Repo, pins[i+1].Version)
+		} else if pins[i].Version == pins[i+1].Version && pins[i].Repo > pins[i+1].Repo {
+			t.Errorf("Pins not sorted correctly by repo name within same version: %s should come before %s",
+				pins[i].Repo, pins[i+1].Repo)
 		}
 	}
 
