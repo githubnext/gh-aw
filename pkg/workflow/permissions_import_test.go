@@ -298,8 +298,9 @@ permissions:
   contents: read
   issues: write
   pull-requests: read
+---
 # Content`,
-			expected: `{"contents":"read","issues":"write"}`,
+			expected: `{"contents":"read","issues":"write","pull-requests":"read"}`,
 			wantErr:  false,
 		},
 		{
