@@ -129,7 +129,11 @@ validate-workflows:
 
 # Format code
 .PHONY: fmt
-fmt:
+fmt: fmt-go fmt-cjs fmt-json
+	@echo "✓ Code formatted successfully"
+
+.PHONY: fmt-go
+fmt-go:
 	go fmt ./...
 
 # Format JavaScript (.cjs and .js) files
@@ -237,7 +241,7 @@ release: test
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt fmt-cjs fmt-json lint build test-all recompile dependabot generate-schema-docs generate-status-badges
+agent-finish: deps-dev fmt lint build test-all recompile dependabot generate-schema-docs generate-status-badges
 	@echo "Agent finished tasks successfully."
 
 # Help target
