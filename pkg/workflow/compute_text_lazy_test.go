@@ -30,7 +30,7 @@ permissions:
   issues: write
 tools:
   github:
-    allowed: [add_issue_comment]
+    toolsets: [issues]
 ---
 
 # Test Workflow With Text Output
@@ -53,7 +53,7 @@ permissions:
   issues: write
 tools:
   github:
-    allowed: [create_issue]
+    toolsets: [issues]
 ---
 
 # Test Workflow Without Text Output

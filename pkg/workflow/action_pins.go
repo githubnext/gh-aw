@@ -49,8 +49,8 @@ var actionPins = map[string]ActionPin{
 	// Setup actions
 	"actions/setup-node": {
 		Repo:    "actions/setup-node",
-		Version: "v6",
-		SHA:     "2028fbc5c25fe9cf00d9f06a71cc4710d4507903", // v4
+		Version: "v4",
+		SHA:     "49933ea5288caeca8642d1e84afbd3f7d6820020", // v4
 	},
 	"actions/setup-python": {
 		Repo:    "actions/setup-python",
@@ -99,7 +99,7 @@ var actionPins = map[string]ActionPin{
 	"github/codeql-action/upload-sarif": {
 		Repo:    "github/codeql-action/upload-sarif",
 		Version: "v3",
-		SHA:     "562257dc84ee23987d348302b161ee561898ec02", // v3
+		SHA:     "ab2e54f42aa112ff08704159b88a57517f6f0ebb", // v3
 	},
 	"actions/ai-inference": {
 		Repo:    "actions/ai-inference",
