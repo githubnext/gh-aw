@@ -191,7 +191,7 @@ See [Safe Outputs Processing](/gh-aw/reference/safe-outputs/) for automatic issu
 Standard GitHub Actions properties:
 ```yaml
 run-name: "Custom workflow run name"  # Defaults to workflow name
-runs-on: ubuntu-latest               # Defaults to ubuntu-latest
+runs-on: ubuntu-latest               # Defaults to ubuntu-latest (main job only)
 timeout_minutes: 30                  # Defaults to 20 minutes
 ```
 
