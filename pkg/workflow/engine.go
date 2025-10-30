@@ -17,7 +17,7 @@ type EngineConfig struct {
 	MaxTurns      string
 	Concurrency   string // Agent job-level concurrency configuration (YAML format)
 	UserAgent     string
-	Agent         string // Path to agent configuration file
+	CustomAgent   string // Path to custom agent configuration file
 	Env           map[string]string
 	Steps         []map[string]any
 	ErrorPatterns []ErrorPattern
@@ -120,10 +120,10 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 
-			// Extract optional 'agent' field
-			if agent, hasAgent := engineObj["agent"]; hasAgent {
-				if agentStr, ok := agent.(string); ok {
-					config.Agent = agentStr
+			// Extract optional 'custom-agent' field
+			if customAgent, hasCustomAgent := engineObj["custom-agent"]; hasCustomAgent {
+				if customAgentStr, ok := customAgent.(string); ok {
+					config.CustomAgent = customAgentStr
 				}
 			}
 

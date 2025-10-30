@@ -3161,9 +3161,9 @@
               },
               "description": "Optional array of command-line arguments to pass to the AI engine CLI. These arguments are injected after all other args but before the prompt."
             },
-            "agent": {
+            "custom-agent": {
               "type": "string",
-              "description": "Optional path to an agent configuration file. For copilot engine, this is passed as --agent flag. For claude and codex engines, the markdown body from the agent file is injected as a system prompt."
+              "description": "Optional path to a custom agent configuration file. For copilot engine, this is passed as --agent flag. For claude and codex engines, the markdown body from the agent file is injected as a system prompt."
             }
           },
           "required": ["id"],

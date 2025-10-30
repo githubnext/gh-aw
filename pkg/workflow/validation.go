@@ -639,15 +639,15 @@ func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingA
 	}
 }
 
-// validateAgentFile validates that the agent file specified in engine config exists
+// validateAgentFile validates that the custom agent file specified in engine config exists
 func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath string) error {
-	// Check if agent field is specified in engine config
-	if workflowData.EngineConfig == nil || workflowData.EngineConfig.Agent == "" {
-		return nil // No agent file specified, no validation needed
+	// Check if custom-agent field is specified in engine config
+	if workflowData.EngineConfig == nil || workflowData.EngineConfig.CustomAgent == "" {
+		return nil // No custom agent file specified, no validation needed
 	}
 
-	agentPath := workflowData.EngineConfig.Agent
-	validationLog.Printf("Validating agent file exists: %s", agentPath)
+	agentPath := workflowData.EngineConfig.CustomAgent
+	validationLog.Printf("Validating custom agent file exists: %s", agentPath)
 
 	// Check if the file exists
 	if _, err := os.Stat(agentPath); err != nil {
@@ -659,7 +659,7 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 					Column: 1,
 				},
 				Type:    "error",
-				Message: fmt.Sprintf("agent file '%s' does not exist. Ensure the file exists in the repository and the path is correct.", agentPath),
+				Message: fmt.Sprintf("custom-agent file '%s' does not exist. Ensure the file exists in the repository and the path is correct.", agentPath),
 			})
 			return errors.New(formattedErr)
 		}
@@ -671,7 +671,7 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 				Column: 1,
 			},
 			Type:    "error",
-			Message: fmt.Sprintf("failed to access agent file '%s': %v", agentPath, err),
+			Message: fmt.Sprintf("failed to access custom-agent file '%s': %v", agentPath, err),
 		})
 		return errors.New(formattedErr)
 	}
