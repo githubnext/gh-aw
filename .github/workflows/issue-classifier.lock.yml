@@ -3022,7 +3022,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Run AI Inference
-        uses: actions/ai-inference@b81b2afb8390ee6839b494a404766bef6493c7d9
+        uses: actions/ai-inference@v1
         env:
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt

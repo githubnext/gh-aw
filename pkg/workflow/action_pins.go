@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -15,6 +16,13 @@ var actionPinsLog = logger.New("workflow:action_pins")
 
 //go:embed data/action_pins.json
 var actionPinsJSON []byte
+
+const (
+	// CustomActionPinsFileName is the name of the custom action pins file in .github/aw/
+	CustomActionPinsFileName = "action-pins.json"
+	// NonBuiltinPinsFileName is the name of the file that stores pins not in the builtin list
+	NonBuiltinPinsFileName = "action-pins-custom.json"
+)
 
 // ActionPin represents a pinned GitHub Action with its commit SHA
 type ActionPin struct {
@@ -30,9 +38,211 @@ type ActionPinsData struct {
 	Actions     map[string]ActionPin `json:"actions"`
 }
 
+// ActionPinManager manages both builtin and custom action pins
+type ActionPinManager struct {
+	builtinPins map[string]ActionPin // Builtin pins from embedded JSON
+	customPins  map[string]ActionPin // Custom pins from .github/aw/action-pins.json
+	mergedPins  map[string]ActionPin // Merged pins (custom overrides builtin)
+	repoRoot    string               // Repository root directory
+}
+
+// NewActionPinManager creates a new action pin manager
+func NewActionPinManager(repoRoot string) *ActionPinManager {
+	return &ActionPinManager{
+		builtinPins: make(map[string]ActionPin),
+		customPins:  make(map[string]ActionPin),
+		mergedPins:  make(map[string]ActionPin),
+		repoRoot:    repoRoot,
+	}
+}
+
+// LoadBuiltinPins loads the builtin action pins from embedded JSON
+func (m *ActionPinManager) LoadBuiltinPins() error {
+	actionPinsLog.Print("Loading builtin action pins from embedded JSON")
+
+	var data ActionPinsData
+	if err := json.Unmarshal(actionPinsJSON, &data); err != nil {
+		actionPinsLog.Printf("Failed to unmarshal builtin action pins JSON: %v", err)
+		return fmt.Errorf("failed to load builtin action pins: %w", err)
+	}
+
+	for key, pin := range data.Actions {
+		m.builtinPins[key] = pin
+	}
+
+	actionPinsLog.Printf("Successfully loaded %d builtin action pins", len(m.builtinPins))
+	return nil
+}
+
+// LoadCustomPins loads custom action pins from .github/aw/action-pins.json
+func (m *ActionPinManager) LoadCustomPins() error {
+	customPinsPath := filepath.Join(m.repoRoot, ".github", "aw", CustomActionPinsFileName)
+	actionPinsLog.Printf("Loading custom action pins from: %s", customPinsPath)
+
+	data, err := os.ReadFile(customPinsPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Custom pins file doesn't exist, that's OK
+			actionPinsLog.Print("Custom action pins file does not exist, using only builtin pins")
+			return nil
+		}
+		actionPinsLog.Printf("Failed to read custom action pins file: %v", err)
+		return fmt.Errorf("failed to read custom action pins file: %w", err)
+	}
+
+	var customData ActionPinsData
+	if err := json.Unmarshal(data, &customData); err != nil {
+		actionPinsLog.Printf("Failed to unmarshal custom action pins JSON: %v", err)
+		return fmt.Errorf("failed to unmarshal custom action pins JSON: %w", err)
+	}
+
+	for key, pin := range customData.Actions {
+		m.customPins[key] = pin
+	}
+
+	actionPinsLog.Printf("Successfully loaded %d custom action pins", len(m.customPins))
+	return nil
+}
+
+// MergePins merges builtin and custom pins, detecting conflicts
+func (m *ActionPinManager) MergePins() error {
+	actionPinsLog.Print("Merging builtin and custom action pins")
+
+	// Start with builtin pins
+	for key, pin := range m.builtinPins {
+		m.mergedPins[key] = pin
+	}
+
+	// Merge custom pins, checking for conflicts
+	for key, customPin := range m.customPins {
+		if builtinPin, exists := m.builtinPins[key]; exists {
+			// Conflict: same repo+version in both builtin and custom
+			// This is an error because we don't know which one to use
+			if builtinPin.SHA != customPin.SHA {
+				actionPinsLog.Printf("Conflict detected for %s: builtin SHA %s vs custom SHA %s",
+					key, builtinPin.SHA, customPin.SHA)
+				return fmt.Errorf("conflict: custom pin %s@%s (SHA: %s) conflicts with builtin pin (SHA: %s)",
+					customPin.Repo, customPin.Version, customPin.SHA, builtinPin.SHA)
+			}
+			// Same SHA, no conflict, skip
+			actionPinsLog.Printf("Duplicate pin for %s with same SHA, skipping", key)
+		} else {
+			// No conflict, add custom pin
+			m.mergedPins[key] = customPin
+		}
+	}
+
+	actionPinsLog.Printf("Successfully merged pins: %d total (%d builtin, %d custom)",
+		len(m.mergedPins), len(m.builtinPins), len(m.customPins))
+	return nil
+}
+
+// GetMergedPins returns all merged pins as a slice
+func (m *ActionPinManager) GetMergedPins() []ActionPin {
+	pins := make([]ActionPin, 0, len(m.mergedPins))
+	for _, pin := range m.mergedPins {
+		pins = append(pins, pin)
+	}
+
+	// Sort by version (descending) then by repo name (ascending)
+	for i := 0; i < len(pins); i++ {
+		for j := i + 1; j < len(pins); j++ {
+			// Compare versions first (descending)
+			if pins[i].Version < pins[j].Version {
+				pins[i], pins[j] = pins[j], pins[i]
+			} else if pins[i].Version == pins[j].Version {
+				// Same version, sort by repo name (ascending)
+				if pins[i].Repo > pins[j].Repo {
+					pins[i], pins[j] = pins[j], pins[i]
+				}
+			}
+		}
+	}
+
+	return pins
+}
+
+// FindPin finds a pin by repo and version in the merged pins
+func (m *ActionPinManager) FindPin(repo, version string) (ActionPin, bool) {
+	if version != "" {
+		// Try to find exact match with version first
+		for _, pin := range m.mergedPins {
+			if pin.Repo == repo && pin.Version == version {
+				return pin, true
+			}
+		}
+	}
+
+	// Try to find any version of this repo
+	for _, pin := range m.mergedPins {
+		if pin.Repo == repo {
+			return pin, true
+		}
+	}
+
+	return ActionPin{}, false
+}
+
+// SaveNonBuiltinPins saves pins that are not in the builtin list to a separate file
+func (m *ActionPinManager) SaveNonBuiltinPins(resolvedPins []ActionPin) error {
+	nonBuiltinPinsPath := filepath.Join(m.repoRoot, ".github", "aw", NonBuiltinPinsFileName)
+	actionPinsLog.Printf("Saving non-builtin action pins to: %s", nonBuiltinPinsPath)
+
+	// Filter out builtin pins
+	nonBuiltinPins := make(map[string]ActionPin)
+	for _, pin := range resolvedPins {
+		key := pin.Repo
+		if _, isBuiltin := m.builtinPins[key]; !isBuiltin {
+			nonBuiltinPins[key] = pin
+		}
+	}
+
+	if len(nonBuiltinPins) == 0 {
+		actionPinsLog.Print("No non-builtin pins to save")
+		// If no non-builtin pins, remove the file if it exists
+		if err := os.Remove(nonBuiltinPinsPath); err != nil && !os.IsNotExist(err) {
+			actionPinsLog.Printf("Failed to remove non-builtin pins file: %v", err)
+		}
+		return nil
+	}
+
+	// Create the data structure
+	data := ActionPinsData{
+		Version:     "1.0",
+		Description: "Custom action pins resolved during compilation (not in builtin list)",
+		Actions:     nonBuiltinPins,
+	}
+
+	// Ensure directory exists
+	dir := filepath.Dir(nonBuiltinPinsPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		actionPinsLog.Printf("Failed to create directory for non-builtin pins: %v", err)
+		return fmt.Errorf("failed to create directory for non-builtin pins: %w", err)
+	}
+
+	// Marshal to JSON
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		actionPinsLog.Printf("Failed to marshal non-builtin pins: %v", err)
+		return fmt.Errorf("failed to marshal non-builtin pins: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(nonBuiltinPinsPath, jsonData, 0644); err != nil {
+		actionPinsLog.Printf("Failed to write non-builtin pins file: %v", err)
+		return fmt.Errorf("failed to write non-builtin pins file: %w", err)
+	}
+
+	actionPinsLog.Printf("Successfully saved %d non-builtin action pins", len(nonBuiltinPins))
+	return nil
+}
+
+// Legacy functions for backward compatibility
+
 // getActionPins unmarshals and returns the action pins from the embedded JSON
 // Returns a sorted slice of action pins (by version descending, then by repo name)
 // This is called on-demand rather than cached globally
+// DEPRECATED: Use ActionPinManager instead
 func getActionPins() []ActionPin {
 	actionPinsLog.Print("Unmarshaling action pins from embedded JSON")
 
@@ -82,55 +292,60 @@ func GetActionPin(actionRepo string) string {
 }
 
 // GetActionPinWithData returns the pinned action reference for a given action@version
-// It tries dynamic resolution first, then falls back to hardcoded pins
-// If strictMode is true and resolution fails, it returns an error
+// It follows the new algorithm:
+// 1. Check merged pins (builtin + custom) for exact match
+// 2. If not found, use gh CLI to resolve SHA (with warning/error based on strict mode)
+// 3. Replace version with SHA
 func GetActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {
-	// First try dynamic resolution if resolver is available
+	// First, try to find in merged pins (builtin + custom)
+	if data.ActionPinManager != nil {
+		if pin, found := data.ActionPinManager.FindPin(actionRepo, version); found {
+			actionPinsLog.Printf("Found pin for %s@%s in merged pins: %s", actionRepo, version, pin.SHA)
+			return actionRepo + "@" + pin.SHA, nil
+		}
+	}
+
+	// Not in merged pins, try dynamic resolution using gh CLI
 	if data.ActionResolver != nil {
 		sha, err := data.ActionResolver.ResolveSHA(actionRepo, version)
 		if err == nil && sha != "" {
-			// Successfully resolved, save cache
+			actionPinsLog.Printf("Successfully resolved %s@%s to SHA: %s", actionRepo, version, sha)
+			// Successfully resolved, save to cache and track as non-builtin
 			if data.ActionCache != nil {
 				_ = data.ActionCache.Save()
 			}
+			// Add to resolved pins for later saving
+			if data.ResolvedPins == nil {
+				data.ResolvedPins = make([]ActionPin, 0)
+			}
+			data.ResolvedPins = append(data.ResolvedPins, ActionPin{
+				Repo:    actionRepo,
+				Version: version,
+				SHA:     sha,
+			})
 			return actionRepo + "@" + sha, nil
 		}
-	}
-
-	// Dynamic resolution failed, try hardcoded pins
-	actionPins := getActionPins()
-	for _, pin := range actionPins {
-		if pin.Repo == actionRepo {
-			// Check if the version matches the hardcoded version
-			if pin.Version == version {
-				return actionRepo + "@" + pin.SHA, nil
-			}
-			// Version mismatch, but we can still use the hardcoded SHA if we're not in strict mode
-			if !data.StrictMode {
-				warningMsg := fmt.Sprintf("Unable to resolve %s@%s dynamically, using hardcoded pin for %s@%s",
-					actionRepo, version, actionRepo, pin.Version)
-				fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
-				return actionRepo + "@" + pin.SHA, nil
-			}
-			break
+		// Resolution failed
+		if data.StrictMode {
+			errMsg := fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
+			fmt.Fprint(os.Stderr, console.FormatErrorMessage(errMsg))
+			return "", fmt.Errorf("%s", errMsg)
 		}
+		// In non-strict mode, emit warning
+		warningMsg := fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
+		fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
+		return "", nil
 	}
 
-	// No pin available
+	// No resolver available
 	if data.StrictMode {
-		errMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
-		if data.ActionResolver != nil {
-			errMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
-		}
+		errMsg := fmt.Sprintf("Unable to pin action %s@%s: no resolver available", actionRepo, version)
 		fmt.Fprint(os.Stderr, console.FormatErrorMessage(errMsg))
 		return "", fmt.Errorf("%s", errMsg)
 	}
 
 	// In non-strict mode, emit warning and return empty string
-	warningMsg := fmt.Sprintf("Unable to pin action %s@%s", actionRepo, version)
-	if data.ActionResolver != nil {
-		warningMsg = fmt.Sprintf("Unable to pin action %s@%s: resolution failed", actionRepo, version)
-	}
+	warningMsg := fmt.Sprintf("Unable to pin action %s@%s: no resolver available", actionRepo, version)
 	fmt.Fprint(os.Stderr, console.FormatWarningMessage(warningMsg))
 	return "", nil
 }

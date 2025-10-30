@@ -329,8 +329,19 @@ func TestApplyActionPinToStep(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a minimal WorkflowData for testing
-			data := &WorkflowData{}
+			// Create a minimal WorkflowData for testing with ActionPinManager
+			tmpDir := t.TempDir()
+			data := &WorkflowData{
+				ActionPinManager: NewActionPinManager(tmpDir),
+			}
+			// Load builtin pins
+			if err := data.ActionPinManager.LoadBuiltinPins(); err != nil {
+				t.Fatalf("Failed to load builtin pins: %v", err)
+			}
+			if err := data.ActionPinManager.MergePins(); err != nil {
+				t.Fatalf("Failed to merge pins: %v", err)
+			}
+
 			result := ApplyActionPinToStep(tt.stepMap, data)
 
 			// Check if uses field exists in result

@@ -188,6 +188,8 @@ type WorkflowData struct {
 	Features            map[string]bool     // feature flags from frontmatter
 	ActionCache         *ActionCache        // cache for action pin resolutions
 	ActionResolver      *ActionResolver     // resolver for action pins
+	ActionPinManager    *ActionPinManager   // manager for builtin and custom action pins
+	ResolvedPins        []ActionPin         // pins resolved during compilation (for saving non-builtin pins)
 	StrictMode          bool                // strict mode for action pinning
 }
 
@@ -513,6 +515,15 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 				})
 				return errors.New(formattedErr)
 			}
+		}
+	}
+
+	// Save non-builtin pins if any were resolved during compilation
+	if workflowData.ActionPinManager != nil && len(workflowData.ResolvedPins) > 0 {
+		log.Printf("Saving non-builtin action pins")
+		if err := workflowData.ActionPinManager.SaveNonBuiltinPins(workflowData.ResolvedPins); err != nil {
+			// Log warning but don't fail compilation
+			fmt.Fprint(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save non-builtin action pins: %v", err)))
 		}
 	}
 
@@ -913,7 +924,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		StrictMode:          c.strictMode,
 	}
 
-	// Initialize action cache and resolver
+	// Initialize action cache, resolver, and pin manager
 	cwd, err := os.Getwd()
 	if err != nil {
 		cwd = "."
@@ -921,6 +932,18 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.ActionCache = NewActionCache(cwd)
 	_ = workflowData.ActionCache.Load() // Ignore errors if cache doesn't exist
 	workflowData.ActionResolver = NewActionResolver(workflowData.ActionCache)
+
+	// Initialize and load action pin manager
+	workflowData.ActionPinManager = NewActionPinManager(cwd)
+	if err := workflowData.ActionPinManager.LoadBuiltinPins(); err != nil {
+		return nil, fmt.Errorf("failed to load builtin action pins: %w", err)
+	}
+	if err := workflowData.ActionPinManager.LoadCustomPins(); err != nil {
+		return nil, fmt.Errorf("failed to load custom action pins: %w", err)
+	}
+	if err := workflowData.ActionPinManager.MergePins(); err != nil {
+		return nil, fmt.Errorf("failed to merge action pins: %w", err)
+	}
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
 	// to avoid issues with nested keys (e.g., tools.mcps.*.env being confused with top-level env)
