@@ -970,25 +970,37 @@
             {
               "command": {
                 "name": "mergefest",
-                "events": ["pull_request_comment"]
+                "events": [
+                  "pull_request_comment"
+                ]
               }
             },
             {
               "workflow_run": {
-                "workflows": ["Dev"],
-                "types": ["completed"],
-                "branches": ["copilot/**"]
+                "workflows": [
+                  "Dev"
+                ],
+                "types": [
+                  "completed"
+                ],
+                "branches": [
+                  "copilot/**"
+                ]
               }
             },
             {
               "pull_request": {
-                "types": ["ready_for_review"]
+                "types": [
+                  "ready_for_review"
+                ]
               },
               "workflow_dispatch": null
             },
             {
               "push": {
-                "branches": ["main"]
+                "branches": [
+                  "main"
+                ]
               }
             }
           ]
@@ -1721,7 +1733,7 @@
             [
               {
                 "name": "Verify Post-Steps Execution",
-                "run": "echo \"✅ Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
+                "run": "echo \"\u2705 Post-steps are executing correctly\"\necho \"This step runs after the AI agent completes\"\n"
               },
               {
                 "name": "Upload Test Results",
@@ -1847,7 +1859,11 @@
               "additionalProperties": false,
               "examples": [
                 {
-                  "toolsets": ["pull_requests", "actions", "repos"]
+                  "toolsets": [
+                    "pull_requests",
+                    "actions",
+                    "repos"
+                  ]
                 },
                 {
                   "allowed": [
@@ -1863,7 +1879,10 @@
                   "read-only": true
                 },
                 {
-                  "toolsets": ["pull_requests", "repos"]
+                  "toolsets": [
+                    "pull_requests",
+                    "repos"
+                  ]
                 }
               ]
             }
@@ -1871,7 +1890,11 @@
           "examples": [
             null,
             {
-              "toolsets": ["pull_requests", "actions", "repos"]
+              "toolsets": [
+                "pull_requests",
+                "actions",
+                "repos"
+              ]
             },
             {
               "allowed": [
@@ -1882,7 +1905,10 @@
             },
             {
               "read-only": true,
-              "toolsets": ["repos", "issues"]
+              "toolsets": [
+                "repos",
+                "issues"
+              ]
             }
           ]
         },
@@ -2377,12 +2403,18 @@
               "examples": [
                 {
                   "title-prefix": "[ca] ",
-                  "labels": ["automation", "dependencies"],
+                  "labels": [
+                    "automation",
+                    "dependencies"
+                  ],
                   "assignees": "copilot"
                 },
                 {
                   "title-prefix": "[duplicate-code] ",
-                  "labels": ["code-quality", "automated-analysis"],
+                  "labels": [
+                    "code-quality",
+                    "automated-analysis"
+                  ],
                   "assignees": "copilot"
                 },
                 {
@@ -2612,13 +2644,19 @@
               "examples": [
                 {
                   "title-prefix": "[docs] ",
-                  "labels": ["documentation", "automation"],
+                  "labels": [
+                    "documentation",
+                    "automation"
+                  ],
                   "reviewers": "copilot",
                   "draft": false
                 },
                 {
                   "title-prefix": "[security-fix] ",
-                  "labels": ["security", "automated-fix"],
+                  "labels": [
+                    "security",
+                    "automated-fix"
+                  ],
                   "reviewers": "copilot"
                 }
               ]
@@ -2946,7 +2984,10 @@
         "staged": {
           "type": "boolean",
           "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)",
-          "examples": [true, false]
+          "examples": [
+            true,
+            false
+          ]
         },
         "env": {
           "type": "object",
@@ -3431,6 +3472,10 @@
                 "type": "string"
               },
               "description": "Optional array of command-line arguments to pass to the AI engine CLI. These arguments are injected after all other args but before the prompt."
+            },
+            "agent": {
+              "type": "string",
+              "description": "Optional path to an agent configuration file. For copilot engine, this is passed as --agent flag. For claude and codex engines, the markdown body from the agent file is injected as a system prompt."
             }
           },
           "required": [
