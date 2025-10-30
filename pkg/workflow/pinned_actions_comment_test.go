@@ -174,7 +174,7 @@ func TestGeneratePinnedActionsComment(t *testing.T) {
 				"# Pinned GitHub Actions:",
 				"#   - actions/cache@v4",
 				"#   - actions/checkout@v5",
-				"#   - actions/setup-node@v4",
+				"#   - actions/setup-node@v6",
 				"#     https://github.com/actions/cache/commit/",
 				"#     https://github.com/actions/checkout/commit/",
 				"#     https://github.com/actions/setup-node/commit/",

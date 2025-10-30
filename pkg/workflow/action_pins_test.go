@@ -290,7 +290,7 @@ func TestApplyActionPinToStep(t *testing.T) {
 			name: "step with pinned action (setup-node)",
 			stepMap: map[string]any{
 				"name": "Setup Node",
-				"uses": "actions/setup-node@v4",
+				"uses": "actions/setup-node@v6",
 				"with": map[string]any{
 					"node-version": "20",
 				},
