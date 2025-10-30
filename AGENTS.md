@@ -246,6 +246,7 @@ make minor-release  # Automated via GitHub Actions
 
 ## Quick Reference for AI Agents
 - Go project with Makefile-managed build/test/lint
+- **ALWAYS run `make fmt` and commit before returning to the user**
 - Always run `make agent-finish` before commits
 - Use `make test-unit` for fast development testing, `make test` for full coverage
 - Use console formatting for user output
