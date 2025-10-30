@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -649,8 +650,32 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 	agentPath := workflowData.EngineConfig.CustomAgent
 	validationLog.Printf("Validating custom agent file exists: %s", agentPath)
 
+	// Resolve agent path
+	// If the path starts with .github/, treat it as relative to repository root
+	// Otherwise, treat it as relative to the workflow file's directory
+	var resolvedAgentPath string
+	if filepath.IsAbs(agentPath) {
+		// Absolute path - use as-is
+		resolvedAgentPath = agentPath
+	} else if strings.HasPrefix(agentPath, ".github/") || strings.HasPrefix(agentPath, ".github\\") {
+		// Path starts with .github/ - resolve relative to repository root
+		// Find the repository root by going up from the workflow directory
+		markdownDir := filepath.Dir(markdownPath)
+		// Workflow is in .github/workflows, so go up two levels to get to repo root
+		repoRoot := filepath.Join(markdownDir, "../..")
+		resolvedAgentPath = filepath.Join(repoRoot, agentPath)
+	} else {
+		// Regular relative path - resolve relative to workflow directory
+		markdownDir := filepath.Dir(markdownPath)
+		resolvedAgentPath = filepath.Join(markdownDir, agentPath)
+	}
+
+	// Clean the path to resolve any .. components
+	resolvedAgentPath = filepath.Clean(resolvedAgentPath)
+	validationLog.Printf("Resolved agent path: %s -> %s", agentPath, resolvedAgentPath)
+
 	// Check if the file exists
-	if _, err := os.Stat(agentPath); err != nil {
+	if _, err := os.Stat(resolvedAgentPath); err != nil {
 		if os.IsNotExist(err) {
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
