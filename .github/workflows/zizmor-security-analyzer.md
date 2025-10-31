@@ -80,7 +80,7 @@ Review the zizmor output and cluster findings:
 Group findings by their identifier (ident) to understand patterns:
 - Count occurrences of each issue type
 - Identify most common vulnerabilities
-- List all affected workflows for each issue type
+- List affected workflows for each issue type (limit to at most 3 workflow names as examples, show total count if more)
 - Determine severity distribution
 
 #### 2.3 Prioritize Issues
@@ -193,16 +193,16 @@ Create a discussion with:
 
 [Group findings by their identifier/rule code]
 
-| Issue Type | Severity | Count | Affected Workflows |
-|------------|----------|-------|-------------------|
-| [ident]    | [level]  | [num] | [workflow names]  |
+| Issue Type | Severity | Count | Affected Workflows (max 3 examples) |
+|------------|----------|-------|-------------------------------------|
+| [ident]    | [level]  | [num] | [workflow1, workflow2, workflow3, and X more] |
 
 ## Top Priority Issues
 
 ### 1. [Most Common/Severe Issue]
 - **Count**: [NUMBER]
 - **Severity**: [LEVEL]
-- **Affected**: [WORKFLOW NAMES]
+- **Affected**: [List up to 3 example workflow names, indicate total if more exist]
 - **Description**: [WHAT IT IS]
 - **Impact**: [WHY IT MATTERS]
 - **Reference**: [ZIZMOR URL]
@@ -212,6 +212,7 @@ Create a discussion with:
 **Issue**: [Brief description]
 **Severity**: [Level]
 **Affected Workflows**: [Count] workflows
+**Example Workflows**: [List up to 3 workflow names, indicate total if more exist]
 
 **Prompt to Copilot Agent**:
 ```
@@ -278,6 +279,7 @@ Create a discussion with:
 - **Be specific**: Provide exact workflow names, line numbers, and error details
 - **Be actionable**: Focus on issues that can be fixed
 - **Be accurate**: Verify findings before reporting
+- **Limit workflow examples**: When listing affected workflows, show at most 3 example workflow names and indicate the total count if more exist
 
 ### Resource Efficiency
 - **Use cache memory** to avoid redundant scanning
