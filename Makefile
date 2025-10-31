@@ -105,7 +105,9 @@ download-github-actions-schema:
 	@mkdir -p pkg/workflow/schemas
 	@curl -s -o pkg/workflow/schemas/github-workflow.json \
 		"https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/github-workflow.json"
-	@echo "✓ Downloaded GitHub Actions schema to pkg/workflow/schemas/github-workflow.json"
+	@echo "Formatting schema with prettier..."
+	@prettier --write pkg/workflow/schemas/github-workflow.json --ignore-path /dev/null >/dev/null 2>&1
+	@echo "✓ Downloaded and formatted GitHub Actions schema to pkg/workflow/schemas/github-workflow.json"
 
 # Run linter
 .PHONY: golint
