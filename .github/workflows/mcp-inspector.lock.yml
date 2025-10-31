@@ -1353,6 +1353,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_WORKSPACE: ${{ github.workspace }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1414,7 +1415,7 @@ jobs:
           
           ## Serena configuration
           
-          The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
+          The active workspaces is ${GH_WORKSPACE}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
           
           
           

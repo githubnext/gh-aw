@@ -551,6 +551,12 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Wrap GitHub expressions in template conditionals
 	cleanedMarkdownContent = wrapExpressionsInTemplateConditionals(cleanedMarkdownContent)
 
+	// Extract GitHub context expressions for sanitization
+	contextVars := extractGitHubContextExpressions(cleanedMarkdownContent)
+
+	// Replace GitHub context expressions with shell variable references
+	cleanedMarkdownContent = replaceGitHubContextWithEnvVars(cleanedMarkdownContent, contextVars)
+
 	// Split content into manageable chunks
 	chunks := splitContentIntoChunks(cleanedMarkdownContent)
 
@@ -561,6 +567,14 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	if data.SafeOutputs != nil {
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 	}
+
+	// Add environment variables for GitHub context expressions
+	envVarLines := generateEnvVarDefinitions(contextVars)
+	for _, line := range envVarLines {
+		yaml.WriteString(line)
+		yaml.WriteByte('\n')
+	}
+
 	yaml.WriteString("        run: |\n")
 	WriteShellScriptToYAML(yaml, createPromptFirstScript, "          ")
 

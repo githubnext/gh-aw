@@ -980,6 +980,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1054,7 +1055,7 @@ jobs:
           
           # Weekly Issue Summary
           
-          Analyze all issues opened in the repository ${{ github.repository }} over the last 7 days.
+          Analyze all issues opened in the repository ${GH_REPOSITORY} over the last 7 days.
           
           Create a comprehensive summary that includes:
           - Total number of issues opened

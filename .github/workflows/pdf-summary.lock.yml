@@ -1952,6 +1952,11 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_EVENT_INPUTS_QUERY: ${{ github.event.inputs.query }}
+          GH_EVENT_INPUTS_URL: ${{ github.event.inputs.url }}
+          GH_EVENT_ISSUE_NUMBER || GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1972,12 +1977,12 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Triggered by**: @${{ github.actor }}
+          - **Repository**: ${GH_REPOSITORY}
+          - **Triggered by**: @${GH_ACTOR}
           - **Triggering Content**: "${{ needs.activation.outputs.text }}"
-          - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
-          - **Workflow Dispatch URL**: ${{ github.event.inputs.url }}
-          - **Workflow Dispatch Query**: ${{ github.event.inputs.query }}
+          - **Issue/PR Number**: ${GH_EVENT_ISSUE_NUMBER || GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          - **Workflow Dispatch URL**: ${GH_EVENT_INPUTS_URL}
+          - **Workflow Dispatch Query**: ${GH_EVENT_INPUTS_QUERY}
           - **Persistent Storage**: `/tmp/gh-aw/cache-memory/` (use this to store analysis results for future reference)
           
           ## Processing Steps
@@ -2056,7 +2061,7 @@ jobs:
           
           ## Context for This Repository
           
-          [How these findings relate to ${{ github.repository }}]
+          [How these findings relate to ${GH_REPOSITORY}]
           
           ## Additional Notes
           

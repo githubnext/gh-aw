@@ -1114,6 +1114,9 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_EVENT_INPUTS_COMMIT_URL: ${{ github.event.inputs.commit_url }}
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1196,9 +1199,9 @@ jobs:
           
           ## Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Commit URL**: ${{ github.event.inputs.commit_url }}
-          - **Triggered by**: ${{ github.actor }}
+          - **Repository**: ${GH_REPOSITORY}
+          - **Commit URL**: ${GH_EVENT_INPUTS_COMMIT_URL}
+          - **Triggered by**: ${GH_ACTOR}
           
           ## Task
           

@@ -1133,6 +1133,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1215,7 +1216,7 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
+          - **Repository**: ${GH_REPOSITORY}
           - **Analysis Date**: $(date +%Y-%m-%d)
           - **Lockfiles Location**: `.github/workflows/*.lock.yml`
           

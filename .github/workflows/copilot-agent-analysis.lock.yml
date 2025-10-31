@@ -1136,6 +1136,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1304,7 +1305,7 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
+          - **Repository**: ${GH_REPOSITORY}
           - **Analysis Period**: Last 24 hours (with weekly and monthly summaries)
           
           ## Task Overview
@@ -1342,7 +1343,7 @@ jobs:
              ```bash
              # Server-side filtering for both date and author (current workflow approach)
              DATE=$(date -d '24 hours ago' '+%Y-%m-%d')
-             gh search prs --repo ${{ github.repository }} \
+             gh search prs --repo ${GH_REPOSITORY} \
                --author "copilot" \
                --created ">=$DATE" \
                --limit 1000 \
@@ -1356,7 +1357,7 @@ jobs:
           2. **Use `gh pr list --author` (Alternative for quick queries)**:
              ```bash
              # Client-side filtering, simpler but limited
-             gh pr list --repo ${{ github.repository }} \
+             gh pr list --repo ${GH_REPOSITORY} \
                --author "copilot" \
                --limit 100 \
                --state all \
@@ -1369,7 +1370,7 @@ jobs:
           
           3. **Search by keywords in title/body**:
              ```
-             repo:${{ github.repository }} is:pr "START COPILOT CODING AGENT" created:>=YYYY-MM-DD
+             repo:${GH_REPOSITORY} is:pr "START COPILOT CODING AGENT" created:>=YYYY-MM-DD
              ```
              This searches for PRs containing the signature text that Copilot adds to PR bodies.
              Replace `YYYY-MM-DD` with yesterday's date (24 hours ago).
@@ -1529,7 +1530,7 @@ jobs:
           **For Each Missing Day:**
           ```
           # Query PRs for specific date using keyword search
-          repo:${{ github.repository }} is:pr "START COPILOT CODING AGENT" created:YYYY-MM-DD..YYYY-MM-DD
+          repo:${GH_REPOSITORY} is:pr "START COPILOT CODING AGENT" created:YYYY-MM-DD..YYYY-MM-DD
           ```
           
           Or use `list_pull_requests` with date filtering and filter results by `user.login == "copilot"` and `user.id == 198982749`.
@@ -1602,13 +1603,13 @@ jobs:
           |------|-----|--------|--------------|--------------|--------------|
           | [today] | [count] | [count] | [%] | [time] | [count] |
           | [today-1] | [count] | [count] | [%] | [time] | [count] |
+          | [today-2] | [count] | [count] | [%] | [time] | [count] |
           PROMPT_EOF
       - name: Append prompt (part 2)
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
-          | [today-2] | [count] | [count] | [%] | [time] | [count] |
           
           **Trend**: [Only mention if significant change >10%]
           

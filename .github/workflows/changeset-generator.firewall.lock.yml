@@ -1520,6 +1520,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1644,8 +1646,8 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Pull Request Number**: ${{ github.event.pull_request.number }}
+          - **Repository**: ${GH_REPOSITORY}
+          - **Pull Request Number**: ${GH_EVENT_PULL_REQUEST_NUMBER}
           - **Pull Request Content**: "${{ needs.activation.outputs.text }}"
           
           **IMPORTANT - Token Optimization**: The pull request content above is already sanitized and available. DO NOT use `pull_request_read` or similar GitHub API tools to fetch PR details - you already have everything you need in the context above. Using API tools wastes 40k+ tokens per call.

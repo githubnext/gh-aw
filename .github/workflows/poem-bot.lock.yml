@@ -2209,6 +2209,10 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_EVENT_INPUTS_LABEL_NAMES: ${{ github.event.inputs.label_names }}
+          GH_EVENT_INPUTS_POEM_THEME: ${{ github.event.inputs.poem_theme }}
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -2218,11 +2222,11 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Actor**: ${{ github.actor }}
-          - **Theme**: ${{ github.event.inputs.poem_theme }}
+          - **Repository**: ${GH_REPOSITORY}
+          - **Actor**: ${GH_ACTOR}
+          - **Theme**: ${GH_EVENT_INPUTS_POEM_THEME}
           {{#if ${{ github.event.inputs.label_names }}}}
-          - **Labels**: ${{ github.event.inputs.label_names }}
+          - **Labels**: ${GH_EVENT_INPUTS_LABEL_NAMES}
           {{/if}}
           - **Content**: "${{ needs.activation.outputs.text }}"
           

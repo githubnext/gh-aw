@@ -1121,6 +1121,9 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_RUN_ID: ${{ github.run_id }}
+          GH_SERVER_URL: ${{ github.server_url }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1203,8 +1206,8 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Run ID**: ${{ github.run_id }}
+          - **Repository**: ${GH_REPOSITORY}
+          - **Run ID**: ${GH_RUN_ID}
           - **Target URL**: https://githubnext.com/projects/agentic-workflows/
           
           ## Audit Process
@@ -1332,7 +1335,7 @@ jobs:
           The Agentic Workflows blog is accessible and up to date with valid code examples.
           
           ---
-          *Automated audit run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}*
+          *Automated audit run: ${GH_SERVER_URL}/${GH_REPOSITORY}/actions/runs/${GH_RUN_ID}*
           ```
           
           #### For Failed Audits ❌
@@ -1411,7 +1414,7 @@ jobs:
           - **Available Content Preview**: [first 200 chars of accessibility snapshot if available]
           
           ---
-          *Automated audit run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}*
+          *Automated audit run: ${GH_SERVER_URL}/${GH_REPOSITORY}/actions/runs/${GH_RUN_ID}*
           ```
           
           ## Important Guidelines

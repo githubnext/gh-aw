@@ -1150,12 +1150,14 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_WORKSPACE: ${{ github.workspace }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
           ## Serena configuration
           
-          The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
+          The active workspaces is ${GH_WORKSPACE}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
           
           
           
@@ -1252,7 +1254,7 @@ jobs:
           ## Serena Configuration
           
           The Serena MCP server is configured for this workspace:
-          - **Workspace**: ${{ github.workspace }}
+          - **Workspace**: ${GH_WORKSPACE}
           - **Memory cache**: /tmp/gh-aw/cache-memory/serena
           - **Context**: codex
           - **Language service**: Go (gopls)
@@ -1373,7 +1375,7 @@ jobs:
           ```markdown
           # 🔧 Semantic Function Clustering Analysis
           
-          *Analysis of repository: ${{ github.repository }}*
+          *Analysis of repository: ${GH_REPOSITORY}*
           
           ## Executive Summary
           

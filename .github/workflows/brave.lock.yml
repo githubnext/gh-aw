@@ -1915,6 +1915,9 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_EVENT_ISSUE_NUMBER || GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1935,10 +1938,10 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
+          - **Repository**: ${GH_REPOSITORY}
           - **Triggering Content**: "${{ needs.activation.outputs.text }}"
-          - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
-          - **Triggered by**: @${{ github.actor }}
+          - **Issue/PR Number**: ${GH_EVENT_ISSUE_NUMBER || GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          - **Triggered by**: @${GH_ACTOR}
           
           ## Search Process
           
@@ -1986,7 +1989,7 @@ jobs:
           ```markdown
           # 🔍 Brave Search Results
           
-          *Triggered by @${{ github.actor }}*
+          *Triggered by @${GH_ACTOR}*
           
           ## Summary
           [Brief overview of search results]

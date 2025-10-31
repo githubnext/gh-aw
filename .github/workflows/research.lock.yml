@@ -1041,6 +1041,9 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_EVENT_INPUTS_TOPIC: ${{ github.event.inputs.topic }}
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1121,9 +1124,9 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Research Topic**: "${{ github.event.inputs.topic }}"
-          - **Triggered by**: @${{ github.actor }}
+          - **Repository**: ${GH_REPOSITORY}
+          - **Research Topic**: "${GH_EVENT_INPUTS_TOPIC}"
+          - **Triggered by**: @${GH_ACTOR}
           
           ## Your Task
           

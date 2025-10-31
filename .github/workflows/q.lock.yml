@@ -2027,6 +2027,10 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_EVENT_ISSUE_NUMBER || GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_WORKSPACE: ${{ github.workspace }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -2034,7 +2038,7 @@ jobs:
           
           ## Serena configuration
           
-          The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
+          The active workspaces is ${GH_WORKSPACE}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
           
           
           
@@ -2057,10 +2061,10 @@ jobs:
           <current_context>
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
+          - **Repository**: ${GH_REPOSITORY}
           - **Triggering Content**: "${{ needs.activation.outputs.text }}"
-          - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
-          - **Triggered by**: @${{ github.actor }}
+          - **Issue/PR Number**: ${GH_EVENT_ISSUE_NUMBER || GITHUB_EVENT_PULL_REQUEST_NUMBER}
+          - **Triggered by**: @${GH_ACTOR}
           </current_context>
           
           ## Investigation Protocol

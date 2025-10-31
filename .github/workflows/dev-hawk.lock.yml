@@ -1420,6 +1420,14 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_EVENT_WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          GH_EVENT_WORKFLOW_RUN_EVENT: ${{ github.event.workflow_run.event }}
+          GH_EVENT_WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          GH_EVENT_WORKFLOW_RUN_HTML_URL: ${{ github.event.workflow_run.html_url }}
+          GH_EVENT_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          GH_EVENT_WORKFLOW_RUN_RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+          GH_EVENT_WORKFLOW_RUN_STATUS: ${{ github.event.workflow_run.status }}
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1429,13 +1437,13 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Workflow Run ID**: ${{ github.event.workflow_run.id }}
-          - **Conclusion**: ${{ github.event.workflow_run.conclusion }}
-          - **Status**: ${{ github.event.workflow_run.status }}
-          - **Run URL**: ${{ github.event.workflow_run.html_url }}
-          - **Head SHA**: ${{ github.event.workflow_run.head_sha }}
-          - **Triggering Event**: ${{ github.event.workflow_run.event }}
+          - **Repository**: ${GH_REPOSITORY}
+          - **Workflow Run ID**: ${GH_EVENT_WORKFLOW_RUN_ID}
+          - **Conclusion**: ${GH_EVENT_WORKFLOW_RUN_CONCLUSION}
+          - **Status**: ${GH_EVENT_WORKFLOW_RUN_STATUS}
+          - **Run URL**: ${GH_EVENT_WORKFLOW_RUN_HTML_URL}
+          - **Head SHA**: ${GH_EVENT_WORKFLOW_RUN_HEAD_SHA}
+          - **Triggering Event**: ${GH_EVENT_WORKFLOW_RUN_EVENT}
           
           ## Mission
           
@@ -1445,10 +1453,10 @@ jobs:
           
           ### 1. Find Associated Pull Request
           
-          Use the GitHub tools to find the pull request associated with the commit SHA `${{ github.event.workflow_run.head_sha }}`:
-          - First, use `get_workflow_run` with run_id `${{ github.event.workflow_run.id }}` to get the full workflow run details including the branch name
-          - Then use `search_pull_requests` with query: `repo:${{ github.repository }} is:pr sha:${{ github.event.workflow_run.head_sha }}` to find PRs that include this commit
-          - Alternatively, you can search for open PRs and check their head SHA to match `${{ github.event.workflow_run.head_sha }}`
+          Use the GitHub tools to find the pull request associated with the commit SHA `${GH_EVENT_WORKFLOW_RUN_HEAD_SHA}`:
+          - First, use `get_workflow_run` with run_id `${GH_EVENT_WORKFLOW_RUN_ID}` to get the full workflow run details including the branch name
+          - Then use `search_pull_requests` with query: `repo:${GH_REPOSITORY} is:pr sha:${GH_EVENT_WORKFLOW_RUN_HEAD_SHA}` to find PRs that include this commit
+          - Alternatively, you can search for open PRs and check their head SHA to match `${GH_EVENT_WORKFLOW_RUN_HEAD_SHA}`
           - If no pull request is found, **ABANDON the task** - do not post any comments or create issues
           
           ### 2. Analyze Workflow Outcome
@@ -1461,7 +1469,7 @@ jobs:
           - Calculate execution time if available
           
           **For failed/cancelled workflows:**
-          - Use the agentic-workflows `audit` tool with run_id `${{ github.event.workflow_run.id }}` to:
+          - Use the agentic-workflows `audit` tool with run_id `${GH_EVENT_WORKFLOW_RUN_ID}` to:
             - Investigate the failure
             - Identify root cause errors
             - Extract relevant error messages and patterns
@@ -1481,9 +1489,9 @@ jobs:
           ```markdown
           # ✅ Dev Hawk Report - Success
           
-          **Workflow Run**: [#${{ github.event.workflow_run.run_number }}](${{ github.event.workflow_run.html_url }})
-          - **Status**: ${{ github.event.workflow_run.conclusion }}
-          - **Commit**: ${{ github.event.workflow_run.head_sha }}
+          **Workflow Run**: [#${GH_EVENT_WORKFLOW_RUN_RUN_NUMBER}](${GH_EVENT_WORKFLOW_RUN_HTML_URL})
+          - **Status**: ${GH_EVENT_WORKFLOW_RUN_CONCLUSION}
+          - **Commit**: ${GH_EVENT_WORKFLOW_RUN_HEAD_SHA}
           
           The Dev workflow completed successfully! 🎉
           ```
@@ -1492,9 +1500,9 @@ jobs:
           ```markdown
           # ⚠️ Dev Hawk Report - Failure Analysis
           
-          **Workflow Run**: [#${{ github.event.workflow_run.run_number }}](${{ github.event.workflow_run.html_url }})
-          - **Status**: ${{ github.event.workflow_run.conclusion }}
-          - **Commit**: ${{ github.event.workflow_run.head_sha }}
+          **Workflow Run**: [#${GH_EVENT_WORKFLOW_RUN_RUN_NUMBER}](${GH_EVENT_WORKFLOW_RUN_HTML_URL})
+          - **Status**: ${GH_EVENT_WORKFLOW_RUN_CONCLUSION}
+          - **Commit**: ${GH_EVENT_WORKFLOW_RUN_HEAD_SHA}
           
           ## Root Cause Analysis
           

@@ -110,9 +110,24 @@ ${{ needs.activation.outputs.text }}
 		t.Error("Expressions outside template conditionals should not be double-wrapped")
 	}
 
-	// Verify that the actual GitHub expressions in the content are preserved
-	if !strings.Contains(compiledStr, "issue #${{ github.event.issue.number }}") {
-		t.Error("Regular GitHub expressions in content should be preserved")
+	// Verify that GitHub context expressions in prompt content are sanitized to shell variables
+	if !strings.Contains(compiledStr, "issue #${GH_EVENT_ISSUE_NUMBER}") {
+		t.Error("GitHub expressions in prompt content should be sanitized to shell variables")
+	}
+
+	// Verify that the environment variables are defined
+	if !strings.Contains(compiledStr, "GH_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}") {
+		t.Error("Environment variables should be defined for sanitized GitHub expressions")
+	}
+
+	// Verify that repository expression is also sanitized
+	if !strings.Contains(compiledStr, "in repository ${GH_REPOSITORY}") {
+		t.Error("GitHub repository expression should be sanitized to shell variable")
+	}
+
+	// Verify that github.actor is sanitized
+	if !strings.Contains(compiledStr, "created by ${GH_ACTOR}") {
+		t.Error("GitHub actor expression should be sanitized to shell variable")
 	}
 }
 

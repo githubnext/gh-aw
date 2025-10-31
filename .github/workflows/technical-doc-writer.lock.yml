@@ -1458,6 +1458,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_EVENT_INPUTS_TOPIC: ${{ github.event.inputs.topic }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1825,7 +1826,7 @@ jobs:
           
           This workflow is triggered manually via workflow_dispatch with a documentation topic.
           
-          **Topic to review:** "${{ github.event.inputs.topic }}"
+          **Topic to review:** "${GH_EVENT_INPUTS_TOPIC}"
           
           The documentation has been built successfully in the `docs/dist` folder. You can review both the source files in `docs/` and the built output in `docs/dist`.
           
@@ -1837,7 +1838,7 @@ jobs:
           When reviewing documentation for the specified topic in the **docs/** folder, apply these principles to:
           
           1. **Analyze the topic** provided in the workflow input
-          2. **Review relevant documentation files** in the docs/ folder related to: "${{ github.event.inputs.topic }}"
+          2. **Review relevant documentation files** in the docs/ folder related to: "${GH_EVENT_INPUTS_TOPIC}"
           3. **Verify the built documentation** in docs/dist is properly generated
           4. **Provide constructive feedback** as a comment addressing:
              - Clarity and conciseness
@@ -1855,7 +1856,7 @@ jobs:
              - Include a clear description of the improvements made
              - Only create a pull request if you have made actual changes to the documentation files
           
-          Keep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements for the topic: "${{ github.event.inputs.topic }}"
+          Keep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements for the topic: "${GH_EVENT_INPUTS_TOPIC}"
           
           You have access to cache-memory for persistent storage across runs, which you can use to track documentation patterns and improvement suggestions.
           

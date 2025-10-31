@@ -1708,6 +1708,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1719,8 +1721,8 @@ jobs:
           
           ## Current Issue
           
-          - **Issue Number**: ${{ github.event.issue.number }}
-          - **Repository**: ${{ github.repository }}
+          - **Issue Number**: ${GH_EVENT_ISSUE_NUMBER}
+          - **Repository**: ${GH_REPOSITORY}
           - **Issue Content**: 
             ```
             ${{ needs.activation.outputs.text }}

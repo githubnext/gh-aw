@@ -1901,6 +1901,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1910,8 +1912,8 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Issue/Comment**: ${{ github.event.issue.number }}
+          - **Repository**: ${GH_REPOSITORY}
+          - **Issue/Comment**: ${GH_EVENT_ISSUE_NUMBER}
           - **Request**: 
           
           
@@ -1961,7 +1963,7 @@ jobs:
           **Markdown Content:**
           - Clear title describing the workflow's purpose
           - Mission statement explaining what the AI should do
-          - Context section with allowed GitHub expressions (see documentation for allowed expressions like `${{ github.repository }}`, `${{ github.event.issue.number }}`, and `${{ needs.activation.outputs.text }}`)
+          - Context section with allowed GitHub expressions (see documentation for allowed expressions like `${GH_REPOSITORY}`, `${GH_EVENT_ISSUE_NUMBER}`, and `${{ needs.activation.outputs.text }}`)
           - Step-by-step instructions for the AI agent
           - Guidelines and constraints
           - Output format specifications
@@ -2118,8 +2120,8 @@ jobs:
           
           ## Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Issue**: ${{ github.event.issue.number }}
+          - **Repository**: ${GH_REPOSITORY}
+          - **Issue**: ${GH_EVENT_ISSUE_NUMBER}
           - **Content**: "${{ needs.activation.outputs.text }}"
           
           ## Instructions

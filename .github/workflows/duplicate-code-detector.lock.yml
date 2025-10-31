@@ -1041,12 +1041,16 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_EVENT_HEAD_COMMIT_ID: ${{ github.event.head_commit.id }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_WORKSPACE: ${{ github.workspace }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
           ## Serena configuration
           
-          The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
+          The active workspaces is ${GH_WORKSPACE}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
           
           
           
@@ -1064,9 +1068,9 @@ jobs:
           
           ## Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Commit ID**: ${{ github.event.head_commit.id }}
-          - **Triggered by**: @${{ github.actor }}
+          - **Repository**: ${GH_REPOSITORY}
+          - **Commit ID**: ${GH_EVENT_HEAD_COMMIT_ID}
+          - **Triggered by**: @${GH_ACTOR}
           
           ## Analysis Workflow
           
@@ -1177,7 +1181,7 @@ jobs:
           ```markdown
           # 🔍 Duplicate Code Detected: [Pattern Name]
           
-          *Analysis of commit ${{ github.event.head_commit.id }}*
+          *Analysis of commit ${GH_EVENT_HEAD_COMMIT_ID}*
           
           **Assignee**: @copilot
           
@@ -1227,7 +1231,7 @@ jobs:
           
           - **Analyzed Files**: [count]
           - **Detection Method**: Serena semantic code analysis
-          - **Commit**: ${{ github.event.head_commit.id }}
+          - **Commit**: ${GH_EVENT_HEAD_COMMIT_ID}
           - **Analysis Date**: [timestamp]
           ```
           
