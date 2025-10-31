@@ -263,6 +263,7 @@ help:
 	@echo "  test-js          - Run JavaScript tests"
 	@echo "  test-all         - Run all tests (Go and JavaScript)"
 	@echo "  test-coverage    - Run tests with coverage report"
+	@echo "  bundle-js        - Build JavaScript bundler tool (./bundle-js <input> [output])"
 	@echo "  clean            - Clean build artifacts"
 	@echo "  deps             - Install dependencies"
 	@echo "  lint             - Run linter"
