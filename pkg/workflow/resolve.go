@@ -86,15 +86,22 @@ func ResolveWorkflowName(workflowInput string) (string, error) {
 //   - "weekly-research.md" -> "weekly-research"
 //   - "weekly-research.lock.yml" -> "weekly-research"
 func normalizeWorkflowName(name string) string {
+	resolveLog.Printf("Normalizing workflow name: %s", name)
+
 	// Remove .lock.yml extension first (longer extension)
 	if strings.HasSuffix(name, ".lock.yml") {
-		return strings.TrimSuffix(name, ".lock.yml")
+		normalized := strings.TrimSuffix(name, ".lock.yml")
+		resolveLog.Printf("Removed .lock.yml extension: %s", normalized)
+		return normalized
 	}
 
 	// Remove .md extension
 	if strings.HasSuffix(name, ".md") {
-		return strings.TrimSuffix(name, ".md")
+		normalized := strings.TrimSuffix(name, ".md")
+		resolveLog.Printf("Removed .md extension: %s", normalized)
+		return normalized
 	}
 
+	resolveLog.Printf("No extension removed, using as-is: %s", name)
 	return name
 }

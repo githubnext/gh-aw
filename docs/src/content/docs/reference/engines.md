@@ -226,6 +226,10 @@ engine:
       run: npm ci
 ```
 
+## Custom Agent Files
+
+All AI engines support custom agent files that provide specialized instructions and behavior. See the [Custom Agent Files](/gh-aw/reference/custom-agents/) reference for complete documentation on creating and using custom agents.
+
 ## Engine Environment Variables
 
 All engines support custom environment variables through the `env` field:

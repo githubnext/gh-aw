@@ -45,9 +45,24 @@ Import paths support local files (`shared/file.md`, `../file.md`), remote reposi
 
 Paths are resolved relative to the importing file, with support for nested imports and circular import protection.
 
+## Agent Files
+
+Import custom agent files from `.github/agents/` to customize AI engine behavior. Agent files are markdown documents with specialized instructions that modify how the AI interprets and executes workflows.
+
+```yaml
+---
+on: pull_request
+engine: copilot
+imports:
+  - .github/agents/code-reviewer.md
+---
+```
+
+Only one agent file can be imported per workflow. See [Custom Agent Files](/gh-aw/reference/engines/#custom-agent-files) for details on creating and using agent files.
+
 ## Frontmatter Merging
 
-Imported files can only define `tools:`, `mcp-servers:`, and `services:` frontmatter (other fields trigger warnings). These fields are merged with the main workflow's configuration.
+Imported files can only define `tools:`, `mcp-servers:`, and `services:` frontmatter (other fields trigger warnings). Agent files can also define `name` and `description`. These fields are merged with the main workflow's configuration.
 
 ### Example
 

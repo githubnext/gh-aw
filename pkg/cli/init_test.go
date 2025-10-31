@@ -78,10 +78,10 @@ func TestInitRepository(t *testing.T) {
 				t.Errorf("Expected copilot instructions file to exist")
 			}
 
-			// Verify agentic workflow prompt was created
-			agenticWorkflowPromptPath := filepath.Join(tempDir, ".github", "prompts", "create-agentic-workflow.prompt.md")
-			if _, err := os.Stat(agenticWorkflowPromptPath); os.IsNotExist(err) {
-				t.Errorf("Expected agentic workflow prompt file to exist")
+			// Verify agentic workflow agent was created
+			agenticWorkflowAgentPath := filepath.Join(tempDir, ".github", "agents", "create-agentic-workflow.md")
+			if _, err := os.Stat(agenticWorkflowAgentPath); os.IsNotExist(err) {
+				t.Errorf("Expected agentic workflow agent file to exist")
 			}
 
 			// Verify .gitattributes contains the correct entry
@@ -141,9 +141,9 @@ func TestInitRepository_Idempotent(t *testing.T) {
 		t.Errorf("Expected copilot instructions file to exist after second call")
 	}
 
-	agenticWorkflowPromptPath := filepath.Join(tempDir, ".github", "prompts", "create-agentic-workflow.prompt.md")
-	if _, err := os.Stat(agenticWorkflowPromptPath); os.IsNotExist(err) {
-		t.Errorf("Expected agentic workflow prompt file to exist after second call")
+	agenticWorkflowAgentPath := filepath.Join(tempDir, ".github", "agents", "create-agentic-workflow.md")
+	if _, err := os.Stat(agenticWorkflowAgentPath); os.IsNotExist(err) {
+		t.Errorf("Expected agentic workflow agent file to exist after second call")
 	}
 }
 

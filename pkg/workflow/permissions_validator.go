@@ -261,12 +261,36 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 	lines = append(lines, "Missing required permissions for github toolsets:")
 	lines = append(lines, permLines...)
 	lines = append(lines, "")
-	lines = append(lines, "Add to your workflow frontmatter:")
+	lines = append(lines, "To fix this, you can either:")
+	lines = append(lines, "")
+	lines = append(lines, "Option 1: Add missing permissions to your workflow frontmatter:")
 	lines = append(lines, "permissions:")
 	for _, scopeStr := range scopes {
 		scope := PermissionScope(scopeStr)
 		level := result.MissingPermissions[scope]
 		lines = append(lines, fmt.Sprintf("  %s: %s", scope, level))
+	}
+
+	// Add suggestion to reduce toolsets if we have toolset details
+	if len(result.MissingToolsetDetails) > 0 {
+		lines = append(lines, "")
+		lines = append(lines, "Option 2: Reduce the required toolsets in your workflow:")
+		lines = append(lines, "Remove or adjust toolsets that require these permissions:")
+
+		// Get unique toolsets from MissingToolsetDetails
+		toolsetsMap := make(map[string]bool)
+		for toolset := range result.MissingToolsetDetails {
+			toolsetsMap[toolset] = true
+		}
+		var toolsetsList []string
+		for toolset := range toolsetsMap {
+			toolsetsList = append(toolsetsList, toolset)
+		}
+		sort.Strings(toolsetsList)
+
+		for _, toolset := range toolsetsList {
+			lines = append(lines, fmt.Sprintf("  - %s", toolset))
+		}
 	}
 
 	return strings.Join(lines, "\n")
