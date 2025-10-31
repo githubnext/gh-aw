@@ -6,7 +6,21 @@
  * @param {string} content - The content to sanitize
  * @returns {string} The sanitized content
  */
-function sanitizeContent(content) {
+// === Inlined from ./lib/sanitize.cjs ===
+// @ts-check
+/**
+ * Shared sanitization utilities for GitHub Actions output
+ * This module provides functions for sanitizing content to prevent security issues
+ * and unintended side effects in GitHub Actions workflows.
+ */
+
+/**
+ * Sanitizes content for safe output in GitHub Actions
+ * @param {string} content - The content to sanitize
+ * @param {number} [maxLength] - Maximum length of content (default: 524288)
+ * @returns {string} The sanitized content
+ */
+function sanitizeContent(content, maxLength) {
   if (!content || typeof content !== "string") {
     return "";
   }
@@ -27,35 +41,40 @@ function sanitizeContent(content) {
   // Neutralize @mentions to prevent unintended notifications
   sanitized = neutralizeMentions(sanitized);
 
-  // Remove control characters (except newlines and tabs)
-  sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-
-  // XML tag neutralization - convert XML tags to parentheses format
-  sanitized = convertXmlTagsToParentheses(sanitized);
-
-  // URI filtering - replace non-https protocols with "(redacted)"
-  // Step 1: Temporarily mark HTTPS URLs to protect them
-  sanitized = sanitizeUrlProtocols(sanitized);
-
-  // Domain filtering for HTTPS URIs
-  // Match https:// URIs and check if domain is in allowlist
-  sanitized = sanitizeUrlDomains(sanitized);
-
-  // Limit total length to prevent DoS (0.5MB max)
-  const maxLength = 524288;
-  if (sanitized.length > maxLength) {
-    sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-  }
-
-  // Limit number of lines to prevent log flooding (65k max)
-  const lines = sanitized.split("\n");
-  const maxLines = 65000;
-  if (lines.length > maxLines) {
-    sanitized = lines.slice(0, maxLines).join("\n") + "\n[Content truncated due to line count]";
-  }
+  // Remove XML comments first
+  sanitized = removeXmlComments(sanitized);
 
   // Remove ANSI escape sequences
   sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+
+  // Remove control characters (except newlines and tabs)
+  sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+
+  // URI filtering - replace non-https protocols with "(redacted)"
+  sanitized = sanitizeUrlProtocols(sanitized);
+
+  // Domain filtering for HTTPS URIs
+  sanitized = sanitizeUrlDomains(sanitized);
+
+  // Check line count before length to provide more specific truncation message
+  const lines = sanitized.split("\n");
+  const maxLines = 65000;
+  maxLength = maxLength || 524288;
+
+  // If content has too many lines, truncate by lines (primary limit)
+  if (lines.length > maxLines) {
+    const truncationMsg = "\n[Content truncated due to line count]";
+    const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
+
+    // If still too long after line truncation, shorten but keep the line count message
+    if (truncatedLines.length > maxLength) {
+      sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
+    } else {
+      sanitized = truncatedLines;
+    }
+  } else if (sanitized.length > maxLength) {
+    sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
+  }
 
   // Neutralize common bot trigger phrases
   sanitized = neutralizeBotTriggers(sanitized);
@@ -64,54 +83,12 @@ function sanitizeContent(content) {
   return sanitized.trim();
 
   /**
-   * Convert XML tags to parentheses format while preserving non-XML uses of < and >
-   * @param {string} s - The string to process
-   * @returns {string} The string with XML tags converted to parentheses
-   */
-  function convertXmlTagsToParentheses(s) {
-    if (!s || typeof s !== "string") {
-      return s;
-    }
-
-    // XML tag patterns that should be converted to parentheses
-    return (
-      s
-        // Standard XML tags: <tag>, <tag attr="value">, <tag/>, </tag>
-        .replace(/<\/?[a-zA-Z][a-zA-Z0-9\-_:]*(?:\s[^>]*|\/)?>/g, match => {
-          // Extract the tag name and content without < >
-          const innerContent = match.slice(1, -1);
-          return `(${innerContent})`;
-        })
-        // XML comments: <!-- comment -->
-        .replace(/<!--[\s\S]*?-->/g, match => {
-          const innerContent = match.slice(4, -3); // Remove <!-- and -->
-          return `(!--${innerContent}--)`;
-        })
-        // CDATA sections: <![CDATA[content]]>
-        .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, match => {
-          const innerContent = match.slice(9, -3); // Remove <![CDATA[ and ]]>
-          return `(![CDATA[${innerContent}]])`;
-        })
-        // XML processing instructions: <?xml ... ?>
-        .replace(/<\?[\s\S]*?\?>/g, match => {
-          const innerContent = match.slice(2, -2); // Remove <? and ?>
-          return `(?${innerContent}?)`;
-        })
-        // DOCTYPE declarations: <!DOCTYPE ...>
-        .replace(/<!DOCTYPE[^>]*>/gi, match => {
-          const innerContent = match.slice(9, -1); // Remove <!DOCTYPE and >
-          return `(!DOCTYPE${innerContent})`;
-        })
-    );
-  }
-
-  /**
    * Remove unknown domains
    * @param {string} s - The string to process
    * @returns {string} The string with unknown domains redacted
    */
   function sanitizeUrlDomains(s) {
-    s = s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
+    s = s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, domain) => {
       // Extract the hostname part (before first slash, colon, or other delimiter)
       const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
 
@@ -155,6 +132,16 @@ function sanitizeContent(content) {
   }
 
   /**
+   * Removes XML comments from content
+   * @param {string} s - The string to process
+   * @returns {string} The string with XML comments removed
+   */
+  function removeXmlComments(s) {
+    // Remove <!-- comment --> and malformed <!--! comment --!>
+    return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+  }
+
+  /**
    * Neutralizes bot trigger phrases by wrapping them in backticks
    * @param {string} s - The string to process
    * @returns {string} The string with neutralized bot triggers
@@ -164,6 +151,8 @@ function sanitizeContent(content) {
     return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
   }
 }
+
+// === End of ./lib/sanitize.cjs ===
 
 async function main() {
   let text = "";
