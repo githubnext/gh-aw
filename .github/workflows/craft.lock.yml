@@ -1901,6 +1901,9 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_EXPR_9C6DBB26: ${{ github.event.issue.number }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_0BABF60D: ${{ needs.activation.outputs.text }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1910,8 +1913,8 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Issue/Comment**: ${{ github.event.issue.number }}
+          - **Repository**: ${GH_AW_EXPR_D892F163}
+          - **Issue/Comment**: ${GH_AW_EXPR_9C6DBB26}
           - **Request**: 
           
           
@@ -1961,7 +1964,7 @@ jobs:
           **Markdown Content:**
           - Clear title describing the workflow's purpose
           - Mission statement explaining what the AI should do
-          - Context section with allowed GitHub expressions (see documentation for allowed expressions like `${{ github.repository }}`, `${{ github.event.issue.number }}`, and `${{ needs.activation.outputs.text }}`)
+          - Context section with allowed GitHub expressions (see documentation for allowed expressions like `${GH_AW_EXPR_D892F163}`, `${GH_AW_EXPR_9C6DBB26}`, and `${GH_AW_EXPR_0BABF60D}`)
           - Step-by-step instructions for the AI agent
           - Guidelines and constraints
           - Output format specifications
@@ -2019,7 +2022,7 @@ jobs:
           - **Repository-agnostic**: Don't hardcode repository-specific details
           
           ### Security
-          - **Use sanitized context**: Prefer `${{ needs.activation.outputs.text }}` over raw event fields
+          - **Use sanitized context**: Prefer `${GH_AW_EXPR_0BABF60D}` over raw event fields
           - **Validate inputs**: Check that user requests are reasonable and safe
           - **Minimal tools**: Only enable tools that are actually used
           
@@ -2118,9 +2121,9 @@ jobs:
           
           ## Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Issue**: ${{ github.event.issue.number }}
-          - **Content**: "${{ needs.activation.outputs.text }}"
+          - **Repository**: ${GH_AW_EXPR_D892F163}
+          - **Issue**: ${GH_AW_EXPR_9C6DBB26}
+          - **Content**: "${GH_AW_EXPR_0BABF60D}"
           
           ## Instructions
           
@@ -2145,7 +2148,7 @@ jobs:
           
           ## Begin Workflow Creation
           
-          Now analyze the user's request: "${{ needs.activation.outputs.text }}"
+          Now analyze the user's request: "${GH_AW_EXPR_0BABF60D}"
           
           1. Load the documentation
           2. Analyze the request

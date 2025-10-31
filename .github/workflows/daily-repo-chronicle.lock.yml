@@ -1035,6 +1035,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1109,7 +1110,7 @@ jobs:
           
           # The Daily Repository Chronicle
           
-          You are a dramatic newspaper editor crafting today's edition of **The Repository Chronicle** for ${{ github.repository }}.
+          You are a dramatic newspaper editor crafting today's edition of **The Repository Chronicle** for ${GH_AW_EXPR_D892F163}.
           
           ## Your Mission
           

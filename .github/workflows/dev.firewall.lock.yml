@@ -196,6 +196,7 @@ jobs:
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -210,7 +211,7 @@ jobs:
           **Discover and test all available GitHub MCP tools:**
           
           1. First, explore and identify all tools available from the GitHub MCP server
-          2. For each discovered tool, invoke it with sensible arguments based on the repository context (${{ github.repository }})
+          2. For each discovered tool, invoke it with sensible arguments based on the repository context (${GH_AW_EXPR_D892F163})
           3. Use appropriate parameters for each tool (e.g., repository name, issue numbers, PR numbers, etc.)
           
           Example tools you should discover and test may include (but are not limited to):

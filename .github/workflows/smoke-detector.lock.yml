@@ -1894,6 +1894,13 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_EXPR_FD224667: ${{ github.event.workflow_run.conclusion }}
+          GH_AW_EXPR_948C4FD8: ${{ github.event.workflow_run.event }}
+          GH_AW_EXPR_9A971DC4: ${{ github.event.workflow_run.head_sha }}
+          GH_AW_EXPR_D611C113: ${{ github.event.workflow_run.html_url }}
+          GH_AW_EXPR_3906A565: ${{ github.event.workflow_run.id }}
+          GH_AW_EXPR_20984929: ${{ github.event.workflow_run.run_number }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1907,16 +1914,16 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Workflow Run**: ${{ github.event.workflow_run.id }}
-          - **Conclusion**: ${{ github.event.workflow_run.conclusion }}
-          - **Run URL**: ${{ github.event.workflow_run.html_url }}
-          - **Head SHA**: ${{ github.event.workflow_run.head_sha }}
+          - **Repository**: ${GH_AW_EXPR_D892F163}
+          - **Workflow Run**: ${GH_AW_EXPR_3906A565}
+          - **Conclusion**: ${GH_AW_EXPR_FD224667}
+          - **Run URL**: ${GH_AW_EXPR_D611C113}
+          - **Head SHA**: ${GH_AW_EXPR_9A971DC4}
           
           ## Investigation Protocol
           
           ### Phase 1: Initial Triage
-          1. **Use gh-aw_audit Tool**: Run `gh-aw_audit` with the workflow run ID `${{ github.event.workflow_run.id }}` to get comprehensive diagnostic information
+          1. **Use gh-aw_audit Tool**: Run `gh-aw_audit` with the workflow run ID `${GH_AW_EXPR_3906A565}` to get comprehensive diagnostic information
           2. **Analyze Audit Report**: Review the audit report for:
              - Failed jobs and their errors
              - Error patterns and classifications
@@ -2007,7 +2014,7 @@ jobs:
              - **Historical Context**: Similar past failures and their resolutions
              
           2. **Determine Output Location**:
-             - **First, check for associated pull request**: Use the GitHub API to search for pull requests associated with the branch from the failed workflow run (commit SHA: ${{ github.event.workflow_run.head_sha }})
+             - **First, check for associated pull request**: Use the GitHub API to search for pull requests associated with the branch from the failed workflow run (commit SHA: ${GH_AW_EXPR_9A971DC4})
              - **If a pull request is found**: Post the investigation report as a comment on that pull request using the `add_comment` tool
              - **If no pull request is found**: Create a new issue with the investigation results using the `create_issue` tool
              
@@ -2020,8 +2027,8 @@ jobs:
           ### Finding Associated Pull Request
           
           To find a pull request associated with the failed workflow run:
-          1. Use the GitHub search API to search for pull requests with the commit SHA: `${{ github.event.workflow_run.head_sha }}`
-          2. Query: `repo:${{ github.repository }} is:pr ${{ github.event.workflow_run.head_sha }}`
+          1. Use the GitHub search API to search for pull requests with the commit SHA: `${GH_AW_EXPR_9A971DC4}`
+          2. Query: `repo:${GH_AW_EXPR_D892F163} is:pr ${GH_AW_EXPR_9A971DC4}`
           3. If a pull request is found, use its number for the `add_comment` tool
           4. If no pull request is found, proceed with creating an issue
           
@@ -2030,15 +2037,15 @@ jobs:
           When posting a comment on a pull request, use this structure:
           
           ```markdown
-          ## 🔍 Smoke Test Investigation - Run #${{ github.event.workflow_run.run_number }}
+          ## 🔍 Smoke Test Investigation - Run #${GH_AW_EXPR_20984929}
           
           ### Summary
           [Brief description of the failure]
           
           ### Failure Details
-          - **Run**: [${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
-          - **Commit**: ${{ github.event.workflow_run.head_sha }}
-          - **Trigger**: ${{ github.event.workflow_run.event }}
+          - **Run**: [${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
+          - **Commit**: ${GH_AW_EXPR_9A971DC4}
+          - **Trigger**: ${GH_AW_EXPR_948C4FD8}
           
           ### Root Cause Analysis
           [Detailed analysis of what went wrong]
@@ -2064,15 +2071,15 @@ jobs:
           When creating an investigation issue, use this structure:
           
           ```markdown
-          # 🔍 Smoke Test Investigation - Run #${{ github.event.workflow_run.run_number }}
+          # 🔍 Smoke Test Investigation - Run #${GH_AW_EXPR_20984929}
           
           ## Summary
           [Brief description of the failure]
           
           ## Failure Details
-          - **Run**: [${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
-          - **Commit**: ${{ github.event.workflow_run.head_sha }}
-          - **Trigger**: ${{ github.event.workflow_run.event }}
+          - **Run**: [${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
+          - **Commit**: ${GH_AW_EXPR_9A971DC4}
+          - **Trigger**: ${GH_AW_EXPR_948C4FD8}
           
           ## Root Cause Analysis
           [Detailed analysis of what went wrong]
