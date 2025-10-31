@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"strings"
+	"sync"
 )
 
 //go:embed js/create_pull_request.cjs
@@ -26,12 +27,6 @@ var createPRReviewCommentScript string
 
 //go:embed js/create_code_scanning_alert.cjs
 var createCodeScanningAlertScript string
-
-//go:embed js/compute_text.cjs
-var computeTextScript string
-
-//go:embed js/collect_ndjson_output.cjs
-var collectJSONLOutputScript string
 
 //go:embed js/add_labels.cjs
 var addLabelsScript string
@@ -92,6 +87,88 @@ var redactSecretsScript string
 
 //go:embed js/notify_comment_error.cjs
 var notifyCommentErrorScript string
+
+//go:embed js/lib/sanitize.cjs
+var sanitizeLibScript string
+
+// Source scripts that may contain local requires - embedded from src directory
+//
+//go:embed js/src/collect_ndjson_output.cjs
+var collectJSONLOutputScriptSource string
+
+//go:embed js/src/compute_text.cjs
+var computeTextScriptSource string
+
+//go:embed js/src/sanitize_output.cjs
+var sanitizeOutputScriptSource string
+
+// Bundled scripts (lazily bundled on-demand and cached)
+var (
+	collectJSONLOutputScript     string
+	collectJSONLOutputScriptOnce sync.Once
+
+	computeTextScript     string
+	computeTextScriptOnce sync.Once
+
+	sanitizeOutputScript     string
+	sanitizeOutputScriptOnce sync.Once
+)
+
+// getCollectJSONLOutputScript returns the bundled collect_ndjson_output script
+// Bundling is performed on first access and cached for subsequent calls
+func getCollectJSONLOutputScript() string {
+	collectJSONLOutputScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(collectJSONLOutputScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			collectJSONLOutputScript = collectJSONLOutputScriptSource
+		} else {
+			collectJSONLOutputScript = bundled
+		}
+	})
+	return collectJSONLOutputScript
+}
+
+// getComputeTextScript returns the bundled compute_text script
+// Bundling is performed on first access and cached for subsequent calls
+func getComputeTextScript() string {
+	computeTextScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(computeTextScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			computeTextScript = computeTextScriptSource
+		} else {
+			computeTextScript = bundled
+		}
+	})
+	return computeTextScript
+}
+
+// getSanitizeOutputScript returns the bundled sanitize_output script
+// Bundling is performed on first access and cached for subsequent calls
+func getSanitizeOutputScript() string {
+	sanitizeOutputScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(sanitizeOutputScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			sanitizeOutputScript = sanitizeOutputScriptSource
+		} else {
+			sanitizeOutputScript = bundled
+		}
+	})
+	return sanitizeOutputScript
+}
+
+// GetJavaScriptSources returns a map of all embedded JavaScript sources
+// The keys are the relative paths from the js directory
+func GetJavaScriptSources() map[string]string {
+	return map[string]string{
+		"lib/sanitize.cjs": sanitizeLibScript,
+	}
+}
 
 // removeJavaScriptComments removes JavaScript comments (// and /* */) from code
 // while preserving comments that appear within string literals

@@ -3,75 +3,8 @@
 
 async function main() {
   const fs = require("fs");
+  const { sanitizeContent } = require("./lib/sanitize.cjs");
   const maxBodyLength = 65000;
-  function sanitizeContent(content, maxLength) {
-    if (!content || typeof content !== "string") {
-      return "";
-    }
-    const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
-    const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-    const allowedDomains = allowedDomainsEnv
-      ? allowedDomainsEnv
-          .split(",")
-          .map(d => d.trim())
-          .filter(d => d)
-      : defaultAllowedDomains;
-    let sanitized = content;
-    sanitized = neutralizeMentions(sanitized);
-    sanitized = removeXmlComments(sanitized);
-    sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-    sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-    sanitized = sanitizeUrlProtocols(sanitized);
-    sanitized = sanitizeUrlDomains(sanitized);
-    // Check line count before length to provide more specific truncation message
-    const lines = sanitized.split("\n");
-    const maxLines = 65000;
-    maxLength = maxLength || 524288;
-    // If content has too many lines, truncate by lines (primary limit)
-    // Then apply length limit while preserving the line count message
-    if (lines.length > maxLines) {
-      const truncationMsg = "\n[Content truncated due to line count]";
-      const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
-      // If still too long after line truncation, shorten but keep the line count message
-      if (truncatedLines.length > maxLength) {
-        sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
-      } else {
-        sanitized = truncatedLines;
-      }
-    } else if (sanitized.length > maxLength) {
-      sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-    }
-    sanitized = neutralizeBotTriggers(sanitized);
-    return sanitized.trim();
-    function sanitizeUrlDomains(s) {
-      return s.replace(/\bhttps:\/\/[^\s\])}'"<>&\x00-\x1f,;]+/gi, match => {
-        const urlAfterProtocol = match.slice(8);
-        const hostname = urlAfterProtocol.split(/[\/:\?#]/)[0].toLowerCase();
-        const isAllowed = allowedDomains.some(allowedDomain => {
-          const normalizedAllowed = allowedDomain.toLowerCase();
-          return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
-        });
-        return isAllowed ? match : "(redacted)";
-      });
-    }
-    function sanitizeUrlProtocols(s) {
-      return s.replace(/\b(\w+):\/\/[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
-        return protocol.toLowerCase() === "https" ? match : "(redacted)";
-      });
-    }
-    function neutralizeMentions(s) {
-      return s.replace(
-        /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-        (_m, p1, p2) => `${p1}\`@${p2}\``
-      );
-    }
-    function removeXmlComments(s) {
-      return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
-    }
-    function neutralizeBotTriggers(s) {
-      return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-    }
-  }
   function getMaxAllowedForType(itemType, config) {
     const itemConfig = config?.[itemType];
     if (itemConfig && typeof itemConfig === "object" && "max" in itemConfig && itemConfig.max) {

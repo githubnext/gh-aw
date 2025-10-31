@@ -494,7 +494,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "          script: |\n")
 
 		// Inline the JavaScript directly instead of using shared action
-		steps = append(steps, FormatJavaScriptForYAML(computeTextScript)...)
+		steps = append(steps, FormatJavaScriptForYAML(getComputeTextScript())...)
 
 		// Set up outputs
 		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
