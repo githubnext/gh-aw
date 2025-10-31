@@ -57,8 +57,7 @@ if [ -n "$BRANCH_NAME" ]; then
       BASE_REF="origin/$BRANCH_NAME"
     else
       echo "origin/$BRANCH_NAME does not exist, using merge-base with default branch"
-      # Get the default branch name
-      DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+      # Use the default branch name from environment variable
       echo "Default branch: $DEFAULT_BRANCH"
       # Fetch the default branch to ensure it's available locally
       git fetch origin $DEFAULT_BRANCH
