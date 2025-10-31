@@ -7,17 +7,17 @@ import (
 
 func TestMapAgentToolsToWorkflowTools(t *testing.T) {
 	tests := []struct {
-		name              string
-		agentTools        []string
-		expectedTools     map[string]any
-		expectedMapped    []string
-		expectedUnknown   []string
+		name            string
+		agentTools      []string
+		expectedTools   map[string]any
+		expectedMapped  []string
+		expectedUnknown []string
 	}{
 		{
-			name:       "empty tools",
-			agentTools: []string{},
-			expectedTools: map[string]any{},
-			expectedMapped: []string{},
+			name:            "empty tools",
+			agentTools:      []string{},
+			expectedTools:   map[string]any{},
+			expectedMapped:  []string{},
 			expectedUnknown: []string{},
 		},
 		{
@@ -74,9 +74,9 @@ func TestMapAgentToolsToWorkflowTools(t *testing.T) {
 			expectedUnknown: []string{},
 		},
 		{
-			name:       "unknown tools",
-			agentTools: []string{"unknownTool", "anotherUnknown"},
-			expectedTools: map[string]any{},
+			name:            "unknown tools",
+			agentTools:      []string{"unknownTool", "anotherUnknown"},
+			expectedTools:   map[string]any{},
 			expectedMapped:  []string{},
 			expectedUnknown: []string{"unknownTool", "anotherUnknown"},
 		},
@@ -306,7 +306,7 @@ func TestExtractToolsFromAgentFrontmatter(t *testing.T) {
 
 			// Check unknown tools
 			if tt.expectedUnknown == nil {
-				if unknownTools != nil && len(unknownTools) > 0 {
+				if len(unknownTools) > 0 {
 					t.Errorf("Expected nil or empty unknown tools, got %v", unknownTools)
 				}
 			} else if !reflect.DeepEqual(unknownTools, tt.expectedUnknown) {

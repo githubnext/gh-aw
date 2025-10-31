@@ -413,8 +413,8 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var engines []string
 	var safeOutputs []string
 	var processedFiles []string
-	var agentFile string              // Track custom agent file
-	var unknownAgentTools []string    // Track unknown tools from agent file
+	var agentFile string           // Track custom agent file
+	var unknownAgentTools []string // Track unknown tools from agent file
 
 	for _, importPath := range imports {
 		// Handle section references (file.md#Section)

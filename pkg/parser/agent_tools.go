@@ -12,9 +12,9 @@ var agentToolsLog = logger.New("parser:agent_tools")
 
 // AgentToolMapping holds the result of mapping GitHub Copilot agent tools to agentic workflow tools
 type AgentToolMapping struct {
-	Tools         map[string]any // Mapped tools in agentic workflow format
-	UnknownTools  []string       // Tools that couldn't be mapped
-	MappedTools   []string       // Tools that were successfully mapped
+	Tools        map[string]any // Mapped tools in agentic workflow format
+	UnknownTools []string       // Tools that couldn't be mapped
+	MappedTools  []string       // Tools that were successfully mapped
 }
 
 // MapAgentToolsToWorkflowTools converts GitHub Copilot agent tool names to agentic workflow tool format
@@ -94,7 +94,7 @@ func MapAgentToolsToWorkflowTools(agentTools []string) *AgentToolMapping {
 		for toolName := range githubToolNames {
 			allowedTools = append(allowedTools, toolName)
 		}
-		
+
 		result.Tools["github"] = map[string]any{
 			"allowed": allowedTools,
 		}
