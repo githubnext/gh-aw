@@ -38,7 +38,7 @@ func TestSafeOutputConditionWithMin(t *testing.T) {
 					},
 				},
 			},
-			expectedCondition:   "(!cancelled())",
+			expectedCondition:   "needs.agent.result != 'skipped'",
 			unexpectedCondition: "contains(needs.agent.outputs.output_types, 'missing_tool')",
 		},
 		{
@@ -67,7 +67,7 @@ func TestSafeOutputConditionWithMin(t *testing.T) {
 					"missing-tool": false,
 				},
 			},
-			expectedCondition:   "(!cancelled())",
+			expectedCondition:   "needs.agent.result != 'skipped'",
 			unexpectedCondition: "contains(needs.agent.outputs.output_types, 'create_issue')",
 		},
 		{
@@ -81,7 +81,7 @@ func TestSafeOutputConditionWithMin(t *testing.T) {
 					"missing-tool": false,
 				},
 			},
-			expectedCondition:   "(!cancelled())",
+			expectedCondition:   "needs.agent.result != 'skipped'",
 			unexpectedCondition: "contains(needs.agent.outputs.output_types, 'add-comment')",
 		},
 	}
@@ -148,10 +148,10 @@ func TestBuildSafeOutputTypeWithMin(t *testing.T) {
 			unexpectedCondition: "",
 		},
 		{
-			name:                "with min>0 should only have (!cancelled())",
+			name:                "with min>0 should only have (!cancelled()) and agent not skipped",
 			outputType:          "create-issue",
 			min:                 1,
-			expectedCondition:   "(!cancelled())",
+			expectedCondition:   "needs.agent.result != 'skipped'",
 			unexpectedCondition: "contains(needs.agent.outputs.output_types, 'create-issue')",
 		},
 		{
@@ -165,7 +165,7 @@ func TestBuildSafeOutputTypeWithMin(t *testing.T) {
 			name:                "missing-tool with min>0",
 			outputType:          "missing-tool",
 			min:                 2,
-			expectedCondition:   "(!cancelled())",
+			expectedCondition:   "needs.agent.result != 'skipped'",
 			unexpectedCondition: "contains(needs.agent.outputs.output_types, 'missing-tool')",
 		},
 	}
@@ -219,9 +219,9 @@ func TestMinConditionInCompiledWorkflow(t *testing.T) {
 		t.Fatalf("Failed to build job: %v", err)
 	}
 
-	// Verify that the condition only contains (!cancelled()) and not the contains check
-	if !strings.Contains(job.If, "(!cancelled())") {
-		t.Error("Expected condition to contain '(!cancelled())'")
+	// Verify that the condition contains agent not skipped check
+	if !strings.Contains(job.If, "needs.agent.result != 'skipped'") {
+		t.Error("Expected condition to contain 'needs.agent.result != 'skipped''")
 	}
 	if strings.Contains(job.If, "contains(needs.agent.outputs.output_types, 'missing-tool')") {
 		t.Error("Expected condition NOT to contain contains check when min > 0")

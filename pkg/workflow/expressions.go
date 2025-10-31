@@ -336,18 +336,31 @@ func BuildNotFromFork() *ComparisonNode {
 }
 
 func BuildSafeOutputType(outputType string, min int) ConditionNode {
-	// Use !cancelled() instead of always() to respect workflow cancellation
+	// Use !cancelled() && needs.agent.result != 'skipped' to properly handle workflow cancellation
 	// !cancelled() allows jobs to run when dependencies fail (for error reporting)
-	// but skips them when the workflow is cancelled (desired behavior)
+	// needs.agent.result != 'skipped' prevents running when workflow is cancelled (dependencies get skipped)
 	notCancelledFunc := &NotNode{
 		Child: BuildFunctionCall("cancelled"),
 	}
 
-	// If min > 0, only return !cancelled() without the contains check
+	// Check that agent job was not skipped (happens when workflow is cancelled)
+	agentNotSkipped := &ComparisonNode{
+		Left:     BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
+		Operator: "!=",
+		Right:    BuildStringLiteral("skipped"),
+	}
+
+	// Combine !cancelled() with agent not skipped check
+	baseCondition := &AndNode{
+		Left:  notCancelledFunc,
+		Right: agentNotSkipped,
+	}
+
+	// If min > 0, only return base condition without the contains check
 	// This is needed to ensure the job runs even with 0 outputs to enforce the minimum constraint
 	// Wrap in parentheses to ensure proper YAML interpretation
 	if min > 0 {
-		return &ParenthesesNode{Child: notCancelledFunc}
+		return &ParenthesesNode{Child: baseCondition}
 	}
 
 	containsFunc := BuildFunctionCall("contains",
@@ -355,7 +368,7 @@ func BuildSafeOutputType(outputType string, min int) ConditionNode {
 		BuildStringLiteral(outputType),
 	)
 	return &AndNode{
-		Left:  notCancelledFunc,
+		Left:  baseCondition,
 		Right: containsFunc,
 	}
 }
