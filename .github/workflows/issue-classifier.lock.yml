@@ -1916,8 +1916,6 @@ jobs:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
           if-no-files-found: warn
-      - name: Set agent version (not available)
-        run: echo "AGENT_VERSION=" >> $GITHUB_ENV
       - name: Generate agentic run info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
@@ -1929,7 +1927,7 @@ jobs:
               engine_name: "Custom Steps",
               model: "",
               version: "",
-              agent_version: process.env.AGENT_VERSION || "",
+              agent_version: "",
               workflow_name: "Issue Classifier",
               experimental: false,
               supports_tools_allowlist: false,

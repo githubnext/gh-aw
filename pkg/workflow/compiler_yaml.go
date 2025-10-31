@@ -248,9 +248,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	logFile := "agent-stdio"
 	logFileFull := "/tmp/gh-aw/agent-stdio.log"
 
-	// Capture agent version if engine supports it
-	c.generateAgentVersionCapture(yaml, engine)
-
 	// Generate aw_info.json with agentic run metadata
 	c.generateCreateAwInfo(yaml, data, engine)
 
@@ -714,19 +711,26 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 	}
 }
 
-func (c *Compiler) generateAgentVersionCapture(yaml *strings.Builder, engine CodingAgentEngine) {
-	versionCmd := engine.GetVersionCommand()
-	if versionCmd == "" {
-		// Engine doesn't support version reporting, set empty env var
-		yaml.WriteString("      - name: Set agent version (not available)\n")
-		yaml.WriteString("        run: echo \"AGENT_VERSION=\" >> $GITHUB_ENV\n")
-		return
+// getInstallationVersion returns the version that will be installed for the given engine.
+// This matches the logic in BuildStandardNpmEngineInstallSteps.
+func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string {
+	// If version is specified in engine config, use it
+	if data.EngineConfig != nil && data.EngineConfig.Version != "" {
+		return data.EngineConfig.Version
 	}
 
-	yaml.WriteString("      - name: Capture agent version\n")
-	yaml.WriteString("        run: |\n")
-	fmt.Fprintf(yaml, "          VERSION_OUTPUT=$(%s 2>&1 || echo \"unknown\")\n", versionCmd)
-	WriteShellScriptToYAML(yaml, captureAgentVersionScript, "          ")
+	// Otherwise, use the default version for the engine
+	switch engine.GetID() {
+	case "copilot":
+		return constants.DefaultCopilotVersion
+	case "claude":
+		return constants.DefaultClaudeCodeVersion
+	case "codex":
+		return constants.DefaultCodexVersion
+	default:
+		// Custom or unknown engines don't have a default version
+		return ""
+	}
 }
 
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
@@ -757,15 +761,17 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	}
 	fmt.Fprintf(yaml, "              model: \"%s\",\n", model)
 
-	// Version information
+	// Version information (from engine config, kept for backwards compatibility)
 	version := ""
 	if data.EngineConfig != nil && data.EngineConfig.Version != "" {
 		version = data.EngineConfig.Version
 	}
 	fmt.Fprintf(yaml, "              version: \"%s\",\n", version)
 
-	// Agent version captured from running version command
-	yaml.WriteString("              agent_version: process.env.AGENT_VERSION || \"\",\n")
+	// Agent version - use the actual installation version (includes defaults)
+	// This matches what BuildStandardNpmEngineInstallSteps uses
+	agentVersion := getInstallationVersion(data, engine)
+	fmt.Fprintf(yaml, "              agent_version: \"%s\",\n", agentVersion)
 
 	// Workflow information
 	fmt.Fprintf(yaml, "              workflow_name: \"%s\",\n", data.Name)
