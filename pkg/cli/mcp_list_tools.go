@@ -46,21 +46,10 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Looking for MCP server '%s' in: %s", mcpServerName, workflowPath)))
 	}
 
-	// Parse the workflow file
-	content, err := os.ReadFile(workflowPath)
+	// Parse the workflow file and extract MCP configurations
+	_, mcpConfigs, err := loadWorkflowMCPConfigs(workflowPath, mcpServerName)
 	if err != nil {
-		return fmt.Errorf("failed to read workflow file: %w", err)
-	}
-
-	workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil {
-		return fmt.Errorf("failed to parse workflow file: %w", err)
-	}
-
-	// Extract MCP configurations, filtering by server name
-	mcpConfigs, err := parser.ExtractMCPConfigurations(workflowData.Frontmatter, mcpServerName)
-	if err != nil {
-		return fmt.Errorf("failed to extract MCP configurations: %w", err)
+		return err
 	}
 
 	// Find the specific MCP server
