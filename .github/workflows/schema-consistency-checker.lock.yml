@@ -1729,7 +1729,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: "2.0.29",
+              agent_version: "2.0.30",
               workflow_name: "Schema Consistency Checker",
               experimental: false,
               supports_tools_allowlist: true,
