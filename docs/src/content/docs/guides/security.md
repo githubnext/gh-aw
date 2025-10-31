@@ -446,7 +446,29 @@ GitHub Agentic Workflows includes automatic threat detection to analyze agent ou
 
 The system uses AI-powered analysis with workflow source context to distinguish between legitimate actions and threats, helping reduce false positives while maintaining strong security controls.
 
-See the [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for threat detection configuration options.
+**Configuration Options:**
+
+Threat detection is automatically enabled when safe outputs are configured, but can be customized:
+
+```yaml
+safe-outputs:
+  create-pull-request:
+  threat-detection:
+    enabled: true                    # Enable/disable (default: true)
+    prompt: "Focus on SQL injection" # Custom analysis instructions
+    engine:                          # Custom detection engine
+      id: claude
+      model: claude-sonnet-4
+    steps:                           # Additional security scanning
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@main
+```
+
+**Custom Detection Tools:**
+
+Add specialized security scanners like Ollama/LlamaGuard, Semgrep, or TruffleHog alongside AI analysis for defense-in-depth security.
+
+See the [Threat Detection Guide](/gh-aw/guides/threat-detection/) for comprehensive documentation, configuration examples, and the LlamaGuard integration pattern.
 
 ### Automated Security Scanning
 
@@ -621,6 +643,7 @@ Copilot and Claude expose richer default tools and optional Bash; Codex relies m
 
 ## See also
 
+- [Threat Detection Guide](/gh-aw/guides/threat-detection/) - Comprehensive threat detection configuration and examples
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/)
 - [Network Configuration](/gh-aw/reference/network/)
 - [Tools](/gh-aw/reference/tools/)

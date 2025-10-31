@@ -130,6 +130,53 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// Use the engine's RenderMCPConfig method
 	yaml.WriteString("      - name: Setup MCPs\n")
+
+	// Add env block for environment variables to prevent template injection
+	needsEnvBlock := false
+	hasGitHub := false
+	hasSafeOutputs := false
+	// Note: hasAgenticWorkflows is already declared earlier in this function
+
+	for _, toolName := range mcpTools {
+		if toolName == "github" {
+			hasGitHub = true
+			needsEnvBlock = true
+		}
+		if toolName == "safe-outputs" {
+			hasSafeOutputs = true
+			needsEnvBlock = true
+		}
+		if toolName == "agentic-workflows" {
+			needsEnvBlock = true
+		}
+	}
+
+	if needsEnvBlock {
+		yaml.WriteString("        env:\n")
+
+		// Add GitHub token env var if GitHub tool is present
+		if hasGitHub {
+			githubTool := tools["github"]
+			customGitHubToken := getGitHubToken(githubTool)
+			effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
+			yaml.WriteString("          GITHUB_MCP_SERVER_TOKEN: " + effectiveToken + "\n")
+		}
+
+		// Add safe-outputs env vars if present
+		if hasSafeOutputs {
+			yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
+			yaml.WriteString("          GH_AW_SAFE_OUTPUTS_CONFIG: ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}\n")
+			yaml.WriteString("          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}\n")
+			yaml.WriteString("          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}\n")
+			yaml.WriteString("          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}\n")
+		}
+
+		// Add GITHUB_TOKEN for agentic-workflows if present
+		if hasAgenticWorkflows {
+			yaml.WriteString("          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
+		}
+	}
+
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
 	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)

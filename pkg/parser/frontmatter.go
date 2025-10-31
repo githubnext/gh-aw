@@ -90,18 +90,19 @@ type FrontmatterResult struct {
 
 // ImportsResult holds the result of processing imports from frontmatter
 type ImportsResult struct {
-	MergedTools       string   // Merged tools configuration from all imports
-	MergedMCPServers  string   // Merged mcp-servers configuration from all imports
-	MergedEngines     []string // Merged engine configurations from all imports
-	MergedSafeOutputs []string // Merged safe-outputs configurations from all imports
-	MergedMarkdown    string   // Merged markdown content from all imports
-	MergedSteps       string   // Merged steps configuration from all imports
-	MergedRuntimes    string   // Merged runtimes configuration from all imports
-	MergedServices    string   // Merged services configuration from all imports
-	MergedNetwork     string   // Merged network configuration from all imports
-	MergedPermissions string   // Merged permissions configuration from all imports
-	ImportedFiles     []string // List of imported file paths (for manifest)
-	AgentFile         string   // Path to custom agent file (if imported)
+	MergedTools         string   // Merged tools configuration from all imports
+	MergedMCPServers    string   // Merged mcp-servers configuration from all imports
+	MergedEngines       []string // Merged engine configurations from all imports
+	MergedSafeOutputs   []string // Merged safe-outputs configurations from all imports
+	MergedMarkdown      string   // Merged markdown content from all imports
+	MergedSteps         string   // Merged steps configuration from all imports
+	MergedRuntimes      string   // Merged runtimes configuration from all imports
+	MergedServices      string   // Merged services configuration from all imports
+	MergedNetwork       string   // Merged network configuration from all imports
+	MergedPermissions   string   // Merged permissions configuration from all imports
+	MergedSecretMasking string   // Merged secret-masking steps from all imports
+	ImportedFiles       []string // List of imported file paths (for manifest)
+	AgentFile           string   // Path to custom agent file (if imported)
 }
 
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
@@ -409,6 +410,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var servicesBuilder strings.Builder
 	var networkBuilder strings.Builder
 	var permissionsBuilder strings.Builder
+	var secretMaskingBuilder strings.Builder
 	var engines []string
 	var safeOutputs []string
 	var processedFiles []string
@@ -550,21 +552,28 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		if err == nil && permissionsContent != "" && permissionsContent != "{}" {
 			permissionsBuilder.WriteString(permissionsContent + "\n")
 		}
+
+		// Extract secret-masking from imported file
+		secretMaskingContent, err := extractSecretMaskingFromContent(string(content))
+		if err == nil && secretMaskingContent != "" && secretMaskingContent != "{}" {
+			secretMaskingBuilder.WriteString(secretMaskingContent + "\n")
+		}
 	}
 
 	return &ImportsResult{
-		MergedTools:       toolsBuilder.String(),
-		MergedMCPServers:  mcpServersBuilder.String(),
-		MergedEngines:     engines,
-		MergedSafeOutputs: safeOutputs,
-		MergedMarkdown:    markdownBuilder.String(),
-		MergedSteps:       stepsBuilder.String(),
-		MergedRuntimes:    runtimesBuilder.String(),
-		MergedServices:    servicesBuilder.String(),
-		MergedNetwork:     networkBuilder.String(),
-		MergedPermissions: permissionsBuilder.String(),
-		ImportedFiles:     processedFiles,
-		AgentFile:         agentFile,
+		MergedTools:         toolsBuilder.String(),
+		MergedMCPServers:    mcpServersBuilder.String(),
+		MergedEngines:       engines,
+		MergedSafeOutputs:   safeOutputs,
+		MergedMarkdown:      markdownBuilder.String(),
+		MergedSteps:         stepsBuilder.String(),
+		MergedRuntimes:      runtimesBuilder.String(),
+		MergedServices:      servicesBuilder.String(),
+		MergedNetwork:       networkBuilder.String(),
+		MergedPermissions:   permissionsBuilder.String(),
+		MergedSecretMasking: secretMaskingBuilder.String(),
+		ImportedFiles:       processedFiles,
+		AgentFile:           agentFile,
 	}, nil
 }
 
@@ -1022,6 +1031,11 @@ func extractNetworkFromContent(content string) (string, error) {
 // ExtractPermissionsFromContent extracts permissions section from frontmatter as JSON string
 func ExtractPermissionsFromContent(content string) (string, error) {
 	return extractFrontmatterField(content, "permissions", "{}")
+}
+
+// extractSecretMaskingFromContent extracts secret-masking section from frontmatter as JSON string
+func extractSecretMaskingFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "secret-masking", "{}")
 }
 
 // extractFrontmatterField extracts a specific field from frontmatter as JSON string

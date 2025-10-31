@@ -23,6 +23,7 @@ This command:
 - Configures .gitattributes to mark .lock.yml files as generated
 - Creates GitHub Copilot custom instructions at .github/instructions/github-agentic-workflows.instructions.md
 - Creates the custom agent for workflow creation at .github/agents/create-agentic-workflow.md
+- Creates the setup agentic workflows agent at .github/agents/setup-agentic-workflows.md
 - Removes the old /create-agentic-workflow prompt if it exists
 
 With --mcp flag:
@@ -31,6 +32,7 @@ With --mcp flag:
 
 After running this command, you can:
 - Use GitHub Copilot Chat with @.github/agents/create-agentic-workflow.md to create workflows interactively
+- Use GitHub Copilot Chat with @.github/agents/setup-agentic-workflows.md for setup guidance
 - Add workflows from the catalog with: ` + constants.CLIExtensionPrefix + ` add <workflow-name>
 - Create new workflows from scratch with: ` + constants.CLIExtensionPrefix + ` new <workflow-name>
 

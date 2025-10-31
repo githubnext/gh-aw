@@ -1157,8 +1157,120 @@ safe-outputs:
   add-comment:
 ```
 
+## Threat Detection (`threat-detection:`)
+
+Threat detection provides automated security analysis of agent output and code changes before safe outputs are applied. It helps identify prompt injection attempts, secret leaks, and malicious code patches.
+
+**Automatic Enablement:**
+
+Threat detection is automatically enabled when any safe outputs are configured. It can be explicitly controlled or customized:
+
+**Basic Configuration:**
+
+```yaml
+safe-outputs:
+  create-issue:
+  threat-detection: true   # Explicitly enable (default behavior)
+
+# Or disable:
+safe-outputs:
+  create-pull-request:
+  threat-detection: false  # Disable threat detection
+```
+
+**Advanced Configuration:**
+
+```yaml
+safe-outputs:
+  create-pull-request:
+  threat-detection:
+    enabled: true                    # Enable/disable detection (default: true)
+    prompt: "Focus on SQL injection" # Additional analysis instructions
+    engine:                          # Custom engine for detection (string, object, or false)
+      id: claude
+      model: claude-sonnet-4
+    steps:                           # Additional custom detection steps
+      - name: Custom Security Scan
+        run: |
+          echo "Running security checks..."
+```
+
+**Configuration Fields:**
+
+- **`enabled`** (boolean): Enable or disable threat detection. Default: `true` when safe-outputs are configured
+- **`prompt`** (string): Additional custom instructions appended to the default threat detection prompt for specialized analysis
+- **`engine`** (string | object | false): AI engine configuration for detection analysis
+  - String: Engine ID like `"claude"`, `"copilot"`, or `"codex"`
+  - Object: Full engine configuration with `id`, `model`, and other options
+  - `false`: Disable AI-based detection and run only custom steps
+- **`steps`** (array): Additional GitHub Actions steps executed after AI analysis for custom security scanning
+
+**Default Behavior:**
+
+When enabled (default), threat detection uses the same AI engine as your main workflow to analyze:
+- Agent output items (issues, comments, pull requests)
+- Git patch files with code changes
+- Workflow source context for legitimate use cases
+
+The analysis produces a structured JSON response indicating detected threats:
+
+```json
+{
+  "prompt_injection": false,
+  "secret_leak": false,
+  "malicious_patch": false,
+  "reasons": []
+}
+```
+
+If any threat is detected, the workflow fails and safe outputs are blocked.
+
+**Custom Detection Steps:**
+
+Add specialized security tools to supplement or replace AI analysis:
+
+```yaml
+safe-outputs:
+  create-pull-request:
+  threat-detection:
+    steps:
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: /tmp/gh-aw/threat-detection/
+
+      - name: Static Analysis
+        run: |
+          semgrep --config auto /tmp/gh-aw/threat-detection/
+```
+
+Custom steps have access to:
+- `/tmp/gh-aw/threat-detection/prompt.txt` - Workflow prompt
+- `/tmp/gh-aw/threat-detection/agent_output.json` - Safe output items
+- `/tmp/gh-aw/threat-detection/aw.patch` - Git patch file
+
+**Example: LlamaGuard Integration**
+
+```yaml
+safe-outputs:
+  create-pull-request:
+  threat-detection:
+    steps:
+      - name: Ollama LlamaGuard 3 Scan
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Install and run Ollama with llama-guard3:1b model
+            // See .github/workflows/shared/ollama-threat-scan.md for complete example
+```
+
+:::tip
+See the [Threat Detection Guide](/gh-aw/guides/threat-detection/) for comprehensive documentation, examples, and best practices.
+:::
+
 ## Related Documentation
 
+- [Threat Detection Guide](/gh-aw/guides/threat-detection/) - Complete threat detection documentation and examples
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options for workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special /my-bot triggers and context text

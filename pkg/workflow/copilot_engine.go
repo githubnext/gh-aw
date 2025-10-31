@@ -94,16 +94,6 @@ func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
 	return []string{logsFolder}
 }
 
-// GetVersionCommand returns the command to get Copilot CLI's version
-func (e *CopilotEngine) GetVersionCommand() string {
-	if isFeatureEnabled("firewall", nil) {
-		// When firewall is enabled, use version pinning with npx
-		return fmt.Sprintf("npx -y @github/copilot@%s --version", constants.DefaultCopilotVersion)
-	}
-	// When firewall is disabled, use unpinned command
-	return "copilot --version"
-}
-
 // extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags
 func extractAddDirPaths(args []string) []string {
 	var dirs []string

@@ -323,7 +323,8 @@ func TestGitHubToolsetsWithOtherConfiguration(t *testing.T) {
 			expectedInYAML: []string{
 				`GITHUB_TOOLSETS`,
 				`all`,
-				`secrets.CUSTOM_PAT`,
+				// Security fix: Custom token is now passed via env block, not embedded in JSON
+				`$GITHUB_MCP_SERVER_TOKEN`,
 			},
 		},
 		{

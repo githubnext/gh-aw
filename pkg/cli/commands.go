@@ -28,8 +28,8 @@ var agenticWorkflowAgentTemplate string
 //go:embed templates/create-shared-agentic-workflow.prompt.md
 var sharedAgenticWorkflowPromptTemplate string
 
-//go:embed templates/setup-agentic-workflows.prompt.md
-var gettingStartedPromptTemplate string
+//go:embed templates/setup-agentic-workflows.md
+var setupAgenticWorkflowsAgentTemplate string
 
 // SetVersionInfo sets the version information for the CLI
 func SetVersionInfo(v string) {

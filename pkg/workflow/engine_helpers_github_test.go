@@ -33,7 +33,8 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				`"GITHUB_TOOLSETS=default"`,
 				`"ghcr.io/github/github-mcp-server:latest"`,
 				`"env": {`,
-				`"GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"`,
+				// Security fix: Now uses shell environment variable instead of GitHub Actions expression
+				`"GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"`,
 			},
 			notFound: []string{
 				`"type": "local"`,
@@ -58,6 +59,7 @@ func TestRenderGitHubMCPDockerConfig(t *testing.T) {
 				`"tools": [`,
 				`"create_issue"`,
 				`"get_issue"`,
+				// Security fix: Now uses shell environment variable (with backslash for Copilot CLI interpolation)
 				`"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"`,
 			},
 			notFound: []string{

@@ -1740,6 +1740,14 @@ safe-outputs:
   # (optional)
   runs-on: "example-value"
 
+# Configuration for secret redaction behavior in workflow outputs and artifacts
+# (optional)
+secret-masking:
+  # Additional secret redaction steps to inject after the built-in secret redaction.
+  # Use this to mask secrets in generated files using custom patterns.
+  # (optional)
+  steps: []
+
 # Repository access roles required to trigger agentic workflows. Defaults to
 # ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any
 # authenticated user (⚠️ security consideration).
