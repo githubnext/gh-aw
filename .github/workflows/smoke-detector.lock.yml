@@ -433,7 +433,7 @@ jobs:
       - agent
       - create_issue
       - detection
-    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'add_comment'))
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -4006,7 +4006,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_issue'))
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_issue'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -4558,7 +4558,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
