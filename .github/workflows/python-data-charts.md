@@ -1,26 +1,16 @@
 ---
 on:
   workflow_dispatch:
-    inputs:
-      data_source:
-        description: "Data source description (e.g., 'repository statistics', 'workflow metrics')"
-        required: false
-        default: "sample data"
-      chart_type:
-        description: "Type of chart to generate (e.g., 'bar', 'line', 'scatter', 'pie')"
-        required: false
-        default: "bar"
 permissions:
   contents: read
   actions: read
-  issues: read
-  pull-requests: read
 engine: copilot
 tools:
   edit:
 imports:
   - shared/python-dataviz.md
 safe-outputs:
+  upload-assets:
   create-discussion:
     category: "artifacts"
     max: 1
@@ -33,14 +23,12 @@ You are a data visualization expert specializing in Python-based chart generatio
 
 ## Mission
 
-Generate high-quality data visualizations based on the provided data source, upload charts as assets, archive source files, and create a discussion with links to the generated visualizations.
+Generate high-quality data visualizations with random sample data, upload charts as assets, and create a discussion with embedded images.
 
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
-- **Data Source**: ${{ github.event.inputs.data_source }}
-- **Chart Type**: ${{ github.event.inputs.chart_type }}
 
 ## Environment
 
@@ -55,43 +43,35 @@ See the shared Python Data Visualization Guide (imported above) for detailed usa
 
 ## Task Overview
 
-### Phase 1: Data Collection
+### Phase 1: Generate Sample Data
 
-**CRITICAL: Data must NEVER be inlined in code**
+1. Generate random sample data using NumPy with interesting patterns (e.g., trends, distributions, correlations)
+2. Save the data to `/tmp/gh-aw/python/data/` as CSV files
+3. Document the data generation process
 
-1. Based on the data source input ("${{ github.event.inputs.data_source }}"), collect appropriate data:
-   - For "repository statistics": Use GitHub API to fetch repository data
-   - For "workflow metrics": Use GitHub Actions API to fetch workflow run data
-   - For "sample data": Generate sample datasets using NumPy
-   - For other sources: Determine appropriate data collection method
+### Phase 2: Create Visualizations
 
-2. Save all collected data to `/tmp/gh-aw/python/data/` as CSV or JSON files
+1. Create multiple chart types to showcase the data:
+   - Bar chart
+   - Line chart
+   - Scatter plot
+   - Distribution plot
 
-3. Document the data in `/tmp/gh-aw/python/data/README.md`
+2. Save all charts to `/tmp/gh-aw/python/charts/` with descriptive filenames
 
-### Phase 2: Chart Generation
+3. Ensure high quality settings (DPI 300, clear labels, seaborn styling)
 
-1. Check `/tmp/gh-aw/cache-memory/` for reusable helper functions
+### Phase 3: Upload Charts as Assets
 
-2. Create Python scripts in `/tmp/gh-aw/python/`:
-   - Main script: `generate_chart.py`
-   - Helper utilities as needed (and save to cache)
+1. Upload each generated chart using the `upload asset` tool
+2. Collect the returned URLs for each chart
+3. The assets will be published to an orphaned git branch
 
-3. Load data from external files (NEVER inline):
-   ```python
-   import pandas as pd
-   data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-   ```
+### Phase 4: Create Discussion Report
 
-4. Generate the requested chart type with high quality settings (DPI 300)
+Create a discussion with the following structure, including the uploaded chart images:
 
-5. Save chart to `/tmp/gh-aw/python/charts/chart.png`
-
-### Phase 3: Discussion Report
-
-Create a discussion using safe-outputs with the following structure:
-
-**Title**: "📊 Data Visualization Report - ${{ github.event.inputs.data_source }}"
+**Title**: "📊 Data Visualization Report - Random Sample Data"
 
 **Content**:
 ```markdown
@@ -101,38 +81,36 @@ Generated on: [current date]
 
 ## Summary
 
-This report contains data visualizations generated from **${{ github.event.inputs.data_source }}** using Python scientific computing libraries.
+This report contains data visualizations generated from randomly generated sample data using Python scientific computing libraries.
 
-## Generated Charts
+## Generated Visualizations
 
-- **Chart Type**: ${{ github.event.inputs.chart_type }}
-- **Data Source**: ${{ github.event.inputs.data_source }}
-- **Generated**: [timestamp]
+### Chart 1: [Chart Type]
+![Chart 1 Description](URL_FROM_UPLOAD_ASSET)
 
-## Artifacts
+[Brief description of what this chart shows]
 
-### 📈 Charts Artifact
-- **Artifact Name**: `data-charts`
-- **Download URL**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-- **Contents**: PNG image files of generated charts
-- **Retention**: 30 days
+### Chart 2: [Chart Type]
+![Chart 2 Description](URL_FROM_UPLOAD_ASSET)
 
-### 📦 Source and Data Artifact
-- **Artifact Name**: `python-source-and-data`
-- **Download URL**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-- **Contents**: Python scripts, data files, and documentation
-- **Retention**: 30 days
+[Brief description of what this chart shows]
+
+### Chart 3: [Chart Type]
+![Chart 3 Description](URL_FROM_UPLOAD_ASSET)
+
+[Brief description of what this chart shows]
+
+### Chart 4: [Chart Type]
+![Chart 4 Description](URL_FROM_UPLOAD_ASSET)
+
+[Brief description of what this chart shows]
 
 ## Data Information
 
-[Include data statistics and description]
-
-## Reproduction Instructions
-
-1. Download the `python-source-and-data` artifact
-2. Extract the archive
-3. Install dependencies: `pip install numpy pandas matplotlib seaborn scipy`
-4. Run: `python generate_chart.py`
+- **Data Generation**: Random sample data using NumPy
+- **Sample Size**: [number of data points]
+- **Variables**: [list of variables/columns]
+- **Patterns**: [describe any patterns in the data]
 
 ## Libraries Used
 
@@ -155,10 +133,10 @@ This report contains data visualizations generated from **${{ github.event.input
 
 ## Key Reminders
 
-- ✅ **Data Separation**: Always load data from external files, never inline
-- ✅ **Cache Memory**: Check and save reusable helpers to `/tmp/gh-aw/cache-memory/`
+- ✅ **Generate Random Data**: Use NumPy to create interesting sample data
+- ✅ **Upload Charts**: Use the `upload asset` tool for each chart
+- ✅ **Embed Images**: Include uploaded chart URLs in the markdown discussion
 - ✅ **High Quality**: Use DPI 300, clear labels, and seaborn styling
-- ✅ **Artifacts**: Files are automatically uploaded to the configured artifacts
 
 Refer to the Python Data Visualization Guide (imported above) for complete examples, code patterns, and best practices.
 

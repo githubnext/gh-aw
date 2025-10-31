@@ -10,7 +10,7 @@
 # - Python environment setup with directory structure
 # - Scientific library installation (NumPy, Pandas, Matplotlib, Seaborn, SciPy)
 # - Automatic artifact upload for charts and source files
-# - Instructions on data visualization best practices
+# - Instructions on data visualization best practices including asset uploads
 #
 # Note: This configuration ensures data separation by enforcing external data storage.
 
@@ -152,6 +152,32 @@ plt.savefig('/tmp/gh-aw/python/charts/chart.png',
 - **Legend**: Add legends when plotting multiple series
 - **Grid**: Enable grid lines for easier reading
 - **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
+
+## Including Images in Reports
+
+When creating reports (issues, discussions, etc.), use the `upload asset` tool to make images URL-addressable and include them in markdown:
+
+### Step 1: Generate and Upload Chart
+```python
+# Generate your chart
+plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
+```
+
+### Step 2: Upload as Asset
+Use the `upload asset` tool to upload the chart file. The tool will return a GitHub raw content URL.
+
+### Step 3: Include in Markdown Report
+When creating your discussion or issue, include the image using markdown:
+
+```markdown
+## Visualization Results
+
+![Chart Description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/my_chart.png)
+
+The chart above shows...
+```
+
+**Important**: Assets are published to an orphaned git branch and become URL-addressable after workflow completion.
 
 ## Cache Memory Integration
 
