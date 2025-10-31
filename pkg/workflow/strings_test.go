@@ -147,3 +147,184 @@ func TestShortenCommand(t *testing.T) {
 		})
 	}
 }
+
+func TestSanitizeName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		opts     *SanitizeOptions
+		expected string
+	}{
+		// Test basic functionality with nil options
+		{
+			name:     "nil options - simple name",
+			input:    "MyWorkflow",
+			opts:     nil,
+			expected: "myworkflow",
+		},
+		{
+			name:     "nil options - with spaces",
+			input:    "My Workflow Name",
+			opts:     nil,
+			expected: "my-workflow-name",
+		},
+
+		// Test with PreserveSpecialChars (SanitizeWorkflowName-like behavior)
+		{
+			name:  "preserve dots and underscores",
+			input: "workflow.test_name",
+			opts: &SanitizeOptions{
+				PreserveSpecialChars: []rune{'.', '_'},
+			},
+			expected: "workflow.test_name",
+		},
+		{
+			name:  "preserve dots only",
+			input: "workflow.test_name",
+			opts: &SanitizeOptions{
+				PreserveSpecialChars: []rune{'.'},
+			},
+			expected: "workflow.test-name",
+		},
+		{
+			name:  "preserve underscores only",
+			input: "workflow.test_name",
+			opts: &SanitizeOptions{
+				PreserveSpecialChars: []rune{'_'},
+			},
+			expected: "workflow-test_name",
+		},
+		{
+			name:  "complex name with preservation",
+			input: "My Workflow: Test/Build",
+			opts: &SanitizeOptions{
+				PreserveSpecialChars: []rune{'.', '_'},
+			},
+			expected: "my-workflow-test-build",
+		},
+
+		// Test TrimHyphens option
+		{
+			name:  "trim hyphens - leading and trailing",
+			input: "---workflow---",
+			opts: &SanitizeOptions{
+				TrimHyphens: true,
+			},
+			expected: "workflow",
+		},
+		{
+			name:  "no trim hyphens - leading and trailing consolidated",
+			input: "---workflow---",
+			opts: &SanitizeOptions{
+				TrimHyphens: false,
+			},
+			expected: "-workflow-", // Multiple hyphens are always consolidated
+		},
+		{
+			name:  "trim hyphens - with special chars at edges",
+			input: "@@@workflow###",
+			opts: &SanitizeOptions{
+				TrimHyphens: true,
+			},
+			expected: "workflow",
+		},
+
+		// Test DefaultValue option
+		{
+			name:  "empty result with default",
+			input: "@@@",
+			opts: &SanitizeOptions{
+				DefaultValue: "default-name",
+			},
+			expected: "default-name",
+		},
+		{
+			name:  "empty result without default",
+			input: "@@@",
+			opts: &SanitizeOptions{
+				DefaultValue: "",
+			},
+			expected: "",
+		},
+		{
+			name:  "empty string with default",
+			input: "",
+			opts: &SanitizeOptions{
+				DefaultValue: "github-agentic-workflow",
+			},
+			expected: "github-agentic-workflow",
+		},
+
+		// Test combined options (SanitizeIdentifier-like behavior)
+		{
+			name:  "identifier-like: simple name",
+			input: "Test Workflow Name",
+			opts: &SanitizeOptions{
+				TrimHyphens:  true,
+				DefaultValue: "github-agentic-workflow",
+			},
+			expected: "test-workflow-name",
+		},
+		{
+			name:  "identifier-like: with underscores",
+			input: "Test_Workflow_Name",
+			opts: &SanitizeOptions{
+				TrimHyphens:  true,
+				DefaultValue: "github-agentic-workflow",
+			},
+			expected: "test-workflow-name",
+		},
+		{
+			name:  "identifier-like: only special chars",
+			input: "@#$%!",
+			opts: &SanitizeOptions{
+				TrimHyphens:  true,
+				DefaultValue: "github-agentic-workflow",
+			},
+			expected: "github-agentic-workflow",
+		},
+
+		// Test edge cases
+		{
+			name:  "multiple consecutive hyphens",
+			input: "test---multiple----hyphens",
+			opts: &SanitizeOptions{
+				PreserveSpecialChars: []rune{'.', '_'},
+			},
+			expected: "test-multiple-hyphens",
+		},
+		{
+			name:  "unicode characters",
+			input: "workflow-αβγ-test",
+			opts: &SanitizeOptions{
+				PreserveSpecialChars: []rune{'.', '_'},
+			},
+			expected: "workflow-test",
+		},
+		{
+			name:  "common separators replacement",
+			input: "path/to\\file:name",
+			opts: &SanitizeOptions{
+				PreserveSpecialChars: []rune{'.', '_'},
+			},
+			expected: "path-to-file-name",
+		},
+		{
+			name:  "preserve hyphens in input",
+			input: "my-workflow-name",
+			opts: &SanitizeOptions{
+				PreserveSpecialChars: []rune{'.', '_'},
+			},
+			expected: "my-workflow-name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SanitizeName(tt.input, tt.opts)
+			if result != tt.expected {
+				t.Errorf("SanitizeName(%q, %+v) = %q, want %q", tt.input, tt.opts, result, tt.expected)
+			}
+		})
+	}
+}
