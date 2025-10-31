@@ -93,6 +93,17 @@ var redactSecretsScript string
 //go:embed js/notify_comment_error.cjs
 var notifyCommentErrorScript string
 
+//go:embed js/lib/sanitize.cjs
+var sanitizeLibScript string
+
+// GetJavaScriptSources returns a map of all embedded JavaScript sources
+// The keys are the relative paths from the js directory
+func GetJavaScriptSources() map[string]string {
+	return map[string]string{
+		"lib/sanitize.cjs": sanitizeLibScript,
+	}
+}
+
 // removeJavaScriptComments removes JavaScript comments (// and /* */) from code
 // while preserving comments that appear within string literals
 func removeJavaScriptComments(code string) string {

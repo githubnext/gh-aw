@@ -2,30 +2,21 @@ package workflow
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 )
 
-// BundleJavaScript takes a JavaScript file path and bundles all local requires into a single file
-// It detects require() calls to local files, inlines the content, removes export statements,
-// and removes the original require calls
-func BundleJavaScript(filePath string) (string, error) {
+// BundleJavaScriptFromSources bundles JavaScript from in-memory sources
+// sources is a map where keys are file paths (e.g., "lib/sanitize.cjs") and values are the content
+// mainContent is the main JavaScript content that may contain require() calls
+// basePath is the base directory path for resolving relative imports (e.g., "js")
+func BundleJavaScriptFromSources(mainContent string, sources map[string]string, basePath string) (string, error) {
 	// Track already processed files to avoid circular dependencies
 	processed := make(map[string]bool)
 
-	// Read the main file
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read file %s: %w", filePath, err)
-	}
-
-	// Get the directory of the main file for resolving relative paths
-	baseDir := filepath.Dir(filePath)
-
-	// Bundle the file recursively
-	bundled, err := bundleFile(string(content), baseDir, processed)
+	// Bundle the main content recursively
+	bundled, err := bundleFromSources(mainContent, basePath, sources, processed)
 	if err != nil {
 		return "", err
 	}
@@ -33,8 +24,8 @@ func BundleJavaScript(filePath string) (string, error) {
 	return bundled, nil
 }
 
-// bundleFile processes a single file and recursively bundles its dependencies
-func bundleFile(content string, baseDir string, processed map[string]bool) (string, error) {
+// bundleFromSources processes content and recursively bundles its dependencies from the sources map
+func bundleFromSources(content string, currentPath string, sources map[string]string, processed map[string]bool) (string, error) {
 	// Regular expression to match require('./...') or require("./...")
 	// Captures: require('path') or require("path") where path starts with ./ or ../
 	requireRegex := regexp.MustCompile(`(?m)^.*?(?:const|let|var)\s+(?:\{[^}]*\}|\w+)\s*=\s*require\(['"](\.\.?/[^'"]+)['"]\);?\s*$`)
@@ -50,16 +41,24 @@ func bundleFile(content string, baseDir string, processed map[string]bool) (stri
 			// This is a local require - inline it
 			requirePath := matches[1]
 
-			// Resolve the full path
-			fullPath := filepath.Join(baseDir, requirePath)
+			// Resolve the full path relative to current path
+			var fullPath string
+			if currentPath == "" {
+				fullPath = requirePath
+			} else {
+				fullPath = filepath.Join(currentPath, requirePath)
+			}
 
 			// Ensure .cjs extension
 			if !strings.HasSuffix(fullPath, ".cjs") && !strings.HasSuffix(fullPath, ".js") {
 				fullPath += ".cjs"
 			}
 
-			// Normalize the path
+			// Normalize the path (clean up ./ and ../)
 			fullPath = filepath.Clean(fullPath)
+
+			// Convert Windows path separators to forward slashes for consistency
+			fullPath = filepath.ToSlash(fullPath)
 
 			// Check if we've already processed this file
 			if processed[fullPath] {
@@ -71,15 +70,15 @@ func bundleFile(content string, baseDir string, processed map[string]bool) (stri
 			// Mark as processed
 			processed[fullPath] = true
 
-			// Read the required file
-			requiredContent, err := os.ReadFile(fullPath)
-			if err != nil {
-				return "", fmt.Errorf("failed to read required file %s: %w", fullPath, err)
+			// Look up the required file in sources
+			requiredContent, ok := sources[fullPath]
+			if !ok {
+				return "", fmt.Errorf("required file not found in sources: %s", fullPath)
 			}
 
 			// Recursively bundle the required file
 			requiredDir := filepath.Dir(fullPath)
-			bundledRequired, err := bundleFile(string(requiredContent), requiredDir, processed)
+			bundledRequired, err := bundleFromSources(requiredContent, requiredDir, sources, processed)
 			if err != nil {
 				return "", err
 			}

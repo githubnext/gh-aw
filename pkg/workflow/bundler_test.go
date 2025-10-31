@@ -1,17 +1,12 @@
 package workflow
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func TestBundleJavaScript(t *testing.T) {
-	// Create a temporary directory for test files
-	tmpDir := t.TempDir()
-
-	// Create a helper file
+func TestBundleJavaScriptFromSources(t *testing.T) {
+	// Create helper content
 	helperContent := `// Helper module for validation
 function validatePositiveInteger(value, fieldName, lineNum) {
   if (value === undefined || value === null) {
@@ -42,13 +37,7 @@ function validatePositiveInteger(value, fieldName, lineNum) {
 module.exports = { validatePositiveInteger };
 `
 
-	helperPath := filepath.Join(tmpDir, "helper.cjs")
-	err := os.WriteFile(helperPath, []byte(helperContent), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create helper file: %v", err)
-	}
-
-	// Create a main file that requires the helper
+	// Create main content that requires the helper
 	mainContent := `// Main script
 const { validatePositiveInteger } = require('./helper.cjs');
 
@@ -60,16 +49,15 @@ async function main() {
 main();
 `
 
-	mainPath := filepath.Join(tmpDir, "main.cjs")
-	err = os.WriteFile(mainPath, []byte(mainContent), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create main file: %v", err)
+	// Create sources map
+	sources := map[string]string{
+		"helper.cjs": helperContent,
 	}
 
-	// Bundle the main file
-	bundled, err := BundleJavaScript(mainPath)
+	// Bundle the main content
+	bundled, err := BundleJavaScriptFromSources(mainContent, sources, "")
 	if err != nil {
-		t.Fatalf("BundleJavaScript failed: %v", err)
+		t.Fatalf("BundleJavaScriptFromSources failed: %v", err)
 	}
 
 	// Verify the bundled output
@@ -96,11 +84,8 @@ main();
 	}
 }
 
-func TestBundleJavaScriptWithoutRequires(t *testing.T) {
-	// Create a temporary directory for test files
-	tmpDir := t.TempDir()
-
-	// Create a simple file without any requires
+func TestBundleJavaScriptFromSourcesWithoutRequires(t *testing.T) {
+	// Create a simple content without any requires
 	simpleContent := `// Simple script
 function hello() {
   console.log("Hello, world!");
@@ -109,16 +94,13 @@ function hello() {
 hello();
 `
 
-	simplePath := filepath.Join(tmpDir, "simple.cjs")
-	err := os.WriteFile(simplePath, []byte(simpleContent), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create simple file: %v", err)
-	}
+	// Empty sources map
+	sources := map[string]string{}
 
-	// Bundle the simple file
-	bundled, err := BundleJavaScript(simplePath)
+	// Bundle the simple content
+	bundled, err := BundleJavaScriptFromSources(simpleContent, sources, "")
 	if err != nil {
-		t.Fatalf("BundleJavaScript failed: %v", err)
+		t.Fatalf("BundleJavaScriptFromSources failed: %v", err)
 	}
 
 	// Verify the bundled output is the same as the input
@@ -189,11 +171,8 @@ exports.helper = helper;
 	}
 }
 
-func TestBundleJavaScriptWithMultipleRequires(t *testing.T) {
-	// Create a temporary directory for test files
-	tmpDir := t.TempDir()
-
-	// Create helper1.cjs
+func TestBundleJavaScriptFromSourcesWithMultipleRequires(t *testing.T) {
+	// Create helper1 content
 	helper1Content := `function helperOne() {
   return "one";
 }
@@ -201,13 +180,7 @@ func TestBundleJavaScriptWithMultipleRequires(t *testing.T) {
 module.exports = { helperOne };
 `
 
-	helper1Path := filepath.Join(tmpDir, "helper1.cjs")
-	err := os.WriteFile(helper1Path, []byte(helper1Content), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create helper1 file: %v", err)
-	}
-
-	// Create helper2.cjs
+	// Create helper2 content
 	helper2Content := `function helperTwo() {
   return "two";
 }
@@ -215,13 +188,7 @@ module.exports = { helperOne };
 module.exports = { helperTwo };
 `
 
-	helper2Path := filepath.Join(tmpDir, "helper2.cjs")
-	err = os.WriteFile(helper2Path, []byte(helper2Content), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create helper2 file: %v", err)
-	}
-
-	// Create main file that requires both helpers
+	// Create main content that requires both helpers
 	mainContent := `const { helperOne } = require('./helper1.cjs');
 const { helperTwo } = require('./helper2.cjs');
 
@@ -232,16 +199,16 @@ async function main() {
 main();
 `
 
-	mainPath := filepath.Join(tmpDir, "main.cjs")
-	err = os.WriteFile(mainPath, []byte(mainContent), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create main file: %v", err)
+	// Create sources map
+	sources := map[string]string{
+		"helper1.cjs": helper1Content,
+		"helper2.cjs": helper2Content,
 	}
 
-	// Bundle the main file
-	bundled, err := BundleJavaScript(mainPath)
+	// Bundle the main content
+	bundled, err := BundleJavaScriptFromSources(mainContent, sources, "")
 	if err != nil {
-		t.Fatalf("BundleJavaScript failed: %v", err)
+		t.Fatalf("BundleJavaScriptFromSources failed: %v", err)
 	}
 
 	// Verify both helpers are inlined
@@ -260,5 +227,46 @@ main();
 
 	if strings.Contains(bundled, "require('./helper2.cjs')") {
 		t.Error("Bundled output still contains require for helper2")
+	}
+}
+
+func TestBundleJavaScriptFromSourcesWithNestedPath(t *testing.T) {
+	// Create helper in lib directory
+	helperContent := `function sanitize(text) {
+  return text.trim();
+}
+
+module.exports = { sanitize };
+`
+
+	// Create main content that requires the helper from lib
+	mainContent := `const { sanitize } = require('./lib/sanitize.cjs');
+
+async function main() {
+  console.log(sanitize("  hello  "));
+}
+
+main();
+`
+
+	// Create sources map with nested path
+	sources := map[string]string{
+		"lib/sanitize.cjs": helperContent,
+	}
+
+	// Bundle the main content
+	bundled, err := BundleJavaScriptFromSources(mainContent, sources, "")
+	if err != nil {
+		t.Fatalf("BundleJavaScriptFromSources failed: %v", err)
+	}
+
+	// Verify the helper function is included
+	if !strings.Contains(bundled, "function sanitize") {
+		t.Error("Bundled output does not contain sanitize function")
+	}
+
+	// Check that the require statement is replaced
+	if strings.Contains(bundled, "require('./lib/sanitize.cjs')") {
+		t.Error("Bundled output still contains require statement")
 	}
 }
