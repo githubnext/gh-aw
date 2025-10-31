@@ -246,12 +246,15 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 
 	// Add env section
 	yaml.WriteString("                \"env\": {\n")
-	if options.EffectiveToken != "" {
-		// Claude uses effective token directly
-		yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"", options.EffectiveToken))
-	} else {
-		// Copilot uses env passthrough
+	// Use shell environment variable instead of GitHub Actions expression to prevent template injection
+	// The actual GitHub expression is set in the step's env: block
+	// Copilot uses escaped variables (\${VAR}), others use plain variables ($VAR)
+	if options.IncludeTypeField {
+		// Copilot engine: use escaped variable for Copilot CLI to interpolate
 		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_MCP_SERVER_TOKEN}\"")
+	} else {
+		// Non-Copilot engines (Claude/Custom): use plain shell variable
+		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"$GITHUB_MCP_SERVER_TOKEN\"")
 	}
 	yaml.WriteString("\n")
 	yaml.WriteString("                }\n")

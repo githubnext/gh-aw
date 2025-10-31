@@ -160,7 +160,6 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 	customArgs := getGitHubCustomArgs(githubTool)
-	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
 
 	yaml.WriteString("              \"github\": {\n")
@@ -185,9 +184,9 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 	yaml.WriteString("\n")
 	yaml.WriteString("                ],\n")
 	yaml.WriteString("                \"env\": {\n")
-	// Use effective token with precedence: custom > top-level > default
-	effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
-	yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"\n", effectiveToken))
+	// Use shell environment variable instead of GitHub Actions expression to prevent template injection
+	// The actual GitHub expression is set in the step's env: block
+	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"$GITHUB_MCP_SERVER_TOKEN\"\n")
 	yaml.WriteString("                }\n")
 
 	if isLast {
