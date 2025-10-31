@@ -20,6 +20,7 @@ tools:
     - "docker pull *"
     - "docker ps *"
     - "docker images *"
+    - "node /tmp/gh-aw/credsweeper/mask-secrets.js *"
 
 steps:
   - name: Setup CredSweeper
@@ -33,11 +34,88 @@ steps:
       # Create temporary directory for scans
       mkdir -p /tmp/gh-aw/credsweeper
       echo "📁 Created /tmp/gh-aw/credsweeper for scan results"
+      
+      # Create JavaScript script to parse and mask secrets
+      cat > /tmp/gh-aw/credsweeper/mask-secrets.js << 'EOF'
+      #!/usr/bin/env node
+      // mask-secrets.js
+      // Parse CredSweeper JSON results and mask secrets with ***
+      
+      const fs = require('fs');
+      
+      function maskSecret(secret) {
+        if (!secret || secret.length === 0) return '***';
+        if (secret.length <= 6) return '***';
+        // Show first 2 and last 2 characters, mask the rest
+        return secret.substring(0, 2) + '***' + secret.substring(secret.length - 2);
+      }
+      
+      function processResults(inputPath) {
+        try {
+          const data = fs.readFileSync(inputPath, 'utf8');
+          const results = JSON.parse(data);
+          
+          if (!Array.isArray(results)) {
+            console.error('Error: Expected JSON array');
+            process.exit(1);
+          }
+          
+          // Process each finding and mask the secrets
+          const maskedResults = results.map(finding => {
+            const maskedFinding = { ...finding };
+            
+            // Mask line_data_list entries
+            if (maskedFinding.line_data_list && Array.isArray(maskedFinding.line_data_list)) {
+              maskedFinding.line_data_list = maskedFinding.line_data_list.map(lineData => {
+                const maskedLineData = { ...lineData };
+                
+                // Mask the actual secret in the line
+                if (maskedLineData.line && maskedLineData.value) {
+                  maskedLineData.line = maskedLineData.line.replace(
+                    maskedLineData.value,
+                    maskSecret(maskedLineData.value)
+                  );
+                }
+                
+                // Mask the value field
+                if (maskedLineData.value) {
+                  maskedLineData.value = maskSecret(maskedLineData.value);
+                }
+                
+                return maskedLineData;
+              });
+            }
+            
+            return maskedFinding;
+          });
+          
+          // Output masked results as JSON
+          console.log(JSON.stringify(maskedResults, null, 2));
+          
+        } catch (error) {
+          console.error('Error processing file:', error.message);
+          process.exit(1);
+        }
+      }
+      
+      // Main execution
+      const args = process.argv.slice(2);
+      if (args.length === 0) {
+        console.error('Usage: node mask-secrets.js <credsweeper-results.json>');
+        process.exit(1);
+      }
+      
+      processResults(args[0]);
+      EOF
+      chmod +x /tmp/gh-aw/credsweeper/mask-secrets.js
 ---
 
+<!--
 # Samsung CredSweeper Usage Guide
 
 Samsung CredSweeper has been set up and is ready to use. The Docker image `ghcr.io/samsung/credsweeper:latest` is available, and a temporary folder `/tmp/gh-aw/credsweeper` is ready for scan results.
+
+A JavaScript utility script is available at `/tmp/gh-aw/credsweeper/mask-secrets.js` to parse CredSweeper results and mask secrets with `***` for safe display.
 
 **Note**: CredSweeper scans can take several minutes for large codebases. Individual bash commands have a 5-minute timeout by default. For longer scans, increase workflow timeout_minutes.
 
@@ -144,7 +222,13 @@ The scan results are saved as JSON with the following structure:
 ### Reading Results
 
 ```bash
-# Pretty-print JSON results
+# Parse and mask secrets for safe display
+node /tmp/gh-aw/credsweeper/mask-secrets.js /tmp/gh-aw/credsweeper/scan-results.json
+
+# Save masked results to a file
+node /tmp/gh-aw/credsweeper/mask-secrets.js /tmp/gh-aw/credsweeper/scan-results.json > /tmp/gh-aw/credsweeper/masked-results.json
+
+# Pretty-print JSON results (unmasked - be careful with sensitive data)
 cat /tmp/gh-aw/credsweeper/scan-results.json | jq '.'
 
 # Count findings
@@ -155,6 +239,9 @@ cat /tmp/gh-aw/credsweeper/scan-results.json | jq '.[].rule' | sort | uniq
 
 # Filter high severity findings
 cat /tmp/gh-aw/credsweeper/scan-results.json | jq '.[] | select(.severity == "high")'
+
+# Use masked results with jq
+node /tmp/gh-aw/credsweeper/mask-secrets.js /tmp/gh-aw/credsweeper/scan-results.json | jq '.[] | select(.severity == "high")'
 ```
 
 ## Common Workflows
@@ -167,11 +254,12 @@ docker run --rm -v /tmp/gh-aw:/code ghcr.io/samsung/credsweeper:latest \
   --path /code \
   --save-json /code/credsweeper/results.json
 
-# Check if any credentials were found
+# Check if any credentials were found and display masked results
 FINDINGS=$(cat /tmp/gh-aw/credsweeper/results.json | jq 'length')
 if [ "$FINDINGS" -gt 0 ]; then
   echo "⚠️ Found $FINDINGS potential credentials"
-  cat /tmp/gh-aw/credsweeper/results.json | jq '.[]'
+  # Display masked results for safe output
+  node /tmp/gh-aw/credsweeper/mask-secrets.js /tmp/gh-aw/credsweeper/results.json | jq '.[]'
 else
   echo "✅ No credentials found"
 fi
@@ -242,3 +330,4 @@ If scans timeout on large codebases:
 1. Increase workflow `timeout_minutes`
 2. Use `--jobs` to limit parallel processing
 3. Scan subdirectories separately
+-->
