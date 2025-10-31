@@ -1,4 +1,38 @@
+---
+name: copilot-add-safe-output-type
+description: Adding a New Safe Output Type to GitHub Agentic Workflows
+tools:
+  - runInTerminal
+  - getTerminalOutput
+  - createFile
+  - createDirectory
+  - editFiles
+  - search
+  - changes
+  - githubRepo
+---
+
 # Copilot Agent: Adding a New Safe Output Type to GitHub Agentic Workflows
+
+## Overview
+
+You are tasked with adding a new safe output type to the GitHub Agentic Workflows system. This system processes AI agent outputs as JSONL (JSON Lines) format and validates them through a multi-step pipeline involving TypeScript types, JSON schema validation, and JavaScript collection logic.
+
+## Background: Understanding Safe Output Types
+
+Safe output types are structured data formats that AI agents can emit to perform GitHub actions safely. The system currently supports:
+
+- `create-issue` - Create GitHub issues
+- `add-comment` - Add comments to issues/PRs  
+- `create-pull-request` - Create pull requests
+- `create-pull-request-review-comment` - Add code review comments
+- `add-labels` - Add labels to issues/PRs
+- `update-issue` - Update existing issues
+- `push-to-pull-request-branch` - Push commits to PR branches
+- `create-discussion` - Create GitHub discussions
+- `missing-tool` - Report missing functionality
+- `create-code-scanning-alert` - Create SARIF security alerts
+- `upload-asset` - Upload files as assets
 
 ## Overview
 
