@@ -1068,6 +1068,10 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_EXPR_677B41C8: ${{ github.event.inputs.chart_type }}
+          GH_AW_EXPR_5411F090: ${{ github.event.inputs.data_source }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1303,10 +1307,10 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Run ID**: ${{ github.run_id }}
-          - **Data Source**: ${{ github.event.inputs.data_source }}
-          - **Chart Type**: ${{ github.event.inputs.chart_type }}
+          - **Repository**: ${GH_AW_EXPR_D892F163}
+          - **Run ID**: ${GH_AW_EXPR_B50B6E9C}
+          - **Data Source**: ${GH_AW_EXPR_5411F090}
+          - **Chart Type**: ${GH_AW_EXPR_677B41C8}
           
           ## Environment
           
@@ -1325,7 +1329,7 @@ jobs:
           
           **CRITICAL: Data must NEVER be inlined in code**
           
-          1. Based on the data source input ("${{ github.event.inputs.data_source }}"), collect appropriate data:
+          1. Based on the data source input ("${GH_AW_EXPR_5411F090}"), collect appropriate data:
              - For "repository statistics": Use GitHub API to fetch repository data
              - For "workflow metrics": Use GitHub Actions API to fetch workflow run data
              - For "sample data": Generate sample datasets using NumPy
@@ -1357,7 +1361,7 @@ jobs:
           
           Create a discussion using safe-outputs with the following structure:
           
-          **Title**: "📊 Data Visualization Report - ${{ github.event.inputs.data_source }}"
+          **Title**: "📊 Data Visualization Report - ${GH_AW_EXPR_5411F090}"
           
           **Content**:
           ```markdown
@@ -1367,25 +1371,25 @@ jobs:
           
           ## Summary
           
-          This report contains data visualizations generated from **${{ github.event.inputs.data_source }}** using Python scientific computing libraries.
+          This report contains data visualizations generated from **${GH_AW_EXPR_5411F090}** using Python scientific computing libraries.
           
           ## Generated Charts
           
-          - **Chart Type**: ${{ github.event.inputs.chart_type }}
-          - **Data Source**: ${{ github.event.inputs.data_source }}
+          - **Chart Type**: ${GH_AW_EXPR_677B41C8}
+          - **Data Source**: ${GH_AW_EXPR_5411F090}
           - **Generated**: [timestamp]
           
           ## Artifacts
           
           ### 📈 Charts Artifact
           - **Artifact Name**: `data-charts`
-          - **Download URL**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          - **Download URL**: https://github.com/${GH_AW_EXPR_D892F163}/actions/runs/${GH_AW_EXPR_B50B6E9C}
           - **Contents**: PNG image files of generated charts
           - **Retention**: 30 days
           
           ### 📦 Source and Data Artifact
           - **Artifact Name**: `python-source-and-data`
-          - **Download URL**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          - **Download URL**: https://github.com/${GH_AW_EXPR_D892F163}/actions/runs/${GH_AW_EXPR_B50B6E9C}
           - **Contents**: Python scripts, data files, and documentation
           - **Retention**: 30 days
           
@@ -1410,9 +1414,9 @@ jobs:
           
           ## Workflow Run
           
-          - **Repository**: ${{ github.repository }}
-          - **Run ID**: ${{ github.run_id }}
-          - **Run URL**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          - **Repository**: ${GH_AW_EXPR_D892F163}
+          - **Run ID**: ${GH_AW_EXPR_B50B6E9C}
+          - **Run URL**: https://github.com/${GH_AW_EXPR_D892F163}/actions/runs/${GH_AW_EXPR_B50B6E9C}
           
           ---
           
