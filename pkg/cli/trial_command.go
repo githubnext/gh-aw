@@ -104,6 +104,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			logicalRepoSpec, _ := cmd.Flags().GetString("logical-repo")
 			cloneRepoSpec, _ := cmd.Flags().GetString("clone-repo")
 			hostRepoSpec, _ := cmd.Flags().GetString("host-repo")
+			repoSpec, _ := cmd.Flags().GetString("repo")
 			deleteHostRepo, _ := cmd.Flags().GetBool("delete-host-repo-after")
 			forceDeleteHostRepo, _ := cmd.Flags().GetBool("force-delete-host-repo-before")
 			yes, _ := cmd.Flags().GetBool("yes")
@@ -113,14 +114,22 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
 			engineOverride, _ := cmd.Flags().GetString("engine")
 			appendText, _ := cmd.Flags().GetString("append")
+			pushSecrets, _ := cmd.Flags().GetBool("use-local-secrets")
 			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
 
 			if err := validateEngine(engineOverride); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
+			if hostRepoSpec != "" && repoSpec != "" {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Please use either --host-repo or --repo, they are identical"))
+				os.Exit(1)
+			}
+			if repoSpec != "" {
+				hostRepoSpec = repoSpec
+			}
 
-			if err := RunWorkflowTrials(workflowSpecs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec, deleteHostRepo, forceDeleteHostRepo, yes, timeout, triggerContext, repeatCount, autoMergePRs, engineOverride, appendText, verbose); err != nil {
+			if err := RunWorkflowTrials(workflowSpecs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec, deleteHostRepo, forceDeleteHostRepo, yes, timeout, triggerContext, repeatCount, autoMergePRs, engineOverride, appendText, pushSecrets, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -139,6 +148,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	}
 
 	cmd.Flags().String("host-repo", "", fmt.Sprintf("Custom host repository slug (defaults to '%s'). Use '.' for current repository", defaultHostRepo))
+	cmd.Flags().String("repo", "", "Alias for --host-repo")
 	cmd.Flags().Bool("delete-host-repo-after", false, "Delete the host repository after completion (default: keep)")
 	cmd.Flags().Bool("force-delete-host-repo-before", false, "Force delete the host repository before creation, if it exists before creating it")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompts")
@@ -148,12 +158,13 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the trial (requires --clone-repo)")
 	cmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, copilot, custom)")
 	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
+	cmd.Flags().Bool("use-local-secrets", false, "Use local environment API key secrets for trial execution (pushes and cleans up secrets in repository)")
 
 	return cmd
 }
 
 // RunWorkflowTrials executes the main logic for trialing one or more workflows
-func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepoSpec string, hostRepoSpec string, deleteHostRepo, forceDeleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, repeatCount int, autoMergePRs bool, engineOverride string, appendText string, verbose bool) error {
+func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepoSpec string, hostRepoSpec string, deleteHostRepo, forceDeleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, repeatCount int, autoMergePRs bool, engineOverride string, appendText string, pushSecrets bool, verbose bool) error {
 	// Parse all workflow specifications
 	var parsedSpecs []*WorkflowSpec
 	for _, spec := range workflowSpecs {
@@ -251,15 +262,20 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 	}
 
 	// Step 2.5: Create secret tracker
-	secretTracker := NewTrialSecretTracker(hostRepoSlug)
-	trialLog.Print("Created secret tracker for trial")
+	var secretTracker *TrialSecretTracker
+	if pushSecrets {
+		secretTracker = NewTrialSecretTracker(hostRepoSlug)
+		trialLog.Print("Created secret tracker for trial")
 
-	// Set up secret cleanup to always run on exit
-	defer func() {
-		if err := cleanupTrialSecrets(hostRepoSlug, secretTracker, verbose); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup secrets: %v", err)))
-		}
-	}()
+		// Set up secret cleanup to always run on exit
+		defer func() {
+			if err := cleanupTrialSecrets(hostRepoSlug, secretTracker, verbose); err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup secrets: %v", err)))
+			}
+		}()
+	} else {
+		trialLog.Print("Secret pushing disabled, workflows must have required secrets already configured")
+	}
 
 	// Set up cleanup if requested
 	if deleteHostRepo {
@@ -308,12 +324,12 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Running trial for workflow: %s ===", parsedSpec.WorkflowName)))
 
 			// Install workflow with trial mode compilation
-			if err := installWorkflowInTrialMode(tempDir, parsedSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, secretTracker, engineOverride, appendText, verbose); err != nil {
+			if err := installWorkflowInTrialMode(tempDir, parsedSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, secretTracker, engineOverride, appendText, pushSecrets, verbose); err != nil {
 				return fmt.Errorf("failed to install workflow '%s' in trial mode: %w", parsedSpec.WorkflowName, err)
 			}
 
 			// Add user's PAT as repository secret (only once)
-			if i == 0 {
+			if i == 0 && pushSecrets {
 				if err := addGitHubTokenSecret(hostRepoSlug, secretTracker, verbose); err != nil {
 					return fmt.Errorf("failed to add GitHub token secret: %w", err)
 				}
@@ -677,7 +693,7 @@ func cloneTrialHostRepository(repoSlug string, verbose bool) (string, error) {
 }
 
 // installWorkflowInTrialMode installs a workflow in trial mode using a parsed spec
-func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, secretTracker *TrialSecretTracker, engineOverride string, appendText string, verbose bool) error {
+func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, secretTracker *TrialSecretTracker, engineOverride string, appendText string, pushSecrets bool, verbose bool) error {
 	// Change to temp directory
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -744,8 +760,10 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logica
 	workflowData := workflowDataList[0]
 
 	// Determine required engine secret from workflow data
-	if err := determineAndAddEngineSecret(workflowData, hostRepoSlug, secretTracker, engineOverride, verbose); err != nil {
-		return fmt.Errorf("failed to determine engine secret: %w", err)
+	if pushSecrets {
+		if err := determineAndAddEngineSecret(workflowData.EngineConfig, hostRepoSlug, secretTracker, engineOverride, verbose); err != nil {
+			return fmt.Errorf("failed to determine engine secret: %w", err)
+		}
 	}
 
 	// Commit and push the changes
@@ -838,8 +856,10 @@ func addGitHubTokenSecret(repoSlug string, tracker *TrialSecretTracker, verbose 
 		return fmt.Errorf("failed to set repository secret: %w (output: %s)", err, string(output))
 	}
 
-	// Mark as successfully added
-	tracker.AddedSecrets[secretName] = true
+	// Mark as successfully added (only if tracker is provided)
+	if tracker != nil {
+		tracker.AddedSecrets[secretName] = true
+	}
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added %s secret to host repository", secretName)))
@@ -924,7 +944,7 @@ func parseIssueSpec(input string) string {
 }
 
 // determineAndAddEngineSecret determines and sets the appropriate engine secret based on workflow configuration with tracking
-func determineAndAddEngineSecret(workflowData *workflow.WorkflowData, hostRepoSlug string, tracker *TrialSecretTracker, engineOverride string, verbose bool) error {
+func determineAndAddEngineSecret(engineConfig *workflow.EngineConfig, hostRepoSlug string, tracker *TrialSecretTracker, engineOverride string, verbose bool) error {
 	var engineType string
 
 	if verbose {
@@ -939,14 +959,9 @@ func determineAndAddEngineSecret(workflowData *workflow.WorkflowData, hostRepoSl
 		engineType = engineOverride
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using engine override: %s", engineType)))
 	} else {
-		// Find the matching workflow and determine its engine
-		// Check both the original filename-based name and the processed display name
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found matching workflow: %s", workflowData.Name)))
-		}
 		// Check if engine is specified in the EngineConfig
-		if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
-			engineType = workflowData.EngineConfig.ID
+		if engineConfig != nil && engineConfig.ID != "" {
+			engineType = engineConfig.ID
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found engine in EngineConfig: %s", engineType)))
 			}
@@ -1034,8 +1049,10 @@ func addEngineSecret(secretName, hostRepoSlug string, tracker *TrialSecretTracke
 		return fmt.Errorf("failed to add %s secret: %w\nOutput: %s", secretName, err, string(output))
 	}
 
-	// Mark as successfully added
-	tracker.AddedSecrets[secretName] = true
+	// Mark as successfully added (only if tracker is provided)
+	if tracker != nil {
+		tracker.AddedSecrets[secretName] = true
+	}
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully added %s secret", secretName)))
@@ -1162,6 +1179,14 @@ func commitAndPushWorkflow(tempDir, workflowName string, verbose bool) error {
 
 // cleanupTrialSecrets removes API key secrets from the host repository for security, based on tracking information
 func cleanupTrialSecrets(repoSlug string, tracker *TrialSecretTracker, verbose bool) error {
+	// Skip cleanup if no tracker was provided (secrets were not pushed)
+	if tracker == nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No secrets to clean up (secret pushing was disabled)"))
+		}
+		return nil
+	}
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Cleaning up API key secrets from host repository"))
 	}
