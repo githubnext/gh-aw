@@ -125,9 +125,6 @@ runs:
         if [ -f pkg/workflow/schemas/github-workflow.json ]; then
           SIZE=$(wc -c < pkg/workflow/schemas/github-workflow.json)
           echo "✓ Downloaded GitHub Actions schema (${SIZE} bytes)" | tee -a build-steps.log
-          echo "Formatting schema with prettier..." | tee -a build-steps.log
-          prettier --write pkg/workflow/schemas/github-workflow.json --ignore-path /dev/null 2>&1 | tee -a build-steps.log
-          echo "✓ Schema formatted" | tee -a build-steps.log
         else
           echo "✗ Failed to download GitHub Actions schema" | tee -a build-steps.log
           exit 1
@@ -135,7 +132,7 @@ runs:
         
         END_TIME=$(date +%s)
         DURATION=$((END_TIME - START_TIME))
-        echo "✓ Schema downloaded and formatted in ${DURATION}s" | tee -a build-steps.log
+        echo "✓ Schema downloaded in ${DURATION}s" | tee -a build-steps.log
         echo "" | tee -a build-steps.log
 
     - name: Build gh-aw Binary
