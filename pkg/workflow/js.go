@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"strings"
+	"sync"
 )
 
 //go:embed js/create_pull_request.cjs
@@ -101,37 +102,64 @@ var computeTextScriptSource string
 //go:embed js/src/sanitize_output.cjs
 var sanitizeOutputScriptSource string
 
-// Bundled scripts (processed at init time to inline requires)
-var collectJSONLOutputScript string
-var computeTextScript string
-var sanitizeOutputScript string
+// Bundled scripts (lazily bundled on-demand and cached)
+var (
+	collectJSONLOutputScript     string
+	collectJSONLOutputScriptOnce sync.Once
 
-func init() {
-	// Bundle scripts that contain local requires
-	sources := GetJavaScriptSources()
+	computeTextScript     string
+	computeTextScriptOnce sync.Once
 
-	var err error
+	sanitizeOutputScript     string
+	sanitizeOutputScriptOnce sync.Once
+)
 
-	// Bundle collect_ndjson_output.cjs
-	collectJSONLOutputScript, err = BundleJavaScriptFromSources(collectJSONLOutputScriptSource, sources, "js/src")
-	if err != nil {
-		// If bundling fails, use the original
-		collectJSONLOutputScript = collectJSONLOutputScriptSource
-	}
+// getCollectJSONLOutputScript returns the bundled collect_ndjson_output script
+// Bundling is performed on first access and cached for subsequent calls
+func getCollectJSONLOutputScript() string {
+	collectJSONLOutputScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(collectJSONLOutputScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			collectJSONLOutputScript = collectJSONLOutputScriptSource
+		} else {
+			collectJSONLOutputScript = bundled
+		}
+	})
+	return collectJSONLOutputScript
+}
 
-	// Bundle compute_text.cjs
-	computeTextScript, err = BundleJavaScriptFromSources(computeTextScriptSource, sources, "js/src")
-	if err != nil {
-		// If bundling fails, use the original
-		computeTextScript = computeTextScriptSource
-	}
+// getComputeTextScript returns the bundled compute_text script
+// Bundling is performed on first access and cached for subsequent calls
+func getComputeTextScript() string {
+	computeTextScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(computeTextScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			computeTextScript = computeTextScriptSource
+		} else {
+			computeTextScript = bundled
+		}
+	})
+	return computeTextScript
+}
 
-	// Bundle sanitize_output.cjs
-	sanitizeOutputScript, err = BundleJavaScriptFromSources(sanitizeOutputScriptSource, sources, "js/src")
-	if err != nil {
-		// If bundling fails, use the original
-		sanitizeOutputScript = sanitizeOutputScriptSource
-	}
+// getSanitizeOutputScript returns the bundled sanitize_output script
+// Bundling is performed on first access and cached for subsequent calls
+func getSanitizeOutputScript() string {
+	sanitizeOutputScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(sanitizeOutputScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			sanitizeOutputScript = sanitizeOutputScriptSource
+		} else {
+			sanitizeOutputScript = bundled
+		}
+	})
+	return sanitizeOutputScript
 }
 
 // GetJavaScriptSources returns a map of all embedded JavaScript sources

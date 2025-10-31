@@ -862,7 +862,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          script: |\n")
 
 	// Add each line of the script with proper indentation
-	WriteJavaScriptToYAML(yaml, collectJSONLOutputScript)
+	WriteJavaScriptToYAML(yaml, getCollectJSONLOutputScript())
 
 	// Record artifact upload for validation
 	c.stepOrderTracker.RecordArtifactUpload("Upload sanitized agent output", []string{"${{ env.GH_AW_AGENT_OUTPUT }}"})
