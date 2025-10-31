@@ -67,6 +67,14 @@ test-js: build-js
 build-js:
 	cd pkg/workflow/js && npm run typecheck
 
+# Bundle JavaScript files with local requires
+.PHONY: bundle-js
+bundle-js:
+	@echo "Building bundle-js tool..."
+	@go build -o bundle-js ./cmd/bundle-js
+	@echo "✓ bundle-js tool built"
+	@echo "To bundle a JavaScript file: ./bundle-js <input-file> [output-file]"
+
 # Test all code (Go and JavaScript)
 .PHONY: test-all
 test-all: test test-js
