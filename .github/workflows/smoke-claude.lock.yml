@@ -88,7 +88,7 @@ jobs:
       pull-requests: read
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1,\"min\":1},\"missing_tool\":{}}"
+      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -284,7 +284,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_issue":{"max":1,"min":1},"missing_tool":{}}
+          {"create_issue":{"max":1},"missing_tool":{}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1535,7 +1535,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1,\"min\":1},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
           GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com"
         with:
           script: |

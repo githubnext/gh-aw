@@ -335,7 +335,7 @@ func BuildNotFromFork() *ComparisonNode {
 	)
 }
 
-func BuildSafeOutputType(outputType string, min int) ConditionNode {
+func BuildSafeOutputType(outputType string) ConditionNode {
 	// Use !cancelled() && needs.agent.result != 'skipped' to properly handle workflow cancellation
 	// !cancelled() allows jobs to run when dependencies fail (for error reporting)
 	// needs.agent.result != 'skipped' prevents running when workflow is cancelled (dependencies get skipped)

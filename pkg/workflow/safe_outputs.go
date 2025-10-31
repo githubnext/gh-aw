@@ -348,30 +348,6 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						}
 					}
 
-					// Parse min (optional)
-					if minCount, exists := labelsMap["min"]; exists {
-						// Handle different numeric types that YAML parsers might return
-						var minCountInt int
-						var validMinCount bool
-						switch v := minCount.(type) {
-						case int:
-							minCountInt = v
-							validMinCount = true
-						case int64:
-							minCountInt = int(v)
-							validMinCount = true
-						case uint64:
-							minCountInt = int(v)
-							validMinCount = true
-						case float64:
-							minCountInt = int(v)
-							validMinCount = true
-						}
-						if validMinCount {
-							labelConfig.Min = minCountInt
-						}
-					}
-
 					// Parse github-token
 					if githubToken, exists := labelsMap["github-token"]; exists {
 						if githubTokenStr, ok := githubToken.(string); ok {
@@ -629,18 +605,12 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateIssues.Max > 0 {
 				issueConfig["max"] = data.SafeOutputs.CreateIssues.Max
 			}
-			if data.SafeOutputs.CreateIssues.Min > 0 {
-				issueConfig["min"] = data.SafeOutputs.CreateIssues.Min
-			}
 			safeOutputsConfig["create_issue"] = issueConfig
 		}
 		if data.SafeOutputs.CreateAgentTasks != nil {
 			agentTaskConfig := map[string]any{}
 			if data.SafeOutputs.CreateAgentTasks.Max > 0 {
 				agentTaskConfig["max"] = data.SafeOutputs.CreateAgentTasks.Max
-			}
-			if data.SafeOutputs.CreateAgentTasks.Min > 0 {
-				agentTaskConfig["min"] = data.SafeOutputs.CreateAgentTasks.Min
 			}
 			safeOutputsConfig["create_agent_task"] = agentTaskConfig
 		}
@@ -652,9 +622,6 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.AddComments.Max > 0 {
 				commentConfig["max"] = data.SafeOutputs.AddComments.Max
 			}
-			if data.SafeOutputs.AddComments.Min > 0 {
-				commentConfig["min"] = data.SafeOutputs.AddComments.Min
-			}
 			safeOutputsConfig["add_comment"] = commentConfig
 		}
 		if data.SafeOutputs.CreateDiscussions != nil {
@@ -662,26 +629,17 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateDiscussions.Max > 0 {
 				discussionConfig["max"] = data.SafeOutputs.CreateDiscussions.Max
 			}
-			if data.SafeOutputs.CreateDiscussions.Min > 0 {
-				discussionConfig["min"] = data.SafeOutputs.CreateDiscussions.Min
-			}
 			safeOutputsConfig["create_discussion"] = discussionConfig
 		}
 		if data.SafeOutputs.CreatePullRequests != nil {
 			prConfig := map[string]any{}
 			// Note: max is always 1 for pull requests, not configurable
-			if data.SafeOutputs.CreatePullRequests.Min > 0 {
-				prConfig["min"] = data.SafeOutputs.CreatePullRequests.Min
-			}
 			safeOutputsConfig["create_pull_request"] = prConfig
 		}
 		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
 			prReviewCommentConfig := map[string]any{}
 			if data.SafeOutputs.CreatePullRequestReviewComments.Max > 0 {
 				prReviewCommentConfig["max"] = data.SafeOutputs.CreatePullRequestReviewComments.Max
-			}
-			if data.SafeOutputs.CreatePullRequestReviewComments.Min > 0 {
-				prReviewCommentConfig["min"] = data.SafeOutputs.CreatePullRequestReviewComments.Min
 			}
 			safeOutputsConfig["create_pull_request_review_comment"] = prReviewCommentConfig
 		}
@@ -691,18 +649,12 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
 				securityReportConfig["max"] = data.SafeOutputs.CreateCodeScanningAlerts.Max
 			}
-			if data.SafeOutputs.CreateCodeScanningAlerts.Min > 0 {
-				securityReportConfig["min"] = data.SafeOutputs.CreateCodeScanningAlerts.Min
-			}
 			safeOutputsConfig["create_code_scanning_alert"] = securityReportConfig
 		}
 		if data.SafeOutputs.AddLabels != nil {
 			labelConfig := map[string]any{}
 			if data.SafeOutputs.AddLabels.Max > 0 {
 				labelConfig["max"] = data.SafeOutputs.AddLabels.Max
-			}
-			if data.SafeOutputs.AddLabels.Min > 0 {
-				labelConfig["min"] = data.SafeOutputs.AddLabels.Min
 			}
 			if len(data.SafeOutputs.AddLabels.Allowed) > 0 {
 				labelConfig["allowed"] = data.SafeOutputs.AddLabels.Allowed
@@ -714,9 +666,6 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.UpdateIssues.Max > 0 {
 				updateConfig["max"] = data.SafeOutputs.UpdateIssues.Max
 			}
-			if data.SafeOutputs.UpdateIssues.Min > 0 {
-				updateConfig["min"] = data.SafeOutputs.UpdateIssues.Min
-			}
 			safeOutputsConfig["update_issue"] = updateConfig
 		}
 		if data.SafeOutputs.PushToPullRequestBranch != nil {
@@ -727,9 +676,6 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.PushToPullRequestBranch.Max > 0 {
 				pushToBranchConfig["max"] = data.SafeOutputs.PushToPullRequestBranch.Max
 			}
-			if data.SafeOutputs.PushToPullRequestBranch.Min > 0 {
-				pushToBranchConfig["min"] = data.SafeOutputs.PushToPullRequestBranch.Min
-			}
 			safeOutputsConfig["push_to_pull_request_branch"] = pushToBranchConfig
 		}
 		if data.SafeOutputs.UploadAssets != nil {
@@ -737,18 +683,12 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.UploadAssets.Max > 0 {
 				uploadConfig["max"] = data.SafeOutputs.UploadAssets.Max
 			}
-			if data.SafeOutputs.UploadAssets.Min > 0 {
-				uploadConfig["min"] = data.SafeOutputs.UploadAssets.Min
-			}
 			safeOutputsConfig["upload_asset"] = uploadConfig
 		}
 		if data.SafeOutputs.MissingTool != nil {
 			missingToolConfig := map[string]any{}
 			if data.SafeOutputs.MissingTool.Max > 0 {
 				missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
-			}
-			if data.SafeOutputs.MissingTool.Min > 0 {
-				missingToolConfig["min"] = data.SafeOutputs.MissingTool.Min
 			}
 			safeOutputsConfig["missing_tool"] = missingToolConfig
 		}

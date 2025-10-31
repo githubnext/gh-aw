@@ -1239,9 +1239,6 @@ safe-outputs:
     # (optional)
     max: 1
 
-    # Minimum number of issues to create (default: 0 - no requirement)
-    # (optional)
-    min: 1
 
     # Target repository in format 'owner/repo' for cross-repository issue creation.
     # Takes precedence over trial target repo settings.
@@ -1662,9 +1659,6 @@ safe-outputs:
     # (optional)
     max: 1
 
-    # Minimum number of assets to upload (default: 0 - no requirement)
-    # (optional)
-    min: 1
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
