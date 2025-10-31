@@ -69,14 +69,14 @@ func InitRepository(verbose bool, mcp bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created /create-shared-agentic-workflow command"))
 	}
 
-	// Write getting started prompt
-	initLog.Print("Writing getting started prompt")
-	if err := ensureGettingStartedPrompt(verbose, false); err != nil {
-		initLog.Printf("Failed to write getting started prompt: %v", err)
-		return fmt.Errorf("failed to write getting started prompt: %w", err)
+	// Write setup agentic workflows agent
+	initLog.Print("Writing setup agentic workflows agent")
+	if err := ensureSetupAgenticWorkflowsAgent(verbose, false); err != nil {
+		initLog.Printf("Failed to write setup agentic workflows agent: %v", err)
+		return fmt.Errorf("failed to write setup agentic workflows agent: %w", err)
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created getting started guide"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created setup agentic workflows agent"))
 	}
 
 	// Configure MCP if requested
