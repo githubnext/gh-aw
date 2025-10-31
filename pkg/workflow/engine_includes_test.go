@@ -408,6 +408,8 @@ on:
 permissions:
   contents: read
   models: read
+  issues: read
+  pull-requests: read
 imports:
   - shared/actions-ai-inference.md
 ---

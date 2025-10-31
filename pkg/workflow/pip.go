@@ -7,11 +7,16 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var pipLog = logger.New("workflow:pip")
 
 // validatePythonPackagesWithPip is a generic helper that validates Python packages using pip index.
 // It accepts a package list, package type name for error messaging, and pip command to use.
 func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType string, pipCmd string) {
+	pipLog.Printf("Validating %d %s packages using %s", len(packages), packageType, pipCmd)
+
 	for _, pkg := range packages {
 		// Extract package name without version specifier
 		pkgName := pkg
@@ -19,20 +24,26 @@ func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType 
 			pkgName = pkg[:eqIndex]
 		}
 
+		pipLog.Printf("Validating %s package: %s", packageType, pkgName)
+
 		// Use pip index to check if package exists on PyPI
 		cmd := exec.Command(pipCmd, "index", "versions", pkgName)
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
 			outputStr := strings.TrimSpace(string(output))
+			pipLog.Printf("Package validation failed for %s: %v", pkg, err)
 			// Treat all pip validation errors as warnings, not compilation failures
 			// The package may be experimental, not yet published, or will be installed at runtime
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s package '%s' validation failed - skipping verification. Package may or may not exist on PyPI.", packageType, pkg)))
 			if c.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  Details: %s", outputStr)))
 			}
-		} else if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ %s package validated: %s", packageType, pkg)))
+		} else {
+			pipLog.Printf("Package validated successfully: %s", pkg)
+			if c.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ %s package validated: %s", packageType, pkg)))
+			}
 		}
 	}
 }
@@ -41,8 +52,11 @@ func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType 
 func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 	packages := extractPipPackages(workflowData)
 	if len(packages) == 0 {
+		pipLog.Print("No pip packages to validate")
 		return nil
 	}
+
+	pipLog.Printf("Starting pip package validation for %d packages", len(packages))
 
 	// Check if pip is available
 	pipCmd := "pip"
@@ -51,10 +65,12 @@ func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 		// Try pip3 as fallback
 		_, err3 := exec.LookPath("pip3")
 		if err3 != nil {
+			pipLog.Print("pip command not found, skipping validation")
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("pip command not found - skipping pip package validation. Install Python/pip for full validation"))
 			return nil
 		}
 		pipCmd = "pip3"
+		pipLog.Print("Using pip3 command for validation")
 	}
 
 	c.validatePythonPackagesWithPip(packages, "pip", pipCmd)
@@ -65,12 +81,16 @@ func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 	packages := extractUvPackages(workflowData)
 	if len(packages) == 0 {
+		pipLog.Print("No uv packages to validate")
 		return nil
 	}
+
+	pipLog.Printf("Starting uv package validation for %d packages", len(packages))
 
 	// Check if uv is available
 	_, err := exec.LookPath("uv")
 	if err != nil {
+		pipLog.Print("uv command not found, falling back to pip validation")
 		// uv not available, but we can still validate using pip index
 		pipCmd := "pip"
 		_, pipErr := exec.LookPath("pip")
@@ -78,13 +98,17 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 			// Try pip3 as fallback
 			_, pip3Err := exec.LookPath("pip3")
 			if pip3Err != nil {
+				pipLog.Print("Neither uv nor pip commands found, cannot validate")
 				return fmt.Errorf("uv and pip commands not found - cannot validate uv packages. Install uv/pip or disable validation")
 			}
 			pipCmd = "pip3"
+			pipLog.Print("Using pip3 for validation")
 		}
 
 		return c.validateUvPackagesWithPip(packages, pipCmd)
 	}
+
+	pipLog.Print("Using uv command for validation")
 
 	// Validate with uv
 	var errors []string

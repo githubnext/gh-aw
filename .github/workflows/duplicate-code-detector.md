@@ -6,7 +6,8 @@ on:
     - cron: "0 21 * * *"  # Daily at 9 PM UTC
 permissions:
   contents: read
-  actions: read
+  issues: read
+  pull-requests: read
 engine: codex
 imports:
   - shared/mcp/serena.md
@@ -36,6 +37,7 @@ Detect and report code duplication by:
 
 - **Repository**: ${{ github.repository }}
 - **Commit ID**: ${{ github.event.head_commit.id }}
+- **Triggered by**: @${{ github.actor }}
 
 ## Analysis Workflow
 

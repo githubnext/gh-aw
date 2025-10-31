@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.26.0 - 2025-10-29
+
+### Features
+
+#### Update GitHub MCP Server to v0.20.0 with consolidated tool API
+
+
+### Bug Fixes
+
+#### Add diagnostic logging to patch generation process
+
+#### Add 10KB output size guardrail to MCP server logs command
+
+#### Add JSON schema examples for safe-outputs configuration
+
+#### Add JSON schema examples for permissions, engine, and network properties
+
+#### Add pull_request trigger with "smoke" label filter to smoke test workflows
+
+#### Add comprehensive tests for utility functions (+0.1% coverage)
+
+#### Add JSON schema examples for workflow properties (name, description, source, imports, on, timeout_minutes, strict, if, steps, post-steps, env, concurrency, run-name, cache)
+
+#### Consolidate duplicate formatNumber() implementations into single shared console.FormatNumber() function
+
+#### Extract duplicate shortenCommand() to shared utility function
+
+#### Fix template injection vulnerability in git config user.name
+
+#### Fix prompt-clustering-analysis workflow to download logs
+
+#### Parallelized git ls-remote test for 70% faster execution
+
+#### Pin gh-aw-firewall version to default when not explicitly specified
+
+#### Add pinned actions manifest to lock file headers
+
+#### Reduce log parsing memory allocations by 23%
+
+#### Refactor: Extract duplicate Copilot token handling logic
+
+#### Replace persist-credentials with explicit git re-authentication
+
+#### Update CLI versions: Claude Code 2.0.28, Copilot 0.0.352, GitHub MCP Server v0.20.1
+
+#### Update documentation for features from 2025-10-28
+
+
 ## v0.25.2 - 2025-10-26
 
 ### Bug Fixes

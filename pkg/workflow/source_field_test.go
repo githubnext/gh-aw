@@ -33,6 +33,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   github:
@@ -50,6 +52,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   github:
@@ -66,6 +70,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   github:
@@ -84,6 +90,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   github:

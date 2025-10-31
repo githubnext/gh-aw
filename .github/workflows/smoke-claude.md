@@ -8,8 +8,9 @@ on:
     names: ["smoke"]
 permissions:
   contents: read
-  actions: read
+  issues: read
   pull-requests: read
+  
 name: Smoke Claude
 engine: claude
 tools:

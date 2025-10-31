@@ -51,6 +51,8 @@ func TestCompileDoesNotWriteInstructions(t *testing.T) {
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -153,6 +155,8 @@ func TestCompileDoesNotWriteInstructionsWhenCompilingAll(t *testing.T) {
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 

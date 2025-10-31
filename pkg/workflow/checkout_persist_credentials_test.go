@@ -22,6 +22,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
@@ -38,6 +39,8 @@ on:
 permissions:
   contents: read
   actions: read
+  issues: read
+  pull-requests: read
 safe-outputs:
   create-issue:
     assignees: [user1]
@@ -54,6 +57,8 @@ on:
 permissions:
   contents: read
   actions: read
+  issues: read
+  pull-requests: read
 safe-outputs:
   create-pull-request:
 engine: claude
@@ -69,6 +74,8 @@ on:
 permissions:
   contents: read
   actions: read
+  issues: read
+  pull-requests: read
 safe-outputs:
   push-to-pull-request-branch:
 engine: claude
@@ -83,6 +90,8 @@ on:
 permissions:
   contents: read
   actions: read
+  issues: read
+  pull-requests: read
 safe-outputs:
   upload-assets:
 engine: claude
@@ -98,6 +107,8 @@ on:
 permissions:
   contents: read
   actions: read
+  issues: read
+  pull-requests: read
 safe-outputs:
   create-agent-task:
 engine: claude

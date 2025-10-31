@@ -13,9 +13,10 @@ var defaultThreatDetectionPrompt string
 
 // ThreatDetectionConfig holds configuration for threat detection in agent output
 type ThreatDetectionConfig struct {
-	Prompt       string        `yaml:"prompt,omitempty"`        // Additional custom prompt instructions to append
-	Steps        []any         `yaml:"steps,omitempty"`         // Array of extra job steps
-	EngineConfig *EngineConfig `yaml:"engine-config,omitempty"` // Extended engine configuration for threat detection
+	Prompt         string        `yaml:"prompt,omitempty"`        // Additional custom prompt instructions to append
+	Steps          []any         `yaml:"steps,omitempty"`         // Array of extra job steps
+	EngineConfig   *EngineConfig `yaml:"engine-config,omitempty"` // Extended engine configuration for threat detection
+	EngineDisabled bool          `yaml:"-"`                       // Internal flag: true when engine is explicitly set to false
 }
 
 // parseThreatDetectionConfig handles threat-detection configuration
@@ -60,10 +61,17 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 				}
 			}
 
-			// Parse engine field (supports both string and object formats)
+			// Parse engine field (supports string, object, and boolean false formats)
 			if engine, exists := configMap["engine"]; exists {
-				// Handle string format
-				if engineStr, ok := engine.(string); ok {
+				// Handle boolean false to disable AI engine
+				if engineBool, ok := engine.(bool); ok {
+					if !engineBool {
+						// engine: false means no AI engine steps
+						threatConfig.EngineConfig = nil
+						threatConfig.EngineDisabled = true
+					}
+				} else if engineStr, ok := engine.(string); ok {
+					// Handle string format
 					threatConfig.EngineConfig = &EngineConfig{ID: engineStr}
 				} else if engineObj, ok := engine.(map[string]any); ok {
 					// Handle object format - use extractEngineConfig logic
@@ -304,6 +312,14 @@ core.info('Threat detection setup completed');`
 
 // buildEngineSteps creates the engine execution steps
 func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
+	// Check if threat detection has engine explicitly disabled
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		if data.SafeOutputs.ThreatDetection.EngineDisabled {
+			// Engine explicitly disabled with engine: false
+			return []string{"      # AI engine disabled for threat detection (engine: false)\n"}
+		}
+	}
+
 	// Determine which engine to use - threat detection engine if specified, otherwise main engine
 	engineSetting := data.AI
 	engineConfig := data.EngineConfig

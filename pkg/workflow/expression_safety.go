@@ -14,6 +14,9 @@ var (
 	needsStepsRegex = regexp.MustCompile(`^(needs|steps)\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$`)
 	inputsRegex     = regexp.MustCompile(`^github\.event\.inputs\.[a-zA-Z0-9_-]+$`)
 	envRegex        = regexp.MustCompile(`^env\.[a-zA-Z0-9_-]+$`)
+	// comparisonExtractionRegex extracts property accesses from comparison expressions
+	// Matches patterns like "github.workflow == 'value'" and extracts "github.workflow"
+	comparisonExtractionRegex = regexp.MustCompile(`([a-zA-Z_][a-zA-Z0-9_.]*)\s*(?:==|!=|<|>|<=|>=)\s*`)
 )
 
 // validateExpressionSafety checks that all GitHub Actions expressions in the markdown content
@@ -113,6 +116,47 @@ func validateSingleExpression(expression string, needsStepsRe, inputsRe, envRe *
 			if expression == allowedExpr {
 				allowed = true
 				break
+			}
+		}
+	}
+
+	// If not allowed as a whole, try to extract and validate property accesses from comparisons
+	if !allowed {
+		// Extract property accesses from comparison expressions (e.g., "github.workflow == 'value'")
+		matches := comparisonExtractionRegex.FindAllStringSubmatch(expression, -1)
+		if len(matches) > 0 {
+			// Assume it's allowed if all extracted properties are allowed
+			allPropertiesAllowed := true
+			for _, match := range matches {
+				if len(match) > 1 {
+					property := strings.TrimSpace(match[1])
+					propertyAllowed := false
+
+					// Check if extracted property is allowed
+					if needsStepsRe.MatchString(property) {
+						propertyAllowed = true
+					} else if inputsRe.MatchString(property) {
+						propertyAllowed = true
+					} else if envRe.MatchString(property) {
+						propertyAllowed = true
+					} else {
+						for _, allowedExpr := range constants.AllowedExpressions {
+							if property == allowedExpr {
+								propertyAllowed = true
+								break
+							}
+						}
+					}
+
+					if !propertyAllowed {
+						allPropertiesAllowed = false
+						break
+					}
+				}
+			}
+
+			if allPropertiesAllowed && len(matches) > 0 {
+				allowed = true
 			}
 		}
 	}

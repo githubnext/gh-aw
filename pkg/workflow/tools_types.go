@@ -202,7 +202,15 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			config.GitHubToken = token
 		}
 
-		if toolset, ok := configMap["toolset"].([]any); ok {
+		// Check for both "toolset" and "toolsets" (plural is more common in user configs)
+		if toolset, ok := configMap["toolsets"].([]any); ok {
+			config.Toolset = make([]string, 0, len(toolset))
+			for _, item := range toolset {
+				if str, ok := item.(string); ok {
+					config.Toolset = append(config.Toolset, str)
+				}
+			}
+		} else if toolset, ok := configMap["toolset"].([]any); ok {
 			config.Toolset = make([]string, 0, len(toolset))
 			for _, item := range toolset {
 				if str, ok := item.(string); ok {

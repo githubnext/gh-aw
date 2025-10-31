@@ -148,7 +148,7 @@ func TestExtractEngineConfig(t *testing.T) {
 					"steps": []any{
 						map[string]any{
 							"name": "Setup Node.js",
-							"uses": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+							"uses": "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
 							"with": map[string]any{
 								"node-version": "18",
 							},
@@ -166,7 +166,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				Steps: []map[string]any{
 					{
 						"name": "Setup Node.js",
-						"uses": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+						"uses": "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
 						"with": map[string]any{
 							"node-version": "18",
 						},
@@ -316,6 +316,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine: claude
 ---
 
@@ -332,6 +333,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine:
   id: claude
   version: beta
@@ -351,6 +353,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine:
   id: codex
   model: gpt-4o

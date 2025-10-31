@@ -6,8 +6,11 @@ on:
     - cron: "0 19 * * *"
   workflow_dispatch:
 
-permissions: read-all
-
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  actions: read
 engine: claude
 
 network:
@@ -51,7 +54,7 @@ steps:
     run: |
       # Create output directories
       mkdir -p /tmp/gh-aw/pr-data
-      mkdir -p /tmp/gh-aw/prompt-cache
+      mkdir -p /tmp/gh-aw/prompt-cache/pr-full-data
 
       # Calculate date 30 days ago
       DATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')
@@ -59,7 +62,7 @@ steps:
       # Search for PRs created by Copilot in the last 30 days
       echo "Fetching Copilot PRs from the last 30 days..."
       gh search prs --repo ${{ github.repository }} \
-        --author "@copilot" \
+        --author "copilot" \
         --created ">=$DATE_30_DAYS_AGO" \
         --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository,mergedAt \
         --limit 1000 \
@@ -72,29 +75,54 @@ steps:
       echo "Schema saved to /tmp/gh-aw/pr-data/copilot-prs-schema.json"
       echo "Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)"
 
+  - name: Download full PR data with comments and reviews
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      # Download full data for each PR including comments, reviews, commits, and files
+      echo "Downloading full PR data for each PR..."
+      
+      PR_COUNT=$(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)
+      echo "Processing $PR_COUNT PRs..."
+      
+      # Extract PR numbers and download full data for each
+      jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read pr_number; do
+        echo "Downloading full data for PR #$pr_number..."
+        
+        # Download full PR data with all available fields
+        gh pr view "$pr_number" \
+          --repo ${{ github.repository }} \
+          --json additions,assignees,author,autoMergeRequest,baseRefName,baseRefOid,body,changedFiles,closed,closedAt,closingIssuesReferences,comments,commits,createdAt,deletions,files,fullDatabaseId,headRefName,headRefOid,headRepository,headRepositoryOwner,id,isCrossRepository,isDraft,labels,latestReviews,maintainerCanModify,mergeCommit,mergeStateStatus,mergeable,mergedAt,mergedBy,milestone,number,potentialMergeCommit,projectCards,projectItems,reactionGroups,reviewDecision,reviewRequests,reviews,state,statusCheckRollup,title,updatedAt,url \
+          > /tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json
+        
+        echo "Downloaded PR #$pr_number"
+      done
+      
+      # Create an index file listing all downloaded PRs
+      ls -1 /tmp/gh-aw/prompt-cache/pr-full-data/ | grep -E '^pr-[0-9]+\.json$' | \
+        sed 's/pr-\([0-9]*\)\.json/\1/' | sort -n > /tmp/gh-aw/prompt-cache/pr-full-data/index.txt
+      
+      echo "Full PR data cached in /tmp/gh-aw/prompt-cache/pr-full-data/"
+      echo "Total PRs with full data: $(wc -l < /tmp/gh-aw/prompt-cache/pr-full-data/index.txt)"
+
   - name: Download workflow logs for PR analysis
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
-      # Extract PR numbers from the data
-      PR_NUMBERS=$(jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json)
-      
       # Create logs directory
       mkdir -p /tmp/gh-aw/workflow-logs
       
       echo "Downloading workflow logs to extract turn counts..."
       
-      # For each PR, try to find associated workflow runs
-      # We'll download logs using gh-aw logs command for copilot engine
-      # This will give us the aw_info.json which contains turn counts
-      
       # Download logs for the last 30 days of copilot workflows
-      cd /tmp/gh-aw
+      # This will give us the aw_info.json which contains turn counts
+      ./gh-aw logs --engine copilot --start-date -30d -o /tmp/gh-aw/workflow-logs
       
-      # Use gh-aw to download copilot workflow logs
-      # We'll download to a temporary location then extract what we need
-      echo "Using gh-aw logs to download copilot workflow artifacts..."
+      # Verify logs were downloaded
+      echo "Downloaded workflow logs:"
+      ls -la /tmp/gh-aw/workflow-logs
 
 timeout_minutes: 20
 
@@ -113,33 +141,58 @@ Daily analysis of copilot agent task prompts using clustering techniques to iden
 - **Repository**: ${{ github.repository }}
 - **Analysis Period**: Last 30 days
 - **Available Data**:
-  - `/tmp/gh-aw/pr-data/copilot-prs.json` - Full PR data for copilot-created PRs
+  - `/tmp/gh-aw/pr-data/copilot-prs.json` - Summary PR data for copilot-created PRs
+  - `/tmp/gh-aw/prompt-cache/pr-full-data/` - Full PR data with comments, reviews, commits, and files for each PR
+  - `/tmp/gh-aw/prompt-cache/pr-full-data/index.txt` - List of all PR numbers with full data
   - `/tmp/gh-aw/prompt-cache/` - Cache directory for avoiding repeated work
 
 ## Task Overview
 
 ### Phase 1: Extract Task Prompts from PRs
 
-The pre-fetched PR data is available at `/tmp/gh-aw/pr-data/copilot-prs.json`. Each PR created by the copilot agent contains:
+The pre-fetched PR data is available at:
+- `/tmp/gh-aw/pr-data/copilot-prs.json` - Summary data from search
+- `/tmp/gh-aw/prompt-cache/pr-full-data/` - Full PR data for each PR with comments, reviews, commits, and files
+
+Each PR's full data includes:
 
 1. **PR Body**: Contains the task description/prompt that was given to the agent
 2. **PR Title**: A summary of the task
 3. **PR Metadata**: State (merged/closed/open), creation/close dates, labels
+4. **Comments**: All comments on the PR (useful for understanding feedback and iterations)
+5. **Reviews**: Code review feedback
+6. **Commits**: All commits made by the agent
+7. **Files**: Changed files with additions/deletions
+8. **Review Decision**: Final review outcome
 
-**Extract the following from each PR**:
+**Access full PR data**:
 
 ```bash
-# Use jq to extract relevant fields
-jq -r '.[] | {
-  number: .number,
-  title: .title,
-  body: .body,
-  state: .state,
-  merged: (.mergedAt != null),
-  created: .createdAt,
-  closed: .closedAt,
-  url: .url
-}' /tmp/gh-aw/pr-data/copilot-prs.json > /tmp/gh-aw/pr-data/pr-prompts.jsonl
+# List all PRs with full data
+cat /tmp/gh-aw/prompt-cache/pr-full-data/index.txt
+
+# Read a specific PR's full data
+cat /tmp/gh-aw/prompt-cache/pr-full-data/pr-123.json
+
+# Extract relevant fields from all PRs
+for pr_file in /tmp/gh-aw/prompt-cache/pr-full-data/pr-*.json; do
+  jq -r '{
+    number: .number,
+    title: .title,
+    body: .body,
+    state: .state,
+    merged: (.mergedAt != null),
+    created: .createdAt,
+    closed: .closedAt,
+    url: .url,
+    comments_count: (.comments | length),
+    reviews_count: (.reviews | length),
+    commits_count: (.commits | length),
+    files_changed: .changedFiles,
+    additions: .additions,
+    deletions: .deletions
+  }' "$pr_file"
+done > /tmp/gh-aw/pr-data/pr-prompts.jsonl
 ```
 
 The PR body typically contains:
@@ -194,12 +247,34 @@ Create a structured dataset combining:
 - Task prompt text (cleaned and preprocessed)
 - PR metadata (outcome, duration)
 - Workflow metrics (turns, cost)
+- PR interaction data (comments, reviews, file changes)
 
-Save as JSON or CSV for Python processing:
+**Combine PR full data with workflow metrics**:
 
 ```bash
-# Combine PR data with workflow metrics
-jq -s '.' /tmp/gh-aw/pr-data/pr-prompts.jsonl > /tmp/gh-aw/pr-data/combined-data.json
+# Merge full PR data with workflow metrics
+for pr_file in /tmp/gh-aw/prompt-cache/pr-full-data/pr-*.json; do
+  jq -r '{
+    number: .number,
+    title: .title,
+    body: .body,
+    state: .state,
+    merged: (.mergedAt != null),
+    created: .createdAt,
+    closed: .closedAt,
+    url: .url,
+    comments_count: (.comments | length),
+    reviews_count: (.reviews | length),
+    commits_count: (.commits | length),
+    files_changed: .changedFiles,
+    additions: .additions,
+    deletions: .deletions,
+    review_decision: .reviewDecision
+  }' "$pr_file"
+done > /tmp/gh-aw/pr-data/pr-prompts-full.jsonl
+
+# Combine into a single JSON array
+jq -s '.' /tmp/gh-aw/pr-data/pr-prompts-full.jsonl > /tmp/gh-aw/pr-data/combined-data.json
 ```
 
 ### Phase 4: Python NLP Clustering Analysis

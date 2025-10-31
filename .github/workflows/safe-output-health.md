@@ -4,8 +4,10 @@ on:
     - cron: "0 0 * * *"  # Daily at midnight UTC
   workflow_dispatch:
 permissions:
-  contents: read
-  actions: read
+   contents: read
+   issues: read
+   pull-requests: read
+   actions: read
 engine: claude
 tools:
   cache-memory: true

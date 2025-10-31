@@ -9,7 +9,8 @@ on:
         type: string
 permissions:
   contents: read
-  actions: read
+  issues: read
+  pull-requests: read
 engine:
   id: claude
   max-turns: 100
@@ -40,6 +41,7 @@ Generate a detailed developer-focused report analyzing all changes in the reposi
 
 - **Repository**: ${{ github.repository }}
 - **Commit URL**: ${{ github.event.inputs.commit_url }}
+- **Triggered by**: ${{ github.actor }}
 
 ## Task
 

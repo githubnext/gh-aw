@@ -26,6 +26,8 @@
 # ```
 #
 # Pinned GitHub Actions:
+#   - actions/ai-inference@v1 (b81b2afb8390ee6839b494a404766bef6493c7d9)
+#     https://github.com/actions/ai-inference/commit/b81b2afb8390ee6839b494a404766bef6493c7d9
 #   - actions/checkout@v5 (08c6903cd8c0fde910a37f88322edcfb5dd907a8)
 #     https://github.com/actions/checkout/commit/08c6903cd8c0fde910a37f88322edcfb5dd907a8
 #   - actions/download-artifact@v5 (634f93cb2916e3fdff6788551b99b062d0335ce0)
@@ -42,9 +44,9 @@ name: "Issue Classifier"
     - opened
 
 permissions:
-  actions: read
   contents: read
-  models: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
@@ -55,7 +57,7 @@ jobs:
   activation:
     needs: pre_activation
     if: needs.pre_activation.outputs.activated == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       discussions: write
       issues: write
@@ -582,7 +584,7 @@ jobs:
     if: >
       ((!cancelled()) && (contains(needs.agent.outputs.output_types, 'add_labels'))) && ((github.event.issue.number) ||
       (github.event.pull_request.number))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       issues: write
@@ -821,9 +823,9 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
-      models: read
+      issues: read
+      pull-requests: read
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_labels\":{\"allowed\":[\"bug\",\"feature\",\"enhancement\",\"documentation\"],\"max\":1},\"missing_tool\":{}}"
@@ -3020,7 +3022,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Run AI Inference
-        uses: actions/ai-inference@v1
+        uses: actions/ai-inference@b81b2afb8390ee6839b494a404766bef6493c7d9
         env:
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -3082,7 +3084,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     timeout-minutes: 5
@@ -3210,7 +3212,7 @@ jobs:
             });
 
   pre_activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:

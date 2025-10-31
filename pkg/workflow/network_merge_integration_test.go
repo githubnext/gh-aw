@@ -51,6 +51,8 @@ Provides network access to Node.js package registries.
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 network:
   allowed:

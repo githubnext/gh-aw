@@ -149,3 +149,157 @@ func (c *Compiler) MergeNetworkPermissions(topNetwork *NetworkPermissions, impor
 
 	return result, nil
 }
+
+// ValidatePermissions validates that the main workflow permissions satisfy the imported workflow requirements
+// Takes the top-level permissions YAML string and imported permissions JSON string
+// Returns an error if the main workflow permissions are insufficient
+func (c *Compiler) ValidatePermissions(topPermissionsYAML string, importedPermissionsJSON string) error {
+	importsLog.Print("Validating permissions from imports")
+
+	// If no imported permissions, no validation needed
+	if importedPermissionsJSON == "" || importedPermissionsJSON == "{}" {
+		importsLog.Print("No imported permissions to validate")
+		return nil
+	}
+
+	// Parse top-level permissions
+	var topPerms *Permissions
+	if topPermissionsYAML != "" {
+		topPerms = NewPermissionsParser(topPermissionsYAML).ToPermissions()
+	} else {
+		topPerms = NewPermissions()
+	}
+
+	// Track missing permissions
+	missingPermissions := make(map[PermissionScope]PermissionLevel)
+	insufficientPermissions := make(map[PermissionScope]struct {
+		required PermissionLevel
+		current  PermissionLevel
+	})
+
+	// Split by newlines to handle multiple JSON objects from different imports
+	lines := strings.Split(importedPermissionsJSON, "\n")
+	importsLog.Printf("Processing %d permission definition lines", len(lines))
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || line == "{}" {
+			continue
+		}
+
+		// Parse JSON line to permissions map
+		var importedPermsMap map[string]any
+		if err := json.Unmarshal([]byte(line), &importedPermsMap); err != nil {
+			importsLog.Printf("Skipping malformed permission entry: %q (error: %v)", line, err)
+			continue
+		}
+
+		// Check each permission from the imported map
+		for scopeStr, levelValue := range importedPermsMap {
+			scope := PermissionScope(scopeStr)
+
+			// Parse the level - it might be a string or already unmarshaled
+			var requiredLevel PermissionLevel
+			if levelStr, ok := levelValue.(string); ok {
+				requiredLevel = PermissionLevel(levelStr)
+			} else {
+				// Skip invalid level values
+				continue
+			}
+
+			// Get current level for this scope
+			currentLevel, exists := topPerms.Get(scope)
+
+			// Validate that the main workflow has sufficient permissions
+			if !exists || currentLevel == PermissionNone {
+				// Permission is missing entirely
+				missingPermissions[scope] = requiredLevel
+				importsLog.Printf("Missing permission: %s: %s", scope, requiredLevel)
+			} else if !isPermissionSufficient(currentLevel, requiredLevel) {
+				// Permission exists but is insufficient
+				insufficientPermissions[scope] = struct {
+					required PermissionLevel
+					current  PermissionLevel
+				}{requiredLevel, currentLevel}
+				importsLog.Printf("Insufficient permission: %s: has %s, needs %s", scope, currentLevel, requiredLevel)
+			}
+		}
+	}
+
+	// If there are missing or insufficient permissions, return an error
+	if len(missingPermissions) > 0 || len(insufficientPermissions) > 0 {
+		var errorMsg strings.Builder
+		errorMsg.WriteString("ERROR: Imported workflows require permissions that are not granted in the main workflow.\n\n")
+		errorMsg.WriteString("The permission set must be explicitly declared in the main workflow.\n\n")
+
+		if len(missingPermissions) > 0 {
+			errorMsg.WriteString("Missing permissions:\n")
+			// Sort for consistent output
+			var scopes []PermissionScope
+			for scope := range missingPermissions {
+				scopes = append(scopes, scope)
+			}
+			SortPermissionScopes(scopes)
+			for _, scope := range scopes {
+				level := missingPermissions[scope]
+				errorMsg.WriteString(fmt.Sprintf("  - %s: %s\n", scope, level))
+			}
+			errorMsg.WriteString("\n")
+		}
+
+		if len(insufficientPermissions) > 0 {
+			errorMsg.WriteString("Insufficient permissions:\n")
+			// Sort for consistent output
+			var scopes []PermissionScope
+			for scope := range insufficientPermissions {
+				scopes = append(scopes, scope)
+			}
+			SortPermissionScopes(scopes)
+			for _, scope := range scopes {
+				info := insufficientPermissions[scope]
+				errorMsg.WriteString(fmt.Sprintf("  - %s: has %s, requires %s\n", scope, info.current, info.required))
+			}
+			errorMsg.WriteString("\n")
+		}
+
+		errorMsg.WriteString("Suggested fix: Add the required permissions to your main workflow frontmatter:\n")
+		errorMsg.WriteString("permissions:\n")
+
+		// Combine all required permissions for the suggestion
+		allRequired := make(map[PermissionScope]PermissionLevel)
+		for scope, level := range missingPermissions {
+			allRequired[scope] = level
+		}
+		for scope, info := range insufficientPermissions {
+			allRequired[scope] = info.required
+		}
+
+		var scopes []PermissionScope
+		for scope := range allRequired {
+			scopes = append(scopes, scope)
+		}
+		SortPermissionScopes(scopes)
+		for _, scope := range scopes {
+			level := allRequired[scope]
+			errorMsg.WriteString(fmt.Sprintf("  %s: %s\n", scope, level))
+		}
+
+		return fmt.Errorf("%s", errorMsg.String())
+	}
+
+	importsLog.Print("All imported permissions are satisfied by main workflow")
+	return nil
+}
+
+// isPermissionSufficient checks if the current permission level is sufficient for the required level
+// write > read > none
+func isPermissionSufficient(current, required PermissionLevel) bool {
+	if current == required {
+		return true
+	}
+	// write satisfies read requirement
+	if current == PermissionWrite && required == PermissionRead {
+		return true
+	}
+	return false
+}

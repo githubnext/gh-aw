@@ -626,6 +626,8 @@ run-name: "example-value"
 jobs:
   {}
 
+# Runner type for workflow execution (GitHub Actions standard field). Typically
+# configured at the job level instead.
 # (optional)
 # This field supports multiple formats (oneOf):
 
@@ -652,6 +654,8 @@ runs-on:
 # (optional)
 timeout_minutes: 10
 
+# Concurrency control to limit concurrent workflow runs (GitHub Actions standard
+# field). Agentic workflows use enhanced concurrency management.
 # (optional)
 # This field supports multiple formats (oneOf):
 
@@ -929,6 +933,12 @@ engine:
   # (optional)
   args: []
     # Array of strings
+
+  # Optional path to a custom agent configuration file. For copilot engine, this is
+  # passed as --agent flag. For claude and codex engines, the markdown body from the
+  # agent file is injected as a system prompt.
+  # (optional)
+  custom-agent: "example-value"
 
 # MCP server definitions
 # (optional)
@@ -1705,110 +1715,15 @@ safe-outputs:
     prompt: "example-value"
 
     # AI engine configuration specifically for threat detection (overrides main
-    # workflow engine). Supports same format as main engine field.
+    # workflow engine). Set to false to disable AI-based threat detection. Supports
+    # same format as main engine field when not false.
     # (optional)
     # This field supports multiple formats (oneOf):
 
-    # Option 1: Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub
-    # Copilot CLI), 'codex' (OpenAI Codex CLI), or 'custom' (user-defined steps)
-    engine: "claude"
+    # Option 1: Disable AI engine for threat detection (only run custom steps)
+    engine: true
 
-    # Option 2: Extended engine configuration object with advanced options for model
-    # selection, turn limiting, environment variables, and custom steps
-    engine:
-      # AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI),
-      # 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps)
-      id: "claude"
-
-      # Optional version of the AI engine action (e.g., 'beta', 'stable'). Has sensible
-      # defaults and can typically be omitted.
-      # (optional)
-      version: "example-value"
-
-      # Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022',
-      # 'gpt-4'). Has sensible defaults and can typically be omitted.
-      # (optional)
-      model: "example-value"
-
-      # Maximum number of chat iterations per run. Helps prevent runaway loops and
-      # control costs. Has sensible defaults and can typically be omitted.
-      # (optional)
-      max-turns: 1
-
-      # Agent job concurrency configuration. Defaults to single job per engine across
-      # all workflows (group: 'gh-aw-{engine-id}'). Supports full GitHub Actions
-      # concurrency syntax.
-      # (optional)
-      # This field supports multiple formats (oneOf):
-
-      # Option 1: Simple concurrency group name. Gets converted to GitHub Actions
-      # concurrency format with the specified group.
-      concurrency: "example-value"
-
-      # Option 2: GitHub Actions concurrency configuration for the agent job. Controls
-      # how many agentic workflow runs can run concurrently.
-      concurrency:
-        # Concurrency group identifier. Use GitHub Actions expressions like ${{
-        # github.workflow }} or ${{ github.ref }}. Defaults to 'gh-aw-{engine-id}' if not
-        # specified.
-        group: "example-value"
-
-        # Whether to cancel in-progress runs of the same concurrency group. Defaults to
-        # false for agentic workflow runs.
-        # (optional)
-        cancel-in-progress: true
-
-      # Custom user agent string for GitHub MCP server configuration (codex engine only)
-      # (optional)
-      user-agent: "example-value"
-
-      # Custom environment variables to pass to the AI engine, including secret
-      # overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})
-      # (optional)
-      env:
-        {}
-
-      # Custom GitHub Actions steps for 'custom' engine. Define your own deterministic
-      # workflow steps instead of using AI processing.
-      # (optional)
-      steps: []
-        # Array items:
-
-      # Custom error patterns for validating agent logs
-      # (optional)
-      error_patterns: []
-        # Array items:
-          # Unique identifier for this error pattern
-          # (optional)
-          id: "example-value"
-
-          # Ecma script regular expression pattern to match log lines
-          pattern: "example-value"
-
-          # Capture group index (1-based) that contains the error level. Use 0 to infer from
-          # pattern content.
-          # (optional)
-          level_group: 1
-
-          # Capture group index (1-based) that contains the error message. Use 0 to use the
-          # entire match.
-          # (optional)
-          message_group: 1
-
-          # Human-readable description of what this pattern matches
-          # (optional)
-          description: "Description of the workflow"
-
-      # Additional TOML configuration text that will be appended to the generated
-      # config.toml in the action (codex engine only)
-      # (optional)
-      config: "example-value"
-
-      # Optional array of command-line arguments to pass to the AI engine CLI. These
-      # arguments are injected after all other args but before the prompt.
-      # (optional)
-      args: []
-        # Array of strings
+    # Option 2: undefined
 
     # Array of extra job steps to run after detection
     # (optional)
@@ -1822,8 +1737,9 @@ safe-outputs:
     {}
 
   # Runner specification for all safe-outputs jobs (activation, create-issue,
-  # add-comment, etc.). Single runner label (e.g., 'ubuntu-latest',
-  # 'windows-latest', 'self-hosted')
+  # add-comment, etc.). Single runner label (e.g., 'ubuntu-slim', 'ubuntu-latest',
+  # 'windows-latest', 'self-hosted'). Defaults to 'ubuntu-slim'. See
+  # https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/
   # (optional)
   runs-on: "example-value"
 

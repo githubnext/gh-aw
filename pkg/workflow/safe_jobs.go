@@ -295,7 +295,10 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		if len(jobConfig.Steps) > 0 {
 			for _, step := range jobConfig.Steps {
 				if stepMap, ok := step.(map[string]any); ok {
-					stepYAML, err := c.convertStepToYAML(stepMap)
+					// Apply action pinning to the step before converting to YAML
+					pinnedStepMap := ApplyActionPinToStep(stepMap, data)
+
+					stepYAML, err := c.convertStepToYAML(pinnedStepMap)
 					if err != nil {
 						return fmt.Errorf("failed to convert step to YAML for safe job %s: %w", jobName, err)
 					}

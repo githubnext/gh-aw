@@ -60,6 +60,26 @@ Use the `--port` flag to run the server with HTTP/SSE transport instead of stdio
 gh aw mcp-server --port 8080
 ```
 
+## Configuring with GitHub Copilot Agent
+
+GitHub Copilot Agent can use the gh-aw MCP server in your workflows to manage agentic workflows directly.
+
+**Quick Setup:**
+
+Use the `init` command with the `--mcp` flag to automatically configure GitHub Copilot Agent:
+
+```bash
+gh aw init --mcp
+```
+
+This creates `.github/workflows/copilot-setup-steps.yml` with:
+- Go environment setup
+- GitHub CLI installation
+- gh-aw extension installation and build from source
+- Verification steps
+
+The workflow runs before the Copilot Agent starts, ensuring gh-aw is available as an MCP server in all agent sessions. Once configured, the agent can use tools like `status`, `compile`, `logs`, and `audit` to manage workflows in your repository.
+
 ## Configuring with Copilot CLI
 
 The GitHub Copilot CLI can use the gh-aw MCP server to access workflow management tools.
@@ -76,7 +96,21 @@ This registers the server with Copilot CLI, making workflow management tools ava
 
 VS Code can use the gh-aw MCP server through the Copilot Chat extension.
 
-Create or update `.vscode/mcp.json` in your repository:
+**Quick Setup:**
+
+Use the `init` command with the `--mcp` flag to automatically configure VS Code and GitHub Copilot Agent:
+
+```bash
+gh aw init --mcp
+```
+
+This creates:
+- `.vscode/mcp.json` with gh-aw MCP server configuration
+- `.github/workflows/copilot-setup-steps.yml` with gh-aw installation steps for GitHub Copilot Agent
+
+**Manual Configuration:**
+
+Alternatively, create or update `.vscode/mcp.json` in your repository:
 
 ```json
 {

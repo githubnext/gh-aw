@@ -34,6 +34,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -53,6 +54,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -72,6 +74,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -91,6 +94,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -110,6 +114,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  issues: read
 
 tools:
   github:
@@ -129,6 +134,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -147,6 +153,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -218,6 +225,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:

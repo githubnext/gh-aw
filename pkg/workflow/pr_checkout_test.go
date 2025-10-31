@@ -25,6 +25,8 @@ on:
     types: [created]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -42,6 +44,8 @@ on:
     types: [created]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -61,6 +65,8 @@ on:
     types: [created]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -78,6 +84,8 @@ on:
     name: test-bot
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -95,6 +103,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -112,6 +122,8 @@ on:
     types: [opened]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -129,14 +141,16 @@ on:
     types: [created]
 permissions:
   issues: write
-engine: claude
+  contents: read
+  pull-requests: read
+engine: codex
 ---
 
 # Test Workflow
-Test workflow without contents read permission.
+Test workflow with permissions but checkout should be conditional.
 `,
-			expectPRCheckout: false,
-			expectPRPrompt:   false,
+			expectPRCheckout: true, // Changed: now has contents permission, so checkout is added
+			expectPRPrompt:   true, // Changed: now has permissions, so PR prompt is added
 		},
 	}
 
@@ -223,6 +237,8 @@ on:
     types: [created]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 

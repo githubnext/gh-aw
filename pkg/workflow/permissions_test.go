@@ -240,7 +240,7 @@ func TestContainsCheckout(t *testing.T) {
 			name: "contains different action",
 			customSteps: `steps:
   - name: Setup Node
-    uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+    uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
     with:
       node-version: '18'`,
 			expected: false,
@@ -251,7 +251,7 @@ func TestContainsCheckout(t *testing.T) {
   - name: Checkout repository
     uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
   - name: Setup Node
-    uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020`,
+    uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903`,
 			expected: true,
 		},
 		{
@@ -328,7 +328,7 @@ func TestContainsCheckout(t *testing.T) {
 			name: "checkout in comment (should not match)",
 			customSteps: `steps:
   - name: Setup
-    uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+    uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
     # TODO: add actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8`,
 			expected: true, // Current implementation does simple string match
 		},

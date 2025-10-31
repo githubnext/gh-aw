@@ -7,6 +7,8 @@ on:
 permissions:
   contents: read
   actions: read
+  issues: read
+  pull-requests: read
 roles: [admin, maintainer, write]
 engine: copilot
 imports:
@@ -14,6 +16,10 @@ imports:
   - shared/mcp/serena.md
   - shared/mcp/tavily.md
 tools:
+  github:
+    toolsets:
+      - default
+      - actions
   cache-memory: true
 safe-outputs:
   add-comment:
@@ -47,6 +53,7 @@ When invoked with the `/q` command in an issue or pull request comment, analyze 
 - **Repository**: ${{ github.repository }}
 - **Triggering Content**: "${{ needs.activation.outputs.text }}"
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
+- **Triggered by**: @${{ github.actor }}
 </current_context>
 
 ## Investigation Protocol

@@ -33,8 +33,8 @@
 #     https://github.com/actions/download-artifact/commit/634f93cb2916e3fdff6788551b99b062d0335ce0
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-node@v4 (49933ea5288caeca8642d1e84afbd3f7d6820020)
-#     https://github.com/actions/setup-node/commit/49933ea5288caeca8642d1e84afbd3f7d6820020
+#   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
+#     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v4 (ea165f8d65b6e75b540449e92b4886f43607fa02)
 #     https://github.com/actions/upload-artifact/commit/ea165f8d65b6e75b540449e92b4886f43607fa02
 
@@ -53,7 +53,7 @@ run-name: "Copilot Agent PR Analysis"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -94,7 +94,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Fetch Copilot PR data
-        run: "# Create output directory\nmkdir -p /tmp/gh-aw/pr-data\n\n# Calculate date 30 days ago\nDATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')\n\n# Search for PRs created by Copilot in the last 30 days using gh CLI\n# Using --author flag for server-side filtering (no jq needed!)\necho \"Fetching Copilot PRs from the last 30 days...\"\ngh search prs --repo ${{ github.repository }} \\\n  --author \"@copilot\" \\\n  --created \">=$DATE_30_DAYS_AGO\" \\\n  --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository \\\n  --limit 1000 \\\n  > /tmp/gh-aw/pr-data/copilot-prs.json\n\n# Generate schema for reference\ncat /tmp/gh-aw/pr-data/copilot-prs.json | /tmp/gh-aw/jqschema.sh > /tmp/gh-aw/pr-data/copilot-prs-schema.json\n\necho \"PR data saved to /tmp/gh-aw/pr-data/copilot-prs.json\"\necho \"Schema saved to /tmp/gh-aw/pr-data/copilot-prs-schema.json\"\necho \"Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)\"\n"
+        run: "# Create output directory\nmkdir -p /tmp/gh-aw/pr-data\n\n# Calculate date 30 days ago\nDATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')\n\n# Search for PRs created by Copilot in the last 30 days using gh CLI\n# Using --author flag for server-side filtering (no jq needed!)\necho \"Fetching Copilot PRs from the last 30 days...\"\ngh search prs --repo ${{ github.repository }} \\\n  --author \"copilot\" \\\n  --created \">=$DATE_30_DAYS_AGO\" \\\n  --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository \\\n  --limit 1000 \\\n  > /tmp/gh-aw/pr-data/copilot-prs.json\n\n# Generate schema for reference\ncat /tmp/gh-aw/pr-data/copilot-prs.json | /tmp/gh-aw/jqschema.sh > /tmp/gh-aw/pr-data/copilot-prs-schema.json\n\necho \"PR data saved to /tmp/gh-aw/pr-data/copilot-prs.json\"\necho \"Schema saved to /tmp/gh-aw/pr-data/copilot-prs-schema.json\"\necho \"Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)\"\n"
 
       - name: Create gh-aw temp directory
         run: |
@@ -179,11 +179,11 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.28
+        run: npm install -g @anthropic-ai/claude-code@2.0.29
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -1323,9 +1323,9 @@ jobs:
           
           Search for pull requests created by Copilot in the last 24 hours.
           
-          **Important**: The Copilot coding agent creates PRs under the username `Copilot` (user ID 198982749, a Bot account).
+          **Important**: The Copilot coding agent creates PRs under the username `copilot` (user ID 198982749, a Bot account).
           
-          **Recommended Approach**: The workflow uses `gh search prs --author "@copilot"` which provides server-side filtering for both date and author, combining efficiency with simplicity.
+          **Recommended Approach**: The workflow uses `gh search prs --author "copilot"` which provides server-side filtering for both date and author, combining efficiency with simplicity.
           
           Use the GitHub tools with one of these strategies:
           
@@ -1334,7 +1334,7 @@ jobs:
              # Server-side filtering for both date and author (current workflow approach)
              DATE=$(date -d '24 hours ago' '+%Y-%m-%d')
              gh search prs --repo ${{ github.repository }} \
-               --author "@copilot" \
+               --author "copilot" \
                --created ">=$DATE" \
                --limit 1000 \
                --json number,title,state,createdAt,closedAt,author
@@ -1348,7 +1348,7 @@ jobs:
              ```bash
              # Client-side filtering, simpler but limited
              gh pr list --repo ${{ github.repository }} \
-               --author "Copilot" \
+               --author "copilot" \
                --limit 100 \
                --state all \
                --json number,title,createdAt,author
@@ -1367,7 +1367,7 @@ jobs:
           
           4. **List all PRs and filter by author**:
              Use `list_pull_requests` tool to get recent PRs, then filter by checking if:
-             - `user.login == "Copilot"`
+             - `user.login == "copilot"`
              - `user.id == 198982749`
              - `user.type == "Bot"`
           
@@ -1523,7 +1523,7 @@ jobs:
           repo:${{ github.repository }} is:pr "START COPILOT CODING AGENT" created:YYYY-MM-DD..YYYY-MM-DD
           ```
           
-          Or use `list_pull_requests` with date filtering and filter results by `user.login == "Copilot"` and `user.id == 198982749`.
+          Or use `list_pull_requests` with date filtering and filter results by `user.login == "copilot"` and `user.id == 198982749`.
           
           **Process:**
           - Start with the oldest missing date in your target range (maximum 3 days ago)
@@ -3606,7 +3606,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -4004,11 +4004,11 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.28
+        run: npm install -g @anthropic-ai/claude-code@2.0.29
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -4093,7 +4093,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     timeout-minutes: 5

@@ -9,7 +9,8 @@ on:
 
 permissions:
   contents: read
-  actions: read
+  issues: read
+  pull-requests: read
 
 engine: copilot
 
@@ -37,6 +38,7 @@ You are a research agent that performs simple web research and summarization usi
 
 - **Repository**: ${{ github.repository }}
 - **Research Topic**: "${{ github.event.inputs.topic }}"
+- **Triggered by**: @${{ github.actor }}
 
 ## Your Task
 

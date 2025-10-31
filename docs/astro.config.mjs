@@ -25,7 +25,7 @@ export default defineConfig({
 			title: 'GitHub Agentic Workflows',
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/githubnext/gh-aw' },
-				{ icon: 'rocket', label: 'Instructions', href: 'https://raw.githubusercontent.com/githubnext/gh-aw/main/pkg/cli/templates/instructions.md' }
+				{ icon: 'rocket', label: 'Instructions', href: 'https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/github-agentic-workflows.instructions.md' }
 			],
 			expressiveCode: {
 				shiki: {

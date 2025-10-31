@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
-	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/spf13/cobra"
 )
 
@@ -29,21 +28,10 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 		return listWorkflowsWithMCPServers(workflowsDir, verbose)
 	}
 
-	// Parse the specific workflow file
-	content, err := os.ReadFile(workflowPath)
+	// Parse the specific workflow file and extract MCP configurations
+	_, mcpConfigs, err := loadWorkflowMCPConfigs(workflowPath, "")
 	if err != nil {
-		return fmt.Errorf("failed to read workflow file: %w", err)
-	}
-
-	workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil {
-		return fmt.Errorf("failed to parse workflow file: %w", err)
-	}
-
-	// Extract MCP configurations (no server filter for listing)
-	mcpConfigs, err := parser.ExtractMCPConfigurations(workflowData.Frontmatter, "")
-	if err != nil {
-		return fmt.Errorf("failed to extract MCP configurations: %w", err)
+		return err
 	}
 
 	if len(mcpConfigs) == 0 {

@@ -32,6 +32,8 @@ tools:
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 imports:
   - shared-tool.md
@@ -110,6 +112,8 @@ tools:
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 imports:
   - shared-tool-1.md
@@ -184,6 +188,8 @@ mcp-servers:
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 imports:
   - shared-mcp.md

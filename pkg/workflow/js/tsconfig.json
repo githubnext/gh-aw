@@ -58,8 +58,5 @@
     "collect_ndjson_output.cjs",
     "types/*.d.ts"
   ],
-  "exclude": [
-    "../../../node_modules",
-    "../../../dist"
-  ]
+  "exclude": ["../../../node_modules", "../../../dist"]
 }

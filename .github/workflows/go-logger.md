@@ -8,7 +8,8 @@ on:
 
 permissions:
   contents: read
-  actions: read
+  issues: read
+  pull-requests: read
 
 engine: claude
 
@@ -20,7 +21,7 @@ safe-outputs:
 
 steps:
   - name: Set up Node.js
-    uses: actions/setup-node@v5
+    uses: actions/setup-node@v6
     with:
       node-version: "24"
       cache: npm

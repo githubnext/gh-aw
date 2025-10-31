@@ -45,8 +45,8 @@
 #     https://github.com/actions/download-artifact/commit/634f93cb2916e3fdff6788551b99b062d0335ce0
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-node@v4 (49933ea5288caeca8642d1e84afbd3f7d6820020)
-#     https://github.com/actions/setup-node/commit/49933ea5288caeca8642d1e84afbd3f7d6820020
+#   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
+#     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/setup-python@v5 (a26af69be951a213d495a4c3e4e4022e16d87065)
 #     https://github.com/actions/setup-python/commit/a26af69be951a213d495a4c3e4e4022e16d87065
 #   - actions/upload-artifact@v4 (ea165f8d65b6e75b540449e92b4886f43607fa02)
@@ -87,8 +87,9 @@ name: "Scout"
         required: true
 
 permissions:
-  actions: read
   contents: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
@@ -111,7 +112,7 @@ jobs:
       (contains(github.event.comment.body, '/scout')))) ||
       (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
       github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment')))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       discussions: write
       issues: write
@@ -639,7 +640,7 @@ jobs:
     if: >
       ((!cancelled()) && (contains(needs.agent.outputs.output_types, 'add_comment'))) && (((github.event.issue.number) ||
       (github.event.pull_request.number)) || (github.event.discussion.number))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -1025,8 +1026,9 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
+      issues: read
+      pull-requests: read
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"missing_tool\":{}}"
@@ -1130,11 +1132,11 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.28
+        run: npm install -g @anthropic-ai/claude-code@2.0.29
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -2244,6 +2246,7 @@ jobs:
           - **Triggering Content**: "${{ needs.activation.outputs.text }}"
           - **Research Topic** (if workflow_dispatch): "${{ github.event.inputs.topic }}"
           - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
+          - **Triggered by**: @${{ github.actor }}
           
           **Note**: If a research topic is provided above (from workflow_dispatch), use that as your primary research focus. Otherwise, analyze the triggering content to determine the research topic.
           
@@ -2301,6 +2304,8 @@ jobs:
           ```markdown
           # 🔍 Scout Research Report
           
+          *Triggered by @${{ github.actor }}*
+          
           ## Executive Summary
           [Brief overview of key findings - or state that no relevant findings were discovered]
           
@@ -2337,6 +2342,8 @@ jobs:
           
           ```markdown
           # 🔍 Scout Research Report
+          
+          *Triggered by @${{ github.actor }}*
           
           ## Executive Summary
           No relevant findings were discovered for this research request.
@@ -4494,11 +4501,11 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.28
+        run: npm install -g @anthropic-ai/claude-code@2.0.29
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -4583,7 +4590,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     timeout-minutes: 5
@@ -4726,7 +4733,7 @@ jobs:
       (contains(github.event.comment.body, '/scout')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' ||
       github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
       github.event_name == 'discussion_comment'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
     steps:
@@ -4869,7 +4876,7 @@ jobs:
     if: >
       (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!contains(needs.agent.outputs.output_types, 'add_comment'))) &&
       (!contains(needs.agent.outputs.output_types, 'create_pull_request'))) && (!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write

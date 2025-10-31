@@ -2,12 +2,18 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestParseFirewallLogs(t *testing.T) {
+	// Check if node is available
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("Skipping test - node not available")
+	}
+
 	// Create a temporary directory for the test
 	tempDir := t.TempDir()
 
@@ -63,6 +69,11 @@ func TestParseFirewallLogs(t *testing.T) {
 }
 
 func TestParseFirewallLogsInWorkflowLogsSubdir(t *testing.T) {
+	// Check if node is available
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("Skipping test - node not available")
+	}
+
 	// Create a temporary directory for the test
 	tempDir := t.TempDir()
 
@@ -120,6 +131,11 @@ func TestParseFirewallLogsNoLogs(t *testing.T) {
 }
 
 func TestParseFirewallLogsEmptyDirectory(t *testing.T) {
+	// Check if node is available
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("Skipping test - node not available")
+	}
+
 	// Create a temporary directory for the test
 	tempDir := t.TempDir()
 

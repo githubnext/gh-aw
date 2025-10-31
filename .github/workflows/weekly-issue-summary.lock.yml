@@ -24,14 +24,12 @@
 # ```
 #
 # Pinned GitHub Actions:
-#   - actions/checkout@v5 (08c6903cd8c0fde910a37f88322edcfb5dd907a8)
-#     https://github.com/actions/checkout/commit/08c6903cd8c0fde910a37f88322edcfb5dd907a8
 #   - actions/download-artifact@v5 (634f93cb2916e3fdff6788551b99b062d0335ce0)
 #     https://github.com/actions/download-artifact/commit/634f93cb2916e3fdff6788551b99b062d0335ce0
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-node@v4 (49933ea5288caeca8642d1e84afbd3f7d6820020)
-#     https://github.com/actions/setup-node/commit/49933ea5288caeca8642d1e84afbd3f7d6820020
+#   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
+#     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v4 (ea165f8d65b6e75b540449e92b4886f43607fa02)
 #     https://github.com/actions/upload-artifact/commit/ea165f8d65b6e75b540449e92b4886f43607fa02
 
@@ -42,8 +40,6 @@ name: "Weekly Issue Summary"
   workflow_dispatch: null
 
 permissions:
-  actions: read
-  contents: read
   issues: read
 
 concurrency:
@@ -53,7 +49,7 @@ run-name: "Weekly Issue Summary"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -75,8 +71,6 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: read
       issues: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
@@ -87,10 +81,6 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          persist-credentials: false
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -104,43 +94,6 @@ jobs:
           SERVER_URL="${SERVER_URL#https://}"
           git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${{ github.repository }}.git"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Checkout PR branch
-        if: |
-          github.event.pull_request
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        with:
-          script: |
-            async function main() {
-              const eventName = context.eventName;
-              const pullRequest = context.payload.pull_request;
-              if (!pullRequest) {
-                core.info("No pull request context available, skipping checkout");
-                return;
-              }
-              core.info(`Event: ${eventName}`);
-              core.info(`Pull Request #${pullRequest.number}`);
-              try {
-                if (eventName === "pull_request") {
-                  const branchName = pullRequest.head.ref;
-                  core.info(`Checking out PR branch: ${branchName}`);
-                  await exec.exec("git", ["fetch", "origin", branchName]);
-                  await exec.exec("git", ["checkout", branchName]);
-                  core.info(`✅ Successfully checked out branch: ${branchName}`);
-                } else {
-                  const prNumber = pullRequest.number;
-                  core.info(`Checking out PR #${prNumber} using gh pr checkout`);
-                  await exec.exec("gh", ["pr", "checkout", prNumber.toString()], {
-                    env: { ...process.env, GH_TOKEN: process.env.GITHUB_TOKEN },
-                  });
-                  core.info(`✅ Successfully checked out PR #${prNumber}`);
-                }
-              } catch (error) {
-                core.setFailed(`Failed to checkout PR branch: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
       - name: Validate COPILOT_CLI_TOKEN secret
         run: |
           if [ -z "$COPILOT_CLI_TOKEN" ]; then
@@ -154,7 +107,7 @@ jobs:
         env:
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install awf binary
@@ -168,7 +121,7 @@ jobs:
       - name: Cleanup any existing awf resources
         run: ./scripts/ci/cleanup.sh || true
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.352
+        run: npm install -g @github/copilot@0.0.353
       - name: Downloading container images
         run: |
           set -e
@@ -980,7 +933,7 @@ jobs:
                   "-e",
                   "GITHUB_READ_ONLY=1",
                   "-e",
-                  "GITHUB_TOOLSETS=default",
+                  "GITHUB_TOOLSETS=issues",
                   "ghcr.io/github/github-mcp-server:v0.20.1"
                 ],
                 "tools": [
@@ -1330,7 +1283,7 @@ jobs:
           sudo -E awf --env-all \
             --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org \
             --log-level info \
-            "npx -y @github/copilot@0.0.352 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
+            "npx -y @github/copilot@0.0.353 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved Copilot logs to expected location
@@ -1347,9 +1300,12 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
           XDG_CONFIG_HOME: /home/runner
       - name: Redact secrets in logs
         if: always()
@@ -3754,7 +3710,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -4152,11 +4108,11 @@ jobs:
         env:
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.352
+        run: npm install -g @github/copilot@0.0.353
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -4179,8 +4135,11 @@ jobs:
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
           XDG_CONFIG_HOME: /home/runner
       - name: Parse threat detection results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -4231,7 +4190,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     timeout-minutes: 5

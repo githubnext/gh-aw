@@ -15,10 +15,10 @@ const ExpressionBreakThreshold = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion = "2.0.28"
+const DefaultClaudeCodeVersion = "2.0.29"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
-const DefaultCopilotVersion = "0.0.352"
+const DefaultCopilotVersion = "0.0.353"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion = "0.50.0"
@@ -119,12 +119,14 @@ var AllowedExpressions = []string{
 	"github.event.deployment.environment",
 	"github.event.pull_request.head.sha",
 	"github.event.pull_request.base.sha",
+	"github.actor",
 	"github.job",
 	"github.owner",
 	"github.repository",
 	"github.run_id",
 	"github.run_number",
 	"github.server_url",
+	"github.workflow",
 	"github.workspace",
 } // needs., steps. already allowed
 

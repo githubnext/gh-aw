@@ -66,10 +66,7 @@
     "www.microsoft.com",
     "oneocsp.microsoft.com"
   ],
-  "dart": [
-    "pub.dev",
-    "pub.dartlang.org"
-  ],
+  "dart": ["pub.dev", "pub.dartlang.org"],
   "github": [
     "*.githubusercontent.com",
     "raw.githubusercontent.com",
@@ -79,26 +76,9 @@
     "github-cloud.s3.amazonaws.com",
     "codeload.github.com"
   ],
-  "go": [
-    "go.dev",
-    "golang.org",
-    "proxy.golang.org",
-    "sum.golang.org",
-    "pkg.go.dev",
-    "goproxy.io"
-  ],
-  "terraform": [
-    "releases.hashicorp.com",
-    "apt.releases.hashicorp.com",
-    "yum.releases.hashicorp.com",
-    "registry.terraform.io"
-  ],
-  "haskell": [
-    "haskell.org",
-    "*.hackage.haskell.org",
-    "get-ghcup.haskell.org",
-    "downloads.haskell.org"
-  ],
+  "go": ["go.dev", "golang.org", "proxy.golang.org", "sum.golang.org", "pkg.go.dev", "goproxy.io"],
+  "terraform": ["releases.hashicorp.com", "apt.releases.hashicorp.com", "yum.releases.hashicorp.com", "registry.terraform.io"],
+  "haskell": ["haskell.org", "*.hackage.haskell.org", "get-ghcup.haskell.org", "downloads.haskell.org"],
   "java": [
     "www.java.com",
     "jdk.java.net",
@@ -158,21 +138,9 @@
     "deno.land",
     "registry.bower.io"
   ],
-  "perl": [
-    "cpan.org",
-    "www.cpan.org",
-    "metacpan.org",
-    "cpan.metacpan.org"
-  ],
-  "php": [
-    "repo.packagist.org",
-    "packagist.org",
-    "getcomposer.org"
-  ],
-  "playwright": [
-    "playwright.download.prss.microsoft.com",
-    "cdn.playwright.dev"
-  ],
+  "perl": ["cpan.org", "www.cpan.org", "metacpan.org", "cpan.metacpan.org"],
+  "php": ["repo.packagist.org", "packagist.org", "getcomposer.org"],
+  "playwright": ["playwright.download.prss.microsoft.com", "cdn.playwright.dev"],
   "python": [
     "pypi.python.org",
     "pypi.org",
@@ -198,19 +166,8 @@
     "cache.ruby-lang.org",
     "*.rvm.io"
   ],
-  "rust": [
-    "crates.io",
-    "index.crates.io",
-    "static.crates.io",
-    "sh.rustup.rs",
-    "static.rust-lang.org"
-  ],
-  "swift": [
-    "download.swift.org",
-    "swift.org",
-    "cocoapods.org",
-    "cdn.cocoapods.org"
-  ],
+  "rust": ["crates.io", "index.crates.io", "static.crates.io", "sh.rustup.rs", "static.rust-lang.org"],
+  "swift": ["download.swift.org", "swift.org", "cocoapods.org", "cdn.cocoapods.org"],
   "github-actions": [
     "productionresultssa0.blob.core.windows.net",
     "productionresultssa1.blob.core.windows.net",

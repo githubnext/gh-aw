@@ -22,6 +22,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine: claude
 safe-outputs:
   update-issue:
@@ -92,6 +93,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine: claude
 safe-outputs:
   update-issue:
@@ -167,6 +169,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine: claude
 safe-outputs:
   update-issue:

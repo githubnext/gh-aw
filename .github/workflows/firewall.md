@@ -4,6 +4,8 @@ on:
 
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 
 engine: copilot
 
@@ -39,3 +41,4 @@ Since network permissions are set to `defaults` (which does not include example.
 ## Context
 
 - **Repository**: ${{ github.repository }}
+- **Triggered by**: ${{ github.actor }}

@@ -27,6 +27,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine: claude
 ---
 
@@ -39,7 +40,7 @@ Analyze the issue or pull request and provide insights.
 
 You are analyzing issue #${{ github.event.issue.number }} in repository ${{ github.repository }}.
 
-The issue was created by user ID ${{ github.event.sender.id }}.
+The issue was created by ${{ github.actor }}.
 {{/if}}
 
 {{#if github.event.pull_request.number}}
@@ -47,7 +48,7 @@ The issue was created by user ID ${{ github.event.sender.id }}.
 
 You are analyzing PR #${{ github.event.pull_request.number }} in repository ${{ github.repository }}.
 
-The PR was created by user ID ${{ github.event.sender.id }}.
+The PR was created by ${{ github.actor }}.
 {{/if}}
 
 {{#if needs.activation.outputs.text}}
@@ -129,6 +130,8 @@ func TestTemplateExpressionAlreadyWrapped(t *testing.T) {
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -138,7 +141,7 @@ engine: claude
 This expression is already wrapped.
 {{/if}}
 
-{{#if github.repository}}
+{{#if github.actor}}
 This expression needs wrapping.
 {{/if}}
 `
@@ -174,7 +177,7 @@ This expression needs wrapping.
 	}
 
 	// Verify unwrapped expression is wrapped
-	if !strings.Contains(compiledStr, "{{#if ${{ github.repository }} }}") {
+	if !strings.Contains(compiledStr, "{{#if ${{ github.actor }} }}") {
 		t.Error("Unwrapped expression should be wrapped")
 	}
 }
@@ -192,6 +195,8 @@ func TestTemplateWithMixedExpressionsAndLiterals(t *testing.T) {
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 

@@ -12,6 +12,11 @@ import (
 )
 
 func TestCompileDependabotIntegration(t *testing.T) {
+	// Check if npm is available
+	if _, err := exec.LookPath("npm"); err != nil {
+		t.Skip("Skipping test - npm not available")
+	}
+
 	// Create temp directory for test
 	tempDir := t.TempDir()
 	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
@@ -32,6 +37,8 @@ func TestCompileDependabotIntegration(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 steps:
   - run: npx @playwright/mcp@latest --help
 ---
@@ -154,6 +161,8 @@ func TestCompileDependabotNoDependencies(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 ---
 
 # Test Workflow
@@ -234,6 +243,8 @@ func TestCompileDependabotPreserveExisting(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 steps:
   - run: npx @playwright/mcp@latest --help
 ---
@@ -343,6 +354,8 @@ func TestCompileDependabotMergeExistingNpm(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 steps:
   - run: npx @playwright/mcp@latest --help
 ---

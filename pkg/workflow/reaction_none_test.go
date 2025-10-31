@@ -25,6 +25,8 @@ on:
   reaction: none
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 safe-outputs:
   add-comment:
@@ -108,6 +110,8 @@ on:
     name: test-bot
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 safe-outputs:
   add-comment:
@@ -193,6 +197,8 @@ on:
   reaction: rocket
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 safe-outputs:
   add-comment:

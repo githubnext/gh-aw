@@ -90,6 +90,19 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected GITHUB_TOKEN environment variable in step content:\n%s", stepContent)
 	}
 
+	// Test that GITHUB_HEAD_REF and GITHUB_REF_NAME are present for branch resolution
+	if !strings.Contains(stepContent, "GITHUB_HEAD_REF: ${{ github.head_ref }}") {
+		t.Errorf("Expected GITHUB_HEAD_REF environment variable in step content:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "GITHUB_REF_NAME: ${{ github.ref_name }}") {
+		t.Errorf("Expected GITHUB_REF_NAME environment variable in step content:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "GITHUB_WORKSPACE: ${{ github.workspace }}") {
+		t.Errorf("Expected GITHUB_WORKSPACE environment variable in step content:\n%s", stepContent)
+	}
+
 	// Test that GH_AW_SAFE_OUTPUTS is not present when SafeOutputs is nil
 	if strings.Contains(stepContent, "GH_AW_SAFE_OUTPUTS") {
 		t.Error("Expected GH_AW_SAFE_OUTPUTS to not be present when SafeOutputs is nil")
@@ -865,6 +878,8 @@ func TestCopilotEngineLogParsingUsesCorrectLogFile(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 tools:
   github:

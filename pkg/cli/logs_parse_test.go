@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -9,6 +10,11 @@ import (
 )
 
 func TestParseAgentLog(t *testing.T) {
+	// Check if node is available
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("Skipping test - node not available")
+	}
+
 	// Create a temporary directory for the test
 	tempDir := t.TempDir()
 
@@ -67,6 +73,11 @@ func TestParseAgentLog(t *testing.T) {
 }
 
 func TestParseAgentLogWithAgentOutputDir(t *testing.T) {
+	// Check if node is available
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("Skipping test - node not available")
+	}
+
 	// Create a temporary directory for the test
 	tempDir := t.TempDir()
 

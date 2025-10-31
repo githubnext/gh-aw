@@ -9,6 +9,8 @@ timeout_minutes: 5
 imports:
   - shared/jqschema.md
 tools:
+  github:
+    toolsets: [repos]
   bash: ["cat", "echo", "/tmp/gh-aw/jqschema.sh"]
 ---
 

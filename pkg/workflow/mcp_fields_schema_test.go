@@ -40,6 +40,8 @@ mcp-servers:
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 imports:
   - mcp-with-fields.md
@@ -95,6 +97,10 @@ mcp-servers:
 	workflowPath := filepath.Join(tempDir, "workflow.md")
 	workflowContent := `---
 on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 imports:
   - mcp-entrypoint.md
@@ -142,6 +148,10 @@ mcp-servers:
 	workflowPath := filepath.Join(tempDir, "workflow.md")
 	workflowContent := `---
 on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 imports:
   - mcp-headers.md
@@ -185,6 +195,10 @@ mcp-servers:
 	workflowPath := filepath.Join(tempDir, "workflow.md")
 	workflowContent := `---
 on: push
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 imports:
   - mcp-url.md

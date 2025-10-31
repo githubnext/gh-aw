@@ -52,7 +52,7 @@ func TestInitRepository(t *testing.T) {
 			}
 
 			// Call the function
-			err = InitRepository(false)
+			err = InitRepository(false, false)
 
 			// Check error expectation
 			if tt.wantError {
@@ -119,13 +119,13 @@ func TestInitRepository_Idempotent(t *testing.T) {
 	}
 
 	// Call the function first time
-	err = InitRepository(false)
+	err = InitRepository(false, false)
 	if err != nil {
 		t.Fatalf("InitRepository() returned error on first call: %v", err)
 	}
 
 	// Call the function second time
-	err = InitRepository(false)
+	err = InitRepository(false, false)
 	if err != nil {
 		t.Fatalf("InitRepository() returned error on second call: %v", err)
 	}
@@ -170,7 +170,7 @@ func TestInitRepository_Verbose(t *testing.T) {
 	}
 
 	// Call the function with verbose=true (should not error)
-	err = InitRepository(true)
+	err = InitRepository(true, false)
 	if err != nil {
 		t.Fatalf("InitRepository() returned error with verbose=true: %v", err)
 	}

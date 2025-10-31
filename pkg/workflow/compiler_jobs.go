@@ -746,7 +746,12 @@ func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData) bool {
 		return false // Custom steps already have checkout
 	}
 
-	// Check condition 2: If permissions don't grant contents access, don't add checkout
+	// Check condition 2: If custom agent file is specified, checkout is required
+	if data.EngineConfig != nil && data.EngineConfig.CustomAgent != "" {
+		return true // Custom agent file requires checkout to access the file
+	}
+
+	// Check condition 3: If permissions don't grant contents access, don't add checkout
 	permParser := NewPermissionsParser(data.Permissions)
 	if !permParser.HasContentsReadAccess() {
 		return false // No contents read access, so checkout is not needed

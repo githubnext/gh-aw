@@ -44,8 +44,8 @@
 #     https://github.com/actions/download-artifact/commit/634f93cb2916e3fdff6788551b99b062d0335ce0
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-node@v4 (49933ea5288caeca8642d1e84afbd3f7d6820020)
-#     https://github.com/actions/setup-node/commit/49933ea5288caeca8642d1e84afbd3f7d6820020
+#   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
+#     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v4 (ea165f8d65b6e75b540449e92b4886f43607fa02)
 #     https://github.com/actions/upload-artifact/commit/ea165f8d65b6e75b540449e92b4886f43607fa02
 
@@ -60,8 +60,8 @@ name: "Documentation Unbloat"
   workflow_dispatch: null
 
 permissions:
-  actions: read
   contents: read
+  issues: read
   pull-requests: read
 
 concurrency:
@@ -76,7 +76,7 @@ jobs:
       (needs.pre_activation.outputs.activated == 'true') && (((github.event_name == 'issue_comment') && ((github.event_name == 'issue_comment') &&
       ((contains(github.event.comment.body, '/unbloat')) && (github.event.issue.pull_request != null)))) ||
       (!(github.event_name == 'issue_comment')))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       discussions: write
       issues: write
@@ -442,7 +442,7 @@ jobs:
     if: >
       ((!cancelled()) && (contains(needs.agent.outputs.output_types, 'add_comment'))) && (((github.event.issue.number) ||
       (github.event.pull_request.number)) || (github.event.discussion.number))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -830,8 +830,8 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
+      issues: read
       pull-requests: read
     env:
       GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
@@ -846,7 +846,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       - name: Setup Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           cache: npm
           cache-dependency-path: docs/package-lock.json
@@ -943,11 +943,11 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.28
+        run: npm install -g @anthropic-ai/claude-code@2.0.29
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -1913,6 +1913,7 @@ jobs:
           ## Context
           
           - **Repository**: ${{ github.repository }}
+          - **Triggered by**: ${{ github.actor }}
           
           ## What is Documentation Bloat?
           
@@ -4238,7 +4239,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
       issues: write
@@ -4883,11 +4884,11 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.28
+        run: npm install -g @anthropic-ai/claude-code@2.0.29
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -4973,7 +4974,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     timeout-minutes: 5
@@ -5104,7 +5105,7 @@ jobs:
     if: >
       ((github.event_name == 'issue_comment') && ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/unbloat')) &&
       (github.event.issue.pull_request != null)))) || (!(github.event_name == 'issue_comment'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
     steps:
@@ -5249,7 +5250,7 @@ jobs:
     if: >
       (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!contains(needs.agent.outputs.output_types, 'add_comment'))) &&
       (!contains(needs.agent.outputs.output_types, 'create_pull_request'))) && (!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -5380,7 +5381,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
     timeout-minutes: 10

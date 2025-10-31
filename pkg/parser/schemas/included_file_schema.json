@@ -195,11 +195,7 @@
       "oneOf": [
         {
           "type": "string",
-          "enum": [
-            "claude",
-            "codex",
-            "custom"
-          ],
+          "enum": ["claude", "codex", "custom"],
           "description": "Simple engine name (claude, codex, or custom)"
         },
         {
@@ -208,11 +204,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "enum": [
-                "claude",
-                "codex",
-                "custom"
-              ],
+              "enum": ["claude", "codex", "custom"],
               "description": "Agent CLI identifier (claude, codex, or custom)"
             },
             "version": {
@@ -243,9 +235,7 @@
               }
             }
           },
-          "required": [
-            "id"
-          ],
+          "required": ["id"],
           "additionalProperties": false
         }
       ]
@@ -324,6 +314,98 @@
           "additionalProperties": false
         }
       ]
+    },
+    "permissions": {
+      "description": "GitHub Actions permissions for the workflow (merged with main workflow permissions)",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Permission scopes and levels",
+          "properties": {
+            "actions": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for GitHub Actions"
+            },
+            "checks": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for checks"
+            },
+            "contents": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for repository contents"
+            },
+            "deployments": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for deployments"
+            },
+            "discussions": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for discussions"
+            },
+            "id-token": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for ID token"
+            },
+            "issues": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for issues"
+            },
+            "metadata": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for metadata"
+            },
+            "packages": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for packages"
+            },
+            "pages": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for GitHub Pages"
+            },
+            "pull-requests": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for pull requests"
+            },
+            "repository-projects": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for repository projects"
+            },
+            "security-events": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for security events"
+            },
+            "statuses": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for commit statuses"
+            },
+            "attestations": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for attestations"
+            },
+            "models": {
+              "type": "string",
+              "enum": ["read", "write", "none"],
+              "description": "Permission for AI models"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     }
   },
   "additionalProperties": false,
@@ -334,10 +416,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": [
-            "stdio",
-            "local"
-          ],
+          "enum": ["stdio", "local"],
           "description": "MCP connection type for stdio (local is an alias for stdio)"
         },
         "registry": {
@@ -431,41 +510,29 @@
       "additionalProperties": false,
       "anyOf": [
         {
-          "required": [
-            "command"
-          ]
+          "required": ["command"]
         },
         {
-          "required": [
-            "container"
-          ]
+          "required": ["container"]
         }
       ],
       "not": {
         "allOf": [
           {
-            "required": [
-              "command"
-            ]
+            "required": ["command"]
           },
           {
-            "required": [
-              "container"
-            ]
+            "required": ["container"]
           }
         ]
       },
       "allOf": [
         {
           "if": {
-            "required": [
-              "network"
-            ]
+            "required": ["network"]
           },
           "then": {
-            "required": [
-              "container"
-            ]
+            "required": ["container"]
           }
         }
       ]
@@ -505,9 +572,7 @@
           }
         }
       },
-      "required": [
-        "url"
-      ],
+      "required": ["url"],
       "additionalProperties": false
     },
     "safe_job": {
@@ -600,12 +665,7 @@
                 },
                 "type": {
                   "type": "string",
-                  "enum": [
-                    "string",
-                    "number",
-                    "boolean",
-                    "choice"
-                  ],
+                  "enum": ["string", "number", "boolean", "choice"],
                   "description": "Input type"
                 },
                 "options": {
@@ -631,9 +691,7 @@
           "description": "Custom output message"
         }
       },
-      "required": [
-        "inputs"
-      ],
+      "required": ["inputs"],
       "additionalProperties": false
     }
   }

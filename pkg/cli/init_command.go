@@ -11,7 +11,7 @@ import (
 
 // NewInitCommand creates the init command
 func NewInitCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize repository for agentic workflows",
 		Long: `Initialize the repository for agentic workflows by configuring .gitattributes and creating GitHub Copilot instruction files.
@@ -21,6 +21,10 @@ This command:
 - Creates GitHub Copilot custom instructions at .github/instructions/github-agentic-workflows.instructions.md
 - Creates the /create-agentic-workflow prompt at .github/prompts/create-agentic-workflow.prompt.md
 
+With --mcp flag:
+- Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
+- Creates .vscode/mcp.json with gh-aw MCP server configuration
+
 After running this command, you can:
 - Use GitHub Copilot Chat with /create-agentic-workflow to create workflows interactively
 - Add workflows from the catalog with: ` + constants.CLIExtensionPrefix + ` add <workflow-name>
@@ -28,13 +32,19 @@ After running this command, you can:
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` init
-  ` + constants.CLIExtensionPrefix + ` init -v`,
+  ` + constants.CLIExtensionPrefix + ` init -v
+  ` + constants.CLIExtensionPrefix + ` init --mcp`,
 		Run: func(cmd *cobra.Command, args []string) {
 			verbose, _ := cmd.Flags().GetBool("verbose")
-			if err := InitRepository(verbose); err != nil {
+			mcp, _ := cmd.Flags().GetBool("mcp")
+			if err := InitRepository(verbose, mcp); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
 		},
 	}
+
+	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration")
+
+	return cmd
 }

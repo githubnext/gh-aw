@@ -22,6 +22,8 @@ func TestAllowedDomainsFromNetworkConfig(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 network:
   allowed:
@@ -52,6 +54,8 @@ Test workflow with network permissions.
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 network:
   allowed:
@@ -78,6 +82,8 @@ Test workflow with network permissions.
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 network: defaults
 safe-outputs:
@@ -104,6 +110,8 @@ Test workflow with defaults network.
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 safe-outputs:
   create-issue:
@@ -128,6 +136,8 @@ Test workflow without network config.
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 network:
   allowed:
@@ -234,6 +244,8 @@ func TestManualAllowedDomainsHasPriority(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 network:
   allowed:
@@ -263,6 +275,8 @@ Test that manual allowed-domains takes precedence.
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 network:
   allowed:

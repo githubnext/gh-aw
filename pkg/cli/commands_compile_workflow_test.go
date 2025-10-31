@@ -28,6 +28,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 ---
 
 # Test Workflow
@@ -58,6 +60,8 @@ on:
     - cron: "0 9 * * 1"
 permissions:
   contents: write
+  issues: read
+  pull-requests: read
 ---
 
 # Verbose Test Workflow
@@ -88,6 +92,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 ---
 
 # Engine Override Test
@@ -421,6 +427,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 ---
 
 # Test Workflow
@@ -460,6 +468,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 ---
 
 # Test Workflow
@@ -570,6 +580,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 ---
 
 # Test Workflow
@@ -617,6 +629,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 ---
 
 # Test Workflow

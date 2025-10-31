@@ -127,7 +127,7 @@ test:
 
 ### 4. Dependency Caching Improvements
 
-**Current**: Good caching via `actions/setup-go@v5` and `actions/setup-node@v5`.
+**Current**: Good caching via `actions/setup-go@v5` and `actions/setup-node@v6`.
 
 **Enhanced Caching**:
 ```yaml

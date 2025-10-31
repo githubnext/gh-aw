@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  actions: read
+  pull-requests: read
   security-events: read
 engine: claude
 tools:
@@ -45,6 +45,7 @@ When triggered manually via workflow_dispatch, you must:
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
+- **Triggered by**: @${{ github.actor }}
 
 ## Workflow Steps
 

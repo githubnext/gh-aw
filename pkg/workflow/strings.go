@@ -20,6 +20,18 @@ func SortStrings(s []string) {
 	}
 }
 
+// SortPermissionScopes sorts a slice of PermissionScope in place using bubble sort
+func SortPermissionScopes(s []PermissionScope) {
+	n := len(s)
+	for i := 0; i < n-1; i++ {
+		for j := 0; j < n-i-1; j++ {
+			if string(s[j]) > string(s[j+1]) {
+				s[j], s[j+1] = s[j+1], s[j]
+			}
+		}
+	}
+}
+
 // SanitizeWorkflowName sanitizes a workflow name for use in artifact names and file paths.
 // It converts the name to lowercase and replaces or removes characters that are invalid
 // in YAML artifact names or filesystem paths.

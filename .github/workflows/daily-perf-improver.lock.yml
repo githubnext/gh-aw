@@ -40,8 +40,8 @@
 #     https://github.com/actions/download-artifact/commit/634f93cb2916e3fdff6788551b99b062d0335ce0
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-node@v4 (49933ea5288caeca8642d1e84afbd3f7d6820020)
-#     https://github.com/actions/setup-node/commit/49933ea5288caeca8642d1e84afbd3f7d6820020
+#   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
+#     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v4 (ea165f8d65b6e75b540449e92b4886f43607fa02)
 #     https://github.com/actions/upload-artifact/commit/ea165f8d65b6e75b540449e92b4886f43607fa02
 
@@ -75,7 +75,7 @@ run-name: "Daily Perf Improver"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -100,7 +100,7 @@ jobs:
       - create_pull_request
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'add_comment'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -598,11 +598,11 @@ jobs:
         env:
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.352
+        run: npm install -g @github/copilot@0.0.353
       - name: Downloading container images
         run: |
           set -e
@@ -1544,7 +1544,7 @@ jobs:
           
           To decide which phase to perform:
           
-          1. First check for existing open discussion titled "daily-perf" using `list_discussions`. If found, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
+          1. First check for existing open discussion titled "${{ github.workflow }}" using `list_discussions`. If found, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
           
           2. Next check if `.github/actions/daily-perf-improver/build-steps/action.yml` exists. If yes then read it. If not then perform Phase 2 and nothing else.
           
@@ -1569,13 +1569,13 @@ jobs:
           
             **Goal:** Enable engineers to quickly measure performance impact across different dimensions using appropriate tools - from quick synthetic tests to realistic user scenarios.
           
-          2. Use this research to create a discussion with title "Research and Plan"
+          2. Use this research to create a discussion with title "${{ github.workflow }} - Research and Plan"
           
           3. Exit this entire workflow, do not proceed to Phase 2 on this run. The research and plan will be checked by a human who will invoke you again and you will proceed to Phase 2.
           
           ## Phase 2 - Build steps inference and configuration and perf engineering guides
           
-          1. Check for open PR titled "Updates to complete configuration". If exists then comment "configuration needs completion" and exit.
+          1. Check for open PR titled "${{ github.workflow }} - Updates to complete configuration". If exists then comment "configuration needs completion" and exit.
           
           2. Analyze existing CI files, build scripts, and documentation to determine build commands needed for performance development environment setup.
           
@@ -1587,7 +1587,7 @@ jobs:
             - Success metrics and testing approaches
             - How to do explore performance efficiently using focused, maximally-efficient measurements and rebuilds
           
-          5. Create PR with title "Updates to complete configuration" containing files from steps 2d-2e. Request maintainer review. Exit workflow.
+          5. Create PR with title "${{ github.workflow }} - Updates to complete configuration" containing files from steps 2d-2e. Request maintainer review. Exit workflow.
           
           6. Test build steps manually. If fixes needed then update the PR branch. If unable to resolve then create issue and exit.
           
@@ -1601,7 +1601,7 @@ jobs:
              
              b. Read the plan in the discussion mentioned earlier, along with comments.
           
-             c. Check for existing performance PRs (especially yours with prefix). Avoid duplicate work.
+             c. Check for existing performance PRs (especially yours with "${{ github.workflow }}" prefix). Avoid duplicate work.
              
              d. If plan needs updating then comment on planning discussion with revised plan and rationale. Consider maintainer feedback.
             
@@ -1909,9 +1909,12 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1,\"target\":\"*\"},\"create_discussion\":{\"max\":5},\"create_pull_request\":{},\"missing_tool\":{}}"
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
           XDG_CONFIG_HOME: /home/runner
       - name: Redact secrets in logs
         if: always()
@@ -4073,7 +4076,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -4099,7 +4102,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "Daily Perf Improver"
-          GH_AW_DISCUSSION_TITLE_PREFIX: "[daily-perf]"
+          GH_AW_DISCUSSION_TITLE_PREFIX: "${{ github.workflow }}"
           GH_AW_DISCUSSION_CATEGORY: "ideas"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -4322,7 +4325,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
       issues: write
@@ -4967,11 +4970,11 @@ jobs:
         env:
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.352
+        run: npm install -g @github/copilot@0.0.353
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -4994,8 +4997,11 @@ jobs:
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
           XDG_CONFIG_HOME: /home/runner
       - name: Parse threat detection results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -5046,7 +5052,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     timeout-minutes: 5

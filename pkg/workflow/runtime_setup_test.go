@@ -160,7 +160,7 @@ func TestDetectFromCustomSteps(t *testing.T) {
 		{
 			name: "detects node even when setup-node exists (filtering happens later)",
 			customSteps: `steps:
-  - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+  - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
   - run: npm install`,
 			expected: []string{"node"}, // Changed: now detects, filtering happens in DetectRuntimeRequirements
 		},
@@ -265,7 +265,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Node.js",
-				"actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+				"actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
 				"node-version: '20'",
 			},
 		},
@@ -393,7 +393,7 @@ func TestShouldSkipRuntimeSetup(t *testing.T) {
 			name: "never skip - runtime filtering handles existing setup actions",
 			data: &WorkflowData{
 				CustomSteps: `steps:
-  - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+  - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
   - run: npm install`,
 			},
 			expected: false, // Changed: we no longer skip, we filter instead

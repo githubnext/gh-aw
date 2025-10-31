@@ -36,8 +36,8 @@
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
 #   - actions/setup-go@v5 (d35c59abb061a4a6fb18e82ac0862c26744d6ab5)
 #     https://github.com/actions/setup-go/commit/d35c59abb061a4a6fb18e82ac0862c26744d6ab5
-#   - actions/setup-node@v4 (49933ea5288caeca8642d1e84afbd3f7d6820020)
-#     https://github.com/actions/setup-node/commit/49933ea5288caeca8642d1e84afbd3f7d6820020
+#   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
+#     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v4 (ea165f8d65b6e75b540449e92b4886f43607fa02)
 #     https://github.com/actions/upload-artifact/commit/ea165f8d65b6e75b540449e92b4886f43607fa02
 
@@ -47,7 +47,11 @@ name: "Copilot Agent Prompt Clustering Analysis"
   - cron: 0 19 * * *
   workflow_dispatch: null
 
-permissions: read-all
+permissions:
+  actions: read
+  contents: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -58,7 +62,7 @@ run-name: "Copilot Agent Prompt Clustering Analysis"
 
 jobs:
   activation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -79,7 +83,11 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions: read-all
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+      pull-requests: read
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
     env:
@@ -115,12 +123,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Fetch Copilot PR data
-        run: "# Create output directories\nmkdir -p /tmp/gh-aw/pr-data\nmkdir -p /tmp/gh-aw/prompt-cache\n\n# Calculate date 30 days ago\nDATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')\n\n# Search for PRs created by Copilot in the last 30 days\necho \"Fetching Copilot PRs from the last 30 days...\"\ngh search prs --repo ${{ github.repository }} \\\n  --author \"@copilot\" \\\n  --created \">=$DATE_30_DAYS_AGO\" \\\n  --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository,mergedAt \\\n  --limit 1000 \\\n  > /tmp/gh-aw/pr-data/copilot-prs.json\n\n# Generate schema for reference\ncat /tmp/gh-aw/pr-data/copilot-prs.json | /tmp/gh-aw/jqschema.sh > /tmp/gh-aw/pr-data/copilot-prs-schema.json\n\necho \"PR data saved to /tmp/gh-aw/pr-data/copilot-prs.json\"\necho \"Schema saved to /tmp/gh-aw/pr-data/copilot-prs-schema.json\"\necho \"Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)\"\n"
+        run: "# Create output directories\nmkdir -p /tmp/gh-aw/pr-data\nmkdir -p /tmp/gh-aw/prompt-cache/pr-full-data\n\n# Calculate date 30 days ago\nDATE_30_DAYS_AGO=$(date -d '30 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-30d '+%Y-%m-%d')\n\n# Search for PRs created by Copilot in the last 30 days\necho \"Fetching Copilot PRs from the last 30 days...\"\ngh search prs --repo ${{ github.repository }} \\\n  --author \"copilot\" \\\n  --created \">=$DATE_30_DAYS_AGO\" \\\n  --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository,mergedAt \\\n  --limit 1000 \\\n  > /tmp/gh-aw/pr-data/copilot-prs.json\n\n# Generate schema for reference\ncat /tmp/gh-aw/pr-data/copilot-prs.json | /tmp/gh-aw/jqschema.sh > /tmp/gh-aw/pr-data/copilot-prs-schema.json\n\necho \"PR data saved to /tmp/gh-aw/pr-data/copilot-prs.json\"\necho \"Schema saved to /tmp/gh-aw/pr-data/copilot-prs-schema.json\"\necho \"Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)\"\n"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Download full PR data with comments and reviews
+        run: "# Download full data for each PR including comments, reviews, commits, and files\necho \"Downloading full PR data for each PR...\"\n\nPR_COUNT=$(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)\necho \"Processing $PR_COUNT PRs...\"\n\n# Extract PR numbers and download full data for each\njq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read pr_number; do\n  echo \"Downloading full data for PR #$pr_number...\"\n  \n  # Download full PR data with all available fields\n  gh pr view \"$pr_number\" \\\n    --repo ${{ github.repository }} \\\n    --json additions,assignees,author,autoMergeRequest,baseRefName,baseRefOid,body,changedFiles,closed,closedAt,closingIssuesReferences,comments,commits,createdAt,deletions,files,fullDatabaseId,headRefName,headRefOid,headRepository,headRepositoryOwner,id,isCrossRepository,isDraft,labels,latestReviews,maintainerCanModify,mergeCommit,mergeStateStatus,mergeable,mergedAt,mergedBy,milestone,number,potentialMergeCommit,projectCards,projectItems,reactionGroups,reviewDecision,reviewRequests,reviews,state,statusCheckRollup,title,updatedAt,url \\\n    > /tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json\n  \n  echo \"Downloaded PR #$pr_number\"\ndone\n\n# Create an index file listing all downloaded PRs\nls -1 /tmp/gh-aw/prompt-cache/pr-full-data/ | grep -E '^pr-[0-9]+\\.json$' | \\\n  sed 's/pr-\\([0-9]*\\)\\.json/\\1/' | sort -n > /tmp/gh-aw/prompt-cache/pr-full-data/index.txt\n\necho \"Full PR data cached in /tmp/gh-aw/prompt-cache/pr-full-data/\"\necho \"Total PRs with full data: $(wc -l < /tmp/gh-aw/prompt-cache/pr-full-data/index.txt)\"\n"
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Download workflow logs for PR analysis
-        run: "# Extract PR numbers from the data\nPR_NUMBERS=$(jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json)\n\n# Create logs directory\nmkdir -p /tmp/gh-aw/workflow-logs\n\necho \"Downloading workflow logs to extract turn counts...\"\n\n# For each PR, try to find associated workflow runs\n# We'll download logs using gh-aw logs command for copilot engine\n# This will give us the aw_info.json which contains turn counts\n\n# Download logs for the last 30 days of copilot workflows\ncd /tmp/gh-aw\n\n# Use gh-aw to download copilot workflow logs\n# We'll download to a temporary location then extract what we need\necho \"Using gh-aw logs to download copilot workflow artifacts...\"\n"
+        run: "# Create logs directory\nmkdir -p /tmp/gh-aw/workflow-logs\n\necho \"Downloading workflow logs to extract turn counts...\"\n\n# Download logs for the last 30 days of copilot workflows\n# This will give us the aw_info.json which contains turn counts\n./gh-aw logs --engine copilot --start-date -30d -o /tmp/gh-aw/workflow-logs\n\n# Verify logs were downloaded\necho \"Downloaded workflow logs:\"\nls -la /tmp/gh-aw/workflow-logs\n"
 
       - name: Create gh-aw temp directory
         run: |
@@ -212,11 +225,11 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.28
+        run: npm install -g @anthropic-ai/claude-code@2.0.29
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -1337,33 +1350,58 @@ jobs:
           - **Repository**: ${{ github.repository }}
           - **Analysis Period**: Last 30 days
           - **Available Data**:
-            - `/tmp/gh-aw/pr-data/copilot-prs.json` - Full PR data for copilot-created PRs
+            - `/tmp/gh-aw/pr-data/copilot-prs.json` - Summary PR data for copilot-created PRs
+            - `/tmp/gh-aw/prompt-cache/pr-full-data/` - Full PR data with comments, reviews, commits, and files for each PR
+            - `/tmp/gh-aw/prompt-cache/pr-full-data/index.txt` - List of all PR numbers with full data
             - `/tmp/gh-aw/prompt-cache/` - Cache directory for avoiding repeated work
           
           ## Task Overview
           
           ### Phase 1: Extract Task Prompts from PRs
           
-          The pre-fetched PR data is available at `/tmp/gh-aw/pr-data/copilot-prs.json`. Each PR created by the copilot agent contains:
+          The pre-fetched PR data is available at:
+          - `/tmp/gh-aw/pr-data/copilot-prs.json` - Summary data from search
+          - `/tmp/gh-aw/prompt-cache/pr-full-data/` - Full PR data for each PR with comments, reviews, commits, and files
+          
+          Each PR's full data includes:
           
           1. **PR Body**: Contains the task description/prompt that was given to the agent
           2. **PR Title**: A summary of the task
           3. **PR Metadata**: State (merged/closed/open), creation/close dates, labels
+          4. **Comments**: All comments on the PR (useful for understanding feedback and iterations)
+          5. **Reviews**: Code review feedback
+          6. **Commits**: All commits made by the agent
+          7. **Files**: Changed files with additions/deletions
+          8. **Review Decision**: Final review outcome
           
-          **Extract the following from each PR**:
+          **Access full PR data**:
           
           ```bash
-          # Use jq to extract relevant fields
-          jq -r '.[] | {
-            number: .number,
-            title: .title,
-            body: .body,
-            state: .state,
-            merged: (.mergedAt != null),
-            created: .createdAt,
-            closed: .closedAt,
-            url: .url
-          }' /tmp/gh-aw/pr-data/copilot-prs.json > /tmp/gh-aw/pr-data/pr-prompts.jsonl
+          # List all PRs with full data
+          cat /tmp/gh-aw/prompt-cache/pr-full-data/index.txt
+          
+          # Read a specific PR's full data
+          cat /tmp/gh-aw/prompt-cache/pr-full-data/pr-123.json
+          
+          # Extract relevant fields from all PRs
+          for pr_file in /tmp/gh-aw/prompt-cache/pr-full-data/pr-*.json; do
+            jq -r '{
+              number: .number,
+              title: .title,
+              body: .body,
+              state: .state,
+              merged: (.mergedAt != null),
+              created: .createdAt,
+              closed: .closedAt,
+              url: .url,
+              comments_count: (.comments | length),
+              reviews_count: (.reviews | length),
+              commits_count: (.commits | length),
+              files_changed: .changedFiles,
+              additions: .additions,
+              deletions: .deletions
+            }' "$pr_file"
+          done > /tmp/gh-aw/pr-data/pr-prompts.jsonl
           ```
           
           The PR body typically contains:
@@ -1418,12 +1456,34 @@ jobs:
           - Task prompt text (cleaned and preprocessed)
           - PR metadata (outcome, duration)
           - Workflow metrics (turns, cost)
+          - PR interaction data (comments, reviews, file changes)
           
-          Save as JSON or CSV for Python processing:
+          **Combine PR full data with workflow metrics**:
           
           ```bash
-          # Combine PR data with workflow metrics
-          jq -s '.' /tmp/gh-aw/pr-data/pr-prompts.jsonl > /tmp/gh-aw/pr-data/combined-data.json
+          # Merge full PR data with workflow metrics
+          for pr_file in /tmp/gh-aw/prompt-cache/pr-full-data/pr-*.json; do
+            jq -r '{
+              number: .number,
+              title: .title,
+              body: .body,
+              state: .state,
+              merged: (.mergedAt != null),
+              created: .createdAt,
+              closed: .closedAt,
+              url: .url,
+              comments_count: (.comments | length),
+              reviews_count: (.reviews | length),
+              commits_count: (.commits | length),
+              files_changed: .changedFiles,
+              additions: .additions,
+              deletions: .deletions,
+              review_decision: .reviewDecision
+            }' "$pr_file"
+          done > /tmp/gh-aw/pr-data/pr-prompts-full.jsonl
+          
+          # Combine into a single JSON array
+          jq -s '.' /tmp/gh-aw/pr-data/pr-prompts-full.jsonl > /tmp/gh-aw/pr-data/combined-data.json
           ```
           
           ### Phase 4: Python NLP Clustering Analysis
@@ -1617,6 +1677,12 @@ jobs:
               
               print('\n'.join(report))
               
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
               return '\n'.join(report)
           ```
           
@@ -1680,12 +1746,6 @@ jobs:
           ## Cluster Analysis
           
           ### Cluster 1: [Theme/Description]
-          PROMPT_EOF
-      - name: Append prompt (part 2)
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
           - **Size**: X tasks ([percentage]% of total)
           - **Success Rate**: [percentage]%
           - **Average Turns**: [number]
@@ -3720,7 +3780,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: write
@@ -4118,11 +4178,11 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.28
+        run: npm install -g @anthropic-ai/claude-code@2.0.29
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -4207,7 +4267,7 @@ jobs:
       - agent
       - detection
     if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     timeout-minutes: 5

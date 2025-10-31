@@ -21,6 +21,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
