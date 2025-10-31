@@ -704,9 +704,9 @@ func ensureAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
 	return ensureAgentFromTemplate("create-agentic-workflow.md", agenticWorkflowAgentTemplate, verbose, skipInstructions)
 }
 
-// ensureSharedAgenticWorkflowPrompt ensures that .github/prompts/create-shared-agentic-workflow.prompt.md contains the shared workflow creation prompt
-func ensureSharedAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
-	return ensurePromptFromTemplate("create-shared-agentic-workflow.prompt.md", sharedAgenticWorkflowPromptTemplate, verbose, skipInstructions)
+// ensureSharedAgenticWorkflowAgent ensures that .github/agents/create-shared-agentic-workflow.md contains the shared workflow creation agent
+func ensureSharedAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
+	return ensureAgentFromTemplate("create-shared-agentic-workflow.md", sharedAgenticWorkflowAgentTemplate, verbose, skipInstructions)
 }
 
 // ensureSetupAgenticWorkflowsAgent ensures that .github/agents/setup-agentic-workflows.md contains the setup guide agent

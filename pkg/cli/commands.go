@@ -25,8 +25,8 @@ var copilotInstructionsTemplate string
 //go:embed templates/create-agentic-workflow.md
 var agenticWorkflowAgentTemplate string
 
-//go:embed templates/create-shared-agentic-workflow.prompt.md
-var sharedAgenticWorkflowPromptTemplate string
+//go:embed templates/create-shared-agentic-workflow.md
+var sharedAgenticWorkflowAgentTemplate string
 
 //go:embed templates/setup-agentic-workflows.md
 var setupAgenticWorkflowsAgentTemplate string
