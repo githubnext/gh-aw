@@ -3,25 +3,30 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/jqschema.md
+#     - shared/reporting.md
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
-#   create_issue["create_issue"]
+#   create_discussion["create_discussion"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
-#   pre_activation["pre_activation"]
-#   pre_activation --> activation
 #   activation --> agent
-#   agent --> create_issue
-#   detection --> create_issue
+#   agent --> create_discussion
+#   detection --> create_discussion
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
 # ```
 #
 # Pinned GitHub Actions:
+#   - actions/cache@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
+#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
 #   - actions/checkout@v5 (08c6903cd8c0fde910a37f88322edcfb5dd907a8)
 #     https://github.com/actions/checkout/commit/08c6903cd8c0fde910a37f88322edcfb5dd907a8
 #   - actions/download-artifact@v5 (634f93cb2916e3fdff6788551b99b062d0335ce0)
@@ -33,34 +38,25 @@
 #   - actions/upload-artifact@v4 (ea165f8d65b6e75b540449e92b4886f43607fa02)
 #     https://github.com/actions/upload-artifact/commit/ea165f8d65b6e75b540449e92b4886f43607fa02
 
-name: "Smoke Claude"
+name: "Copilot Session Insights"
 "on":
-  pull_request:
-    # names: # Label filtering applied via job conditions
-    # - smoke # Label filtering applied via job conditions
-    types:
-    - labeled
   schedule:
-  - cron: 0 0,6,12,18 * * *
+  - cron: 0 16 * * *
   workflow_dispatch: null
 
 permissions:
+  actions: read
   contents: read
   issues: read
   pull-requests: read
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
-  cancel-in-progress: true
+  group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Smoke Claude"
+run-name: "Copilot Session Insights"
 
 jobs:
   activation:
-    needs: pre_activation
-    if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') ||
-      (github.event.label.name == 'smoke')))
     runs-on: ubuntu-slim
     steps:
       - name: Check workflow file timestamps
@@ -83,12 +79,15 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       issues: read
       pull-requests: read
+    concurrency:
+      group: "gh-aw-claude-${{ github.workflow }}"
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
+      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -97,10 +96,37 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           persist-credentials: false
+      - name: Set up jq utilities directory
+        run: "mkdir -p /tmp/gh-aw\ncat > /tmp/gh-aw/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jqschema.sh"
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: List and download Copilot agent sessions
+        run: "# Create output directory\nmkdir -p /tmp/gh-aw/agent-sessions\n\necho \"Fetching Copilot agent task sessions...\"\n\n# List recent agent tasks (limit to 50 for manageable analysis)\ngh agent-task list --limit 50 --json number,title,state,createdAt,sessionId > /tmp/gh-aw/agent-sessions/sessions-list.json\n\necho \"Sessions list saved to /tmp/gh-aw/agent-sessions/sessions-list.json\"\necho \"Total sessions found: $(jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json)\"\n\n# Create a directory for individual session logs\nmkdir -p /tmp/gh-aw/agent-sessions/logs\n\n# Download logs for each session (limit to first 50)\necho \"Downloading session logs...\"\njq -r '.[] | .sessionId // .number' /tmp/gh-aw/agent-sessions/sessions-list.json | head -50 | while read session_id; do\n  if [ ! -z \"$session_id\" ]; then\n    echo \"Downloading session: $session_id\"\n    gh agent-task view \"$session_id\" --log > \"/tmp/gh-aw/agent-sessions/logs/${session_id}.log\" 2>&1 || true\n  fi\ndone\n\necho \"Session logs downloaded to /tmp/gh-aw/agent-sessions/logs/\"\necho \"Total log files: $(ls -1 /tmp/gh-aw/agent-sessions/logs/ | wc -l)\"\n"
+
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: |
+          mkdir -p /tmp/gh-aw/cache-memory
+          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
+          echo "This folder provides persistent file storage across workflow runs"
+          echo "LLMs and agentic tools can freely read and write files in this directory"
+      - name: Cache memory file share data
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-${{ github.workflow }}-
+            memory-
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -204,7 +230,7 @@ jobs:
           
           # Domain allow-list (populated during generation)
           # JSON array safely embedded as Python list literal
-          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com"]
+          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","*.githubusercontent.com","raw.githubusercontent.com","objects.githubusercontent.com","lfs.github.com","github-cloud.githubusercontent.com","github-cloud.s3.amazonaws.com","codeload.github.com"]
           
           def extract_domain(url_or_query):
               """Extract domain from URL or search query."""
@@ -284,7 +310,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_issue":{"max":1},"missing_tool":{}}
+          {"create_discussion":{"max":1},"missing_tool":{}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1120,7 +1146,758 @@ jobs:
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
-          Review the last 5 merged pull requests in this repository and post summary in an issue.
+          ## jqschema - JSON Schema Discovery
+          
+          A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
+          
+          ### Purpose
+          
+          Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
+          - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
+          - Exploring API responses with large payloads
+          - Understanding the structure of unfamiliar data without verbose output
+          - Planning queries before fetching full data
+          
+          ### Usage
+          
+          ```bash
+          # Analyze a file
+          cat data.json | /tmp/gh-aw/jqschema.sh
+          
+          # Analyze command output
+          echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jqschema.sh
+          
+          # Analyze GitHub search results
+          gh api search/repositories?q=language:go | /tmp/gh-aw/jqschema.sh
+          ```
+          
+          ### How It Works
+          
+          The script transforms JSON data by:
+          1. Replacing object values with their type names ("string", "number", "boolean", "null")
+          2. Reducing arrays to their first element's structure (or empty array if empty)
+          3. Recursively processing nested structures
+          4. Outputting compact (minified) JSON
+          
+          ### Example
+          
+          **Input:**
+          ```json
+          {
+            "total_count": 1000,
+            "items": [
+              {"login": "user1", "id": 123, "verified": true},
+              {"login": "user2", "id": 456, "verified": false}
+            ]
+          }
+          ```
+          
+          **Output:**
+          ```json
+          {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
+          ```
+          
+          ### Best Practices
+          
+          **Use this script when:**
+          - You need to understand the structure of tool outputs before requesting full data
+          - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
+          - Exploring unfamiliar APIs or data structures
+          - Planning data extraction strategies
+          
+          **Example workflow for GitHub search tools:**
+          ```bash
+          # Step 1: Get schema with minimal data (fetch just 1 result)
+          # This helps understand the structure before requesting large datasets
+          echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jqschema.sh
+          
+          # Output shows the schema:
+          # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
+          
+          # Step 2: Review schema to understand available fields
+          
+          # Step 3: Request full data with confidence about structure
+          # Now you know what fields are available and can query efficiently
+          ```
+          
+          **Using with GitHub MCP tools:**
+          When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
+          ```bash
+          # Save a minimal search result to a file
+          gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
+          
+          # Generate schema to understand structure
+          cat /tmp/sample.json | /tmp/gh-aw/jqschema.sh
+          
+          # Now you know which fields exist and can use them in your analysis
+          ```
+          
+          ## Report Formatting
+          
+          Structure your report with an overview followed by detailed content:
+          
+          1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
+          
+          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information.
+          
+          **Example format:**
+          
+          ```markdown
+          Brief overview paragraph 1 introducing the report and its main findings.
+          
+          Optional overview paragraph 2 with additional context or highlights.
+          
+          <details>
+          <summary>Full Report Details</summary>
+          
+          ## Detailed Analysis
+          
+          Full report content with all sections, tables, and detailed information goes here.
+          
+          ### Section 1
+          [Content]
+          
+          ### Section 2
+          [Content]
+          
+          </details>
+          ```
+          
+          ## Reporting Workflow Run Information
+          
+          When analyzing workflow run logs or reporting information from GitHub Actions runs:
+          
+          ### 1. Workflow Run ID Formatting
+          
+          **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
+          
+          **Format:**
+          ```markdown
+          [§12345](https://github.com/owner/repo/actions/runs/12345)
+          ```
+          
+          **Example:**
+          ```markdown
+          Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
+          ```
+          
+          ### 2. Document References for Workflow Runs
+          
+          When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
+          
+          **Format:**
+          ```markdown
+          ---
+          
+          **References:**
+          - [§12345](https://github.com/owner/repo/actions/runs/12345)
+          - [§12346](https://github.com/owner/repo/actions/runs/12346)
+          - [§12347](https://github.com/owner/repo/actions/runs/12347)
+          ```
+          
+          **Guidelines:**
+          - Include **maximum 3 references** to keep reports concise
+          - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
+          - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
+          - If analyzing more than 3 runs, select the most important ones for references
+          
+          # Copilot Agent Session Analysis
+          
+          You are an AI analytics agent specializing in analyzing Copilot agent sessions to extract insights, identify behavioral patterns, and recommend improvements.
+          
+          ## Mission
+          
+          Analyze approximately 50 Copilot agent sessions to identify:
+          - Behavioral patterns and inefficiencies
+          - Success factors and failure signals
+          - Prompt quality indicators
+          - Opportunities for improvement
+          
+          Create a comprehensive report and publish it as a GitHub Discussion for team review.
+          
+          ## Current Context
+          
+          - **Repository**: ${{ github.repository }}
+          - **Analysis Period**: Most recent ~50 agent sessions
+          - **Cache Memory**: `/tmp/gh-aw/cache-memory/`
+          
+          ## Task Overview
+          
+          ### Phase 0: Setup and Prerequisites
+          
+          **Pre-fetched Data Available**: This workflow includes a preparation step that has already fetched Copilot agent session data. The data is available at:
+          - `/tmp/gh-aw/agent-sessions/sessions-list.json` - List of sessions with metadata
+          - `/tmp/gh-aw/agent-sessions/logs/` - Individual session log files
+          
+          **Verify Setup**:
+          1. Confirm `GH_TOKEN` is available (pre-configured)
+          2. Check that session data was downloaded successfully
+          3. Initialize or restore cache-memory from `/tmp/gh-aw/cache-memory/`
+          4. Load historical analysis data if available
+          
+          **Cache Memory Structure**:
+          ```
+          /tmp/gh-aw/cache-memory/
+          ├── session-analysis/
+          │   ├── history.json           # Historical analysis results
+          │   ├── strategies.json        # Discovered analytical strategies
+          │   └── patterns.json          # Known behavioral patterns
+          ```
+          
+          ### Phase 1: Data Acquisition
+          
+          The session data has already been fetched in the preparation step. You should:
+          
+          1. **Verify Downloaded Data**:
+             ```bash
+             # Check sessions list
+             jq '.' /tmp/gh-aw/agent-sessions/sessions-list.json
+             
+             # Count sessions
+             jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json
+             
+             # List log files
+             ls -la /tmp/gh-aw/agent-sessions/logs/
+             ```
+          
+          2. **Extract Session Metadata**:
+             - Session IDs
+             - Creation timestamps
+             - Task titles and descriptions
+             - Current state (open, completed, failed)
+             - Pull request numbers (if available)
+          
+          3. **Sample Strategy**:
+             - Use all available sessions (up to 50)
+             - If more than 50 sessions exist, they were already limited in the fetch step
+             - Record which sessions are being analyzed
+          
+          ### Phase 2: Session Analysis
+          
+          For each downloaded session log in `/tmp/gh-aw/agent-sessions/logs/`:
+          
+          #### 2.1 Load Historical Context
+          
+          Check cache memory for:
+          - Previous analysis results (`/tmp/gh-aw/cache-memory/session-analysis/history.json`)
+          - Known strategies (`/tmp/gh-aw/cache-memory/session-analysis/strategies.json`)
+          - Identified patterns (`/tmp/gh-aw/cache-memory/session-analysis/patterns.json`)
+          
+          If cache files don't exist, create them with initial structure:
+          ```json
+          {
+            "analyses": [],
+            "last_updated": "YYYY-MM-DD",
+            "version": "1.0"
+          }
+          ```
+          
+          #### 2.2 Apply Analysis Strategies
+          
+          **Standard Analysis Strategies** (Always Apply):
+          
+          1. **Completion Analysis**:
+             - Did the session complete successfully?
+             - Was the task abandoned or aborted?
+             - Look for error messages or failure indicators
+             - Track completion rate
+          
+          2. **Loop Detection**:
+             - Identify repetitive agent responses
+             - Detect circular reasoning or stuck patterns
+             - Count iteration loops without progress
+             - Flag sessions with excessive retries
+          
+          3. **Prompt Structure Analysis**:
+             - Analyze task description clarity
+             - Identify effective prompt patterns
+             - Cluster prompts by keywords or structure
+             - Correlate prompt quality with success
+          
+          4. **Context Confusion Detection**:
+             - Look for signs of missing context
+             - Identify requests for clarification
+             - Track contextual misunderstandings
+             - Note when agent asks for more information
+          
+          5. **Error Recovery Analysis**:
+             - How does the agent handle errors?
+             - Track error types and recovery strategies
+             - Measure time to recover from failures
+             - Identify successful vs. failed recoveries
+          
+          6. **Tool Usage Patterns**:
+             - Which tools are used most frequently?
+             - Are tools used effectively?
+             - Identify missing or unavailable tools
+             - Track tool execution success rates
+          
+          #### 2.3 Experimental Strategies (30% of runs)
+          
+          **Determine if this is an experimental run**:
+          ```bash
+          # Generate random number between 0-100
+          RANDOM_VALUE=$((RANDOM % 100))
+          # If value < 30, this is an experimental run
+          ```
+          
+          **Novel Analysis Methods to Try** (rotate through these):
+          
+          1. **Semantic Clustering**:
+             - Group prompts by semantic similarity
+             - Identify common themes across sessions
+             - Find outlier prompts that perform differently
+             - Use keyword extraction and comparison
+          
+          2. **Temporal Analysis**:
+             - Analyze session duration patterns
+             - Identify time-of-day effects
+             - Track performance trends over time
+             - Correlate timing with success rates
+          
+          3. **Code Quality Metrics**:
+             - If sessions produce code, analyze quality
+             - Check for test coverage mentions
+             - Look for documentation updates
+             - Track code review feedback
+          
+          4. **User Interaction Patterns**:
+             - Analyze back-and-forth exchanges
+             - Measure clarification request frequency
+             - Track user guidance effectiveness
+             - Identify optimal interaction patterns
+          
+          5. **Cross-Session Learning**:
+             - Compare similar tasks across sessions
+             - Identify improvement over time
+             - Track recurring issues
+             - Find evolving solution strategies
+          
+          **Record Experimental Results**:
+          - Store strategy name and description
+          - Record what was measured
+          - Note insights discovered
+          - Save to cache for future reference
+          
+          #### 2.4 Data Collection
+          
+          For each session, collect:
+          - **Session ID**: Unique identifier
+          - **Timestamp**: When the session occurred
+          - **Task Type**: Category of task (bug fix, feature, refactor, etc.)
+          - **Duration**: Time from start to completion
+          - **Status**: Success, failure, abandoned, in-progress
+          - **Loop Count**: Number of repetitive cycles detected
+          - **Tool Usage**: List of tools used and their success
+          - **Error Count**: Number of errors encountered
+          - **Prompt Quality Score**: Assessed quality (1-10)
+          - **Context Issues**: Boolean flag for confusion detected
+          - **Notes**: Any notable observations
+          
+          ### Phase 3: Insight Synthesis
+          
+          Aggregate observations across all analyzed sessions:
+          
+          #### 3.1 Success Factors
+          
+          Identify patterns associated with successful completions:
+          - Common prompt characteristics
+          - Effective tool combinations
+          - Optimal context provision
+          - Successful error recovery strategies
+          - Clear task descriptions
+          
+          **Example Analysis**:
+          ```
+          SUCCESS PATTERNS:
+          - Sessions with specific file references: 85% success rate
+          - Prompts including expected outcomes: 78% success rate
+          - Tasks under 100 lines of change: 90% success rate
+          ```
+          
+          #### 3.2 Failure Signals
+          
+          Identify common indicators of confusion or inefficiency:
+          - Vague or ambiguous prompts
+          - Missing context clues
+          - Circular reasoning patterns
+          - Repeated failed attempts
+          - Tool unavailability
+          
+          **Example Analysis**:
+          ```
+          FAILURE INDICATORS:
+          - Prompts with "just fix it": 45% success rate
+          - Missing file paths: 40% success rate
+          - Tasks requiring >5 iterations: 30% success rate
+          ```
+          
+          #### 3.3 Prompt Quality Indicators
+          
+          Analyze what makes prompts effective:
+          - Specific vs. general instructions
+          - Context richness
+          - Clear acceptance criteria
+          - File/code references
+          - Expected behavior descriptions
+          
+          **Categorize Prompts**:
+          - **High Quality**: Specific, contextual, clear outcomes
+          - **Medium Quality**: Some clarity but missing details
+          - **Low Quality**: Vague, ambiguous, lacking context
+          
+          #### 3.4 Recommendations
+          
+          Based on the analysis, generate actionable recommendations:
+          - Prompt improvement templates
+          - Best practice guidelines
+          - Tool usage suggestions
+          - Context provision tips
+          - Error handling strategies
+          
+          **Format Recommendations**:
+          1. **For Users**: How to write better task descriptions
+          2. **For System**: Potential improvements to agent behavior
+          3. **For Tools**: Missing capabilities or integrations
+          
+          ### Phase 4: Cache Memory Management
+          
+          #### 4.1 Update Historical Data
+          
+          Update cache memory with today's analysis:
+          
+          ```bash
+          mkdir -p /tmp/gh-aw/cache-memory/session-analysis/
+          
+          # Update history.json
+          cat > /tmp/gh-aw/cache-memory/session-analysis/history.json << 'EOF'
+          {
+            "analyses": [
+              {
+                "date": "YYYY-MM-DD",
+                "sessions_analyzed": 50,
+                "completion_rate": 0.72,
+                "average_duration_minutes": 8.5,
+                "experimental_strategy": "semantic_clustering",
+                "key_insights": ["insight 1", "insight 2"]
+              }
+            ],
+            "last_updated": "YYYY-MM-DD"
+          }
+          EOF
+          ```
+          
+          #### 4.2 Store Discovered Strategies
+          
+          If this was an experimental run, save the new strategy:
+          
+          ```bash
+          # Update strategies.json
+          # Add strategy name, description, results, effectiveness
+          ```
+          
+          #### 4.3 Update Pattern Database
+          
+          Add newly discovered patterns:
+          
+          ```bash
+          # Update patterns.json
+          # Include pattern type, frequency, correlation with success/failure
+          ```
+          
+          #### 4.4 Maintain Cache Size
+          
+          Keep cache manageable:
+          - Retain last 90 days of analysis history
+          - Keep top 20 most effective strategies
+          - Maintain comprehensive pattern database
+          
+          ### Phase 5: Create Analysis Discussion
+          
+          Generate a human-readable Markdown report and create a discussion.
+          
+          **Discussion Title Format**:
+          ```
+          Daily Copilot Agent Session Analysis — [YYYY-MM-DD]
+          ```
+          
+          **Discussion Template**:
+          
+          ```markdown
+          # 🤖 Copilot Agent Session Analysis — [DATE]
+          
+          ## Executive Summary
+          
+          - **Sessions Analyzed**: [NUMBER]
+          - **Analysis Period**: [DATE RANGE]
+          - **Completion Rate**: [PERCENTAGE]%
+          - **Average Duration**: [TIME]
+          - **Experimental Strategy**: [STRATEGY NAME] (if applicable)
+          
+          ## Key Metrics
+          
+          | Metric | Value | Trend |
+          |--------|-------|-------|
+          | Total Sessions | [N] | [↑↓→] |
+          | Successful Completions | [N] ([%]) | [↑↓→] |
+          | Failed/Abandoned | [N] ([%]) | [↑↓→] |
+          | Average Duration | [TIME] | [↑↓→] |
+          | Loop Detection Rate | [N] ([%]) | [↑↓→] |
+          | Context Issues | [N] ([%]) | [↑↓→] |
+          
+          ## Success Factors ✅
+          
+          Patterns associated with successful task completion:
+          
+          1. **[Pattern Name]**: [Description]
+             - Success rate: [%]
+             - Example: [Brief example]
+          
+          2. **[Pattern Name]**: [Description]
+             - Success rate: [%]
+             - Example: [Brief example]
+          
+          [Include 3-5 key success patterns]
+          
+          ## Failure Signals ⚠️
+          
+          Common indicators of inefficiency or failure:
+          
+          1. **[Issue Name]**: [Description]
+             - Failure rate: [%]
+             - Example: [Brief example]
+          
+          2. **[Issue Name]**: [Description]
+             - Failure rate: [%]
+             - Example: [Brief example]
+          
+          [Include 3-5 key failure patterns]
+          
+          PROMPT_EOF
+      - name: Append prompt (part 2)
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          ## Prompt Quality Analysis 📝
+          
+          ### High-Quality Prompt Characteristics
+          
+          - [Characteristic 1]: Found in [%] of successful sessions
+          - [Characteristic 2]: Found in [%] of successful sessions
+          - [Characteristic 3]: Found in [%] of successful sessions
+          
+          **Example High-Quality Prompt**:
+          ```
+          [Example of an effective task description]
+          ```
+          
+          ### Low-Quality Prompt Characteristics
+          
+          - [Characteristic 1]: Found in [%] of failed sessions
+          - [Characteristic 2]: Found in [%] of failed sessions
+          
+          **Example Low-Quality Prompt**:
+          ```
+          [Example of an ineffective task description]
+          ```
+          
+          ## Notable Observations
+          
+          ### Loop Detection
+          - **Sessions with loops**: [N] ([%])
+          - **Average loop count**: [NUMBER]
+          - **Common loop patterns**: [Description]
+          
+          ### Tool Usage
+          - **Most used tools**: [List]
+          - **Tool success rates**: [Statistics]
+          - **Missing tools**: [List of requested but unavailable tools]
+          
+          ### Context Issues
+          - **Sessions with confusion**: [N] ([%])
+          - **Common confusion points**: [List]
+          - **Clarification requests**: [N]
+          
+          ## Experimental Analysis
+          
+          **This run included experimental strategy**: [STRATEGY NAME]
+          
+          [If experimental run, describe the novel approach tested]
+          
+          **Findings**:
+          - [Finding 1]
+          - [Finding 2]
+          - [Finding 3]
+          
+          **Effectiveness**: [High/Medium/Low]
+          **Recommendation**: [Keep/Refine/Discard]
+          
+          [If not experimental, include note: "Standard analysis only - no experimental strategy this run"]
+          
+          ## Actionable Recommendations
+          
+          ### For Users Writing Task Descriptions
+          
+          1. **[Recommendation 1]**: [Specific guidance]
+             - Example: [Before/After example]
+          
+          2. **[Recommendation 2]**: [Specific guidance]
+             - Example: [Before/After example]
+          
+          3. **[Recommendation 3]**: [Specific guidance]
+             - Example: [Before/After example]
+          
+          ### For System Improvements
+          
+          1. **[Improvement Area]**: [Description]
+             - Potential impact: [High/Medium/Low]
+          
+          2. **[Improvement Area]**: [Description]
+             - Potential impact: [High/Medium/Low]
+          
+          ### For Tool Development
+          
+          1. **[Missing Tool/Capability]**: [Description]
+             - Frequency of need: [NUMBER] sessions
+             - Use case: [Description]
+          
+          ## Trends Over Time
+          
+          [Compare with historical data from cache memory if available]
+          
+          - **Completion rate trend**: [Description]
+          - **Average duration trend**: [Description]
+          - **Quality improvement**: [Description]
+          
+          ## Statistical Summary
+          
+          ```
+          Total Sessions Analyzed:     [N]
+          Successful Completions:      [N] ([%])
+          Failed Sessions:            [N] ([%])
+          Abandoned Sessions:         [N] ([%])
+          In-Progress Sessions:       [N] ([%])
+          
+          Average Session Duration:   [TIME]
+          Median Session Duration:    [TIME]
+          Longest Session:           [TIME]
+          Shortest Session:          [TIME]
+          
+          Loop Detection:            [N] sessions ([%])
+          Context Issues:            [N] sessions ([%])
+          Tool Failures:             [N] occurrences
+          
+          High-Quality Prompts:      [N] ([%])
+          Medium-Quality Prompts:    [N] ([%])
+          Low-Quality Prompts:       [N] ([%])
+          ```
+          
+          ## Next Steps
+          
+          - [ ] Review recommendations with team
+          - [ ] Implement high-priority prompt improvements
+          - [ ] Consider system enhancements for recurring issues
+          - [ ] Schedule follow-up analysis in [TIMEFRAME]
+          
+          ---
+          
+          _Analysis generated automatically on [DATE] at [TIME]_  
+          _Run ID: ${{ github.run_id }}_  
+          _Workflow: ${{ github.workflow }}_
+          ```
+          
+          ## Important Guidelines
+          
+          ### Security and Data Handling
+          
+          - **Privacy**: Do not expose sensitive session data, API keys, or personal information
+          - **Sanitization**: Redact any sensitive information from examples
+          - **Validation**: Verify all data before analysis
+          - **Safe Processing**: Never execute code from sessions
+          
+          ### Analysis Quality
+          
+          - **Objectivity**: Report facts without bias
+          - **Accuracy**: Verify calculations and statistics
+          - **Completeness**: Don't skip sessions or data points
+          - **Consistency**: Use same metrics across runs for comparability
+          
+          ### Experimental Strategy
+          
+          - **30% Probability**: Approximately 1 in 3 runs should be experimental
+          - **Rotation**: Try different novel approaches over time
+          - **Documentation**: Clearly document what was tried
+          - **Evaluation**: Assess effectiveness of experimental strategies
+          - **Learning**: Build on successful experiments
+          
+          ### Cache Memory Management
+          
+          - **Organization**: Keep data well-structured in JSON
+          - **Retention**: Keep 90 days of historical data
+          - **Graceful Degradation**: Handle missing or corrupted cache
+          - **Incremental Updates**: Add to existing data, don't replace
+          
+          ### Report Quality
+          
+          - **Actionable**: Every insight should lead to potential action
+          - **Clear**: Use simple language and concrete examples
+          - **Concise**: Focus on key findings, not exhaustive details
+          - **Visual**: Use tables and formatting for readability
+          
+          ## Edge Cases
+          
+          ### No Sessions Available
+          
+          If no sessions were downloaded:
+          - Create minimal discussion noting no data
+          - Don't update historical metrics
+          - Note in cache that this date had no sessions
+          
+          ### Incomplete Session Data
+          
+          If some sessions have missing logs:
+          - Note the count of incomplete sessions
+          - Analyze available data only
+          - Report data quality issues
+          
+          ### Cache Corruption
+          
+          If cache memory is corrupted or invalid:
+          - Log the issue clearly
+          - Reinitialize cache with current data
+          - Continue with analysis
+          
+          ### Analysis Timeout
+          
+          If approaching timeout:
+          - Complete current phase
+          - Save partial results to cache
+          - Create discussion with available insights
+          - Note incomplete analysis in report
+          
+          ## Success Criteria
+          
+          A successful analysis includes:
+          
+          - ✅ Analyzed ~50 Copilot agent sessions
+          - ✅ Calculated key metrics (completion rate, duration, quality)
+          - ✅ Identified success factors and failure signals
+          - ✅ Generated actionable recommendations
+          - ✅ Updated cache memory with findings
+          - ✅ Created comprehensive GitHub Discussion
+          - ✅ Included experimental strategy (if 30% probability triggered)
+          - ✅ Provided clear, data-driven insights
+          
+          ## Notes
+          
+          - **Non-intrusive**: Never execute or replay session commands
+          - **Observational**: Analyze logs without modifying them
+          - **Cumulative Learning**: Build knowledge over time via cache
+          - **Adaptive**: Adjust strategies based on discoveries
+          - **Transparent**: Clearly document methodology
+          
+          Begin your analysis by verifying the downloaded session data, loading historical context from cache memory, and proceeding through the analysis phases systematically.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1168,6 +1945,31 @@ jobs:
           **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/agent/` directory** that has been pre-created for you. Do NOT use the root `/tmp/` directory directly.
           
           PROMPT_EOF
+      - name: Append cache memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          
+          ---
+          
+          ## Cache Folder Available
+          
+          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
+          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
+          - **File Share**: Use this as a simple file share - organize files as you see fit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
+          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
+          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
+          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1176,13 +1978,9 @@ jobs:
           
           ---
           
-          ## Creating an Issue, Reporting Missing Tools or Functionality
+          ## Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
-          
-          **Creating an Issue**
-          
-          To create an issue, use the create-issue tool from safeoutputs
           
           **Reporting Missing Tools or Functionality**
           
@@ -1289,7 +2087,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "2.0.30",
-              workflow_name: "Smoke Claude",
+              workflow_name: "Copilot Session Insights",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1301,7 +2099,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: true,
+              staged: false,
               steps: {
                 firewall: ""
               },
@@ -1323,72 +2121,50 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
+        # - Bash(/tmp/gh-aw/jqschema.sh)
+        # - Bash(cat /tmp/*)
+        # - Bash(cat)
+        # - Bash(date *)
+        # - Bash(date)
+        # - Bash(echo)
+        # - Bash(find /tmp -type f)
+        # - Bash(gh agent-task list *)
+        # - Bash(gh agent-task view *)
+        # - Bash(grep)
+        # - Bash(head)
+        # - Bash(jq *)
+        # - Bash(ls -la *)
+        # - Bash(ls)
+        # - Bash(mkdir -p *)
+        # - Bash(pwd)
+        # - Bash(sort)
+        # - Bash(tail)
+        # - Bash(uniq)
+        # - Bash(wc)
+        # - Bash(yq)
+        # - BashOutput
+        # - Edit(/tmp/gh-aw/cache-memory/*)
         # - ExitPlanMode
         # - Glob
         # - Grep
+        # - KillBash
         # - LS
+        # - MultiEdit(/tmp/gh-aw/cache-memory/*)
         # - NotebookRead
         # - Read
+        # - Read(/tmp/gh-aw/cache-memory/*)
         # - Task
         # - TodoWrite
         # - Write
-        # - mcp__github__download_workflow_run_artifact
-        # - mcp__github__get_code_scanning_alert
-        # - mcp__github__get_commit
-        # - mcp__github__get_dependabot_alert
-        # - mcp__github__get_discussion
-        # - mcp__github__get_discussion_comments
-        # - mcp__github__get_file_contents
-        # - mcp__github__get_job_logs
-        # - mcp__github__get_label
-        # - mcp__github__get_latest_release
-        # - mcp__github__get_me
-        # - mcp__github__get_notification_details
-        # - mcp__github__get_pull_request
-        # - mcp__github__get_pull_request_comments
-        # - mcp__github__get_pull_request_diff
-        # - mcp__github__get_pull_request_files
-        # - mcp__github__get_pull_request_review_comments
-        # - mcp__github__get_pull_request_reviews
-        # - mcp__github__get_pull_request_status
-        # - mcp__github__get_release_by_tag
-        # - mcp__github__get_secret_scanning_alert
-        # - mcp__github__get_tag
-        # - mcp__github__get_workflow_run
-        # - mcp__github__get_workflow_run_logs
-        # - mcp__github__get_workflow_run_usage
-        # - mcp__github__issue_read
-        # - mcp__github__list_branches
-        # - mcp__github__list_code_scanning_alerts
-        # - mcp__github__list_commits
-        # - mcp__github__list_dependabot_alerts
-        # - mcp__github__list_discussion_categories
-        # - mcp__github__list_discussions
-        # - mcp__github__list_issue_types
-        # - mcp__github__list_issues
-        # - mcp__github__list_label
-        # - mcp__github__list_notifications
+        # - Write(/tmp/gh-aw/cache-memory/*)
         # - mcp__github__list_pull_requests
-        # - mcp__github__list_releases
-        # - mcp__github__list_secret_scanning_alerts
-        # - mcp__github__list_starred_repositories
-        # - mcp__github__list_tags
-        # - mcp__github__list_workflow_jobs
-        # - mcp__github__list_workflow_run_artifacts
-        # - mcp__github__list_workflow_runs
-        # - mcp__github__list_workflows
         # - mcp__github__pull_request_read
-        # - mcp__github__search_code
-        # - mcp__github__search_issues
-        # - mcp__github__search_orgs
         # - mcp__github__search_pull_requests
-        # - mcp__github__search_repositories
-        # - mcp__github__search_users
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(/tmp/gh-aw/jqschema.sh),Bash(cat /tmp/*),Bash(cat),Bash(date *),Bash(date),Bash(echo),Bash(find /tmp -type f),Bash(gh agent-task list *),Bash(gh agent-task view *),Bash(grep),Bash(head),Bash(jq *),Bash(ls -la *),Bash(ls),Bash(mkdir -p *),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__list_pull_requests,mcp__github__pull_request_read,mcp__github__search_pull_requests" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -1401,7 +2177,6 @@ jobs:
           BASH_DEFAULT_TIMEOUT_MS: "60000"
           BASH_MAX_TIMEOUT_MS: "60000"
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
       - name: Clean up network proxy hook files
         if: always()
         run: |
@@ -1535,8 +2310,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
-          GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
+          GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,*.githubusercontent.com,raw.githubusercontent.com,objects.githubusercontent.com,lfs.github.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,codeload.github.com"
         with:
           script: |
             async function main() {
@@ -2988,19 +3763,20 @@ jobs:
               main();
             }
 
-  create_issue:
+  create_discussion:
     needs:
       - agent
       - detection
-    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_issue'))
+    if: >
+      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
-      issues: write
+      discussions: write
     timeout-minutes: 10
     outputs:
-      issue_number: ${{ steps.create_issue.outputs.issue_number }}
-      issue_url: ${{ steps.create_issue.outputs.issue_url }}
+      discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
+      discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -3013,57 +3789,20 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find /tmp/gh-aw/safeoutputs/ -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
-      - name: Create Output Issue
-        id: create_issue
+      - name: Create Output Discussion
+        id: create_discussion
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Smoke Claude"
-          GH_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_WORKFLOW_NAME: "Copilot Session Insights"
+          GH_AW_DISCUSSION_TITLE_PREFIX: "[copilot-session-insights] "
+          GH_AW_DISCUSSION_CATEGORY: "audits"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            function sanitizeLabelContent(content) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              let sanitized = content.trim();
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(
-                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                (_m, p1, p2) => `${p1}\`@${p2}\``
-              );
-              sanitized = sanitized.replace(/[<>&'"]/g, "");
-              return sanitized.trim();
-            }
-            function generateFooter(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
-              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
-              if (triggeringIssueNumber) {
-                footer += ` for #${triggeringIssueNumber}`;
-              } else if (triggeringPRNumber) {
-                footer += ` for #${triggeringPRNumber}`;
-              } else if (triggeringDiscussionNumber) {
-                footer += ` for discussion #${triggeringDiscussionNumber}`;
-              }
-              if (workflowSource && workflowSourceURL) {
-                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
-              }
-              footer += "\n";
-              return footer;
-            }
             async function main() {
-              core.setOutput("issue_number", "");
-              core.setOutput("issue_url", "");
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              core.setOutput("discussion_number", "");
+              core.setOutput("discussion_url", "");
               const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
                 core.info("No GH_AW_AGENT_OUTPUT environment variable found");
@@ -3089,222 +3828,197 @@ jobs:
                 return;
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
+                core.warning("No valid items found in agent output");
                 return;
               }
-              const createIssueItems = validatedOutput.items.filter(item => item.type === "create_issue");
-              if (createIssueItems.length === 0) {
-                core.info("No create-issue items found in agent output");
+              const createDiscussionItems = validatedOutput.items.filter(item => item.type === "create_discussion");
+              if (createDiscussionItems.length === 0) {
+                core.warning("No create-discussion items found in agent output");
                 return;
               }
-              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
-                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < createIssueItems.length; i++) {
-                  const item = createIssueItems[i];
-                  summaryContent += `### Issue ${i + 1}\n`;
+              core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
+              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
+                let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
+                summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
+                for (let i = 0; i < createDiscussionItems.length; i++) {
+                  const item = createDiscussionItems[i];
+                  summaryContent += `### Discussion ${i + 1}\n`;
                   summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
                   if (item.body) {
                     summaryContent += `**Body:**\n${item.body}\n\n`;
                   }
-                  if (item.labels && item.labels.length > 0) {
-                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                  if (item.category) {
+                    summaryContent += `**Category:** ${item.category}\n\n`;
                   }
                   summaryContent += "---\n\n";
                 }
                 await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Issue creation preview written to step summary");
+                core.info("📝 Discussion creation preview written to step summary");
                 return;
               }
-              const parentIssueNumber = context.payload?.issue?.number;
-              const triggeringIssueNumber =
-                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-              const triggeringPRNumber =
-                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
-              const triggeringDiscussionNumber = context.payload?.discussion?.number;
-              const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
-              let envLabels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map(label => label.trim())
-                    .filter(label => label)
-                : [];
-              const createdIssues = [];
-              for (let i = 0; i < createIssueItems.length; i++) {
-                const createIssueItem = createIssueItems[i];
+              let discussionCategories = [];
+              let repositoryId = undefined;
+              try {
+                const repositoryQuery = `
+                  query($owner: String!, $repo: String!) {
+                    repository(owner: $owner, name: $repo) {
+                      id
+                      discussionCategories(first: 20) {
+                        nodes {
+                          id
+                          name
+                          slug
+                          description
+                        }
+                      }
+                    }
+                  }
+                `;
+                const queryResult = await github.graphql(repositoryQuery, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                });
+                if (!queryResult || !queryResult.repository) throw new Error("Failed to fetch repository information via GraphQL");
+                repositoryId = queryResult.repository.id;
+                discussionCategories = queryResult.repository.discussionCategories.nodes || [];
+                core.info(`Available categories: ${JSON.stringify(discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                if (
+                  errorMessage.includes("Not Found") ||
+                  errorMessage.includes("not found") ||
+                  errorMessage.includes("Could not resolve to a Repository")
+                ) {
+                  core.info("⚠ Cannot create discussions: Discussions are not enabled for this repository");
+                  core.info("Consider enabling discussions in repository settings if you want to create discussions automatically");
+                  return;
+                }
+                core.error(`Failed to get discussion categories: ${errorMessage}`);
+                throw error;
+              }
+              let categoryId = process.env.GH_AW_DISCUSSION_CATEGORY;
+              if (categoryId) {
+                const categoryById = discussionCategories.find(cat => cat.id === categoryId);
+                if (categoryById) {
+                  core.info(`Using category by ID: ${categoryById.name} (${categoryId})`);
+                } else {
+                  const categoryByName = discussionCategories.find(cat => cat.name === categoryId);
+                  if (categoryByName) {
+                    categoryId = categoryByName.id;
+                    core.info(`Using category by name: ${categoryByName.name} (${categoryId})`);
+                  } else {
+                    const categoryBySlug = discussionCategories.find(cat => cat.slug === categoryId);
+                    if (categoryBySlug) {
+                      categoryId = categoryBySlug.id;
+                      core.info(`Using category by slug: ${categoryBySlug.name} (${categoryId})`);
+                    } else {
+                      core.warning(
+                        `Category "${categoryId}" not found by ID, name, or slug. Available categories: ${discussionCategories.map(cat => cat.name).join(", ")}`
+                      );
+                      if (discussionCategories.length > 0) {
+                        categoryId = discussionCategories[0].id;
+                        core.info(`Falling back to default category: ${discussionCategories[0].name} (${categoryId})`);
+                      } else {
+                        categoryId = undefined;
+                      }
+                    }
+                  }
+                }
+              } else if (discussionCategories.length > 0) {
+                categoryId = discussionCategories[0].id;
+                core.info(`No category specified, using default category: ${discussionCategories[0].name} (${categoryId})`);
+              }
+              if (!categoryId) {
+                core.error("No discussion category available and none specified in configuration");
+                throw new Error("Discussion category is required but not available");
+              }
+              if (!repositoryId) {
+                core.error("Repository ID is required for creating discussions");
+                throw new Error("Repository ID is required but not available");
+              }
+              const createdDiscussions = [];
+              for (let i = 0; i < createDiscussionItems.length; i++) {
+                const createDiscussionItem = createDiscussionItems[i];
                 core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
+                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body.length}`
                 );
-                core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
-                core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
-                const effectiveParentIssueNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentIssueNumber;
-                core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}`);
-                if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
-                  core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
-                }
-                let labels = [...envLabels];
-                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
-                  labels = [...labels, ...createIssueItem.labels];
-                }
-                labels = labels
-                  .filter(label => !!label)
-                  .map(label => String(label).trim())
-                  .filter(label => label)
-                  .map(label => sanitizeLabelContent(label))
-                  .filter(label => label)
-                  .map(label => (label.length > 64 ? label.substring(0, 64) : label))
-                  .filter((label, index, arr) => arr.indexOf(label) === index);
-                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
-                let bodyLines = createIssueItem.body.split("\n");
+                let title = createDiscussionItem.title ? createDiscussionItem.title.trim() : "";
+                let bodyLines = createDiscussionItem.body.split("\n");
                 if (!title) {
-                  title = createIssueItem.body || "Agent Output";
+                  title = createDiscussionItem.body || "Agent Output";
                 }
-                const titlePrefix = process.env.GH_AW_ISSUE_TITLE_PREFIX;
+                const titlePrefix = process.env.GH_AW_DISCUSSION_TITLE_PREFIX;
                 if (titlePrefix && !title.startsWith(titlePrefix)) {
                   title = titlePrefix + title;
                 }
-                if (effectiveParentIssueNumber) {
-                  core.info("Detected issue context, parent issue #" + effectiveParentIssueNumber);
-                  bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
-                }
                 const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
                 const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                bodyLines.push(
-                  ``,
-                  ``,
-                  generateFooter(
-                    workflowName,
-                    runUrl,
-                    workflowSource,
-                    workflowSourceURL,
-                    triggeringIssueNumber,
-                    triggeringPRNumber,
-                    triggeringDiscussionNumber
-                  ).trimEnd(),
-                  ""
-                );
+                bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
                 const body = bodyLines.join("\n").trim();
-                core.info(`Creating issue with title: ${title}`);
-                core.info(`Labels: ${labels}`);
+                core.info(`Creating discussion with title: ${title}`);
+                core.info(`Category ID: ${categoryId}`);
                 core.info(`Body length: ${body.length}`);
                 try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: body,
-                    labels: labels,
-                  });
-                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
-                  createdIssues.push(issue);
-                  core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
-                  if (effectiveParentIssueNumber) {
-                    core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
-                    try {
-                      core.info(`Fetching node ID for parent issue #${effectiveParentIssueNumber}...`);
-                      const getIssueNodeIdQuery = `
-                        query($owner: String!, $repo: String!, $issueNumber: Int!) {
-                          repository(owner: $owner, name: $repo) {
-                            issue(number: $issueNumber) {
-                              id
-                            }
-                          }
+                  const createDiscussionMutation = `
+                    mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+                      createDiscussion(input: {
+                        repositoryId: $repositoryId,
+                        categoryId: $categoryId,
+                        title: $title,
+                        body: $body
+                      }) {
+                        discussion {
+                          id
+                          number
+                          title
+                          url
                         }
-                      `;
-                      const parentResult = await github.graphql(getIssueNodeIdQuery, {
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issueNumber: effectiveParentIssueNumber,
-                      });
-                      const parentNodeId = parentResult.repository.issue.id;
-                      core.info(`Parent issue node ID: ${parentNodeId}`);
-                      core.info(`Fetching node ID for child issue #${issue.number}...`);
-                      const childResult = await github.graphql(getIssueNodeIdQuery, {
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issueNumber: issue.number,
-                      });
-                      const childNodeId = childResult.repository.issue.id;
-                      core.info(`Child issue node ID: ${childNodeId}`);
-                      core.info(`Executing addSubIssue mutation...`);
-                      const addSubIssueMutation = `
-                        mutation($issueId: ID!, $subIssueId: ID!) {
-                          addSubIssue(input: {
-                            issueId: $issueId,
-                            subIssueId: $subIssueId
-                          }) {
-                            subIssue {
-                              id
-                              number
-                            }
-                          }
-                        }
-                      `;
-                      await github.graphql(addSubIssueMutation, {
-                        issueId: parentNodeId,
-                        subIssueId: childNodeId,
-                      });
-                      core.info("✓ Successfully linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
-                    } catch (error) {
-                      core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
-                      core.info(`Error details: ${error instanceof Error ? error.stack : String(error)}`);
-                      try {
-                        core.info(`Attempting fallback: adding comment to parent issue #${effectiveParentIssueNumber}...`);
-                        await github.rest.issues.createComment({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          issue_number: effectiveParentIssueNumber,
-                          body: `Created related issue: #${issue.number}`,
-                        });
-                        core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
-                      } catch (commentError) {
-                        core.info(
-                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
-                        );
                       }
                     }
-                  } else {
-                    core.info(`Debug: No parent issue number set, skipping sub-issue linking`);
-                  }
-                  if (i === createIssueItems.length - 1) {
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                  }
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  if (errorMessage.includes("Issues has been disabled in this repository")) {
-                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
-                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
+                  `;
+                  const mutationResult = await github.graphql(createDiscussionMutation, {
+                    repositoryId: repositoryId,
+                    categoryId: categoryId,
+                    title: title,
+                    body: body,
+                  });
+                  const discussion = mutationResult.createDiscussion.discussion;
+                  if (!discussion) {
+                    core.error("Failed to create discussion: No discussion data returned");
                     continue;
                   }
-                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
+                  core.info("Created discussion #" + discussion.number + ": " + discussion.url);
+                  createdDiscussions.push(discussion);
+                  if (i === createDiscussionItems.length - 1) {
+                    core.setOutput("discussion_number", discussion.number);
+                    core.setOutput("discussion_url", discussion.url);
+                  }
+                } catch (error) {
+                  core.error(`✗ Failed to create discussion "${title}": ${error instanceof Error ? error.message : String(error)}`);
                   throw error;
                 }
               }
-              if (createdIssues.length > 0) {
-                let summaryContent = "\n\n## GitHub Issues\n";
-                for (const issue of createdIssues) {
-                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+              if (createdDiscussions.length > 0) {
+                let summaryContent = "\n\n## GitHub Discussions\n";
+                for (const discussion of createdDiscussions) {
+                  summaryContent += `- Discussion #${discussion.number}: [${discussion.title}](${discussion.url})\n`;
                 }
                 await core.summary.addRaw(summaryContent).write();
               }
-              core.info(`Successfully created ${createdIssues.length} issue(s)`);
+              core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
             }
-            (async () => {
-              await main();
-            })();
+            await main();
 
   detection:
     needs: agent
     runs-on: ubuntu-latest
     permissions: {}
+    concurrency:
+      group: "gh-aw-claude-${{ github.workflow }}"
     timeout-minutes: 10
     steps:
       - name: Download prompt artifact
@@ -3333,7 +4047,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
-          WORKFLOW_NAME: "Smoke Claude"
+          WORKFLOW_NAME: "Copilot Session Insights"
           WORKFLOW_DESCRIPTION: "No description provided"
         with:
           script: |
@@ -3668,85 +4382,4 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
-
-  pre_activation:
-    if: (github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke'))
-    runs-on: ubuntu-slim
-    outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
-    steps:
-      - name: Check team membership for workflow
-        id: check_membership
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        env:
-          GH_AW_REQUIRED_ROLES: admin,maintainer,write
-        with:
-          script: |
-            async function main() {
-              const { eventName } = context;
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
-              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
-              if (eventName === "workflow_dispatch") {
-                const hasWriteRole = requiredPermissions.includes("write");
-                if (hasWriteRole) {
-                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
-                  core.setOutput("is_team_member", "true");
-                  core.setOutput("result", "safe_event");
-                  return;
-                }
-                core.info(`Event ${eventName} requires validation (write role not allowed)`);
-              }
-              const safeEvents = ["workflow_run", "schedule"];
-              if (safeEvents.includes(eventName)) {
-                core.info(`✅ Event ${eventName} does not require validation`);
-                core.setOutput("is_team_member", "true");
-                core.setOutput("result", "safe_event");
-                return;
-              }
-              if (!requiredPermissions || requiredPermissions.length === 0) {
-                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "config_error");
-                core.setOutput("error_message", "Configuration error: Required permissions not specified");
-                return;
-              }
-              try {
-                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
-                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
-                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                  owner: owner,
-                  repo: repo,
-                  username: actor,
-                });
-                const permission = repoPermission.data.permission;
-                core.info(`Repository permission level: ${permission}`);
-                for (const requiredPerm of requiredPermissions) {
-                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
-                    core.info(`✅ User has ${permission} access to repository`);
-                    core.setOutput("is_team_member", "true");
-                    core.setOutput("result", "authorized");
-                    core.setOutput("user_permission", permission);
-                    return;
-                  }
-                }
-                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "insufficient_permissions");
-                core.setOutput("user_permission", permission);
-                core.setOutput(
-                  "error_message",
-                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-                );
-              } catch (repoError) {
-                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
-                core.warning(`Repository permission check failed: ${errorMessage}`);
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "api_error");
-                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
-                return;
-              }
-            }
-            await main();
 

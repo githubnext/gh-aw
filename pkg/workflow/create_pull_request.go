@@ -123,7 +123,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		"fallback_used":       "${{ steps.create_pull_request.outputs.fallback_used }}",
 	}
 
-	jobCondition := BuildSafeOutputType("create_pull_request", data.SafeOutputs.CreatePullRequests.Min)
+	jobCondition := BuildSafeOutputType("create_pull_request")
 
 	job := &Job{
 		Name:           "create_pull_request",
@@ -196,12 +196,7 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		}
 		pullRequestsConfig.TargetRepoSlug = targetRepoSlug
 
-		// Parse min and github-token (max is always 1 for pull requests)
-		if min, exists := configMap["min"]; exists {
-			if minInt, ok := parseIntValue(min); ok {
-				pullRequestsConfig.Min = minInt
-			}
-		}
+		// Parse github-token (max is always 1 for pull requests)
 		if githubToken, exists := configMap["github-token"]; exists {
 			if githubTokenStr, ok := githubToken.(string); ok {
 				pullRequestsConfig.GitHubToken = githubTokenStr

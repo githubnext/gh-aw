@@ -9,7 +9,6 @@ import (
 type AddLabelsConfig struct {
 	Allowed        []string `yaml:"allowed,omitempty"`      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 	Max            int      `yaml:"max,omitempty"`          // Optional maximum number of labels to add (default: 3)
-	Min            int      `yaml:"min,omitempty"`          // Optional minimum number of labels to add
 	GitHubToken    string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 	Target         string   `yaml:"target,omitempty"`       // Target for labels: "triggering" (default), "*" (any issue/PR), or explicit issue/PR number
 	TargetRepoSlug string   `yaml:"target-repo,omitempty"`  // Target repository in format "owner/repo" for cross-repository labels
@@ -24,13 +23,11 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 	// Handle case where AddLabels is nil (equivalent to empty configuration)
 	var allowedLabels []string
 	maxCount := 3
-	minValue := 0
 
 	allowedLabels = data.SafeOutputs.AddLabels.Allowed
 	if data.SafeOutputs.AddLabels.Max > 0 {
 		maxCount = data.SafeOutputs.AddLabels.Max
 	}
-	minValue = data.SafeOutputs.AddLabels.Min
 
 	// Build custom environment variables specific to add-labels
 	var customEnvVars []string
@@ -74,7 +71,7 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 		"labels_added": "${{ steps.add_labels.outputs.labels_added }}",
 	}
 
-	var jobCondition = BuildSafeOutputType("add_labels", minValue)
+	var jobCondition = BuildSafeOutputType("add_labels")
 	if data.SafeOutputs.AddLabels.Target == "" {
 		eventCondition := buildOr(
 			BuildPropertyAccess("github.event.issue.number"),

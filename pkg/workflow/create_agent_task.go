@@ -101,7 +101,7 @@ func (c *Compiler) buildCreateOutputAgentTaskJob(data *WorkflowData, mainJobName
 		"task_url":    "${{ steps.create_agent_task.outputs.task_url }}",
 	}
 
-	jobCondition := BuildSafeOutputType("create_agent_task", data.SafeOutputs.CreateAgentTasks.Min)
+	jobCondition := BuildSafeOutputType("create_agent_task")
 
 	job := &Job{
 		Name:           "create_agent_task",
