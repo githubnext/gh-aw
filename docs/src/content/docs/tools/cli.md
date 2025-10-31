@@ -25,7 +25,7 @@ gh aw init                                       # Initialize repository (first-
 gh aw add githubnext/agentics/ci-doctor    # Add workflow and compile to GitHub Actions
 gh aw compile                                    # Recompile to GitHub Actions
 gh aw trial githubnext/agentics/ci-doctor  # Test workflow safely before adding
-gh aw trial ./my-workflow.md                # Test local workflow during development
+gh aw trial ./my-workflow.md --use-local-secrets  # Test local workflow with local API keys
 gh aw update                                     # Update all workflows with source field
 gh aw status                                     # Check status
 gh aw run daily-perf                        # Execute workflow
@@ -276,6 +276,7 @@ These commands control the execution and state of your compiled agentic workflow
 gh aw run WorkflowName                      # Run single workflow
 gh aw run WorkflowName1 WorkflowName2       # Run multiple workflows
 gh aw run WorkflowName --repeat 3           # Run 3 times total
+gh aw run workflow --use-local-secrets      # Use local API keys for execution
 gh aw run weekly-research --enable-if-needed --input priority=high
 ```
 
@@ -287,6 +288,7 @@ Test workflows safely in a temporary private repository without affecting your t
 gh aw trial githubnext/agentics/ci-doctor  # Test from source repo
 gh aw trial ./my-local-workflow.md         # Test local file
 gh aw trial workflow1 workflow2            # Compare multiple workflows
+gh aw trial ./workflow.md --use-local-secrets  # Use local API keys for trial
 gh aw trial ./workflow.md --logical-repo myorg/myrepo --host-repo myorg/host-repo # Act as if in a different logical repo. Uses PAT to see issues/PRs
 gh aw trial ./workflow.md --clone-repo myorg/myrepo --host-repo myorg/host-repo # Copy the code of the clone repo for into host repo. Agentic will see the codebase of clone repo but not the issues/PRs.
 gh aw trial ./workflow.md --append "Extra content"  # Append custom content to workflow
@@ -298,6 +300,7 @@ gh aw trial githubnext/agentics/issue-triage --trigger-context "#456"
 Other flags:
  --engine ENGINE               # Override engine (default: from frontmatter)
  --auto-merge-prs            # Auto-merge PRs created during trial
+ --use-local-secrets         # Use local environment API keys (pushes/cleans up secrets)
  --repeat N                  # Repeat N times
  --force-delete-host-repo-before  # Force delete existing host repo BEFORE start
  --delete-host-repo-after         # Delete host repo AFTER trial
@@ -309,6 +312,31 @@ Trial results are saved to `trials/` directory and captured in the trial reposit
 When using `gh aw trial --logical-repo`, the agentic workflow operates as if it is running in the specified logical repository, allowing it to read issues, pull requests, and other repository data from that context. This is useful for testing workflows that interact with repository data without needing to run them in the actual target repository. In this mode, to recompile workflows in the trial repository, use `gh aw compile --trial --logical-repo owner/repo`.
 
 When using `gh aw trial --clone-repo`, the agentic workflow uses the codebase from the specified clone repository while still interacting with issues and pull requests from the host repository. This allows for testing how the workflow would behave with a different codebase while maintaining access to the relevant repository data.
+
+### Using Local API Keys
+
+Both `run` and `trial` commands support the `--use-local-secrets` flag to automatically push required API key secrets from your local environment to the repository before execution:
+
+```bash
+gh aw run my-workflow --use-local-secrets       # Use local API keys for run
+gh aw trial ./workflow.md --use-local-secrets   # Use local API keys for trial
+```
+
+**How it works:**
+- Reads API keys from environment variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `COPILOT_CLI_TOKEN`, etc.)
+- Temporarily pushes the required secrets to the repository before workflow execution
+- Automatically cleans up (deletes) the secrets after completion
+- Only pushes secrets that are actually needed by the workflow's AI engine
+
+**When to use:**
+- Testing workflows that require AI engine secrets not yet configured in the repository
+- Trial mode when you want to test with your local API keys
+- Development environments where you don't want to permanently store secrets
+
+**Security notes:**
+- Secrets are only pushed temporarily and are cleaned up automatically
+- Use with caution in shared or production repositories
+- Consider using repository secrets for permanent deployments
 
 ### Workflow State Management
 
