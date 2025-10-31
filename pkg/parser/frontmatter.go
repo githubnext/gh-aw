@@ -451,7 +451,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 			}
 			agentFile = fullPath
 			log.Printf("Found agent file: %s", fullPath)
-			
+
 			// For agent files, only extract markdown content
 			// Extract markdown content from imported file
 			markdownContent, err := processIncludedFileWithVisited(fullPath, sectionName, false, visited)
@@ -469,7 +469,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 					}
 				}
 			}
-			
+
 			// Skip other extractions for agent files
 			continue
 		}
