@@ -214,7 +214,7 @@ title: Test Agent
 
 This is a test agent file.
 `
-	validAgentFilePath := filepath.Join(agentsDir, "valid-agent.agent.md")
+	validAgentFilePath := filepath.Join(agentsDir, "valid-agent.md")
 	if err := os.WriteFile(validAgentFilePath, []byte(agentContent), 0644); err != nil {
 		t.Fatalf("Failed to create valid agent file: %v", err)
 	}
@@ -243,7 +243,7 @@ This is a test agent file.
 			EngineConfig: &EngineConfig{
 				ID: "copilot",
 			},
-			AgentFile: filepath.Join(agentsDir, "nonexistent.agent.md"),
+			AgentFile: filepath.Join(agentsDir, "nonexistent.md"),
 		}
 
 		workflowPath := filepath.Join(workflowsDir, "test.md")

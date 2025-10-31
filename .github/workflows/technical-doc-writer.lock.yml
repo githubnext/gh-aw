@@ -6,7 +6,7 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - ../instructions/documentation.instructions.md
-#     - ../agents/technical-doc-writer.agent.md
+#     - ../agents/technical-doc-writer.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -2137,7 +2137,7 @@ jobs:
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/cache-memory/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --agent /home/runner/work/gh-aw/gh-aw/.github/agents/technical-doc-writer.agent.md --allow-tool 'github(add_reaction)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(issue_read)' --allow-tool 'github(list_commits)' --allow-tool 'github(pull_request_read)' --allow-tool safeoutputs --allow-tool shell --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --agent /home/runner/work/gh-aw/gh-aw/.github/agents/technical-doc-writer.md --allow-tool 'github(add_reaction)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(issue_read)' --allow-tool 'github(list_commits)' --allow-tool 'github(pull_request_read)' --allow-tool safeoutputs --allow-tool shell --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"

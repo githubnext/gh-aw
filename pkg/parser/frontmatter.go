@@ -442,8 +442,8 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		// Add to list of processed files (use original importPath for manifest)
 		processedFiles = append(processedFiles, importPath)
 
-		// Check if this is a custom agent file (.agent.md)
-		isAgentFile := strings.HasSuffix(strings.ToLower(fullPath), ".agent.md")
+		// Check if this is a custom agent file (any markdown file under .github/agents)
+		isAgentFile := strings.Contains(fullPath, "/.github/agents/") && strings.HasSuffix(strings.ToLower(fullPath), ".md")
 		if isAgentFile {
 			if agentFile != "" {
 				// Multiple agent files found - error

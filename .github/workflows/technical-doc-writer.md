@@ -19,7 +19,7 @@ network:
 
 imports:
   - ../instructions/documentation.instructions.md
-  - ../agents/technical-doc-writer.agent.md
+  - ../agents/technical-doc-writer.md
 
 safe-outputs:
   add-comment:

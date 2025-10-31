@@ -29,10 +29,10 @@ Custom agent files can be placed in several locations, each serving a different 
 
 ### 4. agentic workflow integration
 - **Location**: Imported via `imports` field in workflow frontmatter
-- **Pattern**: Files ending with `.agent.md` (e.g., `my-agent.agent.md`)
+- **Pattern**: Any markdown files under `.github/agents/` directory
 - **Scope**: Custom agent for specific agentic workflow execution
 - **Use case**: Workflow-specific agent configuration
-- **Important**: Only one agent file (`.agent.md`) is allowed per workflow
+- **Important**: Only one agent file is allowed per workflow
 
 ## File Format
 
@@ -367,7 +367,7 @@ You are an experienced code reviewer focused on code quality, security, and best
 
 ## Integration with gh-aw
 
-The gh-aw (GitHub Agentic Workflows) tool supports custom agent files through the `imports` field in workflow frontmatter. Agent files must have the `.agent.md` extension and be imported like other workflow components.
+The gh-aw (GitHub Agentic Workflows) tool supports custom agent files through the `imports` field in workflow frontmatter. Any markdown files under the `.github/agents/` directory are treated as custom agent files when imported.
 
 ### Configuration
 
@@ -377,7 +377,7 @@ on: issues
 engine:
   id: copilot
 imports:
-  - .github/agents/my-agent.agent.md
+  - .github/agents/my-agent.md
 ---
 
 # My Workflow
@@ -396,7 +396,7 @@ Custom agent files are supported by the following engines:
 ### File Path Resolution
 
 - Agent files are imported via the `imports` field
-- Must end with `.agent.md` extension
+- Must be markdown files located under `.github/agents/` directory
 - Only one agent file is allowed per workflow
 - File is validated during workflow compilation
 - Checkout step is automatically added if agent file is imported
@@ -414,7 +414,7 @@ permissions:
 engine:
   id: copilot
 imports:
-  - .github/agents/issue-triager.agent.md
+  - .github/agents/issue-triager.md
 tools:
   github:
     allowed:
@@ -510,8 +510,7 @@ tools: [editFiles, createFile, search, codeSearch]
 
 ### Custom Agent File Not Found
 - Verify agent file is imported in the `imports` field
-- Ensure file exists and is committed
-- Check file extension is `.agent.md`
+- Ensure file exists and is committed under `.github/agents/` directory
 - Confirm agent file path is correct in imports list
 - Remember: only one agent file is allowed per workflow
 
