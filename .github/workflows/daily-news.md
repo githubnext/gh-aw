@@ -28,6 +28,7 @@ imports:
   - shared/mcp/tavily.md
   - shared/jqschema.md
   - shared/reporting.md
+  - shared/credsweeper.md
 ---
 
 # Daily News
