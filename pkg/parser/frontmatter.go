@@ -102,6 +102,7 @@ type ImportsResult struct {
 	MergedPermissions string   // Merged permissions configuration from all imports
 	ImportedFiles     []string // List of imported file paths (for manifest)
 	AgentFile         string   // Path to custom agent file (if imported)
+	UnknownAgentTools []string // Unknown tools from agent file that couldn't be mapped
 }
 
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
@@ -412,7 +413,8 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var engines []string
 	var safeOutputs []string
 	var processedFiles []string
-	var agentFile string // Track custom agent file
+	var agentFile string              // Track custom agent file
+	var unknownAgentTools []string    // Track unknown tools from agent file
 
 	for _, importPath := range imports {
 		// Handle section references (file.md#Section)
@@ -452,12 +454,39 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 			agentFile = fullPath
 			log.Printf("Found agent file: %s", fullPath)
 
-			// For agent files, only extract markdown content
-			// Extract markdown content from imported file
-			markdownContent, err := processIncludedFileWithVisited(fullPath, sectionName, false, visited)
+			// Extract frontmatter from agent file to get tools
+			agentContent, err := os.ReadFile(fullPath)
 			if err != nil {
-				return nil, fmt.Errorf("failed to process markdown from agent file '%s': %w", fullPath, err)
+				return nil, fmt.Errorf("failed to read agent file '%s': %w", fullPath, err)
 			}
+
+			agentFrontmatter, err := ExtractFrontmatterFromContent(string(agentContent))
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse agent file frontmatter '%s': %w", fullPath, err)
+			}
+
+			// Extract and map tools from agent frontmatter
+			if len(agentFrontmatter.Frontmatter) > 0 {
+				toolsJSON, unknownTools, err := ExtractToolsFromAgentFrontmatter(agentFrontmatter.Frontmatter)
+				if err != nil {
+					return nil, fmt.Errorf("failed to extract tools from agent file '%s': %w", fullPath, err)
+				}
+
+				// Add mapped tools to tools builder
+				if toolsJSON != "" && toolsJSON != "{}" {
+					toolsBuilder.WriteString(toolsJSON + "\n")
+					log.Printf("Extracted and mapped tools from agent file")
+				}
+
+				// Track unknown tools for warning
+				if len(unknownTools) > 0 {
+					unknownAgentTools = append(unknownAgentTools, unknownTools...)
+					log.Printf("Found %d unknown tools in agent file: %v", len(unknownTools), unknownTools)
+				}
+			}
+
+			// Extract markdown content directly (skip validation since agent files have different schema)
+			markdownContent := agentFrontmatter.Markdown
 			if markdownContent != "" {
 				markdownBuilder.WriteString(markdownContent)
 				// Add blank line separator between imported files
@@ -565,6 +594,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		MergedPermissions: permissionsBuilder.String(),
 		ImportedFiles:     processedFiles,
 		AgentFile:         agentFile,
+		UnknownAgentTools: unknownAgentTools,
 	}, nil
 }
 

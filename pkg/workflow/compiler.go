@@ -655,6 +655,18 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to process imports from frontmatter: %w", err)
 	}
 
+	// Warn about unknown agent tools
+	if len(importsResult.UnknownAgentTools) > 0 {
+		c.warningCount++
+		log.Printf("WARNING: Unknown tools in custom agent file: %v", importsResult.UnknownAgentTools)
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				fmt.Sprintf("Custom agent file contains unknown tools that cannot be mapped: %v\n"+
+					"Supported GitHub Copilot agent tools: createFile, editFiles, deleteFiles, search, codeSearch, getFile, listFiles, runCommand",
+					importsResult.UnknownAgentTools)))
+		}
+	}
+
 	// Merge network permissions from imports with top-level network permissions
 	if importsResult.MergedNetwork != "" {
 		networkPermissions, err = c.MergeNetworkPermissions(networkPermissions, importsResult.MergedNetwork)
