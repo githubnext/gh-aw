@@ -64,11 +64,6 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 	return steps
 }
 
-// GetVersionCommand returns the command to get Codex's version
-func (e *CodexEngine) GetVersionCommand() string {
-	return "codex --version"
-}
-
 // GetDeclaredOutputFiles returns the output files that Codex may produce
 // Codex (written in Rust) writes logs to ~/.codex/log/codex-tui.log
 func (e *CodexEngine) GetDeclaredOutputFiles() []string {

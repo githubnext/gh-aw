@@ -1307,13 +1307,15 @@ jobs:
           path: /tmp/gh-aw/cache-memory
           retention-days: 30
       - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
           SERVER_URL="${{ github.server_url }}"
           SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${{ github.repository }}.git"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Checkout PR branch
         if: |
@@ -2530,13 +2532,6 @@ jobs:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
           if-no-files-found: warn
-      - name: Capture agent version
-        run: |
-          VERSION_OUTPUT=$(copilot --version 2>&1 || echo "unknown")
-          # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)
-          CLEAN_VERSION=$(echo "$VERSION_OUTPUT" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo "unknown")
-          echo "AGENT_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
-          echo "Agent version: $VERSION_OUTPUT"
       - name: Generate agentic run info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
@@ -2548,7 +2543,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "gpt-5",
               version: "",
-              agent_version: process.env.AGENT_VERSION || "",
+              agent_version: "0.0.353",
               workflow_name: "Poem Bot - A Creative Agentic Workflow",
               experimental: false,
               supports_tools_allowlist: true,
@@ -4673,6 +4668,7 @@ jobs:
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_SHA: ${{ github.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           # Diagnostic logging: Show recent commits before patch generation
           echo "=== Diagnostic: Recent commits (last 5) ==="
@@ -4728,8 +4724,7 @@ jobs:
                 BASE_REF="origin/$BRANCH_NAME"
               else
                 echo "origin/$BRANCH_NAME does not exist, using merge-base with default branch"
-                # Get the default branch name
-                DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+                # Use the default branch name from environment variable
                 echo "Default branch: $DEFAULT_BRANCH"
                 # Fetch the default branch to ensure it's available locally
                 git fetch origin $DEFAULT_BRANCH
@@ -5451,13 +5446,15 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
           SERVER_URL="${{ github.server_url }}"
           SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${{ github.repository }}.git"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Download agent output artifact
         continue-on-error: true
@@ -6462,13 +6459,15 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
           SERVER_URL="${{ github.server_url }}"
           SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${{ github.repository }}.git"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Download agent output artifact
         continue-on-error: true
@@ -7173,13 +7172,15 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
           SERVER_URL="${{ github.server_url }}"
           SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${{ github.repository }}.git"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Download assets
         continue-on-error: true
