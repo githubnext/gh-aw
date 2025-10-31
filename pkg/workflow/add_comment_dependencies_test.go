@@ -97,9 +97,7 @@ func TestAddCommentJobDependencies(t *testing.T) {
 				Name: "Test Workflow",
 				SafeOutputs: &SafeOutputsConfig{
 					AddComments: &AddCommentsConfig{
-						BaseSafeOutputConfig: BaseSafeOutputConfig{
-							Min: 0,
-						},
+						BaseSafeOutputConfig: BaseSafeOutputConfig{},
 					},
 				},
 			}

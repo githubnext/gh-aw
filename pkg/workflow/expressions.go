@@ -363,7 +363,7 @@ func BuildSafeOutputType(outputType string) ConditionNode {
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
 		BuildStringLiteral(outputType),
 	)
-	
+
 	return &AndNode{
 		Left:  baseCondition,
 		Right: containsFunc,
