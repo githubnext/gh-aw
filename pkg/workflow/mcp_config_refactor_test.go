@@ -131,21 +131,25 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 			},
 		},
 		{
-			name:                 "Claude/Custom without type/tools, with GitHub expressions",
+			name:                 "Claude/Custom without type/tools, with shell env vars",
 			isLast:               false,
 			includeCopilotFields: false,
 			expectedContent: []string{
 				`"safeoutputs": {`,
 				`"command": "node"`,
 				`"args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"]`,
-				`"GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}"`,
-				`${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}`,
+				// Security fix: Now uses shell variables instead of GitHub expressions
+				`"GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS"`,
+				`"GH_AW_SAFE_OUTPUTS_CONFIG": $GH_AW_SAFE_OUTPUTS_CONFIG`,
 				`              },`,
 			},
 			unexpectedContent: []string{
 				`"type"`,
 				`"tools"`,
 				`\\${`,
+				// Verify GitHub expressions are NOT in the output (security fix)
+				`${{ env.`,
+				`${{ toJSON(`,
 			},
 		},
 	}
@@ -203,20 +207,23 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 			},
 		},
 		{
-			name:                 "Claude/Custom without type/tools, with GitHub secrets",
+			name:                 "Claude/Custom without type/tools, with shell env vars",
 			isLast:               true,
 			includeCopilotFields: false,
 			expectedContent: []string{
 				`"agentic_workflows": {`,
 				`"command": "gh"`,
 				`"args": ["aw", "mcp-server"]`,
-				`"GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"`,
+				// Security fix: Now uses shell variable instead of GitHub secret expression
+				`"GITHUB_TOKEN": "$GITHUB_TOKEN"`,
 				`              }`,
 			},
 			unexpectedContent: []string{
 				`"type"`,
 				`"tools"`,
 				`\\${`,
+				// Verify GitHub expressions are NOT in the output (security fix)
+				`${{ secrets.`,
 			},
 		},
 	}
