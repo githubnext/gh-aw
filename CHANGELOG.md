@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.27.0 - 2025-10-31
+
+### Features
+
+#### Add top-level `agent` field to engine configuration for copilot, claude, and codex
+
+#### Remove permissions over-provisioning validation
+
+
+### Bug Fixes
+
+#### Add comprehensive tests for frontmatter extraction utilities (+0.1% coverage)
+
+#### Add JSON formatting to linting workflow
+
+#### Add --mcp flag to init command for Copilot Agent MCP configuration
+
+#### Add schema descriptions for runs-on and concurrency fields
+
+#### Download full PR data with all fields for clustering analysis
+
+#### Fix changeset automatic branch resolution failure
+
+#### Fix github.workflow expression validation in comparison operators
+
+#### Add GitHub tool/toolset validator for allowed tools configuration
+
+#### Prettify permissions validation error messages
+
+#### Refactor action pins to embedded JSON with on-demand unmarshaling and sorted output
+
+#### Refactor duplicate MCP config loading logic into shared helper function
+
+#### Add permissions support to shared workflows with validation
+
+#### Set ubuntu-slim as default image for safe outputs workflows
+
+
 ## v0.26.0 - 2025-10-29
 
 ### Features
