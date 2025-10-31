@@ -76,19 +76,22 @@ func TestGitConfigurationStepsHelper(t *testing.T) {
 
 	steps := compiler.generateGitConfigurationSteps()
 
-	// Verify we get expected number of lines (now 9 instead of 5)
-	if len(steps) != 9 {
-		t.Errorf("Expected 9 lines in git configuration steps, got %d", len(steps))
+	// Verify we get expected number of lines (11 lines with env block)
+	if len(steps) != 11 {
+		t.Errorf("Expected 11 lines in git configuration steps, got %d", len(steps))
 	}
 
 	// Verify the content of the steps
 	expectedContents := []string{
 		"Configure Git credentials",
+		"env:",
+		"REPO_NAME:",
 		"run: |",
 		"git config --global user.email",
 		"git config --global user.name",
 		"git remote set-url origin",
 		"x-access-token",
+		"${REPO_NAME}.git",
 		"Git configured with standard GitHub Actions identity",
 	}
 
