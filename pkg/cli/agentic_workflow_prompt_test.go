@@ -148,7 +148,7 @@ func TestEnsureAgenticWorkflowPrompt_RemovesOldFile(t *testing.T) {
 	// Create the old prompt file
 	promptsDir := filepath.Join(tempDir, ".github", "prompts")
 	oldPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
-	
+
 	if err := os.MkdirAll(promptsDir, 0755); err != nil {
 		t.Fatalf("Failed to create prompts directory: %v", err)
 	}
