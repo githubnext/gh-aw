@@ -42,14 +42,21 @@ func InitRepository(verbose bool, mcp bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created GitHub Copilot instructions"))
 	}
 
-	// Write agentic workflow prompt
-	initLog.Print("Writing agentic workflow prompt")
+	// Remove old agentic workflow prompt if it exists
+	initLog.Print("Removing old agentic workflow prompt")
 	if err := ensureAgenticWorkflowPrompt(verbose, false); err != nil {
-		initLog.Printf("Failed to write agentic workflow prompt: %v", err)
-		return fmt.Errorf("failed to write agentic workflow prompt: %w", err)
+		initLog.Printf("Failed to remove old agentic workflow prompt: %v", err)
+		return fmt.Errorf("failed to remove old agentic workflow prompt: %w", err)
+	}
+
+	// Write agentic workflow agent
+	initLog.Print("Writing agentic workflow agent")
+	if err := ensureAgenticWorkflowAgent(verbose, false); err != nil {
+		initLog.Printf("Failed to write agentic workflow agent: %v", err)
+		return fmt.Errorf("failed to write agentic workflow agent: %w", err)
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created /create-agentic-workflow command"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created custom agent for workflow creation"))
 	}
 
 	// Write shared agentic workflow prompt
@@ -105,9 +112,9 @@ func InitRepository(verbose bool, mcp bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("✓ GitHub Copilot Agent MCP integration configured"))
 		fmt.Fprintln(os.Stderr, "")
 	}
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Start a chat and copy the following prompt to create a new workflow:"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Start a chat and use the custom agent to create a new workflow:"))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, "     activate @.github/prompts/create-agentic-workflow.prompt.md")
+	fmt.Fprintln(os.Stderr, "     @.github/agents/create-agentic-workflow.agent.md")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add workflows from the catalog: "+constants.CLIExtensionPrefix+" add <workflow-name>"))
 	fmt.Fprintln(os.Stderr, "")
