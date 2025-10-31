@@ -205,8 +205,8 @@ sync-templates:
 	@mkdir -p pkg/cli/templates
 	@cp .github/instructions/github-agentic-workflows.instructions.md pkg/cli/templates/
 	@cp .github/agents/create-agentic-workflow.md pkg/cli/templates/
+	@cp .github/agents/setup-agentic-workflows.md pkg/cli/templates/
 	@cp .github/prompts/create-shared-agentic-workflow.prompt.md pkg/cli/templates/
-	@cp .github/prompts/setup-agentic-workflows.prompt.md pkg/cli/templates/
 	@echo "✓ Templates synced successfully"
 
 # Recompile all workflow files
