@@ -168,6 +168,7 @@ type WorkflowData struct {
 	MarkdownContent     string
 	AI                  string        // "claude" or "codex" (for backwards compatibility)
 	EngineConfig        *EngineConfig // Extended engine configuration
+	AgentFile           string        // Path to custom agent file (from imports)
 	StopTime            string
 	Command             string              // for /command trigger support
 	CommandEvents       []string            // events where command should be active (nil = all events)
@@ -902,6 +903,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		MarkdownContent:     markdownContent,
 		AI:                  engineSetting,
 		EngineConfig:        engineConfig,
+		AgentFile:           importsResult.AgentFile,
 		NetworkPermissions:  networkPermissions,
 		NeedsTextOutput:     needsTextOutput,
 		SafetyPrompt:        safetyPrompt,

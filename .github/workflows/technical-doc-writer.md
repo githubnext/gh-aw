@@ -11,7 +11,6 @@ permissions: read-all
 
 engine:
   id: copilot
-  custom-agent: technical-doc-writer.md
 
 network:
   allowed:
@@ -20,6 +19,7 @@ network:
 
 imports:
   - ../instructions/documentation.instructions.md
+  - ../agents/technical-doc-writer.agent.md
 
 safe-outputs:
   add-comment:
