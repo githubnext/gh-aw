@@ -5,7 +5,7 @@ sidebar:
   order: 650
 ---
 
-All AI engines (Copilot, Claude, Codex) support custom agent files that provide specialized instructions and behavior. Agent files are markdown documents stored in the `.github/agents/` directory and imported via the `imports` field.
+Custom agent files provide specialized instructions and behavior for AI engines. Agent files are markdown documents stored in the `.github/agents/` directory and imported via the `imports` field. Copilot supports agents natively, while other engines (Claude, Codex) inject the markdown body as a prompt.
 
 ## Creating a Custom Agent
 
@@ -15,9 +15,6 @@ Create a markdown file in `.github/agents/` with agent-specific instructions:
 ---
 name: My Custom Agent
 description: Specialized agent for code review tasks
-tools:
-  edit:
-  bash: ["git", "gh"]
 ---
 
 # Agent Instructions
@@ -51,24 +48,3 @@ The agent instructions are merged with the workflow prompt, customizing the AI e
 - **Format**: Markdown with YAML frontmatter
 - **Frontmatter**: Can include `name`, `description`, `tools`, and `mcp-servers`
 - **One per workflow**: Only one agent file can be imported per workflow
-- **Import syntax**: Use `imports` field (not `engine.custom-agent`)
-
-## Migration from engine.custom-agent
-
-The `engine.custom-agent` field has been removed. Migrate to the `imports` approach:
-
-**Before (deprecated):**
-```yaml
-engine:
-  id: copilot
-  custom-agent: .github/agents/my-agent.md
-```
-
-**After (current):**
-```yaml
-engine: copilot
-imports:
-  - .github/agents/my-agent.md
-```
-
-No backward compatibility - update workflows to use the new `imports` syntax.
