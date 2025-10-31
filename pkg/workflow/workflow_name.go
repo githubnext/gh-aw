@@ -7,8 +7,8 @@ package workflow
 // Returns "github-agentic-workflow" if the result would be empty.
 //
 // This function uses the unified SanitizeName function with options configured
-// to preserve only hyphens (no dots or underscores), trim leading/trailing hyphens,
-// and return a default value for empty results.
+// to trim leading/trailing hyphens, and return a default value for empty results.
+// Hyphens are preserved by default in SanitizeName, not via PreserveSpecialChars.
 func SanitizeIdentifier(name string) string {
 	return SanitizeName(name, &SanitizeOptions{
 		PreserveSpecialChars: []rune{},
