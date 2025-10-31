@@ -2,13 +2,9 @@
 name: improve-json-schema-descriptions
 description: Systematic approach for reviewing and improving descriptions in the frontmatter JSON schema for GitHub Agentic Workflows
 tools:
-  - runInTerminal
-  - getTerminalOutput
-  - createFile
-  - editFiles
+  - read
+  - edit
   - search
-  - changes
-  - githubRepo
 ---
 
 # Improve JSON Schema Descriptions
