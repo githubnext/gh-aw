@@ -296,17 +296,32 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 			message := FormatValidationMessage(validationResult, c.strictMode)
 
 			if len(validationResult.MissingPermissions) > 0 {
-				// Missing permissions are always errors
-				formattedErr := console.FormatError(console.CompilerError{
-					Position: console.ErrorPosition{
-						File:   markdownPath,
-						Line:   1,
-						Column: 1,
-					},
-					Type:    "error",
-					Message: message,
-				})
-				return errors.New(formattedErr)
+				if c.strictMode {
+					// In strict mode, missing permissions are errors
+					formattedErr := console.FormatError(console.CompilerError{
+						Position: console.ErrorPosition{
+							File:   markdownPath,
+							Line:   1,
+							Column: 1,
+						},
+						Type:    "error",
+						Message: message,
+					})
+					return errors.New(formattedErr)
+				} else {
+					// In non-strict mode, missing permissions are warnings
+					formattedWarning := console.FormatError(console.CompilerError{
+						Position: console.ErrorPosition{
+							File:   markdownPath,
+							Line:   1,
+							Column: 1,
+						},
+						Type:    "warning",
+						Message: message,
+					})
+					fmt.Fprintln(os.Stderr, formattedWarning)
+					c.IncrementWarningCount()
+				}
 			}
 		}
 	}

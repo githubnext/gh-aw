@@ -275,7 +275,8 @@ func TestFormatValidationMessage(t *testing.T) {
 				"Missing required permissions for github toolsets:",
 				"contents: write (required by repos)",
 				"issues: write (required by issues)",
-				"Add to your workflow frontmatter:",
+				"Option 1: Add missing permissions to your workflow frontmatter:",
+				"Option 2: Reduce the required toolsets in your workflow:",
 			},
 			expectNotContains: []string{
 				"ERROR:",
