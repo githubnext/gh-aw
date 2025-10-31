@@ -46,7 +46,7 @@ func bundleFile(content string, baseDir string, processed map[string]bool) (stri
 		// Check if this line is a local require
 		matches := requireRegex.FindStringSubmatch(line)
 
-		if matches != nil && len(matches) > 1 {
+		if len(matches) > 1 {
 			// This is a local require - inline it
 			requirePath := matches[1]
 
