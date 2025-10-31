@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-var sanitizeNamePattern = regexp.MustCompile(`[^a-z0-9._-]+`)
 var multipleHyphens = regexp.MustCompile(`-+`)
 
 // SanitizeOptions configures the behavior of the SanitizeName function.
