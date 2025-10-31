@@ -105,7 +105,9 @@ download-github-actions-schema:
 	@mkdir -p pkg/workflow/schemas
 	@curl -s -o pkg/workflow/schemas/github-workflow.json \
 		"https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/github-workflow.json"
-	@echo "✓ Downloaded GitHub Actions schema to pkg/workflow/schemas/github-workflow.json"
+	@echo "Formatting schema with prettier..."
+	@prettier --write pkg/workflow/schemas/github-workflow.json --ignore-path /dev/null >/dev/null 2>&1
+	@echo "✓ Downloaded and formatted GitHub Actions schema to pkg/workflow/schemas/github-workflow.json"
 
 # Run linter
 .PHONY: golint
@@ -205,8 +207,8 @@ sync-templates:
 	@mkdir -p pkg/cli/templates
 	@cp .github/instructions/github-agentic-workflows.instructions.md pkg/cli/templates/
 	@cp .github/agents/create-agentic-workflow.md pkg/cli/templates/
+	@cp .github/agents/setup-agentic-workflows.md pkg/cli/templates/
 	@cp .github/prompts/create-shared-agentic-workflow.prompt.md pkg/cli/templates/
-	@cp .github/prompts/setup-agentic-workflows.prompt.md pkg/cli/templates/
 	@echo "✓ Templates synced successfully"
 
 # Recompile all workflow files

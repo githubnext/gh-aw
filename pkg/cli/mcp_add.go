@@ -7,18 +7,25 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
+var mcpAddLog = logger.New("cli:mcp_add")
+
 // AddMCPTool adds an MCP tool to an agentic workflow
 func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, transportType string, customToolID string, verbose bool) error {
+	mcpAddLog.Printf("Adding MCP tool: serverID=%s, registryURL=%s, transport=%s", mcpServerID, registryURL, transportType)
+
 	// Resolve the workflow file path
 	workflowPath, err := ResolveWorkflowPath(workflowFile)
 	if err != nil {
+		mcpAddLog.Printf("Failed to resolve workflow path: %v", err)
 		return err
 	}
+	mcpAddLog.Printf("Resolved workflow path: %s", workflowPath)
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding MCP tool '%s' to workflow: %s", mcpServerID, console.ToRelativePath(workflowPath))))
@@ -32,10 +39,13 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Searching for MCP server '%s' in registry: %s", mcpServerID, registryClient.registryURL)))
 	}
 
+	mcpAddLog.Printf("Searching MCP registry for server: %s", mcpServerID)
 	servers, err := registryClient.SearchServers(mcpServerID)
 	if err != nil {
+		mcpAddLog.Printf("MCP registry search failed: %v", err)
 		return fmt.Errorf("failed to search MCP registry: %w", err)
 	}
+	mcpAddLog.Printf("Found %d matching servers in registry", len(servers))
 
 	if len(servers) == 0 {
 		return fmt.Errorf("no MCP servers found matching '%s'", mcpServerID)
@@ -131,11 +141,14 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling workflow..."))
 	}
 
+	mcpAddLog.Print("Compiling workflow after adding MCP tool")
 	compiler := workflow.NewCompiler(verbose, "", "")
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		mcpAddLog.Printf("Workflow compilation failed: %v", err)
 		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Workflow compilation failed: %v", err)))
 		fmt.Println(console.FormatInfoMessage("You can fix the issues and run 'gh aw compile' manually"))
 	} else {
+		mcpAddLog.Print("Workflow compiled successfully")
 		fmt.Println(console.FormatSuccessMessage("Workflow compiled successfully"))
 	}
 

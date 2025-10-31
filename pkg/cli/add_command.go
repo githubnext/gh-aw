@@ -709,9 +709,9 @@ func ensureSharedAgenticWorkflowPrompt(verbose bool, skipInstructions bool) erro
 	return ensurePromptFromTemplate("create-shared-agentic-workflow.prompt.md", sharedAgenticWorkflowPromptTemplate, verbose, skipInstructions)
 }
 
-// ensureGettingStartedPrompt ensures that .github/prompts/setup-agentic-workflows.prompt.md contains the getting started guide
-func ensureGettingStartedPrompt(verbose bool, skipInstructions bool) error {
-	return ensurePromptFromTemplate("setup-agentic-workflows.prompt.md", gettingStartedPromptTemplate, verbose, skipInstructions)
+// ensureSetupAgenticWorkflowsAgent ensures that .github/agents/setup-agentic-workflows.md contains the setup guide agent
+func ensureSetupAgenticWorkflowsAgent(verbose bool, skipInstructions bool) error {
+	return ensureAgentFromTemplate("setup-agentic-workflows.md", setupAgenticWorkflowsAgentTemplate, verbose, skipInstructions)
 }
 
 // checkCleanWorkingDirectory checks if there are uncommitted changes

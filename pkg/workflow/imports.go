@@ -44,11 +44,13 @@ func (c *Compiler) MergeTools(topTools map[string]any, includedToolsJSON string)
 		// Merge this set of tools
 		merged, err := parser.MergeTools(result, includedTools)
 		if err != nil {
+			importsLog.Printf("Failed to merge tools: %v", err)
 			return nil, fmt.Errorf("failed to merge tools: %w", err)
 		}
 		result = merged
 	}
 
+	importsLog.Printf("Successfully merged %d tools", len(result))
 	return result, nil
 }
 
@@ -86,10 +88,12 @@ func (c *Compiler) MergeMCPServers(topMCPServers map[string]any, importedMCPServ
 
 		// Merge MCP servers - imported servers take precedence over top-level ones
 		for serverName, serverConfig := range importedMCPServers {
+			importsLog.Printf("Merging MCP server: %s", serverName)
 			result[serverName] = serverConfig
 		}
 	}
 
+	importsLog.Printf("Successfully merged %d MCP servers", len(result))
 	return result, nil
 }
 
@@ -147,6 +151,7 @@ func (c *Compiler) MergeNetworkPermissions(topNetwork *NetworkPermissions, impor
 	// Sort the final domain list for consistent output
 	SortStrings(result.Allowed)
 
+	importsLog.Printf("Successfully merged network permissions with %d allowed domains", len(result.Allowed))
 	return result, nil
 }
 

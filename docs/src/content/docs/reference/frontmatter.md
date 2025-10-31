@@ -112,6 +112,44 @@ permissions: {}
 
 If you specify any permission, unspecified ones are set to `none`.
 
+#### Permission Validation
+
+The compiler validates that workflows have sufficient permissions for their configured tools. When GitHub toolsets require permissions not declared in the frontmatter, the compiler behavior depends on the mode:
+
+**Non-strict mode (default):**
+```bash
+gh aw compile
+```
+
+Emits actionable warnings with suggestions to either add missing permissions or reduce toolset requirements:
+
+```
+warning: Missing required permissions for github toolsets:
+  - contents: write (required by repos)
+  - issues: write (required by issues)
+
+To fix this, you can either:
+
+Option 1: Add missing permissions to your workflow frontmatter:
+permissions:
+  contents: write
+  issues: write
+
+Option 2: Reduce the required toolsets in your workflow:
+Remove or adjust toolsets that require these permissions:
+  - issues
+  - repos
+```
+
+**Strict mode:**
+```bash
+gh aw compile --strict
+```
+
+Treats under-provisioned permissions as compilation errors, requiring workflows to declare all necessary permissions before deployment.
+
+Use strict mode for production workflows that require enhanced security validation or compliance with security policies.
+
 ### Repository Access Roles (`roles:`)
 
 Controls who can trigger agentic workflows based on repository permission level. Defaults to `[admin, maintainer, write]` for security.

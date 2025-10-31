@@ -102,13 +102,15 @@ jobs:
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
           SERVER_URL="${{ github.server_url }}"
           SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${{ github.repository }}.git"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Checkout PR branch
         if: |
@@ -164,7 +166,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.29
+        run: npm install -g @anthropic-ai/claude-code@2.0.30
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -1275,13 +1277,6 @@ jobs:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
           if-no-files-found: warn
-      - name: Capture agent version
-        run: |
-          VERSION_OUTPUT=$(claude --version 2>&1 || echo "unknown")
-          # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)
-          CLEAN_VERSION=$(echo "$VERSION_OUTPUT" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo "unknown")
-          echo "AGENT_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
-          echo "Agent version: $VERSION_OUTPUT"
       - name: Generate agentic run info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
@@ -1293,7 +1288,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: process.env.AGENT_VERSION || "",
+              agent_version: "2.0.30",
               workflow_name: "Smoke Claude",
               experimental: false,
               supports_tools_allowlist: true,
@@ -3462,7 +3457,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.29
+        run: npm install -g @anthropic-ai/claude-code@2.0.30
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

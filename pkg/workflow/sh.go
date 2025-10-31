@@ -18,9 +18,6 @@ var createPromptFirstScript string
 //go:embed sh/generate_git_patch.sh
 var generateGitPatchScript string
 
-//go:embed sh/capture_agent_version.sh
-var captureAgentVersionScript string
-
 //go:embed sh/create_cache_memory_dir.sh
 var createCacheMemoryDirScript string
 

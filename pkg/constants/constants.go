@@ -15,13 +15,13 @@ const ExpressionBreakThreshold = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion = "2.0.29"
+const DefaultClaudeCodeVersion = "2.0.30"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
 const DefaultCopilotVersion = "0.0.353"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion = "0.50.0"
+const DefaultCodexVersion = "0.53.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion = "v0.20.1"
