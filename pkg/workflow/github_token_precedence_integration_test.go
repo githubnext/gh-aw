@@ -60,7 +60,7 @@ Test that top-level github-token is used in engine configuration.
 			t.Error("Expected top-level github-token to be used in GITHUB_MCP_SERVER_TOKEN env var")
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
-		
+
 		// Verify that the Authorization header uses the env variable
 		if !strings.Contains(yamlContent, "Bearer $GITHUB_MCP_SERVER_TOKEN") {
 			t.Error("Expected Authorization header to use GITHUB_MCP_SERVER_TOKEN env var")
