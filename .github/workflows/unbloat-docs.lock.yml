@@ -1962,7 +1962,7 @@ jobs:
           
           Focus on files that were recently modified or are in the `docs/src/content/docs/samples/` directory.
           
-          {{#if ${{ ${GH_AW_EXPR_079D8664 }} }}}
+          {{#if ${GH_AW_EXPR_079D8664}}}
           **Pull Request Context**: Since this workflow is running in the context of PR #${GH_AW_EXPR_079D8664}, prioritize reviewing the documentation files that were modified in this pull request. Use the GitHub API to get the list of changed files:
           
           ```bash

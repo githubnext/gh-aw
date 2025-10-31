@@ -2226,7 +2226,7 @@ jobs:
           - **Repository**: ${GH_AW_EXPR_D892F163}
           - **Actor**: ${GH_AW_EXPR_E80C082D}
           - **Theme**: ${GH_AW_EXPR_738FD932}
-          {{#if ${{ ${GH_AW_EXPR_7DA3F98B }} }}}
+          {{#if ${GH_AW_EXPR_7DA3F98B}}}
           - **Labels**: ${GH_AW_EXPR_7DA3F98B}
           {{/if}}
           - **Content**: "${GH_AW_EXPR_0BABF60D}"
