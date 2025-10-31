@@ -27,12 +27,6 @@ var createPRReviewCommentScript string
 //go:embed js/create_code_scanning_alert.cjs
 var createCodeScanningAlertScript string
 
-//go:embed js/compute_text.cjs
-var computeTextScript string
-
-//go:embed js/collect_ndjson_output.cjs
-var collectJSONLOutputScript string
-
 //go:embed js/add_labels.cjs
 var addLabelsScript string
 
@@ -95,6 +89,50 @@ var notifyCommentErrorScript string
 
 //go:embed js/lib/sanitize.cjs
 var sanitizeLibScript string
+
+// Source scripts that may contain local requires - embedded from src directory
+//
+//go:embed js/src/collect_ndjson_output.cjs
+var collectJSONLOutputScriptSource string
+
+//go:embed js/src/compute_text.cjs
+var computeTextScriptSource string
+
+//go:embed js/src/sanitize_output.cjs
+var sanitizeOutputScriptSource string
+
+// Bundled scripts (processed at init time to inline requires)
+var collectJSONLOutputScript string
+var computeTextScript string
+var sanitizeOutputScript string
+
+func init() {
+	// Bundle scripts that contain local requires
+	sources := GetJavaScriptSources()
+
+	var err error
+
+	// Bundle collect_ndjson_output.cjs
+	collectJSONLOutputScript, err = BundleJavaScriptFromSources(collectJSONLOutputScriptSource, sources, "js/src")
+	if err != nil {
+		// If bundling fails, use the original
+		collectJSONLOutputScript = collectJSONLOutputScriptSource
+	}
+
+	// Bundle compute_text.cjs
+	computeTextScript, err = BundleJavaScriptFromSources(computeTextScriptSource, sources, "js/src")
+	if err != nil {
+		// If bundling fails, use the original
+		computeTextScript = computeTextScriptSource
+	}
+
+	// Bundle sanitize_output.cjs
+	sanitizeOutputScript, err = BundleJavaScriptFromSources(sanitizeOutputScriptSource, sources, "js/src")
+	if err != nil {
+		// If bundling fails, use the original
+		sanitizeOutputScript = sanitizeOutputScriptSource
+	}
+}
 
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
