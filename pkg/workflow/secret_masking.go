@@ -7,8 +7,6 @@ import (
 
 // extractSecretMaskingConfig extracts secret-masking configuration from frontmatter
 func (c *Compiler) extractSecretMaskingConfig(frontmatter map[string]any) *SecretMaskingConfig {
-	secretMaskingLog.Print("Extracting secret-masking configuration from frontmatter")
-
 	if secretMasking, exists := frontmatter["secret-masking"]; exists {
 		if secretMaskingMap, ok := secretMasking.(map[string]any); ok {
 			config := &SecretMaskingConfig{}
@@ -23,15 +21,18 @@ func (c *Compiler) extractSecretMaskingConfig(frontmatter map[string]any) *Secre
 						}
 					}
 					config.Steps = stepsConfig
-					secretMaskingLog.Printf("Extracted %d custom secret masking steps", len(stepsConfig))
 				}
+			}
+
+			// Return nil if no steps were found
+			if len(config.Steps) == 0 {
+				return nil
 			}
 
 			return config
 		}
 	}
 
-	secretMaskingLog.Print("No secret-masking configuration found")
 	return nil
 }
 
