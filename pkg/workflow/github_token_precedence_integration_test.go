@@ -55,8 +55,15 @@ Test that top-level github-token is used in engine configuration.
 		yamlContent := string(content)
 
 		// Verify that the top-level token is used in the GitHub MCP config
-		if !strings.Contains(yamlContent, "Bearer ${{ secrets.TOPLEVEL_PAT }}") {
-			t.Error("Expected top-level github-token to be used in Authorization header")
+		// The token should be set in the env block to prevent template injection
+		if !strings.Contains(yamlContent, "GITHUB_MCP_SERVER_TOKEN: ${{ secrets.TOPLEVEL_PAT }}") {
+			t.Error("Expected top-level github-token to be used in GITHUB_MCP_SERVER_TOKEN env var")
+			t.Logf("Generated YAML:\n%s", yamlContent)
+		}
+		
+		// Verify that the Authorization header uses the env variable
+		if !strings.Contains(yamlContent, "Bearer $GITHUB_MCP_SERVER_TOKEN") {
+			t.Error("Expected Authorization header to use GITHUB_MCP_SERVER_TOKEN env var")
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 	})
