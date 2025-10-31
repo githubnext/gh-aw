@@ -9,11 +9,17 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 2 {
+	if len(os.Args) < 2 || os.Args[1] == "-h" || os.Args[1] == "--help" {
 		fmt.Fprintf(os.Stderr, "Usage: %s <input-file> [output-file]\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "\nBundles JavaScript files by inlining local requires.\n")
 		fmt.Fprintf(os.Stderr, "\nIf output-file is not specified, writes to stdout.\n")
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "\nExample:\n")
+		fmt.Fprintf(os.Stderr, "  %s input.cjs output.cjs\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s input.cjs\n", os.Args[0])
+		if len(os.Args) < 2 {
+			os.Exit(1)
+		}
+		os.Exit(0)
 	}
 
 	inputFile := os.Args[1]
