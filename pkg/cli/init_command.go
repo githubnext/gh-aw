@@ -6,8 +6,11 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/spf13/cobra"
 )
+
+var initCommandLog = logger.New("cli:init_command")
 
 // NewInitCommand creates the init command
 func NewInitCommand() *cobra.Command {
@@ -38,10 +41,13 @@ Examples:
 		Run: func(cmd *cobra.Command, args []string) {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcp, _ := cmd.Flags().GetBool("mcp")
+			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v", verbose, mcp)
 			if err := InitRepository(verbose, mcp); err != nil {
+				initCommandLog.Printf("Init command failed: %v", err)
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
+			initCommandLog.Print("Init command completed successfully")
 		},
 	}
 
