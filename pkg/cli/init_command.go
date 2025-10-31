@@ -19,14 +19,15 @@ func NewInitCommand() *cobra.Command {
 This command:
 - Configures .gitattributes to mark .lock.yml files as generated
 - Creates GitHub Copilot custom instructions at .github/instructions/github-agentic-workflows.instructions.md
-- Creates the /create-agentic-workflow prompt at .github/prompts/create-agentic-workflow.prompt.md
+- Creates the custom agent for workflow creation at .github/agents/create-agentic-workflow.md
+- Removes the old /create-agentic-workflow prompt if it exists
 
 With --mcp flag:
 - Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
 - Creates .vscode/mcp.json with gh-aw MCP server configuration
 
 After running this command, you can:
-- Use GitHub Copilot Chat with /create-agentic-workflow to create workflows interactively
+- Use GitHub Copilot Chat with @.github/agents/create-agentic-workflow.md to create workflows interactively
 - Add workflows from the catalog with: ` + constants.CLIExtensionPrefix + ` add <workflow-name>
 - Create new workflows from scratch with: ` + constants.CLIExtensionPrefix + ` new <workflow-name>
 
