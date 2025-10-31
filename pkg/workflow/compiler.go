@@ -190,6 +190,7 @@ type WorkflowData struct {
 	ActionCache         *ActionCache        // cache for action pin resolutions
 	ActionResolver      *ActionResolver     // resolver for action pins
 	StrictMode          bool                // strict mode for action pinning
+	SecretMasking       *SecretMaskingConfig // secret masking configuration
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
@@ -221,6 +222,11 @@ type SafeOutputsConfig struct {
 	GitHubToken                     string                                 `yaml:"github-token,omitempty"`   // GitHub token for safe output jobs
 	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
 	RunsOn                          string                                 `yaml:"runs-on,omitempty"`        // Runner configuration for safe-outputs jobs
+}
+
+// SecretMaskingConfig holds configuration for secret redaction behavior
+type SecretMaskingConfig struct {
+	Steps []map[string]any `yaml:"steps,omitempty"` // Additional secret redaction steps to inject after built-in redaction
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -757,6 +763,17 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract SafeOutputs configuration early so we can use it when applying default tools
 	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
 
+	// Extract SecretMasking configuration
+	secretMasking := c.extractSecretMaskingConfig(result.Frontmatter)
+
+	// Merge secret-masking from imports with top-level secret-masking
+	if importsResult.MergedSecretMasking != "" {
+		secretMasking, err = c.MergeSecretMasking(secretMasking, importsResult.MergedSecretMasking)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge secret-masking: %w", err)
+		}
+	}
+
 	var tools map[string]any
 
 	// Extract tools from the main file
@@ -928,6 +945,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		TrialLogicalRepo:    c.trialLogicalRepoSlug,
 		GitHubToken:         extractStringValue(result.Frontmatter, "github-token"),
 		StrictMode:          c.strictMode,
+		SecretMasking:       secretMasking,
 	}
 
 	// Initialize action cache and resolver

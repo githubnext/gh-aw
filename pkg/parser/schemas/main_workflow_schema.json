@@ -2904,6 +2904,28 @@
       },
       "additionalProperties": false
     },
+    "secret-masking": {
+      "type": "object",
+      "description": "Configuration for secret redaction behavior in workflow outputs and artifacts",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "description": "Additional secret redaction steps to inject after the built-in secret redaction. Use this to mask secrets in generated files using custom patterns.",
+          "items": {
+            "$ref": "#/properties/githubActionsStep"
+          },
+          "examples": [
+            [
+              {
+                "name": "Redact custom secrets",
+                "run": "find /tmp/gh-aw -type f -exec sed -i 's/password123/REDACTED/g' {} +"
+              }
+            ]
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "roles": {
       "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
       "oneOf": [
