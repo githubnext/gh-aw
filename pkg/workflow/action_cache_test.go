@@ -66,7 +66,7 @@ func TestActionCacheSaveLoad(t *testing.T) {
 
 	sha, found = cache2.Get("actions/setup-node", "v4")
 	if !found || sha != "def456" {
-		t.Errorf("Expected to find actions/setup-node@v4 with SHA 'def456', got '%s' (found=%v)", sha, found)
+		t.Errorf("Expected to find actions/setup-node@v6 with SHA 'def456', got '%s' (found=%v)", sha, found)
 	}
 }
 

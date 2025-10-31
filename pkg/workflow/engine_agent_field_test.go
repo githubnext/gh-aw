@@ -235,15 +235,24 @@ func TestCodexEngineWithoutAgentFile(t *testing.T) {
 
 // TestAgentFileValidation tests compile-time validation of custom agent file existence
 func TestAgentFileValidation(t *testing.T) {
-	// Create a temporary directory for test files
+	// Create a temporary directory structure that mimics a repository
 	tmpDir, err := os.MkdirTemp("", "agent-validation-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
+	// Create the directory structure: .github/agents/ and .github/workflows/
+	agentsDir := filepath.Join(tmpDir, ".github", "agents")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("Failed to create agents directory: %v", err)
+	}
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
 	// Create a valid custom agent file
-	validAgentPath := filepath.Join(tmpDir, "valid-agent.md")
 	agentContent := `---
 title: Test Agent
 ---
@@ -252,21 +261,23 @@ title: Test Agent
 
 This is a test agent file.
 `
-	if err := os.WriteFile(validAgentPath, []byte(agentContent), 0644); err != nil {
+	validAgentFilePath := filepath.Join(agentsDir, "valid-agent.md")
+	if err := os.WriteFile(validAgentFilePath, []byte(agentContent), 0644); err != nil {
 		t.Fatalf("Failed to create valid custom agent file: %v", err)
 	}
 
-	// Test 1: Valid custom agent file
+	// Test 1: Valid custom agent file (using relative path)
 	t.Run("valid_agent_file", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "")
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{
 				ID:          "copilot",
-				CustomAgent: validAgentPath,
+				CustomAgent: "valid-agent.md", // Relative path
 			},
 		}
 
-		err := compiler.validateAgentFile(workflowData, tmpDir+"/test.md")
+		workflowPath := filepath.Join(workflowsDir, "test.md")
+		err := compiler.validateAgentFile(workflowData, workflowPath)
 		if err != nil {
 			t.Errorf("Expected no error for valid custom agent file, got: %v", err)
 		}
@@ -278,11 +289,12 @@ This is a test agent file.
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{
 				ID:          "copilot",
-				CustomAgent: filepath.Join(tmpDir, "nonexistent.md"),
+				CustomAgent: "nonexistent.md", // Relative path to non-existent file
 			},
 		}
 
-		err := compiler.validateAgentFile(workflowData, tmpDir+"/test.md")
+		workflowPath := filepath.Join(workflowsDir, "test.md")
+		err := compiler.validateAgentFile(workflowData, workflowPath)
 		if err == nil {
 			t.Error("Expected error for non-existent custom agent file, got nil")
 		} else if !strings.Contains(err.Error(), "does not exist") {
@@ -299,7 +311,8 @@ This is a test agent file.
 			},
 		}
 
-		err := compiler.validateAgentFile(workflowData, tmpDir+"/test.md")
+		workflowPath := filepath.Join(workflowsDir, "test.md")
+		err := compiler.validateAgentFile(workflowData, workflowPath)
 		if err != nil {
 			t.Errorf("Expected no error when custom-agent not specified, got: %v", err)
 		}
@@ -310,7 +323,8 @@ This is a test agent file.
 		compiler := NewCompiler(false, "", "")
 		workflowData := &WorkflowData{}
 
-		err := compiler.validateAgentFile(workflowData, tmpDir+"/test.md")
+		workflowPath := filepath.Join(workflowsDir, "test.md")
+		err := compiler.validateAgentFile(workflowData, workflowPath)
 		if err != nil {
 			t.Errorf("Expected no error when engine config is nil, got: %v", err)
 		}

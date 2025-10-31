@@ -148,7 +148,7 @@ permissions:
   pull-requests: read
 steps:
   - name: Setup Node
-    uses: actions/setup-node@v4
+    uses: actions/setup-node@v6
     with:
       node-version: '18'
   - name: Install deps
@@ -172,7 +172,7 @@ permissions:
   pull-requests: read
 steps:
   - name: Setup Node
-    uses: actions/setup-node@v4
+    uses: actions/setup-node@v6
     with:
       node-version: '18'
   - name: Install deps
@@ -288,7 +288,7 @@ func TestShouldAddCheckoutStep(t *testing.T) {
 		{
 			name:        "contents read permission, custom steps without checkout",
 			permissions: "permissions:\n  contents: read",
-			customSteps: "steps:\n  - uses: actions/setup-node@v4",
+			customSteps: "steps:\n  - uses: actions/setup-node@v6",
 			expected:    true,
 		},
 		{
