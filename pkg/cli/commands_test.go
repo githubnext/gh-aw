@@ -402,10 +402,10 @@ func TestAllCommandsExist(t *testing.T) {
 			_, err := CompileWorkflows(config)
 			return err
 		}, false, "CompileWorkflows"}, // Should compile existing markdown files successfully
-		{func() error { return RemoveWorkflows("test", false) }, false, "RemoveWorkflows"},                                       // Should handle missing directory gracefully
-		{func() error { return StatusWorkflows("test", false, false) }, false, "StatusWorkflows"},                                // Should handle missing directory gracefully
-		{func() error { return EnableWorkflows("test") }, true, "EnableWorkflows"},                                               // Should now error when no workflows found to enable
-		{func() error { return DisableWorkflows("test") }, true, "DisableWorkflows"},                                             // Should now also error when no workflows found to disable
+		{func() error { return RemoveWorkflows("test", false) }, false, "RemoveWorkflows"},                                              // Should handle missing directory gracefully
+		{func() error { return StatusWorkflows("test", false, false) }, false, "StatusWorkflows"},                                       // Should handle missing directory gracefully
+		{func() error { return EnableWorkflows("test") }, true, "EnableWorkflows"},                                                      // Should now error when no workflows found to enable
+		{func() error { return DisableWorkflows("test") }, true, "DisableWorkflows"},                                                    // Should now also error when no workflows found to disable
 		{func() error { return RunWorkflowOnGitHub("", false, "", "", false, false, false) }, true, "RunWorkflowOnGitHub"},              // Should error with empty workflow name
 		{func() error { return RunWorkflowsOnGitHub([]string{}, 0, false, "", "", false, false, false) }, true, "RunWorkflowsOnGitHub"}, // Should error with empty workflow list
 	}

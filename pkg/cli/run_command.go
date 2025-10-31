@@ -237,12 +237,12 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Using default Copilot engine for remote workflow secret handling"))
 				}
 			}
-			
+
 			// Create minimal WorkflowData with engine config
 			engineConfig := &workflow.EngineConfig{
 				ID: engineType,
 			}
-			
+
 			if err := determineAndAddEngineSecret(engineConfig, targetRepo, secretTracker, engineOverride, verbose); err != nil {
 				// Log warning but don't fail - the workflow might still run without secrets
 				if verbose {
