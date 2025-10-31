@@ -35,13 +35,27 @@ steps:
       mkdir -p /tmp/gh-aw/credsweeper
       echo "📁 Created /tmp/gh-aw/credsweeper for scan results"
       
-      # Create JavaScript script to parse and mask secrets
+      # Create JavaScript script to parse and mask secrets in source files
       cat > /tmp/gh-aw/credsweeper/mask-secrets.js << 'EOF'
       #!/usr/bin/env node
       // mask-secrets.js
-      // Parse CredSweeper JSON results and mask secrets with ***
+      // Parse CredSweeper JSON results and mask secrets in actual source files
       
       const fs = require('fs');
+      const path = require('path');
+      
+      // Try to use GitHub Actions core module if available, fallback to console
+      let core;
+      try {
+        core = require('@actions/core');
+      } catch (e) {
+        // Fallback to console logging if not in GitHub Actions
+        core = {
+          info: console.log,
+          warning: console.warn,
+          error: console.error
+        };
+      }
       
       function maskSecret(secret) {
         if (!secret || secret.length === 0) return '***';
@@ -52,24 +66,146 @@ steps:
       
       function processResults(inputPath) {
         try {
+          core.info('🔍 Starting secret masking process...');
+          core.info(`📄 Reading CredSweeper results from: ${inputPath}`);
+          
           const data = fs.readFileSync(inputPath, 'utf8');
           const results = JSON.parse(data);
           
           if (!Array.isArray(results)) {
-            console.error('Error: Expected JSON array');
+            core.error('Error: Expected JSON array in results file');
             process.exit(1);
           }
           
-          // Process each finding and mask the secrets
+          core.info(`📊 Found ${results.length} credential finding(s) in scan results`);
+          
+          if (results.length === 0) {
+            core.info('✅ No credentials to mask');
+            return;
+          }
+          
+          // Group findings by file path for efficient processing
+          const fileMap = new Map();
+          let totalSecrets = 0;
+          
+          results.forEach((finding, findingIndex) => {
+            core.info(`\n🔎 Processing finding ${findingIndex + 1}/${results.length}: ${finding.rule || 'Unknown'} (severity: ${finding.severity || 'unknown'})`);
+            
+            if (!finding.line_data_list || !Array.isArray(finding.line_data_list)) {
+              core.warning(`  ⚠️  No line_data_list found for finding ${findingIndex + 1}`);
+              return;
+            }
+            
+            finding.line_data_list.forEach((lineData, lineIndex) => {
+              totalSecrets++;
+              const filePath = lineData.path;
+              const lineNum = lineData.line_num;
+              const secretValue = lineData.value;
+              
+              core.info(`  📍 Secret ${lineIndex + 1} found in: ${filePath}:${lineNum}`);
+              
+              if (!filePath || !secretValue) {
+                core.warning(`    ⚠️  Missing file path or secret value, skipping`);
+                return;
+              }
+              
+              if (!fileMap.has(filePath)) {
+                fileMap.set(filePath, []);
+              }
+              
+              fileMap.get(filePath).push({
+                lineNum: lineNum,
+                secret: secretValue,
+                rule: finding.rule,
+                masked: maskSecret(secretValue)
+              });
+              
+              core.info(`    🎭 Will mask: "${secretValue}" → "${maskSecret(secretValue)}"`);
+            });
+          });
+          
+          core.info(`\n📁 Processing ${fileMap.size} file(s) with ${totalSecrets} secret(s) to mask...`);
+          
+          let filesModified = 0;
+          let secretsMasked = 0;
+          
+          // Process each file
+          fileMap.forEach((secrets, filePath) => {
+            core.info(`\n📝 Masking secrets in file: ${filePath}`);
+            
+            try {
+              // Read the file
+              if (!fs.existsSync(filePath)) {
+                core.warning(`  ⚠️  File not found: ${filePath}, skipping`);
+                return;
+              }
+              
+              let fileContent = fs.readFileSync(filePath, 'utf8');
+              let lines = fileContent.split('\n');
+              
+              core.info(`  📄 File has ${lines.length} lines`);
+              
+              // Sort secrets by line number (descending) to avoid line number shifts
+              secrets.sort((a, b) => b.lineNum - a.lineNum);
+              
+              // Mask each secret
+              secrets.forEach((secretInfo, idx) => {
+                const lineIdx = secretInfo.lineNum - 1; // Convert to 0-based index
+                
+                if (lineIdx < 0 || lineIdx >= lines.length) {
+                  core.warning(`    ⚠️  Line ${secretInfo.lineNum} out of range, skipping`);
+                  return;
+                }
+                
+                const originalLine = lines[lineIdx];
+                
+                // Check if the secret is actually in the line
+                if (!originalLine.includes(secretInfo.secret)) {
+                  core.warning(`    ⚠️  Secret not found in line ${secretInfo.lineNum}, skipping`);
+                  core.info(`       Expected: "${secretInfo.secret}"`);
+                  core.info(`       Line content: "${originalLine}"`);
+                  return;
+                }
+                
+                // Replace the secret with masked version
+                const maskedLine = originalLine.replace(secretInfo.secret, secretInfo.masked);
+                lines[lineIdx] = maskedLine;
+                
+                secretsMasked++;
+                core.info(`    ✅ Line ${secretInfo.lineNum} masked (${secretInfo.rule})`);
+                core.info(`       Before: ${originalLine.trim()}`);
+                core.info(`       After:  ${maskedLine.trim()}`);
+              });
+              
+              // Write the modified content back
+              const modifiedContent = lines.join('\n');
+              fs.writeFileSync(filePath, modifiedContent, 'utf8');
+              filesModified++;
+              
+              core.info(`  ✅ Successfully masked ${secrets.length} secret(s) in ${filePath}`);
+              
+            } catch (error) {
+              core.error(`  ❌ Error processing file ${filePath}: ${error.message}`);
+            }
+          });
+          
+          core.info(`\n${'='.repeat(60)}`);
+          core.info(`✅ Secret masking complete!`);
+          core.info(`📊 Summary:`);
+          core.info(`   - Files scanned: ${fileMap.size}`);
+          core.info(`   - Files modified: ${filesModified}`);
+          core.info(`   - Secrets masked: ${secretsMasked}/${totalSecrets}`);
+          core.info(`${'='.repeat(60)}`);
+          
+          // Also update the JSON results file to reflect masked values
+          core.info(`\n📝 Updating JSON results file with masked values...`);
           const maskedResults = results.map(finding => {
             const maskedFinding = { ...finding };
             
-            // Mask line_data_list entries
             if (maskedFinding.line_data_list && Array.isArray(maskedFinding.line_data_list)) {
               maskedFinding.line_data_list = maskedFinding.line_data_list.map(lineData => {
                 const maskedLineData = { ...lineData };
                 
-                // Mask the actual secret in the line
                 if (maskedLineData.line && maskedLineData.value) {
                   maskedLineData.line = maskedLineData.line.replace(
                     maskedLineData.value,
@@ -77,7 +213,6 @@ steps:
                   );
                 }
                 
-                // Mask the value field
                 if (maskedLineData.value) {
                   maskedLineData.value = maskSecret(maskedLineData.value);
                 }
@@ -89,12 +224,12 @@ steps:
             return maskedFinding;
           });
           
-          // Write masked results back to the same file
           fs.writeFileSync(inputPath, JSON.stringify(maskedResults, null, 2), 'utf8');
-          console.log(`✅ Masked ${maskedResults.length} findings in ${inputPath}`);
+          core.info(`✅ Updated JSON results file: ${inputPath}`);
           
         } catch (error) {
-          console.error('Error processing file:', error.message);
+          core.error(`❌ Fatal error: ${error.message}`);
+          core.error(error.stack);
           process.exit(1);
         }
       }
@@ -102,7 +237,7 @@ steps:
       // Main execution
       const args = process.argv.slice(2);
       if (args.length === 0) {
-        console.error('Usage: node mask-secrets.js <credsweeper-results.json>');
+        core.error('Usage: node mask-secrets.js <credsweeper-results.json>');
         process.exit(1);
       }
       
@@ -116,7 +251,11 @@ steps:
 
 Samsung CredSweeper has been set up and is ready to use. The Docker image `ghcr.io/samsung/credsweeper:latest` is available, and a temporary folder `/tmp/gh-aw/credsweeper` is ready for scan results.
 
-A JavaScript utility script is available at `/tmp/gh-aw/credsweeper/mask-secrets.js` to parse CredSweeper results and mask secrets with `***` for safe display. The script modifies the JSON file in place.
+A JavaScript utility script is available at `/tmp/gh-aw/credsweeper/mask-secrets.js` to parse CredSweeper results and mask secrets with `***` in the actual source files. The script:
+- Reads the CredSweeper JSON results
+- For each detected secret, modifies the actual source file to mask the secret
+- Updates the JSON results file to reflect masked values
+- Provides extensive logging of all operations using `core.info`
 
 **Note**: CredSweeper scans can take several minutes for large codebases. Individual bash commands have a 5-minute timeout by default. For longer scans, increase workflow timeout_minutes.
 
@@ -223,10 +362,16 @@ The scan results are saved as JSON with the following structure:
 ### Reading Results
 
 ```bash
-# Mask secrets in the results file (modifies file in place)
+# Mask secrets in the actual source files and JSON results
+# This will modify files in place where secrets were detected
 node /tmp/gh-aw/credsweeper/mask-secrets.js /tmp/gh-aw/credsweeper/scan-results.json
 
-# After masking, view the results safely
+# The script provides extensive logging:
+# - Files being processed
+# - Secrets being masked with before/after views
+# - Summary of files modified and secrets masked
+
+# After masking, view the JSON results safely
 cat /tmp/gh-aw/credsweeper/scan-results.json | jq '.'
 
 # Count findings
@@ -249,13 +394,19 @@ docker run --rm -v /tmp/gh-aw:/code ghcr.io/samsung/credsweeper:latest \
   --path /code \
   --save-json /code/credsweeper/results.json
 
-# Mask secrets in the results file (modifies file in place)
+# Mask secrets in the actual source files and JSON results
+# This modifies files in place where secrets were detected
 node /tmp/gh-aw/credsweeper/mask-secrets.js /tmp/gh-aw/credsweeper/results.json
+
+# The script output shows detailed logging of:
+# - Each file being processed
+# - Each secret being masked with before/after preview
+# - Summary statistics
 
 # Check if any credentials were found and display masked results
 FINDINGS=$(cat /tmp/gh-aw/credsweeper/results.json | jq 'length')
 if [ "$FINDINGS" -gt 0 ]; then
-  echo "⚠️ Found $FINDINGS potential credentials"
+  echo "⚠️ Found $FINDINGS potential credentials (now masked in source files)"
   cat /tmp/gh-aw/credsweeper/results.json | jq '.[]'
 else
   echo "✅ No credentials found"
