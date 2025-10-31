@@ -76,13 +76,15 @@ on:
     types: [ready_for_review]
 permissions:
   issues: write
+  contents: read
+  pull-requests: read
 engine: codex
 ---
 
 # Test Workflow
-Test workflow without contents permission.
+Test workflow without checkout (has permissions but checkout should be conditional).
 `,
-			expectPRCheckout: false,
+			expectPRCheckout: true, // Changed: now has contents permission, so checkout is added
 		},
 	}
 

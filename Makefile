@@ -136,15 +136,15 @@ fmt: fmt-go fmt-cjs fmt-json
 fmt-go:
 	go fmt ./...
 
-# Format JavaScript (.cjs and .js) files
+# Format JavaScript (.cjs and .js) and JSON files in pkg/workflow/js directory
 .PHONY: fmt-cjs
 fmt-cjs:
 	cd pkg/workflow/js && npm run format:cjs
 
-# Format JSON files in pkg directory
+# Format JSON files in pkg directory (excluding pkg/workflow/js, which is handled by npm script)
 .PHONY: fmt-json
 fmt-json:
-	prettier --write 'pkg/**/*.json' --ignore-path /dev/null
+	prettier --write 'pkg/**/*.json' '!pkg/workflow/js/**/*.json' --ignore-path /dev/null
 
 # Check formatting
 .PHONY: fmt-check
@@ -154,25 +154,25 @@ fmt-check:
 		exit 1; \
 	fi
 
-# Check JavaScript (.cjs) file formatting
+# Check JavaScript (.cjs and .js) and JSON file formatting in pkg/workflow/js directory
 .PHONY: fmt-check-cjs
 fmt-check-cjs:
 	cd pkg/workflow/js && npm run lint:cjs
 
-# Check JSON file formatting in pkg directory
+# Check JSON file formatting in pkg directory (excluding pkg/workflow/js, which is handled by npm script)
 .PHONY: fmt-check-json
 fmt-check-json:
-	@if ! prettier --check 'pkg/**/*.json' --ignore-path /dev/null 2>&1 | grep -q "All matched files use Prettier code style"; then \
+	@if ! prettier --check 'pkg/**/*.json' '!pkg/workflow/js/**/*.json' --ignore-path /dev/null 2>&1 | grep -q "All matched files use Prettier code style"; then \
 		echo "JSON files are not formatted. Run 'make fmt-json' to fix."; \
 		exit 1; \
 	fi
 
-# Lint JavaScript (.cjs) files 
+# Lint JavaScript (.cjs and .js) and JSON files in pkg/workflow/js directory
 .PHONY: lint-cjs
 lint-cjs: fmt-check-cjs
 	@echo "✓ JavaScript formatting validated"
 
-# Lint JSON files
+# Lint JSON files in pkg directory (excluding pkg/workflow/js, which is handled by npm script)
 .PHONY: lint-json
 lint-json: fmt-check-json
 	@echo "✓ JSON formatting validated"
@@ -259,13 +259,13 @@ help:
 	@echo "  deps             - Install dependencies"
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
-	@echo "  fmt-cjs          - Format JavaScript (.cjs and .js) files"
-	@echo "  fmt-json         - Format JSON files in pkg directory"
+	@echo "  fmt-cjs          - Format JavaScript (.cjs and .js) and JSON files in pkg/workflow/js"
+	@echo "  fmt-json         - Format JSON files in pkg directory (excluding pkg/workflow/js)"
 	@echo "  fmt-check        - Check code formatting"
-	@echo "  fmt-check-cjs    - Check JavaScript (.cjs) file formatting"
-	@echo "  fmt-check-json   - Check JSON file formatting in pkg directory"
-	@echo "  lint-cjs         - Lint JavaScript (.cjs) files"
-	@echo "  lint-json        - Lint JSON files in pkg directory"
+	@echo "  fmt-check-cjs    - Check JavaScript (.cjs) and JSON file formatting in pkg/workflow/js"
+	@echo "  fmt-check-json   - Check JSON file formatting in pkg directory (excluding pkg/workflow/js)"
+	@echo "  lint-cjs         - Lint JavaScript (.cjs) and JSON files in pkg/workflow/js"
+	@echo "  lint-json        - Lint JSON files in pkg directory (excluding pkg/workflow/js)"
 	@echo "  validate-workflows - Validate compiled workflow lock files"
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"

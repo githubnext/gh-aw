@@ -180,7 +180,7 @@ Just a simple test workflow.
 		"actions/upload-artifact@v4",
 		"actions/download-artifact@v5",
 		"actions/cache@v4",
-		"actions/setup-node@v4",
+		"actions/setup-node@v6",
 		"actions/setup-python@v5",
 		"actions/setup-go@v5",
 	}

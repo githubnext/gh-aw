@@ -137,11 +137,6 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	return steps
 }
 
-// convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
-func (e *CustomEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	return ConvertStepToYAML(stepMap)
-}
-
 // RenderMCPConfig renders MCP configuration using shared logic
 func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	// Use shared JSON MCP config renderer

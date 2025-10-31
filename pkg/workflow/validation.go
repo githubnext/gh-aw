@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -649,9 +650,52 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 	agentPath := workflowData.EngineConfig.CustomAgent
 	validationLog.Printf("Validating custom agent file exists: %s", agentPath)
 
+	// Refuse absolute file paths
+	if filepath.IsAbs(agentPath) {
+		formattedErr := console.FormatError(console.CompilerError{
+			Position: console.ErrorPosition{
+				File:   markdownPath,
+				Line:   1,
+				Column: 1,
+			},
+			Type:    "error",
+			Message: fmt.Sprintf("custom-agent file path '%s' must be relative, not absolute", agentPath),
+		})
+		return errors.New(formattedErr)
+	}
+
+	// Resolve agent path
+	// 1. Try .github/agents/{path} first (default location)
+	// 2. Fall back to treating as relative to repository root
+	markdownDir := filepath.Dir(markdownPath)
+	// Workflow is in .github/workflows, so go up two levels to get to repo root
+	repoRoot := filepath.Join(markdownDir, "../..")
+
+	var resolvedAgentPath string
+	var foundInDefaultLocation bool
+
+	// First, try the default .github/agents/ location
+	defaultAgentPath := filepath.Join(repoRoot, ".github/agents", agentPath)
+	defaultAgentPath = filepath.Clean(defaultAgentPath)
+	if _, err := os.Stat(defaultAgentPath); err == nil {
+		resolvedAgentPath = defaultAgentPath
+		foundInDefaultLocation = true
+		validationLog.Printf("Found agent in default location: %s -> %s", agentPath, resolvedAgentPath)
+	} else {
+		// Fall back to treating as relative to repository root
+		resolvedAgentPath = filepath.Join(repoRoot, agentPath)
+		resolvedAgentPath = filepath.Clean(resolvedAgentPath)
+		validationLog.Printf("Resolved agent path relative to repo root: %s -> %s", agentPath, resolvedAgentPath)
+	}
+
 	// Check if the file exists
-	if _, err := os.Stat(agentPath); err != nil {
+	if _, err := os.Stat(resolvedAgentPath); err != nil {
 		if os.IsNotExist(err) {
+			var suggestion string
+			if !foundInDefaultLocation {
+				// Suggest checking the default location
+				suggestion = " Tip: Custom agent files are typically stored in .github/agents/."
+			}
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
 					File:   markdownPath,
@@ -659,7 +703,7 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 					Column: 1,
 				},
 				Type:    "error",
-				Message: fmt.Sprintf("custom-agent file '%s' does not exist. Ensure the file exists in the repository and the path is correct.", agentPath),
+				Message: fmt.Sprintf("custom-agent file '%s' does not exist. Ensure the file exists in the repository and the path is correct.%s", agentPath, suggestion),
 			})
 			return errors.New(formattedErr)
 		}

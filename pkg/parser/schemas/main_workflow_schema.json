@@ -2758,8 +2758,17 @@
                   "description": "Additional custom prompt instructions to append to threat detection analysis"
                 },
                 "engine": {
-                  "description": "AI engine configuration specifically for threat detection (overrides main workflow engine). Supports same format as main engine field.",
-                  "$ref": "#/$defs/engine_config"
+                  "description": "AI engine configuration specifically for threat detection (overrides main workflow engine). Set to false to disable AI-based threat detection. Supports same format as main engine field when not false.",
+                  "oneOf": [
+                    {
+                      "type": "boolean",
+                      "const": false,
+                      "description": "Disable AI engine for threat detection (only run custom steps)"
+                    },
+                    {
+                      "$ref": "#/$defs/engine_config"
+                    }
+                  ]
                 },
                 "steps": {
                   "type": "array",
