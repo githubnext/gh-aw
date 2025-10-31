@@ -226,7 +226,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to compile workflow for secret determination - continuing without engine secrets"))
 			}
 		} else if repoOverride != "" {
-			// For remote workflows, we can't analyze the workflow file, so create a minimal WorkflowData
+			// For remote workflows, we can't analyze the workflow file, so create a minimal EngineConfig
 			// with engine information and reuse the existing determineAndAddEngineSecret function
 			var engineType string
 			if engineOverride != "" {
