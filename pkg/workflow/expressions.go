@@ -356,17 +356,14 @@ func BuildSafeOutputType(outputType string, min int) ConditionNode {
 		Right: agentNotSkipped,
 	}
 
-	// If min > 0, only return base condition without the contains check
-	// This is needed to ensure the job runs even with 0 outputs to enforce the minimum constraint
-	// Wrap in parentheses to ensure proper YAML interpretation
-	if min > 0 {
-		return &ParenthesesNode{Child: baseCondition}
-	}
-
+	// Always check that the output type is present in agent outputs
+	// This prevents the job from running when the agent didn't produce any outputs of this type
+	// The min constraint is enforced by the job itself, not by skipping this check
 	containsFunc := BuildFunctionCall("contains",
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
 		BuildStringLiteral(outputType),
 	)
+	
 	return &AndNode{
 		Left:  baseCondition,
 		Right: containsFunc,

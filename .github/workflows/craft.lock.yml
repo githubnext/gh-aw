@@ -591,8 +591,8 @@ jobs:
       - agent
       - detection
     if: >
-      ((!cancelled()) && (contains(needs.agent.outputs.output_types, 'add_comment'))) && (((github.event.issue.number) ||
-      (github.event.pull_request.number)) || (github.event.discussion.number))
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))) &&
+      (((github.event.issue.number) || (github.event.pull_request.number)) || (github.event.discussion.number))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -4827,7 +4827,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -5096,9 +5096,8 @@ jobs:
       - agent
       - detection
     if: >
-      ((!cancelled()) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&
-      (((github.event.issue.number) &&
-      (github.event.issue.pull_request)) || (github.event.pull_request))
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&
+      (((github.event.issue.number) && (github.event.issue.pull_request)) || (github.event.pull_request))
     runs-on: ubuntu-slim
     permissions:
       contents: write

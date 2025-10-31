@@ -38,16 +38,16 @@ func TestBuildSafeOutputTypeWithCancelled(t *testing.T) {
 			},
 		},
 		{
-			name:       "min>0 should use !cancelled() and agent not skipped without contains check",
+			name:       "min>0 should use !cancelled() and agent not skipped WITH contains check",
 			outputType: "create_issue",
 			min:        1,
 			expectedContains: []string{
 				"!cancelled()",
 				"needs.agent.result != 'skipped'",
+				"contains(needs.agent.outputs.output_types, 'create_issue')",
 			},
 			unexpectedContains: []string{
 				"always()",
-				"contains(needs.agent.outputs.output_types, 'create_issue')",
 			},
 		},
 		{

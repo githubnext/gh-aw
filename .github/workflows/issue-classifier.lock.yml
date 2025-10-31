@@ -582,8 +582,8 @@ jobs:
       - agent
       - detection
     if: >
-      ((!cancelled()) && (contains(needs.agent.outputs.output_types, 'add_labels'))) && ((github.event.issue.number) ||
-      (github.event.pull_request.number))
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_labels'))) &&
+      ((github.event.issue.number) || (github.event.pull_request.number))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -3083,7 +3083,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
