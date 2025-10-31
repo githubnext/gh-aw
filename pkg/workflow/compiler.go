@@ -196,7 +196,6 @@ type WorkflowData struct {
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
 type BaseSafeOutputConfig struct {
 	Max         int    `yaml:"max,omitempty"`          // Maximum number of items to create
-	Min         int    `yaml:"min,omitempty"`          // Minimum number of items to create
 	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
@@ -1551,13 +1550,6 @@ func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *B
 	if max, exists := configMap["max"]; exists {
 		if maxInt, ok := parseIntValue(max); ok {
 			config.Max = maxInt
-		}
-	}
-
-	// Parse min
-	if min, exists := configMap["min"]; exists {
-		if minInt, ok := parseIntValue(min); ok {
-			config.Min = minInt
 		}
 	}
 
