@@ -3,6 +3,10 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/python-dataviz.md
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -1067,6 +1071,228 @@ jobs:
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
+          # Python Data Visualization Guide
+          
+          Python scientific libraries have been installed and are ready for use. A temporary folder structure has been created at `/tmp/gh-aw/python/` for organizing scripts, data, and outputs.
+          
+          ## Installed Libraries
+          
+          - **NumPy**: Array processing and numerical operations
+          - **Pandas**: Data manipulation and analysis
+          - **Matplotlib**: Chart generation and plotting
+          - **Seaborn**: Statistical data visualization
+          - **SciPy**: Scientific computing utilities
+          
+          ## Directory Structure
+          
+          ```
+          /tmp/gh-aw/python/
+          ├── data/          # Store all data files here (CSV, JSON, etc.)
+          ├── charts/        # Generated chart images (PNG)
+          ├── artifacts/     # Additional output files
+          └── *.py           # Python scripts
+          ```
+          
+          ## Data Separation Requirement
+          
+          **CRITICAL**: Data must NEVER be inlined in Python code. Always store data in external files and load using pandas.
+          
+          ### ❌ PROHIBITED - Inline Data
+          ```python
+          # DO NOT do this
+          data = [10, 20, 30, 40, 50]
+          labels = ['A', 'B', 'C', 'D', 'E']
+          ```
+          
+          ### ✅ REQUIRED - External Data Files
+          ```python
+          # Always load data from external files
+          import pandas as pd
+          
+          # Load data from CSV
+          data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
+          
+          # Or from JSON
+          data = pd.read_json('/tmp/gh-aw/python/data/data.json')
+          ```
+          
+          ## Chart Generation Best Practices
+          
+          ### High-Quality Chart Settings
+          
+          ```python
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          
+          # Set style for better aesthetics
+          sns.set_style("whitegrid")
+          sns.set_palette("husl")
+          
+          # Create figure with high DPI
+          fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+          
+          # Your plotting code here
+          # ...
+          
+          # Save with high quality
+          plt.savefig('/tmp/gh-aw/python/charts/chart.png', 
+                      dpi=300, 
+                      bbox_inches='tight',
+                      facecolor='white',
+                      edgecolor='none')
+          ```
+          
+          ### Chart Quality Guidelines
+          
+          - **DPI**: Use 300 or higher for publication quality
+          - **Figure Size**: Standard is 10x6 inches (adjustable based on needs)
+          - **Labels**: Always include clear axis labels and titles
+          - **Legend**: Add legends when plotting multiple series
+          - **Grid**: Enable grid lines for easier reading
+          - **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
+          
+          ## Cache Memory Integration
+          
+          The cache memory at `/tmp/gh-aw/cache-memory/` is available for storing reusable code:
+          
+          **Helper Functions to Cache:**
+          - Data loading utilities: `data_loader.py`
+          - Chart styling functions: `chart_utils.py`
+          - Common data transformations: `transforms.py`
+          
+          **Check Cache Before Creating:**
+          ```bash
+          # Check if helper exists in cache
+          if [ -f /tmp/gh-aw/cache-memory/data_loader.py ]; then
+            cp /tmp/gh-aw/cache-memory/data_loader.py /tmp/gh-aw/python/
+            echo "Using cached data_loader.py"
+          fi
+          ```
+          
+          **Save to Cache for Future Runs:**
+          ```bash
+          # Save useful helpers to cache
+          cp /tmp/gh-aw/python/data_loader.py /tmp/gh-aw/cache-memory/
+          echo "Saved data_loader.py to cache for future runs"
+          ```
+          
+          ## Complete Example Workflow
+          
+          ```python
+          #!/usr/bin/env python3
+          """
+          Example data visualization script
+          Generates a bar chart from external data
+          """
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          
+          # Set style
+          sns.set_style("whitegrid")
+          sns.set_palette("husl")
+          
+          # Load data from external file (NEVER inline)
+          data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
+          
+          # Process data
+          summary = data.groupby('category')['value'].sum()
+          
+          # Create chart
+          fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+          summary.plot(kind='bar', ax=ax)
+          
+          # Customize
+          ax.set_title('Data Summary by Category', fontsize=16, fontweight='bold')
+          ax.set_xlabel('Category', fontsize=12)
+          ax.set_ylabel('Value', fontsize=12)
+          ax.grid(True, alpha=0.3)
+          
+          # Save chart
+          plt.savefig('/tmp/gh-aw/python/charts/chart.png',
+                      dpi=300,
+                      bbox_inches='tight',
+                      facecolor='white')
+          
+          print("Chart saved to /tmp/gh-aw/python/charts/chart.png")
+          ```
+          
+          ## Error Handling
+          
+          **Check File Existence:**
+          ```python
+          import os
+          
+          data_file = '/tmp/gh-aw/python/data/data.csv'
+          if not os.path.exists(data_file):
+              raise FileNotFoundError(f"Data file not found: {data_file}")
+          ```
+          
+          **Validate Data:**
+          ```python
+          # Check for required columns
+          required_cols = ['category', 'value']
+          missing = set(required_cols) - set(data.columns)
+          if missing:
+              raise ValueError(f"Missing columns: {missing}")
+          ```
+          
+          ## Artifact Upload
+          
+          Charts and source files are automatically uploaded as artifacts:
+          
+          **Charts Artifact:**
+          - Name: `data-charts`
+          - Contents: PNG files from `/tmp/gh-aw/python/charts/`
+          - Retention: 30 days
+          
+          **Source and Data Artifact:**
+          - Name: `python-source-and-data`
+          - Contents: Python scripts and data files
+          - Retention: 30 days
+          
+          Both artifacts are uploaded with `if: always()` condition, ensuring they're available even if the workflow fails.
+          
+          ## Tips for Success
+          
+          1. **Always Separate Data**: Store data in files, never inline in code
+          2. **Use Cache Memory**: Store reusable helpers for faster execution
+          3. **High Quality Charts**: Use DPI 300+ and proper sizing
+          4. **Clear Documentation**: Add docstrings and comments
+          5. **Error Handling**: Validate data and check file existence
+          6. **Type Hints**: Use type annotations for better code quality
+          7. **Seaborn Defaults**: Leverage seaborn for better aesthetics
+          8. **Reproducibility**: Set random seeds when needed
+          
+          ## Common Data Sources
+          
+          Based on common use cases:
+          
+          **Repository Statistics:**
+          ```python
+          # Collect via GitHub API, save to data.csv
+          # Then load and visualize
+          data = pd.read_csv('/tmp/gh-aw/python/data/repo_stats.csv')
+          ```
+          
+          **Workflow Metrics:**
+          ```python
+          # Collect via GitHub Actions API, save to data.json
+          data = pd.read_json('/tmp/gh-aw/python/data/workflow_metrics.json')
+          ```
+          
+          **Sample Data Generation:**
+          ```python
+          # Generate with NumPy, save to file first
+          import numpy as np
+          data = np.random.randn(100, 2)
+          df = pd.DataFrame(data, columns=['x', 'y'])
+          df.to_csv('/tmp/gh-aw/python/data/sample_data.csv', index=False)
+          
+          # Then load it back (demonstrating the pattern)
+          data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
+          ```
+          
           # Python Data Visualization Generator
           
           You are a data visualization expert specializing in Python-based chart generation using scientific computing libraries.
@@ -1082,113 +1308,58 @@ jobs:
           - **Data Source**: ${{ github.event.inputs.data_source }}
           - **Chart Type**: ${{ github.event.inputs.chart_type }}
           
-          ## Working Environment
+          ## Environment
           
-          - **Python Scripts Directory**: `/tmp/gh-aw/python/`
+          The Python data visualization environment has been set up with:
+          - **Libraries**: NumPy, Pandas, Matplotlib, Seaborn, SciPy
+          - **Working Directory**: `/tmp/gh-aw/python/`
           - **Data Directory**: `/tmp/gh-aw/python/data/`
-          - **Charts Output Directory**: `/tmp/gh-aw/python/charts/`
-          - **Artifacts Directory**: `/tmp/gh-aw/python/artifacts/`
-          - **Cache Memory**: `/tmp/gh-aw/cache-memory/` (for reusable code and templates)
+          - **Charts Directory**: `/tmp/gh-aw/python/charts/`
+          - **Cache Memory**: `/tmp/gh-aw/cache-memory/`
           
-          ## Task Requirements
+          See the shared Python Data Visualization Guide (imported above) for detailed usage instructions, best practices, and examples.
           
-          ### Phase 0: Environment Verification
+          ## Task Overview
           
-          1. **Verify Setup**: Confirm all directories and libraries are ready
-          2. **Check Cache**: Look in `/tmp/gh-aw/cache-memory/` for any reusable code templates or helper functions from previous runs
-          
-          ### Phase 1: Data Gathering
+          ### Phase 1: Data Collection
           
           **CRITICAL: Data must NEVER be inlined in code**
           
-          1. **Collect Data**: Based on the data source input ("${{ github.event.inputs.data_source }}"), gather appropriate data:
-             - For "repository statistics": Use GitHub API to fetch repository data (commits, issues, PRs, contributors, etc.)
+          1. Based on the data source input ("${{ github.event.inputs.data_source }}"), collect appropriate data:
+             - For "repository statistics": Use GitHub API to fetch repository data
              - For "workflow metrics": Use GitHub Actions API to fetch workflow run data
              - For "sample data": Generate sample datasets using NumPy
              - For other sources: Determine appropriate data collection method
           
-          2. **Store Data Separately**: 
-             - Save all collected data to `/tmp/gh-aw/python/data/data.csv` or `/tmp/gh-aw/python/data/data.json`
-             - **NEVER** hardcode data arrays or dictionaries in Python scripts
-             - Always load data from external files using `pandas.read_csv()` or `pandas.read_json()`
+          2. Save all collected data to `/tmp/gh-aw/python/data/` as CSV or JSON files
           
-          3. **Document Data**: Create `/tmp/gh-aw/python/data/README.md` describing:
-             - Data source and collection method
-             - Data structure and fields
-             - Data collection timestamp
-             - Any data transformations applied
+          3. Document the data in `/tmp/gh-aw/python/data/README.md`
           
-          ### Phase 2: Script Generation
+          ### Phase 2: Chart Generation
           
-          **Store all Python scripts in `/tmp/gh-aw/python/`**
+          1. Check `/tmp/gh-aw/cache-memory/` for reusable helper functions
           
-          1. **Check Cache for Templates**: Look in `/tmp/gh-aw/cache-memory/` for reusable helper functions or code templates
+          2. Create Python scripts in `/tmp/gh-aw/python/`:
+             - Main script: `generate_chart.py`
+             - Helper utilities as needed (and save to cache)
           
-          2. **Create Helper Functions** (if needed, save to cache for reuse):
-             - Data loading utilities: `/tmp/gh-aw/python/data_loader.py`
-             - Chart styling functions: `/tmp/gh-aw/python/chart_utils.py`
-             - Save copies to `/tmp/gh-aw/cache-memory/` for future runs
-          
-          3. **Generate Main Script**: Create `/tmp/gh-aw/python/generate_chart.py` that:
-             - Imports required libraries (numpy, pandas, matplotlib, seaborn)
-             - Loads data from `/tmp/gh-aw/python/data/` directory (NEVER inline data)
-             - Processes and analyzes the data
-             - Generates the requested chart type
-             - Saves chart to `/tmp/gh-aw/python/charts/chart.png`
-             - Uses high-quality settings (DPI 300, appropriate size)
-             - Includes clear labels, title, and legend
-          
-          4. **Script Best Practices**:
-             - Use type hints for function parameters
-             - Include docstrings for all functions
-             - Add error handling for file I/O operations
-             - Set random seeds for reproducibility
-             - Use seaborn for better default aesthetics
-          
-          ### Phase 3: Chart Generation
-          
-          1. **Run the Script**: Execute `/tmp/gh-aw/python/generate_chart.py`
-          2. **Verify Output**: Check that chart file exists at `/tmp/gh-aw/python/charts/chart.png`
-          3. **Generate Metadata**: Create `/tmp/gh-aw/python/charts/chart_metadata.json` with:
-             ```json
-             {
-               "chart_type": "bar",
-               "data_source": "repository statistics",
-               "generated_at": "2024-10-31T12:00:00Z",
-               "chart_file": "chart.png",
-               "data_points": 100,
-               "python_version": "3.x",
-               "libraries_used": ["numpy", "pandas", "matplotlib", "seaborn"]
-             }
+          3. Load data from external files (NEVER inline):
+             ```python
+             import pandas as pd
+             data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
              ```
           
-          ### Phase 4: Asset and Artifact Preparation
+          4. Generate the requested chart type with high quality settings (DPI 300)
           
-          **Note**: The workflow automatically uploads artifacts via the post-steps configuration:
-          - Charts from `/tmp/gh-aw/python/charts/*.png` → artifact "data-charts"
-          - Source files and data from `/tmp/gh-aw/python/*.py` and `/tmp/gh-aw/python/data/*` → artifact "python-source-and-data"
+          5. Save chart to `/tmp/gh-aw/python/charts/chart.png`
           
-          Your task is to ensure these files are ready:
+          ### Phase 3: Discussion Report
           
-          1. **Organize Files**:
-             - Charts in `/tmp/gh-aw/python/charts/`
-             - Python scripts in `/tmp/gh-aw/python/`
-             - Data files in `/tmp/gh-aw/python/data/`
-          
-          2. **Create Summary**: Generate `/tmp/gh-aw/python/artifacts/summary.md` with:
-             - Description of generated visualizations
-             - Data source and statistics
-             - Instructions for reproducing the charts
-             - Link to the workflow run
-          
-          ### Phase 5: Discussion Creation
-          
-          **Use safe-outputs.create-discussion to create a discussion with:**
+          Create a discussion using safe-outputs with the following structure:
           
           **Title**: "📊 Data Visualization Report - ${{ github.event.inputs.data_source }}"
           
-          **Content** (markdown format):
-          
+          **Content**:
           ```markdown
           # 📊 Data Visualization Report
           
@@ -1200,15 +1371,11 @@ jobs:
           
           ## Generated Charts
           
-          The following chart(s) have been generated and uploaded:
-          
           - **Chart Type**: ${{ github.event.inputs.chart_type }}
           - **Data Source**: ${{ github.event.inputs.data_source }}
           - **Generated**: [timestamp]
           
           ## Artifacts
-          
-          All generated files are available as workflow artifacts:
           
           ### 📈 Charts Artifact
           - **Artifact Name**: `data-charts`
@@ -1219,21 +1386,16 @@ jobs:
           ### 📦 Source and Data Artifact
           - **Artifact Name**: `python-source-and-data`
           - **Download URL**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          - **Contents**: 
-            - Python scripts used to generate charts
-            - Data files (CSV/JSON)
-            - Data documentation
+          - **Contents**: Python scripts, data files, and documentation
           - **Retention**: 30 days
           
           ## Data Information
           
-          [Include data statistics and description from the metadata]
+          [Include data statistics and description]
           
           ## Reproduction Instructions
           
-          To reproduce these charts:
-          
-          1. Download the `python-source-and-data` artifact from the workflow run
+          1. Download the `python-source-and-data` artifact
           2. Extract the archive
           3. Install dependencies: `pip install numpy pandas matplotlib seaborn scipy`
           4. Run: `python generate_chart.py`
@@ -1244,13 +1406,12 @@ jobs:
           - Pandas: Data manipulation and analysis
           - Matplotlib: Chart generation
           - Seaborn: Statistical data visualization
-          - SciPy: Scientific computing (if used)
+          - SciPy: Scientific computing
           
           ## Workflow Run
           
           - **Repository**: ${{ github.repository }}
           - **Run ID**: ${{ github.run_id }}
-          - **Workflow**: Python Data Visualization Generator
           - **Run URL**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           
           ---
@@ -1258,98 +1419,14 @@ jobs:
           *This report was automatically generated by the Python Data Visualization Generator workflow.*
           ```
           
-          ## Important Guidelines
+          ## Key Reminders
           
-          ### Data Separation Requirement
+          - ✅ **Data Separation**: Always load data from external files, never inline
+          - ✅ **Cache Memory**: Check and save reusable helpers to `/tmp/gh-aw/cache-memory/`
+          - ✅ **High Quality**: Use DPI 300, clear labels, and seaborn styling
+          - ✅ **Artifacts**: Files are automatically uploaded to the configured artifacts
           
-          **CRITICAL**: Data must NEVER be inlined in Python code. Always:
-          - Store data in external files (CSV, JSON, etc.)
-          - Load data using pandas: `pd.read_csv()`, `pd.read_json()`
-          - Document data sources and collection methods
-          - Keep data files separate from code files
-          
-          **❌ BAD Example (NEVER do this)**:
-          ```python
-          # DO NOT inline data in code
-          data = [10, 20, 30, 40, 50]
-          labels = ['A', 'B', 'C', 'D', 'E']
-          ```
-          
-          **✅ GOOD Example (Always do this)**:
-          ```python
-          # Always load data from external files
-          import pandas as pd
-          data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-          ```
-          
-          ### Cache Memory Usage
-          
-          1. **Save Reusable Code**: Store helper functions and templates in `/tmp/gh-aw/cache-memory/`
-          2. **Check Cache First**: Before creating new utilities, check if they already exist in cache
-          3. **Update Cache**: If you improve or create new utilities, save them to cache
-          
-          ### Chart Quality
-          
-          - Use DPI 300 or higher for publication quality
-          - Include clear labels, titles, and legends
-          - Use appropriate color schemes (consider colorblind-friendly palettes)
-          - Set figure size appropriately (e.g., 10x6 inches for standard charts)
-          - Add grid lines where appropriate
-          - Use seaborn for better default aesthetics
-          
-          ### Error Handling
-          
-          - Check if data files exist before loading
-          - Validate data format and structure
-          - Handle missing or invalid data gracefully
-          - Log errors with descriptive messages
-          
-          ### Security Considerations
-          
-          - Never execute untrusted code from data files
-          - Validate data types and ranges
-          - Sanitize any user-provided inputs
-          - Don't expose sensitive information in charts or metadata
-          
-          ## Success Criteria
-          
-          A successful workflow execution should:
-          
-          - ✅ Install all required Python libraries
-          - ✅ Create proper directory structure
-          - ✅ Collect or generate data and store it in external files
-          - ✅ Generate Python scripts that load data from files (not inline)
-          - ✅ Create high-quality chart visualizations
-          - ✅ Upload charts as artifacts
-          - ✅ Archive source files and data separately
-          - ✅ Use cache memory for reusable code
-          - ✅ Create a discussion with artifact download links
-          - ✅ Maintain clear separation between data and code
-          
-          ## Example Workflow
-          
-          For reference, here's the expected file structure after execution:
-          
-          ```
-          /tmp/gh-aw/python/
-          ├── generate_chart.py          # Main chart generation script
-          ├── data_loader.py             # Helper for loading data (cached)
-          ├── chart_utils.py             # Chart styling utilities (cached)
-          ├── data/
-          │   ├── data.csv              # Raw data file
-          │   └── README.md             # Data documentation
-          ├── charts/
-          │   ├── chart.png             # Generated chart image
-          │   └── chart_metadata.json   # Chart metadata
-          └── artifacts/
-              └── summary.md            # Summary report
-          
-          /tmp/gh-aw/cache-memory/
-          ├── data_loader.py            # Cached helper functions
-          └── chart_utils.py            # Cached utilities
-          ```
-          
-          Now generate the data visualization based on the inputs and create the discussion!
+          Refer to the Python Data Visualization Guide (imported above) for complete examples, code patterns, and best practices.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1743,7 +1820,7 @@ jobs:
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
-          GH_AW_ALLOWED_DOMAINS: "*.pythonhosted.org,anaconda.org,api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.npmjs.org,repo.anaconda.com,repo.continuum.io,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
+          GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
         with:
           script: |
             async function main() {
