@@ -1869,7 +1869,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: "2.0.29",
+              agent_version: "2.0.30",
               workflow_name: "GitHub MCP Remote Server Tools Report Generator",
               experimental: false,
               supports_tools_allowlist: true,
