@@ -1,8 +1,6 @@
 package workflow
 
-import (
-	"strings"
-)
+import "strings"
 
 // RenderMCPConfig renders the MCP configuration for Claude engine
 func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
