@@ -216,4 +216,3 @@ func TestConvertStepToYAML(t *testing.T) {
 		})
 	}
 }
-
