@@ -52,7 +52,7 @@ func TestEnsureAgenticWorkflowAgent(t *testing.T) {
 			}
 
 			agentsDir := filepath.Join(tempDir, ".github", "agents")
-			agenticWorkflowAgentPath := filepath.Join(agentsDir, "create-agentic-workflow.agent.md")
+			agenticWorkflowAgentPath := filepath.Join(agentsDir, "create-agentic-workflow.md")
 
 			// Create initial content if specified
 			if tt.existingContent != "" {
@@ -120,7 +120,7 @@ func TestEnsureAgenticWorkflowAgent_WithSkipInstructionsTrue(t *testing.T) {
 
 	// Check that file was NOT created
 	agentsDir := filepath.Join(tempDir, ".github", "agents")
-	agenticWorkflowAgentPath := filepath.Join(agentsDir, "create-agentic-workflow.agent.md")
+	agenticWorkflowAgentPath := filepath.Join(agentsDir, "create-agentic-workflow.md")
 	if _, err := os.Stat(agenticWorkflowAgentPath); !os.IsNotExist(err) {
 		t.Fatalf("Expected agentic workflow agent file to NOT exist when skipInstructions=true")
 	}

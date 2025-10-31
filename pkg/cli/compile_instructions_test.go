@@ -67,7 +67,7 @@ This is a test workflow for compilation.
 
 	// Define paths for instruction files
 	copilotInstructionsPath := filepath.Join(tempDir, ".github", "instructions", "github-agentic-workflows.instructions.md")
-	agenticWorkflowAgentPath := filepath.Join(tempDir, ".github", "agents", "create-agentic-workflow.agent.md")
+	agenticWorkflowAgentPath := filepath.Join(tempDir, ".github", "agents", "create-agentic-workflow.md")
 	sharedAgenticWorkflowPromptPath := filepath.Join(tempDir, ".github", "prompts", "create-shared-agentic-workflow.prompt.md")
 
 	// Compile the workflow
@@ -171,7 +171,7 @@ This is a test workflow for compilation.
 
 	// Define paths for instruction files
 	copilotInstructionsPath := filepath.Join(tempDir, ".github", "instructions", "github-agentic-workflows.instructions.md")
-	agenticWorkflowAgentPath := filepath.Join(tempDir, ".github", "agents", "create-agentic-workflow.agent.md")
+	agenticWorkflowAgentPath := filepath.Join(tempDir, ".github", "agents", "create-agentic-workflow.md")
 	sharedAgenticWorkflowPromptPath := filepath.Join(tempDir, ".github", "prompts", "create-shared-agentic-workflow.prompt.md")
 
 	// Compile all workflows (no specific files)

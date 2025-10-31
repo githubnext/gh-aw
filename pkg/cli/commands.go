@@ -22,7 +22,7 @@ var (
 //go:embed templates/github-agentic-workflows.instructions.md
 var copilotInstructionsTemplate string
 
-//go:embed templates/create-agentic-workflow.agent.md
+//go:embed templates/create-agentic-workflow.md
 var agenticWorkflowAgentTemplate string
 
 //go:embed templates/create-shared-agentic-workflow.prompt.md
