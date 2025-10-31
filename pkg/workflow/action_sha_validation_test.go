@@ -19,6 +19,8 @@ on: push
 engine: copilot
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 ---
 
 # Test Workflow
@@ -84,6 +86,7 @@ engine: copilot
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 safe-outputs:
   create-issue:
 ---
@@ -143,6 +146,8 @@ on: push
 engine: copilot
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 ---
 
 # Simple Test
@@ -175,7 +180,7 @@ Just a simple test workflow.
 		"actions/upload-artifact@v4",
 		"actions/download-artifact@v5",
 		"actions/cache@v4",
-		"actions/setup-node@v4",
+		"actions/setup-node@v6",
 		"actions/setup-python@v5",
 		"actions/setup-go@v5",
 	}

@@ -34,12 +34,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
 `,
 			expected: map[string]string{
 				"actions/checkout":   "v5",
-				"actions/setup-node": "v4",
+				"actions/setup-node": "v6",
 				"actions/cache":      "v4",
 			},
 		},
@@ -51,12 +51,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
 `,
 			expected: map[string]string{
 				"actions/checkout":   "v5",
-				"actions/setup-node": "v4",
+				"actions/setup-node": "v6",
 			},
 		},
 		{
@@ -156,8 +156,8 @@ func TestGeneratePinnedActionsComment(t *testing.T) {
 			usedPins: map[string]ActionPin{
 				"actions/setup-node": {
 					Repo:    "actions/setup-node",
-					Version: "v4",
-					SHA:     "49933ea5288caeca8642d1e84afbd3f7d6820020",
+					Version: "v6",
+					SHA:     "2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
 				},
 				"actions/checkout": {
 					Repo:    "actions/checkout",
@@ -174,7 +174,7 @@ func TestGeneratePinnedActionsComment(t *testing.T) {
 				"# Pinned GitHub Actions:",
 				"#   - actions/cache@v4",
 				"#   - actions/checkout@v5",
-				"#   - actions/setup-node@v4",
+				"#   - actions/setup-node@v6",
 				"#     https://github.com/actions/cache/commit/",
 				"#     https://github.com/actions/checkout/commit/",
 				"#     https://github.com/actions/setup-node/commit/",
@@ -237,6 +237,8 @@ func TestPinnedActionsCommentInGeneratedYAML(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 ---
 

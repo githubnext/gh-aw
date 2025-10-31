@@ -308,34 +308,6 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 				})
 				return errors.New(formattedErr)
 			}
-
-			if len(validationResult.ExcessPermissions) > 0 {
-				// Excess permissions are warnings by default, errors in strict mode
-				if c.strictMode {
-					formattedErr := console.FormatError(console.CompilerError{
-						Position: console.ErrorPosition{
-							File:   markdownPath,
-							Line:   1,
-							Column: 1,
-						},
-						Type:    "error",
-						Message: message,
-					})
-					return errors.New(formattedErr)
-				} else {
-					formattedWarning := console.FormatError(console.CompilerError{
-						Position: console.ErrorPosition{
-							File:   markdownPath,
-							Line:   1,
-							Column: 1,
-						},
-						Type:    "warning",
-						Message: message,
-					})
-					fmt.Fprintln(os.Stderr, formattedWarning)
-					c.IncrementWarningCount()
-				}
-			}
 		}
 	}
 

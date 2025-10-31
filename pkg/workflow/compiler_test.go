@@ -25,6 +25,7 @@ timeout_minutes: 10
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues, create_issue]
@@ -173,7 +174,9 @@ on:
   issues:
     types: [opened]
 permissions:
+  contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [add_issue_comment]
@@ -195,7 +198,9 @@ on:
   issues:
     types: [opened]
 permissions:
+  contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [add_issue_comment]
@@ -1570,6 +1575,8 @@ func TestWorkflowNameWithColon(t *testing.T) {
 timeout_minutes: 10
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
@@ -1725,6 +1732,8 @@ timeout_minutes: 15
 permissions:
   contents: read
   models: read
+  issues: read
+  pull-requests: read
 
 mcp-servers:
   notionApi:
@@ -2458,7 +2467,7 @@ permissions:
   pull-requests: write
 tools:
   github:
-    allowed: [get_issue]
+    toolsets: [issues]
 timeout_minutes: 5
 ---
 
@@ -2503,10 +2512,20 @@ Test workflow with reaction.
 		}
 	}
 
-	// Verify three jobs are created (check_membership, activation, main) - reaction step is now in activation job
-	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
+	// Verify three jobs are created (pre_activation, activation, agent) - reaction step is now in activation job
+	// Count jobs by checking for job names (more reliable than counting runs-on)
+	jobCount := 0
+	if strings.Contains(yamlContent, "pre_activation:") {
+		jobCount++
+	}
+	if strings.Contains(yamlContent, "activation:") {
+		jobCount++
+	}
+	if strings.Contains(yamlContent, "agent:") {
+		jobCount++
+	}
 	if jobCount != 3 {
-		t.Errorf("Expected 3 jobs (check_membership, activation, main), found %d", jobCount)
+		t.Errorf("Expected 3 jobs (pre_activation, activation, agent), found %d", jobCount)
 	}
 
 	// Verify reaction step is in activation job, not a separate job
@@ -2538,9 +2557,10 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
-    allowed: [get_issue]
+    toolsets: [issues]
 timeout_minutes: 5
 ---
 
@@ -2585,10 +2605,20 @@ Test workflow without explicit reaction (should not create reaction action).
 		}
 	}
 
-	// Verify three jobs are created (check_membership, activation, main) - no separate add_reaction job
-	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
+	// Verify three jobs are created (pre_activation, activation, agent) - no separate add_reaction job
+	// Count jobs by checking for job names (more reliable than counting runs-on)
+	jobCount := 0
+	if strings.Contains(yamlContent, "pre_activation:") {
+		jobCount++
+	}
+	if strings.Contains(yamlContent, "activation:") {
+		jobCount++
+	}
+	if strings.Contains(yamlContent, "agent:") {
+		jobCount++
+	}
 	if jobCount != 3 {
-		t.Errorf("Expected 3 jobs (check_membership, activation, main), found %d", jobCount)
+		t.Errorf("Expected 3 jobs (pre_activation, activation, agent), found %d", jobCount)
 	}
 }
 
@@ -2922,6 +2952,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [get_issue]
@@ -2987,6 +3018,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3006,6 +3038,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3024,6 +3057,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3044,6 +3078,7 @@ if: github.actor != 'dependabot[bot]'
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3065,6 +3100,7 @@ if: github.actor != 'dependabot[bot]'
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3083,6 +3119,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3171,6 +3208,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3191,6 +3229,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3210,6 +3249,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3232,6 +3272,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -3352,6 +3393,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues
@@ -3361,7 +3403,7 @@ engine: claude
 # Test Workflow
 
 Invalid YAML with unclosed bracket.`,
-			expectedErrorLine:   9, // Updated to match new YAML library error reporting
+			expectedErrorLine:   10, // Error detected at 'engine: claude' line
 			expectedErrorColumn: 1,
 			expectedMessagePart: "',' or ']' must be specified",
 			description:         "unclosed bracket in array should be detected",
@@ -3373,6 +3415,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 invalid: yaml: syntax
   more: bad
 engine: claude
@@ -3381,7 +3424,7 @@ engine: claude
 # Test Workflow
 
 Invalid YAML with bad mapping.`,
-			expectedErrorLine:   6,
+			expectedErrorLine:   7,
 			expectedErrorColumn: 10, // Updated to match new YAML library error reporting
 			expectedMessagePart: "mapping value is not allowed in this context",
 			description:         "invalid mapping context should be detected",
@@ -3411,6 +3454,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: ["list_issues]
@@ -3420,7 +3464,7 @@ engine: claude
 # Test Workflow
 
 Invalid YAML with unclosed quote.`,
-			expectedErrorLine:   8,
+			expectedErrorLine:   9,
 			expectedErrorColumn: 15, // Updated to match new YAML library error reporting
 			expectedMessagePart: "could not find end character of double-quoted text",
 			description:         "unclosed quote should be detected",
@@ -3431,6 +3475,8 @@ Invalid YAML with unclosed quote.`,
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 permissions:
   issues: write
 engine: claude
@@ -3439,7 +3485,7 @@ engine: claude
 # Test Workflow
 
 Invalid YAML with duplicate keys.`,
-			expectedErrorLine:   5, // Line 4 in YAML becomes line 5 in file (adjusted for frontmatter start)
+			expectedErrorLine:   7,
 			expectedErrorColumn: 1,
 			expectedMessagePart: "mapping key \"permissions\" already defined",
 			description:         "duplicate keys should be detected",
@@ -3451,6 +3497,7 @@ on: push
 permissions:
   contents: read
   issues: yes_please
+  pull-requests: read
 engine: claude
 ---
 
@@ -3513,6 +3560,8 @@ on: push
 timeout_minutes: 05.5
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -3535,6 +3584,8 @@ tools:
   claude: [
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -3755,6 +3806,8 @@ name: Test Cache Workflow
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 cache:
   key: node-modules-${{ hashFiles('package-lock.json') }}
@@ -3786,6 +3839,8 @@ name: Test Multi Cache Workflow
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 cache:
   - key: node-modules-${{ hashFiles('package-lock.json') }}
@@ -3829,6 +3884,8 @@ name: Test Full Cache Workflow
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 cache:
   key: full-cache-${{ github.sha }}
@@ -3921,6 +3978,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
@@ -4014,6 +4072,7 @@ on: issues
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
@@ -4203,7 +4262,7 @@ permissions:
   issues: write
 tools:
   github:
-    allowed: [list_issues, create_issue]
+    toolsets: [repos, issues]
 engine: claude
 ---
 
@@ -4370,6 +4429,8 @@ func TestCustomStepsIndentation(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 %s
 engine: claude
 ---
@@ -4732,6 +4793,8 @@ func TestCustomStepsEdgeCases(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 %s
 engine: claude
 ---
@@ -4897,6 +4960,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -4922,6 +4986,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -4948,6 +5013,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -4972,6 +5038,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -4996,6 +5063,7 @@ if: github.actor != 'dependabot[bot]'
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5018,6 +5086,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5040,6 +5109,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5062,6 +5132,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5083,6 +5154,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5171,6 +5243,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5197,6 +5270,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5217,6 +5291,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5236,6 +5311,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 
 tools:
   github:
@@ -5446,6 +5522,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   github:
@@ -5466,6 +5544,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   github:
@@ -5482,6 +5562,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   github:
@@ -5610,6 +5692,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [get_issue]
@@ -5627,6 +5710,8 @@ on:
   stop-after: +1h
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 tools:
   github:
     allowed: [list_commits]
@@ -5645,6 +5730,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [get_issue]
@@ -5742,6 +5828,8 @@ func TestPostStepsIndentationFix(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
@@ -5852,6 +5940,8 @@ func TestPromptUploadArtifact(t *testing.T) {
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 ---
 

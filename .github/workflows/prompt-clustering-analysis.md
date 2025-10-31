@@ -6,8 +6,11 @@ on:
     - cron: "0 19 * * *"
   workflow_dispatch:
 
-permissions: read-all
-
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  actions: read
 engine: claude
 
 network:

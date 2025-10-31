@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var nodejsLog = logger.New("workflow:nodejs")
 
 // GenerateNodeJsSetupStep creates a GitHub Actions step for setting up Node.js
 // Returns a step that installs Node.js v24
@@ -25,10 +29,13 @@ func GenerateNodeJsSetupStep() GitHubActionStep {
 //
 // Returns steps for installing the npm package (optionally with Node.js setup)
 func GenerateNpmInstallSteps(packageName, version, stepName, cacheKeyPrefix string, includeNodeSetup bool) []GitHubActionStep {
+	nodejsLog.Printf("Generating npm install steps: package=%s, version=%s, includeNodeSetup=%v", packageName, version, includeNodeSetup)
+
 	var steps []GitHubActionStep
 
 	// Add Node.js setup if requested
 	if includeNodeSetup {
+		nodejsLog.Print("Including Node.js setup step")
 		steps = append(steps, GenerateNodeJsSetupStep())
 	}
 

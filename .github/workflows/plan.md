@@ -6,7 +6,9 @@ on:
     events: [issue_comment, discussion_comment]
 permissions:
   contents: read
-  actions: read
+  discussions: read
+  issues: read
+  pull-requests: read
 engine: copilot
 tools:
   github:

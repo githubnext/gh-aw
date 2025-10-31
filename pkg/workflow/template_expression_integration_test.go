@@ -27,6 +27,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine: claude
 ---
 
@@ -129,6 +130,8 @@ func TestTemplateExpressionAlreadyWrapped(t *testing.T) {
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -192,6 +195,8 @@ func TestTemplateWithMixedExpressionsAndLiterals(t *testing.T) {
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 

@@ -1123,6 +1123,7 @@
       }
     },
     "runs-on": {
+      "description": "Runner type for workflow execution (GitHub Actions standard field). Typically configured at the job level instead.",
       "oneOf": [
         {
           "type": "string",
@@ -1161,6 +1162,7 @@
       "examples": [5, 10, 30]
     },
     "concurrency": {
+      "description": "Concurrency control to limit concurrent workflow runs (GitHub Actions standard field). Agentic workflows use enhanced concurrency management.",
       "oneOf": [
         {
           "type": "string",
@@ -2756,8 +2758,17 @@
                   "description": "Additional custom prompt instructions to append to threat detection analysis"
                 },
                 "engine": {
-                  "description": "AI engine configuration specifically for threat detection (overrides main workflow engine). Supports same format as main engine field.",
-                  "$ref": "#/$defs/engine_config"
+                  "description": "AI engine configuration specifically for threat detection (overrides main workflow engine). Set to false to disable AI-based threat detection. Supports same format as main engine field when not false.",
+                  "oneOf": [
+                    {
+                      "type": "boolean",
+                      "const": false,
+                      "description": "Disable AI engine for threat detection (only run custom steps)"
+                    },
+                    {
+                      "$ref": "#/$defs/engine_config"
+                    }
+                  ]
                 },
                 "steps": {
                   "type": "array",
@@ -3161,9 +3172,9 @@
               },
               "description": "Optional array of command-line arguments to pass to the AI engine CLI. These arguments are injected after all other args but before the prompt."
             },
-            "agent": {
+            "custom-agent": {
               "type": "string",
-              "description": "Optional path to an agent configuration file. For copilot engine, this is passed as --agent flag. For claude and codex engines, the markdown body from the agent file is injected as a system prompt."
+              "description": "Optional path to a custom agent configuration file. For copilot engine, this is passed as --agent flag. For claude and codex engines, the markdown body from the agent file is injected as a system prompt."
             }
           },
           "required": ["id"],

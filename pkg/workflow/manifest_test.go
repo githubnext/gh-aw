@@ -58,6 +58,8 @@ Be helpful and concise.`
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 imports:
   - shared/tools.md
@@ -78,6 +80,8 @@ Handle the issue.`,
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 imports:
   - shared/tools.md
@@ -96,6 +100,8 @@ Handle the issue.`,
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -114,6 +120,8 @@ Handle the issue.`,
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 

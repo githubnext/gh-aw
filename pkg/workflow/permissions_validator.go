@@ -83,12 +83,10 @@ func GetToolsetsData() GitHubToolsetsData {
 
 // PermissionsValidationResult contains the result of permissions validation
 type PermissionsValidationResult struct {
-	MissingPermissions     map[PermissionScope]PermissionLevel // Permissions required but not granted
-	ExcessPermissions      map[PermissionScope]PermissionLevel // Permissions granted but not needed
-	ReadOnlyMode           bool                                // Whether the GitHub MCP is in read-only mode
-	HasValidationIssues    bool                                // Whether there are any validation issues
-	MissingToolsetDetails  map[string][]PermissionScope        // Maps toolset name to missing permissions
-	ExcessPermissionScopes []PermissionScope                   // List of permission scopes that are over-provisioned
+	MissingPermissions    map[PermissionScope]PermissionLevel // Permissions required but not granted
+	ReadOnlyMode          bool                                // Whether the GitHub MCP is in read-only mode
+	HasValidationIssues   bool                                // Whether there are any validation issues
+	MissingToolsetDetails map[string][]PermissionScope        // Maps toolset name to missing permissions
 }
 
 // ValidatePermissions validates that permissions match the required GitHub MCP toolsets
@@ -97,7 +95,6 @@ func ValidatePermissions(permissions *Permissions, githubTool any) *PermissionsV
 
 	result := &PermissionsValidationResult{
 		MissingPermissions:    make(map[PermissionScope]PermissionLevel),
-		ExcessPermissions:     make(map[PermissionScope]PermissionLevel),
 		MissingToolsetDetails: make(map[string][]PermissionScope),
 	}
 
@@ -128,27 +125,9 @@ func ValidatePermissions(permissions *Permissions, githubTool any) *PermissionsV
 	// Check for missing permissions
 	checkMissingPermissions(permissions, requiredPermissions, toolsets, result)
 
-	// Check for excess permissions (only for specific toolsets, not "all")
-	// Note: "default" is expanded to specific toolsets, so excess checking should still happen
-	shouldCheckExcess := !containsAllToolset(toolsetsStr)
-	if shouldCheckExcess {
-		checkExcessPermissions(permissions, requiredPermissions, result)
-	}
-
-	result.HasValidationIssues = len(result.MissingPermissions) > 0 || len(result.ExcessPermissions) > 0
+	result.HasValidationIssues = len(result.MissingPermissions) > 0
 
 	return result
-}
-
-// containsAllToolset checks if the original toolsets string contains "all"
-func containsAllToolset(toolsetsStr string) bool {
-	toolsets := strings.Split(toolsetsStr, ",")
-	for _, t := range toolsets {
-		if strings.TrimSpace(t) == "all" {
-			return true
-		}
-	}
-	return false
 }
 
 // collectRequiredPermissions collects all required permissions for the given toolsets
@@ -227,60 +206,18 @@ func checkMissingPermissions(permissions *Permissions, required map[PermissionSc
 	}
 }
 
-// checkExcessPermissions checks if any granted permissions are not required
-func checkExcessPermissions(permissions *Permissions, required map[PermissionScope]PermissionLevel, result *PermissionsValidationResult) {
-	// Get all permission scopes to check
-	allScopes := GetAllPermissionScopes()
-
-	for _, scope := range allScopes {
-		grantedLevel, granted := permissions.Get(scope)
-		if !granted {
-			continue
-		}
-
-		// Skip if permission is none
-		if grantedLevel == PermissionNone {
-			continue
-		}
-
-		requiredLevel, needed := required[scope]
-
-		// If permission is granted but not required at all
-		if !needed {
-			result.ExcessPermissions[scope] = grantedLevel
-			result.ExcessPermissionScopes = append(result.ExcessPermissionScopes, scope)
-			continue
-		}
-
-		// If write permission is granted but only read is required
-		if grantedLevel == PermissionWrite && requiredLevel == PermissionRead {
-			result.ExcessPermissions[scope] = PermissionWrite
-			result.ExcessPermissionScopes = append(result.ExcessPermissionScopes, scope)
-		}
-	}
-}
-
 // FormatValidationMessage formats the validation result into a human-readable message
 func FormatValidationMessage(result *PermissionsValidationResult, strict bool) string {
 	if !result.HasValidationIssues {
 		return ""
 	}
 
-	var messages []string
-
 	// Format missing permissions
 	if len(result.MissingPermissions) > 0 {
-		msg := formatMissingPermissionsMessage(result)
-		messages = append(messages, msg)
+		return formatMissingPermissionsMessage(result)
 	}
 
-	// Format excess permissions
-	if len(result.ExcessPermissions) > 0 {
-		msg := formatExcessPermissionsMessage(result, strict)
-		messages = append(messages, msg)
-	}
-
-	return strings.Join(messages, "\n\n")
+	return ""
 }
 
 // formatMissingPermissionsMessage formats the missing permissions error message
@@ -292,72 +229,45 @@ func formatMissingPermissionsMessage(result *PermissionsValidationResult) string
 	sort.Strings(scopes)
 
 	var lines []string
-	lines = append(lines, "ERROR: Missing required permissions for GitHub MCP toolsets:")
 
+	// Build permission list with toolset details inline
+	var permLines []string
 	for _, scopeStr := range scopes {
 		scope := PermissionScope(scopeStr)
 		level := result.MissingPermissions[scope]
-		lines = append(lines, fmt.Sprintf("  - %s: %s", scope, level))
-	}
 
-	// Add toolset details
-	if len(result.MissingToolsetDetails) > 0 {
-		lines = append(lines, "")
-		lines = append(lines, "Required by toolsets:")
-
-		var toolsetNames []string
-		for toolset := range result.MissingToolsetDetails {
-			toolsetNames = append(toolsetNames, toolset)
-		}
-		sort.Strings(toolsetNames)
-
-		for _, toolset := range toolsetNames {
-			scopes := result.MissingToolsetDetails[toolset]
-			scopeStrs := make([]string, len(scopes))
-			for i, s := range scopes {
-				scopeStrs[i] = string(s)
+		// Find which toolsets need this permission
+		var requiredBy []string
+		if len(result.MissingToolsetDetails) > 0 {
+			for toolset, toolsetScopes := range result.MissingToolsetDetails {
+				for _, ts := range toolsetScopes {
+					if ts == scope {
+						requiredBy = append(requiredBy, toolset)
+						break
+					}
+				}
 			}
-			lines = append(lines, fmt.Sprintf("  - %s: needs %s", toolset, strings.Join(scopeStrs, ", ")))
+		}
+
+		// Format: "- scope: level (required by toolset1, toolset2)"
+		if len(requiredBy) > 0 {
+			sort.Strings(requiredBy)
+			permLines = append(permLines, fmt.Sprintf("  - %s: %s (required by %s)", scope, level, strings.Join(requiredBy, ", ")))
+		} else {
+			permLines = append(permLines, fmt.Sprintf("  - %s: %s", scope, level))
 		}
 	}
 
+	lines = append(lines, "Missing required permissions for github toolsets:")
+	lines = append(lines, permLines...)
 	lines = append(lines, "")
-	lines = append(lines, "Suggested fix: Add the following to your workflow frontmatter:")
+	lines = append(lines, "Add to your workflow frontmatter:")
 	lines = append(lines, "permissions:")
 	for _, scopeStr := range scopes {
 		scope := PermissionScope(scopeStr)
 		level := result.MissingPermissions[scope]
 		lines = append(lines, fmt.Sprintf("  %s: %s", scope, level))
 	}
-
-	return strings.Join(lines, "\n")
-}
-
-// formatExcessPermissionsMessage formats the excess permissions warning/error message
-func formatExcessPermissionsMessage(result *PermissionsValidationResult, strict bool) string {
-	var scopes []string
-	for scope := range result.ExcessPermissions {
-		scopes = append(scopes, string(scope))
-	}
-	sort.Strings(scopes)
-
-	var lines []string
-	prefix := "WARNING"
-	if strict {
-		prefix = "ERROR"
-	}
-
-	lines = append(lines, fmt.Sprintf("%s: Over-provisioned permissions detected for GitHub MCP toolsets:", prefix))
-
-	for _, scopeStr := range scopes {
-		scope := PermissionScope(scopeStr)
-		level := result.ExcessPermissions[scope]
-		lines = append(lines, fmt.Sprintf("  - %s: %s (not required by configured toolsets)", scope, level))
-	}
-
-	lines = append(lines, "")
-	lines = append(lines, "Principle of least privilege: Only grant permissions that are needed.")
-	lines = append(lines, "Consider removing these permissions or adjusting your toolsets configuration.")
 
 	return strings.Join(lines, "\n")
 }

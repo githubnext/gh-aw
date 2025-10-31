@@ -21,6 +21,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine: claude
 safe-outputs:
   create-issue:
@@ -88,6 +89,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine: claude
 ---
 
@@ -214,6 +216,7 @@ on: push
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 tools:
   github:
     allowed: [list_issues]
@@ -691,6 +694,7 @@ on: push
 permissions:
   contents: read
   pull-requests: write
+  issues: read
 engine: claude
 safe-outputs:
   create-pull-request:
@@ -758,6 +762,7 @@ on: push
 permissions:
   contents: read
   pull-requests: write
+  issues: read
 tools:
   github:
     allowed: [list_issues]
@@ -871,6 +876,7 @@ on: push
 permissions:
   contents: read
   pull-requests: write
+  issues: read
 tools:
   github:
     allowed: [list_issues]
@@ -946,6 +952,7 @@ on: push
 permissions:
   contents: read
   pull-requests: write
+  issues: read
 tools:
   github:
     allowed: [list_issues]
@@ -1196,6 +1203,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine: claude
 safe-outputs:
   add-labels:
@@ -1281,6 +1289,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine: claude
 safe-outputs:
   add-labels:
@@ -1685,6 +1694,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine: claude
 safe-outputs:
   add-labels:
@@ -1730,6 +1740,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 engine: claude
 safe-outputs:
   add-labels: {}
@@ -1774,6 +1785,7 @@ on: push
 permissions:
   contents: read
   pull-requests: write
+  issues: read
 engine: claude
 safe-outputs:
   create-pull-request:
@@ -1819,6 +1831,7 @@ on: push
 permissions:
   contents: read
   pull-requests: write
+  issues: read
 engine: claude
 safe-outputs:
   create-pull-request:

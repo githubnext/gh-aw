@@ -16,8 +16,8 @@ on:
 # Minimal permissions - safe-outputs handles write operations
 permissions:
   contents: read
-  actions: read
   pull-requests: read
+  issues: read
 
 # AI engine configuration
 engine:
@@ -79,7 +79,7 @@ steps:
     uses: actions/checkout@v5
 
   - name: Setup Node.js
-    uses: actions/setup-node@v5
+    uses: actions/setup-node@v6
     with:
       node-version: '24'
       cache: 'npm'

@@ -22,6 +22,8 @@ on:
     types: [ready_for_review]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -38,6 +40,8 @@ on:
     types: [opened]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -54,6 +58,8 @@ on:
     branches: [main]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
@@ -70,13 +76,15 @@ on:
     types: [ready_for_review]
 permissions:
   issues: write
-engine: claude
+  contents: read
+  pull-requests: read
+engine: codex
 ---
 
 # Test Workflow
-Test workflow without contents permission.
+Test workflow without checkout (has permissions but checkout should be conditional).
 `,
-			expectPRCheckout: false,
+			expectPRCheckout: true, // Changed: now has contents permission, so checkout is added
 		},
 	}
 
@@ -150,6 +158,8 @@ on:
     types: [ready_for_review, opened]
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 

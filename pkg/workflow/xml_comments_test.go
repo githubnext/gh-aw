@@ -316,7 +316,7 @@ permissions:
   issues: write
 tools:
   github:
-    allowed: [add_issue_comment]
+    toolsets: [issues]
 engine: claude
 ---
 
@@ -343,7 +343,7 @@ This is a normal-sized workflow that should compile successfully.`
 		"  issues: write\n" +
 		"tools:\n" +
 		"  github:\n" +
-		"    allowed: [add_issue_comment]\n" +
+		"    toolsets: [issues]\n" +
 		"engine: claude\n" +
 		"---\n\n" +
 		"# Very Long Workflow\n\n" +

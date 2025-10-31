@@ -51,7 +51,7 @@ console.log(data);`,
 			name: "simple single-line with parameters",
 			stepMap: map[string]any{
 				"name": "Simple Test",
-				"uses": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+				"uses": "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
 				"with": map[string]any{
 					"node-version": "18",
 					"cache":        "npm",
@@ -59,7 +59,7 @@ console.log(data);`,
 			},
 			shouldContain: []string{
 				"name: Simple Test",
-				"uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+				"uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903",
 				"with:",
 				"node-version: \"18\"", // goccy/go-yaml quotes numeric strings
 				"cache: npm",

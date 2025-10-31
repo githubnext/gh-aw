@@ -5,7 +5,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  actions: read
   issues: read
   pull-requests: read
   discussions: read
@@ -17,6 +16,9 @@ tools:
   bash:
     - "*"
   github:
+    toolsets:
+      - default
+      - discussions
     allowed:
       - list_pull_requests
       - list_issues

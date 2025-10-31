@@ -18,6 +18,8 @@ func TestWebFetchMCPServerAddition(t *testing.T) {
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: codex
 tools:
   web-fetch:
@@ -79,6 +81,8 @@ func TestWebFetchNotAddedForClaudeEngine(t *testing.T) {
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   web-fetch:
@@ -142,6 +146,8 @@ func TestNoWebFetchNoMCPFetchServer(t *testing.T) {
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: codex
 tools:
   bash:

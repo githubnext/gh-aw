@@ -206,6 +206,8 @@ tools:
 		sharedWorkflowUpgradeContent := `---
 permissions:
   contents: write
+  issues: read
+  pull-requests: read
 ---
 
 # Shared workflow with write permission
@@ -295,9 +297,10 @@ func TestExtractPermissionsFromContent(t *testing.T) {
 permissions:
   contents: read
   issues: write
+  pull-requests: read
 ---
 # Content`,
-			expected: `{"contents":"read","issues":"write"}`,
+			expected: `{"contents":"read","issues":"write","pull-requests":"read"}`,
 			wantErr:  false,
 		},
 		{

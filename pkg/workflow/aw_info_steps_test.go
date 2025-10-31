@@ -20,6 +20,8 @@ func TestAwInfoStepsFirewall(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 network:
   firewall: true
@@ -38,6 +40,8 @@ This workflow tests that firewall type is set to squid when enabled.
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 network:
   firewall: false
@@ -56,6 +60,8 @@ This workflow tests that firewall type is empty when disabled.
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 

@@ -21,6 +21,8 @@ name: Test Cache Memory Single
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   cache-memory: true
@@ -52,6 +54,8 @@ name: Test Cache Memory Multiple
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   cache-memory:
@@ -93,6 +97,8 @@ name: Test Cache Memory Multiple No Keys
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 tools:
   cache-memory:

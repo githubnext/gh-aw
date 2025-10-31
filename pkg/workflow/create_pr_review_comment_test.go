@@ -22,6 +22,7 @@ on: pull_request
 permissions:
   contents: read
   pull-requests: write
+  issues: read
 engine: claude
 safe-outputs:
   create-pull-request-review-comment:

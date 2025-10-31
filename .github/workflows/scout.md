@@ -10,7 +10,8 @@ on:
         required: true
 permissions:
   contents: read
-  actions: read
+  issues: read
+  pull-requests: read
 roles: [admin, maintainer, write]
 engine: claude
 imports:

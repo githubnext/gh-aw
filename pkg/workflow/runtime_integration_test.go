@@ -20,6 +20,8 @@ func TestCompileWorkflowWithRuntimes(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 runtimes:
   node:
@@ -109,6 +111,8 @@ runtimes:
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 imports:
   - shared/shared-runtimes.md
@@ -195,6 +199,8 @@ func TestCompileWorkflowWithRuntimesAppliedToSteps(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 steps:
   - name: Install dependencies
@@ -230,7 +236,7 @@ Test workflow with runtime overrides applied to steps.
 	lockStr := string(lockContent)
 
 	// Verify that Node.js setup step is included with version 22
-	if !strings.Contains(lockStr, "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020") {
+	if !strings.Contains(lockStr, "actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903") {
 		t.Error("Expected setup-node action in lock file")
 	}
 	if !strings.Contains(lockStr, "node-version: '22'") {
@@ -251,6 +257,8 @@ func TestCompileWorkflowWithCustomActionRepo(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 steps:
   - name: Install dependencies

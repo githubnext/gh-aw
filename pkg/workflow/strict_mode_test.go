@@ -20,6 +20,8 @@ func TestStrictModeTimeout(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 network:
   allowed:
@@ -35,6 +37,8 @@ network:
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 network:
@@ -91,8 +95,12 @@ on: push
 permissions:
   contents: read
   issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
+network:
+  allowed:
+    - "api.example.com"
 ---
 
 # Test Workflow`,
@@ -104,6 +112,8 @@ engine: copilot
 on: push
 permissions:
   contents: write
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 ---
@@ -199,6 +209,8 @@ network:
 on: push
 permissions:
   contents: write # NOT IN STRICT MODE
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 ---
@@ -252,6 +264,8 @@ func TestStrictModeNetwork(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 network: defaults
@@ -266,6 +280,8 @@ network: defaults
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 network:
@@ -283,6 +299,8 @@ network:
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 network:
@@ -300,6 +318,8 @@ network:
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 network: {}
@@ -353,6 +373,8 @@ func TestStrictModeMCPNetwork(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 tools:
@@ -409,6 +431,8 @@ func TestStrictModeBashTools(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 tools:
@@ -427,6 +451,8 @@ network:
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 tools:
@@ -445,6 +471,8 @@ network:
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 tools:
@@ -463,6 +491,8 @@ network:
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 tools:
@@ -482,6 +512,8 @@ network:
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 tools:
@@ -501,6 +533,8 @@ network:
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 tools:
@@ -520,6 +554,8 @@ network:
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 tools:
@@ -576,6 +612,7 @@ on: push
 permissions:
   contents: write
   issues: write
+  pull-requests: read
 engine: copilot
 network:
   allowed:
@@ -618,6 +655,8 @@ on: push
 strict: true
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 network:
   allowed:
@@ -634,6 +673,8 @@ on: push
 strict: false
 permissions:
   contents: write
+  issues: read
+  pull-requests: read
 engine: copilot
 ---
 
@@ -647,6 +688,8 @@ on: push
 strict: true
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 timeout_minutes: 10
 engine: copilot
 network:
@@ -663,6 +706,8 @@ network:
 on: push
 permissions:
   contents: write
+  issues: read
+  pull-requests: read
 engine: copilot
 ---
 
@@ -708,6 +753,8 @@ on: push
 strict: false
 permissions:
   contents: write
+  issues: read
+  pull-requests: read
 engine: copilot
 ---
 
@@ -750,6 +797,8 @@ on: push
 strict: true
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 network:
   allowed:
@@ -763,6 +812,8 @@ network:
 on: push
 permissions:
   contents: write
+  issues: read
+  pull-requests: read
 engine: copilot
 ---
 
@@ -808,6 +859,8 @@ func TestStrictModeAllowsGitHubWorkflowExpression(t *testing.T) {
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 network:
   allowed:
@@ -826,6 +879,8 @@ The workflow name is: ${{ github.workflow }}`,
 on: push
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 network:
   allowed:
@@ -843,6 +898,8 @@ Using github.workflow in a condition: ${{ github.workflow == 'my-workflow' && gi
 on: issues
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 network:
   allowed:

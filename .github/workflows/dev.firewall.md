@@ -8,7 +8,8 @@ name: Dev Firewall
 engine: copilot
 permissions:
   contents: read
-  actions: read
+  issues: read
+  pull-requests: read
 network:
   firewall: true
 tools:

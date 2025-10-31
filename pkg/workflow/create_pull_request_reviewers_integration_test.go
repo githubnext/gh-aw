@@ -21,6 +21,8 @@ on: push
 permissions:
   contents: read
   actions: read
+  issues: read
+  pull-requests: read
 engine: copilot
 safe-outputs:
   create-pull-request:
@@ -118,6 +120,8 @@ on: push
 permissions:
   contents: read
   actions: read
+  issues: read
+  pull-requests: read
 engine: copilot
 safe-outputs:
   create-pull-request:
@@ -180,6 +184,8 @@ on: push
 permissions:
   contents: read
   actions: read
+  issues: read
+  pull-requests: read
 engine: copilot
 safe-outputs:
   create-pull-request:

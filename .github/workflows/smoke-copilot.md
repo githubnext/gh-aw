@@ -8,8 +8,8 @@ on:
     names: ["smoke"]
 permissions:
   contents: read
-  actions: read
   pull-requests: read
+  issues: read
 name: Smoke Copilot
 engine: copilot
 network:

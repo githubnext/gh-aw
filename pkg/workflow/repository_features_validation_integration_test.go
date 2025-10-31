@@ -132,6 +132,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 safe-outputs:
   create-discussion:
     category: "General"

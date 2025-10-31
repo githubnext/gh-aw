@@ -138,9 +138,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, "--model", workflowData.EngineConfig.Model)
 	}
 
-	// Add --agent flag if agent file is specified
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Agent != "" {
-		copilotArgs = append(copilotArgs, "--agent", workflowData.EngineConfig.Agent)
+	// Add --agent flag if custom agent file is specified
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.CustomAgent != "" {
+		copilotArgs = append(copilotArgs, "--agent", workflowData.EngineConfig.CustomAgent)
 	}
 
 	// Add tool permission arguments based on configuration
@@ -245,6 +245,9 @@ COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 		"COPILOT_AGENT_RUNNER_TYPE": "STANDALONE",
 		"GITHUB_TOKEN":              "${{ secrets.COPILOT_CLI_TOKEN  }}",
 		"GITHUB_STEP_SUMMARY":       "${{ env.GITHUB_STEP_SUMMARY }}",
+		"GITHUB_HEAD_REF":           "${{ github.head_ref }}",
+		"GITHUB_REF_NAME":           "${{ github.ref_name }}",
+		"GITHUB_WORKSPACE":          "${{ github.workspace }}",
 	}
 
 	// Always add GH_AW_PROMPT for agentic workflows
@@ -323,11 +326,6 @@ COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 	steps = append(steps, GitHubActionStep(stepLines))
 
 	return steps
-}
-
-// convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
-func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	return ConvertStepToYAML(stepMap)
 }
 
 // GetSquidLogsSteps returns the steps for collecting and uploading Squid logs

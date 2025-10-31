@@ -22,6 +22,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine:
   id: codex
   max-turns: 5
@@ -41,6 +43,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine:
   id: claude
   max-turns: 5
@@ -59,6 +63,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: codex
 ---
 
@@ -75,6 +81,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: claude
 ---
 
