@@ -238,7 +238,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 				}
 			}
 			
-			// Create minimal WorkflowData with engine config
+			// Create minimal EngineConfig with engine information
 			engineConfig := &workflow.EngineConfig{
 				ID: engineType,
 			}
