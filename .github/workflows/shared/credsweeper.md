@@ -120,7 +120,7 @@ steps:
                 masked: maskSecret(secretValue)
               });
               
-              core.info(`    🎭 Will mask: "${secretValue}" → "${maskSecret(secretValue)}"`);
+              core.info(`    🎭 Secret will be masked as: "${maskSecret(secretValue)}"`);
             });
           });
           
@@ -162,8 +162,8 @@ steps:
                 // Check if the secret is actually in the line
                 if (!originalLine.includes(secretInfo.secret)) {
                   core.warning(`    ⚠️  Secret not found in line ${secretInfo.lineNum}, skipping`);
-                  core.info(`       Expected: "${secretInfo.secret}"`);
-                  core.info(`       Line content: "${originalLine}"`);
+                  core.info(`       Expected masked value: "${secretInfo.masked}"`);
+                  core.info(`       Line content (first 50 chars): "${originalLine.substring(0, 50)}..."`);
                   return;
                 }
                 
@@ -173,7 +173,6 @@ steps:
                 
                 secretsMasked++;
                 core.info(`    ✅ Line ${secretInfo.lineNum} masked (${secretInfo.rule})`);
-                core.info(`       Before: ${originalLine.trim()}`);
                 core.info(`       After:  ${maskedLine.trim()}`);
               });
               
