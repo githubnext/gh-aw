@@ -101,6 +101,7 @@ type ImportsResult struct {
 	MergedNetwork     string   // Merged network configuration from all imports
 	MergedPermissions string   // Merged permissions configuration from all imports
 	ImportedFiles     []string // List of imported file paths (for manifest)
+	AgentFile         string   // Path to custom agent file (if imported)
 }
 
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
@@ -411,6 +412,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var engines []string
 	var safeOutputs []string
 	var processedFiles []string
+	var agentFile string // Track custom agent file
 
 	for _, importPath := range imports {
 		// Handle section references (file.md#Section)
@@ -439,6 +441,38 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 
 		// Add to list of processed files (use original importPath for manifest)
 		processedFiles = append(processedFiles, importPath)
+
+		// Check if this is a custom agent file (any markdown file under .github/agents)
+		isAgentFile := strings.Contains(fullPath, "/.github/agents/") && strings.HasSuffix(strings.ToLower(fullPath), ".md")
+		if isAgentFile {
+			if agentFile != "" {
+				// Multiple agent files found - error
+				return nil, fmt.Errorf("multiple agent files found in imports: '%s' and '%s'. Only one agent file is allowed per workflow", agentFile, importPath)
+			}
+			agentFile = fullPath
+			log.Printf("Found agent file: %s", fullPath)
+
+			// For agent files, only extract markdown content
+			// Extract markdown content from imported file
+			markdownContent, err := processIncludedFileWithVisited(fullPath, sectionName, false, visited)
+			if err != nil {
+				return nil, fmt.Errorf("failed to process markdown from agent file '%s': %w", fullPath, err)
+			}
+			if markdownContent != "" {
+				markdownBuilder.WriteString(markdownContent)
+				// Add blank line separator between imported files
+				if !strings.HasSuffix(markdownContent, "\n\n") {
+					if strings.HasSuffix(markdownContent, "\n") {
+						markdownBuilder.WriteString("\n")
+					} else {
+						markdownBuilder.WriteString("\n\n")
+					}
+				}
+			}
+
+			// Skip other extractions for agent files
+			continue
+		}
 
 		// Extract tools from imported file
 		toolsContent, err := processIncludedFileWithVisited(fullPath, sectionName, true, visited)
@@ -530,6 +564,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		MergedNetwork:     networkBuilder.String(),
 		MergedPermissions: permissionsBuilder.String(),
 		ImportedFiles:     processedFiles,
+		AgentFile:         agentFile,
 	}, nil
 }
 

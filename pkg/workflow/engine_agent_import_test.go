@@ -7,62 +7,15 @@ import (
 	"testing"
 )
 
-// TestEngineConfigAgentFieldExtraction tests that the custom-agent field is correctly extracted from frontmatter
-func TestEngineConfigAgentFieldExtraction(t *testing.T) {
-	compiler := NewCompiler(false, "", "")
-
-	frontmatter := map[string]any{
-		"engine": map[string]any{
-			"id":           "copilot",
-			"custom-agent": "/path/to/agent.md",
-		},
-	}
-
-	engineID, config := compiler.ExtractEngineConfig(frontmatter)
-
-	if engineID != "copilot" {
-		t.Errorf("Expected engine ID 'copilot', got '%s'", engineID)
-	}
-
-	if config == nil {
-		t.Fatal("Expected non-nil engine config")
-	}
-
-	if config.CustomAgent != "/path/to/agent.md" {
-		t.Errorf("Expected custom agent path '/path/to/agent.md', got '%s'", config.CustomAgent)
-	}
-}
-
-// TestEngineConfigAgentFieldEmpty tests that empty custom-agent field is handled correctly
-func TestEngineConfigAgentFieldEmpty(t *testing.T) {
-	compiler := NewCompiler(false, "", "")
-
-	frontmatter := map[string]any{
-		"engine": map[string]any{
-			"id": "claude",
-		},
-	}
-
-	_, config := compiler.ExtractEngineConfig(frontmatter)
-
-	if config == nil {
-		t.Fatal("Expected non-nil engine config")
-	}
-
-	if config.CustomAgent != "" {
-		t.Errorf("Expected empty custom agent path, got '%s'", config.CustomAgent)
-	}
-}
-
-// TestCopilotEngineWithAgentFlag tests that copilot engine includes --agent flag when custom-agent is specified
-func TestCopilotEngineWithAgentFlag(t *testing.T) {
+// TestCopilotEngineWithAgentFromImports tests that copilot engine includes --agent flag when agent file is imported
+func TestCopilotEngineWithAgentFromImports(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			ID:          "copilot",
-			CustomAgent: "/path/to/agent.md",
+			ID: "copilot",
 		},
+		AgentFile: "/path/to/agent.md",
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
@@ -78,7 +31,7 @@ func TestCopilotEngineWithAgentFlag(t *testing.T) {
 	}
 }
 
-// TestCopilotEngineWithoutAgentFlag tests that copilot engine works without custom-agent flag
+// TestCopilotEngineWithoutAgentFlag tests that copilot engine works without agent file
 func TestCopilotEngineWithoutAgentFlag(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
@@ -97,19 +50,19 @@ func TestCopilotEngineWithoutAgentFlag(t *testing.T) {
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
 	if strings.Contains(stepContent, "--agent") {
-		t.Errorf("Did not expect '--agent' flag when custom-agent is not specified, got:\n%s", stepContent)
+		t.Errorf("Did not expect '--agent' flag when agent file is not specified, got:\n%s", stepContent)
 	}
 }
 
-// TestClaudeEngineWithAgentFile tests that claude engine prepends custom agent file content to prompt
-func TestClaudeEngineWithAgentFile(t *testing.T) {
+// TestClaudeEngineWithAgentFromImports tests that claude engine prepends agent file content to prompt
+func TestClaudeEngineWithAgentFromImports(t *testing.T) {
 	engine := NewClaudeEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			ID:          "claude",
-			CustomAgent: "/path/to/agent.md",
+			ID: "claude",
 		},
+		AgentFile: "/path/to/agent.md",
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
@@ -122,21 +75,21 @@ func TestClaudeEngineWithAgentFile(t *testing.T) {
 
 	// Check that custom agent content extraction is present
 	if !strings.Contains(stepContent, "AGENT_CONTENT=$(awk") {
-		t.Errorf("Expected custom agent content extraction in claude command, got:\n%s", stepContent)
+		t.Errorf("Expected agent content extraction in claude command, got:\n%s", stepContent)
 	}
 
-	// Check that custom agent file path is referenced
+	// Check that agent file path is referenced
 	if !strings.Contains(stepContent, "/path/to/agent.md") {
-		t.Errorf("Expected custom agent file path in claude command, got:\n%s", stepContent)
+		t.Errorf("Expected agent file path in claude command, got:\n%s", stepContent)
 	}
 
-	// Check that custom agent content is prepended to prompt
+	// Check that agent content is prepended to prompt
 	if !strings.Contains(stepContent, "$AGENT_CONTENT") {
 		t.Errorf("Expected $AGENT_CONTENT variable in claude command, got:\n%s", stepContent)
 	}
 }
 
-// TestClaudeEngineWithoutAgentFile tests that claude engine works without custom agent file
+// TestClaudeEngineWithoutAgentFile tests that claude engine works without agent file
 func TestClaudeEngineWithoutAgentFile(t *testing.T) {
 	engine := NewClaudeEngine()
 	workflowData := &WorkflowData{
@@ -154,9 +107,9 @@ func TestClaudeEngineWithoutAgentFile(t *testing.T) {
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
-	// Should not have custom agent content extraction
+	// Should not have agent content extraction
 	if strings.Contains(stepContent, "AGENT_CONTENT") {
-		t.Errorf("Did not expect AGENT_CONTENT when custom-agent is not specified, got:\n%s", stepContent)
+		t.Errorf("Did not expect AGENT_CONTENT when agent file is not specified, got:\n%s", stepContent)
 	}
 
 	// Should still have the standard prompt
@@ -165,15 +118,15 @@ func TestClaudeEngineWithoutAgentFile(t *testing.T) {
 	}
 }
 
-// TestCodexEngineWithAgentFile tests that codex engine prepends custom agent file content to prompt
-func TestCodexEngineWithAgentFile(t *testing.T) {
+// TestCodexEngineWithAgentFromImports tests that codex engine prepends agent file content to prompt
+func TestCodexEngineWithAgentFromImports(t *testing.T) {
 	engine := NewCodexEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			ID:          "codex",
-			CustomAgent: "/path/to/agent.md",
+			ID: "codex",
 		},
+		AgentFile: "/path/to/agent.md",
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
@@ -184,17 +137,17 @@ func TestCodexEngineWithAgentFile(t *testing.T) {
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
-	// Check that custom agent content extraction is present
+	// Check that agent content extraction is present
 	if !strings.Contains(stepContent, "AGENT_CONTENT=$(awk") {
-		t.Errorf("Expected custom agent content extraction in codex command, got:\n%s", stepContent)
+		t.Errorf("Expected agent content extraction in codex command, got:\n%s", stepContent)
 	}
 
-	// Check that custom agent file path is referenced
+	// Check that agent file path is referenced
 	if !strings.Contains(stepContent, "/path/to/agent.md") {
-		t.Errorf("Expected custom agent file path in codex command, got:\n%s", stepContent)
+		t.Errorf("Expected agent file path in codex command, got:\n%s", stepContent)
 	}
 
-	// Check that custom agent content is prepended to prompt using printf
+	// Check that agent content is prepended to prompt using printf
 	if !strings.Contains(stepContent, "INSTRUCTION=$(printf") {
 		t.Errorf("Expected printf with INSTRUCTION in codex command, got:\n%s", stepContent)
 	}
@@ -204,7 +157,7 @@ func TestCodexEngineWithAgentFile(t *testing.T) {
 	}
 }
 
-// TestCodexEngineWithoutAgentFile tests that codex engine works without custom agent file
+// TestCodexEngineWithoutAgentFile tests that codex engine works without agent file
 func TestCodexEngineWithoutAgentFile(t *testing.T) {
 	engine := NewCodexEngine()
 	workflowData := &WorkflowData{
@@ -222,9 +175,9 @@ func TestCodexEngineWithoutAgentFile(t *testing.T) {
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
-	// Should not have custom agent content extraction
+	// Should not have agent content extraction
 	if strings.Contains(stepContent, "AGENT_CONTENT") {
-		t.Errorf("Did not expect AGENT_CONTENT when custom-agent is not specified, got:\n%s", stepContent)
+		t.Errorf("Did not expect AGENT_CONTENT when agent file is not specified, got:\n%s", stepContent)
 	}
 
 	// Should have the standard instruction reading
@@ -233,7 +186,7 @@ func TestCodexEngineWithoutAgentFile(t *testing.T) {
 	}
 }
 
-// TestAgentFileValidation tests compile-time validation of custom agent file existence
+// TestAgentFileValidation tests compile-time validation of agent file existence
 func TestAgentFileValidation(t *testing.T) {
 	// Create a temporary directory structure that mimics a repository
 	tmpDir, err := os.MkdirTemp("", "agent-validation-test")
@@ -252,7 +205,7 @@ func TestAgentFileValidation(t *testing.T) {
 		t.Fatalf("Failed to create workflows directory: %v", err)
 	}
 
-	// Create a valid custom agent file
+	// Create a valid agent file
 	agentContent := `---
 title: Test Agent
 ---
@@ -263,46 +216,46 @@ This is a test agent file.
 `
 	validAgentFilePath := filepath.Join(agentsDir, "valid-agent.md")
 	if err := os.WriteFile(validAgentFilePath, []byte(agentContent), 0644); err != nil {
-		t.Fatalf("Failed to create valid custom agent file: %v", err)
+		t.Fatalf("Failed to create valid agent file: %v", err)
 	}
 
-	// Test 1: Valid custom agent file (using relative path)
+	// Test 1: Valid agent file
 	t.Run("valid_agent_file", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "")
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{
-				ID:          "copilot",
-				CustomAgent: "valid-agent.md", // Relative path
+				ID: "copilot",
 			},
+			AgentFile: validAgentFilePath,
 		}
 
 		workflowPath := filepath.Join(workflowsDir, "test.md")
 		err := compiler.validateAgentFile(workflowData, workflowPath)
 		if err != nil {
-			t.Errorf("Expected no error for valid custom agent file, got: %v", err)
+			t.Errorf("Expected no error for valid agent file, got: %v", err)
 		}
 	})
 
-	// Test 2: Non-existent custom agent file
+	// Test 2: Non-existent agent file
 	t.Run("nonexistent_agent_file", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "")
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{
-				ID:          "copilot",
-				CustomAgent: "nonexistent.md", // Relative path to non-existent file
+				ID: "copilot",
 			},
+			AgentFile: filepath.Join(agentsDir, "nonexistent.md"),
 		}
 
 		workflowPath := filepath.Join(workflowsDir, "test.md")
 		err := compiler.validateAgentFile(workflowData, workflowPath)
 		if err == nil {
-			t.Error("Expected error for non-existent custom agent file, got nil")
+			t.Error("Expected error for non-existent agent file, got nil")
 		} else if !strings.Contains(err.Error(), "does not exist") {
 			t.Errorf("Expected 'does not exist' error, got: %v", err)
 		}
 	})
 
-	// Test 3: No custom agent file specified
+	// Test 3: No agent file specified
 	t.Run("no_agent_file", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "")
 		workflowData := &WorkflowData{
@@ -314,7 +267,7 @@ This is a test agent file.
 		workflowPath := filepath.Join(workflowsDir, "test.md")
 		err := compiler.validateAgentFile(workflowData, workflowPath)
 		if err != nil {
-			t.Errorf("Expected no error when custom-agent not specified, got: %v", err)
+			t.Errorf("Expected no error when agent file not specified, got: %v", err)
 		}
 	})
 
@@ -331,21 +284,21 @@ This is a test agent file.
 	})
 }
 
-// TestCheckoutWithAgent tests that checkout step is added when custom-agent is specified
-func TestCheckoutWithAgent(t *testing.T) {
+// TestCheckoutWithAgentFromImports tests that checkout step is added when agent file is imported
+func TestCheckoutWithAgentFromImports(t *testing.T) {
 	t.Run("checkout_added_with_agent", func(t *testing.T) {
 		compiler := NewCompiler(false, "", "")
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{
-				ID:          "copilot",
-				CustomAgent: "/path/to/agent.md",
+				ID: "copilot",
 			},
+			AgentFile:   "/path/to/agent.md",
 			Permissions: "permissions:\n  contents: read\n",
 		}
 
 		shouldCheckout := compiler.shouldAddCheckoutStep(workflowData)
 		if !shouldCheckout {
-			t.Error("Expected checkout to be added when custom-agent is specified")
+			t.Error("Expected checkout to be added when agent file is specified")
 		}
 	})
 
@@ -353,15 +306,15 @@ func TestCheckoutWithAgent(t *testing.T) {
 		compiler := NewCompiler(false, "", "")
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{
-				ID:          "copilot",
-				CustomAgent: "/path/to/agent.md",
+				ID: "copilot",
 			},
+			AgentFile:   "/path/to/agent.md",
 			Permissions: "permissions:\n  issues: read\n",
 		}
 
 		shouldCheckout := compiler.shouldAddCheckoutStep(workflowData)
 		if !shouldCheckout {
-			t.Error("Expected checkout to be added when custom-agent is specified, even without contents permission")
+			t.Error("Expected checkout to be added when agent file is specified, even without contents permission")
 		}
 	})
 
@@ -376,7 +329,7 @@ func TestCheckoutWithAgent(t *testing.T) {
 
 		shouldCheckout := compiler.shouldAddCheckoutStep(workflowData)
 		if shouldCheckout {
-			t.Error("Expected checkout NOT to be added without custom-agent and without contents permission")
+			t.Error("Expected checkout NOT to be added without agent file and without contents permission")
 		}
 	})
 
@@ -384,15 +337,15 @@ func TestCheckoutWithAgent(t *testing.T) {
 		compiler := NewCompiler(false, "", "")
 		workflowData := &WorkflowData{
 			EngineConfig: &EngineConfig{
-				ID:          "copilot",
-				CustomAgent: "/path/to/agent.md",
+				ID: "copilot",
 			},
+			AgentFile:   "/path/to/agent.md",
 			CustomSteps: "steps:\n  - uses: actions/checkout@v4\n",
 		}
 
 		shouldCheckout := compiler.shouldAddCheckoutStep(workflowData)
 		if shouldCheckout {
-			t.Error("Expected checkout NOT to be added when custom steps already contain checkout, even with custom-agent")
+			t.Error("Expected checkout NOT to be added when custom steps already contain checkout, even with agent file")
 		}
 	})
 }

@@ -33,10 +33,13 @@ source: "example-value"
 
 # Optional array of workflow specifications to import (similar to @include
 # directives but defined in frontmatter). Format: owner/repo/path@ref (e.g.,
-# githubnext/agentics/workflows/shared/common.md@v1.0.0).
+# githubnext/agentics/workflows/shared/common.md@v1.0.0). Markdown files under
+# .github/agents/ directory are treated as custom agent files (only one agent
+# file allowed per workflow).
 # (optional)
 imports: []
-  # Array of Workflow specification in format owner/repo/path@ref
+  # Array of Workflow specification in format owner/repo/path@ref. Markdown
+  # files under .github/agents/ are treated as agent configuration files.
 
 # Workflow triggers that define when the agentic workflow should run. Supports
 # standard GitHub Actions trigger events plus special command triggers for
@@ -933,12 +936,6 @@ engine:
   # (optional)
   args: []
     # Array of strings
-
-  # Optional path to a custom agent configuration file. For copilot engine, this is
-  # passed as --agent flag. For claude and codex engines, the markdown body from the
-  # agent file is injected as a system prompt.
-  # (optional)
-  custom-agent: "example-value"
 
 # MCP server definitions
 # (optional)

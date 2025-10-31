@@ -746,8 +746,8 @@ func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData) bool {
 		return false // Custom steps already have checkout
 	}
 
-	// Check condition 2: If custom agent file is specified, checkout is required
-	if data.EngineConfig != nil && data.EngineConfig.CustomAgent != "" {
+	// Check condition 2: If custom agent file is specified (via imports), checkout is required
+	if data.AgentFile != "" {
 		return true // Custom agent file requires checkout to access the file
 	}
 

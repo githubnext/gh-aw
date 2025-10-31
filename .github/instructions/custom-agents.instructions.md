@@ -28,10 +28,11 @@ Custom agent files can be placed in several locations, each serving a different 
 - **Use case**: Task-specific agents (documentation, testing, refactoring)
 
 ### 4. agentic workflow integration
-- **Location**: Specified in workflow frontmatter via `engine.custom-agent` field
-- **Pattern**: Any markdown file path relative to repository root
+- **Location**: Imported via `imports` field in workflow frontmatter
+- **Pattern**: Any markdown files under `.github/agents/` directory
 - **Scope**: Custom agent for specific agentic workflow execution
 - **Use case**: Workflow-specific agent configuration
+- **Important**: Only one agent file is allowed per workflow
 
 ## File Format
 
@@ -366,7 +367,7 @@ You are an experienced code reviewer focused on code quality, security, and best
 
 ## Integration with gh-aw
 
-The gh-aw (GitHub Agentic Workflows) tool supports custom agent files through the `engine.custom-agent` field in workflow frontmatter.
+The gh-aw (GitHub Agentic Workflows) tool supports custom agent files through the `imports` field in workflow frontmatter. Any markdown files under the `.github/agents/` directory are treated as custom agent files when imported.
 
 ### Configuration
 
@@ -375,7 +376,8 @@ The gh-aw (GitHub Agentic Workflows) tool supports custom agent files through th
 on: issues
 engine:
   id: copilot
-  custom-agent: .github/agents/my-agent.md
+imports:
+  - .github/agents/my-agent.md
 ---
 
 # My Workflow
@@ -393,10 +395,11 @@ Custom agent files are supported by the following engines:
 
 ### File Path Resolution
 
-- Paths are relative to the repository root
-- Must point to an existing markdown file
+- Agent files are imported via the `imports` field
+- Must be markdown files located under `.github/agents/` directory
+- Only one agent file is allowed per workflow
 - File is validated during workflow compilation
-- Checkout step is automatically added if custom agent is specified
+- Checkout step is automatically added if agent file is imported
 
 ### Example Workflow with Custom Agent
 
@@ -410,7 +413,8 @@ permissions:
   issues: write
 engine:
   id: copilot
-  custom-agent: .github/agents/issue-triager.md
+imports:
+  - .github/agents/issue-triager.md
 tools:
   github:
     allowed:
@@ -505,10 +509,10 @@ tools: [editFiles, createFile, search, codeSearch]
 - Ensure `applyTo` is only used in `.instructions.md` files
 
 ### Custom Agent File Not Found
-- Verify file path is relative to repository root
-- Ensure file exists and is committed
-- Check file extension is `.md`
-- Confirm path in `engine.custom-agent` is correct
+- Verify agent file is imported in the `imports` field
+- Ensure file exists and is committed under `.github/agents/` directory
+- Confirm agent file path is correct in imports list
+- Remember: only one agent file is allowed per workflow
 
 ## References
 
