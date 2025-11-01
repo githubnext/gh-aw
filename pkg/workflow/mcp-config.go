@@ -26,9 +26,14 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
 
-	// Extract secrets from allowed domains and replace them with env var references
-	secrets := extractSecretsFromAllowedDomains(args.AllowedDomains)
-	allowedDomains := replaceSecretsInAllowedDomains(args.AllowedDomains, secrets)
+	// Extract all expressions from playwright arguments and replace them with env var references
+	expressions := extractExpressionsFromPlaywrightArgs(args.AllowedDomains, customArgs)
+	allowedDomains := replaceExpressionsInPlaywrightArgs(args.AllowedDomains, expressions)
+
+	// Also replace expressions in custom args
+	if len(customArgs) > 0 {
+		customArgs = replaceExpressionsInPlaywrightArgs(customArgs, expressions)
+	}
 
 	// Determine version to use - respect version configuration if provided
 	playwrightPackage := "@playwright/mcp@latest"

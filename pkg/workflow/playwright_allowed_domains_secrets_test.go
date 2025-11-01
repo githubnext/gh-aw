@@ -6,16 +6,16 @@ import (
 	"testing"
 )
 
-// TestPlaywrightAllowedDomainsSecretHandling tests that secrets in allowed_domains
+// TestPlaywrightAllowedDomainsSecretHandling tests that expressions in allowed_domains
 // are properly extracted and replaced with environment variable references
 func TestPlaywrightAllowedDomainsSecretHandling(t *testing.T) {
 	tests := []struct {
 		name                 string
 		workflow             string
-		expectEnvVar         string
-		expectEnvVarValue    string
+		expectEnvVarPrefix   string
 		expectMCPConfigValue string
 		expectRedaction      bool
+		expectSecretName     string
 	}{
 		{
 			name: "Single secret in allowed_domains",
@@ -32,10 +32,10 @@ tools:
 
 Test secret in allowed_domains.
 `,
-			expectEnvVar:         "PLAYWRIGHT_ALLOWED_DOMAIN_TEST_DOMAIN",
-			expectEnvVarValue:    "${{ secrets.TEST_DOMAIN }}",
-			expectMCPConfigValue: "${PLAYWRIGHT_ALLOWED_DOMAIN_TEST_DOMAIN}",
+			expectEnvVarPrefix:   "GH_AW_EXPR_",
+			expectMCPConfigValue: "${GH_AW_EXPR_",
 			expectRedaction:      true,
+			expectSecretName:     "TEST_DOMAIN",
 		},
 		{
 			name: "Multiple secrets in allowed_domains",
@@ -54,10 +54,10 @@ tools:
 
 Test multiple secrets in allowed_domains.
 `,
-			expectEnvVar:         "PLAYWRIGHT_ALLOWED_DOMAIN_API_KEY",
-			expectEnvVarValue:    "${{ secrets.API_KEY }}",
-			expectMCPConfigValue: "${PLAYWRIGHT_ALLOWED_DOMAIN_API_KEY}",
+			expectEnvVarPrefix:   "GH_AW_EXPR_",
+			expectMCPConfigValue: "${GH_AW_EXPR_",
 			expectRedaction:      true,
+			expectSecretName:     "API_KEY",
 		},
 		{
 			name: "No secrets in allowed_domains",
@@ -75,8 +75,7 @@ tools:
 
 Test no secrets in allowed_domains.
 `,
-			expectEnvVar:         "PLAYWRIGHT_ALLOWED_DOMAIN_",
-			expectEnvVarValue:    "",
+			expectEnvVarPrefix:   "",
 			expectMCPConfigValue: "example.com",
 			expectRedaction:      false,
 		},
@@ -113,14 +112,14 @@ Test no secrets in allowed_domains.
 				t.Fatalf("Failed to generate YAML: %v", err)
 			}
 
-			// Check if environment variable is set in Setup MCPs step
+			// Check if environment variable with correct prefix exists in Setup MCPs step
 			if tt.expectRedaction {
-				if !strings.Contains(yamlContent, tt.expectEnvVar+": "+tt.expectEnvVarValue) {
-					t.Errorf("Expected environment variable %s with value %s not found in Setup MCPs step", tt.expectEnvVar, tt.expectEnvVarValue)
+				if !strings.Contains(yamlContent, tt.expectEnvVarPrefix) {
+					t.Errorf("Expected environment variable with prefix %s not found in Setup MCPs step", tt.expectEnvVarPrefix)
 				}
 			} else {
-				if strings.Contains(yamlContent, tt.expectEnvVar) {
-					t.Errorf("Unexpected environment variable %s found when no secrets present", tt.expectEnvVar)
+				if strings.Contains(yamlContent, tt.expectEnvVarPrefix) && tt.expectEnvVarPrefix != "" {
+					t.Errorf("Unexpected environment variable with prefix %s found when no secrets present", tt.expectEnvVarPrefix)
 				}
 			}
 
@@ -143,158 +142,160 @@ Test no secrets in allowed_domains.
 			}
 
 			// Check if secret is in redaction list
-			if tt.expectRedaction {
-				// Extract the secret name from the workflow
-				secretName := ""
-				if strings.Contains(tt.workflow, "TEST_DOMAIN") {
-					secretName = "TEST_DOMAIN"
-				} else if strings.Contains(tt.workflow, "API_KEY") {
-					secretName = "API_KEY"
-				}
-
-				if secretName != "" {
-					expectedRedactionEnv := "SECRET_" + secretName + ": ${{ secrets." + secretName + " }}"
-					if !strings.Contains(yamlContent, expectedRedactionEnv) {
-						t.Errorf("Expected secret %s to be in redaction step environment variables", secretName)
-					}
+			if tt.expectRedaction && tt.expectSecretName != "" {
+				expectedRedactionEnv := "SECRET_" + tt.expectSecretName + ": ${{ secrets." + tt.expectSecretName + " }}"
+				if !strings.Contains(yamlContent, expectedRedactionEnv) {
+					t.Errorf("Expected secret %s to be in redaction step environment variables", tt.expectSecretName)
 				}
 			}
 		})
 	}
 }
 
-// TestExtractSecretsFromAllowedDomains tests the helper function
-func TestExtractSecretsFromAllowedDomains(t *testing.T) {
+// TestExtractExpressionsFromPlaywrightArgs tests the helper function
+func TestExtractExpressionsFromPlaywrightArgs(t *testing.T) {
 	tests := []struct {
-		name            string
-		allowedDomains  []string
-		expectedSecrets map[string]string
+		name                string
+		allowedDomains      []string
+		customArgs          []string
+		expectedExpressions int // Number of unique expressions expected
 	}{
 		{
-			name: "Single secret",
+			name: "Single expression in allowed_domains",
 			allowedDomains: []string{
 				"${{ secrets.TEST_DOMAIN }}",
 			},
-			expectedSecrets: map[string]string{
-				"TEST_DOMAIN": "${{ secrets.TEST_DOMAIN }}",
-			},
+			customArgs:          nil,
+			expectedExpressions: 1,
 		},
 		{
-			name: "Multiple secrets",
+			name: "Multiple expressions",
 			allowedDomains: []string{
 				"${{ secrets.API_KEY }}",
 				"example.com",
 				"${{ secrets.ANOTHER_SECRET }}",
 			},
-			expectedSecrets: map[string]string{
-				"API_KEY":        "${{ secrets.API_KEY }}",
-				"ANOTHER_SECRET": "${{ secrets.ANOTHER_SECRET }}",
-			},
+			customArgs:          []string{"--arg", "${{ github.event.issue.number }}"},
+			expectedExpressions: 3,
 		},
 		{
-			name: "Secrets with whitespace",
+			name: "Expressions with whitespace",
 			allowedDomains: []string{
 				"${{secrets.TEST_SECRET}}",
 				"${{  secrets.SPACED_SECRET  }}",
 			},
-			expectedSecrets: map[string]string{
-				"TEST_SECRET":   "${{secrets.TEST_SECRET}}",
-				"SPACED_SECRET": "${{  secrets.SPACED_SECRET  }}",
-			},
+			customArgs:          nil,
+			expectedExpressions: 2,
 		},
 		{
-			name: "No secrets",
+			name: "No expressions",
 			allowedDomains: []string{
 				"example.com",
 				"test.org",
 			},
-			expectedSecrets: map[string]string{},
+			customArgs:          []string{"--static-arg"},
+			expectedExpressions: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			secrets := extractSecretsFromAllowedDomains(tt.allowedDomains)
+			expressions := extractExpressionsFromPlaywrightArgs(tt.allowedDomains, tt.customArgs)
 
-			if len(secrets) != len(tt.expectedSecrets) {
-				t.Errorf("Expected %d secrets, got %d", len(tt.expectedSecrets), len(secrets))
+			if len(expressions) != tt.expectedExpressions {
+				t.Errorf("Expected %d expressions, got %d", tt.expectedExpressions, len(expressions))
 			}
 
-			for secretName, secretExpr := range tt.expectedSecrets {
-				if actual, ok := secrets[secretName]; !ok {
-					t.Errorf("Expected secret %s not found", secretName)
-				} else if actual != secretExpr {
-					t.Errorf("Expected secret %s to have expression %s, got %s", secretName, secretExpr, actual)
+			// Verify all expressions are in the map
+			for envVar, originalExpr := range expressions {
+				if !strings.HasPrefix(envVar, "GH_AW_EXPR_") {
+					t.Errorf("Expected env var to start with GH_AW_EXPR_, got %s", envVar)
+				}
+				if !strings.HasPrefix(originalExpr, "${{") || !strings.HasSuffix(originalExpr, "}}") {
+					t.Errorf("Expected original expression to be wrapped in ${{ }}, got %s", originalExpr)
 				}
 			}
 		})
 	}
 }
 
-// TestReplaceSecretsInAllowedDomains tests the helper function
-func TestReplaceSecretsInAllowedDomains(t *testing.T) {
+// TestReplaceExpressionsInPlaywrightArgs tests the helper function
+func TestReplaceExpressionsInPlaywrightArgs(t *testing.T) {
 	tests := []struct {
-		name            string
-		allowedDomains  []string
-		secrets         map[string]string
-		expectedDomains []string
+		name        string
+		args        []string
+		expressions map[string]string
+		validate    func(t *testing.T, result []string)
 	}{
 		{
-			name: "Replace single secret",
-			allowedDomains: []string{
+			name: "Replace single expression",
+			args: []string{
 				"${{ secrets.TEST_DOMAIN }}",
 			},
-			secrets: map[string]string{
-				"TEST_DOMAIN": "${{ secrets.TEST_DOMAIN }}",
+			expressions: map[string]string{
+				"GH_AW_EXPR_TEST": "${{ secrets.TEST_DOMAIN }}",
 			},
-			expectedDomains: []string{
-				"${PLAYWRIGHT_ALLOWED_DOMAIN_TEST_DOMAIN}",
+			validate: func(t *testing.T, result []string) {
+				if len(result) != 1 {
+					t.Errorf("Expected 1 result, got %d", len(result))
+				}
+				if !strings.Contains(result[0], "${GH_AW_EXPR_") {
+					t.Errorf("Expected result to contain ${GH_AW_EXPR_, got %s", result[0])
+				}
+				if strings.Contains(result[0], "${{ secrets.") {
+					t.Errorf("Result should not contain secret expressions, got %s", result[0])
+				}
 			},
 		},
 		{
-			name: "Replace multiple secrets",
-			allowedDomains: []string{
+			name: "Replace multiple expressions",
+			args: []string{
 				"${{ secrets.API_KEY }}",
 				"example.com",
 				"${{ secrets.ANOTHER_SECRET }}",
 			},
-			secrets: map[string]string{
-				"API_KEY":        "${{ secrets.API_KEY }}",
-				"ANOTHER_SECRET": "${{ secrets.ANOTHER_SECRET }}",
+			expressions: map[string]string{
+				"GH_AW_EXPR_API":     "${{ secrets.API_KEY }}",
+				"GH_AW_EXPR_ANOTHER": "${{ secrets.ANOTHER_SECRET }}",
 			},
-			expectedDomains: []string{
-				"${PLAYWRIGHT_ALLOWED_DOMAIN_API_KEY}",
-				"example.com",
-				"${PLAYWRIGHT_ALLOWED_DOMAIN_ANOTHER_SECRET}",
+			validate: func(t *testing.T, result []string) {
+				if len(result) != 3 {
+					t.Errorf("Expected 3 results, got %d", len(result))
+				}
+				// Second element should be unchanged
+				if result[1] != "example.com" {
+					t.Errorf("Expected example.com to be unchanged, got %s", result[1])
+				}
+				// First and third should be replaced
+				for i, r := range []int{0, 2} {
+					if strings.Contains(result[r], "${{ secrets.") {
+						t.Errorf("Result[%d] should not contain secret expressions, got %s", i, result[r])
+					}
+				}
 			},
 		},
 		{
-			name: "No secrets to replace",
-			allowedDomains: []string{
+			name: "No expressions to replace",
+			args: []string{
 				"example.com",
 				"test.org",
 			},
-			secrets: map[string]string{},
-			expectedDomains: []string{
-				"example.com",
-				"test.org",
+			expressions: map[string]string{},
+			validate: func(t *testing.T, result []string) {
+				if len(result) != 2 {
+					t.Errorf("Expected 2 results, got %d", len(result))
+				}
+				if result[0] != "example.com" || result[1] != "test.org" {
+					t.Errorf("Expected unchanged results, got %v", result)
+				}
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := replaceSecretsInAllowedDomains(tt.allowedDomains, tt.secrets)
-
-			if len(result) != len(tt.expectedDomains) {
-				t.Errorf("Expected %d domains, got %d", len(tt.expectedDomains), len(result))
-			}
-
-			for i, expected := range tt.expectedDomains {
-				if result[i] != expected {
-					t.Errorf("Expected domain[%d] to be %s, got %s", i, expected, result[i])
-				}
-			}
+			result := replaceExpressionsInPlaywrightArgs(tt.args, tt.expressions)
+			tt.validate(t, result)
 		})
 	}
 }

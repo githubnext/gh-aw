@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -154,10 +153,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		if toolName == "playwright" {
 			hasPlaywright = true
-			// Extract secrets from playwright allowed_domains
+			// Extract all expressions from playwright arguments using ExpressionExtractor
 			if playwrightTool, ok := tools["playwright"]; ok {
 				allowedDomains := generatePlaywrightAllowedDomains(playwrightTool)
-				playwrightAllowedDomainsSecrets = extractSecretsFromAllowedDomains(allowedDomains)
+				customArgs := getPlaywrightCustomArgs(playwrightTool)
+				playwrightAllowedDomainsSecrets = extractExpressionsFromPlaywrightArgs(allowedDomains, customArgs)
 				if len(playwrightAllowedDomainsSecrets) > 0 {
 					needsEnvBlock = true
 				}
@@ -190,18 +190,18 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			yaml.WriteString("          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
 		}
 
-		// Add Playwright allowed_domains secrets if present
+		// Add Playwright expression environment variables if present
 		if hasPlaywright && len(playwrightAllowedDomainsSecrets) > 0 {
-			// Sort secret names for consistent output
-			secretNames := make([]string, 0, len(playwrightAllowedDomainsSecrets))
-			for secretName := range playwrightAllowedDomainsSecrets {
-				secretNames = append(secretNames, secretName)
+			// Sort env var names for consistent output
+			envVarNames := make([]string, 0, len(playwrightAllowedDomainsSecrets))
+			for envVarName := range playwrightAllowedDomainsSecrets {
+				envVarNames = append(envVarNames, envVarName)
 			}
-			sort.Strings(secretNames)
+			sort.Strings(envVarNames)
 
-			for _, secretName := range secretNames {
-				secretExpr := playwrightAllowedDomainsSecrets[secretName]
-				yaml.WriteString(fmt.Sprintf("          PLAYWRIGHT_ALLOWED_DOMAIN_%s: %s\n", secretName, secretExpr))
+			for _, envVarName := range envVarNames {
+				originalExpr := playwrightAllowedDomainsSecrets[envVarName]
+				yaml.WriteString(fmt.Sprintf("          %s: %s\n", envVarName, originalExpr))
 			}
 		}
 	}
@@ -384,42 +384,53 @@ func generatePlaywrightDockerArgs(playwrightTool any) PlaywrightDockerArgs {
 	}
 }
 
-// extractSecretsFromAllowedDomains extracts secret expressions from allowed domains list
-// Returns a map of secret names to their full expressions (e.g., "API_KEY" -> "${{ secrets.API_KEY }}")
-func extractSecretsFromAllowedDomains(allowedDomains []string) map[string]string {
-	secrets := make(map[string]string)
-	// Pattern to match ${{ secrets.SECRET_NAME }}
-	secretPattern := regexp.MustCompile(`\$\{\{\s*secrets\.([A-Z][A-Z0-9_]*)\s*\}\}`)
+// extractExpressionsFromPlaywrightArgs extracts all GitHub Actions expressions from playwright arguments
+// Returns a map of environment variable names to their original expressions
+// Uses the same ExpressionExtractor as used for shell script security
+func extractExpressionsFromPlaywrightArgs(allowedDomains []string, customArgs []string) map[string]string {
+	// Combine all arguments into a single string for extraction
+	var allArgs []string
+	allArgs = append(allArgs, allowedDomains...)
+	allArgs = append(allArgs, customArgs...)
 
-	for _, domain := range allowedDomains {
-		matches := secretPattern.FindAllStringSubmatch(domain, -1)
-		for _, match := range matches {
-			if len(match) > 1 {
-				secretName := match[1]
-				secrets[secretName] = match[0] // Store full expression
-			}
-		}
+	if len(allArgs) == 0 {
+		return make(map[string]string)
 	}
 
-	return secrets
-}
+	// Join all arguments with a separator that won't appear in expressions
+	combined := strings.Join(allArgs, "\n")
 
-// replaceSecretsInAllowedDomains replaces secret expressions in allowed domains with environment variable references
-// This prevents secrets from being exposed in GitHub Actions logs
-func replaceSecretsInAllowedDomains(allowedDomains []string, secrets map[string]string) []string {
-	if len(secrets) == 0 {
-		return allowedDomains
+	// Use ExpressionExtractor to find all expressions
+	extractor := NewExpressionExtractor()
+	mappings, err := extractor.ExtractExpressions(combined)
+	if err != nil {
+		return make(map[string]string)
 	}
 
-	result := make([]string, len(allowedDomains))
-	for i, domain := range allowedDomains {
-		result[i] = domain
-		// Replace each secret expression with its environment variable reference
-		for secretName, secretExpr := range secrets {
-			envVarRef := fmt.Sprintf("${PLAYWRIGHT_ALLOWED_DOMAIN_%s}", secretName)
-			result[i] = strings.ReplaceAll(result[i], secretExpr, envVarRef)
-		}
+	// Convert to map of env var name -> original expression
+	result := make(map[string]string)
+	for _, mapping := range mappings {
+		result[mapping.EnvVar] = mapping.Original
 	}
 
 	return result
+}
+
+// replaceExpressionsInPlaywrightArgs replaces all GitHub Actions expressions with environment variable references
+// This prevents any expressions from being exposed in GitHub Actions logs
+func replaceExpressionsInPlaywrightArgs(args []string, expressions map[string]string) []string {
+	if len(expressions) == 0 {
+		return args
+	}
+
+	// Create a temporary extractor with the same mappings
+	combined := strings.Join(args, "\n")
+	extractor := NewExpressionExtractor()
+	extractor.ExtractExpressions(combined)
+
+	// Replace expressions in the combined string
+	replaced := extractor.ReplaceExpressionsWithEnvVars(combined)
+
+	// Split back into individual arguments
+	return strings.Split(replaced, "\n")
 }
