@@ -135,6 +135,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	needsEnvBlock := false
 	hasGitHub := false
 	hasSafeOutputs := false
+	hasPlaywright := false
+	var playwrightAllowedDomainsSecrets map[string]string
 	// Note: hasAgenticWorkflows is already declared earlier in this function
 
 	for _, toolName := range mcpTools {
@@ -148,6 +150,18 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		if toolName == "agentic-workflows" {
 			needsEnvBlock = true
+		}
+		if toolName == "playwright" {
+			hasPlaywright = true
+			// Extract all expressions from playwright arguments using ExpressionExtractor
+			if playwrightTool, ok := tools["playwright"]; ok {
+				allowedDomains := generatePlaywrightAllowedDomains(playwrightTool)
+				customArgs := getPlaywrightCustomArgs(playwrightTool)
+				playwrightAllowedDomainsSecrets = extractExpressionsFromPlaywrightArgs(allowedDomains, customArgs)
+				if len(playwrightAllowedDomainsSecrets) > 0 {
+					needsEnvBlock = true
+				}
+			}
 		}
 	}
 
@@ -174,6 +188,21 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Add GITHUB_TOKEN for agentic-workflows if present
 		if hasAgenticWorkflows {
 			yaml.WriteString("          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
+		}
+
+		// Add Playwright expression environment variables if present
+		if hasPlaywright && len(playwrightAllowedDomainsSecrets) > 0 {
+			// Sort env var names for consistent output
+			envVarNames := make([]string, 0, len(playwrightAllowedDomainsSecrets))
+			for envVarName := range playwrightAllowedDomainsSecrets {
+				envVarNames = append(envVarNames, envVarName)
+			}
+			sort.Strings(envVarNames)
+
+			for _, envVarName := range envVarNames {
+				originalExpr := playwrightAllowedDomainsSecrets[envVarName]
+				yaml.WriteString(fmt.Sprintf("          %s: %s\n", envVarName, originalExpr))
+			}
 		}
 	}
 
@@ -353,4 +382,55 @@ func generatePlaywrightDockerArgs(playwrightTool any) PlaywrightDockerArgs {
 		ImageVersion:   getPlaywrightDockerImageVersion(playwrightTool),
 		AllowedDomains: generatePlaywrightAllowedDomains(playwrightTool),
 	}
+}
+
+// extractExpressionsFromPlaywrightArgs extracts all GitHub Actions expressions from playwright arguments
+// Returns a map of environment variable names to their original expressions
+// Uses the same ExpressionExtractor as used for shell script security
+func extractExpressionsFromPlaywrightArgs(allowedDomains []string, customArgs []string) map[string]string {
+	// Combine all arguments into a single string for extraction
+	var allArgs []string
+	allArgs = append(allArgs, allowedDomains...)
+	allArgs = append(allArgs, customArgs...)
+
+	if len(allArgs) == 0 {
+		return make(map[string]string)
+	}
+
+	// Join all arguments with a separator that won't appear in expressions
+	combined := strings.Join(allArgs, "\n")
+
+	// Use ExpressionExtractor to find all expressions
+	extractor := NewExpressionExtractor()
+	mappings, err := extractor.ExtractExpressions(combined)
+	if err != nil {
+		return make(map[string]string)
+	}
+
+	// Convert to map of env var name -> original expression
+	result := make(map[string]string)
+	for _, mapping := range mappings {
+		result[mapping.EnvVar] = mapping.Original
+	}
+
+	return result
+}
+
+// replaceExpressionsInPlaywrightArgs replaces all GitHub Actions expressions with environment variable references
+// This prevents any expressions from being exposed in GitHub Actions logs
+func replaceExpressionsInPlaywrightArgs(args []string, expressions map[string]string) []string {
+	if len(expressions) == 0 {
+		return args
+	}
+
+	// Create a temporary extractor with the same mappings
+	combined := strings.Join(args, "\n")
+	extractor := NewExpressionExtractor()
+	extractor.ExtractExpressions(combined)
+
+	// Replace expressions in the combined string
+	replaced := extractor.ReplaceExpressionsWithEnvVars(combined)
+
+	// Split back into individual arguments
+	return strings.Split(replaced, "\n")
 }

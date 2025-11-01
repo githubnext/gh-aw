@@ -26,6 +26,15 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
 
+	// Extract all expressions from playwright arguments and replace them with env var references
+	expressions := extractExpressionsFromPlaywrightArgs(args.AllowedDomains, customArgs)
+	allowedDomains := replaceExpressionsInPlaywrightArgs(args.AllowedDomains, expressions)
+
+	// Also replace expressions in custom args
+	if len(customArgs) > 0 {
+		customArgs = replaceExpressionsInPlaywrightArgs(customArgs, expressions)
+	}
+
 	// Determine version to use - respect version configuration if provided
 	playwrightPackage := "@playwright/mcp@latest"
 	if includeCopilotFields && args.ImageVersion != "" && args.ImageVersion != "latest" {
@@ -44,8 +53,8 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 	if inlineArgs {
 		// Inline format for Copilot
 		yaml.WriteString("                \"args\": [\"" + playwrightPackage + "\", \"--output-dir\", \"/tmp/gh-aw/mcp-logs/playwright\"")
-		if len(args.AllowedDomains) > 0 {
-			yaml.WriteString(", \"--allowed-origins\", \"" + strings.Join(args.AllowedDomains, ";") + "\"")
+		if len(allowedDomains) > 0 {
+			yaml.WriteString(", \"--allowed-origins\", \"" + strings.Join(allowedDomains, ";") + "\"")
 		}
 		// Append custom args if present
 		writeArgsToYAMLInline(yaml, customArgs)
@@ -56,10 +65,10 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		yaml.WriteString("                  \"" + playwrightPackage + "\",\n")
 		yaml.WriteString("                  \"--output-dir\",\n")
 		yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs/playwright\"")
-		if len(args.AllowedDomains) > 0 {
+		if len(allowedDomains) > 0 {
 			yaml.WriteString(",\n")
 			yaml.WriteString("                  \"--allowed-origins\",\n")
-			yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ";") + "\"")
+			yaml.WriteString("                  \"" + strings.Join(allowedDomains, ";") + "\"")
 		}
 		// Append custom args if present
 		writeArgsToYAML(yaml, customArgs, "                  ")
