@@ -83,6 +83,12 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		yaml.WriteString(fmt.Sprintf("# Effective stop-time: %s\n", data.StopTime))
 	}
 
+	// Add manual-approval comment if configured
+	if data.ManualApproval != "" {
+		yaml.WriteString("#\n")
+		yaml.WriteString(fmt.Sprintf("# Manual approval required: environment '%s'\n", data.ManualApproval))
+	}
+
 	// Add Mermaid graph of job dependencies
 	mermaidGraph := c.jobManager.GenerateMermaidGraph()
 	if mermaidGraph != "" {

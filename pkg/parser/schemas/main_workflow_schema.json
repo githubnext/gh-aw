@@ -860,6 +860,10 @@
               "type": "string",
               "description": "Time when workflow should stop running. Supports multiple formats: absolute dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or relative time deltas (+25h, +3d, +1d12h30m)"
             },
+            "manual-approval": {
+              "type": "string",
+              "description": "Environment name that requires manual approval before the workflow can run. Must match a valid environment configured in the repository settings."
+            },
             "reaction": {
               "type": "string",
               "enum": ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes", "none"],
