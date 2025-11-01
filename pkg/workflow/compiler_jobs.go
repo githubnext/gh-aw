@@ -72,7 +72,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build main workflow job
-	mainJob, err := c.buildMainJob(data, activationJobCreated)
+	mainJob, err := c.buildMainJob(data, activationJobCreated, frontmatter)
 	if err != nil {
 		return fmt.Errorf("failed to build main job: %w", err)
 	}
@@ -580,15 +580,18 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 }
 
 // buildMainJob creates the main workflow job
-func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (*Job, error) {
+func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool, frontmatter map[string]any) (*Job, error) {
 	var steps []string
 
 	var jobCondition = data.If
 
+	// Check if forks are allowed from frontmatter
+	allowForks := c.getAllowForksFromFrontmatter(frontmatter)
+
 	// Add fork prevention for pull_request triggers BEFORE clearing conditions for activation job
 	// Agentic workflows should NEVER execute from forked repositories for security reasons
-	// unless explicitly disabled with --allow-forks flag
-	if c.hasPullRequestTrigger(data.On) && !c.allowForks {
+	// unless explicitly enabled with forks: true in frontmatter
+	if c.hasPullRequestTrigger(data.On) && !allowForks {
 		// Build fork prevention condition: pull request must be from the same repository
 		forkPreventionCondition := BuildNotFromFork().Render()
 
@@ -689,6 +692,48 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 		}
 	}
 	return make(map[string]any)
+}
+
+// getAllowForksFromFrontmatter checks if forks are allowed from the frontmatter configuration
+// Returns true if forks: true is set under any pull_request trigger, false otherwise (default is false)
+func (c *Compiler) getAllowForksFromFrontmatter(frontmatter map[string]any) bool {
+	if frontmatter == nil {
+		return false // Default: forks not allowed
+	}
+
+	// Check if there's an "on" section in the frontmatter
+	onValue, hasOn := frontmatter["on"]
+	if !hasOn {
+		return false
+	}
+
+	// Check if "on" is an object (not a string)
+	onMap, isOnMap := onValue.(map[string]any)
+	if !isOnMap {
+		return false
+	}
+
+	// Check all pull request related triggers for the forks field
+	prTriggers := []string{"pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"}
+
+	for _, trigger := range prTriggers {
+		if triggerValue, hasTrigger := onMap[trigger]; hasTrigger {
+			// Check if trigger is an object with fork settings
+			if triggerMap, isTriggerMap := triggerValue.(map[string]any); isTriggerMap {
+				// Check for "forks" field (boolean)
+				if forksValue, hasForks := triggerMap["forks"]; hasForks {
+					// Convert to boolean
+					if forksBool, isBool := forksValue.(bool); isBool {
+						if forksBool {
+							return true // Forks explicitly allowed
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return false // Default: forks not allowed
 }
 
 // buildCustomJobs creates custom jobs defined in the frontmatter jobs section

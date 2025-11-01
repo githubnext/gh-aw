@@ -223,20 +223,8 @@
                   "description": "Filter by draft pull request state. Set to false to exclude draft PRs, true to include only drafts, or omit to include both"
                 },
                 "forks": {
-                  "oneOf": [
-                    {
-                      "type": "string",
-                      "description": "Single fork pattern (e.g., '*' for all forks, 'org/*' for org glob, 'org/repo' for exact match)"
-                    },
-                    {
-                      "type": "array",
-                      "description": "List of allowed fork repositories with glob support (e.g., 'org/repo', 'org/*', '*' for all forks)",
-                      "items": {
-                        "type": "string",
-                        "description": "Repository pattern with optional glob support"
-                      }
-                    }
-                  ]
+                  "type": "boolean",
+                  "description": "Control whether the workflow runs on pull requests from forked repositories. Set to true to allow execution from forks, false to prevent (default: false for security)"
                 },
                 "names": {
                   "oneOf": [
@@ -754,19 +742,8 @@
                   "description": "Filter by draft pull request state"
                 },
                 "forks": {
-                  "oneOf": [
-                    {
-                      "type": "string",
-                      "description": "Single fork pattern"
-                    },
-                    {
-                      "type": "array",
-                      "description": "List of allowed fork repositories with glob support",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  ]
+                  "type": "boolean",
+                  "description": "Control whether the workflow runs on pull requests from forked repositories. Set to true to allow execution from forks, false to prevent (default: false for security)"
                 }
               },
               "additionalProperties": false

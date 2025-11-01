@@ -4930,6 +4930,12 @@ func TestAccessLogUploadConditional(t *testing.T) {
 	}
 }
 
+// NOTE: These tests have been commented out because the forks field has been changed
+// from an array of allowed fork patterns to a simple boolean (true/false) that controls
+// whether workflows execute from forks. The old array-based fork filtering functionality
+// has been removed in favor of automatic fork prevention controlled by the boolean field.
+
+/*
 // TestPullRequestForksArrayFilter tests the pull_request forks: []string filter functionality with glob support
 func TestPullRequestForksArrayFilter(t *testing.T) {
 	// Create temporary directory for test files
@@ -5212,6 +5218,11 @@ This is a test workflow for forks array filtering with glob support.
 	}
 }
 
+
+// TestForksArrayFieldCommentingInOnSection has also been commented out
+// for the same reason as TestPullRequestForksArrayFilter above.
+
+/*
 // TestForksArrayFieldCommentingInOnSection specifically tests that the forks array field is commented out in the on section
 func TestForksArrayFieldCommentingInOnSection(t *testing.T) {
 	// Create temporary directory for test files
@@ -5395,6 +5406,7 @@ This workflow tests that forks array fields are properly commented out in the on
 		})
 	}
 }
+*/
 
 func TestExtractSafeOutputsMaximumPatchSize(t *testing.T) {
 	compiler := NewCompiler(false, "", "test-version")

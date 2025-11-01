@@ -87,86 +87,8 @@ func (c *Compiler) applyPullRequestDraftFilter(data *WorkflowData, frontmatter m
 	data.If = conditionTree.Render()
 }
 
-// applyPullRequestForkFilter applies fork filter conditions for pull_request triggers
-// Supports "forks: []string" with glob patterns
-func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter map[string]any) {
-	filtersLog.Print("Applying pull request fork filter")
-
-	// Check if there's an "on" section in the frontmatter
-	onValue, hasOn := frontmatter["on"]
-	if !hasOn {
-		return
-	}
-
-	// Check if "on" is an object (not a string)
-	onMap, isOnMap := onValue.(map[string]any)
-	if !isOnMap {
-		return
-	}
-
-	// Check if there's a pull_request section
-	prValue, hasPR := onMap["pull_request"]
-	if !hasPR {
-		return
-	}
-
-	// Check if pull_request is an object with fork settings
-	prMap, isPRMap := prValue.(map[string]any)
-	if !isPRMap {
-		return
-	}
-
-	// Check for "forks" field (string or array)
-	forksValue, hasForks := prMap["forks"]
-
-	if !hasForks {
-		return
-	}
-
-	filtersLog.Print("Found forks filter configuration")
-
-	// Convert forks value to []string, handling both string and array formats
-	var allowedForks []string
-
-	// Handle string format (e.g., forks: "*" or forks: "org/*")
-	if forksStr, isForksStr := forksValue.(string); isForksStr {
-		allowedForks = []string{forksStr}
-	} else if forksArray, isForksArray := forksValue.([]any); isForksArray {
-		// Handle array format (e.g., forks: ["*", "org/repo"])
-		for _, fork := range forksArray {
-			if forkStr, isForkStr := fork.(string); isForkStr {
-				allowedForks = append(allowedForks, forkStr)
-			}
-		}
-	} else {
-		// Invalid forks format, skip
-		return
-	}
-
-	// If "*" wildcard is present, skip fork filtering (allow all forks)
-	for _, pattern := range allowedForks {
-		if pattern == "*" {
-			return // No fork filtering needed
-		}
-	}
-
-	// Build condition for allowed forks with glob support
-	notPullRequestEvent := BuildNotEquals(
-		BuildPropertyAccess("github.event_name"),
-		BuildStringLiteral("pull_request"),
-	)
-	allowedForksCondition := BuildFromAllowedForks(allowedForks)
-
-	forkCondition := &OrNode{
-		Left:  notPullRequestEvent,
-		Right: allowedForksCondition,
-	}
-
-	// Build condition tree and render
-	existingCondition := data.If
-	conditionTree := buildConditionTree(existingCondition, forkCondition.Render())
-	data.If = conditionTree.Render()
-}
+// Note: applyPullRequestForkFilter has been removed as the forks field is now a boolean
+// that controls fork prevention in buildMainJob, not a filter condition with patterns.
 
 // applyLabelFilter applies label name filter conditions for labeled/unlabeled triggers
 // Supports "names: []string" to filter which label changes trigger the workflow

@@ -57,7 +57,6 @@ type Compiler struct {
 	strictMode           bool              // If true, enforce strict validation requirements
 	trialMode            bool              // If true, suppress safe outputs for trial mode execution
 	trialLogicalRepoSlug string            // If set in trial mode, the logical repository to checkout
-	allowForks           bool              // If true, disable automatic fork prevention for pull_request triggers
 	jobManager           *JobManager       // Manages jobs and dependencies
 	engineRegistry       *EngineRegistry   // Registry of available agentic engines
 	fileTracker          FileTracker       // Optional file tracker for tracking created files
@@ -108,11 +107,6 @@ func (c *Compiler) SetTrialLogicalRepoSlug(repo string) {
 // Configures whether to enable strict validation mode
 func (c *Compiler) SetStrictMode(strict bool) {
 	c.strictMode = strict
-}
-
-// Configures whether to allow workflows to execute from forked repositories
-func (c *Compiler) SetAllowForks(allowForks bool) {
-	c.allowForks = allowForks
 }
 
 // IncrementWarningCount increments the warning counter
@@ -1162,8 +1156,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Apply pull request draft filter if specified
 	c.applyPullRequestDraftFilter(workflowData, result.Frontmatter)
 
-	// Apply pull request fork filter if specified
-	c.applyPullRequestForkFilter(workflowData, result.Frontmatter)
+	// Note: The forks field is now a boolean (true/false) that controls fork prevention
+	// in buildMainJob, not a filter condition. The old applyPullRequestForkFilter
+	// function has been removed since fork prevention is now handled automatically.
 
 	// Apply label filter if specified
 	c.applyLabelFilter(workflowData, result.Frontmatter)

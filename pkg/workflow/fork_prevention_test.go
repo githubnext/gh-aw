@@ -283,19 +283,18 @@ tools:
 	}
 }
 
-// TestForkPreventionWithAllowForksFlag tests that the --allow-forks flag
-// disables automatic fork prevention
-func TestForkPreventionWithAllowForksFlag(t *testing.T) {
+// TestForkPreventionWithFrontmatterField tests that the forks: true/false field
+// in frontmatter controls automatic fork prevention
+func TestForkPreventionWithFrontmatterField(t *testing.T) {
 	tests := []struct {
 		name                string
 		frontmatter         string
 		markdown            string
-		allowForks          bool
 		shouldHaveForkCheck bool
 		description         string
 	}{
 		{
-			name: "pull_request with allow-forks disabled (default)",
+			name: "pull_request without forks field (default: false)",
 			frontmatter: `---
 on:
   pull_request:
@@ -307,16 +306,16 @@ tools:
     allowed: [get_pull_request]
 ---`,
 			markdown:            "# Test Workflow\n\nAnalyze the PR.",
-			allowForks:          false,
 			shouldHaveForkCheck: true,
 			description:         "default behavior should add fork prevention",
 		},
 		{
-			name: "pull_request with allow-forks enabled",
+			name: "pull_request with forks: false",
 			frontmatter: `---
 on:
   pull_request:
     types: [opened]
+    forks: false
 permissions:
   contents: read
 tools:
@@ -324,16 +323,49 @@ tools:
     allowed: [get_pull_request]
 ---`,
 			markdown:            "# Test Workflow\n\nAnalyze the PR.",
-			allowForks:          true,
+			shouldHaveForkCheck: true,
+			description:         "forks: false should add fork prevention",
+		},
+		{
+			name: "pull_request with forks: true",
+			frontmatter: `---
+on:
+  pull_request:
+    types: [opened]
+    forks: true
+permissions:
+  contents: read
+tools:
+  github:
+    allowed: [get_pull_request]
+---`,
+			markdown:            "# Test Workflow\n\nAnalyze the PR.",
 			shouldHaveForkCheck: false,
-			description:         "--allow-forks should disable fork prevention",
+			description:         "forks: true should disable fork prevention",
+		},
+		{
+			name: "pull_request_target with forks: true",
+			frontmatter: `---
+on:
+  pull_request_target:
+    types: [opened]
+    forks: true
+permissions:
+  contents: read
+tools:
+  github:
+    allowed: [get_pull_request]
+---`,
+			markdown:            "# Test Workflow\n\nAnalyze the PR.",
+			shouldHaveForkCheck: false,
+			description:         "pull_request_target with forks: true should disable fork prevention",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory for test files
-			tmpDir, err := os.MkdirTemp("", "allow-forks-test")
+			tmpDir, err := os.MkdirTemp("", "forks-frontmatter-test")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -346,9 +378,8 @@ tools:
 				t.Fatal(err)
 			}
 
-			// Compile the workflow with allowForks flag
+			// Compile the workflow
 			compiler := NewCompiler(false, "", "test")
-			compiler.SetAllowForks(tt.allowForks)
 			workflowData, err := compiler.ParseWorkflowFile(workflowPath)
 			if err != nil {
 				t.Fatalf("Failed to parse workflow: %v", err)
