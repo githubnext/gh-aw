@@ -69,7 +69,7 @@ async function main() {
   // Check if workflow file is newer than lock file
   if (workflowMtime > lockMtime) {
     const warningMessage = `🔴🔴🔴 WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
-    
+
     core.error(warningMessage);
 
     // Add summary to GitHub Step Summary
