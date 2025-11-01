@@ -203,10 +203,11 @@ func (c *Compiler) hasWorkflowRunTrigger(frontmatter map[string]any) bool {
 }
 
 // buildWorkflowRunRepoSafetyCondition generates the if condition to ensure workflow_run is from same repo
-// The condition only applies when the event is actually a workflow_run event
+// The condition uses: (event_name != 'workflow_run') OR (repository IDs match)
+// This allows all non-workflow_run events, but requires repository match for workflow_run events
 func (c *Compiler) buildWorkflowRunRepoSafetyCondition() string {
-	// Check that event is workflow_run
-	eventCheck := BuildEquals(
+	// Check that event is NOT workflow_run
+	eventNotWorkflowRun := BuildNotEquals(
 		BuildPropertyAccess("github.event_name"),
 		BuildStringLiteral("workflow_run"),
 	)
@@ -217,8 +218,8 @@ func (c *Compiler) buildWorkflowRunRepoSafetyCondition() string {
 		BuildPropertyAccess("github.repository_id"),
 	)
 
-	// Combine both checks with AND
-	combinedCheck := buildAnd(eventCheck, repoIDCheck)
+	// Combine with OR: allow if NOT workflow_run OR repository matches
+	combinedCheck := buildOr(eventNotWorkflowRun, repoIDCheck)
 
 	// Wrap in ${{ }} for GitHub Actions
 	return fmt.Sprintf("${{ %s }}", combinedCheck.Render())

@@ -28,7 +28,7 @@ on:
 
 Analyze the CI run.`,
 			expectSafetyCondition:   true,
-			expectedConditionString: "github.event_name == 'workflow_run'",
+			expectedConditionString: "github.event_name != 'workflow_run'",
 		},
 		{
 			name: "workflow with workflow_run and if condition should include repo safety check and combine conditions",
@@ -44,7 +44,7 @@ if: ${{ github.event.workflow_run.conclusion == 'failure' }}
 
 Analyze failed CI run.`,
 			expectSafetyCondition:   true,
-			expectedConditionString: "github.event_name == 'workflow_run'",
+			expectedConditionString: "github.event_name != 'workflow_run'",
 		},
 		{
 			name: "workflow with push trigger should NOT include repo safety check",
@@ -204,8 +204,8 @@ This workflow runs when CI workflows fail to help diagnose issues.`
 		t.Error("Expected activation job to be present")
 	}
 
-	// Verify the event_name check is present
-	eventNameCondition := "github.event_name == 'workflow_run'"
+	// Verify the event_name check is present (using != instead of ==)
+	eventNameCondition := "github.event_name != 'workflow_run'"
 	if !strings.Contains(lockContentStr, eventNameCondition) {
 		t.Errorf("Expected event_name check to be present in lock file")
 		t.Logf("Lock file content:\n%s", lockContentStr)
@@ -225,9 +225,9 @@ This workflow runs when CI workflows fail to help diagnose issues.`
 		t.Logf("Lock file content:\n%s", lockContentStr)
 	}
 
-	// All conditions should be combined with &&
-	if !strings.Contains(lockContentStr, "&&") {
-		t.Error("Expected conditions to be combined with &&")
+	// Verify OR operator is used in the safety condition
+	if !strings.Contains(lockContentStr, "||") {
+		t.Error("Expected safety condition to use || operator")
 	}
 }
 

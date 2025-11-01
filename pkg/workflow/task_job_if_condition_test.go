@@ -66,9 +66,9 @@ Check the failed workflow and provide analysis.`
 		t.Error("Expected activation job to include the user's if condition")
 	}
 
-	// Test 2b: Verify activation job has the workflow_run event_name check
-	if !strings.Contains(lockContentStr, "github.event_name == 'workflow_run'") {
-		t.Error("Expected activation job to include the event_name check")
+	// Test 2b: Verify activation job has the workflow_run event_name check (using !=)
+	if !strings.Contains(lockContentStr, "github.event_name != 'workflow_run'") {
+		t.Error("Expected activation job to include the event_name check with != operator")
 	}
 
 	// Test 2c: Verify activation job has the workflow_run repository safety check
