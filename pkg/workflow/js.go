@@ -85,6 +85,9 @@ var renderTemplateScript string
 //go:embed js/checkout_pr_branch.cjs
 var checkoutPRBranchScript string
 
+//go:embed js/generate_codex_config.cjs
+var generateCodexConfigScript string
+
 //go:embed js/redact_secrets.cjs
 var redactSecretsScript string
 

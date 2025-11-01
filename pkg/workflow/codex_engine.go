@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
@@ -199,54 +200,79 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(tools map[string]any) map[s
 }
 
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/config.toml << EOF\n")
+	// Build MCP configuration as JSON structure
+	mcpConfig := make(map[string]any)
 
 	// Add history configuration to disable persistence
-	yaml.WriteString("          [history]\n")
-	yaml.WriteString("          persistence = \"none\"\n")
+	mcpConfig["history"] = map[string]string{
+		"persistence": "none",
+	}
 
 	// Expand neutral tools (like playwright: null) to include the copilot agent tools
 	expandedTools := e.expandNeutralToolsToCodexTools(tools)
 
-	// Generate [mcp_servers] section
+	// Build mcp_servers section
+	mcpServers := make(map[string]any)
+
+	// Generate each MCP server configuration
 	for _, toolName := range mcpTools {
+		var serverConfig map[string]any
 		switch toolName {
 		case "github":
 			githubTool := expandedTools["github"]
-			e.renderGitHubCodexMCPConfig(yaml, githubTool, workflowData)
+			serverConfig = e.buildGitHubCodexMCPConfig(githubTool, workflowData)
 		case "playwright":
 			playwrightTool := expandedTools["playwright"]
-			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool)
+			serverConfig = e.buildPlaywrightCodexMCPConfig(playwrightTool)
 		case "agentic-workflows":
-			e.renderAgenticWorkflowsCodexMCPConfig(yaml)
+			serverConfig = e.buildAgenticWorkflowsCodexMCPConfig()
 		case "safe-outputs":
-			e.renderSafeOutputsCodexMCPConfig(yaml, workflowData)
+			serverConfig = e.buildSafeOutputsCodexMCPConfig(workflowData)
 		case "web-fetch":
-			renderMCPFetchServerConfig(yaml, "toml", "          ", false, false)
+			serverConfig = e.buildWebFetchCodexMCPConfig()
 		default:
-			// Handle custom MCP tools using shared helper (with adapter for isLast parameter)
-			HandleCustomMCPToolInSwitch(yaml, toolName, expandedTools, false, func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
-				return e.renderCodexMCPConfig(yaml, toolName, toolConfig)
-			})
+			// Handle custom MCP tools
+			if toolConfig, ok := expandedTools[toolName].(map[string]any); ok {
+				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
+					var err error
+					serverConfig, err = e.buildCustomCodexMCPConfig(toolName, toolConfig)
+					if err != nil {
+						// Skip this server if there's an error
+						continue
+					}
+				}
+			}
+		}
+
+		// Only add non-nil configurations
+		if serverConfig != nil {
+			mcpServers[toolName] = serverConfig
 		}
 	}
+
+	mcpConfig["mcp_servers"] = mcpServers
 
 	// Append custom config if provided
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Config != "" {
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Custom configuration\n")
-		// Write the custom config line by line with proper indentation
-		configLines := strings.Split(workflowData.EngineConfig.Config, "\n")
-		for _, line := range configLines {
-			if strings.TrimSpace(line) != "" {
-				yaml.WriteString("          " + line + "\n")
-			} else {
-				yaml.WriteString("          \n")
-			}
-		}
+		mcpConfig["custom_config"] = workflowData.EngineConfig.Config
 	}
 
-	yaml.WriteString("          EOF\n")
+	// Serialize to JSON
+	mcpConfigJSON, err := json.Marshal(mcpConfig)
+	if err != nil {
+		// Fallback to empty config if marshaling fails
+		mcpConfigJSON = []byte("{}")
+	}
+
+	// Use JavaScript script to generate TOML config file
+	yaml.WriteString("      - name: Generate Codex MCP configuration\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	yaml.WriteString("        env:\n")
+	yaml.WriteString(fmt.Sprintf("          GH_AW_MCP_CONFIG_JSON: '%s'\n", string(mcpConfigJSON)))
+	yaml.WriteString("          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	WriteJavaScriptToYAML(yaml, generateCodexConfigScript)
 }
 
 // ParseLogMetrics implements engine-specific log parsing for Codex
@@ -584,6 +610,180 @@ func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, wor
 // Uses the shared helper for TOML format
 func (e *CodexEngine) renderAgenticWorkflowsCodexMCPConfig(yaml *strings.Builder) {
 	renderAgenticWorkflowsMCPConfigTOML(yaml)
+}
+
+// buildGitHubCodexMCPConfig builds GitHub MCP server configuration as a map
+func (e *CodexEngine) buildGitHubCodexMCPConfig(githubTool any, workflowData *WorkflowData) map[string]any {
+	githubType := getGitHubType(githubTool)
+	customGitHubToken := getGitHubToken(githubTool)
+	readOnly := getGitHubReadOnly(githubTool)
+	toolsets := getGitHubToolsets(githubTool)
+
+	config := make(map[string]any)
+
+	// Add user_agent field defaulting to workflow identifier
+	userAgent := "github-agentic-workflow"
+	if workflowData != nil {
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.UserAgent != "" {
+			userAgent = workflowData.EngineConfig.UserAgent
+		} else if workflowData.Name != "" {
+			userAgent = SanitizeIdentifier(workflowData.Name)
+		}
+	}
+	config["user_agent"] = userAgent
+
+	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeoutSeconds
+	startupTimeout := constants.DefaultMCPStartupTimeoutSeconds
+	if workflowData.ToolsStartupTimeout > 0 {
+		startupTimeout = workflowData.ToolsStartupTimeout
+	}
+	config["startup_timeout_sec"] = startupTimeout
+
+	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
+	toolTimeout := constants.DefaultToolTimeoutSeconds
+	if workflowData.ToolsTimeout > 0 {
+		toolTimeout = workflowData.ToolsTimeout
+	}
+	config["tool_timeout_sec"] = toolTimeout
+
+	// Check if remote mode is enabled
+	if githubType == "remote" {
+		config["type"] = "http"
+		if readOnly {
+			config["url"] = "https://api.githubcopilot.com/mcp-readonly/"
+		} else {
+			config["url"] = "https://api.githubcopilot.com/mcp/"
+		}
+		config["bearer_token_env_var"] = "GH_AW_GITHUB_TOKEN"
+	} else {
+		// Local mode - use Docker-based GitHub MCP server (default)
+		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+		customArgs := getGitHubCustomArgs(githubTool)
+
+		config["command"] = "docker"
+		args := []string{"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN"}
+		if readOnly {
+			args = append(args, "-e", "GITHUB_READ_ONLY=1")
+		}
+		args = append(args, "-e", "GITHUB_TOOLSETS="+toolsets)
+		args = append(args, "ghcr.io/github/github-mcp-server:"+githubDockerImageVersion)
+		// Append custom args if present
+		if len(customArgs) > 0 {
+			args = append(args, customArgs...)
+		}
+		config["args"] = args
+
+		// Add environment variables
+		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
+		config["env"] = map[string]string{
+			"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveToken,
+		}
+	}
+
+	return config
+}
+
+// buildPlaywrightCodexMCPConfig builds Playwright MCP server configuration as a map
+func (e *CodexEngine) buildPlaywrightCodexMCPConfig(playwrightTool any) map[string]any {
+	args := generatePlaywrightDockerArgs(playwrightTool)
+	customArgs := getPlaywrightCustomArgs(playwrightTool)
+
+	config := make(map[string]any)
+	config["command"] = "npx"
+
+	argsList := []string{"@playwright/mcp@latest", "--output-dir", "/tmp/gh-aw/mcp-logs/playwright"}
+	if len(args.AllowedDomains) > 0 {
+		argsList = append(argsList, "--allowed-origins", strings.Join(args.AllowedDomains, ";"))
+	}
+	// Append custom args if present
+	if len(customArgs) > 0 {
+		argsList = append(argsList, customArgs...)
+	}
+	config["args"] = argsList
+
+	return config
+}
+
+// buildSafeOutputsCodexMCPConfig builds Safe Outputs MCP server configuration as a map
+func (e *CodexEngine) buildSafeOutputsCodexMCPConfig(workflowData *WorkflowData) map[string]any {
+	// Only build config if safe-outputs are configured
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
+	if !hasSafeOutputs {
+		return nil
+	}
+
+	config := make(map[string]any)
+	config["command"] = "node"
+	config["args"] = []string{"/tmp/gh-aw/safeoutputs/mcp-server.cjs"}
+	config["env"] = map[string]string{
+		"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
+		"GH_AW_SAFE_OUTPUTS_CONFIG": "${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}",
+		"GH_AW_ASSETS_BRANCH":       "${{ env.GH_AW_ASSETS_BRANCH }}",
+		"GH_AW_ASSETS_MAX_SIZE_KB":  "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}",
+		"GH_AW_ASSETS_ALLOWED_EXTS": "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}",
+		"GITHUB_REPOSITORY":         "${{ github.repository }}",
+		"GITHUB_SERVER_URL":         "${{ github.server_url }}",
+	}
+
+	return config
+}
+
+// buildAgenticWorkflowsCodexMCPConfig builds Agentic Workflows MCP server configuration as a map
+func (e *CodexEngine) buildAgenticWorkflowsCodexMCPConfig() map[string]any {
+	config := make(map[string]any)
+	config["command"] = "gh"
+	config["args"] = []string{"aw", "mcp-server"}
+	config["env"] = map[string]string{
+		"GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+	}
+
+	return config
+}
+
+// buildWebFetchCodexMCPConfig builds Web Fetch MCP server configuration as a map
+func (e *CodexEngine) buildWebFetchCodexMCPConfig() map[string]any {
+	config := make(map[string]any)
+	config["command"] = "npx"
+	config["args"] = []string{"-y", "@modelcontextprotocol/server-fetch"}
+
+	return config
+}
+
+// buildCustomCodexMCPConfig builds custom MCP server configuration as a map
+func (e *CodexEngine) buildCustomCodexMCPConfig(toolName string, toolConfig map[string]any) (map[string]any, error) {
+	// Get MCP configuration in the new format
+	mcpConfig, err := getMCPConfig(toolConfig, toolName)
+	if err != nil {
+		return nil, err
+	}
+
+	config := make(map[string]any)
+
+	// Add fields based on type
+	switch mcpConfig.Type {
+	case "stdio", "local":
+		if mcpConfig.Command != "" {
+			config["command"] = mcpConfig.Command
+		}
+		if len(mcpConfig.Args) > 0 {
+			config["args"] = mcpConfig.Args
+		}
+		if len(mcpConfig.Env) > 0 {
+			config["env"] = mcpConfig.Env
+		}
+	case "http":
+		config["type"] = "http"
+		if mcpConfig.URL != "" {
+			config["url"] = mcpConfig.URL
+		}
+		if len(mcpConfig.Headers) > 0 {
+			config["headers"] = mcpConfig.Headers
+		}
+	default:
+		return nil, fmt.Errorf("unsupported MCP type: %s", mcpConfig.Type)
+	}
+
+	return config, nil
 }
 
 // GetLogParserScriptId returns the JavaScript script name for parsing Codex logs
