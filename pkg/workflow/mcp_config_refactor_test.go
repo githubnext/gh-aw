@@ -321,7 +321,7 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 		`"/tmp/gh-aw/safeoutputs/mcp-server.cjs"`,
 		`env = {`,
 		`"GH_AW_SAFE_OUTPUTS" = "${{ env.GH_AW_SAFE_OUTPUTS }}"`,
-		`${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}`,
+		`"GH_AW_SAFE_OUTPUTS_CONFIG" = "${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}"`,
 	}
 
 	for _, expected := range expectedContent {
