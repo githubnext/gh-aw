@@ -106,17 +106,17 @@ describe("upload_assets.cjs", () => {
       let gitCheckoutCalled = false;
       mockExec.exec.mockImplementation(async (command, args) => {
         const fullCommand = Array.isArray(args) ? `${command} ${args.join(" ")}` : command;
-        
+
         // Track if git checkout was called (indicates branch creation)
         if (fullCommand.includes("checkout")) {
           gitCheckoutCalled = true;
         }
-        
+
         // Mock git rev-parse to fail (branch doesn't exist yet)
         if (fullCommand.includes("rev-parse")) {
           throw new Error("Branch does not exist");
         }
-        
+
         return 0;
       });
 
@@ -128,7 +128,10 @@ describe("upload_assets.cjs", () => {
 
       // Debug: log all exec calls
       const allCalls = mockExec.exec.mock.calls;
-      console.log("All exec calls:", allCalls.map(c => Array.isArray(c[1]) ? `${c[0]} ${c[1].join(" ")}` : c[0]));
+      console.log(
+        "All exec calls:",
+        allCalls.map(c => (Array.isArray(c[1]) ? `${c[0]} ${c[1].join(" ")}` : c[0]))
+      );
 
       // Find the git commit call
       const gitCommitCall = allCalls.find(call => {
