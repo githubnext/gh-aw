@@ -566,11 +566,18 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		permissions = perms.RenderToYAML()
 	}
 
+	// Set environment if manual-approval is configured
+	var environment string
+	if data.ManualApproval != "" {
+		environment = fmt.Sprintf("environment: %s", data.ManualApproval)
+	}
+
 	job := &Job{
 		Name:        constants.ActivationJobName,
 		If:          activationCondition,
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: permissions,
+		Environment: environment,
 		Steps:       steps,
 		Outputs:     outputs,
 		Needs:       activationNeeds, // Depend on pre-activation job if it exists

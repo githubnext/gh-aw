@@ -170,6 +170,7 @@ type WorkflowData struct {
 	EngineConfig        *EngineConfig // Extended engine configuration
 	AgentFile           string        // Path to custom agent file (from imports)
 	StopTime            string
+	ManualApproval      string               // environment name for manual approval from on: section
 	Command             string               // for /command trigger support
 	CommandEvents       []string             // events where command should be active (nil = all events)
 	CommandOtherEvents  map[string]any       // for merging command with other events
@@ -1107,6 +1108,12 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Process stop-after configuration from the on: section
 	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData, markdownPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Process manual-approval configuration from the on: section
+	err = c.processManualApprovalConfiguration(result.Frontmatter, workflowData)
 	if err != nil {
 		return nil, err
 	}
