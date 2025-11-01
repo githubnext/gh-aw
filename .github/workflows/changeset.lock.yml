@@ -62,7 +62,9 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event.pull_request.base.ref == github.event.repository.default_branch) &&
+      (needs.pre_activation.outputs.activated == 'true') && (((github.event.pull_request.base.ref == github.event.repository.default_branch) &&
+      (((((github.event_name != 'pull_request') && (github.event_name != 'pull_request_target')) && (github.event_name != 'pull_request_review')) &&
+      (github.event_name != 'pull_request_review_comment')) || (github.event.pull_request.head.repo.full_name == github.repository))) &&
       ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'changeset'))))
     runs-on: ubuntu-slim
     permissions:
@@ -667,8 +669,10 @@ jobs:
   agent:
     needs: activation
     if: >
-      ((github.event.pull_request.base.ref == github.event.repository.default_branch) && ((github.event_name != 'pull_request') ||
-      ((github.event.action != 'labeled') || (github.event.label.name == 'changeset')))) && (github.event.pull_request.head.repo.full_name == github.repository)
+      ((github.event.pull_request.base.ref == github.event.repository.default_branch) && (((((github.event_name != 'pull_request') &&
+      (github.event_name != 'pull_request_target')) && (github.event_name != 'pull_request_review')) && (github.event_name != 'pull_request_review_comment')) ||
+      (github.event.pull_request.head.repo.full_name == github.repository))) && ((github.event_name != 'pull_request') ||
+      ((github.event.action != 'labeled') || (github.event.label.name == 'changeset')))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -5265,7 +5269,9 @@ jobs:
 
   pre_activation:
     if: >
-      (github.event.pull_request.base.ref == github.event.repository.default_branch) && ((github.event_name != 'pull_request') ||
+      ((github.event.pull_request.base.ref == github.event.repository.default_branch) && (((((github.event_name != 'pull_request') &&
+      (github.event_name != 'pull_request_target')) && (github.event_name != 'pull_request_review')) && (github.event_name != 'pull_request_review_comment')) ||
+      (github.event.pull_request.head.repo.full_name == github.repository))) && ((github.event_name != 'pull_request') ||
       ((github.event.action != 'labeled') || (github.event.label.name == 'changeset')))
     runs-on: ubuntu-slim
     outputs:

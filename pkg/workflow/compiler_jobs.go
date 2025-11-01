@@ -585,31 +585,11 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool, f
 
 	var jobCondition = data.If
 
-	// Check if forks are allowed from frontmatter
-	allowForks := c.getAllowForksFromFrontmatter(frontmatter)
+	// Note: Fork prevention is now handled at the workflow level in applyPullRequestForkPrevention
+	// This ensures the condition checks github.event_name before applying the fork check
 
-	// Add fork prevention for pull_request triggers BEFORE clearing conditions for activation job
-	// Agentic workflows should NEVER execute from forked repositories for security reasons
-	// unless explicitly enabled with forks: true in frontmatter
-	if c.hasPullRequestTrigger(data.On) && !allowForks {
-		// Build fork prevention condition: pull request must be from the same repository
-		forkPreventionCondition := BuildNotFromFork().Render()
-
-		// Combine with existing condition if present
-		if jobCondition != "" {
-			// Build a combined condition tree
-			existingCondition := jobCondition
-			conditionTree := buildConditionTree(existingCondition, forkPreventionCondition)
-			jobCondition = conditionTree.Render()
-		} else {
-			// No existing condition, just use fork prevention
-			jobCondition = forkPreventionCondition
-		}
-	}
-
-	// Note: Even if activationJobCreated is true, we keep the fork prevention condition
-	// Fork prevention is a security requirement that should always be enforced
-	// The activation job dependency ensures proper workflow ordering, but doesn't replace security checks
+	// Note: Even if activationJobCreated is true, we keep the existing conditions
+	// The activation job dependency ensures proper workflow ordering
 
 	// Permission checks are now handled by the separate check_membership job
 	// No role checks needed in the main job

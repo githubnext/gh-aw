@@ -88,7 +88,68 @@ func (c *Compiler) applyPullRequestDraftFilter(data *WorkflowData, frontmatter m
 }
 
 // Note: applyPullRequestForkFilter has been removed as the forks field is now a boolean
-// that controls fork prevention in buildMainJob, not a filter condition with patterns.
+// that controls fork prevention via applyPullRequestForkPrevention, not a filter condition with patterns.
+
+// applyPullRequestForkPrevention adds fork prevention to the workflow-level if condition
+// This ensures workflows don't execute from forked PRs unless explicitly allowed with forks: true
+func (c *Compiler) applyPullRequestForkPrevention(data *WorkflowData, frontmatter map[string]any) {
+	filtersLog.Print("Applying pull request fork prevention")
+
+	// Check if this workflow has PR-related triggers
+	if !c.hasPullRequestTrigger(data.On) {
+		filtersLog.Print("No pull request trigger found, skipping fork prevention")
+		return
+	}
+
+	// Check if forks are allowed from frontmatter
+	allowForks := c.getAllowForksFromFrontmatter(frontmatter)
+	if allowForks {
+		filtersLog.Print("Forks explicitly allowed in frontmatter, skipping fork prevention")
+		return
+	}
+
+	filtersLog.Print("Adding fork prevention condition")
+
+	// Build fork prevention condition that only applies to PR events
+	// For non-PR events, the condition is always true
+	// For PR events, check that the fork is from the same repository
+
+	// List of PR-related event names
+	prEvents := []string{"pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"}
+
+	// Build condition: (event is not PR-related) OR (PR is from same repo)
+	var eventConditions []ConditionNode
+	for _, eventName := range prEvents {
+		eventConditions = append(eventConditions, BuildNotEquals(
+			BuildPropertyAccess("github.event_name"),
+			BuildStringLiteral(eventName),
+		))
+	}
+
+	// Combine all "not PR event" conditions with AND
+	// This creates: (event != pull_request) && (event != pull_request_target) && ...
+	notPREvent := eventConditions[0]
+	for i := 1; i < len(eventConditions); i++ {
+		notPREvent = &AndNode{
+			Left:  notPREvent,
+			Right: eventConditions[i],
+		}
+	}
+
+	// Fork check: PR is from the same repository
+	forkCheck := BuildNotFromFork()
+
+	// Final condition: (not a PR event) OR (PR is from same repo)
+	forkPreventionCondition := &OrNode{
+		Left:  notPREvent,
+		Right: forkCheck,
+	}
+
+	// Build condition tree and render
+	existingCondition := data.If
+	conditionTree := buildConditionTree(existingCondition, forkPreventionCondition.Render())
+	data.If = conditionTree.Render()
+}
 
 // applyLabelFilter applies label name filter conditions for labeled/unlabeled triggers
 // Supports "names: []string" to filter which label changes trigger the workflow

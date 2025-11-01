@@ -1156,9 +1156,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Apply pull request draft filter if specified
 	c.applyPullRequestDraftFilter(workflowData, result.Frontmatter)
 
-	// Note: The forks field is now a boolean (true/false) that controls fork prevention
-	// in buildMainJob, not a filter condition. The old applyPullRequestForkFilter
-	// function has been removed since fork prevention is now handled automatically.
+	// Apply pull request fork prevention (unless forks: true is specified)
+	c.applyPullRequestForkPrevention(workflowData, result.Frontmatter)
 
 	// Apply label filter if specified
 	c.applyLabelFilter(workflowData, result.Frontmatter)
