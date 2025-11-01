@@ -108,6 +108,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Add allowed tools configuration
+	// Note: Claude Code CLI v2.0.31 introduced a simpler --tools flag, but we continue to use
+	// --allowed-tools because it provides fine-grained control needed by gh-aw:
+	// - Specific bash commands: Bash(git:*), Bash(ls)
+	// - MCP tool prefixes: mcp__github__get_issue
+	// - Path-specific tools: Read(/tmp/gh-aw/cache-memory/*)
+	// The --tools flag only supports basic tool names (e.g., "Bash,Edit,Read") without patterns.
 	allowedTools := e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs, workflowData.CacheMemoryConfig)
 	if allowedTools != "" {
 		claudeArgs = append(claudeArgs, "--allowed-tools", allowedTools)

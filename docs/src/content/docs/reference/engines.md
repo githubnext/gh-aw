@@ -168,6 +168,16 @@ gh secret set ANTHROPIC_API_KEY -a actions --body "<your-anthropic-api-key>"
 gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 ```
 
+:::note[Tool Specification: `--allowed-tools` vs `--tools`]
+Claude Code CLI v2.0.31 introduced a simpler `--tools` flag for basic tool specification (e.g., `--tools "Bash,Edit,Read"`). However, gh-aw uses the more powerful `--allowed-tools` flag which supports:
+
+- **Specific bash commands**: `Bash(git:*)`, `Bash(ls)`
+- **MCP tool prefixes**: `mcp__github__get_issue`, `mcp__github__*`
+- **Path-specific access**: `Read(/tmp/gh-aw/cache-memory/*)`
+
+The `--tools` flag is too simplistic for gh-aw's fine-grained security and flexibility requirements. Tool permissions are automatically configured based on your workflow's `tools:` section.
+:::
+
 ### OpenAI Codex
 
 OpenAI Codex CLI with MCP server support. Designed for code-focused tasks.

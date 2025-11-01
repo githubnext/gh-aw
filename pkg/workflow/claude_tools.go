@@ -97,7 +97,15 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 	return result
 }
 
-// computeAllowedClaudeToolsString
+// computeAllowedClaudeToolsString generates the tool specification string for Claude's --allowed-tools flag.
+//
+// Why --allowed-tools instead of --tools (introduced in v2.0.31)?
+// While --tools is simpler (e.g., "Bash,Edit,Read"), it lacks the fine-grained control gh-aw requires:
+// - Specific bash commands: Bash(git:*), Bash(ls)
+// - MCP tool prefixes: mcp__github__get_issue, mcp__github__*
+// - Path-specific access: Read(/tmp/gh-aw/cache-memory/*)
+//
+// This function:
 // 1. validates that only neutral tools are provided (no claude section)
 // 2. converts neutral tools to Claude-specific tools format
 // 3. adds default Claude tools and git commands based on safe outputs configuration
