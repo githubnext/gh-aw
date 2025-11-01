@@ -268,7 +268,9 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 	yaml.WriteString("      - name: Generate Codex MCP configuration\n")
 	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 	yaml.WriteString("        env:\n")
-	yaml.WriteString(fmt.Sprintf("          GH_AW_MCP_CONFIG_JSON: '%s'\n", string(mcpConfigJSON)))
+	// Use YAML block scalar for JSON to handle special characters
+	yaml.WriteString("          GH_AW_MCP_CONFIG_JSON: |\n")
+	yaml.WriteString("            " + string(mcpConfigJSON) + "\n")
 	yaml.WriteString("          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
