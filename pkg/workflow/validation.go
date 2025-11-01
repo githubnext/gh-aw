@@ -683,3 +683,100 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 
 	return nil
 }
+
+// validateWorkflowRunBranches validates that workflow_run triggers include branch restrictions
+// This is a security best practice to avoid running on all branches
+func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markdownPath string) error {
+	if workflowData.On == "" {
+		return nil
+	}
+
+	validationLog.Print("Validating workflow_run triggers for branch restrictions")
+
+	// Parse the On field as YAML to check for workflow_run
+	// The On field is a YAML string that starts with "on:" key
+	var parsedData map[string]any
+	if err := yaml.Unmarshal([]byte(workflowData.On), &parsedData); err != nil {
+		// If we can't parse the YAML, skip this validation
+		validationLog.Printf("Could not parse On field as YAML: %v", err)
+		return nil
+	}
+
+	// Extract the actual "on" section from the parsed data
+	onData, hasOn := parsedData["on"]
+	if !hasOn {
+		// No "on" key found, skip validation
+		return nil
+	}
+
+	onMap, isMap := onData.(map[string]any)
+	if !isMap {
+		// "on" is not a map, skip validation
+		return nil
+	}
+
+	// Check if workflow_run is present
+	workflowRunVal, hasWorkflowRun := onMap["workflow_run"]
+	if !hasWorkflowRun {
+		// No workflow_run trigger, no validation needed
+		return nil
+	}
+
+	// Check if workflow_run has branches field
+	workflowRunMap, isMap := workflowRunVal.(map[string]any)
+	if !isMap {
+		// workflow_run is not a map (unusual), skip validation
+		return nil
+	}
+
+	_, hasBranches := workflowRunMap["branches"]
+	if hasBranches {
+		// Has branch restrictions, validation passed
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("✓ workflow_run trigger has branch restrictions"))
+		}
+		return nil
+	}
+
+	// workflow_run without branches - this is a warning or error depending on mode
+	message := "workflow_run trigger should include branch restrictions for security and performance.\n\n" +
+		"Without branch restrictions, the workflow will run for workflow runs on ALL branches,\n" +
+		"which can cause unexpected behavior and security issues.\n\n" +
+		"Suggested fix: Add branch restrictions to your workflow_run trigger:\n" +
+		"on:\n" +
+		"  workflow_run:\n" +
+		"    workflows: [\"your-workflow\"]\n" +
+		"    types: [completed]\n" +
+		"    branches:\n" +
+		"      - main\n" +
+		"      - develop"
+
+	if c.strictMode {
+		// In strict mode, this is an error
+		formattedErr := console.FormatError(console.CompilerError{
+			Position: console.ErrorPosition{
+				File:   markdownPath,
+				Line:   1,
+				Column: 1,
+			},
+			Type:    "error",
+			Message: message,
+		})
+		return errors.New(formattedErr)
+	}
+
+	// In normal mode, this is a warning
+	formattedWarning := console.FormatError(console.CompilerError{
+		Position: console.ErrorPosition{
+			File:   markdownPath,
+			Line:   1,
+			Column: 1,
+		},
+		Type:    "warning",
+		Message: message,
+	})
+	fmt.Fprintln(os.Stderr, formattedWarning)
+	c.IncrementWarningCount()
+
+	return nil
+}

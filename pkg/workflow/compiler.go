@@ -287,6 +287,12 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		return err
 	}
 
+	// Validate workflow_run triggers have branch restrictions
+	log.Printf("Validating workflow_run triggers for branch restrictions")
+	if err := c.validateWorkflowRunBranches(workflowData, markdownPath); err != nil {
+		return err
+	}
+
 	// Validate permissions against GitHub MCP toolsets
 	log.Printf("Validating permissions for GitHub MCP toolsets")
 	if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub {
