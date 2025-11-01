@@ -85,9 +85,10 @@ function sanitizeContent(content, maxLength) {
    * @returns {string} The string with unknown domains redacted
    */
   function sanitizeUrlDomains(s) {
-    s = s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, domain) => {
+    // Match full HTTPS URLs including path, query, and fragment
+    s = s.replace(/\bhttps:\/\/([^\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, rest) => {
       // Extract the hostname part (before first slash, colon, or other delimiter)
-      const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
+      const hostname = rest.split(/[\/:\?#]/)[0].toLowerCase();
 
       // Check if this domain or any parent domain is in the allowlist
       const isAllowed = allowedDomains.some(allowedDomain => {
@@ -107,12 +108,35 @@ function sanitizeContent(content, maxLength) {
    * @returns {string} The string with non-https protocols redacted
    */
   function sanitizeUrlProtocols(s) {
-    // Match protocol patterns but avoid command-line flags like -v:10
-    // Protocol patterns typically start with a letter at word boundary (not after -)
-    // Match both protocol:// and protocol: patterns (like javascript:alert())
-    return s.replace(/(?<![-])(\b[A-Za-z][A-Za-z0-9+.-]*):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/g, (match, protocol) => {
+    // Match protocol patterns but avoid command-line flags, file paths, and namespaces
+    // Protocol patterns typically have :// or are well-known schemes followed by :
+    // Use negative lookbehind to exclude patterns preceded by - (command flags)
+    // Match only patterns that look like actual protocols
+    return s.replace(/(?<![-\/\w])([A-Za-z][A-Za-z0-9+.-]*):(?:\/\/|(?=[^\s:]))[^\s\])}'"<>&\x00-\x1f]+/g, (match, protocol) => {
       // Allow https (case insensitive), redact everything else
-      return protocol.toLowerCase() === "https" ? match : "(redacted)";
+      // But only if it looks like a URL (has :// or is followed by non-colon content)
+      if (protocol.toLowerCase() === "https") {
+        return match;
+      }
+      
+      // Allow if it looks like a file path or namespace (::)
+      if (match.includes("::")) {
+        return match;
+      }
+      
+      // Redact if it has :// (definite protocol)
+      if (match.includes("://")) {
+        return "(redacted)";
+      }
+      
+      // Redact well-known dangerous protocols like javascript:, data:, etc.
+      const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
+      if (dangerousProtocols.includes(protocol.toLowerCase())) {
+        return "(redacted)";
+      }
+      
+      // Otherwise preserve (could be file:path, namespace:thing, etc.)
+      return match;
     });
   }
 
@@ -167,7 +191,8 @@ function sanitizeContent(content, maxLength) {
     // Convert opening tags: <tag> or <tag attr="value"> to (tag) or (tag attr="value")
     // Convert closing tags: </tag> to (/tag)
     // Convert self-closing tags: <tag/> or <tag /> to (tag/) or (tag /)
-    return s.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
+    // Also handle special tags like <![CDATA[...]]>
+    return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, "($1)");
   }
 
   /**
