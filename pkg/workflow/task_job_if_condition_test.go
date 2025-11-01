@@ -61,9 +61,14 @@ Check the failed workflow and provide analysis.`
 		t.Error("Expected activation job to be present in generated workflow")
 	}
 
-	// Test 2: Verify activation job has the if condition
-	if !strings.Contains(lockContentStr, "if: ${{ github.event.workflow_run.conclusion == 'failure' }}") {
-		t.Error("Expected activation job to have the if condition")
+	// Test 2: Verify activation job has the user's if condition (may be combined with other conditions)
+	if !strings.Contains(lockContentStr, "github.event.workflow_run.conclusion == 'failure'") {
+		t.Error("Expected activation job to include the user's if condition")
+	}
+
+	// Test 2b: Verify activation job has the workflow_run repository safety check
+	if !strings.Contains(lockContentStr, "github.event.workflow_run.repository.id == github.repository_id") {
+		t.Error("Expected activation job to include the workflow_run repository safety check")
 	}
 
 	// Test 3: Verify activation job has steps (specifically the dummy step)

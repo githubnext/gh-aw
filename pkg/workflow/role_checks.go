@@ -179,3 +179,53 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 	// For command workflows, they are not considered "safe only"
 	return false
 }
+
+// hasWorkflowRunTrigger checks if the compiled workflow has a workflow_run trigger in its "on" section
+// This checks the compiled workflow's trigger configuration, NOT the agentic workflow's frontmatter
+func (c *Compiler) hasWorkflowRunTrigger(data *WorkflowData) bool {
+	// Parse the "on" section from the compiled workflow data
+	// The "on" field contains the rendered YAML triggers
+	if data.On == "" {
+		return false
+	}
+
+	// Simple string check for workflow_run trigger
+	// The data.On field contains the rendered "on:" section, so we check for "workflow_run:"
+	return strings.Contains(data.On, "workflow_run:")
+}
+
+// buildWorkflowRunRepoSafetyCondition generates the if condition to ensure workflow_run is from same repo
+func (c *Compiler) buildWorkflowRunRepoSafetyCondition() string {
+	// Use ExpressionNode to build the condition properly
+	repoIDCheck := BuildEquals(
+		BuildPropertyAccess("github.event.workflow_run.repository.id"),
+		BuildPropertyAccess("github.repository_id"),
+	)
+	// Wrap in ${{ }} for GitHub Actions
+	return fmt.Sprintf("${{ %s }}", repoIDCheck.Render())
+}
+
+// combineJobIfConditions combines an existing if condition with workflow_run repository safety check
+// Returns the combined condition, or just one of them if the other is empty
+func (c *Compiler) combineJobIfConditions(existingCondition, workflowRunRepoSafety string) string {
+	// If no workflow_run safety check needed, return existing condition
+	if workflowRunRepoSafety == "" {
+		return existingCondition
+	}
+
+	// If no existing condition, return just the workflow_run safety check
+	if existingCondition == "" {
+		return workflowRunRepoSafety
+	}
+
+	// Both conditions present - combine them with AND
+	// Strip ${{ }} wrapper from existingCondition if present
+	unwrappedExisting := stripExpressionWrapper(existingCondition)
+	unwrappedSafety := stripExpressionWrapper(workflowRunRepoSafety)
+
+	existingNode := &ExpressionNode{Expression: unwrappedExisting}
+	safetyNode := &ExpressionNode{Expression: unwrappedSafety}
+
+	combinedExpr := buildAnd(existingNode, safetyNode)
+	return combinedExpr.Render()
+}
