@@ -25,6 +25,7 @@ tools:
   bash:
     - "*"
   edit:
+  cache-memory:
 imports:
   - shared/reporting.md
 ---
@@ -42,6 +43,22 @@ Generate a comprehensive daily report of all rejected domains across all agentic
 - Security insights from blocked requests
 
 ## Instructions
+
+### Step 0: Check Cache for Recent Analysis
+
+**EFFICIENCY FIRST**: Before starting the full analysis:
+
+1. Check `/tmp/gh-aw/cache-memory/firewall-reports/` for the most recent report
+2. If a report exists from the last 24 hours:
+   - Read the cached run IDs that were analyzed
+   - Determine if any new workflow runs have occurred since then
+   - If no new runs, update the existing report with current timestamp and exit early
+3. Cache the following for the next run:
+   - Last analysis timestamp
+   - List of run IDs analyzed
+   - Aggregated blocked domains data
+
+This prevents unnecessary re-analysis of the same data and significantly reduces token usage.
 
 ### Step 1: Identify Workflows with Firewall Feature
 
