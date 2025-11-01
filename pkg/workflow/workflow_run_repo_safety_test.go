@@ -28,7 +28,7 @@ on:
 
 Analyze the CI run.`,
 			expectSafetyCondition:   true,
-			expectedConditionString: "github.event.workflow_run.repository.id == github.repository_id",
+			expectedConditionString: "github.event_name == 'workflow_run'",
 		},
 		{
 			name: "workflow with workflow_run and if condition should include repo safety check and combine conditions",
@@ -44,7 +44,7 @@ if: ${{ github.event.workflow_run.conclusion == 'failure' }}
 
 Analyze failed CI run.`,
 			expectSafetyCondition:   true,
-			expectedConditionString: "github.event.workflow_run.repository.id == github.repository_id",
+			expectedConditionString: "github.event_name == 'workflow_run'",
 		},
 		{
 			name: "workflow with push trigger should NOT include repo safety check",
@@ -110,17 +110,14 @@ Do something on issue.`,
 			lockContentStr := string(lockContent)
 
 			// Check if the safety condition is present in job if clauses
-			// Search for it specifically in "if:" lines to avoid false positives from JavaScript code
+			// For multiline conditions with "if: >", the condition is on subsequent lines
+			// So we check if the expected string exists anywhere in the lock file
 			hasSafetyCondition := false
 			if tt.expectedConditionString != "" {
-				lines := strings.Split(lockContentStr, "\n")
-				for _, line := range lines {
-					trimmed := strings.TrimSpace(line)
-					if strings.HasPrefix(trimmed, "if:") && strings.Contains(trimmed, tt.expectedConditionString) {
-						hasSafetyCondition = true
-						break
-					}
-				}
+				// Simply check if the expected condition string exists in the file
+				// This is safe because we're looking for specific GitHub expression syntax
+				// that wouldn't appear in JavaScript code
+				hasSafetyCondition = strings.Contains(lockContentStr, tt.expectedConditionString)
 			}
 
 			if tt.expectSafetyCondition && !hasSafetyCondition {
@@ -207,6 +204,13 @@ This workflow runs when CI workflows fail to help diagnose issues.`
 		t.Error("Expected activation job to be present")
 	}
 
+	// Verify the event_name check is present
+	eventNameCondition := "github.event_name == 'workflow_run'"
+	if !strings.Contains(lockContentStr, eventNameCondition) {
+		t.Errorf("Expected event_name check to be present in lock file")
+		t.Logf("Lock file content:\n%s", lockContentStr)
+	}
+
 	// Verify the repository safety condition is present
 	expectedCondition := "github.event.workflow_run.repository.id == github.repository_id"
 	if !strings.Contains(lockContentStr, expectedCondition) {
@@ -221,7 +225,7 @@ This workflow runs when CI workflows fail to help diagnose issues.`
 		t.Logf("Lock file content:\n%s", lockContentStr)
 	}
 
-	// Both conditions should be combined with &&
+	// All conditions should be combined with &&
 	if !strings.Contains(lockContentStr, "&&") {
 		t.Error("Expected conditions to be combined with &&")
 	}
