@@ -147,7 +147,8 @@ function main() {
     // Parse the JSON configuration
     let mcpConfig;
     try {
-      mcpConfig = JSON.parse(mcpConfigJSON);
+      // Trim whitespace that might come from YAML block scalar
+      mcpConfig = JSON.parse(mcpConfigJSON.trim());
     } catch (error) {
       core.setFailed(`Failed to parse MCP configuration JSON: ${error instanceof Error ? error.message : String(error)}`);
       process.exit(1);
