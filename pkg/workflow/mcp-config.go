@@ -17,6 +17,7 @@ var mcpLog = logger.New("workflow:mcp-config")
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
 // This is a shared function used by both Claude and Custom engines
 func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
+	mcpLog.Print("Rendering Playwright MCP configuration")
 	renderPlaywrightMCPConfigWithOptions(yaml, playwrightTool, isLast, false, false)
 }
 
@@ -84,6 +85,7 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 // renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration
 // This is a shared function used by both Claude and Custom engines
 func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
+	mcpLog.Print("Rendering Safe Outputs MCP configuration")
 	renderSafeOutputsMCPConfigWithOptions(yaml, isLast, false)
 }
 
