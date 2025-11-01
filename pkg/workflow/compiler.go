@@ -170,6 +170,7 @@ type WorkflowData struct {
 	EngineConfig        *EngineConfig // Extended engine configuration
 	AgentFile           string        // Path to custom agent file (from imports)
 	StopTime            string
+	ManualApproval      string               // environment name for manual approval from on: section
 	Command             string               // for /command trigger support
 	CommandEvents       []string             // events where command should be active (nil = all events)
 	CommandOtherEvents  map[string]any       // for merging command with other events
@@ -284,6 +285,12 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Validate agent file exists if specified in engine config
 	log.Printf("Validating agent file if specified")
 	if err := c.validateAgentFile(workflowData, markdownPath); err != nil {
+		return err
+	}
+
+	// Validate workflow_run triggers have branch restrictions
+	log.Printf("Validating workflow_run triggers for branch restrictions")
+	if err := c.validateWorkflowRunBranches(workflowData, markdownPath); err != nil {
 		return err
 	}
 
@@ -1101,6 +1108,12 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Process stop-after configuration from the on: section
 	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData, markdownPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Process manual-approval configuration from the on: section
+	err = c.processManualApprovalConfiguration(result.Frontmatter, workflowData)
 	if err != nil {
 		return nil, err
 	}

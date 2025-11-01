@@ -7,7 +7,11 @@ on:
         required: true
         type: string
 
-permissions: read-all
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  actions: read
 
 engine:
   id: copilot

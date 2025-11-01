@@ -58,7 +58,6 @@ permissions:
   contents: read
   deployments: read
   discussions: read
-  id-token: write
   issues: read
   models: read
   packages: read
@@ -548,7 +547,6 @@ jobs:
       contents: read
       deployments: read
       discussions: read
-      id-token: write
       issues: read
       models: read
       packages: read

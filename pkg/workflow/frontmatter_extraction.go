@@ -194,8 +194,8 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	return yamlStr
 }
 
-// commentOutProcessedFieldsInOnSection comments out draft, fork, forks, and names fields in pull_request/issues sections within the YAML string
-// These fields are processed separately by applyPullRequestDraftFilter, applyPullRequestForkFilter, and applyLabelFilter and should be commented for documentation
+// commentOutProcessedFieldsInOnSection comments out draft, fork, forks, names, manual-approval, stop-after, and reaction fields in the on section
+// These fields are processed separately and should be commented for documentation
 func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 	lines := strings.Split(yamlStr, "\n")
 	var result []string
@@ -250,7 +250,21 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 		shouldComment := false
 		var commentReason string
 
-		if inPullRequest && strings.Contains(trimmedLine, "draft:") {
+		// Check for top-level fields that should be commented out (not inside pull_request or issues)
+		if !inPullRequest && !inIssues {
+			if strings.HasPrefix(trimmedLine, "manual-approval:") {
+				shouldComment = true
+				commentReason = " # Manual approval processed as environment field in activation job"
+			} else if strings.HasPrefix(trimmedLine, "stop-after:") {
+				shouldComment = true
+				commentReason = " # Stop-after processed as stop-time check in pre-activation job"
+			} else if strings.HasPrefix(trimmedLine, "reaction:") {
+				shouldComment = true
+				commentReason = " # Reaction processed as activation job step"
+			}
+		}
+
+		if !shouldComment && inPullRequest && strings.Contains(trimmedLine, "draft:") {
 			shouldComment = true
 			commentReason = " # Draft filtering applied via job conditions"
 		} else if inPullRequest && strings.HasPrefix(trimmedLine, "forks:") {

@@ -12,7 +12,11 @@ on:
     - Smoke Copilot Firewall
     - Smoke Opencode
   reaction: "eyes"
-permissions: read-all
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  actions: read
 safe-outputs:
   add-comment:
     target: "*"

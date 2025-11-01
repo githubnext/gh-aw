@@ -533,6 +533,11 @@ on:
   # (optional)
   stop-after: "example-value"
 
+  # Environment name that requires manual approval before the workflow can run. Must
+  # match a valid environment configured in the repository settings.
+  # (optional)
+  manual-approval: "example-value"
+
   # AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused,
   # heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to
   # 'eyes' if not specified.

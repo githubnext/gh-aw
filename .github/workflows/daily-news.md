@@ -5,7 +5,12 @@ on:
     - cron: "0 9 * * 1-5"
   workflow_dispatch:
 
-permissions: read-all
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  discussions: read
+  actions: read
 
 engine: copilot
 
