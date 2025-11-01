@@ -27,7 +27,7 @@ func TestBranchNormalizationInlinedInMainJob(t *testing.T) {
 	}
 
 	// Build the main job
-	job, err := compiler.buildMainJob(data, false, data.If)
+	job, err := compiler.buildMainJob(data, false)
 	if err != nil {
 		t.Fatalf("Failed to build main job: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestBranchNormalizationStepNotAddedWhenNoUploadAssets(t *testing.T) {
 	}
 
 	// Build the main job
-	job, err := compiler.buildMainJob(data, false, data.If)
+	job, err := compiler.buildMainJob(data, false)
 	if err != nil {
 		t.Fatalf("Failed to build main job: %v", err)
 	}
