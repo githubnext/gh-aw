@@ -1023,6 +1023,9 @@ jobs:
           GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
           GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GH_AW_EXPR_47162026: ${{ secrets.TAVILY_API_KEY }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -1068,14 +1071,11 @@ jobs:
                 "type": "http",
                 "url": "https://mcp.tavily.com/mcp/",
                 "headers": {
-                  "Authorization": "Bearer \${TAVILY_API_KEY}"
+                  "Authorization": "Bearer ${GH_AW_EXPR_47162026}"
                 },
                 "tools": [
                   "*"
-                ],
-                "env": {
-                  "TAVILY_API_KEY": "\${TAVILY_API_KEY}"
-                }
+                ]
               }
             }
           }

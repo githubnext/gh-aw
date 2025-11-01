@@ -74,6 +74,14 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Sort tools to ensure stable code generation
 	sort.Strings(mcpTools)
 
+	// Extract GitHub expressions from MCP tool configurations to prevent template injection
+	extractor := NewExpressionExtractor()
+	extractor.ExtractExpressionsFromTools(tools)
+	mcpExpressionMappings := extractor.GetMappings()
+
+	// Create a modified copy of tools with expressions replaced by env var references
+	toolsWithReplacedExpressions := extractor.ReplaceExpressionsInTools(tools)
+
 	// Collect all Docker images that will be used and generate download step
 	dockerImages := collectDockerImages(tools)
 	generateDownloadDockerImagesStep(yaml, dockerImages)
@@ -165,6 +173,11 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 	}
 
+	// Check if we need env block for MCP expression mappings
+	if len(mcpExpressionMappings) > 0 {
+		needsEnvBlock = true
+	}
+
 	if needsEnvBlock {
 		yaml.WriteString("        env:\n")
 
@@ -183,6 +196,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			yaml.WriteString("          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}\n")
 			yaml.WriteString("          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}\n")
 			yaml.WriteString("          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}\n")
+			// Add GitHub context variables for safe-outputs MCP server
+			yaml.WriteString("          GITHUB_REPOSITORY: ${{ github.repository }}\n")
+			yaml.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
 		}
 
 		// Add GITHUB_TOKEN for agentic-workflows if present
@@ -204,11 +220,18 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				yaml.WriteString(fmt.Sprintf("          %s: %s\n", envVarName, originalExpr))
 			}
 		}
+
+		// Add MCP expression environment variables
+		for _, mapping := range mcpExpressionMappings {
+			// Write the environment variable with the original GitHub expression
+			fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
+		}
 	}
 
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
-	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
+	// Use the modified tools with expressions replaced by env var references
+	engine.RenderMCPConfig(yaml, toolsWithReplacedExpressions, mcpTools, workflowData)
 }
 
 func getGitHubDockerImageVersion(githubTool any) string {

@@ -137,3 +137,221 @@ func (e *ExpressionExtractor) GetMappings() []*ExpressionMapping {
 
 	return result
 }
+
+// ExtractExpressionsFromStringSlice extracts expressions from a slice of strings
+// Returns the number of expressions found
+func (e *ExpressionExtractor) ExtractExpressionsFromStringSlice(values []string) int {
+	count := 0
+	for _, value := range values {
+		// Extract expressions from this value
+		_, err := e.ExtractExpressions(value)
+		if err == nil && len(e.mappings) > count {
+			count = len(e.mappings) - count
+		}
+	}
+	return count
+}
+
+// ExtractExpressionsFromMap extracts expressions from a map's values
+// Returns the number of expressions found
+func (e *ExpressionExtractor) ExtractExpressionsFromMap(values map[string]string) int {
+	count := 0
+	for _, value := range values {
+		// Extract expressions from this value
+		_, err := e.ExtractExpressions(value)
+		if err == nil && len(e.mappings) > count {
+			count = len(e.mappings) - count
+		}
+	}
+	return count
+}
+
+// ReplaceExpressionsInStringSlice replaces expressions in a slice of strings
+// Returns a new slice with replacements applied
+func (e *ExpressionExtractor) ReplaceExpressionsInStringSlice(values []string) []string {
+	result := make([]string, len(values))
+	for i, value := range values {
+		result[i] = e.ReplaceExpressionsWithEnvVars(value)
+	}
+	return result
+}
+
+// ReplaceExpressionsInMap replaces expressions in a map's values
+// Returns a new map with replacements applied
+func (e *ExpressionExtractor) ReplaceExpressionsInMap(values map[string]string) map[string]string {
+	result := make(map[string]string)
+	for key, value := range values {
+		result[key] = e.ReplaceExpressionsWithEnvVars(value)
+	}
+	return result
+}
+
+// ExtractExpressionsFromTools extracts all GitHub expressions from workflow tools
+// This includes expressions in MCP server args, env, headers, and other configuration
+func (e *ExpressionExtractor) ExtractExpressionsFromTools(tools map[string]any) error {
+	for _, toolValue := range tools {
+		// Convert to map if possible
+		toolConfig, ok := toolValue.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		// Extract from args array
+		if args, ok := toolConfig["args"].([]any); ok {
+			for _, arg := range args {
+				if argStr, ok := arg.(string); ok {
+					e.ExtractExpressions(argStr)
+				}
+			}
+		}
+
+		// Extract from entrypoint-args array
+		if entrypointArgs, ok := toolConfig["entrypoint-args"].([]any); ok {
+			for _, arg := range entrypointArgs {
+				if argStr, ok := arg.(string); ok {
+					e.ExtractExpressions(argStr)
+				}
+			}
+		}
+
+		// Extract from env map
+		if env, ok := toolConfig["env"].(map[string]any); ok {
+			for _, value := range env {
+				if valueStr, ok := value.(string); ok {
+					e.ExtractExpressions(valueStr)
+				}
+			}
+		}
+
+		// Extract from headers map (for HTTP MCP)
+		if headers, ok := toolConfig["headers"].(map[string]any); ok {
+			for _, value := range headers {
+				if valueStr, ok := value.(string); ok {
+					e.ExtractExpressions(valueStr)
+				}
+			}
+		}
+
+		// Extract from proxy-args array
+		if proxyArgs, ok := toolConfig["proxy-args"].([]any); ok {
+			for _, arg := range proxyArgs {
+				if argStr, ok := arg.(string); ok {
+					e.ExtractExpressions(argStr)
+				}
+			}
+		}
+
+		// Extract from command string
+		if command, ok := toolConfig["command"].(string); ok {
+			e.ExtractExpressions(command)
+		}
+
+		// Extract from url string (for HTTP MCP)
+		if url, ok := toolConfig["url"].(string); ok {
+			e.ExtractExpressions(url)
+		}
+	}
+
+	return nil
+}
+
+// ReplaceExpressionsInTools creates a deep copy of tools with expressions replaced
+// Returns a new tools map with all expressions replaced by environment variable references
+func (e *ExpressionExtractor) ReplaceExpressionsInTools(tools map[string]any) map[string]any {
+	result := make(map[string]any)
+
+	for toolName, toolValue := range tools {
+		// Convert to map if possible
+		toolConfig, ok := toolValue.(map[string]any)
+		if !ok {
+			// If not a map, copy as-is
+			result[toolName] = toolValue
+			continue
+		}
+
+		// Create a copy of the tool config
+		newConfig := make(map[string]any)
+		for key, value := range toolConfig {
+			newConfig[key] = value
+		}
+
+		// Replace in args array
+		if args, ok := toolConfig["args"].([]any); ok {
+			newArgs := make([]any, len(args))
+			for i, arg := range args {
+				if argStr, ok := arg.(string); ok {
+					newArgs[i] = e.ReplaceExpressionsWithEnvVars(argStr)
+				} else {
+					newArgs[i] = arg
+				}
+			}
+			newConfig["args"] = newArgs
+		}
+
+		// Replace in entrypoint-args array
+		if entrypointArgs, ok := toolConfig["entrypoint-args"].([]any); ok {
+			newEntrypointArgs := make([]any, len(entrypointArgs))
+			for i, arg := range entrypointArgs {
+				if argStr, ok := arg.(string); ok {
+					newEntrypointArgs[i] = e.ReplaceExpressionsWithEnvVars(argStr)
+				} else {
+					newEntrypointArgs[i] = arg
+				}
+			}
+			newConfig["entrypoint-args"] = newEntrypointArgs
+		}
+
+		// Replace in env map
+		if env, ok := toolConfig["env"].(map[string]any); ok {
+			newEnv := make(map[string]any)
+			for key, value := range env {
+				if valueStr, ok := value.(string); ok {
+					newEnv[key] = e.ReplaceExpressionsWithEnvVars(valueStr)
+				} else {
+					newEnv[key] = value
+				}
+			}
+			newConfig["env"] = newEnv
+		}
+
+		// Replace in headers map (for HTTP MCP)
+		if headers, ok := toolConfig["headers"].(map[string]any); ok {
+			newHeaders := make(map[string]any)
+			for key, value := range headers {
+				if valueStr, ok := value.(string); ok {
+					newHeaders[key] = e.ReplaceExpressionsWithEnvVars(valueStr)
+				} else {
+					newHeaders[key] = value
+				}
+			}
+			newConfig["headers"] = newHeaders
+		}
+
+		// Replace in proxy-args array
+		if proxyArgs, ok := toolConfig["proxy-args"].([]any); ok {
+			newProxyArgs := make([]any, len(proxyArgs))
+			for i, arg := range proxyArgs {
+				if argStr, ok := arg.(string); ok {
+					newProxyArgs[i] = e.ReplaceExpressionsWithEnvVars(argStr)
+				} else {
+					newProxyArgs[i] = arg
+				}
+			}
+			newConfig["proxy-args"] = newProxyArgs
+		}
+
+		// Replace in command string
+		if command, ok := toolConfig["command"].(string); ok {
+			newConfig["command"] = e.ReplaceExpressionsWithEnvVars(command)
+		}
+
+		// Replace in url string (for HTTP MCP)
+		if url, ok := toolConfig["url"].(string); ok {
+			newConfig["url"] = e.ReplaceExpressionsWithEnvVars(url)
+		}
+
+		result[toolName] = newConfig
+	}
+
+	return result
+}

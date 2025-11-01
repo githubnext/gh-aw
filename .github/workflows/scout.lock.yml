@@ -2130,6 +2130,10 @@ jobs:
           GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
           GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GH_AW_EXPR_47162026: ${{ secrets.TAVILY_API_KEY }}
+          GH_AW_EXPR_C64D2A71: ${{ secrets.CONTEXT7_API_KEY }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
@@ -2157,7 +2161,7 @@ jobs:
                   "mcp/context7"
                 ],
                 "env": {
-                  "CONTEXT7_API_KEY": "${{ secrets.CONTEXT7_API_KEY }}"
+                  "CONTEXT7_API_KEY": "${GH_AW_EXPR_C64D2A71}"
                 }
               },
               "deepwiki": {
@@ -2207,7 +2211,7 @@ jobs:
                 "type": "http",
                 "url": "https://mcp.tavily.com/mcp/",
                 "headers": {
-                  "Authorization": "Bearer ${{ secrets.TAVILY_API_KEY }}"
+                  "Authorization": "Bearer ${GH_AW_EXPR_47162026}"
                 }
               }
             }

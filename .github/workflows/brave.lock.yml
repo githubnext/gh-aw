@@ -1944,6 +1944,9 @@ jobs:
           GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
           GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GH_AW_EXPR_DEC2A167: ${{ secrets.BRAVE_API_KEY }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -1965,7 +1968,7 @@ jobs:
                   "docker.io/mcp/brave-search"
                 ],
                 "env": {
-                  "BRAVE_API_KEY": "${{ secrets.BRAVE_API_KEY }}"
+                  "BRAVE_API_KEY": "${GH_AW_EXPR_DEC2A167}"
                 }
               },
               "github": {
