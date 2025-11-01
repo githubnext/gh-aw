@@ -1954,6 +1954,12 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_EXPR_E80C082D: ${{ github.actor }}
+          GH_AW_EXPR_FDF90382: ${{ github.event.inputs.query }}
+          GH_AW_EXPR_1A1E4E4B: ${{ github.event.inputs.url }}
+          GH_AW_EXPR_799BE623: ${{ github.event.issue.number || github.event.pull_request.number }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_0BABF60D: ${{ needs.activation.outputs.text }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1974,12 +1980,12 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Triggered by**: @${{ github.actor }}
-          - **Triggering Content**: "${{ needs.activation.outputs.text }}"
-          - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
-          - **Workflow Dispatch URL**: ${{ github.event.inputs.url }}
-          - **Workflow Dispatch Query**: ${{ github.event.inputs.query }}
+          - **Repository**: ${GH_AW_EXPR_D892F163}
+          - **Triggered by**: @${GH_AW_EXPR_E80C082D}
+          - **Triggering Content**: "${GH_AW_EXPR_0BABF60D}"
+          - **Issue/PR Number**: ${GH_AW_EXPR_799BE623}
+          - **Workflow Dispatch URL**: ${GH_AW_EXPR_1A1E4E4B}
+          - **Workflow Dispatch Query**: ${GH_AW_EXPR_FDF90382}
           - **Persistent Storage**: `/tmp/gh-aw/cache-memory/` (use this to store analysis results for future reference)
           
           ## Processing Steps
@@ -2058,7 +2064,7 @@ jobs:
           
           ## Context for This Repository
           
-          [How these findings relate to ${{ github.repository }}]
+          [How these findings relate to ${GH_AW_EXPR_D892F163}]
           
           ## Additional Notes
           

@@ -1027,6 +1027,9 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_EXPR_E80C082D: ${{ github.actor }}
+          GH_AW_EXPR_A6F52948: ${{ github.event.inputs.video_url }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1165,9 +1168,9 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Video URL**: "${{ github.event.inputs.video_url }}"
-          - **Triggered by**: @${{ github.actor }}
+          - **Repository**: ${GH_AW_EXPR_D892F163}
+          - **Video URL**: "${GH_AW_EXPR_A6F52948}"
+          - **Triggered by**: @${GH_AW_EXPR_E80C082D}
           
           ## Your Task
           
@@ -1259,7 +1262,7 @@ jobs:
           ```markdown
           # Video Analysis Report: [Video Filename]
           
-          *Analysis performed by @${{ github.actor }} on [Date]*
+          *Analysis performed by @${GH_AW_EXPR_E80C082D} on [Date]*
           
           ## 📊 Video Information
           

@@ -183,6 +183,7 @@ jobs:
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -194,7 +195,7 @@ jobs:
           
           Respond with a simple message acknowledging this test workflow.
           
-          **Repository**: ${{ github.repository }}
+          **Repository**: ${GH_AW_EXPR_D892F163}
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt

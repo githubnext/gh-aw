@@ -2029,6 +2029,11 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_EXPR_E80C082D: ${{ github.actor }}
+          GH_AW_EXPR_799BE623: ${{ github.event.issue.number || github.event.pull_request.number }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_2D1CC6E7: ${{ github.workspace }}
+          GH_AW_EXPR_0BABF60D: ${{ needs.activation.outputs.text }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -2036,7 +2041,7 @@ jobs:
           
           ## Serena configuration
           
-          The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
+          The active workspaces is ${GH_AW_EXPR_2D1CC6E7}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
           
           
           
@@ -2059,10 +2064,10 @@ jobs:
           <current_context>
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Triggering Content**: "${{ needs.activation.outputs.text }}"
-          - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
-          - **Triggered by**: @${{ github.actor }}
+          - **Repository**: ${GH_AW_EXPR_D892F163}
+          - **Triggering Content**: "${GH_AW_EXPR_0BABF60D}"
+          - **Issue/PR Number**: ${GH_AW_EXPR_799BE623}
+          - **Triggered by**: @${GH_AW_EXPR_E80C082D}
           </current_context>
           
           ## Investigation Protocol

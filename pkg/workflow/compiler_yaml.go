@@ -548,6 +548,20 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Clean the markdown content
 	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
 
+	// Extract expressions and create environment variable mappings for security
+	extractor := NewExpressionExtractor()
+	expressionMappings, err := extractor.ExtractExpressions(cleanedMarkdownContent)
+	if err != nil {
+		// Log error but continue - this is a compiler step, we shouldn't fail
+		// The original expressions will be used if extraction fails
+		expressionMappings = nil
+	}
+
+	// Replace expressions with environment variable references
+	if len(expressionMappings) > 0 {
+		cleanedMarkdownContent = extractor.ReplaceExpressionsWithEnvVars(cleanedMarkdownContent)
+	}
+
 	// Wrap GitHub expressions in template conditionals
 	cleanedMarkdownContent = wrapExpressionsInTemplateConditionals(cleanedMarkdownContent)
 
@@ -561,6 +575,13 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	if data.SafeOutputs != nil {
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 	}
+
+	// Add environment variables for extracted expressions
+	for _, mapping := range expressionMappings {
+		// Write the environment variable with the original GitHub expression
+		fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
+	}
+
 	yaml.WriteString("        run: |\n")
 	WriteShellScriptToYAML(yaml, createPromptFirstScript, "          ")
 

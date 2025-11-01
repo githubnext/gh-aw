@@ -110,6 +110,21 @@ Normal content here.`,
 			input:    "{{#if github.run_id}}content{{/if}}",
 			expected: "{{#if ${{ github.run_id }} }}content{{/if}}",
 		},
+		{
+			name:     "environment variable reference (should not be wrapped)",
+			input:    "{{#if ${GH_AW_EXPR_D892F163}}}content{{/if}}",
+			expected: "{{#if ${GH_AW_EXPR_D892F163}}}content{{/if}}",
+		},
+		{
+			name:     "multiple environment variable references",
+			input:    "{{#if ${GH_AW_EXPR_ABC123}}}first{{/if}}\n{{#if ${GH_AW_EXPR_DEF456}}}second{{/if}}",
+			expected: "{{#if ${GH_AW_EXPR_ABC123}}}first{{/if}}\n{{#if ${GH_AW_EXPR_DEF456}}}second{{/if}}",
+		},
+		{
+			name:     "mixed github expression and env var reference",
+			input:    "{{#if github.actor}}first{{/if}}\n{{#if ${GH_AW_EXPR_ABC123}}}second{{/if}}",
+			expected: "{{#if ${{ github.actor }} }}first{{/if}}\n{{#if ${GH_AW_EXPR_ABC123}}}second{{/if}}",
+		},
 	}
 
 	for _, tt := range tests {

@@ -110,9 +110,15 @@ ${{ needs.activation.outputs.text }}
 		t.Error("Expressions outside template conditionals should not be double-wrapped")
 	}
 
-	// Verify that the actual GitHub expressions in the content are preserved
-	if !strings.Contains(compiledStr, "issue #${{ github.event.issue.number }}") {
-		t.Error("Regular GitHub expressions in content should be preserved")
+	// Verify that GitHub expressions in content have been replaced with environment variable references
+	// for security (preventing shell injection)
+	if strings.Contains(compiledStr, "issue #${{ github.event.issue.number }}") {
+		t.Error("GitHub expressions in content should be replaced with environment variable references for security")
+	}
+
+	// Verify that environment variables are defined for the expressions
+	if !strings.Contains(compiledStr, "GH_AW_EXPR_") {
+		t.Error("Environment variables should be defined for GitHub expressions")
 	}
 }
 

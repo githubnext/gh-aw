@@ -2211,6 +2211,11 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_EXPR_E80C082D: ${{ github.actor }}
+          GH_AW_EXPR_7DA3F98B: ${{ github.event.inputs.label_names }}
+          GH_AW_EXPR_738FD932: ${{ github.event.inputs.poem_theme }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_0BABF60D: ${{ needs.activation.outputs.text }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -2220,13 +2225,13 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Actor**: ${{ github.actor }}
-          - **Theme**: ${{ github.event.inputs.poem_theme }}
-          {{#if ${{ github.event.inputs.label_names }}}}
-          - **Labels**: ${{ github.event.inputs.label_names }}
+          - **Repository**: ${GH_AW_EXPR_D892F163}
+          - **Actor**: ${GH_AW_EXPR_E80C082D}
+          - **Theme**: ${GH_AW_EXPR_738FD932}
+          {{#if ${GH_AW_EXPR_7DA3F98B}}}
+          - **Labels**: ${GH_AW_EXPR_7DA3F98B}
           {{/if}}
-          - **Content**: "${{ needs.activation.outputs.text }}"
+          - **Content**: "${GH_AW_EXPR_0BABF60D}"
           
           ## Your Mission
           

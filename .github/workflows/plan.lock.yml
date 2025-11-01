@@ -1511,6 +1511,10 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_EXPR_2497EEDF: ${{ github.event.discussion.number }}
+          GH_AW_EXPR_9C6DBB26: ${{ github.event.issue.number }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_0BABF60D: ${{ needs.activation.outputs.text }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1520,13 +1524,13 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Issue Number**: ${{ github.event.issue.number }}
-          - **Discussion Number**: ${{ github.event.discussion.number }}
+          - **Repository**: ${GH_AW_EXPR_D892F163}
+          - **Issue Number**: ${GH_AW_EXPR_9C6DBB26}
+          - **Discussion Number**: ${GH_AW_EXPR_2497EEDF}
           - **Content**: 
           
           <content>
-          ${{ needs.activation.outputs.text }}
+          ${GH_AW_EXPR_0BABF60D}
           </content>
           
           ## Your Mission
@@ -1615,7 +1619,7 @@ jobs:
           ## Important Notes
           
           - **Maximum 10 sub-issues**: Don't create more than 10 sub-issues even if the work seems larger
-          - **Parent Reference**: You must specify the current issue (#${{ github.event.issue.number }}) or discussion (#${{ github.event.discussion.number }}) as the parent when creating sub-issues. The system will automatically link them with "Related to #N" in the issue body.
+          - **Parent Reference**: You must specify the current issue (#${GH_AW_EXPR_9C6DBB26}) or discussion (#${GH_AW_EXPR_2497EEDF}) as the parent when creating sub-issues. The system will automatically link them with "Related to #N" in the issue body.
           - **Clear Steps**: Each sub-issue should have clear, actionable steps
           - **No Duplication**: Don't create sub-issues for work that's already done
           - **Prioritize Clarity**: SWE agents need unambiguous instructions
@@ -1626,7 +1630,7 @@ jobs:
           
           ## Begin Planning
           
-          Analyze the issue or discussion and create the sub-issues now. Remember to use the safe-outputs mechanism to create each issue. Each sub-issue you create will be automatically linked to the parent (issue #${{ github.event.issue.number }} or discussion #${{ github.event.discussion.number }}).
+          Analyze the issue or discussion and create the sub-issues now. Remember to use the safe-outputs mechanism to create each issue. Each sub-issue you create will be automatically linked to the parent (issue #${GH_AW_EXPR_9C6DBB26} or discussion #${GH_AW_EXPR_2497EEDF}).
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt

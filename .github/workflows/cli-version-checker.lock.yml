@@ -1052,6 +1052,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1145,7 +1147,7 @@ jobs:
           
           Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, and GitHub MCP Server.
           
-          **Repository**: ${{ github.repository }} | **Run**: ${{ github.run_id }}
+          **Repository**: ${GH_AW_EXPR_D892F163} | **Run**: ${GH_AW_EXPR_B50B6E9C}
           
           ## Process
           

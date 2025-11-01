@@ -1150,6 +1150,9 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
+          GH_AW_EXPR_F76B6721: ${{ github.workflow }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1324,7 +1327,7 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
+          - **Repository**: ${GH_AW_EXPR_D892F163}
           - **Analysis Period**: Most recent ~50 agent sessions
           - **Cache Memory**: `/tmp/gh-aw/cache-memory/`
           
@@ -1836,8 +1839,8 @@ jobs:
           ---
           
           _Analysis generated automatically on [DATE] at [TIME]_  
-          _Run ID: ${{ github.run_id }}_  
-          _Workflow: ${{ github.workflow }}_
+          _Run ID: ${GH_AW_EXPR_B50B6E9C}_  
+          _Workflow: ${GH_AW_EXPR_F76B6721}_
           ```
           
           ## Important Guidelines
@@ -1953,10 +1956,10 @@ jobs:
           The Copilot Agent Session Analysis workflow attempted to run but could not access session data.
           
           **Run Details**:
-          - **Run ID**: ${{ github.run_id }}
-          - **Workflow**: ${{ github.workflow }}
+          - **Run ID**: ${GH_AW_EXPR_B50B6E9C}
+          - **Workflow**: ${GH_AW_EXPR_F76B6721}
           - **Date**: [CURRENT_DATE]
-          - **Repository**: ${{ github.repository }}
+          - **Repository**: ${GH_AW_EXPR_D892F163}
           
           ## Root Cause
           
@@ -2096,7 +2099,7 @@ jobs:
           ---
           
           _This configuration guide was generated automatically because session data was unavailable._  
-          _Workflow run: ${{ github.run_id }}_  
+          _Workflow run: ${GH_AW_EXPR_B50B6E9C}_  
           _Date: [CURRENT_DATE]_
           ```
           

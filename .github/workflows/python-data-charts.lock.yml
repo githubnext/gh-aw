@@ -1063,6 +1063,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
         run: |
           mkdir -p $(dirname "$GH_AW_PROMPT")
           cat > $GH_AW_PROMPT << 'PROMPT_EOF'
@@ -1324,8 +1326,8 @@ jobs:
           
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Run ID**: ${{ github.run_id }}
+          - **Repository**: ${GH_AW_EXPR_D892F163}
+          - **Run ID**: ${GH_AW_EXPR_B50B6E9C}
           
           ## Environment
           
@@ -1419,9 +1421,9 @@ jobs:
           
           ## Workflow Run
           
-          - **Repository**: ${{ github.repository }}
-          - **Run ID**: ${{ github.run_id }}
-          - **Run URL**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          - **Repository**: ${GH_AW_EXPR_D892F163}
+          - **Run ID**: ${GH_AW_EXPR_B50B6E9C}
+          - **Run URL**: https://github.com/${GH_AW_EXPR_D892F163}/actions/runs/${GH_AW_EXPR_B50B6E9C}
           
           ---
           

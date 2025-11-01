@@ -36,7 +36,13 @@ func wrapExpressionsInTemplateConditionals(markdown string) string {
 			return match // Already wrapped, return as-is
 		}
 
-		// Always wrap expressions that don't start with ${{
+		// Check if expression is an environment variable reference (starts with ${)
+		// These don't need ${{ }} wrapping as they're already evaluated
+		if strings.HasPrefix(expr, "${") {
+			return match // Environment variable reference, return as-is
+		}
+
+		// Always wrap expressions that don't start with ${{ or ${
 		return "{{#if ${{ " + expr + " }} }}"
 	})
 
