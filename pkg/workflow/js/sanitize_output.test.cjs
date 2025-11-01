@@ -459,7 +459,8 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
       expect(result).toContain("(xml attr=\"value & 'quotes'\")");
       expect(result).toContain('(![CDATA[(script)alert("xss")(/script)]])');
-      expect(result).toContain("(!-- comment with \"quotes\" & 'apostrophes' --)");
+      // XML comments are removed for security (to prevent content hiding)
+      expect(result).not.toContain("comment with");
       expect(result).toContain("(/xml)");
     });
 

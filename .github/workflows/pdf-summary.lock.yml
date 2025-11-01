@@ -211,7 +211,19 @@ jobs:
                     const normalizedAllowed = allowedDomain.toLowerCase();
                     return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
                   });
-                  return isAllowed ? match : "(redacted)";
+                  if (isAllowed) {
+                    return match; 
+                  }
+                  const urlParts = match.split(/([?&#])/);
+                  let result = "(redacted)"; 
+                  for (let i = 1; i < urlParts.length; i++) {
+                    if (urlParts[i].match(/^[?&#]$/)) {
+                      result += urlParts[i]; 
+                    } else {
+                      result += sanitizeUrlDomains(urlParts[i]);
+                    }
+                  }
+                  return result;
                 });
                 return s;
               }
@@ -252,6 +264,10 @@ jobs:
               }
               function convertXmlTags(s) {
                 const allowedTags = ["details", "summary", "code", "em", "b"];
+                s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
+                  const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
+                  return `(![CDATA[${convertedContent}]])`;
+                });
                 return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
                   const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
                   if (tagNameMatch) {
@@ -2645,7 +2661,19 @@ jobs:
                     const normalizedAllowed = allowedDomain.toLowerCase();
                     return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
                   });
-                  return isAllowed ? match : "(redacted)";
+                  if (isAllowed) {
+                    return match; 
+                  }
+                  const urlParts = match.split(/([?&#])/);
+                  let result = "(redacted)"; 
+                  for (let i = 1; i < urlParts.length; i++) {
+                    if (urlParts[i].match(/^[?&#]$/)) {
+                      result += urlParts[i]; 
+                    } else {
+                      result += sanitizeUrlDomains(urlParts[i]);
+                    }
+                  }
+                  return result;
                 });
                 return s;
               }
@@ -2686,6 +2714,10 @@ jobs:
               }
               function convertXmlTags(s) {
                 const allowedTags = ["details", "summary", "code", "em", "b"];
+                s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
+                  const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
+                  return `(![CDATA[${convertedContent}]])`;
+                });
                 return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
                   const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
                   if (tagNameMatch) {

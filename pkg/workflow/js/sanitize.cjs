@@ -85,7 +85,8 @@ function sanitizeContent(content, maxLength) {
    * @returns {string} The string with unknown domains redacted
    */
   function sanitizeUrlDomains(s) {
-    // Match full HTTPS URLs including path, query, and fragment
+    // First pass: match all HTTPS URLs and process them
+    // We need to handle URLs that might contain other URLs in query parameters
     s = s.replace(/\bhttps:\/\/([^\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, rest) => {
       // Extract the hostname part (before first slash, colon, or other delimiter)
       const hostname = rest.split(/[\/:\?#]/)[0].toLowerCase();
@@ -96,7 +97,26 @@ function sanitizeContent(content, maxLength) {
         return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
       });
 
-      return isAllowed ? match : "(redacted)";
+      if (isAllowed) {
+        return match; // Keep allowed URLs as-is
+      }
+      
+      // For disallowed URLs, check if there are any allowed URLs in the query/fragment
+      // and preserve those while redacting the main URL
+      const urlParts = match.split(/([?&#])/);
+      let result = "(redacted)"; // Redact the main domain
+      
+      // Process query/fragment parts to preserve any allowed URLs within them
+      for (let i = 1; i < urlParts.length; i++) {
+        if (urlParts[i].match(/^[?&#]$/)) {
+          result += urlParts[i]; // Keep separators
+        } else {
+          // Recursively process this part to preserve any allowed URLs
+          result += sanitizeUrlDomains(urlParts[i]);
+        }
+      }
+      
+      return result;
     });
 
     return s;
@@ -191,10 +211,17 @@ function sanitizeContent(content, maxLength) {
     // Allow safe HTML tags: details, summary, code, em, b
     const allowedTags = ["details", "summary", "code", "em", "b"];
     
+    // First, process CDATA sections specially - convert tags inside them and the CDATA markers
+    s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
+      // Convert tags inside CDATA content
+      const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
+      // Return with CDATA markers also converted to parentheses
+      return `(![CDATA[${convertedContent}]])`;
+    });
+    
     // Convert opening tags: <tag> or <tag attr="value"> to (tag) or (tag attr="value")
     // Convert closing tags: </tag> to (/tag)
     // Convert self-closing tags: <tag/> or <tag /> to (tag/) or (tag /)
-    // Also handle special tags like <![CDATA[...]]>
     // But preserve allowed safe tags
     return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
       // Extract tag name from the content (handle closing tags and attributes)
