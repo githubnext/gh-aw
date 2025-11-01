@@ -188,11 +188,25 @@ function sanitizeContent(content, maxLength) {
    * @returns {string} The string with XML tags converted to parentheses
    */
   function convertXmlTags(s) {
+    // Allow safe HTML tags: details, summary, code, em, b
+    const allowedTags = ["details", "summary", "code", "em", "b"];
+    
     // Convert opening tags: <tag> or <tag attr="value"> to (tag) or (tag attr="value")
     // Convert closing tags: </tag> to (/tag)
     // Convert self-closing tags: <tag/> or <tag /> to (tag/) or (tag /)
     // Also handle special tags like <![CDATA[...]]>
-    return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, "($1)");
+    // But preserve allowed safe tags
+    return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
+      // Extract tag name from the content (handle closing tags and attributes)
+      const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
+      if (tagNameMatch) {
+        const tagName = tagNameMatch[1].toLowerCase();
+        if (allowedTags.includes(tagName)) {
+          return match; // Preserve allowed tags
+        }
+      }
+      return `(${tagContent})`; // Convert other tags to parentheses
+    });
   }
 
   /**
