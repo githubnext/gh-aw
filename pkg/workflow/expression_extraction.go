@@ -200,7 +200,7 @@ func (e *ExpressionExtractor) ExtractExpressionsFromTools(tools map[string]any) 
 		if args, ok := toolConfig["args"].([]any); ok {
 			for _, arg := range args {
 				if argStr, ok := arg.(string); ok {
-					e.ExtractExpressions(argStr)
+					_, _ = e.ExtractExpressions(argStr)
 				}
 			}
 		}
@@ -209,7 +209,7 @@ func (e *ExpressionExtractor) ExtractExpressionsFromTools(tools map[string]any) 
 		if entrypointArgs, ok := toolConfig["entrypoint-args"].([]any); ok {
 			for _, arg := range entrypointArgs {
 				if argStr, ok := arg.(string); ok {
-					e.ExtractExpressions(argStr)
+					_, _ = e.ExtractExpressions(argStr)
 				}
 			}
 		}
@@ -218,7 +218,7 @@ func (e *ExpressionExtractor) ExtractExpressionsFromTools(tools map[string]any) 
 		if env, ok := toolConfig["env"].(map[string]any); ok {
 			for _, value := range env {
 				if valueStr, ok := value.(string); ok {
-					e.ExtractExpressions(valueStr)
+					_, _ = e.ExtractExpressions(valueStr)
 				}
 			}
 		}
@@ -227,7 +227,7 @@ func (e *ExpressionExtractor) ExtractExpressionsFromTools(tools map[string]any) 
 		if headers, ok := toolConfig["headers"].(map[string]any); ok {
 			for _, value := range headers {
 				if valueStr, ok := value.(string); ok {
-					e.ExtractExpressions(valueStr)
+					_, _ = e.ExtractExpressions(valueStr)
 				}
 			}
 		}
@@ -236,19 +236,19 @@ func (e *ExpressionExtractor) ExtractExpressionsFromTools(tools map[string]any) 
 		if proxyArgs, ok := toolConfig["proxy-args"].([]any); ok {
 			for _, arg := range proxyArgs {
 				if argStr, ok := arg.(string); ok {
-					e.ExtractExpressions(argStr)
+					_, _ = e.ExtractExpressions(argStr)
 				}
 			}
 		}
 
 		// Extract from command string
 		if command, ok := toolConfig["command"].(string); ok {
-			e.ExtractExpressions(command)
+			_, _ = e.ExtractExpressions(command)
 		}
 
 		// Extract from url string (for HTTP MCP)
 		if url, ok := toolConfig["url"].(string); ok {
-			e.ExtractExpressions(url)
+			_, _ = e.ExtractExpressions(url)
 		}
 	}
 

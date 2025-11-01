@@ -76,7 +76,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// Extract GitHub expressions from MCP tool configurations to prevent template injection
 	extractor := NewExpressionExtractor()
-	extractor.ExtractExpressionsFromTools(tools)
+	_ = extractor.ExtractExpressionsFromTools(tools)
 	mcpExpressionMappings := extractor.GetMappings()
 
 	// Create a modified copy of tools with expressions replaced by env var references
