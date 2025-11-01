@@ -180,8 +180,8 @@ tools:
 
 			// Check for fork prevention condition in the agent job
 			// The fork prevention should be in the agent job's if condition
-			// Expected pattern: github.event.pull_request.head.repo.full_name == github.repository
-			hasForkCheck := strings.Contains(yamlContent, "github.event.pull_request.head.repo.full_name == github.repository")
+			// Expected pattern: github.event.pull_request.head.repo.id == github.event.repository.id
+			hasForkCheck := strings.Contains(yamlContent, "github.event.pull_request.head.repo.id == github.event.repository.id")
 
 			if hasForkCheck != tt.shouldHaveForkCheck {
 				t.Errorf("%s: hasForkCheck = %v, want %v", tt.description, hasForkCheck, tt.shouldHaveForkCheck)
@@ -228,7 +228,7 @@ tools:
 ---`,
 			markdown: "# Test Workflow\n\nAnalyze the PR.",
 			expectedPatterns: []string{
-				"github.event.pull_request.head.repo.full_name == github.repository",
+				"github.event.pull_request.head.repo.id == github.event.repository.id",
 				"github.actor != 'dependabot[bot]'",
 			},
 			description: "should combine fork check with existing condition",
@@ -392,7 +392,7 @@ tools:
 			}
 
 			// Check for fork prevention condition
-			hasForkCheck := strings.Contains(yamlContent, "github.event.pull_request.head.repo.full_name == github.repository")
+			hasForkCheck := strings.Contains(yamlContent, "github.event.pull_request.head.repo.id == github.event.repository.id")
 
 			if hasForkCheck != tt.shouldHaveForkCheck {
 				t.Errorf("%s: hasForkCheck = %v, want %v", tt.description, hasForkCheck, tt.shouldHaveForkCheck)

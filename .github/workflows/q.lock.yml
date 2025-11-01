@@ -110,7 +110,7 @@ jobs:
       (contains(github.event.discussion.body, '/q')) || (github.event_name == 'discussion_comment') &&
       (contains(github.event.comment.body, '/q'))) &&
       (((((github.event_name != 'pull_request') && (github.event_name != 'pull_request_target')) && (github.event_name != 'pull_request_review')) &&
-      (github.event_name != 'pull_request_review_comment')) || (github.event.pull_request.head.repo.full_name == github.repository)))
+      (github.event_name != 'pull_request_review_comment')) || (github.event.pull_request.head.repo.id == github.event.repository.id)))
     runs-on: ubuntu-slim
     permissions:
       discussions: write
@@ -382,7 +382,7 @@ jobs:
             await main();
       - name: Add rocket reaction to the triggering item
         id: react
-        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.event.repository.id)
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_REACTION: rocket
@@ -1118,7 +1118,7 @@ jobs:
       (github.event_name == 'discussion_comment') &&
       (contains(github.event.comment.body, '/q'))) && (((((github.event_name != 'pull_request') && (github.event_name != 'pull_request_target')) &&
       (github.event_name != 'pull_request_review')) && (github.event_name != 'pull_request_review_comment')) ||
-      (github.event.pull_request.head.repo.full_name == github.repository))
+      (github.event.pull_request.head.repo.id == github.event.repository.id))
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -5902,7 +5902,7 @@ jobs:
       (github.event_name == 'discussion_comment') &&
       (contains(github.event.comment.body, '/q'))) && (((((github.event_name != 'pull_request') && (github.event_name != 'pull_request_target')) &&
       (github.event_name != 'pull_request_review')) && (github.event_name != 'pull_request_review_comment')) ||
-      (github.event.pull_request.head.repo.full_name == github.repository))
+      (github.event.pull_request.head.repo.id == github.event.repository.id))
     runs-on: ubuntu-slim
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_command_position.outputs.command_position_ok == 'true') }}
