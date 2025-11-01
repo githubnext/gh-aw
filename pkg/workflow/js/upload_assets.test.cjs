@@ -34,6 +34,9 @@ describe("upload_assets.cjs", () => {
   };
 
   // Helper function to execute the script with proper globals
+  // NOTE: Using eval() here is safe because the script content is read from a local file
+  // and is never derived from user input. This pattern is used consistently across all
+  // test files in this directory to test GitHub Actions scripts.
   const executeScript = async () => {
     global.core = mockCore;
     global.exec = mockExec;
@@ -50,7 +53,7 @@ describe("upload_assets.cjs", () => {
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
 
     // Read the script content
-    const scriptPath = path.join(process.cwd(), "upload_assets.cjs");
+    const scriptPath = path.join(__dirname, "upload_assets.cjs");
     uploadAssetsScript = fs.readFileSync(scriptPath, "utf8");
 
     // Create fresh mock for exec
@@ -126,14 +129,8 @@ describe("upload_assets.cjs", () => {
       // Verify git checkout was called (sanity check)
       expect(gitCheckoutCalled).toBe(true);
 
-      // Debug: log all exec calls
-      const allCalls = mockExec.exec.mock.calls;
-      console.log(
-        "All exec calls:",
-        allCalls.map(c => (Array.isArray(c[1]) ? `${c[0]} ${c[1].join(" ")}` : c[0]))
-      );
-
       // Find the git commit call
+      const allCalls = mockExec.exec.mock.calls;
       const gitCommitCall = allCalls.find(call => {
         if (Array.isArray(call[1])) {
           return call[0] === "git" && call[1].includes("commit");
