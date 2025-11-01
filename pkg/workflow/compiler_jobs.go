@@ -43,10 +43,10 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	hasStopTime := data.StopTime != ""
 
 	// Determine if we need to add workflow_run repository safety check
-	// Add the check whenever the compiled workflow has a workflow_run trigger
+	// Add the check if the agentic workflow declares a workflow_run trigger
 	// This prevents cross-repository workflow_run attacks
 	var workflowRunRepoSafety string
-	if c.hasWorkflowRunTrigger(data) {
+	if c.hasWorkflowRunTrigger(frontmatter) {
 		workflowRunRepoSafety = c.buildWorkflowRunRepoSafetyCondition()
 	}
 

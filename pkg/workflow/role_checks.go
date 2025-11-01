@@ -180,18 +180,26 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 	return false
 }
 
-// hasWorkflowRunTrigger checks if the compiled workflow has a workflow_run trigger in its "on" section
-// This checks the compiled workflow's trigger configuration, NOT the agentic workflow's frontmatter
-func (c *Compiler) hasWorkflowRunTrigger(data *WorkflowData) bool {
-	// Parse the "on" section from the compiled workflow data
-	// The "on" field contains the rendered YAML triggers
-	if data.On == "" {
+// hasWorkflowRunTrigger checks if the agentic workflow's frontmatter declares a workflow_run trigger
+func (c *Compiler) hasWorkflowRunTrigger(frontmatter map[string]any) bool {
+	if frontmatter == nil {
 		return false
 	}
 
-	// Simple string check for workflow_run trigger
-	// The data.On field contains the rendered "on:" section, so we check for "workflow_run:"
-	return strings.Contains(data.On, "workflow_run:")
+	// Check the "on" section in frontmatter
+	if onValue, exists := frontmatter["on"]; exists {
+		// Handle map format (most common)
+		if onMap, ok := onValue.(map[string]any); ok {
+			_, hasWorkflowRun := onMap["workflow_run"]
+			return hasWorkflowRun
+		}
+		// Handle string format
+		if onStr, ok := onValue.(string); ok {
+			return onStr == "workflow_run"
+		}
+	}
+
+	return false
 }
 
 // buildWorkflowRunRepoSafetyCondition generates the if condition to ensure workflow_run is from same repo
