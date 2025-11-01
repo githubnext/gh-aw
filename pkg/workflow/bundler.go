@@ -8,7 +8,7 @@ import (
 )
 
 // BundleJavaScriptFromSources bundles JavaScript from in-memory sources
-// sources is a map where keys are file paths (e.g., "lib/sanitize.cjs") and values are the content
+// sources is a map where keys are file paths (e.g., "sanitize.cjs") and values are the content
 // mainContent is the main JavaScript content that may contain require() calls
 // basePath is the base directory path for resolving relative imports (e.g., "js")
 func BundleJavaScriptFromSources(mainContent string, sources map[string]string, basePath string) (string, error) {

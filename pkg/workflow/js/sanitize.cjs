@@ -29,11 +29,17 @@ function sanitizeContent(content, maxLength) {
 
   let sanitized = content;
 
+  // Neutralize commands at the start of text (e.g., /bot-name)
+  sanitized = neutralizeCommands(sanitized);
+
   // Neutralize @mentions to prevent unintended notifications
   sanitized = neutralizeMentions(sanitized);
 
   // Remove XML comments first
   sanitized = removeXmlComments(sanitized);
+
+  // Convert XML tags to parentheses format to prevent injection
+  sanitized = convertXmlTags(sanitized);
 
   // Remove ANSI escape sequences
   sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
@@ -79,9 +85,11 @@ function sanitizeContent(content, maxLength) {
    * @returns {string} The string with unknown domains redacted
    */
   function sanitizeUrlDomains(s) {
-    s = s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, domain) => {
+    // First pass: match all HTTPS URLs and process them
+    // We need to handle URLs that might contain other URLs in query parameters
+    s = s.replace(/\bhttps:\/\/([^\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, rest) => {
       // Extract the hostname part (before first slash, colon, or other delimiter)
-      const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
+      const hostname = rest.split(/[\/:\?#]/)[0].toLowerCase();
 
       // Check if this domain or any parent domain is in the allowlist
       const isAllowed = allowedDomains.some(allowedDomain => {
@@ -89,7 +97,26 @@ function sanitizeContent(content, maxLength) {
         return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
       });
 
-      return isAllowed ? match : "(redacted)";
+      if (isAllowed) {
+        return match; // Keep allowed URLs as-is
+      }
+
+      // For disallowed URLs, check if there are any allowed URLs in the query/fragment
+      // and preserve those while redacting the main URL
+      const urlParts = match.split(/([?&#])/);
+      let result = "(redacted)"; // Redact the main domain
+
+      // Process query/fragment parts to preserve any allowed URLs within them
+      for (let i = 1; i < urlParts.length; i++) {
+        if (urlParts[i].match(/^[?&#]$/)) {
+          result += urlParts[i]; // Keep separators
+        } else {
+          // Recursively process this part to preserve any allowed URLs
+          result += sanitizeUrlDomains(urlParts[i]);
+        }
+      }
+
+      return result;
     });
 
     return s;
@@ -101,12 +128,55 @@ function sanitizeContent(content, maxLength) {
    * @returns {string} The string with non-https protocols redacted
    */
   function sanitizeUrlProtocols(s) {
-    // Match both protocol:// and protocol: patterns
-    // This covers URLs like https://example.com, javascript:alert(), mailto:user@domain.com, etc.
-    return s.replace(/\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
+    // Match protocol patterns but avoid command-line flags, file paths, and namespaces
+    // Protocol patterns typically have :// or are well-known schemes followed by :
+    // Use negative lookbehind to exclude patterns preceded by - (command flags)
+    // Match only patterns that look like actual protocols
+    return s.replace(/(?<![-\/\w])([A-Za-z][A-Za-z0-9+.-]*):(?:\/\/|(?=[^\s:]))[^\s\])}'"<>&\x00-\x1f]+/g, (match, protocol) => {
       // Allow https (case insensitive), redact everything else
-      return protocol.toLowerCase() === "https" ? match : "(redacted)";
+      // But only if it looks like a URL (has :// or is followed by non-colon content)
+      if (protocol.toLowerCase() === "https") {
+        return match;
+      }
+
+      // Allow if it looks like a file path or namespace (::)
+      if (match.includes("::")) {
+        return match;
+      }
+
+      // Redact if it has :// (definite protocol)
+      if (match.includes("://")) {
+        return "(redacted)";
+      }
+
+      // Redact well-known dangerous protocols like javascript:, data:, etc.
+      const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
+      if (dangerousProtocols.includes(protocol.toLowerCase())) {
+        return "(redacted)";
+      }
+
+      // Otherwise preserve (could be file:path, namespace:thing, etc.)
+      return match;
     });
+  }
+
+  /**
+   * Neutralizes commands at the start of text by wrapping them in backticks
+   * @param {string} s - The string to process
+   * @returns {string} The string with neutralized commands
+   */
+  function neutralizeCommands(s) {
+    const commandName = process.env.GH_AW_COMMAND;
+    if (!commandName) {
+      return s;
+    }
+
+    // Escape special regex characters in command name
+    const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    // Neutralize /command at the start of text (with optional leading whitespace)
+    // Only match at the start of the string or after leading whitespace
+    return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
   }
 
   /**
@@ -130,6 +200,40 @@ function sanitizeContent(content, maxLength) {
   function removeXmlComments(s) {
     // Remove <!-- comment --> and malformed <!--! comment --!>
     return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+  }
+
+  /**
+   * Converts XML/HTML tags to parentheses format to prevent injection
+   * @param {string} s - The string to process
+   * @returns {string} The string with XML tags converted to parentheses
+   */
+  function convertXmlTags(s) {
+    // Allow safe HTML tags: details, summary, code, em, b
+    const allowedTags = ["details", "summary", "code", "em", "b"];
+
+    // First, process CDATA sections specially - convert tags inside them and the CDATA markers
+    s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
+      // Convert tags inside CDATA content
+      const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
+      // Return with CDATA markers also converted to parentheses
+      return `(![CDATA[${convertedContent}]])`;
+    });
+
+    // Convert opening tags: <tag> or <tag attr="value"> to (tag) or (tag attr="value")
+    // Convert closing tags: </tag> to (/tag)
+    // Convert self-closing tags: <tag/> or <tag /> to (tag/) or (tag /)
+    // But preserve allowed safe tags
+    return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
+      // Extract tag name from the content (handle closing tags and attributes)
+      const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
+      if (tagNameMatch) {
+        const tagName = tagNameMatch[1].toLowerCase();
+        if (allowedTags.includes(tagName)) {
+          return match; // Preserve allowed tags
+        }
+      }
+      return `(${tagContent})`; // Convert other tags to parentheses
+    });
   }
 
   /**

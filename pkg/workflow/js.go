@@ -91,18 +91,18 @@ var redactSecretsScript string
 //go:embed js/notify_comment_error.cjs
 var notifyCommentErrorScript string
 
-//go:embed js/lib/sanitize.cjs
+//go:embed js/sanitize.cjs
 var sanitizeLibScript string
 
-// Source scripts that may contain local requires - embedded from src directory
+// Source scripts that may contain local requires
 //
-//go:embed js/src/collect_ndjson_output.cjs
+//go:embed js/collect_ndjson_output.cjs
 var collectJSONLOutputScriptSource string
 
-//go:embed js/src/compute_text.cjs
+//go:embed js/compute_text.cjs
 var computeTextScriptSource string
 
-//go:embed js/src/sanitize_output.cjs
+//go:embed js/sanitize_output.cjs
 var sanitizeOutputScriptSource string
 
 // Bundled scripts (lazily bundled on-demand and cached)
@@ -169,7 +169,7 @@ func getSanitizeOutputScript() string {
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
 	return map[string]string{
-		"lib/sanitize.cjs": sanitizeLibScript,
+		"sanitize.cjs": sanitizeLibScript,
 	}
 }
 

@@ -71,6 +71,12 @@ describe("upload_assets.cjs", () => {
 
   describe("git commit command - vulnerability fix", () => {
     it("should not wrap commit message in extra quotes to prevent command injection", async () => {
+      // Clean up any leftover test.png from previous runs
+      const targetFile = "test.png";
+      if (fs.existsSync(targetFile)) {
+        fs.unlinkSync(targetFile);
+      }
+
       // Set up environment
       process.env.GH_AW_ASSETS_BRANCH = "assets/test-workflow";
       process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
@@ -161,6 +167,9 @@ describe("upload_assets.cjs", () => {
       // Cleanup
       if (fs.existsSync(assetPath)) {
         fs.unlinkSync(assetPath);
+      }
+      if (fs.existsSync(targetFile)) {
+        fs.unlinkSync(targetFile);
       }
     });
   });
