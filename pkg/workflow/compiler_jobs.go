@@ -584,9 +584,29 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	var steps []string
 
 	var jobCondition = data.If
-	if activationJobCreated {
-		jobCondition = "" // Main job depends on activation job, so no need for inline condition
+	
+	// Add fork prevention for pull_request triggers BEFORE clearing conditions for activation job
+	// Agentic workflows should NEVER execute from forked repositories for security reasons
+	if c.hasPullRequestTrigger(data.On) {
+		// Build fork prevention condition: pull request must be from the same repository
+		forkPreventionCondition := BuildNotFromFork().Render()
+		
+		// Combine with existing condition if present
+		if jobCondition != "" {
+			// Build a combined condition tree
+			existingCondition := jobCondition
+			conditionTree := buildConditionTree(existingCondition, forkPreventionCondition)
+			jobCondition = conditionTree.Render()
+		} else {
+			// No existing condition, just use fork prevention
+			jobCondition = forkPreventionCondition
+		}
 	}
+	
+	// Note: Even if activationJobCreated is true, we keep the fork prevention condition
+	// Fork prevention is a security requirement that should always be enforced
+	// The activation job dependency ensures proper workflow ordering, but doesn't replace security checks
+	
 	// Permission checks are now handled by the separate check_membership job
 	// No role checks needed in the main job
 

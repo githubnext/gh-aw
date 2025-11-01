@@ -234,6 +234,16 @@ func (c *Compiler) hasIssueTrigger(onSection string) bool {
 		strings.Contains(onSection, "issue_comment:")
 }
 
+// hasPullRequestTrigger checks if the workflow has a pull request trigger in its 'on' section
+func (c *Compiler) hasPullRequestTrigger(onSection string) bool {
+	// Look for any pull request-related triggers in the on section
+	// This includes: pull_request, pull_request_target, pull_request_review, pull_request_review_comment
+	return strings.Contains(onSection, "pull_request:") ||
+		strings.Contains(onSection, "pull_request_target:") ||
+		strings.Contains(onSection, "pull_request_review:") ||
+		strings.Contains(onSection, "pull_request_review_comment:")
+}
+
 // injectWorkflowDispatchForIssue adds workflow_dispatch trigger with issue_number input
 func (c *Compiler) injectWorkflowDispatchForIssue(onSection string) string {
 	// Parse the existing on section to understand its structure

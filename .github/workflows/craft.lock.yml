@@ -1057,6 +1057,7 @@ jobs:
 
   agent:
     needs: activation
+    if: (github.event_name == 'issues') && (contains(github.event.issue.body, '/craft'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

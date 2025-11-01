@@ -129,6 +129,9 @@ jobs:
 
   agent:
     needs: activation
+    if: >
+      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke'))) &&
+      (github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -1341,6 +1341,9 @@ jobs:
 
   agent:
     needs: activation
+    if: >
+      ((github.event_name == 'issues') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/poem-bot')))) ||
+      (!(github.event_name == 'issues'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
