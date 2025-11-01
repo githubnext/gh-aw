@@ -6,16 +6,24 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
+var compilerYamlLog = logger.New("workflow:compiler_yaml")
+
 func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, error) {
+	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
+
 	// Reset job manager for this compilation
 	c.jobManager = NewJobManager()
 
 	// Build all jobs
 	if err := c.buildJobs(data, markdownPath); err != nil {
+		compilerYamlLog.Printf("Failed to build jobs: %v", err)
 		return "", fmt.Errorf("failed to build jobs: %w", err)
 	}
+
+	compilerYamlLog.Printf("Built %d jobs successfully", len(c.jobManager.GetAllJobs()))
 
 	// Validate job dependencies
 	if err := c.jobManager.ValidateDependencies(); err != nil {
@@ -119,6 +127,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	// Collect used action pins from the generated YAML and add them to the header
 	usedPins := collectUsedActionPins(yamlContent)
+	compilerYamlLog.Printf("Collected %d pinned actions", len(usedPins))
 	pinnedActionsComment := generatePinnedActionsComment(usedPins)
 
 	// If we have pinned actions, insert the comment before the workflow name
@@ -135,9 +144,11 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// If we're in non-cloning trial mode and this workflow has issue triggers,
 	// replace github.event.issue.number with inputs.issue_number
 	if c.trialMode && c.hasIssueTrigger(data.On) {
+		compilerYamlLog.Print("Trial mode enabled, replacing issue number references")
 		yamlContent = c.replaceIssueNumberReferences(yamlContent)
 	}
 
+	compilerYamlLog.Printf("Successfully generated YAML for workflow: %s (%d bytes)", data.Name, len(yamlContent))
 	return yamlContent, nil
 }
 

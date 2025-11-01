@@ -114,10 +114,14 @@ func (p *PermissionsParser) parse() {
 	// Try to parse as YAML map
 	var perms map[string]any
 	if err := yaml.Unmarshal([]byte(yamlContent), &perms); err == nil {
+		permissionsLog.Printf("Successfully parsed permissions map with %d keys", len(perms))
+
 		// Handle 'all' key specially
 		if allValue, exists := perms["all"]; exists {
 			if strValue, ok := allValue.(string); ok {
+				permissionsLog.Printf("Found 'all' permission with value: %s", strValue)
 				if strValue == "write" {
+					permissionsLog.Print("Invalid 'all: write' not allowed, ignoring permissions")
 					// all: write is not allowed - don't set any permissions
 					return
 				}
@@ -126,6 +130,7 @@ func (p *PermissionsParser) parse() {
 					for key, value := range perms {
 						if key != "all" {
 							if permValue, ok := value.(string); ok && permValue == "none" {
+								permissionsLog.Printf("Invalid combination: all: read with %s: none", key)
 								// all: read cannot be combined with : none - don't set any permissions
 								return
 							}
@@ -133,6 +138,7 @@ func (p *PermissionsParser) parse() {
 					}
 					p.hasAll = true
 					p.allLevel = strValue
+					permissionsLog.Print("Set hasAll=true with level=read")
 				}
 			}
 		} // Convert any values to strings
@@ -141,6 +147,9 @@ func (p *PermissionsParser) parse() {
 				p.parsedPerms[key] = strValue
 			}
 		}
+		permissionsLog.Printf("Parsed %d permission entries", len(p.parsedPerms))
+	} else {
+		permissionsLog.Printf("Failed to parse permissions as YAML: %v", err)
 	}
 }
 
@@ -183,8 +192,11 @@ func (p *PermissionsParser) HasContentsReadAccess() bool {
 // scope: "contents", "issues", "pull-requests", etc.
 // level: "read", "write", "none"
 func (p *PermissionsParser) IsAllowed(scope, level string) bool {
+	permissionsLog.Printf("Checking if scope=%s has level=%s", scope, level)
+
 	// Handle shorthand permissions
 	if p.isShorthand {
+		permissionsLog.Printf("Using shorthand permission: %s", p.shorthandValue)
 		switch p.shorthandValue {
 		case "read-all":
 			return level == "read"

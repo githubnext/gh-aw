@@ -17,6 +17,7 @@ var mcpLog = logger.New("workflow:mcp-config")
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
 // This is a shared function used by both Claude and Custom engines
 func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
+	mcpLog.Print("Rendering Playwright MCP configuration")
 	renderPlaywrightMCPConfigWithOptions(yaml, playwrightTool, isLast, false, false)
 }
 
@@ -24,6 +25,15 @@ func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast
 func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
 	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
+
+	// Extract all expressions from playwright arguments and replace them with env var references
+	expressions := extractExpressionsFromPlaywrightArgs(args.AllowedDomains, customArgs)
+	allowedDomains := replaceExpressionsInPlaywrightArgs(args.AllowedDomains, expressions)
+
+	// Also replace expressions in custom args
+	if len(customArgs) > 0 {
+		customArgs = replaceExpressionsInPlaywrightArgs(customArgs, expressions)
+	}
 
 	// Determine version to use - respect version configuration if provided
 	playwrightPackage := "@playwright/mcp@latest"
@@ -43,8 +53,8 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 	if inlineArgs {
 		// Inline format for Copilot
 		yaml.WriteString("                \"args\": [\"" + playwrightPackage + "\", \"--output-dir\", \"/tmp/gh-aw/mcp-logs/playwright\"")
-		if len(args.AllowedDomains) > 0 {
-			yaml.WriteString(", \"--allowed-origins\", \"" + strings.Join(args.AllowedDomains, ";") + "\"")
+		if len(allowedDomains) > 0 {
+			yaml.WriteString(", \"--allowed-origins\", \"" + strings.Join(allowedDomains, ";") + "\"")
 		}
 		// Append custom args if present
 		writeArgsToYAMLInline(yaml, customArgs)
@@ -55,10 +65,10 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		yaml.WriteString("                  \"" + playwrightPackage + "\",\n")
 		yaml.WriteString("                  \"--output-dir\",\n")
 		yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs/playwright\"")
-		if len(args.AllowedDomains) > 0 {
+		if len(allowedDomains) > 0 {
 			yaml.WriteString(",\n")
 			yaml.WriteString("                  \"--allowed-origins\",\n")
-			yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ";") + "\"")
+			yaml.WriteString("                  \"" + strings.Join(allowedDomains, ";") + "\"")
 		}
 		// Append custom args if present
 		writeArgsToYAML(yaml, customArgs, "                  ")
@@ -84,6 +94,7 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 // renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration
 // This is a shared function used by both Claude and Custom engines
 func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
+	mcpLog.Print("Rendering Safe Outputs MCP configuration")
 	renderSafeOutputsMCPConfigWithOptions(yaml, isLast, false)
 }
 

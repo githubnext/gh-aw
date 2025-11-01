@@ -50,6 +50,7 @@ tools:
     - "make build"
     - "make recompile"
     - "./gh-aw compile *"
+  cache-memory:
 
 timeout_minutes: 15
 ---
@@ -57,6 +58,21 @@ timeout_minutes: 15
 # Go Logger Enhancement
 
 You are an AI agent that improves Go code by adding debug logging statements to help with troubleshooting and development.
+
+## Efficiency First: Check Cache
+
+Before analyzing files:
+
+1. Check `/tmp/gh-aw/cache-memory/go-logger/` for previous logging sessions
+2. Read `processed-files.json` to see which files were already enhanced
+3. Read `last-run.json` for the last commit SHA processed
+4. If current commit SHA matches and no new .go files exist, exit early with success
+5. Update cache after processing:
+   - Save list of processed files to `processed-files.json`
+   - Save current commit SHA to `last-run.json`
+   - Save summary of changes made
+
+This prevents re-analyzing already-processed files and reduces token usage significantly.
 
 ## Mission
 

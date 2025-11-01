@@ -260,32 +260,55 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 // validateEngine validates that the given engine ID is supported
 func (c *Compiler) validateEngine(engineID string) error {
 	if engineID == "" {
+		engineLog.Print("No engine ID specified, will use default")
 		return nil // Empty engine is valid (will use default)
 	}
 
+	engineLog.Printf("Validating engine ID: %s", engineID)
+
 	// First try exact match
 	if c.engineRegistry.IsValidEngine(engineID) {
+		engineLog.Printf("Engine ID %s is valid (exact match)", engineID)
 		return nil
 	}
 
 	// Try prefix match for backward compatibility (e.g., "codex-experimental")
-	_, err := c.engineRegistry.GetEngineByPrefix(engineID)
+	engine, err := c.engineRegistry.GetEngineByPrefix(engineID)
+	if err == nil {
+		engineLog.Printf("Engine ID %s matched by prefix to: %s", engineID, engine.GetID())
+	} else {
+		engineLog.Printf("Engine ID %s not found: %v", engineID, err)
+	}
 	return err
 }
 
 // getAgenticEngine returns the agentic engine for the given engine setting
 func (c *Compiler) getAgenticEngine(engineSetting string) (CodingAgentEngine, error) {
 	if engineSetting == "" {
-		return c.engineRegistry.GetDefaultEngine(), nil
+		defaultEngine := c.engineRegistry.GetDefaultEngine()
+		engineLog.Printf("Using default engine: %s", defaultEngine.GetID())
+		return defaultEngine, nil
 	}
+
+	engineLog.Printf("Getting agentic engine for setting: %s", engineSetting)
 
 	// First try exact match
 	if c.engineRegistry.IsValidEngine(engineSetting) {
-		return c.engineRegistry.GetEngine(engineSetting)
+		engine, err := c.engineRegistry.GetEngine(engineSetting)
+		if err == nil {
+			engineLog.Printf("Found engine by exact match: %s", engine.GetID())
+		}
+		return engine, err
 	}
 
 	// Try prefix match for backward compatibility
-	return c.engineRegistry.GetEngineByPrefix(engineSetting)
+	engine, err := c.engineRegistry.GetEngineByPrefix(engineSetting)
+	if err == nil {
+		engineLog.Printf("Found engine by prefix match: %s", engine.GetID())
+	} else {
+		engineLog.Printf("Failed to find engine for setting %s: %v", engineSetting, err)
+	}
+	return engine, err
 }
 
 // validateSingleEngineSpecification validates that only one engine field exists across all files
