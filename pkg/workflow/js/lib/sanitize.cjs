@@ -29,11 +29,17 @@ function sanitizeContent(content, maxLength) {
 
   let sanitized = content;
 
+  // Neutralize commands at the start of text (e.g., /bot-name)
+  sanitized = neutralizeCommands(sanitized);
+
   // Neutralize @mentions to prevent unintended notifications
   sanitized = neutralizeMentions(sanitized);
 
   // Remove XML comments first
   sanitized = removeXmlComments(sanitized);
+
+  // Convert XML tags to parentheses format to prevent injection
+  sanitized = convertXmlTags(sanitized);
 
   // Remove ANSI escape sequences
   sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
@@ -101,12 +107,32 @@ function sanitizeContent(content, maxLength) {
    * @returns {string} The string with non-https protocols redacted
    */
   function sanitizeUrlProtocols(s) {
-    // Match both protocol:// and protocol: patterns
-    // This covers URLs like https://example.com, javascript:alert(), mailto:user@domain.com, etc.
-    return s.replace(/\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
+    // Match protocol patterns but avoid command-line flags like -v:10
+    // Protocol patterns typically start with a letter at word boundary (not after -)
+    // Match both protocol:// and protocol: patterns (like javascript:alert())
+    return s.replace(/(?<![-])(\b[A-Za-z][A-Za-z0-9+.-]*):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/g, (match, protocol) => {
       // Allow https (case insensitive), redact everything else
       return protocol.toLowerCase() === "https" ? match : "(redacted)";
     });
+  }
+
+  /**
+   * Neutralizes commands at the start of text by wrapping them in backticks
+   * @param {string} s - The string to process
+   * @returns {string} The string with neutralized commands
+   */
+  function neutralizeCommands(s) {
+    const commandName = process.env.GH_AW_COMMAND;
+    if (!commandName) {
+      return s;
+    }
+
+    // Escape special regex characters in command name
+    const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    // Neutralize /command at the start of text (with optional leading whitespace)
+    // Only match at the start of the string or after leading whitespace
+    return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
   }
 
   /**
@@ -130,6 +156,18 @@ function sanitizeContent(content, maxLength) {
   function removeXmlComments(s) {
     // Remove <!-- comment --> and malformed <!--! comment --!>
     return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+  }
+
+  /**
+   * Converts XML/HTML tags to parentheses format to prevent injection
+   * @param {string} s - The string to process
+   * @returns {string} The string with XML tags converted to parentheses
+   */
+  function convertXmlTags(s) {
+    // Convert opening tags: <tag> or <tag attr="value"> to (tag) or (tag attr="value")
+    // Convert closing tags: </tag> to (/tag)
+    // Convert self-closing tags: <tag/> or <tag /> to (tag/) or (tag /)
+    return s.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
   }
 
   /**
