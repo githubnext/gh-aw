@@ -48,7 +48,11 @@ name: "CI Failure Doctor"
     - Daily Perf Improver
     - Daily Test Coverage Improver
 
-permissions: read-all
+permissions:
+  actions: read
+  contents: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -521,7 +525,11 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions: read-all
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+      pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
