@@ -15,12 +15,15 @@
 #   create_discussion["create_discussion"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
+#   upload_assets["upload_assets"]
 #   activation --> agent
 #   agent --> create_discussion
 #   detection --> create_discussion
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
+#   agent --> upload_assets
+#   detection --> upload_assets
 # ```
 #
 # Pinned GitHub Actions:
@@ -39,22 +42,11 @@
 
 name: "Python Data Visualization Generator"
 "on":
-  workflow_dispatch:
-    inputs:
-      chart_type:
-        default: bar
-        description: Type of chart to generate (e.g., 'bar', 'line', 'scatter', 'pie')
-        required: false
-      data_source:
-        default: sample data
-        description: Data source description (e.g., 'repository statistics', 'workflow metrics')
-        required: false
+  workflow_dispatch: null
 
 permissions:
   actions: read
   contents: read
-  issues: read
-  pull-requests: read
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
@@ -87,13 +79,14 @@ jobs:
     permissions:
       actions: read
       contents: read
-      issues: read
-      pull-requests: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
+      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+      GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
+      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -223,7 +216,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_discussion":{"max":1},"missing_tool":{}}
+          {"create_discussion":{"max":1},"missing_tool":{},"upload_asset":{}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1051,7 +1044,9 @@ jobs:
                   "GH_AW_SAFE_OUTPUTS_CONFIG": "\${GH_AW_SAFE_OUTPUTS_CONFIG}",
                   "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
                   "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}"
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
+                  "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
+                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}"
                 }
               }
             }
@@ -1068,8 +1063,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_EXPR_677B41C8: ${{ github.event.inputs.chart_type }}
-          GH_AW_EXPR_5411F090: ${{ github.event.inputs.data_source }}
           GH_AW_EXPR_D892F163: ${{ github.repository }}
           GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
         run: |
@@ -1154,6 +1147,32 @@ jobs:
           - **Legend**: Add legends when plotting multiple series
           - **Grid**: Enable grid lines for easier reading
           - **Colors**: Use colorblind-friendly palettes (seaborn defaults are good)
+          
+          ## Including Images in Reports
+          
+          When creating reports (issues, discussions, etc.), use the `upload asset` tool to make images URL-addressable and include them in markdown:
+          
+          ### Step 1: Generate and Upload Chart
+          ```python
+          # Generate your chart
+          plt.savefig('/tmp/gh-aw/python/charts/my_chart.png', dpi=300, bbox_inches='tight')
+          ```
+          
+          ### Step 2: Upload as Asset
+          Use the `upload asset` tool to upload the chart file. The tool will return a GitHub raw content URL.
+          
+          ### Step 3: Include in Markdown Report
+          When creating your discussion or issue, include the image using markdown:
+          
+          ```markdown
+          ## Visualization Results
+          
+          ![Chart Description](https://raw.githubusercontent.com/owner/repo/assets/workflow-name/my_chart.png)
+          
+          The chart above shows...
+          ```
+          
+          **Important**: Assets are published to an orphaned git branch and become URL-addressable after workflow completion.
           
           ## Cache Memory Integration
           
@@ -1303,14 +1322,12 @@ jobs:
           
           ## Mission
           
-          Generate high-quality data visualizations based on the provided data source, upload charts as assets, archive source files, and create a discussion with links to the generated visualizations.
+          Generate high-quality data visualizations with random sample data, upload charts as assets, and create a discussion with embedded images.
           
           ## Current Context
           
           - **Repository**: ${GH_AW_EXPR_D892F163}
           - **Run ID**: ${GH_AW_EXPR_B50B6E9C}
-          - **Data Source**: ${GH_AW_EXPR_5411F090}
-          - **Chart Type**: ${GH_AW_EXPR_677B41C8}
           
           ## Environment
           
@@ -1325,43 +1342,35 @@ jobs:
           
           ## Task Overview
           
-          ### Phase 1: Data Collection
+          ### Phase 1: Generate Sample Data
           
-          **CRITICAL: Data must NEVER be inlined in code**
+          1. Generate random sample data using NumPy with interesting patterns (e.g., trends, distributions, correlations)
+          2. Save the data to `/tmp/gh-aw/python/data/` as CSV files
+          3. Document the data generation process
           
-          1. Based on the data source input ("${GH_AW_EXPR_5411F090}"), collect appropriate data:
-             - For "repository statistics": Use GitHub API to fetch repository data
-             - For "workflow metrics": Use GitHub Actions API to fetch workflow run data
-             - For "sample data": Generate sample datasets using NumPy
-             - For other sources: Determine appropriate data collection method
+          ### Phase 2: Create Visualizations
           
-          2. Save all collected data to `/tmp/gh-aw/python/data/` as CSV or JSON files
+          1. Create multiple chart types to showcase the data:
+             - Bar chart
+             - Line chart
+             - Scatter plot
+             - Distribution plot
           
-          3. Document the data in `/tmp/gh-aw/python/data/README.md`
+          2. Save all charts to `/tmp/gh-aw/python/charts/` with descriptive filenames
           
-          ### Phase 2: Chart Generation
+          3. Ensure high quality settings (DPI 300, clear labels, seaborn styling)
           
-          1. Check `/tmp/gh-aw/cache-memory/` for reusable helper functions
+          ### Phase 3: Upload Charts as Assets
           
-          2. Create Python scripts in `/tmp/gh-aw/python/`:
-             - Main script: `generate_chart.py`
-             - Helper utilities as needed (and save to cache)
+          1. Upload each generated chart using the `upload asset` tool
+          2. Collect the returned URLs for each chart
+          3. The assets will be published to an orphaned git branch
           
-          3. Load data from external files (NEVER inline):
-             ```python
-             import pandas as pd
-             data = pd.read_csv('/tmp/gh-aw/python/data/data.csv')
-             ```
+          ### Phase 4: Create Discussion Report
           
-          4. Generate the requested chart type with high quality settings (DPI 300)
+          Create a discussion with the following structure, including the uploaded chart images:
           
-          5. Save chart to `/tmp/gh-aw/python/charts/chart.png`
-          
-          ### Phase 3: Discussion Report
-          
-          Create a discussion using safe-outputs with the following structure:
-          
-          **Title**: "📊 Data Visualization Report - ${GH_AW_EXPR_5411F090}"
+          **Title**: "📊 Data Visualization Report - Random Sample Data"
           
           **Content**:
           ```markdown
@@ -1371,38 +1380,36 @@ jobs:
           
           ## Summary
           
-          This report contains data visualizations generated from **${GH_AW_EXPR_5411F090}** using Python scientific computing libraries.
+          This report contains data visualizations generated from randomly generated sample data using Python scientific computing libraries.
           
-          ## Generated Charts
+          ## Generated Visualizations
           
-          - **Chart Type**: ${GH_AW_EXPR_677B41C8}
-          - **Data Source**: ${GH_AW_EXPR_5411F090}
-          - **Generated**: [timestamp]
+          ### Chart 1: [Chart Type]
+          ![Chart 1 Description](URL_FROM_UPLOAD_ASSET)
           
-          ## Artifacts
+          [Brief description of what this chart shows]
           
-          ### 📈 Charts Artifact
-          - **Artifact Name**: `data-charts`
-          - **Download URL**: https://github.com/${GH_AW_EXPR_D892F163}/actions/runs/${GH_AW_EXPR_B50B6E9C}
-          - **Contents**: PNG image files of generated charts
-          - **Retention**: 30 days
+          ### Chart 2: [Chart Type]
+          ![Chart 2 Description](URL_FROM_UPLOAD_ASSET)
           
-          ### 📦 Source and Data Artifact
-          - **Artifact Name**: `python-source-and-data`
-          - **Download URL**: https://github.com/${GH_AW_EXPR_D892F163}/actions/runs/${GH_AW_EXPR_B50B6E9C}
-          - **Contents**: Python scripts, data files, and documentation
-          - **Retention**: 30 days
+          [Brief description of what this chart shows]
+          
+          ### Chart 3: [Chart Type]
+          ![Chart 3 Description](URL_FROM_UPLOAD_ASSET)
+          
+          [Brief description of what this chart shows]
+          
+          ### Chart 4: [Chart Type]
+          ![Chart 4 Description](URL_FROM_UPLOAD_ASSET)
+          
+          [Brief description of what this chart shows]
           
           ## Data Information
           
-          [Include data statistics and description]
-          
-          ## Reproduction Instructions
-          
-          1. Download the `python-source-and-data` artifact
-          2. Extract the archive
-          3. Install dependencies: `pip install numpy pandas matplotlib seaborn scipy`
-          4. Run: `python generate_chart.py`
+          - **Data Generation**: Random sample data using NumPy
+          - **Sample Size**: [number of data points]
+          - **Variables**: [list of variables/columns]
+          - **Patterns**: [describe any patterns in the data]
           
           ## Libraries Used
           
@@ -1425,10 +1432,10 @@ jobs:
           
           ## Key Reminders
           
-          - ✅ **Data Separation**: Always load data from external files, never inline
-          - ✅ **Cache Memory**: Check and save reusable helpers to `/tmp/gh-aw/cache-memory/`
+          - ✅ **Generate Random Data**: Use NumPy to create interesting sample data
+          - ✅ **Upload Charts**: Use the `upload asset` tool for each chart
+          - ✅ **Embed Images**: Include uploaded chart URLs in the markdown discussion
           - ✅ **High Quality**: Use DPI 300, clear labels, and seaborn styling
-          - ✅ **Artifacts**: Files are automatically uploaded to the configured artifacts
           
           Refer to the Python Data Visualization Guide (imported above) for complete examples, code patterns, and best practices.
           
@@ -1530,9 +1537,17 @@ jobs:
           
           ---
           
-          ## Reporting Missing Tools or Functionality
+          ## Uploading Assets, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          
+          **Uploading Assets**
+          
+          To upload files as URL-addressable assets:
+          1. Use the `upload asset` tool from safeoutputs
+          2. Provide the path to the file you want to upload
+          3. The tool will copy the file to a staging area and return a GitHub raw content URL
+          4. Assets are uploaded to an orphaned git branch after workflow completion
           
           **Reporting Missing Tools or Functionality**
           
@@ -1685,10 +1700,13 @@ jobs:
           copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -1823,7 +1841,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
           GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
         with:
           script: |
@@ -3486,6 +3504,13 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      - name: Upload safe outputs assets
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: safe-outputs-assets
+          path: /tmp/gh-aw/safeoutputs/assets/
+          if-no-files-found: ignore
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -4333,4 +4358,209 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
+
+  upload_assets:
+    needs:
+      - agent
+      - detection
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    outputs:
+      branch_name: ${{ steps.upload_assets.outputs.branch_name }}
+      published_count: ${{ steps.upload_assets.outputs.published_count }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          # Re-authenticate git with GitHub token
+          SERVER_URL="${{ github.server_url }}"
+          SERVER_URL="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download assets
+        continue-on-error: true
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: safe-outputs-assets
+          path: /tmp/gh-aw/safeoutputs/assets/
+      - name: List downloaded asset files
+        continue-on-error: true
+        run: |
+          echo "Downloaded asset files:"
+          ls -la /tmp/gh-aw/safeoutputs/assets/
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find /tmp/gh-aw/safeoutputs/ -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+      - name: Upload Assets to Orphaned Branch
+        id: upload_assets
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GH_AW_ASSETS_MAX_SIZE_KB: 10240
+          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const crypto = require("crypto");
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const branchName = process.env.GH_AW_ASSETS_BRANCH;
+              if (!branchName || typeof branchName !== "string") {
+                core.setFailed("GH_AW_ASSETS_BRANCH environment variable is required but not set");
+                return;
+              }
+              const normalizedBranchName = normalizeBranchName(branchName);
+              core.info(`Using assets branch: ${normalizedBranchName}`);
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              const uploadAssetItems = validatedOutput.items.filter( item => item.type === "upload_asset");
+              if (uploadAssetItems.length === 0) {
+                core.info("No upload-asset items found in agent output");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              core.info(`Found ${uploadAssetItems.length} upload-asset item(s)`);
+              let uploadCount = 0;
+              let hasChanges = false;
+              try {
+                try {
+                  await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
+                  await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
+                  core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
+                } catch (originError) {
+                  core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
+                  await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
+                  await exec.exec(`git rm -rf .`);
+                  await exec.exec(`git clean -fdx`);
+                }
+                for (const asset of uploadAssetItems) {
+                  try {
+                    const { fileName, sha, size, targetFileName } = asset;
+                    if (!fileName || !sha || !targetFileName) {
+                      core.error(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
+                      continue;
+                    }
+                    const assetSourcePath = path.join("/tmp/gh-aw/safeoutputs/assets", fileName);
+                    if (!fs.existsSync(assetSourcePath)) {
+                      core.warning(`Asset file not found: ${assetSourcePath}`);
+                      continue;
+                    }
+                    const fileContent = fs.readFileSync(assetSourcePath);
+                    const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
+                    if (computedSha !== sha) {
+                      core.warning(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
+                      continue;
+                    }
+                    if (fs.existsSync(targetFileName)) {
+                      core.info(`Asset ${targetFileName} already exists, skipping`);
+                      continue;
+                    }
+                    fs.copyFileSync(assetSourcePath, targetFileName);
+                    await exec.exec(`git add "${targetFileName}"`);
+                    uploadCount++;
+                    hasChanges = true;
+                    core.info(`Added asset: ${targetFileName} (${size} bytes)`);
+                  } catch (error) {
+                    core.warning(`Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`);
+                  }
+                }
+                if (hasChanges) {
+                  const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
+                  await exec.exec(`git`, [`commit`, `-m`, `"${commitMessage}"`]);
+                  if (isStaged) {
+                    core.summary.addRaw("## Staged Asset Publication");
+                  } else {
+                    await exec.exec(`git push origin ${normalizedBranchName}`);
+                    core.summary
+                      .addRaw("## Assets")
+                      .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
+                      .addRaw("");
+                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
+                  }
+                  for (const asset of uploadAssetItems) {
+                    if (asset.fileName && asset.sha && asset.size && asset.url) {
+                      core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
+                    }
+                  }
+                  core.summary.write();
+                } else {
+                  core.info("No new assets to upload");
+                }
+              } catch (error) {
+                core.setFailed(`Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              core.setOutput("upload_count", uploadCount.toString());
+              core.setOutput("branch_name", normalizedBranchName);
+            }
+            await main();
 
