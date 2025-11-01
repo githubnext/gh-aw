@@ -3,10 +3,9 @@ name: Changeset Generator
 on:
   pull_request:
     types: [labeled]
-    names: ["changeset"]
   workflow_dispatch:
   reaction: "rocket"
-if: github.event.pull_request.base.ref == github.event.repository.default_branch
+if: github.event.pull_request.base.ref == github.event.repository.default_branch && (github.event_name == 'workflow_dispatch' || github.event.label.name == 'changeset')
 permissions:
   contents: read
   pull-requests: read

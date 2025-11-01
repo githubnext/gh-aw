@@ -41,8 +41,6 @@
 name: "Changeset Generator"
 "on":
   pull_request:
-    names:
-    - changeset
     types:
     - labeled
   workflow_dispatch: null
@@ -62,8 +60,8 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event.pull_request.base.ref == github.event.repository.default_branch) &&
-      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'changeset'))))
+      (needs.pre_activation.outputs.activated == 'true') && (github.event.pull_request.base.ref == github.event.repository.default_branch &&
+      (github.event_name == 'workflow_dispatch' || github.event.label.name == 'changeset'))
     runs-on: ubuntu-slim
     permissions:
       discussions: write
@@ -5111,8 +5109,8 @@ jobs:
 
   pre_activation:
     if: >
-      (github.event.pull_request.base.ref == github.event.repository.default_branch) && ((github.event_name != 'pull_request') ||
-      ((github.event.action != 'labeled') || (github.event.label.name == 'changeset')))
+      github.event.pull_request.base.ref == github.event.repository.default_branch && (github.event_name == 'workflow_dispatch' ||
+      github.event.label.name == 'changeset')
     runs-on: ubuntu-slim
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
