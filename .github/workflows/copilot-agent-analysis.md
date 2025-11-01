@@ -6,7 +6,11 @@ on:
     - cron: "0 18 * * *"
   workflow_dispatch:
 
-permissions: read-all
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  actions: read
 
 engine: claude
 
