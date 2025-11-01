@@ -2,14 +2,9 @@
 name: copilot-add-safe-output-type
 description: Adding a New Safe Output Type to GitHub Agentic Workflows
 tools:
-  - runInTerminal
-  - getTerminalOutput
-  - createFile
-  - createDirectory
-  - editFiles
+  - read
+  - edit
   - search
-  - changes
-  - githubRepo
 ---
 
 # Copilot Agent: Adding a New Safe Output Type to GitHub Agentic Workflows
