@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
+import os from "os";
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -67,7 +68,7 @@ describe("check_workflow_timestamp.cjs", () => {
     };
 
     // Create a temporary directory for test files
-    tmpDir = fs.mkdtempSync(path.join(require("os").tmpdir(), "workflow-test-"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "workflow-test-"));
     workflowsDir = path.join(tmpDir, ".github", "workflows");
     fs.mkdirSync(workflowsDir, { recursive: true });
 
