@@ -533,6 +533,11 @@ on:
   # (optional)
   stop-after: "example-value"
 
+  # Environment name that requires manual approval before the workflow can run. Must
+  # match a valid environment configured in the repository settings.
+  # (optional)
+  manual-approval: "example-value"
+
   # AI reaction to add/remove on triggering item (one of: +1, -1, laugh, confused,
   # heart, hooray, rocket, eyes, none). Use 'none' to disable reactions. Defaults to
   # 'eyes' if not specified.
@@ -1239,7 +1244,6 @@ safe-outputs:
     # (optional)
     max: 1
 
-
     # Target repository in format 'owner/repo' for cross-repository issue creation.
     # Takes precedence over trial target repo settings.
     # (optional)
@@ -1268,10 +1272,6 @@ safe-outputs:
     # Maximum number of agent tasks to create (default: 1)
     # (optional)
     max: 1
-
-    # Minimum number of agent tasks to create (default: 0 - no requirement)
-    # (optional)
-    min: 1
 
     # Target repository in format 'owner/repo' for cross-repository agent task
     # creation. Takes precedence over trial target repo settings.
@@ -1313,10 +1313,6 @@ safe-outputs:
     # (optional)
     max: 1
 
-    # Minimum number of discussions to create (default: 0 - no requirement)
-    # (optional)
-    min: 1
-
     # Target repository in format 'owner/repo' for cross-repository discussion
     # creation. Takes precedence over trial target repo settings.
     # (optional)
@@ -1339,10 +1335,6 @@ safe-outputs:
     # Maximum number of comments to create (default: 1)
     # (optional)
     max: 1
-
-    # Minimum number of comments to create (default: 0 - no requirement)
-    # (optional)
-    min: 1
 
     # Target for comments: 'triggering' (default), '*' (any issue), or explicit issue
     # number
@@ -1431,10 +1423,6 @@ safe-outputs:
     # (optional)
     max: 1
 
-    # Minimum number of review comments to create (default: 0 - no requirement)
-    # (optional)
-    min: 1
-
     # Side of the diff for comments: 'LEFT' or 'RIGHT' (default: 'RIGHT')
     # (optional)
     side: "LEFT"
@@ -1466,10 +1454,6 @@ safe-outputs:
     # Maximum number of security findings to include (default: unlimited)
     # (optional)
     max: 1
-
-    # Minimum number of security findings to include (default: 0 - no requirement)
-    # (optional)
-    min: 1
 
     # Driver name for SARIF tool.driver.name field (default: 'GitHub Agentic Workflows
     # Security Scanner')
@@ -1503,10 +1487,6 @@ safe-outputs:
     # Optional maximum number of labels to add (default: 3)
     # (optional)
     max: 1
-
-    # Minimum number of labels to add (default: 0 - no requirement)
-    # (optional)
-    min: 1
 
     # Target for labels: 'triggering' (default), '*' (any issue/PR), or explicit
     # issue/PR number
@@ -1549,10 +1529,6 @@ safe-outputs:
     # Maximum number of issues to update (default: 1)
     # (optional)
     max: 1
-
-    # Minimum number of issues to update (default: 0 - no requirement)
-    # (optional)
-    min: 1
 
     # Target repository in format 'owner/repo' for cross-repository issue updates.
     # Takes precedence over trial target repo settings.
@@ -1621,10 +1597,6 @@ safe-outputs:
     # (optional)
     max: 1
 
-    # Minimum number of missing tool reports (default: 0 - no requirement)
-    # (optional)
-    min: 1
-
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.
     # (optional)
@@ -1658,7 +1630,6 @@ safe-outputs:
     # Maximum number of assets to upload (default: 10)
     # (optional)
     max: 1
-
 
     # GitHub token to use for this specific output type. Overrides global github-token
     # if specified.

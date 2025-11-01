@@ -27,7 +27,7 @@
 
 name: "Test Manual Approval Workflow"
 "on":
-  manual-approval: production
+  # manual-approval: production # Manual approval processed as environment field in activation job
   workflow_dispatch: null
 
 permissions:
