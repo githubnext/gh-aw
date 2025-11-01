@@ -20,6 +20,8 @@
 # ```
 #
 # Pinned GitHub Actions:
+#   - actions/cache@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
+#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
 #   - actions/checkout@v5 (08c6903cd8c0fde910a37f88322edcfb5dd907a8)
 #     https://github.com/actions/checkout/commit/08c6903cd8c0fde910a37f88322edcfb5dd907a8
 #   - actions/download-artifact@v5 (634f93cb2916e3fdff6788551b99b062d0335ce0)
@@ -108,6 +110,26 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: |
+          mkdir -p /tmp/gh-aw/cache-memory
+          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
+          echo "This folder provides persistent file storage across workflow runs"
+          echo "LLMs and agentic tools can freely read and write files in this directory"
+      - name: Cache memory file share data
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-${{ github.workflow }}-
+            memory-
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -1133,6 +1155,21 @@ jobs:
           
           You are an AI agent that improves Go code by adding debug logging statements to help with troubleshooting and development.
           
+          ## Efficiency First: Check Cache
+          
+          Before analyzing files:
+          
+          1. Check `/tmp/gh-aw/cache-memory/go-logger/` for previous logging sessions
+          2. Read `processed-files.json` to see which files were already enhanced
+          3. Read `last-run.json` for the last commit SHA processed
+          4. If current commit SHA matches and no new .go files exist, exit early with success
+          5. Update cache after processing:
+             - Save list of processed files to `processed-files.json`
+             - Save current commit SHA to `last-run.json`
+             - Save summary of changes made
+          
+          This prevents re-analyzing already-processed files and reduces token usage significantly.
+          
           ## Mission
           
           Add meaningful debug logging calls to Go files in the `pkg/` directory following the project's logging guidelines from AGENTS.md.
@@ -1439,6 +1476,31 @@ jobs:
           **Do NOT** attempt to edit files outside these directories as you do not have the necessary permissions.
           
           PROMPT_EOF
+      - name: Append cache memory instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          
+          ---
+          
+          ## Cache Folder Available
+          
+          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
+          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
+          - **File Share**: Use this as a simple file share - organize files as you see fit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
+          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
+          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
+          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1629,25 +1691,29 @@ jobs:
         # - Bash(yq)
         # - BashOutput
         # - Edit
+        # - Edit(/tmp/gh-aw/cache-memory/*)
         # - ExitPlanMode
         # - Glob
         # - Grep
         # - KillBash
         # - LS
         # - MultiEdit
+        # - MultiEdit(/tmp/gh-aw/cache-memory/*)
         # - NotebookEdit
         # - NotebookRead
         # - Read
+        # - Read(/tmp/gh-aw/cache-memory/*)
         # - Task
         # - TodoWrite
         # - Write
+        # - Write(/tmp/gh-aw/cache-memory/*)
         # - mcp__github__get_file_contents
         # - mcp__github__search_code
         timeout-minutes: 15
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(./gh-aw compile *),Bash(cat),Bash(date),Bash(echo),Bash(find pkg -name '*.go' -type f ! -name '*_test.go'),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep -n 'func ' pkg/*.go),Bash(grep -r 'var log = logger.New' pkg --include='*.go'),Bash(grep),Bash(head -n * pkg/**/*.go),Bash(head),Bash(ls),Bash(make build),Bash(make recompile),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc -l pkg/**/*.go),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__get_file_contents,mcp__github__search_code" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(./gh-aw compile *),Bash(cat),Bash(date),Bash(echo),Bash(find pkg -name '*.go' -type f ! -name '*_test.go'),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep -n 'func ' pkg/*.go),Bash(grep -r 'var log = logger.New' pkg --include='*.go'),Bash(grep),Bash(head -n * pkg/**/*.go),Bash(head),Bash(ls),Bash(make build),Bash(make recompile),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc -l pkg/**/*.go),Bash(wc),Bash(yq),BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__get_file_contents,mcp__github__search_code" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
