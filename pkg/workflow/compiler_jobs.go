@@ -42,19 +42,20 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
 	hasStopTime := data.StopTime != ""
 
-	// Determine if we need to add workflow_run repository safety check
+	// Determine if we need to add workflow_run repository safety check to workflow-level if condition
 	// Add the check if the agentic workflow declares a workflow_run trigger
 	// This prevents cross-repository workflow_run attacks
-	var workflowRunRepoSafety string
 	if c.hasWorkflowRunTrigger(frontmatter) {
-		workflowRunRepoSafety = c.buildWorkflowRunRepoSafetyCondition()
+		workflowRunRepoSafety := c.buildWorkflowRunRepoSafetyCondition()
+		// Add to workflow-level if condition (data.If)
+		data.If = c.combineJobIfConditions(data.If, workflowRunRepoSafety)
 	}
 
 	// Build pre-activation job if needed (combines membership checks, stop-time validation, and command position check)
 	var preActivationJobCreated bool
 	hasCommandTrigger := data.Command != ""
 	if needsPermissionCheck || hasStopTime || hasCommandTrigger {
-		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck, workflowRunRepoSafety)
+		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck, data.If)
 		if err != nil {
 			return fmt.Errorf("failed to build %s job: %w", constants.PreActivationJobName, err)
 		}
@@ -69,7 +70,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	var activationJobCreated bool
 
 	if c.isActivationJobNeeded() {
-		activationJob, err := c.buildActivationJob(data, preActivationJobCreated, workflowRunRepoSafety)
+		activationJob, err := c.buildActivationJob(data, preActivationJobCreated, data.If)
 		if err != nil {
 			return fmt.Errorf("failed to build activation job: %w", err)
 		}
@@ -80,7 +81,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build main workflow job
-	mainJob, err := c.buildMainJob(data, activationJobCreated, workflowRunRepoSafety)
+	mainJob, err := c.buildMainJob(data, activationJobCreated, data.If)
 	if err != nil {
 		return fmt.Errorf("failed to build main job: %w", err)
 	}
@@ -354,7 +355,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 
 // buildPreActivationJob creates a unified pre-activation job that combines membership checks and stop-time validation
 // This job exposes a single "activated" output that indicates whether the workflow should proceed
-func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionCheck bool, workflowRunRepoSafety string) (*Job, error) {
+func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionCheck bool, workflowIf string) (*Job, error) {
 	var steps []string
 	var permissions string
 
@@ -456,9 +457,8 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		"activated": activatedExpression,
 	}
 
-	// Determine the job-level if condition
-	// Combine user's if condition with workflow_run repository safety check
-	jobIfCondition := c.combineJobIfConditions(data.If, workflowRunRepoSafety)
+	// Use the workflow-level if condition (includes workflow_run safety check if applicable)
+	jobIfCondition := workflowIf
 
 	job := &Job{
 		Name:        constants.PreActivationJobName,
@@ -473,7 +473,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 }
 
 // buildActivationJob creates the preamble activation job that acts as a barrier for runtime conditions
-func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool, workflowRunRepoSafety string) (*Job, error) {
+func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool, workflowIf string) (*Job, error) {
 	outputs := map[string]string{}
 	var steps []string
 
@@ -553,9 +553,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.%s", constants.PreActivationJobName, constants.ActivatedOutput)),
 			BuildStringLiteral("true"),
 		)
-		if data.If != "" {
-			// Strip ${{ }} wrapper from data.If before combining
-			unwrappedIf := stripExpressionWrapper(data.If)
+		if workflowIf != "" {
+			// Strip ${{ }} wrapper from workflowIf before combining
+			unwrappedIf := stripExpressionWrapper(workflowIf)
 			ifExpr := &ExpressionNode{Expression: unwrappedIf}
 			combinedExpr := buildAnd(activatedExpr, ifExpr)
 			activationCondition = combinedExpr.Render()
@@ -563,12 +563,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			activationCondition = activatedExpr.Render()
 		}
 	} else {
-		// No pre-activation check needed
-		activationCondition = data.If
+		// No pre-activation check needed, use workflow-level if condition
+		activationCondition = workflowIf
 	}
 
-	// Combine activation condition with workflow_run repository safety check
-	activationCondition = c.combineJobIfConditions(activationCondition, workflowRunRepoSafety)
+	// Note: workflow-level if (data.If) now includes workflow_run repository safety check
 
 	// Set permissions - add reaction permissions if reaction is configured and not "none"
 	var permissions string
@@ -602,19 +601,15 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 }
 
 // buildMainJob creates the main workflow job
-func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool, workflowRunRepoSafety string) (*Job, error) {
+func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool, workflowIf string) (*Job, error) {
 	var steps []string
 
-	var jobCondition = data.If
+	var jobCondition = workflowIf
 	if activationJobCreated {
 		jobCondition = "" // Main job depends on activation job, so no need for inline condition
 	}
 
-	// If there's no activation job, we need to add the workflow_run repository safety check
-	// to the main job directly
-	if !activationJobCreated {
-		jobCondition = c.combineJobIfConditions(jobCondition, workflowRunRepoSafety)
-	}
+	// Note: workflow-level if (data.If) now includes workflow_run repository safety check
 
 	// Permission checks are now handled by the separate check_membership job
 	// No role checks needed in the main job
