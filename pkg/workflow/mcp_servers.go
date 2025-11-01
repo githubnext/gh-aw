@@ -390,7 +390,7 @@ func extractSecretsFromAllowedDomains(allowedDomains []string) map[string]string
 	secrets := make(map[string]string)
 	// Pattern to match ${{ secrets.SECRET_NAME }}
 	secretPattern := regexp.MustCompile(`\$\{\{\s*secrets\.([A-Z][A-Z0-9_]*)\s*\}\}`)
-	
+
 	for _, domain := range allowedDomains {
 		matches := secretPattern.FindAllStringSubmatch(domain, -1)
 		for _, match := range matches {
@@ -400,7 +400,7 @@ func extractSecretsFromAllowedDomains(allowedDomains []string) map[string]string
 			}
 		}
 	}
-	
+
 	return secrets
 }
 
@@ -410,7 +410,7 @@ func replaceSecretsInAllowedDomains(allowedDomains []string, secrets map[string]
 	if len(secrets) == 0 {
 		return allowedDomains
 	}
-	
+
 	result := make([]string, len(allowedDomains))
 	for i, domain := range allowedDomains {
 		result[i] = domain
@@ -420,6 +420,6 @@ func replaceSecretsInAllowedDomains(allowedDomains []string, secrets map[string]
 			result[i] = strings.ReplaceAll(result[i], secretExpr, envVarRef)
 		}
 	}
-	
+
 	return result
 }
