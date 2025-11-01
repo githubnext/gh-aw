@@ -106,6 +106,9 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	yaml.WriteString(fmt.Sprintf("name: \"%s\"\n", data.Name))
 	yaml.WriteString(data.On + "\n\n")
 
+	// Note: GitHub Actions doesn't support workflow-level if conditions
+	// The workflow_run safety check is added to individual jobs instead
+
 	// Add permissions if present
 	if data.Permissions != "" {
 		yaml.WriteString(data.Permissions + "\n\n")

@@ -61,7 +61,8 @@ run-name: "CI Failure Doctor"
 
 jobs:
   activation:
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    if: >
+      (github.event.workflow_run.conclusion == 'failure') && ((github.event_name != 'workflow_run') || (github.event.workflow_run.repository.id == github.repository_id))
     runs-on: ubuntu-slim
     steps:
       - name: Check workflow file timestamps
