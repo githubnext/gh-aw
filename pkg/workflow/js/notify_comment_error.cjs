@@ -7,7 +7,11 @@
 async function main() {
   const commentId = process.env.GH_AW_COMMENT_ID;
   const commentRepo = process.env.GH_AW_COMMENT_REPO;
-  const runUrl = process.env.GH_AW_RUN_URL;
+  // Construct run URL from components to avoid template injection
+  const serverUrl = process.env.GH_AW_SERVER_URL;
+  const repository = process.env.GH_AW_REPOSITORY;
+  const runId = process.env.GH_AW_RUN_ID;
+  const runUrl = `${serverUrl}/${repository}/actions/runs/${runId}`;
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
   const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
 
@@ -22,8 +26,8 @@ async function main() {
     return;
   }
 
-  if (!runUrl) {
-    core.setFailed("Run URL is required");
+  if (!serverUrl || !repository || !runId) {
+    core.setFailed("Server URL, repository, and run ID are required to construct run URL");
     return;
   }
 

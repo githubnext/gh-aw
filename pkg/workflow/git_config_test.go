@@ -76,9 +76,9 @@ func TestGitConfigurationStepsHelper(t *testing.T) {
 
 	steps := compiler.generateGitConfigurationSteps()
 
-	// Verify we get expected number of lines (11 lines with env block)
-	if len(steps) != 11 {
-		t.Errorf("Expected 11 lines in git configuration steps, got %d", len(steps))
+	// Verify we get expected number of lines (12 lines with expanded env block)
+	if len(steps) != 12 {
+		t.Errorf("Expected 12 lines in git configuration steps, got %d", len(steps))
 	}
 
 	// Verify the content of the steps
@@ -86,6 +86,8 @@ func TestGitConfigurationStepsHelper(t *testing.T) {
 		"Configure Git credentials",
 		"env:",
 		"REPO_NAME:",
+		"SERVER_URL:",
+		"GITHUB_TOKEN:",
 		"run: |",
 		"git config --global user.email",
 		"git config --global user.name",
@@ -106,5 +108,61 @@ func TestGitConfigurationStepsHelper(t *testing.T) {
 	// Verify proper indentation (should start with 6 spaces for job step level)
 	if !strings.HasPrefix(steps[0], "      - name:") {
 		t.Error("Expected first line to have proper indentation for job step (6 spaces)")
+	}
+}
+
+// TestGitConfigurationNoTemplateInjection verifies that template expressions are properly moved to env block
+func TestGitConfigurationNoTemplateInjection(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	steps := compiler.generateGitConfigurationSteps()
+	fullContent := strings.Join(steps, "")
+
+	// Split content into env section and run section
+	parts := strings.Split(fullContent, "run: |")
+	if len(parts) != 2 {
+		t.Fatal("Expected steps to contain exactly one 'run: |' section")
+	}
+
+	envSection := parts[0]
+	runSection := parts[1]
+
+	// Verify that env section contains the template expressions
+	envExpectedPatterns := []string{
+		"${{ github.repository }}",
+		"${{ github.server_url }}",
+		"${{ github.token }}",
+	}
+
+	for _, pattern := range envExpectedPatterns {
+		if !strings.Contains(envSection, pattern) {
+			t.Errorf("Expected env section to contain template expression: %s", pattern)
+		}
+	}
+
+	// Verify that run section does NOT contain template expressions (security fix)
+	runForbiddenPatterns := []string{
+		"${{ github.server_url }}",
+		"${{ github.token }}",
+		"${{ github.repository }}",
+	}
+
+	for _, pattern := range runForbiddenPatterns {
+		if strings.Contains(runSection, pattern) {
+			t.Errorf("Run section should NOT contain template expression (template injection vulnerability): %s", pattern)
+		}
+	}
+
+	// Verify that run section uses environment variables instead
+	runExpectedPatterns := []string{
+		"${SERVER_URL",
+		"${GITHUB_TOKEN}",
+		"${REPO_NAME}",
+	}
+
+	for _, pattern := range runExpectedPatterns {
+		if !strings.Contains(runSection, pattern) {
+			t.Errorf("Expected run section to use environment variable: %s", pattern)
+		}
 	}
 }

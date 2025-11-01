@@ -226,3 +226,47 @@ func TestBuildCopilotParticipantSteps_MixedParticipants(t *testing.T) {
 		t.Error("Did not expect GITHUB_TOKEN in fallback chain when copilot is in the list")
 	}
 }
+
+func TestBuildPRReviewerSteps_NoTemplateInjection(t *testing.T) {
+	config := CopilotParticipantConfig{
+		Participants:       []string{"copilot"},
+		ParticipantType:    "reviewer",
+		CustomToken:        "",
+		SafeOutputsToken:   "",
+		WorkflowToken:      "",
+		ConditionStepID:    "create_pull_request",
+		ConditionOutputKey: "pull_request_url",
+	}
+
+	steps := buildPRReviewerSteps(config, "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}")
+	stepsContent := strings.Join(steps, "")
+
+	// Split content into env section and run section
+	parts := strings.Split(stepsContent, "run: |")
+	if len(parts) != 2 {
+		t.Fatal("Expected steps to contain exactly one 'run: |' section")
+	}
+
+	envSection := parts[0]
+	runSection := parts[1]
+
+	// Verify that env section contains the template expression
+	if !strings.Contains(envSection, "${{ github.repository }}") {
+		t.Error("Expected env section to contain ${{ github.repository }} template expression")
+	}
+
+	// Verify that run section does NOT contain the template expression (security fix)
+	if strings.Contains(runSection, "${{ github.repository }}") {
+		t.Error("Run section should NOT contain ${{ github.repository }} template expression (template injection vulnerability)")
+	}
+
+	// Verify that run section uses environment variable instead
+	if !strings.Contains(runSection, "$GITHUB_REPOSITORY") {
+		t.Error("Expected run section to use $GITHUB_REPOSITORY environment variable")
+	}
+
+	// Verify that GITHUB_REPOSITORY env var is defined
+	if !strings.Contains(envSection, "GITHUB_REPOSITORY:") {
+		t.Error("Expected GITHUB_REPOSITORY environment variable to be defined in env section")
+	}
+}

@@ -1074,13 +1074,14 @@ jobs:
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
-          SERVER_URL="${{ github.server_url }}"
-          SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Checkout PR branch
         if: |
@@ -4881,13 +4882,14 @@ jobs:
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
-          SERVER_URL="${{ github.server_url }}"
-          SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
+          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Download agent output artifact
         continue-on-error: true
@@ -5357,8 +5359,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          gh api --method POST /repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers \
+          gh api --method POST /repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/requested_reviewers \
             -f 'reviewers[]=copilot-pull-request-reviewer[bot]'
 
   detection:
@@ -5914,7 +5917,9 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_AW_SERVER_URL: ${{ github.server_url }}
+          GH_AW_REPOSITORY: ${{ github.repository }}
+          GH_AW_RUN_ID: ${{ github.run_id }}
           GH_AW_WORKFLOW_NAME: "Q"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
@@ -5923,7 +5928,10 @@ jobs:
             async function main() {
               const commentId = process.env.GH_AW_COMMENT_ID;
               const commentRepo = process.env.GH_AW_COMMENT_REPO;
-              const runUrl = process.env.GH_AW_RUN_URL;
+              const serverUrl = process.env.GH_AW_SERVER_URL;
+              const repository = process.env.GH_AW_REPOSITORY;
+              const runId = process.env.GH_AW_RUN_ID;
+              const runUrl = `${serverUrl}/${repository}/actions/runs/${runId}`;
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
               const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
               core.info(`Comment ID: ${commentId}`);
@@ -5935,8 +5943,8 @@ jobs:
                 core.info("No comment ID found, skipping comment update");
                 return;
               }
-              if (!runUrl) {
-                core.setFailed("Run URL is required");
+              if (!serverUrl || !repository || !runId) {
+                core.setFailed("Server URL, repository, and run ID are required to construct run URL");
                 return;
               }
               const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;

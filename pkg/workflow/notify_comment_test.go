@@ -292,3 +292,53 @@ func TestUpdateReactionJobIntegration(t *testing.T) {
 		}
 	}
 }
+
+func TestUpdateReactionJobNoTemplateInjection(t *testing.T) {
+	// Test that URL components are passed separately to avoid template injection
+	compiler := NewCompiler(false, "", "")
+	workflowData := &WorkflowData{
+		Name:       "Test Workflow",
+		AIReaction: "eyes",
+		SafeOutputs: &SafeOutputsConfig{
+			AddComments: &AddCommentsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: 1,
+				},
+			},
+		},
+	}
+
+	job, err := compiler.buildUpdateReactionJob(workflowData, constants.AgentJobName, []string{"add_comment"})
+	if err != nil {
+		t.Fatalf("Failed to build update_reaction job: %v", err)
+	}
+
+	if job == nil {
+		t.Fatal("Expected update_reaction job to be created")
+	}
+
+	jobYAML := strings.Join(job.Steps, "")
+
+	// Verify that URL components are passed separately
+	expectedEnvVars := []string{
+		"GH_AW_SERVER_URL: ${{ github.server_url }}",
+		"GH_AW_REPOSITORY: ${{ github.repository }}",
+		"GH_AW_RUN_ID: ${{ github.run_id }}",
+	}
+
+	for _, envVar := range expectedEnvVars {
+		if !strings.Contains(jobYAML, envVar) {
+			t.Errorf("Expected environment variable: %s", envVar)
+		}
+	}
+
+	// Verify that the old concatenated URL format is NOT present (template injection vulnerability)
+	if strings.Contains(jobYAML, "GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}") {
+		t.Error("Found old concatenated URL format (template injection vulnerability)")
+	}
+
+	// Verify GH_AW_RUN_URL is not set at all (it's constructed in JavaScript now)
+	if strings.Contains(jobYAML, "GH_AW_RUN_URL:") {
+		t.Error("GH_AW_RUN_URL should not be set as an environment variable (components are passed separately)")
+	}
+}

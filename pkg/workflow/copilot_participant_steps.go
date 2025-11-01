@@ -109,8 +109,9 @@ func buildPRReviewerSteps(config CopilotParticipantConfig, effectiveToken string
 			steps = append(steps, "        env:\n")
 			steps = append(steps, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
 			steps = append(steps, "          PR_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}\n")
+			steps = append(steps, "          GITHUB_REPOSITORY: ${{ github.repository }}\n")
 			steps = append(steps, "        run: |\n")
-			steps = append(steps, "          gh api --method POST /repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers \\\n")
+			steps = append(steps, "          gh api --method POST /repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/requested_reviewers \\\n")
 			steps = append(steps, "            -f 'reviewers[]=copilot-pull-request-reviewer[bot]'\n")
 		} else {
 			steps = append(steps, fmt.Sprintf("      - name: Add %s as reviewer\n", reviewer))
