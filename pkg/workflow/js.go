@@ -55,6 +55,9 @@ var checkStopTimeScript string
 //go:embed js/check_command_position.cjs
 var checkCommandPositionScript string
 
+//go:embed js/check_workflow_timestamp.cjs
+var checkWorkflowTimestampScript string
+
 //go:embed js/parse_claude_log.cjs
 var parseClaudeLogScript string
 
