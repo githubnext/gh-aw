@@ -100,12 +100,12 @@ function sanitizeContent(content, maxLength) {
       if (isAllowed) {
         return match; // Keep allowed URLs as-is
       }
-      
+
       // For disallowed URLs, check if there are any allowed URLs in the query/fragment
       // and preserve those while redacting the main URL
       const urlParts = match.split(/([?&#])/);
       let result = "(redacted)"; // Redact the main domain
-      
+
       // Process query/fragment parts to preserve any allowed URLs within them
       for (let i = 1; i < urlParts.length; i++) {
         if (urlParts[i].match(/^[?&#]$/)) {
@@ -115,7 +115,7 @@ function sanitizeContent(content, maxLength) {
           result += sanitizeUrlDomains(urlParts[i]);
         }
       }
-      
+
       return result;
     });
 
@@ -138,23 +138,23 @@ function sanitizeContent(content, maxLength) {
       if (protocol.toLowerCase() === "https") {
         return match;
       }
-      
+
       // Allow if it looks like a file path or namespace (::)
       if (match.includes("::")) {
         return match;
       }
-      
+
       // Redact if it has :// (definite protocol)
       if (match.includes("://")) {
         return "(redacted)";
       }
-      
+
       // Redact well-known dangerous protocols like javascript:, data:, etc.
       const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
       if (dangerousProtocols.includes(protocol.toLowerCase())) {
         return "(redacted)";
       }
-      
+
       // Otherwise preserve (could be file:path, namespace:thing, etc.)
       return match;
     });
@@ -210,7 +210,7 @@ function sanitizeContent(content, maxLength) {
   function convertXmlTags(s) {
     // Allow safe HTML tags: details, summary, code, em, b
     const allowedTags = ["details", "summary", "code", "em", "b"];
-    
+
     // First, process CDATA sections specially - convert tags inside them and the CDATA markers
     s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
       // Convert tags inside CDATA content
@@ -218,7 +218,7 @@ function sanitizeContent(content, maxLength) {
       // Return with CDATA markers also converted to parentheses
       return `(![CDATA[${convertedContent}]])`;
     });
-    
+
     // Convert opening tags: <tag> or <tag attr="value"> to (tag) or (tag attr="value")
     // Convert closing tags: </tag> to (/tag)
     // Convert self-closing tags: <tag/> or <tag /> to (tag/) or (tag /)

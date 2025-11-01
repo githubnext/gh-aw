@@ -426,7 +426,7 @@ func replaceExpressionsInPlaywrightArgs(args []string, expressions map[string]st
 	// Create a temporary extractor with the same mappings
 	combined := strings.Join(args, "\n")
 	extractor := NewExpressionExtractor()
-	extractor.ExtractExpressions(combined)
+	_, _ = extractor.ExtractExpressions(combined)
 
 	// Replace expressions in the combined string
 	replaced := extractor.ReplaceExpressionsWithEnvVars(combined)
