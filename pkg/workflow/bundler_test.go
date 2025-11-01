@@ -240,7 +240,7 @@ module.exports = { sanitize };
 `
 
 	// Create main content that requires the helper from lib
-	mainContent := `const { sanitize } = require('./lib/sanitize.cjs');
+	mainContent := `const { sanitize } = require('./sanitize.cjs');
 
 async function main() {
   console.log(sanitize("  hello  "));
@@ -251,7 +251,7 @@ main();
 
 	// Create sources map with nested path
 	sources := map[string]string{
-		"lib/sanitize.cjs": helperContent,
+		"sanitize.cjs": helperContent,
 	}
 
 	// Bundle the main content
@@ -266,7 +266,7 @@ main();
 	}
 
 	// Check that the require statement is replaced
-	if strings.Contains(bundled, "require('./lib/sanitize.cjs')") {
+	if strings.Contains(bundled, "require('./sanitize.cjs')") {
 		t.Error("Bundled output still contains require statement")
 	}
 }
