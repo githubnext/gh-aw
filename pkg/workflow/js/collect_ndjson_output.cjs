@@ -3,7 +3,7 @@
 
 async function main() {
   const fs = require("fs");
-  const { sanitizeContent } = require("./lib/sanitize.cjs");
+  const { sanitizeContent } = require("./sanitize.cjs");
   const maxBodyLength = 65000;
   function getMaxAllowedForType(itemType, config) {
     const itemConfig = config?.[itemType];
