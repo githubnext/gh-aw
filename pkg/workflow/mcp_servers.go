@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -135,6 +136,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	needsEnvBlock := false
 	hasGitHub := false
 	hasSafeOutputs := false
+	hasPlaywright := false
+	var playwrightAllowedDomainsSecrets map[string]string
 	// Note: hasAgenticWorkflows is already declared earlier in this function
 
 	for _, toolName := range mcpTools {
@@ -148,6 +151,17 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 		if toolName == "agentic-workflows" {
 			needsEnvBlock = true
+		}
+		if toolName == "playwright" {
+			hasPlaywright = true
+			// Extract secrets from playwright allowed_domains
+			if playwrightTool, ok := tools["playwright"]; ok {
+				allowedDomains := generatePlaywrightAllowedDomains(playwrightTool)
+				playwrightAllowedDomainsSecrets = extractSecretsFromAllowedDomains(allowedDomains)
+				if len(playwrightAllowedDomainsSecrets) > 0 {
+					needsEnvBlock = true
+				}
+			}
 		}
 	}
 
@@ -174,6 +188,21 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Add GITHUB_TOKEN for agentic-workflows if present
 		if hasAgenticWorkflows {
 			yaml.WriteString("          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
+		}
+
+		// Add Playwright allowed_domains secrets if present
+		if hasPlaywright && len(playwrightAllowedDomainsSecrets) > 0 {
+			// Sort secret names for consistent output
+			secretNames := make([]string, 0, len(playwrightAllowedDomainsSecrets))
+			for secretName := range playwrightAllowedDomainsSecrets {
+				secretNames = append(secretNames, secretName)
+			}
+			sort.Strings(secretNames)
+
+			for _, secretName := range secretNames {
+				secretExpr := playwrightAllowedDomainsSecrets[secretName]
+				yaml.WriteString(fmt.Sprintf("          PLAYWRIGHT_ALLOWED_DOMAIN_%s: %s\n", secretName, secretExpr))
+			}
 		}
 	}
 
@@ -353,4 +382,44 @@ func generatePlaywrightDockerArgs(playwrightTool any) PlaywrightDockerArgs {
 		ImageVersion:   getPlaywrightDockerImageVersion(playwrightTool),
 		AllowedDomains: generatePlaywrightAllowedDomains(playwrightTool),
 	}
+}
+
+// extractSecretsFromAllowedDomains extracts secret expressions from allowed domains list
+// Returns a map of secret names to their full expressions (e.g., "API_KEY" -> "${{ secrets.API_KEY }}")
+func extractSecretsFromAllowedDomains(allowedDomains []string) map[string]string {
+	secrets := make(map[string]string)
+	// Pattern to match ${{ secrets.SECRET_NAME }}
+	secretPattern := regexp.MustCompile(`\$\{\{\s*secrets\.([A-Z][A-Z0-9_]*)\s*\}\}`)
+	
+	for _, domain := range allowedDomains {
+		matches := secretPattern.FindAllStringSubmatch(domain, -1)
+		for _, match := range matches {
+			if len(match) > 1 {
+				secretName := match[1]
+				secrets[secretName] = match[0] // Store full expression
+			}
+		}
+	}
+	
+	return secrets
+}
+
+// replaceSecretsInAllowedDomains replaces secret expressions in allowed domains with environment variable references
+// This prevents secrets from being exposed in GitHub Actions logs
+func replaceSecretsInAllowedDomains(allowedDomains []string, secrets map[string]string) []string {
+	if len(secrets) == 0 {
+		return allowedDomains
+	}
+	
+	result := make([]string, len(allowedDomains))
+	for i, domain := range allowedDomains {
+		result[i] = domain
+		// Replace each secret expression with its environment variable reference
+		for secretName, secretExpr := range secrets {
+			envVarRef := fmt.Sprintf("${PLAYWRIGHT_ALLOWED_DOMAIN_%s}", secretName)
+			result[i] = strings.ReplaceAll(result[i], secretExpr, envVarRef)
+		}
+	}
+	
+	return result
 }
