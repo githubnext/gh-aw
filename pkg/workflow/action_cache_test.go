@@ -97,3 +97,30 @@ func TestActionCacheGetCachePath(t *testing.T) {
 		t.Errorf("Expected cache path '%s', got '%s'", expectedPath, cache.GetCachePath())
 	}
 }
+
+func TestActionCacheTrailingNewline(t *testing.T) {
+	// Create temporary directory for testing
+	tmpDir := t.TempDir()
+
+	// Create and populate cache
+	cache := NewActionCache(tmpDir)
+	cache.Set("actions/checkout", "v5", "abc123")
+
+	// Save to disk
+	err := cache.Save()
+	if err != nil {
+		t.Fatalf("Failed to save cache: %v", err)
+	}
+
+	// Read the file and check for trailing newline
+	cachePath := filepath.Join(tmpDir, ".github", "aw", CacheFileName)
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		t.Fatalf("Failed to read cache file: %v", err)
+	}
+
+	// Verify file ends with newline (prettier compliance)
+	if len(data) == 0 || data[len(data)-1] != '\n' {
+		t.Error("Cache file should end with a trailing newline for prettier compliance")
+	}
+}
