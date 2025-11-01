@@ -189,7 +189,7 @@ async function main() {
     // Commit and push if there are changes (skip if staged)
     if (hasChanges) {
       const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
-      await exec.exec(`git`, [`commit`, `-m`, `"${commitMessage}"`]);
+      await exec.exec(`git`, [`commit`, `-m`, commitMessage]);
       if (isStaged) {
         core.summary.addRaw("## Staged Asset Publication");
       } else {

@@ -77,6 +77,8 @@ timeout_minutes: 12
 steps:
   - name: Checkout repository
     uses: actions/checkout@v5
+    with:
+      persist-credentials: false
 
   - name: Setup Node.js
     uses: actions/setup-node@v6
