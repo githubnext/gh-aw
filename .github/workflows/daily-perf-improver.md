@@ -33,7 +33,6 @@ tools:
   #
   # By default this workflow allows all bash commands within the confine of Github Actions VM 
   bash: [ ":*" ]
-  cache-memory:
 imports:
   - shared/reporting.md
 
@@ -69,12 +68,6 @@ You are doing your work in phases. Right now you will perform just one of the fo
 ## Phase selection
 
 To decide which phase to perform:
-
-0. **First check cache** at `/tmp/gh-aw/cache-memory/daily-perf-improver/`:
-   - Read `last-phase.json` to know which phase was last completed
-   - Read `performance-baselines.json` for historical data
-   - Read `processed-issues.json` to avoid re-analyzing the same issues
-   - If all phases complete and no new issues/PRs, exit early with success message
 
 1. First check for existing open discussion titled "${{ github.workflow }}" using `list_discussions`. If found, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
 
