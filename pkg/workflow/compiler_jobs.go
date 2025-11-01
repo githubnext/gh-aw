@@ -587,7 +587,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 	// Add fork prevention for pull_request triggers BEFORE clearing conditions for activation job
 	// Agentic workflows should NEVER execute from forked repositories for security reasons
-	if c.hasPullRequestTrigger(data.On) {
+	// unless explicitly disabled with --allow-forks flag
+	if c.hasPullRequestTrigger(data.On) && !c.allowForks {
 		// Build fork prevention condition: pull request must be from the same repository
 		forkPreventionCondition := BuildNotFromFork().Render()
 

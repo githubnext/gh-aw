@@ -111,6 +111,7 @@ type CompileConfig struct {
 	Dependabot           bool     // Generate Dependabot manifests for npm dependencies
 	ForceOverwrite       bool     // Force overwrite of existing files (dependabot.yml)
 	Zizmor               bool     // Run zizmor security scanner on generated .lock.yml files
+	AllowForks           bool     // Allow workflows to execute from forked repositories
 }
 
 // CompilationStats tracks the results of workflow compilation
@@ -136,8 +137,9 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	dependabot := config.Dependabot
 	forceOverwrite := config.ForceOverwrite
 	zizmor := config.Zizmor
+	allowForks := config.AllowForks
 
-	compileLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v, dependabot=%v, zizmor=%v", len(markdownFiles), validate, watch, noEmit, dependabot, zizmor)
+	compileLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v, dependabot=%v, zizmor=%v, allowForks=%v", len(markdownFiles), validate, watch, noEmit, dependabot, zizmor, allowForks)
 
 	// Track compilation statistics
 	stats := &CompilationStats{}
@@ -183,6 +185,9 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Set strict mode if specified
 	compiler.SetStrictMode(strict)
+
+	// Set allow forks if specified
+	compiler.SetAllowForks(allowForks)
 
 	// Set trial mode if specified
 	if trialMode {

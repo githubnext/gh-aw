@@ -282,3 +282,99 @@ tools:
 		})
 	}
 }
+
+// TestForkPreventionWithAllowForksFlag tests that the --allow-forks flag
+// disables automatic fork prevention
+func TestForkPreventionWithAllowForksFlag(t *testing.T) {
+	tests := []struct {
+		name                string
+		frontmatter         string
+		markdown            string
+		allowForks          bool
+		shouldHaveForkCheck bool
+		description         string
+	}{
+		{
+			name: "pull_request with allow-forks disabled (default)",
+			frontmatter: `---
+on:
+  pull_request:
+    types: [opened]
+permissions:
+  contents: read
+tools:
+  github:
+    allowed: [get_pull_request]
+---`,
+			markdown:            "# Test Workflow\n\nAnalyze the PR.",
+			allowForks:          false,
+			shouldHaveForkCheck: true,
+			description:         "default behavior should add fork prevention",
+		},
+		{
+			name: "pull_request with allow-forks enabled",
+			frontmatter: `---
+on:
+  pull_request:
+    types: [opened]
+permissions:
+  contents: read
+tools:
+  github:
+    allowed: [get_pull_request]
+---`,
+			markdown:            "# Test Workflow\n\nAnalyze the PR.",
+			allowForks:          true,
+			shouldHaveForkCheck: false,
+			description:         "--allow-forks should disable fork prevention",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary directory for test files
+			tmpDir, err := os.MkdirTemp("", "allow-forks-test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir)
+
+			// Create workflow file
+			workflowContent := tt.frontmatter + "\n" + tt.markdown
+			workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+			if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// Compile the workflow with allowForks flag
+			compiler := NewCompiler(false, "", "test")
+			compiler.SetAllowForks(tt.allowForks)
+			workflowData, err := compiler.ParseWorkflowFile(workflowPath)
+			if err != nil {
+				t.Fatalf("Failed to parse workflow: %v", err)
+			}
+
+			// Generate YAML
+			yamlContent, err := compiler.generateYAML(workflowData, workflowPath)
+			if err != nil {
+				t.Fatalf("Failed to generate YAML: %v", err)
+			}
+
+			// Check for fork prevention condition
+			hasForkCheck := strings.Contains(yamlContent, "github.event.pull_request.head.repo.full_name == github.repository")
+
+			if hasForkCheck != tt.shouldHaveForkCheck {
+				t.Errorf("%s: hasForkCheck = %v, want %v", tt.description, hasForkCheck, tt.shouldHaveForkCheck)
+				// Print agent job for debugging
+				agentPos := strings.Index(yamlContent, "  agent:")
+				if agentPos != -1 {
+					lines := strings.Split(yamlContent[agentPos:], "\n")
+					if len(lines) > 20 {
+						lines = lines[:20]
+					}
+					t.Logf("Agent job section:\n%s", strings.Join(lines, "\n"))
+				}
+			}
+		})
+	}
+}
