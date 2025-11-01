@@ -41,8 +41,8 @@
 name: "Changeset Generator"
 "on":
   pull_request:
-    names:
-    - changeset
+    # names: # Label filtering applied via job conditions
+    # - changeset # Label filtering applied via job conditions
     types:
     - labeled
   workflow_dispatch: null
