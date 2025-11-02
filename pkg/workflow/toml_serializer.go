@@ -142,12 +142,7 @@ func addInlineEnvServers(output string, servers map[string]MCPServerConfig) stri
 				}
 				additions.WriteString(fmt.Sprintf("\"%s\" = ", k))
 				v := server.Env[k]
-				// Check if value contains toJSON expression that should not be quoted
-				if k == "GH_AW_SAFE_OUTPUTS_CONFIG" && v == "${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}" {
-					additions.WriteString(v)
-				} else {
-					additions.WriteString(fmt.Sprintf("\"%s\"", v))
-				}
+				additions.WriteString(fmt.Sprintf("\"%s\"", v))
 			}
 			additions.WriteString(" }\n")
 		}
