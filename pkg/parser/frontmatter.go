@@ -366,8 +366,17 @@ func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (
 	return result.MergedTools, result.MergedEngines, nil
 }
 
+// importQueueItem represents a file to be imported with its context
+type importQueueItem struct {
+	importPath  string // Original import path (e.g., "file.md" or "file.md#Section")
+	fullPath    string // Resolved absolute file path
+	sectionName string // Optional section name (from file.md#Section syntax)
+	baseDir     string // Base directory for resolving nested imports
+}
+
 // ProcessImportsFromFrontmatterWithManifest processes imports field from frontmatter
 // Returns result containing merged tools, engines, markdown content, and list of imported files
+// Uses BFS traversal with queues for deterministic ordering and cycle detection
 func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseDir string) (*ImportsResult, error) {
 	// Check if imports field exists
 	importsField, exists := frontmatter["imports"]
@@ -375,7 +384,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		return &ImportsResult{}, nil
 	}
 
-	log.Print("Processing imports from frontmatter")
+	log.Print("Processing imports from frontmatter with recursive BFS")
 
 	// Convert to array of strings
 	var imports []string
@@ -396,12 +405,14 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		return &ImportsResult{}, nil
 	}
 
-	log.Printf("Found %d imports to process", len(imports))
+	log.Printf("Found %d direct imports to process", len(imports))
 
-	// Track visited to prevent cycles
+	// Initialize BFS queue and visited set for cycle detection
+	var queue []importQueueItem
 	visited := make(map[string]bool)
+	processedOrder := []string{} // Track processing order for manifest
 
-	// Process each import
+	// Initialize result accumulators
 	var toolsBuilder strings.Builder
 	var mcpServersBuilder strings.Builder
 	var markdownBuilder strings.Builder
@@ -413,9 +424,9 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var secretMaskingBuilder strings.Builder
 	var engines []string
 	var safeOutputs []string
-	var processedFiles []string
 	var agentFile string // Track custom agent file
 
+	// Seed the queue with initial imports
 	for _, importPath := range imports {
 		// Handle section references (file.md#Section)
 		var filePath, sectionName string
@@ -433,32 +444,44 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 			return nil, fmt.Errorf("failed to resolve import '%s': %w", filePath, err)
 		}
 
-		// Check for cycles
-		if visited[fullPath] {
-			log.Printf("Skipping already visited import: %s", fullPath)
-			continue
+		// Check for duplicates before adding to queue
+		if !visited[fullPath] {
+			visited[fullPath] = true
+			queue = append(queue, importQueueItem{
+				importPath:  importPath,
+				fullPath:    fullPath,
+				sectionName: sectionName,
+				baseDir:     baseDir,
+			})
+			log.Printf("Queued import: %s (resolved to %s)", importPath, fullPath)
 		}
-		visited[fullPath] = true
-		log.Printf("Processing import: %s", fullPath)
+	}
 
-		// Add to list of processed files (use original importPath for manifest)
-		processedFiles = append(processedFiles, importPath)
+	// BFS traversal: process queue until empty
+	for len(queue) > 0 {
+		// Dequeue first item (FIFO for BFS)
+		item := queue[0]
+		queue = queue[1:]
+
+		log.Printf("Processing import from queue: %s", item.fullPath)
+
+		// Add to processing order
+		processedOrder = append(processedOrder, item.importPath)
 
 		// Check if this is a custom agent file (any markdown file under .github/agents)
-		isAgentFile := strings.Contains(fullPath, "/.github/agents/") && strings.HasSuffix(strings.ToLower(fullPath), ".md")
+		isAgentFile := strings.Contains(item.fullPath, "/.github/agents/") && strings.HasSuffix(strings.ToLower(item.fullPath), ".md")
 		if isAgentFile {
 			if agentFile != "" {
 				// Multiple agent files found - error
-				return nil, fmt.Errorf("multiple agent files found in imports: '%s' and '%s'. Only one agent file is allowed per workflow", agentFile, importPath)
+				return nil, fmt.Errorf("multiple agent files found in imports: '%s' and '%s'. Only one agent file is allowed per workflow", agentFile, item.importPath)
 			}
-			agentFile = fullPath
-			log.Printf("Found agent file: %s", fullPath)
+			agentFile = item.fullPath
+			log.Printf("Found agent file: %s", item.fullPath)
 
 			// For agent files, only extract markdown content
-			// Extract markdown content from imported file
-			markdownContent, err := processIncludedFileWithVisited(fullPath, sectionName, false, visited)
+			markdownContent, err := processIncludedFileWithVisited(item.fullPath, item.sectionName, false, visited)
 			if err != nil {
-				return nil, fmt.Errorf("failed to process markdown from agent file '%s': %w", fullPath, err)
+				return nil, fmt.Errorf("failed to process markdown from agent file '%s': %w", item.fullPath, err)
 			}
 			if markdownContent != "" {
 				markdownBuilder.WriteString(markdownContent)
@@ -472,21 +495,84 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 				}
 			}
 
-			// Skip other extractions for agent files
+			// Agent files don't have nested imports, skip to next item
 			continue
 		}
 
-		// Extract tools from imported file
-		toolsContent, err := processIncludedFileWithVisited(fullPath, sectionName, true, visited)
+		// Read the imported file to extract nested imports
+		content, err := os.ReadFile(item.fullPath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to process imported file '%s': %w", fullPath, err)
+			return nil, fmt.Errorf("failed to read imported file '%s': %w", item.fullPath, err)
+		}
+
+		// Extract frontmatter from imported file to discover nested imports
+		result, err := ExtractFrontmatterFromContent(string(content))
+		if err != nil {
+			// If frontmatter extraction fails, continue with other processing
+			log.Printf("Failed to extract frontmatter from %s: %v", item.fullPath, err)
+		} else if result.Frontmatter != nil {
+			// Check for nested imports field
+			if nestedImportsField, hasImports := result.Frontmatter["imports"]; hasImports {
+				var nestedImports []string
+				switch v := nestedImportsField.(type) {
+				case []any:
+					for _, nestedItem := range v {
+						if str, ok := nestedItem.(string); ok {
+							nestedImports = append(nestedImports, str)
+						}
+					}
+				case []string:
+					nestedImports = v
+				}
+
+				// Add nested imports to queue (BFS: append to end)
+				// Use the original baseDir for resolving nested imports, not the nested file's directory
+				// This ensures that all imports are resolved relative to the workflows directory
+				for _, nestedImportPath := range nestedImports {
+					// Handle section references
+					var nestedFilePath, nestedSectionName string
+					if strings.Contains(nestedImportPath, "#") {
+						parts := strings.SplitN(nestedImportPath, "#", 2)
+						nestedFilePath = parts[0]
+						nestedSectionName = parts[1]
+					} else {
+						nestedFilePath = nestedImportPath
+					}
+
+					// Resolve nested import path relative to the workflows directory, not the nested file's directory
+					nestedFullPath, err := resolveIncludePath(nestedFilePath, baseDir)
+					if err != nil {
+						return nil, fmt.Errorf("failed to resolve nested import '%s' from '%s': %w", nestedFilePath, item.fullPath, err)
+					}
+
+					// Check for cycles - skip if already visited
+					if !visited[nestedFullPath] {
+						visited[nestedFullPath] = true
+						queue = append(queue, importQueueItem{
+							importPath:  nestedImportPath,
+							fullPath:    nestedFullPath,
+							sectionName: nestedSectionName,
+							baseDir:     baseDir, // Use original baseDir, not nestedBaseDir
+						})
+						log.Printf("Discovered nested import: %s -> %s (queued)", item.fullPath, nestedFullPath)
+					} else {
+						log.Printf("Skipping already visited nested import: %s (cycle detected)", nestedFullPath)
+					}
+				}
+			}
+		}
+
+		// Extract tools from imported file
+		toolsContent, err := processIncludedFileWithVisited(item.fullPath, item.sectionName, true, visited)
+		if err != nil {
+			return nil, fmt.Errorf("failed to process imported file '%s': %w", item.fullPath, err)
 		}
 		toolsBuilder.WriteString(toolsContent + "\n")
 
 		// Extract markdown content from imported file
-		markdownContent, err := processIncludedFileWithVisited(fullPath, sectionName, false, visited)
+		markdownContent, err := processIncludedFileWithVisited(item.fullPath, item.sectionName, false, visited)
 		if err != nil {
-			return nil, fmt.Errorf("failed to process markdown from imported file '%s': %w", fullPath, err)
+			return nil, fmt.Errorf("failed to process markdown from imported file '%s': %w", item.fullPath, err)
 		}
 		if markdownContent != "" {
 			markdownBuilder.WriteString(markdownContent)
@@ -501,11 +587,6 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		}
 
 		// Extract engines from imported file
-		content, err := os.ReadFile(fullPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read imported file '%s': %w", fullPath, err)
-		}
-
 		engineContent, err := extractEngineFromContent(string(content))
 		if err == nil && engineContent != "" {
 			engines = append(engines, engineContent)
@@ -560,6 +641,8 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		}
 	}
 
+	log.Printf("Completed BFS traversal. Processed %d imports in total", len(processedOrder))
+
 	return &ImportsResult{
 		MergedTools:         toolsBuilder.String(),
 		MergedMCPServers:    mcpServersBuilder.String(),
@@ -572,7 +655,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		MergedNetwork:       networkBuilder.String(),
 		MergedPermissions:   permissionsBuilder.String(),
 		MergedSecretMasking: secretMaskingBuilder.String(),
-		ImportedFiles:       processedFiles,
+		ImportedFiles:       processedOrder,
 		AgentFile:           agentFile,
 	}, nil
 }
@@ -671,13 +754,27 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 	return result.String(), nil
 }
 
-// isUnderWorkflowsDirectory checks if a file path is under .github/workflows/ directory
+// isUnderWorkflowsDirectory checks if a file path is a top-level workflow file (not in shared subdirectory)
 func isUnderWorkflowsDirectory(filePath string) bool {
 	// Normalize the path to use forward slashes
 	normalizedPath := filepath.ToSlash(filePath)
 
 	// Check if the path contains .github/workflows/
-	return strings.Contains(normalizedPath, ".github/workflows/")
+	if !strings.Contains(normalizedPath, ".github/workflows/") {
+		return false
+	}
+
+	// Extract the part after .github/workflows/
+	parts := strings.Split(normalizedPath, ".github/workflows/")
+	if len(parts) < 2 {
+		return false
+	}
+
+	afterWorkflows := parts[1]
+
+	// Check if there are any slashes after .github/workflows/ (indicating subdirectory)
+	// If there are, it's in a subdirectory like "shared/" and should not be treated as a workflow file
+	return !strings.Contains(afterWorkflows, "/")
 }
 
 // resolveIncludePath resolves include path based on workflowspec format or relative path
@@ -839,10 +936,10 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 		} else {
 			// For non-workflow files, fall back to relaxed validation with warnings
 			if len(result.Frontmatter) > 0 {
-				// Check for unexpected frontmatter fields (anything other than tools, engine, and network)
+				// Check for unexpected frontmatter fields (anything other than tools, engine, network, mcp-servers, and imports)
 				unexpectedFields := make([]string, 0)
 				for key := range result.Frontmatter {
-					if key != "tools" && key != "engine" && key != "network" {
+					if key != "tools" && key != "engine" && key != "network" && key != "mcp-servers" && key != "imports" {
 						unexpectedFields = append(unexpectedFields, key)
 					}
 				}
@@ -854,7 +951,7 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 							filePath, strings.Join(unexpectedFields, ", "))))
 				}
 
-				// Validate the tools, engine, and network sections if present
+				// Validate the tools, engine, network, and mcp-servers sections if present
 				filteredFrontmatter := map[string]any{}
 				if tools, hasTools := result.Frontmatter["tools"]; hasTools {
 					filteredFrontmatter["tools"] = tools
@@ -865,6 +962,10 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 				if network, hasNetwork := result.Frontmatter["network"]; hasNetwork {
 					filteredFrontmatter["network"] = network
 				}
+				if mcpServers, hasMCPServers := result.Frontmatter["mcp-servers"]; hasMCPServers {
+					filteredFrontmatter["mcp-servers"] = mcpServers
+				}
+				// Note: we don't validate imports field as it's handled separately
 				if len(filteredFrontmatter) > 0 {
 					if err := ValidateIncludedFileFrontmatterWithSchemaAndLocation(filteredFrontmatter, filePath); err != nil {
 						fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(
