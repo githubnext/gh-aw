@@ -63,7 +63,6 @@ on:
 		{
 			name: "US date format",
 			frontmatter: `---
-on: push
 engine: claude
 on:
   schedule:
@@ -77,7 +76,6 @@ on:
 		{
 			name: "relative stop-after gets resolved",
 			frontmatter: `---
-on: push
 engine: claude
 on:
   schedule:
@@ -91,7 +89,6 @@ on:
 		{
 			name: "complex relative stop-after gets resolved",
 			frontmatter: `---
-on: push
 engine: claude
 on:
   schedule:
@@ -105,7 +102,6 @@ on:
 		{
 			name: "no stop-after specified",
 			frontmatter: `---
-on: push
 engine: claude
 on:
   schedule:

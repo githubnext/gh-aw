@@ -17,7 +17,6 @@ func TestCreateIssueWorkflowCompilationWithAssignees(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	testContent := `---
-on: push
 name: Test Assignees Feature
 on:
   issues:
@@ -143,7 +142,6 @@ func TestCreateIssueWorkflowCompilationWithoutAssignees(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	testContent := `---
-on: push
 name: Test Without Assignees
 on:
   issues:
@@ -209,7 +207,6 @@ func TestCreateIssueWorkflowWithCopilotAssignee(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	testContent := `---
-on: push
 name: Test Copilot Assignee
 on:
   workflow_dispatch:
@@ -275,7 +272,6 @@ func TestCreateIssueWorkflowWithStringAssignee(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	testContent := `---
-on: push
 name: Test String Assignee
 on:
   workflow_dispatch:

@@ -406,7 +406,6 @@ This shared configuration sets up a custom agentic engine using GitHub's AI infe
 
 	// Create main workflow that imports the shared engine config
 	mainContent := `---
-on: push
 name: Test Imported Custom Engine
 on:
   issues:
@@ -498,7 +497,6 @@ engine:
 
 	// Create main workflow that imports the shared engine config
 	mainContent := `---
-on: push
 name: Test Imported Engine With Env
 on: push
 imports:

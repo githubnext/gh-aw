@@ -1839,7 +1839,6 @@ func TestGeneratedDisclaimerInLockFile(t *testing.T) {
 
 	// Create a simple test workflow
 	testContent := `---
-on: push
 name: Test Workflow
 on:
   schedule:
@@ -2051,7 +2050,6 @@ func TestValidationCanBeSkipped(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	testContent := `---
-on: push
 name: Test Workflow
 on: push
 ---
@@ -3830,7 +3828,6 @@ func TestCacheSupport(t *testing.T) {
 		{
 			name: "single cache configuration",
 			frontmatter: `---
-on: push
 name: Test Cache Workflow
 on: workflow_dispatch
 permissions:
@@ -3864,7 +3861,6 @@ tools:
 		{
 			name: "multiple cache configurations",
 			frontmatter: `---
-on: push
 name: Test Multi Cache Workflow
 on: workflow_dispatch
 permissions:
@@ -3910,7 +3906,6 @@ tools:
 		{
 			name: "cache with all optional parameters",
 			frontmatter: `---
-on: push
 name: Test Full Cache Workflow
 on: workflow_dispatch
 permissions:
@@ -5568,7 +5563,6 @@ func TestDescriptionFieldRendering(t *testing.T) {
 		{
 			name: "single_line_description",
 			frontmatter: `---
-on: push
 description: "This is a simple workflow description"
 on:
   push:
@@ -5588,7 +5582,6 @@ tools:
 		{
 			name: "multiline_description",
 			frontmatter: `---
-on: push
 description: |
   This is a multi-line workflow description.
   It explains what the workflow does in detail.
