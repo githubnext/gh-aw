@@ -50,6 +50,9 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		workflowRunRepoSafety = c.buildWorkflowRunRepoSafetyCondition()
 	}
 
+	// Extract lock filename for timestamp check
+	lockFilename := filepath.Base(strings.TrimSuffix(markdownPath, ".md") + ".lock.yml")
+
 	// Build pre-activation job if needed (combines membership checks, stop-time validation, and command position check)
 	var preActivationJobCreated bool
 	hasCommandTrigger := data.Command != ""
@@ -69,7 +72,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	var activationJobCreated bool
 
 	if c.isActivationJobNeeded() {
-		activationJob, err := c.buildActivationJob(data, preActivationJobCreated, workflowRunRepoSafety)
+		activationJob, err := c.buildActivationJob(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename)
 		if err != nil {
 			return fmt.Errorf("failed to build activation job: %w", err)
 		}
@@ -474,16 +477,29 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 // buildActivationJob creates the preamble activation job that acts as a barrier for runtime conditions
 // The workflow_run repository safety check is applied exclusively to this job
-func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool, workflowRunRepoSafety string) (*Job, error) {
+func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool, workflowRunRepoSafety string, lockFilename string) (*Job, error) {
 	outputs := map[string]string{}
 	var steps []string
 
 	// Team member check is now handled by the separate check_membership job
 	// No inline role checks needed in the task job anymore
 
+	// Add shallow checkout for timestamp check
+	// Only checkout .github/workflows directory for minimal performance impact
+	steps = append(steps, "      - name: Checkout workflows\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          sparse-checkout: |\n")
+	steps = append(steps, "            .github/workflows\n")
+	steps = append(steps, "          sparse-checkout-cone-mode: false\n")
+	steps = append(steps, "          fetch-depth: 1\n")
+	steps = append(steps, "          persist-credentials: false\n")
+
 	// Add timestamp check for lock file vs source file
 	steps = append(steps, "      - name: Check workflow file timestamps\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	steps = append(steps, "        env:\n")
+	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_FILE: \"%s\"\n", lockFilename))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
 

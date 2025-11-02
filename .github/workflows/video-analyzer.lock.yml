@@ -58,36 +58,46 @@ jobs:
   activation:
     runs-on: ubuntu-slim
     steps:
+      - name: Checkout workflows
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          sparse-checkout: |
+            .github/workflows
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+          persist-credentials: false
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_WORKFLOW_FILE: "video-analyzer.lock.yml"
         with:
           script: |
             const fs = require("fs");
             const path = require("path");
             async function main() {
               const workspace = process.env.GITHUB_WORKSPACE;
-              const workflow = process.env.GITHUB_WORKFLOW;
+              const workflowFile = process.env.GH_AW_WORKFLOW_FILE;
               if (!workspace) {
                 core.setFailed("Configuration error: GITHUB_WORKSPACE not available.");
                 return;
               }
-              if (!workflow) {
-                core.setFailed("Configuration error: GITHUB_WORKFLOW not available.");
+              if (!workflowFile) {
+                core.setFailed("Configuration error: GH_AW_WORKFLOW_FILE not available.");
                 return;
               }
-              const workflowBasename = path.basename(workflow, ".lock.yml");
-              const workflowFile = path.join(workspace, ".github", "workflows", `${workflowBasename}.md`);
-              const lockFile = path.join(workspace, ".github", "workflows", workflow);
+              const workflowBasename = path.basename(workflowFile, ".lock.yml");
+              const workflowMdFile = path.join(workspace, ".github", "workflows", `${workflowBasename}.md`);
+              const lockFile = path.join(workspace, ".github", "workflows", workflowFile);
               core.info(`Checking workflow timestamps:`);
-              core.info(`  Source: ${workflowFile}`);
+              core.info(`  Source: ${workflowMdFile}`);
               core.info(`  Lock file: ${lockFile}`);
               let workflowExists = false;
               let lockExists = false;
               try {
-                fs.accessSync(workflowFile, fs.constants.F_OK);
+                fs.accessSync(workflowMdFile, fs.constants.F_OK);
                 workflowExists = true;
               } catch (error) {
-                core.info(`Source file does not exist: ${workflowFile}`);
+                core.info(`Source file does not exist: ${workflowMdFile}`);
               }
               try {
                 fs.accessSync(lockFile, fs.constants.F_OK);
@@ -99,19 +109,19 @@ jobs:
                 core.info("Skipping timestamp check - one or both files not found");
                 return;
               }
-              const workflowStat = fs.statSync(workflowFile);
+              const workflowStat = fs.statSync(workflowMdFile);
               const lockStat = fs.statSync(lockFile);
               const workflowMtime = workflowStat.mtime.getTime();
               const lockMtime = lockStat.mtime.getTime();
               core.info(`  Source modified: ${workflowStat.mtime.toISOString()}`);
               core.info(`  Lock modified: ${lockStat.mtime.toISOString()}`);
               if (workflowMtime > lockMtime) {
-                const warningMessage = `🔴🔴🔴 WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
+                const warningMessage = `🔴🔴🔴 WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
                 core.error(warningMessage);
                 await core.summary
                   .addRaw("## ⚠️ Workflow Lock File Warning\n\n")
                   .addRaw(`🔴🔴🔴 **WARNING**: Lock file \`${lockFile}\` is outdated!\n\n`)
-                  .addRaw(`The workflow file \`${workflowFile}\` has been modified more recently.\n\n`)
+                  .addRaw(`The workflow file \`${workflowMdFile}\` has been modified more recently.\n\n`)
                   .addRaw("Run `gh aw compile` to regenerate the lock file.\n\n")
                   .write();
               } else {

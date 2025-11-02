@@ -64,7 +64,7 @@ describe("check_workflow_timestamp.cjs", () => {
     // Store original environment
     originalEnv = {
       GITHUB_WORKSPACE: process.env.GITHUB_WORKSPACE,
-      GITHUB_WORKFLOW: process.env.GITHUB_WORKFLOW,
+      GH_AW_WORKFLOW_FILE: process.env.GH_AW_WORKFLOW_FILE,
     };
 
     // Create a temporary directory for test files
@@ -87,10 +87,10 @@ describe("check_workflow_timestamp.cjs", () => {
     } else {
       delete process.env.GITHUB_WORKSPACE;
     }
-    if (originalEnv.GITHUB_WORKFLOW !== undefined) {
-      process.env.GITHUB_WORKFLOW = originalEnv.GITHUB_WORKFLOW;
+    if (originalEnv.GH_AW_WORKFLOW_FILE !== undefined) {
+      process.env.GH_AW_WORKFLOW_FILE = originalEnv.GH_AW_WORKFLOW_FILE;
     } else {
-      delete process.env.GITHUB_WORKFLOW;
+      delete process.env.GH_AW_WORKFLOW_FILE;
     }
 
     // Clean up temporary directory
@@ -102,27 +102,27 @@ describe("check_workflow_timestamp.cjs", () => {
   describe("when environment variables are missing", () => {
     it("should fail if GITHUB_WORKSPACE is not set", async () => {
       delete process.env.GITHUB_WORKSPACE;
-      process.env.GITHUB_WORKFLOW = "test.lock.yml";
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GITHUB_WORKSPACE not available"));
     });
 
-    it("should fail if GITHUB_WORKFLOW is not set", async () => {
+    it("should fail if GH_AW_WORKFLOW_FILE is not set", async () => {
       process.env.GITHUB_WORKSPACE = tmpDir;
-      delete process.env.GITHUB_WORKFLOW;
+      delete process.env.GH_AW_WORKFLOW_FILE;
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GITHUB_WORKFLOW not available"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GH_AW_WORKFLOW_FILE not available"));
     });
   });
 
   describe("when files do not exist", () => {
     it("should skip check when source file does not exist", async () => {
       process.env.GITHUB_WORKSPACE = tmpDir;
-      process.env.GITHUB_WORKFLOW = "test.lock.yml";
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
       // Create only the lock file
       const lockFile = path.join(workflowsDir, "test.lock.yml");
@@ -138,7 +138,7 @@ describe("check_workflow_timestamp.cjs", () => {
 
     it("should skip check when lock file does not exist", async () => {
       process.env.GITHUB_WORKSPACE = tmpDir;
-      process.env.GITHUB_WORKFLOW = "test.lock.yml";
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
       // Create only the source file
       const workflowFile = path.join(workflowsDir, "test.md");
@@ -154,7 +154,7 @@ describe("check_workflow_timestamp.cjs", () => {
 
     it("should skip check when both files do not exist", async () => {
       process.env.GITHUB_WORKSPACE = tmpDir;
-      process.env.GITHUB_WORKFLOW = "test.lock.yml";
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
@@ -167,7 +167,7 @@ describe("check_workflow_timestamp.cjs", () => {
   describe("when lock file is up to date", () => {
     it("should pass when lock file is newer than source file", async () => {
       process.env.GITHUB_WORKSPACE = tmpDir;
-      process.env.GITHUB_WORKFLOW = "test.lock.yml";
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
       const workflowFile = path.join(workflowsDir, "test.md");
       const lockFile = path.join(workflowsDir, "test.lock.yml");
@@ -191,7 +191,7 @@ describe("check_workflow_timestamp.cjs", () => {
 
     it("should pass when lock file has same timestamp as source file", async () => {
       process.env.GITHUB_WORKSPACE = tmpDir;
-      process.env.GITHUB_WORKFLOW = "test.lock.yml";
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
       const workflowFile = path.join(workflowsDir, "test.md");
       const lockFile = path.join(workflowsDir, "test.lock.yml");
@@ -217,7 +217,7 @@ describe("check_workflow_timestamp.cjs", () => {
   describe("when lock file is outdated", () => {
     it("should warn when source file is newer than lock file", async () => {
       process.env.GITHUB_WORKSPACE = tmpDir;
-      process.env.GITHUB_WORKFLOW = "test.lock.yml";
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
       const workflowFile = path.join(workflowsDir, "test.md");
       const lockFile = path.join(workflowsDir, "test.lock.yml");
@@ -243,7 +243,7 @@ describe("check_workflow_timestamp.cjs", () => {
 
     it("should include file paths in warning message", async () => {
       process.env.GITHUB_WORKSPACE = tmpDir;
-      process.env.GITHUB_WORKFLOW = "my-workflow.lock.yml";
+      process.env.GH_AW_WORKFLOW_FILE = "my-workflow.lock.yml";
 
       const workflowFile = path.join(workflowsDir, "my-workflow.md");
       const lockFile = path.join(workflowsDir, "my-workflow.lock.yml");
@@ -265,7 +265,7 @@ describe("check_workflow_timestamp.cjs", () => {
 
     it("should add step summary with warning", async () => {
       process.env.GITHUB_WORKSPACE = tmpDir;
-      process.env.GITHUB_WORKFLOW = "test.lock.yml";
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
 
       const workflowFile = path.join(workflowsDir, "test.md");
       const lockFile = path.join(workflowsDir, "test.lock.yml");
@@ -291,7 +291,7 @@ describe("check_workflow_timestamp.cjs", () => {
   describe("with different workflow names", () => {
     it("should handle workflow names with hyphens", async () => {
       process.env.GITHUB_WORKSPACE = tmpDir;
-      process.env.GITHUB_WORKFLOW = "my-test-workflow.lock.yml";
+      process.env.GH_AW_WORKFLOW_FILE = "my-test-workflow.lock.yml";
 
       const workflowFile = path.join(workflowsDir, "my-test-workflow.md");
       const lockFile = path.join(workflowsDir, "my-test-workflow.lock.yml");
@@ -307,7 +307,7 @@ describe("check_workflow_timestamp.cjs", () => {
 
     it("should handle workflow names with underscores", async () => {
       process.env.GITHUB_WORKSPACE = tmpDir;
-      process.env.GITHUB_WORKFLOW = "my_test_workflow.lock.yml";
+      process.env.GH_AW_WORKFLOW_FILE = "my_test_workflow.lock.yml";
 
       const workflowFile = path.join(workflowsDir, "my_test_workflow.md");
       const lockFile = path.join(workflowsDir, "my_test_workflow.lock.yml");
