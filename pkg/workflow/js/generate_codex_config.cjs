@@ -221,7 +221,8 @@ if (typeof module !== "undefined" && module.exports) {
   };
 }
 
-// Execute main function only when run directly (not when required)
-if (require.main === module) {
+// Execute main function when run in GitHub Actions
+// In test context, main() will be called explicitly
+if (typeof process !== "undefined" && typeof process.env !== "undefined" && process.env.GH_AW_MCP_CONFIG_JSON) {
   main();
 }
