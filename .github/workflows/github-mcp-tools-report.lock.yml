@@ -1191,7 +1191,7 @@ jobs:
           
           1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
           
-          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold and ensure it is not redacted.
+          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
           
           **Example format:**
           
@@ -1587,13 +1587,13 @@ jobs:
           
           Your output MUST:
           1. Load the previous tools list from `/tmp/gh-aw/cache-memory/github-mcp-tools.json` if it exists
+          2. **Load the current JSON mapping from `pkg/workflow/data/github_toolsets_permissions.json`**
           PROMPT_EOF
       - name: Append prompt (part 2)
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
-          2. **Load the current JSON mapping from `pkg/workflow/data/github_toolsets_permissions.json`**
           3. Systematically explore EACH of the 19 toolsets individually to discover all current tools (including `search`)
           4. Detect and document any inconsistencies:
              - Duplicate tools across toolsets
