@@ -1040,51 +1040,129 @@ jobs:
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > /tmp/gh-aw/mcp-config/config.toml << EOF
-          [history]
-          persistence = "none"
-          
-          [mcp_servers.github]
-          user_agent = "duplicate-code-detector"
-          startup_timeout_sec = 120
-          tool_timeout_sec = 60
-          command = "docker"
-          args = [
-            "run",
-            "-i",
-            "--rm",
-            "-e",
-            "GITHUB_PERSONAL_ACCESS_TOKEN",
-            "-e",
-            "GITHUB_READ_ONLY=1",
-            "-e",
-            "GITHUB_TOOLSETS=default",
-            "ghcr.io/github/github-mcp-server:v0.20.1"
-          ]
-          
-          [mcp_servers.github.env]
-          GITHUB_PERSONAL_ACCESS_TOKEN = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-          
-          [mcp_servers.safeoutputs]
-          command = "node"
-          args = [
-            "/tmp/gh-aw/safeoutputs/mcp-server.cjs",
-          ]
-          env = { "GH_AW_SAFE_OUTPUTS" = "${{ env.GH_AW_SAFE_OUTPUTS }}", "GH_AW_SAFE_OUTPUTS_CONFIG" = ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}, "GH_AW_ASSETS_BRANCH" = "${{ env.GH_AW_ASSETS_BRANCH }}", "GH_AW_ASSETS_MAX_SIZE_KB" = "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}", "GH_AW_ASSETS_ALLOWED_EXTS" = "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}", "GITHUB_REPOSITORY" = "${{ github.repository }}", "GITHUB_SERVER_URL" = "${{ github.server_url }}" }
-          
-          [mcp_servers.serena]
-          command = "uvx"
-          args = [
-            "--from",
-            "git+https://github.com/oraios/serena",
-            "serena",
-            "start-mcp-server",
-            "--context",
-            "codex",
-            "--project",
-            "${{ github.workspace }}",
-          ]
-          EOF
+      - name: Generate Codex MCP configuration
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_MCP_CONFIG_JSON: |
+            {"history":{"persistence":"none"},"mcp_servers":{"github":{"args":["run","-i","--rm","-e","GITHUB_PERSONAL_ACCESS_TOKEN","-e","GITHUB_READ_ONLY=1","-e","GITHUB_TOOLSETS=default","ghcr.io/github/github-mcp-server:v0.20.1"],"command":"docker","env":{"GITHUB_PERSONAL_ACCESS_TOKEN":"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"},"startup_timeout_sec":120,"tool_timeout_sec":60,"user_agent":"duplicate-code-detector"},"safe-outputs":{"args":["/tmp/gh-aw/safeoutputs/mcp-server.cjs"],"command":"node","env":{"GH_AW_ASSETS_ALLOWED_EXTS":"${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}","GH_AW_ASSETS_BRANCH":"${{ env.GH_AW_ASSETS_BRANCH }}","GH_AW_ASSETS_MAX_SIZE_KB":"${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}","GH_AW_SAFE_OUTPUTS":"${{ env.GH_AW_SAFE_OUTPUTS }}","GH_AW_SAFE_OUTPUTS_CONFIG":"${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}","GITHUB_REPOSITORY":"${{ github.repository }}","GITHUB_SERVER_URL":"${{ github.server_url }}"}},"serena":{"args":["--from","git+https://github.com/oraios/serena","serena","start-mcp-server","--context","codex","--project","${{ github.workspace }}"],"command":"uvx"}}}
+          GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            function escapeTOMLString(str) {
+              return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
+            }
+            function toTOMLValue(value, indent = 0) {
+              const indentStr = "  ".repeat(indent);
+              if (typeof value === "string") {
+                return `"${escapeTOMLString(value)}"`;
+              } else if (typeof value === "number" || typeof value === "boolean") {
+                return String(value);
+              } else if (Array.isArray(value)) {
+                if (value.length === 0) {
+                  return "[]";
+                }
+                const items = value.map((item) => `${indentStr}  ${toTOMLValue(item, indent + 1)}`).join(",\n");
+                return `[\n${items}\n${indentStr}]`;
+              } else if (typeof value === "object" && value !== null) {
+                const pairs = Object.entries(value)
+                  .map(([k, v]) => `"${k}" = ${toTOMLValue(v, indent)}`)
+                  .join(", ");
+                return `{ ${pairs} }`;
+              }
+              return "null";
+            }
+            function renderMCPServer(serverName, serverConfig) {
+              let toml = `\n[mcp_servers.${serverName}]\n`;
+              if (serverConfig.type === "http") {
+                if (serverConfig.url) {
+                  toml += `url = ${toTOMLValue(serverConfig.url)}\n`;
+                }
+                if (serverConfig.bearer_token_env_var) {
+                  toml += `bearer_token_env_var = ${toTOMLValue(serverConfig.bearer_token_env_var)}\n`;
+                }
+              } else {
+                if (serverConfig.command) {
+                  toml += `command = ${toTOMLValue(serverConfig.command)}\n`;
+                }
+                if (serverConfig.args && Array.isArray(serverConfig.args)) {
+                  toml += `args = ${toTOMLValue(serverConfig.args)}\n`;
+                }
+              }
+              if (serverConfig.user_agent) {
+                toml += `user_agent = ${toTOMLValue(serverConfig.user_agent)}\n`;
+              }
+              if (serverConfig.startup_timeout_sec !== undefined) {
+                toml += `startup_timeout_sec = ${serverConfig.startup_timeout_sec}\n`;
+              }
+              if (serverConfig.tool_timeout_sec !== undefined) {
+                toml += `tool_timeout_sec = ${serverConfig.tool_timeout_sec}\n`;
+              }
+              if (serverConfig.env && typeof serverConfig.env === "object" && Object.keys(serverConfig.env).length > 0) {
+                toml += `\n[mcp_servers.${serverName}.env]\n`;
+                for (const [key, value] of Object.entries(serverConfig.env)) {
+                  toml += `${key} = ${toTOMLValue(value)}\n`;
+                }
+              }
+              return toml;
+            }
+            function generateCodexConfig(mcpConfig) {
+              let toml = "";
+              if (mcpConfig.history) {
+                toml += "[history]\n";
+                for (const [key, value] of Object.entries(mcpConfig.history)) {
+                  toml += `${key} = ${toTOMLValue(value)}\n`;
+                }
+              }
+              if (mcpConfig.mcp_servers && typeof mcpConfig.mcp_servers === "object") {
+                for (const [serverName, serverConfig] of Object.entries(mcpConfig.mcp_servers)) {
+                  toml += renderMCPServer(serverName, serverConfig);
+                }
+              }
+              if (mcpConfig.custom_config) {
+                toml += "\n# Custom configuration\n";
+                toml += mcpConfig.custom_config;
+                if (!mcpConfig.custom_config.endsWith("\n")) {
+                  toml += "\n";
+                }
+              }
+              return toml;
+            }
+            function main() {
+              try {
+                const mcpConfigJSON = process.env.GH_AW_MCP_CONFIG_JSON;
+                if (!mcpConfigJSON) {
+                  core.setFailed("GH_AW_MCP_CONFIG_JSON environment variable is not set");
+                  process.exit(1);
+                }
+                let mcpConfig;
+                try {
+                  mcpConfig = JSON.parse(mcpConfigJSON.trim());
+                } catch (error) {
+                  core.setFailed(`Failed to parse MCP configuration JSON: ${error instanceof Error ? error.message : String(error)}`);
+                  process.exit(1);
+                }
+                const tomlConfig = generateCodexConfig(mcpConfig);
+                const outputPath = process.env.GH_AW_MCP_CONFIG || "/tmp/gh-aw/mcp-config/config.toml";
+                const outputDir = path.dirname(outputPath);
+                if (!fs.existsSync(outputDir)) {
+                  fs.mkdirSync(outputDir, { recursive: true });
+                }
+                fs.writeFileSync(outputPath, tomlConfig, "utf8");
+                core.info(`Codex MCP configuration written to ${outputPath}`);
+                core.info(`Configuration size: ${tomlConfig.length} bytes`);
+                core.summary
+                  .addHeading("Codex MCP Configuration Generated", 3)
+                  .addRaw("\n")
+                  .addRaw(`Configuration file: \`${outputPath}\`\n`)
+                  .addRaw(`Total servers configured: ${mcpConfig.mcp_servers ? Object.keys(mcpConfig.mcp_servers).length : 0}\n`)
+                  .write();
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error.message : String(error));
+              }
+            }
+            main();
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
