@@ -20,7 +20,6 @@ func TestCacheMemoryImportOnly(t *testing.T) {
 	// Write a shared workflow with cache-memory configuration
 	sharedPath := filepath.Join(sharedDir, "cache-config.md")
 	sharedContent := `---
-on: push
 tools:
   cache-memory:
     - id: session
@@ -38,7 +37,6 @@ tools:
 	// Write the main workflow that imports the shared config WITHOUT defining its own cache-memory
 	mainPath := filepath.Join(tmpDir, ".github", "workflows", "main.md")
 	mainContent := `---
-on: push
 name: Test Import Only
 on: workflow_dispatch
 permissions:

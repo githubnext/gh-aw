@@ -16,7 +16,6 @@ func TestNetworkMergeMultipleImports(t *testing.T) {
 	// Create first shared file with network configuration
 	shared1Path := filepath.Join(tempDir, "shared-python.md")
 	shared1Content := `---
-on: push
 network:
   allowed:
     - python
@@ -33,7 +32,6 @@ Provides network access to Python package indexes.
 	// Create second shared file with network configuration
 	shared2Path := filepath.Join(tempDir, "shared-node.md")
 	shared2Content := `---
-on: push
 network:
   allowed:
     - node

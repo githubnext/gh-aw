@@ -16,7 +16,6 @@ func TestNetworkMergeEdgeCases(t *testing.T) {
 		// Create shared file with overlapping domain
 		sharedPath := filepath.Join(tempDir, "shared.md")
 		sharedContent := `---
-on: push
 network:
   allowed:
     - github.com
@@ -75,7 +74,6 @@ imports:
 		// Create shared file with empty network
 		sharedPath := filepath.Join(tempDir, "shared.md")
 		sharedContent := `---
-on: push
 network: {}
 ---
 `

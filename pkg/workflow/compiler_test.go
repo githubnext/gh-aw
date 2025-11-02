@@ -293,7 +293,7 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			expectedOn: "schedule:",
+			expectedOn: `"on": push`,
 		},
 		{
 			name: "custom on workflow_dispatch",

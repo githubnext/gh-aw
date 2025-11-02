@@ -17,7 +17,6 @@ func TestCacheMemoryMultipleIntegration(t *testing.T) {
 		{
 			name: "single cache-memory (backward compatible)",
 			frontmatter: `---
-on: push
 name: Test Cache Memory Single
 on: workflow_dispatch
 permissions:
@@ -51,7 +50,6 @@ tools:
 		{
 			name: "multiple cache-memory with array notation",
 			frontmatter: `---
-on: push
 name: Test Cache Memory Multiple
 on: workflow_dispatch
 permissions:
@@ -95,7 +93,6 @@ tools:
 		{
 			name: "multiple cache-memory without explicit keys",
 			frontmatter: `---
-on: push
 name: Test Cache Memory Multiple No Keys
 on: workflow_dispatch
 permissions:
