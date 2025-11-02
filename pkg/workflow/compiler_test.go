@@ -1113,7 +1113,6 @@ func TestMergeCustomMCPFromMultipleIncludes(t *testing.T) {
 
 	// Create first include file with custom MCP server
 	include1Content := `---
-on: push
 mcp-servers:
   notionApi:
     container: "mcp/notion"
@@ -1132,7 +1131,6 @@ First include file with custom MCP server.
 
 	// Create second include file with different custom MCP server
 	include2Content := `---
-on: push
 mcp-servers:
   trelloApi:
     command: "python"
@@ -1152,7 +1150,6 @@ Second include file with different custom MCP server.
 
 	// Create third include file with overlapping custom MCP server (same name, compatible config)
 	include3Content := `---
-on: push
 mcp-servers:
   notionApi:
     container: "mcp/notion"
@@ -1307,7 +1304,6 @@ func TestCustomMCPOnlyInIncludes(t *testing.T) {
 
 	// Create include file with custom MCP server
 	includeContent := `---
-on: push
 mcp-servers:
   customApi:
     command: "custom-server"
@@ -1487,7 +1483,6 @@ func TestCustomMCPMergingFromMultipleIncludes(t *testing.T) {
 
 	// Create first include file with custom MCP server
 	include1Content := `---
-on: push
 mcp-servers:
   apiServer:
     command: "shared-server"
@@ -1507,7 +1502,6 @@ First include file with apiServer MCP.
 
 	// Create second include file with same MCP server but different allowed list
 	include2Content := `---
-on: push
 mcp-servers:
   apiServer:
     command: "shared-server"
@@ -3649,7 +3643,7 @@ engine: claude
 # Test Workflow
 
 YAML error that demonstrates column position handling.`,
-			expectedErrorLine:   2, // The message field is on line 2 of the frontmatter (line 3 of file)
+			expectedErrorLine:   3, // The message field is on line 3 of the frontmatter (line 4 of file)
 			expectedErrorColumn: 1, // Schema validation error
 			expectedMessagePart: "Unknown property: message",
 			description:         "yaml error should be extracted with column information when available",

@@ -82,6 +82,7 @@ This is a test workflow.`,
 
 func TestSafeOutputsRunsOnAppliedToAllJobs(t *testing.T) {
 	frontmatter := `---
+on: push
 safe-outputs:
   create-issue:
     title-prefix: "[ai] "
