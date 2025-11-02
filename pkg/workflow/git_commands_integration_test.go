@@ -12,6 +12,7 @@ import (
 func TestGitCommandsIntegrationWithCreatePullRequest(t *testing.T) {
 	// Create a simple workflow with create-pull-request enabled
 	workflowContent := `---
+on: push
 name: Test Git Commands Integration
 tools:
   edit:
@@ -52,6 +53,7 @@ This is a test workflow that should automatically get Git commands when create-p
 func TestGitCommandsNotAddedWithoutPullRequestOutput(t *testing.T) {
 	// Create a workflow with only create-issue (no PR-related outputs)
 	workflowContent := `---
+on: push
 name: Test No Git Commands
 tools:
   edit:
@@ -91,6 +93,7 @@ This workflow should NOT get Git commands since it doesn't use create-pull-reque
 func TestAdditionalClaudeToolsIntegrationWithCreatePullRequest(t *testing.T) {
 	// Create a simple workflow with create-pull-request enabled
 	workflowContent := `---
+on: push
 name: Test Additional Claude Tools Integration
 tools:
   edit:
@@ -138,6 +141,7 @@ This is a test workflow that should automatically get additional Claude tools wh
 func TestAdditionalClaudeToolsIntegrationWithPushToPullRequestBranch(t *testing.T) {
 	// Create a simple workflow with push-to-pull-request-branch enabled
 	workflowContent := `---
+on: push
 name: Test Additional Claude Tools Integration with Push to Branch
 tools:
   edit:

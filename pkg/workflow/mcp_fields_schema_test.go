@@ -18,6 +18,7 @@ func TestMCPFieldsInIncludedFiles(t *testing.T) {
 	// Create an included file with MCP server using all three fields
 	includedFilePath := filepath.Join(tempDir, "mcp-with-fields.md")
 	includedFileContent := `---
+on: push
 mcp-servers:
   test-server:
     type: stdio
@@ -82,6 +83,7 @@ func TestEntrypointArgsInIncludedFile(t *testing.T) {
 
 	includedFilePath := filepath.Join(tempDir, "mcp-entrypoint.md")
 	includedFileContent := `---
+on: push
 mcp-servers:
   entrypoint-test:
     type: stdio
@@ -130,6 +132,7 @@ func TestHeadersInIncludedFile(t *testing.T) {
 
 	includedFilePath := filepath.Join(tempDir, "mcp-headers.md")
 	includedFileContent := `---
+on: push
 mcp-servers:
   headers-test:
     type: http
@@ -181,6 +184,7 @@ func TestURLInIncludedFile(t *testing.T) {
 
 	includedFilePath := filepath.Join(tempDir, "mcp-url.md")
 	includedFileContent := `---
+on: push
 mcp-servers:
   url-test:
     type: http

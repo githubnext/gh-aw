@@ -47,9 +47,10 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:        "empty frontmatter",
+			name:        "empty frontmatter - missing required 'on' field",
 			frontmatter: map[string]any{},
-			wantErr:     false,
+			wantErr:     true,
+			errContains: "missing property 'on'",
 		},
 		{
 			name: "valid engine string format - claude",
@@ -528,6 +529,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 		{
 			name: "valid frontmatter with detailed permissions",
 			frontmatter: map[string]any{
+				"on": "push",
 				"permissions": map[string]any{
 					"contents":      "read",
 					"issues":        "write",
@@ -540,6 +542,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 		{
 			name: "valid frontmatter with single cache configuration",
 			frontmatter: map[string]any{
+				"on": "push",
 				"cache": map[string]any{
 					"key":          "node-modules-${{ hashFiles('package-lock.json') }}",
 					"path":         "node_modules",
@@ -551,6 +554,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 		{
 			name: "valid frontmatter with multiple cache configurations",
 			frontmatter: map[string]any{
+				"on": "push",
 				"cache": []any{
 					map[string]any{
 						"key":  "cache1",
@@ -799,6 +803,29 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			},
 			wantErr:     true,
 			errContains: "additional properties 'invalid' not allowed",
+		},
+		{
+			name: "missing required on field",
+			frontmatter: map[string]any{
+				"engine": "claude",
+				"permissions": map[string]any{
+					"contents": "read",
+				},
+			},
+			wantErr:     true,
+			errContains: "missing property 'on'",
+		},
+		{
+			name: "missing required on field with other valid fields",
+			frontmatter: map[string]any{
+				"engine":          "copilot",
+				"timeout_minutes": 30,
+				"permissions": map[string]any{
+					"issues": "write",
+				},
+			},
+			wantErr:     true,
+			errContains: "missing property 'on'",
 		},
 		{
 			name: "invalid: command trigger with issues event",

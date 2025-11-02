@@ -19,6 +19,7 @@ func TestSafeOutputsMCPServerIntegration(t *testing.T) {
 
 	// Create a test markdown file with safe-outputs configuration
 	testContent := `---
+on: push
 name: Test Safe Outputs MCP
 engine: claude
 safe-outputs:
@@ -90,6 +91,7 @@ func TestSafeOutputsMCPServerDisabled(t *testing.T) {
 
 	// Create a test markdown file without safe-outputs configuration
 	testContent := `---
+on: push
 name: Test Without Safe Outputs
 engine: claude
 ---
@@ -146,6 +148,7 @@ func TestSafeOutputsMCPServerCodex(t *testing.T) {
 
 	// Create a test markdown file with safe-outputs configuration for Codex
 	testContent := `---
+on: push
 name: Test Safe Outputs MCP with Codex
 engine: codex
 safe-outputs:

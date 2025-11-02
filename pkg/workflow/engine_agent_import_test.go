@@ -207,6 +207,7 @@ func TestAgentFileValidation(t *testing.T) {
 
 	// Create a valid agent file
 	agentContent := `---
+on: push
 title: Test Agent
 ---
 

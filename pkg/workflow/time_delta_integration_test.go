@@ -21,6 +21,7 @@ func TestStopTimeResolutionIntegration(t *testing.T) {
 		{
 			name: "absolute stop-after unchanged",
 			frontmatter: `---
+on: push
 engine: claude
 on:
   schedule:
@@ -34,6 +35,7 @@ on:
 		{
 			name: "readable date format",
 			frontmatter: `---
+on: push
 engine: claude
 on:
   schedule:
@@ -47,6 +49,7 @@ on:
 		{
 			name: "ordinal date format",
 			frontmatter: `---
+on: push
 engine: claude
 on:
   schedule:

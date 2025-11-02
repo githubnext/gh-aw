@@ -231,6 +231,7 @@ func TestWorkflowRunBranchValidationEdgeCases(t *testing.T) {
 		{
 			name: "on field empty - should not error",
 			frontmatter: `---
+on: push
 tools:
   github:
     allowed: [list_issues]

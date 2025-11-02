@@ -21,6 +21,7 @@ func TestCompileWorkflow(t *testing.T) {
 
 	// Create a test markdown file with basic frontmatter
 	testContent := `---
+on: push
 timeout_minutes: 10
 permissions:
   contents: read
@@ -287,11 +288,12 @@ func TestOnSection(t *testing.T) {
 		{
 			name: "default on section",
 			frontmatter: `---
+on: push
 tools:
   github:
     allowed: [list_issues]
 ---`,
-			expectedOn: "schedule:",
+			expectedOn: `"on": push`,
 		},
 		{
 			name: "custom on workflow_dispatch",
@@ -727,6 +729,7 @@ func TestRunsOnSection(t *testing.T) {
 		{
 			name: "default runs-on",
 			frontmatter: `---
+on: push
 tools:
   github:
     allowed: [list_issues]
@@ -736,6 +739,7 @@ tools:
 		{
 			name: "custom runs-on",
 			frontmatter: `---
+on: push
 runs-on: windows-latest
 tools:
   github:
@@ -746,6 +750,7 @@ tools:
 		{
 			name: "custom runs-on with array",
 			frontmatter: `---
+on: push
 runs-on: [self-hosted, linux, x64]
 tools:
   github:
@@ -958,6 +963,7 @@ func TestMergeAllowedListsFromMultipleIncludes(t *testing.T) {
 
 	// Create first include file with Bash tools (new format)
 	include1Content := `---
+on: push
 tools:
   bash: ["ls", "cat", "echo"]
 ---
@@ -972,6 +978,7 @@ First include file with bash tools.
 
 	// Create second include file with Bash tools (new format)
 	include2Content := `---
+on: push
 tools:
   bash: ["grep", "find", "ls"] # ls is duplicate
 ---
@@ -986,6 +993,7 @@ Second include file with bash tools.
 
 	// Create main workflow file that includes both files (new format)
 	mainContent := fmt.Sprintf(`---
+on: push
 engine: claude
 tools:
   bash: ["pwd"] # Additional command in main file
@@ -1005,6 +1013,7 @@ More content.
 	// Test now with simplified structure - no includes, just main file
 	// Create a simple workflow file with claude.Bash tools (no includes) (new format)
 	simpleContent := `---
+on: push
 engine: claude
 tools:
   bash: ["pwd", "ls", "cat"]
@@ -1162,6 +1171,7 @@ Third include file with compatible MCP server configuration.
 
 	// Create main workflow file that includes all files and has its own custom MCP
 	mainContent := fmt.Sprintf(`---
+on: push
 mcp-servers:
   mainCustomApi:
     command: "main-custom-server"
@@ -1313,6 +1323,7 @@ Include file with custom MCP server only.
 
 	// Create main workflow file with only standard tools
 	mainContent := fmt.Sprintf(`---
+on: push
 tools:
   github:
     allowed: ["list_issues"]
@@ -1382,6 +1393,7 @@ func TestCustomMCPMergingConflictDetection(t *testing.T) {
 
 	// Create first include file with custom MCP server
 	include1Content := `---
+on: push
 tools:
   apiServer:
     mcp:
@@ -1403,6 +1415,7 @@ First include file with apiServer MCP.
 
 	// Create second include file with CONFLICTING custom MCP server (same name, different command)
 	include2Content := `---
+on: push
 tools:
   apiServer:
     mcp:
@@ -1424,6 +1437,7 @@ Second include file with conflicting apiServer MCP.
 
 	// Create main workflow file that includes both conflicting files
 	mainContent := fmt.Sprintf(`---
+on: push
 tools:
   github:
     allowed: ["list_issues"]
@@ -1507,6 +1521,7 @@ Second include file with apiServer MCP that merges with include1.
 
 	// Create main workflow file that includes both files
 	mainContent := fmt.Sprintf(`---
+on: push
 tools:
   github:
     allowed: ["list_issues"]
@@ -1572,6 +1587,7 @@ func TestWorkflowNameWithColon(t *testing.T) {
 
 	// Create a test markdown file with a header containing a colon
 	testContent := `---
+on: push
 timeout_minutes: 10
 permissions:
   contents: read
@@ -2334,6 +2350,7 @@ func TestMCPImageField(t *testing.T) {
 		{
 			name: "simple container field",
 			frontmatter: `---
+on: push
 mcp-servers:
   notionApi:
     container: mcp/notion
@@ -2348,6 +2365,7 @@ mcp-servers:
 		{
 			name: "container with environment variables",
 			frontmatter: `---
+on: push
 mcp-servers:
   notionApi:
     container: mcp/notion:v1.2.3
@@ -2366,6 +2384,7 @@ mcp-servers:
 		{
 			name: "multiple MCP servers with container fields",
 			frontmatter: `---
+on: push
 mcp-servers:
   notionApi:
     container: mcp/notion
@@ -3616,6 +3635,7 @@ Invalid YAML with unclosed flow mapping.`,
 		{
 			name: "yaml_error_with_column_information_support",
 			content: `---
+on: push
 message: "invalid escape sequence \x in middle"
 engine: claude
 ---
@@ -3623,7 +3643,7 @@ engine: claude
 # Test Workflow
 
 YAML error that demonstrates column position handling.`,
-			expectedErrorLine:   2, // The message field is on line 2 of the frontmatter (line 3 of file)
+			expectedErrorLine:   3, // The message field is on line 3 of the frontmatter (line 4 of file)
 			expectedErrorColumn: 1, // Schema validation error
 			expectedMessagePart: "Unknown property: message",
 			description:         "yaml error should be extracted with column information when available",
