@@ -201,6 +201,64 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(tools map[string]any) map[s
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/config.toml << EOF\n")
 
+	// Build TOML configuration using the serializer
+	config := BuildTOMLConfig()
+	
+	// Expand neutral tools (like playwright: null) to include the copilot agent tools
+	expandedTools := e.expandNeutralToolsToCodexTools(tools)
+
+	// Generate MCP servers configuration
+	for _, toolName := range mcpTools {
+		switch toolName {
+		case "github":
+			githubTool := expandedTools["github"]
+			e.addGitHubMCPServer(config, githubTool, workflowData)
+		case "playwright":
+			playwrightTool := expandedTools["playwright"]
+			e.addPlaywrightMCPServer(config, playwrightTool)
+		case "agentic-workflows":
+			e.addAgenticWorkflowsMCPServer(config)
+		case "safe-outputs":
+			e.addSafeOutputsMCPServer(config, workflowData)
+		case "web-fetch":
+			e.addWebFetchMCPServer(config)
+		default:
+			// Handle custom MCP tools
+			e.addCustomMCPServer(config, toolName, expandedTools)
+		}
+	}
+	
+	// Serialize the TOML configuration with proper indentation
+	tomlOutput, err := SerializeToTOML(config, "          ")
+	if err != nil {
+		// Fallback to manual generation if serialization fails
+		mcpLog.Printf("TOML serialization failed: %v, falling back to manual generation", err)
+		e.renderMCPConfigManual(yaml, tools, mcpTools, workflowData)
+		return
+	}
+	
+	yaml.WriteString(tomlOutput)
+
+	// Append custom config if provided
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Config != "" {
+		yaml.WriteString("          \n")
+		yaml.WriteString("          # Custom configuration\n")
+		// Write the custom config line by line with proper indentation
+		configLines := strings.Split(workflowData.EngineConfig.Config, "\n")
+		for _, line := range configLines {
+			if strings.TrimSpace(line) != "" {
+				yaml.WriteString("          " + line + "\n")
+			} else {
+				yaml.WriteString("          \n")
+			}
+		}
+	}
+
+	yaml.WriteString("          EOF\n")
+}
+
+// renderMCPConfigManual is a fallback method that uses the old manual string building approach
+func (e *CodexEngine) renderMCPConfigManual(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	// Add history configuration to disable persistence
 	yaml.WriteString("          [history]\n")
 	yaml.WriteString("          persistence = \"none\"\n")
@@ -230,23 +288,6 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			})
 		}
 	}
-
-	// Append custom config if provided
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Config != "" {
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Custom configuration\n")
-		// Write the custom config line by line with proper indentation
-		configLines := strings.Split(workflowData.EngineConfig.Config, "\n")
-		for _, line := range configLines {
-			if strings.TrimSpace(line) != "" {
-				yaml.WriteString("          " + line + "\n")
-			} else {
-				yaml.WriteString("          \n")
-			}
-		}
-	}
-
-	yaml.WriteString("          EOF\n")
 }
 
 // ParseLogMetrics implements engine-specific log parsing for Codex
@@ -615,4 +656,206 @@ func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 	}...)
 
 	return patterns
+}
+
+// Helper functions for building TOML MCP server configurations
+
+// addGitHubMCPServer adds GitHub MCP server configuration to the TOML config
+func (e *CodexEngine) addGitHubMCPServer(config *TOMLConfig, githubTool any, workflowData *WorkflowData) {
+	githubType := getGitHubType(githubTool)
+	customGitHubToken := getGitHubToken(githubTool)
+	readOnly := getGitHubReadOnly(githubTool)
+	toolsets := getGitHubToolsets(githubTool)
+
+	// Add user_agent field defaulting to workflow identifier
+	userAgent := "github-agentic-workflow"
+	if workflowData != nil {
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.UserAgent != "" {
+			userAgent = workflowData.EngineConfig.UserAgent
+		} else if workflowData.Name != "" {
+			userAgent = SanitizeIdentifier(workflowData.Name)
+		}
+	}
+
+	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeoutSeconds
+	startupTimeout := constants.DefaultMCPStartupTimeoutSeconds
+	if workflowData.ToolsStartupTimeout > 0 {
+		startupTimeout = workflowData.ToolsStartupTimeout
+	}
+
+	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
+	toolTimeout := constants.DefaultToolTimeoutSeconds
+	if workflowData.ToolsTimeout > 0 {
+		toolTimeout = workflowData.ToolsTimeout
+	}
+
+	serverConfig := MCPServerConfig{
+		UserAgent:         userAgent,
+		StartupTimeoutSec: startupTimeout,
+		ToolTimeoutSec:    toolTimeout,
+	}
+
+	// Check if remote mode is enabled
+	if githubType == "remote" {
+		// Remote mode - use hosted GitHub MCP server with streamable HTTP
+		if readOnly {
+			serverConfig.URL = "https://api.githubcopilot.com/mcp-readonly/"
+		} else {
+			serverConfig.URL = "https://api.githubcopilot.com/mcp/"
+		}
+		serverConfig.BearerTokenEnvVar = "GH_AW_GITHUB_TOKEN"
+	} else {
+		// Local mode - use Docker-based GitHub MCP server (default)
+		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+		customArgs := getGitHubCustomArgs(githubTool)
+
+		serverConfig.Command = "docker"
+		serverConfig.Args = []string{
+			"run",
+			"-i",
+			"--rm",
+			"-e",
+			"GITHUB_PERSONAL_ACCESS_TOKEN",
+		}
+		
+		if readOnly {
+			serverConfig.Args = append(serverConfig.Args, "-e", "GITHUB_READ_ONLY=1")
+		}
+		
+		// Add GITHUB_TOOLSETS environment variable (always configured, defaults to "default")
+		serverConfig.Args = append(serverConfig.Args, "-e", "GITHUB_TOOLSETS="+toolsets)
+		serverConfig.Args = append(serverConfig.Args, "ghcr.io/github/github-mcp-server:"+githubDockerImageVersion)
+		
+		// Append custom args if present
+		if len(customArgs) > 0 {
+			serverConfig.Args = append(serverConfig.Args, customArgs...)
+		}
+
+		// Use effective token with precedence: custom > top-level > default
+		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
+		serverConfig.Env = map[string]string{
+			"GITHUB_PERSONAL_ACCESS_TOKEN": effectiveToken,
+		}
+	}
+
+	config.AddMCPServer("github", serverConfig)
+}
+
+// addPlaywrightMCPServer adds Playwright MCP server configuration to the TOML config
+func (e *CodexEngine) addPlaywrightMCPServer(config *TOMLConfig, playwrightTool any) {
+	args := generatePlaywrightDockerArgs(playwrightTool)
+	customArgs := getPlaywrightCustomArgs(playwrightTool)
+
+	// Extract all expressions from playwright arguments
+	expressions := extractExpressionsFromPlaywrightArgs(args.AllowedDomains, customArgs)
+	allowedDomains := replaceExpressionsInPlaywrightArgs(args.AllowedDomains, expressions)
+
+	// Also replace expressions in custom args
+	if len(customArgs) > 0 {
+		customArgs = replaceExpressionsInPlaywrightArgs(customArgs, expressions)
+	}
+
+	// Determine version to use
+	playwrightPackage := "@playwright/mcp@latest"
+	if args.ImageVersion != "" && args.ImageVersion != "latest" {
+		playwrightPackage = "@playwright/mcp@" + args.ImageVersion
+	}
+
+	serverConfig := MCPServerConfig{
+		Command: "npx",
+		Args:    []string{playwrightPackage, "--output-dir", "/tmp/gh-aw/mcp-logs/playwright"},
+	}
+
+	if len(allowedDomains) > 0 {
+		serverConfig.Args = append(serverConfig.Args, "--allowed-origins", strings.Join(allowedDomains, ";"))
+	}
+
+	// Append custom args if present
+	if len(customArgs) > 0 {
+		serverConfig.Args = append(serverConfig.Args, customArgs...)
+	}
+
+	config.AddMCPServer("playwright", serverConfig)
+}
+
+// addSafeOutputsMCPServer adds Safe Outputs MCP server configuration to the TOML config
+func (e *CodexEngine) addSafeOutputsMCPServer(config *TOMLConfig, workflowData *WorkflowData) {
+	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
+	if !hasSafeOutputs {
+		return
+	}
+
+	serverConfig := MCPServerConfig{
+		Command: "node",
+		Args:    []string{"/tmp/gh-aw/safeoutputs/mcp-server.cjs"},
+		Env: map[string]string{
+			"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
+			"GH_AW_SAFE_OUTPUTS_CONFIG": "${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}",
+			"GH_AW_ASSETS_BRANCH":       "${{ env.GH_AW_ASSETS_BRANCH }}",
+			"GH_AW_ASSETS_MAX_SIZE_KB":  "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}",
+			"GH_AW_ASSETS_ALLOWED_EXTS": "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}",
+			"GITHUB_REPOSITORY":         "${{ github.repository }}",
+			"GITHUB_SERVER_URL":         "${{ github.server_url }}",
+		},
+		UseInlineEnv: true, // Use inline format for env
+	}
+
+	config.AddMCPServer(constants.SafeOutputsMCPServerID, serverConfig)
+}
+
+// addAgenticWorkflowsMCPServer adds Agentic Workflows MCP server configuration to the TOML config
+func (e *CodexEngine) addAgenticWorkflowsMCPServer(config *TOMLConfig) {
+	serverConfig := MCPServerConfig{
+		Command: "gh",
+		Args:    []string{"aw", "mcp-server"},
+		Env: map[string]string{
+			"GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
+		},
+		UseInlineEnv: true, // Use inline format for env
+	}
+
+	config.AddMCPServer("agentic_workflows", serverConfig)
+}
+
+// addWebFetchMCPServer adds Web Fetch MCP server configuration to the TOML config
+func (e *CodexEngine) addWebFetchMCPServer(config *TOMLConfig) {
+	serverConfig := MCPServerConfig{
+		Command: "docker",
+		Args:    []string{"run", "-i", "--rm", "mcp/fetch"},
+	}
+
+	config.AddMCPServer("web-fetch", serverConfig)
+}
+
+// addCustomMCPServer adds a custom MCP server configuration to the TOML config
+func (e *CodexEngine) addCustomMCPServer(config *TOMLConfig, toolName string, expandedTools map[string]any) {
+	toolConfig, ok := expandedTools[toolName]
+	if !ok {
+		return
+	}
+
+	toolConfigMap, ok := toolConfig.(map[string]any)
+	if !ok {
+		return
+	}
+
+	// Get MCP configuration in the new format
+	mcpConfig, err := getMCPConfig(toolConfigMap, toolName)
+	if err != nil {
+		mcpLog.Printf("Failed to parse MCP config for tool %s: %v", toolName, err)
+		return
+	}
+
+	// Only support stdio type for TOML format
+	if mcpConfig.Type != "stdio" {
+		return
+	}
+
+	serverConfig := MCPServerConfig{
+		Command: mcpConfig.Command,
+		Args:    mcpConfig.Args,
+		Env:     mcpConfig.Env,
+	}
+
+	config.AddMCPServer(toolName, serverConfig)
 }
