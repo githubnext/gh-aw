@@ -203,7 +203,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 
 	// Build TOML configuration using the serializer
 	config := BuildTOMLConfig()
-	
+
 	// Expand neutral tools (like playwright: null) to include the copilot agent tools
 	expandedTools := e.expandNeutralToolsToCodexTools(tools)
 
@@ -227,7 +227,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			e.addCustomMCPServer(config, toolName, expandedTools)
 		}
 	}
-	
+
 	// Serialize the TOML configuration with proper indentation
 	tomlOutput, err := SerializeToTOML(config, "          ")
 	if err != nil {
@@ -236,7 +236,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		e.renderMCPConfigManual(yaml, tools, mcpTools, workflowData)
 		return
 	}
-	
+
 	yaml.WriteString(tomlOutput)
 
 	// Append custom config if provided
@@ -717,15 +717,15 @@ func (e *CodexEngine) addGitHubMCPServer(config *TOMLConfig, githubTool any, wor
 			"-e",
 			"GITHUB_PERSONAL_ACCESS_TOKEN",
 		}
-		
+
 		if readOnly {
 			serverConfig.Args = append(serverConfig.Args, "-e", "GITHUB_READ_ONLY=1")
 		}
-		
+
 		// Add GITHUB_TOOLSETS environment variable (always configured, defaults to "default")
 		serverConfig.Args = append(serverConfig.Args, "-e", "GITHUB_TOOLSETS="+toolsets)
 		serverConfig.Args = append(serverConfig.Args, "ghcr.io/github/github-mcp-server:"+githubDockerImageVersion)
-		
+
 		// Append custom args if present
 		if len(customArgs) > 0 {
 			serverConfig.Args = append(serverConfig.Args, customArgs...)
