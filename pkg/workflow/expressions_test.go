@@ -153,7 +153,7 @@ func TestBuildReactionCondition(t *testing.T) {
 		"github.event_name == 'discussion'",
 		"github.event_name == 'discussion_comment'",
 		"github.event_name == 'pull_request'",
-		"github.event.pull_request.head.repo.full_name == github.repository",
+		"github.event.pull_request.head.repo.id == github.repository_id",
 		"&&",
 		"||",
 	}
@@ -166,7 +166,7 @@ func TestBuildReactionCondition(t *testing.T) {
 
 	// With the fork check, the pull_request condition should be more complex
 	// It should contain both the event name check and the not-from-fork check
-	if !strings.Contains(rendered, "(github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)") {
+	if !strings.Contains(rendered, "(github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)") {
 		t.Errorf("Expected pull_request condition to include fork check, but got: %s", rendered)
 	}
 }
@@ -976,7 +976,7 @@ func TestBuildNotFromFork(t *testing.T) {
 	result := BuildNotFromFork()
 	rendered := result.Render()
 
-	expected := "github.event.pull_request.head.repo.full_name == github.repository"
+	expected := "github.event.pull_request.head.repo.id == github.repository_id"
 	if rendered != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, rendered)
 	}
