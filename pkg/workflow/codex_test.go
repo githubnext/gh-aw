@@ -30,6 +30,7 @@ func TestCodexAIConfiguration(t *testing.T) {
 		{
 			name: "default copilot ai",
 			frontmatter: `---
+on: push
 tools:
   github:
     allowed: [list_issues]
@@ -41,6 +42,7 @@ tools:
 		{
 			name: "explicit claude ai",
 			frontmatter: `---
+on: push
 engine: claude
 tools:
   github:
@@ -53,6 +55,7 @@ tools:
 		{
 			name: "codex ai",
 			frontmatter: `---
+on: push
 engine: codex
 tools:
   github:
@@ -65,6 +68,7 @@ tools:
 		{
 			name: "codex ai without tools",
 			frontmatter: `---
+on: push
 engine: codex
 ---`,
 			expectedAI:    "codex",
@@ -260,6 +264,7 @@ func TestCodexMCPConfigGeneration(t *testing.T) {
 		{
 			name: "codex with github tools generates config.toml",
 			frontmatter: `---
+on: push
 engine: codex
 tools:
   github:
@@ -273,6 +278,7 @@ tools:
 		{
 			name: "claude with github tools generates mcp-servers.json",
 			frontmatter: `---
+on: push
 engine: claude
 tools:
   github:
@@ -286,6 +292,7 @@ tools:
 		{
 			name: "codex with docker github tools generates config.toml",
 			frontmatter: `---
+on: push
 engine: codex
 tools:
   github:
@@ -299,6 +306,7 @@ tools:
 		{
 			name: "claude with docker github tools generates mcp-servers.json",
 			frontmatter: `---
+on: push
 engine: claude
 tools:
   github:
@@ -312,6 +320,7 @@ tools:
 		{
 			name: "codex with services github tools generates config.toml",
 			frontmatter: `---
+on: push
 engine: codex
 tools:
   github:
@@ -325,6 +334,7 @@ tools:
 		{
 			name: "claude with services github tools generates mcp-servers.json",
 			frontmatter: `---
+on: push
 engine: claude
 tools:
   github:
@@ -338,6 +348,7 @@ tools:
 		{
 			name: "codex with custom MCP tools generates config.toml",
 			frontmatter: `---
+on: push
 engine: codex
 tools:
   github:
@@ -496,6 +507,7 @@ func TestCodexConfigField(t *testing.T) {
 		{
 			name: "codex with custom config field",
 			frontmatter: `---
+on: push
 engine:
   id: codex
   config: |
@@ -519,6 +531,7 @@ enabled = true`,
 		{
 			name: "codex without config field",
 			frontmatter: `---
+on: push
 engine: codex
 tools:
   github:
@@ -529,6 +542,7 @@ tools:
 		{
 			name: "codex with empty config field",
 			frontmatter: `---
+on: push
 engine:
   id: codex
   config: ""

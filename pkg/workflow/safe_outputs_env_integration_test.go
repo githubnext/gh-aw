@@ -173,6 +173,7 @@ func TestSafeOutputsEnvIntegration(t *testing.T) {
 
 func TestSafeOutputsEnvFullWorkflowCompilation(t *testing.T) {
 	workflowContent := `---
+on: push
 name: Test Environment Variables
 on: push
 safe-outputs:
@@ -251,6 +252,7 @@ Create an issue with test results.
 
 func TestSafeOutputsEnvWithStagedMode(t *testing.T) {
 	workflowContent := `---
+on: push
 name: Test Environment Variables with Staged Mode
 on: push
 safe-outputs:

@@ -19,6 +19,7 @@ func TestIndividualGitHubTokenIntegration(t *testing.T) {
 
 	t.Run("create-issue uses individual github-token in generated workflow", func(t *testing.T) {
 		testContent := `---
+on: push
 name: Test Individual GitHub Token for Issues
 on:
   issues:
@@ -91,6 +92,7 @@ This workflow tests that create-issue uses its own github-token.
 
 	t.Run("create-pull-request fallback to global github-token when no individual token specified", func(t *testing.T) {
 		testContent := `---
+on: push
 name: Test GitHub Token Fallback for PRs
 on:
   issues:
@@ -154,6 +156,7 @@ This workflow tests that create-pull-request falls back to global github-token.
 
 	t.Run("add-labels uses individual github-token", func(t *testing.T) {
 		testContent := `---
+on: push
 name: Test Individual GitHub Token for Labels
 on:
   issues:
@@ -206,6 +209,7 @@ This workflow tests that add-labels uses its own github-token.
 
 	t.Run("backward compatibility - global github-token still works", func(t *testing.T) {
 		testContent := `---
+on: push
 name: Test Backward Compatibility
 on:
   issues:

@@ -28,6 +28,7 @@ func TestGitHubMCPConfiguration(t *testing.T) {
 		{
 			name: "default Docker server",
 			frontmatter: `---
+on: push
 engine: claude
 tools:
   github:
@@ -247,6 +248,7 @@ func TestCustomDockerMCPConfiguration(t *testing.T) {
 		{
 			name: "custom docker MCP with default settings",
 			frontmatter: `---
+on: push
 tools:
   github:
     allowed: [list_issues, create_issue]
@@ -262,6 +264,7 @@ tools:
 		{
 			name: "custom docker MCP with different settings",
 			frontmatter: `---
+on: push
 tools:
   github:
     allowed: [list_issues, create_issue]
@@ -277,6 +280,7 @@ tools:
 		{
 			name: "mixed MCP configuration with defaults",
 			frontmatter: `---
+on: push
 tools:
   github:
     allowed: [list_issues, create_issue]
@@ -297,6 +301,7 @@ tools:
 		{
 			name: "custom docker MCP with custom Docker image version",
 			frontmatter: `---
+on: push
 tools:
   github:
     version: "v2.0.0"

@@ -27,6 +27,7 @@ func TestSourceFieldRendering(t *testing.T) {
 		{
 			name: "source_field_present",
 			frontmatter: `---
+on: push
 source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"
 on:
   push:
@@ -46,6 +47,7 @@ tools:
 		{
 			name: "source_field_with_branch",
 			frontmatter: `---
+on: push
 source: "githubnext/agentics/workflows/ci-doctor.md@main"
 on:
   push:
@@ -83,6 +85,7 @@ tools:
 		{
 			name: "source_and_description",
 			frontmatter: `---
+on: push
 description: "This is a test workflow"
 source: "githubnext/agentics/workflows/test.md@v1.0.0"
 on:

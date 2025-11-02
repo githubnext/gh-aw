@@ -16,6 +16,7 @@ func TestCompileWorkflowWithImports(t *testing.T) {
 	// Create a shared tool file
 	sharedToolPath := filepath.Join(tempDir, "shared-tool.md")
 	sharedToolContent := `---
+on: push
 tools:
   custom-mcp:
     url: "https://example.com/mcp"
@@ -83,6 +84,7 @@ func TestCompileWorkflowWithMultipleImports(t *testing.T) {
 	// Create first shared tool file
 	sharedTool1Path := filepath.Join(tempDir, "shared-tool-1.md")
 	sharedTool1Content := `---
+on: push
 tools:
   tool1:
     url: "https://example1.com/mcp"
@@ -96,6 +98,7 @@ tools:
 	// Create second shared tool file
 	sharedTool2Path := filepath.Join(tempDir, "shared-tool-2.md")
 	sharedTool2Content := `---
+on: push
 tools:
   tool2:
     url: "https://example2.com/mcp"
@@ -172,6 +175,7 @@ func TestCompileWorkflowWithMCPServersImport(t *testing.T) {
 	// Create a shared mcp-servers file (like tavily-mcp.md)
 	sharedMCPPath := filepath.Join(tempDir, "shared-mcp.md")
 	sharedMCPContent := `---
+on: push
 mcp-servers:
   tavily:
     url: "https://mcp.tavily.com/mcp/?tavilyApiKey=test"

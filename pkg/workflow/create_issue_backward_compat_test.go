@@ -18,6 +18,7 @@ func TestCreateIssueBackwardCompatibility(t *testing.T) {
 
 	// Test with an existing workflow format (no assignees)
 	testContent := `---
+on: push
 name: Legacy Workflow Format
 on:
   issues:
@@ -95,6 +96,7 @@ func TestCreateIssueMinimalConfiguration(t *testing.T) {
 
 	// Test with minimal configuration (just enabling create-issue)
 	testContent := `---
+on: push
 name: Minimal Workflow
 on:
   workflow_dispatch:

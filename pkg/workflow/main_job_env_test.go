@@ -117,6 +117,7 @@ func TestMainJobEnvironmentVariablesIntegration(t *testing.T) {
 
 	// Create a test workflow file with safe outputs and custom env vars
 	workflowContent := `---
+on: push
 name: Test Job Environment Variables
 on: push
 safe-outputs:

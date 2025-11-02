@@ -16,6 +16,7 @@ func TestSafeOutputsRunsOnConfiguration(t *testing.T) {
 		{
 			name: "default runs-on when not specified",
 			frontmatter: `---
+on: push
 safe-outputs:
   create-issue:
     title-prefix: "[ai] "
@@ -29,6 +30,7 @@ This is a test workflow.`,
 		{
 			name: "custom runs-on string",
 			frontmatter: `---
+on: push
 safe-outputs:
   create-issue:
     title-prefix: "[ai] "

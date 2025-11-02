@@ -112,6 +112,7 @@ func TestGitHubTokenValidation(t *testing.T) {
 			defer os.RemoveAll(tmpDir)
 
 			testContent := `---
+on: push
 name: Test GitHub Token Validation
 on:
   workflow_dispatch:
@@ -175,6 +176,7 @@ func TestGitHubTokenValidationInSafeOutputs(t *testing.T) {
 			defer os.RemoveAll(tmpDir)
 
 			testContent := `---
+on: push
 name: Test Safe-Outputs Token Validation
 on:
   issues:
@@ -236,6 +238,7 @@ func TestGitHubTokenValidationInIndividualSafeOutput(t *testing.T) {
 			defer os.RemoveAll(tmpDir)
 
 			testContent := `---
+on: push
 name: Test Individual Safe-Output Token
 on:
   issues:
@@ -297,6 +300,7 @@ func TestGitHubTokenValidationInGitHubTool(t *testing.T) {
 			defer os.RemoveAll(tmpDir)
 
 			testContent := `---
+on: push
 name: Test GitHub Tool Token
 on:
   workflow_dispatch:
@@ -339,6 +343,7 @@ func TestGitHubTokenValidationErrorMessage(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	testContent := `---
+on: push
 name: Test Error Message
 on:
   workflow_dispatch:
@@ -377,6 +382,7 @@ func TestMultipleGitHubTokenValidations(t *testing.T) {
 
 	// Test that validation catches errors in any of the token locations
 	testContent := `---
+on: push
 name: Test Multiple Tokens
 on:
   workflow_dispatch:

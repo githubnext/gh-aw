@@ -75,6 +75,7 @@ func TestCreateIssueWorkflowCompilationWithSubissue(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	testContent := `---
+on: push
 name: Test Subissue Feature  
 on:
   issues:

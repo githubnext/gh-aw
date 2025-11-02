@@ -21,6 +21,7 @@ func TestCompileWorkflow(t *testing.T) {
 
 	// Create a test markdown file with basic frontmatter
 	testContent := `---
+on: push
 timeout_minutes: 10
 permissions:
   contents: read
@@ -287,6 +288,7 @@ func TestOnSection(t *testing.T) {
 		{
 			name: "default on section",
 			frontmatter: `---
+on: push
 tools:
   github:
     allowed: [list_issues]
@@ -727,6 +729,7 @@ func TestRunsOnSection(t *testing.T) {
 		{
 			name: "default runs-on",
 			frontmatter: `---
+on: push
 tools:
   github:
     allowed: [list_issues]
@@ -736,6 +739,7 @@ tools:
 		{
 			name: "custom runs-on",
 			frontmatter: `---
+on: push
 runs-on: windows-latest
 tools:
   github:
@@ -746,6 +750,7 @@ tools:
 		{
 			name: "custom runs-on with array",
 			frontmatter: `---
+on: push
 runs-on: [self-hosted, linux, x64]
 tools:
   github:
@@ -958,6 +963,7 @@ func TestMergeAllowedListsFromMultipleIncludes(t *testing.T) {
 
 	// Create first include file with Bash tools (new format)
 	include1Content := `---
+on: push
 tools:
   bash: ["ls", "cat", "echo"]
 ---
@@ -972,6 +978,7 @@ First include file with bash tools.
 
 	// Create second include file with Bash tools (new format)
 	include2Content := `---
+on: push
 tools:
   bash: ["grep", "find", "ls"] # ls is duplicate
 ---
@@ -986,6 +993,7 @@ Second include file with bash tools.
 
 	// Create main workflow file that includes both files (new format)
 	mainContent := fmt.Sprintf(`---
+on: push
 engine: claude
 tools:
   bash: ["pwd"] # Additional command in main file
@@ -1005,6 +1013,7 @@ More content.
 	// Test now with simplified structure - no includes, just main file
 	// Create a simple workflow file with claude.Bash tools (no includes) (new format)
 	simpleContent := `---
+on: push
 engine: claude
 tools:
   bash: ["pwd", "ls", "cat"]
@@ -1104,6 +1113,7 @@ func TestMergeCustomMCPFromMultipleIncludes(t *testing.T) {
 
 	// Create first include file with custom MCP server
 	include1Content := `---
+on: push
 mcp-servers:
   notionApi:
     container: "mcp/notion"
@@ -1122,6 +1132,7 @@ First include file with custom MCP server.
 
 	// Create second include file with different custom MCP server
 	include2Content := `---
+on: push
 mcp-servers:
   trelloApi:
     command: "python"
@@ -1141,6 +1152,7 @@ Second include file with different custom MCP server.
 
 	// Create third include file with overlapping custom MCP server (same name, compatible config)
 	include3Content := `---
+on: push
 mcp-servers:
   notionApi:
     container: "mcp/notion"
@@ -1162,6 +1174,7 @@ Third include file with compatible MCP server configuration.
 
 	// Create main workflow file that includes all files and has its own custom MCP
 	mainContent := fmt.Sprintf(`---
+on: push
 mcp-servers:
   mainCustomApi:
     command: "main-custom-server"
@@ -1294,6 +1307,7 @@ func TestCustomMCPOnlyInIncludes(t *testing.T) {
 
 	// Create include file with custom MCP server
 	includeContent := `---
+on: push
 mcp-servers:
   customApi:
     command: "custom-server"
@@ -1313,6 +1327,7 @@ Include file with custom MCP server only.
 
 	// Create main workflow file with only standard tools
 	mainContent := fmt.Sprintf(`---
+on: push
 tools:
   github:
     allowed: ["list_issues"]
@@ -1382,6 +1397,7 @@ func TestCustomMCPMergingConflictDetection(t *testing.T) {
 
 	// Create first include file with custom MCP server
 	include1Content := `---
+on: push
 tools:
   apiServer:
     mcp:
@@ -1403,6 +1419,7 @@ First include file with apiServer MCP.
 
 	// Create second include file with CONFLICTING custom MCP server (same name, different command)
 	include2Content := `---
+on: push
 tools:
   apiServer:
     mcp:
@@ -1424,6 +1441,7 @@ Second include file with conflicting apiServer MCP.
 
 	// Create main workflow file that includes both conflicting files
 	mainContent := fmt.Sprintf(`---
+on: push
 tools:
   github:
     allowed: ["list_issues"]
@@ -1469,6 +1487,7 @@ func TestCustomMCPMergingFromMultipleIncludes(t *testing.T) {
 
 	// Create first include file with custom MCP server
 	include1Content := `---
+on: push
 mcp-servers:
   apiServer:
     command: "shared-server"
@@ -1488,6 +1507,7 @@ First include file with apiServer MCP.
 
 	// Create second include file with same MCP server but different allowed list
 	include2Content := `---
+on: push
 mcp-servers:
   apiServer:
     command: "shared-server"
@@ -1507,6 +1527,7 @@ Second include file with apiServer MCP that merges with include1.
 
 	// Create main workflow file that includes both files
 	mainContent := fmt.Sprintf(`---
+on: push
 tools:
   github:
     allowed: ["list_issues"]
@@ -1572,6 +1593,7 @@ func TestWorkflowNameWithColon(t *testing.T) {
 
 	// Create a test markdown file with a header containing a colon
 	testContent := `---
+on: push
 timeout_minutes: 10
 permissions:
   contents: read
@@ -1817,6 +1839,7 @@ func TestGeneratedDisclaimerInLockFile(t *testing.T) {
 
 	// Create a simple test workflow
 	testContent := `---
+on: push
 name: Test Workflow
 on:
   schedule:
@@ -2028,6 +2051,7 @@ func TestValidationCanBeSkipped(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	testContent := `---
+on: push
 name: Test Workflow
 on: push
 ---
@@ -2334,6 +2358,7 @@ func TestMCPImageField(t *testing.T) {
 		{
 			name: "simple container field",
 			frontmatter: `---
+on: push
 mcp-servers:
   notionApi:
     container: mcp/notion
@@ -2348,6 +2373,7 @@ mcp-servers:
 		{
 			name: "container with environment variables",
 			frontmatter: `---
+on: push
 mcp-servers:
   notionApi:
     container: mcp/notion:v1.2.3
@@ -2366,6 +2392,7 @@ mcp-servers:
 		{
 			name: "multiple MCP servers with container fields",
 			frontmatter: `---
+on: push
 mcp-servers:
   notionApi:
     container: mcp/notion
@@ -3616,6 +3643,7 @@ Invalid YAML with unclosed flow mapping.`,
 		{
 			name: "yaml_error_with_column_information_support",
 			content: `---
+on: push
 message: "invalid escape sequence \x in middle"
 engine: claude
 ---
@@ -3802,6 +3830,7 @@ func TestCacheSupport(t *testing.T) {
 		{
 			name: "single cache configuration",
 			frontmatter: `---
+on: push
 name: Test Cache Workflow
 on: workflow_dispatch
 permissions:
@@ -3835,6 +3864,7 @@ tools:
 		{
 			name: "multiple cache configurations",
 			frontmatter: `---
+on: push
 name: Test Multi Cache Workflow
 on: workflow_dispatch
 permissions:
@@ -3880,6 +3910,7 @@ tools:
 		{
 			name: "cache with all optional parameters",
 			frontmatter: `---
+on: push
 name: Test Full Cache Workflow
 on: workflow_dispatch
 permissions:
@@ -5537,6 +5568,7 @@ func TestDescriptionFieldRendering(t *testing.T) {
 		{
 			name: "single_line_description",
 			frontmatter: `---
+on: push
 description: "This is a simple workflow description"
 on:
   push:
@@ -5556,6 +5588,7 @@ tools:
 		{
 			name: "multiline_description",
 			frontmatter: `---
+on: push
 description: |
   This is a multi-line workflow description.
   It explains what the workflow does in detail.

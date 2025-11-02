@@ -100,6 +100,7 @@ func TestPermissionsImportIntegration(t *testing.T) {
 
 	// Create a shared workflow file with permissions
 	sharedWorkflowContent := `---
+on: push
 permissions:
   actions: read
 ---
@@ -204,6 +205,7 @@ tools:
 	// Test 3: Insufficient permission level fails validation
 	t.Run("Insufficient permission level fails validation", func(t *testing.T) {
 		sharedWorkflowUpgradeContent := `---
+on: push
 permissions:
   contents: write
   issues: read
@@ -294,6 +296,7 @@ func TestExtractPermissionsFromContent(t *testing.T) {
 		{
 			name: "Simple permissions",
 			content: `---
+on: push
 permissions:
   contents: read
   issues: write

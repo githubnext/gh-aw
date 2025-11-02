@@ -16,6 +16,7 @@ func TestNetworkMergeWithImports(t *testing.T) {
 	// Create a shared file with network configuration
 	sharedNetworkPath := filepath.Join(tempDir, "shared-network.md")
 	sharedNetworkContent := `---
+on: push
 network:
   allowed:
     - example.com

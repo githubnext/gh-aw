@@ -18,6 +18,7 @@ func TestTopLevelGitHubTokenPrecedence(t *testing.T) {
 
 	t.Run("top-level github-token used when no safe-outputs token", func(t *testing.T) {
 		testContent := `---
+on: push
 name: Test Top-Level GitHub Token
 on:
   issues:
@@ -70,6 +71,7 @@ Test that top-level github-token is used in engine configuration.
 
 	t.Run("safe-outputs github-token overrides top-level", func(t *testing.T) {
 		testContent := `---
+on: push
 name: Test Safe-Outputs Override
 on:
   issues:
@@ -119,6 +121,7 @@ Test that safe-outputs github-token overrides top-level.
 
 	t.Run("individual safe-output token overrides both", func(t *testing.T) {
 		testContent := `---
+on: push
 name: Test Individual Override
 on:
   issues:
@@ -183,6 +186,7 @@ Test that individual safe-output github-token has highest precedence.
 
 	t.Run("top-level token used in codex engine", func(t *testing.T) {
 		testContent := `---
+on: push
 name: Test Codex Engine Token
 on:
   workflow_dispatch:
@@ -231,6 +235,7 @@ Test that top-level github-token is used in Codex engine.
 
 	t.Run("top-level token used in copilot engine", func(t *testing.T) {
 		testContent := `---
+on: push
 name: Test Copilot Engine Token
 on:
   workflow_dispatch:

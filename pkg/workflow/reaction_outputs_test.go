@@ -102,6 +102,7 @@ func TestReactionJobWorkflowName(t *testing.T) {
 
 	// Create a test markdown file with reaction and a specific workflow name
 	testContent := `---
+on: push
 name: Test Workflow Name
 on:
   issues:
