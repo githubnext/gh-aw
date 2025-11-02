@@ -14,8 +14,7 @@ permissions:
 
 engine: copilot
 
-network:
-  firewall: true
+network: defaults
 
 imports:
   - shared/mcp/tavily.md
