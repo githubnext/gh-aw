@@ -3,6 +3,7 @@ module github.com/githubnext/gh-aw
 go 1.24.5
 
 require (
+	github.com/BurntSushi/toml v1.5.0
 	github.com/briandowns/spinner v1.23.2
 	github.com/charmbracelet/huh v0.6.0
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250319133953-166f707985bc
@@ -19,7 +20,6 @@ require (
 )
 
 require (
-	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/catppuccin/go v0.2.0 // indirect

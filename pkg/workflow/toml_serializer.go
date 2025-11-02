@@ -171,6 +171,7 @@ func applyIndentation(output string, indent string) string {
 }
 
 // postProcessTOML fixes formatting issues from the TOML encoder
+// Also strips the encoder's indentation so we can apply our own later
 func postProcessTOML(output string) string {
 	lines := strings.Split(output, "\n")
 	var result []string
@@ -184,27 +185,29 @@ func postProcessTOML(output string) string {
 			continue
 		}
 		
+		// Strip encoder's indentation - we'll apply our own later
+		line = trimmed
+		
 		// Add quotes around hyphenated server names in section headers
-		if strings.HasPrefix(trimmed, "[mcp_servers.") && !strings.Contains(trimmed, `"`) {
+		if strings.HasPrefix(line, "[mcp_servers.") && !strings.Contains(line, `"`) {
 			// Check if the server name contains a hyphen
-			start := strings.Index(trimmed, "[mcp_servers.") + len("[mcp_servers.")
-			end := strings.Index(trimmed, "]")
+			start := strings.Index(line, "[mcp_servers.") + len("[mcp_servers.")
+			end := strings.Index(line, "]")
 			if end > start {
-				serverName := trimmed[start:end]
+				serverName := line[start:end]
 				if containsHyphen(serverName) {
-					indent := getIndent(line)
-					line = indent + `[mcp_servers."` + serverName + `"]`
+					line = `[mcp_servers."` + serverName + `"]`
 				}
 			}
 		}
 		
 		// Add blank line before env subsections
-		if strings.Contains(trimmed, "[mcp_servers.") && strings.Contains(trimmed, ".env]") {
+		if strings.Contains(line, "[mcp_servers.") && strings.Contains(line, ".env]") {
 			result = append(result, "")
 		}
 		
 		// Handle array formatting - convert compact arrays to multi-line
-		if strings.Contains(trimmed, "args = [") && strings.Contains(trimmed, "]") {
+		if strings.Contains(line, "args = [") && strings.Contains(line, "]") {
 			// Compact array on one line
 			reformatted := reformatCompactArray(line)
 			result = append(result, reformatted...)
@@ -218,35 +221,33 @@ func postProcessTOML(output string) string {
 }
 
 // reformatCompactArray converts a compact array to multi-line format
+// Input line should already have indentation stripped
 func reformatCompactArray(line string) []string {
-	indent := getIndent(line)
-	trimmed := strings.TrimSpace(line)
-	
 	// Extract array content
-	start := strings.Index(trimmed, "[")
-	end := strings.LastIndex(trimmed, "]")
+	start := strings.Index(line, "[")
+	end := strings.LastIndex(line, "]")
 	if start == -1 || end == -1 {
 		return []string{line}
 	}
 	
-	content := trimmed[start+1 : end]
+	content := line[start+1 : end]
 	elements := parseArrayElements(content)
 	
 	if len(elements) == 0 {
 		return []string{line}
 	}
 	
-	// Reformat to multi-line
+	// Reformat to multi-line without indentation (will be added later)
 	var result []string
-	result = append(result, indent+"args = [")
+	result = append(result, "args = [")
 	for i, elem := range elements {
 		if i < len(elements)-1 {
-			result = append(result, indent+"  "+elem+",")
+			result = append(result, "  "+elem+",")
 		} else {
-			result = append(result, indent+"  "+elem)
+			result = append(result, "  "+elem)
 		}
 	}
-	result = append(result, indent+"]")
+	result = append(result, "]")
 	return result
 }
 

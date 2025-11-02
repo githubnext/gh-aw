@@ -1024,28 +1024,28 @@ jobs:
           mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/config.toml << EOF
           [history]
-            persistence = "none"
+          persistence = "none"
 
-            [mcp_servers.github]
-              user_agent = "smoke-codex"
-              startup_timeout_sec = 120
-              tool_timeout_sec = 60
-              command = "docker"
-              args = [
-                "run",
-                "-i",
-                "--rm",
-                "-e",
-                "GITHUB_PERSONAL_ACCESS_TOKEN",
-                "-e",
-                "GITHUB_READ_ONLY=1",
-                "-e",
-                "GITHUB_TOOLSETS=default",
-                "ghcr.io/github/github-mcp-server:v0.20.1"
-              ]
+          [mcp_servers.github]
+          user_agent = "smoke-codex"
+          startup_timeout_sec = 120
+          tool_timeout_sec = 60
+          command = "docker"
+          args = [
+            "run",
+            "-i",
+            "--rm",
+            "-e",
+            "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "-e",
+            "GITHUB_READ_ONLY=1",
+            "-e",
+            "GITHUB_TOOLSETS=default",
+            "ghcr.io/github/github-mcp-server:v0.20.1"
+          ]
 
-              [mcp_servers.github.env]
-                GITHUB_PERSONAL_ACCESS_TOKEN = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+          [mcp_servers.github.env]
+          GITHUB_PERSONAL_ACCESS_TOKEN = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
 
           [mcp_servers.safeoutputs]
           command = "node"
