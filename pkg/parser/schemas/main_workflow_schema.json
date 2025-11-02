@@ -2999,6 +2999,75 @@
     }
   },
   "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "on": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            },
+            "required": ["command"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "on": {
+            "not": {
+              "anyOf": [
+                {
+                  "properties": {
+                    "issues": {
+                      "not": {
+                        "type": "null"
+                      }
+                    }
+                  },
+                  "required": ["issues"]
+                },
+                {
+                  "properties": {
+                    "issue_comment": {
+                      "not": {
+                        "type": "null"
+                      }
+                    }
+                  },
+                  "required": ["issue_comment"]
+                },
+                {
+                  "properties": {
+                    "pull_request": {
+                      "not": {
+                        "type": "null"
+                      }
+                    }
+                  },
+                  "required": ["pull_request"]
+                },
+                {
+                  "properties": {
+                    "pull_request_review_comment": {
+                      "not": {
+                        "type": "null"
+                      }
+                    }
+                  },
+                  "required": ["pull_request_review_comment"]
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "engine_config": {
       "examples": [
