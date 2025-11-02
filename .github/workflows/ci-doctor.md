@@ -8,6 +8,8 @@ on:
     workflows:
     - Daily Perf Improver
     - Daily Test Coverage Improver
+    branches:
+      - main
 permissions:
   contents: read
   issues: read
