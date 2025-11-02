@@ -42,6 +42,8 @@
 name: "CI Failure Doctor"
 "on":
   workflow_run:
+    branches:
+    - main
     types:
     - completed
     workflows:
