@@ -628,6 +628,12 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 				permissions.Firewall = c.extractFirewallConfig(firewall)
 			}
 
+			// If firewall is enabled but no allowed domains specified, assume "defaults" mode
+			// This provides basic infrastructure access for common use cases
+			if permissions.Firewall != nil && permissions.Firewall.Enabled && len(permissions.Allowed) == 0 {
+				permissions.Mode = "defaults"
+			}
+
 			// Empty object {} means no network access (empty allowed list)
 			return permissions
 		}
