@@ -1528,17 +1528,17 @@ jobs:
           
           1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
           
-          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information.
+          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold and ensure it is not redacted.
           
           **Example format:**
           
-          ```markdown
+          `````markdown
           Brief overview paragraph 1 introducing the report and its main findings.
           
           Optional overview paragraph 2 with additional context or highlights.
           
           <details>
-          <summary>Full Report Details</summary>
+          <summary><b>Full Report Details</b></summary>
           
           ## Detailed Analysis
           
@@ -1551,7 +1551,7 @@ jobs:
           [Content]
           
           </details>
-          ```
+          `````
           
           ## Reporting Workflow Run Information
           
@@ -1562,28 +1562,28 @@ jobs:
           **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
           
           **Format:**
-          ```markdown
+          `````markdown
           [§12345](https://github.com/owner/repo/actions/runs/12345)
-          ```
+          `````
           
           **Example:**
-          ```markdown
+          `````markdown
           Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
-          ```
+          `````
           
           ### 2. Document References for Workflow Runs
           
           When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
           
           **Format:**
-          ```markdown
+          `````markdown
           ---
           
           **References:**
           - [§12345](https://github.com/owner/repo/actions/runs/12345)
           - [§12346](https://github.com/owner/repo/actions/runs/12346)
           - [§12347](https://github.com/owner/repo/actions/runs/12347)
-          ```
+          `````
           
           **Guidelines:**
           - Include **maximum 3 references** to keep reports concise
