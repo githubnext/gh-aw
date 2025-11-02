@@ -12,8 +12,7 @@ permissions:
 
 engine: copilot
 
-network:
-  firewall: true
+network: defaults
 
 imports:
   - shared/reporting.md
