@@ -28,10 +28,7 @@ safe-outputs:
 tools:
   cache-memory: true
   github:
-    allowed:
-      - search_pull_requests
-      - pull_request_read
-      - list_pull_requests
+    toolsets: [default]
   bash:
     - "gh agent-task list *"
     - "gh agent-task view *"

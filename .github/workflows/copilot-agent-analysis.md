@@ -32,13 +32,7 @@ imports:
 tools:
   cache-memory: true
   github:
-    allowed:
-      - search_pull_requests
-      - pull_request_read
-      - list_pull_requests
-      - get_file_contents
-      - list_commits
-      - get_commit
+    toolsets: [default]
   bash:
     - "find .github -name '*.md'"
     - "find .github -type f -exec cat {} +"
