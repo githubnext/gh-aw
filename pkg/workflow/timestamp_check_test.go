@@ -83,17 +83,22 @@ This is a test workflow to verify timestamp checking uses JavaScript.
 		t.Error("Expected timestamp check to NOT use inline bash (run: |)")
 	}
 
-	// Verify the JavaScript content is present (check for key functions)
-	if !strings.Contains(lockContentStr, "GITHUB_WORKSPACE") {
-		t.Error("Expected JavaScript to reference GITHUB_WORKSPACE")
-	}
+	// Verify the JavaScript content uses GitHub API instead of filesystem
 	if !strings.Contains(lockContentStr, "GITHUB_WORKFLOW") {
 		t.Error("Expected JavaScript to reference GITHUB_WORKFLOW")
 	}
+	if !strings.Contains(lockContentStr, "github.rest.repos.listCommits") {
+		t.Error("Expected JavaScript to use GitHub REST API (github.rest.repos.listCommits)")
+	}
+	if !strings.Contains(lockContentStr, "context.repo.owner") {
+		t.Error("Expected JavaScript to use context.repo.owner for API calls")
+	}
 
-	// Verify the old bash-specific variables are NOT present in the inline format
-	// (They might still be referenced within the JavaScript, but not as bash variable assignments)
-	if strings.Contains(timestampCheckSection, "WORKFLOW_FILE=\"${GITHUB_WORKSPACE}") {
-		t.Error("Expected timestamp check to NOT contain inline bash variable assignment")
+	// Verify we're NOT using filesystem operations (since repo is not checked out)
+	if strings.Contains(timestampCheckSection, "fs.statSync") {
+		t.Error("Expected timestamp check to NOT use fs.statSync (should use GitHub API instead)")
+	}
+	if strings.Contains(timestampCheckSection, "GITHUB_WORKSPACE") {
+		t.Error("Expected timestamp check to NOT reference GITHUB_WORKSPACE (should use GitHub API instead)")
 	}
 }
