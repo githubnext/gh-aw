@@ -220,10 +220,8 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			e.addAgenticWorkflowsMCPServer(config)
 		case "safe-outputs":
 			e.addSafeOutputsMCPServer(config, workflowData)
-		case "web-fetch":
-			e.addWebFetchMCPServer(config)
 		default:
-			// Handle custom MCP tools
+			// Handle custom MCP tools (including web-fetch after transformation)
 			e.addCustomMCPServer(config, toolName, expandedTools)
 		}
 	}
@@ -815,16 +813,6 @@ func (e *CodexEngine) addAgenticWorkflowsMCPServer(config *TOMLConfig) {
 	}
 
 	config.AddMCPServer("agentic_workflows", serverConfig)
-}
-
-// addWebFetchMCPServer adds Web Fetch MCP server configuration to the TOML config
-func (e *CodexEngine) addWebFetchMCPServer(config *TOMLConfig) {
-	serverConfig := MCPServerConfig{
-		Command: "docker",
-		Args:    []string{"run", "-i", "--rm", "mcp/fetch"},
-	}
-
-	config.AddMCPServer("web-fetch", serverConfig)
 }
 
 // addCustomMCPServer adds a custom MCP server configuration to the TOML config

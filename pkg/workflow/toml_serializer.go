@@ -4,162 +4,297 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strings"
+	"unicode"
+
+	"github.com/BurntSushi/toml"
 )
 
 // TOMLConfig represents the top-level TOML configuration structure for Codex
 type TOMLConfig struct {
-	History    HistoryConfig
-	MCPServers map[string]MCPServerConfig
+	History    HistoryConfig              `toml:"history"`
+	MCPServers map[string]MCPServerConfig `toml:"mcp_servers"`
 }
 
 // HistoryConfig represents the history configuration section
 type HistoryConfig struct {
-	Persistence string
+	Persistence string `toml:"persistence"`
 }
 
 // MCPServerConfig represents a single MCP server configuration
 type MCPServerConfig struct {
-	// Common fields
-	Command           string
-	Args              []string
-	Env               map[string]string
-	UserAgent         string
-	StartupTimeoutSec int
-	ToolTimeoutSec    int
-	BearerTokenEnvVar string
-	UseInlineEnv      bool // If true, use inline format for env instead of section format
+	// Common fields - using toml struct tags with omitempty
+	UserAgent         string            `toml:"user_agent,omitempty"`
+	StartupTimeoutSec int               `toml:"startup_timeout_sec,omitempty"`
+	ToolTimeoutSec    int               `toml:"tool_timeout_sec,omitempty"`
+	URL               string            `toml:"url,omitempty"`
+	BearerTokenEnvVar string            `toml:"bearer_token_env_var,omitempty"`
+	Command           string            `toml:"command,omitempty"`
+	Args              []string          `toml:"args,omitempty"`
+	Env               map[string]string `toml:"env,omitempty"`
+
+	// Internal field not serialized to TOML
+	UseInlineEnv bool `toml:"-"` // If true, use inline format for env instead of section format
 
 	// HTTP-specific fields
-	URL     string
-	Headers map[string]string
+	Headers map[string]string `toml:"headers,omitempty"`
 }
 
 // SerializeToTOML serializes a TOMLConfig to TOML format with proper indentation
-// This uses manual formatting to match the expected output format for Codex
+// Uses the BurntSushi/toml encoder with custom post-processing for formatting
 func SerializeToTOML(config *TOMLConfig, indent string) (string, error) {
+	// First, handle servers that need inline env formatting
+	// We need to separate them and handle them specially after encoding
+	inlineEnvServers := make(map[string]MCPServerConfig)
+	regularServers := make(map[string]MCPServerConfig)
+
+	for name, server := range config.MCPServers {
+		if server.UseInlineEnv && len(server.Env) > 0 {
+			inlineEnvServers[name] = server
+		} else {
+			regularServers[name] = server
+		}
+	}
+
 	var buf bytes.Buffer
 
-	// Write [history] section
-	buf.WriteString(indent + "[history]\n")
-	buf.WriteString(indent + "persistence = \"" + config.History.Persistence + "\"\n")
-
-	// Get sorted server names for consistent output
-	serverNames := make([]string, 0, len(config.MCPServers))
-	for name := range config.MCPServers {
-		serverNames = append(serverNames, name)
+	// Encode the regular config using TOML encoder
+	regularConfig := &TOMLConfig{
+		History:    config.History,
+		MCPServers: regularServers,
 	}
-	sort.Strings(serverNames)
 
-	// Write each MCP server section
-	for _, name := range serverNames {
-		server := config.MCPServers[name]
+	encoder := toml.NewEncoder(&buf)
+	if err := encoder.Encode(regularConfig); err != nil {
+		return "", fmt.Errorf("failed to encode TOML: %w", err)
+	}
 
-		buf.WriteString(indent + "\n")
+	output := buf.String()
+
+	// Post-process the TOML output to fix formatting
+	output = postProcessTOML(output)
+
+	// Post-process to add servers with inline env
+	if len(inlineEnvServers) > 0 {
+		output = addInlineEnvServers(output, inlineEnvServers)
+	}
+
+	// Apply indentation if needed
+	if indent != "" {
+		output = applyIndentation(output, indent)
+	}
+
+	// Remove trailing blank lines
+	output = strings.TrimRight(output, "\n") + "\n"
+
+	return output, nil
+}
+
+// addInlineEnvServers adds servers with inline env formatting to the TOML output
+func addInlineEnvServers(output string, servers map[string]MCPServerConfig) string {
+	// Sort server names for consistent output
+	names := make([]string, 0, len(servers))
+	for name := range servers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	var additions bytes.Buffer
+	for _, name := range names {
+		server := servers[name]
+		additions.WriteString("\n")
+
 		// Quote the server name if it contains a hyphen
 		if containsHyphen(name) {
-			buf.WriteString(indent + "[mcp_servers.\"" + name + "\"]\n")
+			additions.WriteString(fmt.Sprintf("[mcp_servers.\"%s\"]\n", name))
 		} else {
-			buf.WriteString(indent + "[mcp_servers." + name + "]\n")
+			additions.WriteString(fmt.Sprintf("[mcp_servers.%s]\n", name))
 		}
 
-		// Write fields in a specific order for consistency
-		// Order: user_agent, startup_timeout_sec, tool_timeout_sec, url, bearer_token_env_var, command, args, env
-
-		if server.UserAgent != "" {
-			buf.WriteString(indent + "user_agent = \"" + server.UserAgent + "\"\n")
-		}
-
-		if server.StartupTimeoutSec > 0 {
-			buf.WriteString(indent + fmt.Sprintf("startup_timeout_sec = %d\n", server.StartupTimeoutSec))
-		}
-
-		if server.ToolTimeoutSec > 0 {
-			buf.WriteString(indent + fmt.Sprintf("tool_timeout_sec = %d\n", server.ToolTimeoutSec))
-		}
-
-		if server.URL != "" {
-			buf.WriteString(indent + "url = \"" + server.URL + "\"\n")
-		}
-
-		if server.BearerTokenEnvVar != "" {
-			buf.WriteString(indent + "bearer_token_env_var = \"" + server.BearerTokenEnvVar + "\"\n")
-		}
-
+		// Write non-env fields
 		if server.Command != "" {
-			buf.WriteString(indent + "command = \"" + server.Command + "\"\n")
+			additions.WriteString(fmt.Sprintf("command = \"%s\"\n", server.Command))
 		}
-
 		if len(server.Args) > 0 {
-			buf.WriteString(indent + "args = [\n")
+			additions.WriteString("args = [\n")
 			for i, arg := range server.Args {
-				buf.WriteString(indent + "  \"" + arg + "\"")
-				// Only add comma if not the last element
+				additions.WriteString(fmt.Sprintf("  \"%s\"", arg))
 				if i < len(server.Args)-1 {
-					buf.WriteString(",")
+					additions.WriteString(",")
 				}
-				buf.WriteString("\n")
+				additions.WriteString("\n")
 			}
-			buf.WriteString(indent + "]\n")
+			additions.WriteString("]\n")
 		}
 
+		// Write inline env
 		if len(server.Env) > 0 {
-			if server.UseInlineEnv {
-				// Use inline format for env (for safe-outputs and agentic-workflows)
-				buf.WriteString(indent + "env = { ")
-				envKeys := make([]string, 0, len(server.Env))
-				for k := range server.Env {
-					envKeys = append(envKeys, k)
-				}
-				sort.Strings(envKeys)
+			additions.WriteString("env = { ")
+			envKeys := make([]string, 0, len(server.Env))
+			for k := range server.Env {
+				envKeys = append(envKeys, k)
+			}
+			sort.Strings(envKeys)
 
-				for i, k := range envKeys {
-					if i > 0 {
-						buf.WriteString(", ")
-					}
-					buf.WriteString("\"" + k + "\" = ")
-					// Check if value contains toJSON expression that should not be quoted
-					v := server.Env[k]
-					if k == "GH_AW_SAFE_OUTPUTS_CONFIG" && v == "${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}" {
-						buf.WriteString(v)
-					} else {
-						buf.WriteString("\"" + v + "\"")
-					}
+			for i, k := range envKeys {
+				if i > 0 {
+					additions.WriteString(", ")
 				}
-				buf.WriteString(" }\n")
-			} else {
-				// Use section format for env
-				buf.WriteString(indent + "\n")
-				// Quote the server name in env section if it contains a hyphen
-				if containsHyphen(name) {
-					buf.WriteString(indent + "[mcp_servers.\"" + name + "\".env]\n")
+				additions.WriteString(fmt.Sprintf("\"%s\" = ", k))
+				v := server.Env[k]
+				// Check if value contains toJSON expression that should not be quoted
+				if k == "GH_AW_SAFE_OUTPUTS_CONFIG" && v == "${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}" {
+					additions.WriteString(v)
 				} else {
-					buf.WriteString(indent + "[mcp_servers." + name + ".env]\n")
-				}
-
-				envKeys := make([]string, 0, len(server.Env))
-				for k := range server.Env {
-					envKeys = append(envKeys, k)
-				}
-				sort.Strings(envKeys)
-
-				for _, k := range envKeys {
-					buf.WriteString(indent + k + " = \"" + server.Env[k] + "\"\n")
+					additions.WriteString(fmt.Sprintf("\"%s\"", v))
 				}
 			}
+			additions.WriteString(" }\n")
 		}
 	}
 
-	return buf.String(), nil
+	return output + additions.String()
+}
+
+// applyIndentation adds indentation to each non-empty line
+func applyIndentation(output string, indent string) string {
+	lines := strings.Split(output, "\n")
+	var result bytes.Buffer
+	for _, line := range lines {
+		if len(line) > 0 {
+			result.WriteString(indent + line + "\n")
+		} else {
+			result.WriteString("\n")
+		}
+	}
+	return result.String()
+}
+
+// postProcessTOML fixes formatting issues from the TOML encoder
+func postProcessTOML(output string) string {
+	lines := strings.Split(output, "\n")
+	var result []string
+	
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		trimmed := strings.TrimSpace(line)
+		
+		// Skip the [mcp_servers] header added by encoder
+		if trimmed == "[mcp_servers]" {
+			continue
+		}
+		
+		// Add quotes around hyphenated server names in section headers
+		if strings.HasPrefix(trimmed, "[mcp_servers.") && !strings.Contains(trimmed, `"`) {
+			// Check if the server name contains a hyphen
+			start := strings.Index(trimmed, "[mcp_servers.") + len("[mcp_servers.")
+			end := strings.Index(trimmed, "]")
+			if end > start {
+				serverName := trimmed[start:end]
+				if containsHyphen(serverName) {
+					indent := getIndent(line)
+					line = indent + `[mcp_servers."` + serverName + `"]`
+				}
+			}
+		}
+		
+		// Add blank line before env subsections
+		if strings.Contains(trimmed, "[mcp_servers.") && strings.Contains(trimmed, ".env]") {
+			result = append(result, "")
+		}
+		
+		// Handle array formatting - convert compact arrays to multi-line
+		if strings.Contains(trimmed, "args = [") && strings.Contains(trimmed, "]") {
+			// Compact array on one line
+			reformatted := reformatCompactArray(line)
+			result = append(result, reformatted...)
+			continue
+		}
+		
+		result = append(result, line)
+	}
+	
+	return strings.Join(result, "\n")
+}
+
+// reformatCompactArray converts a compact array to multi-line format
+func reformatCompactArray(line string) []string {
+	indent := getIndent(line)
+	trimmed := strings.TrimSpace(line)
+	
+	// Extract array content
+	start := strings.Index(trimmed, "[")
+	end := strings.LastIndex(trimmed, "]")
+	if start == -1 || end == -1 {
+		return []string{line}
+	}
+	
+	content := trimmed[start+1 : end]
+	elements := parseArrayElements(content)
+	
+	if len(elements) == 0 {
+		return []string{line}
+	}
+	
+	// Reformat to multi-line
+	var result []string
+	result = append(result, indent+"args = [")
+	for i, elem := range elements {
+		if i < len(elements)-1 {
+			result = append(result, indent+"  "+elem+",")
+		} else {
+			result = append(result, indent+"  "+elem)
+		}
+	}
+	result = append(result, indent+"]")
+	return result
+}
+
+// parseArrayElements parses array elements from a compact TOML array string
+func parseArrayElements(content string) []string {
+	var elements []string
+	var current bytes.Buffer
+	inQuotes := false
+	
+	for i := 0; i < len(content); i++ {
+		ch := content[i]
+		
+		if ch == '"' {
+			inQuotes = !inQuotes
+			current.WriteByte(ch)
+		} else if ch == ',' && !inQuotes {
+			elem := strings.TrimSpace(current.String())
+			if elem != "" {
+				elements = append(elements, elem)
+			}
+			current.Reset()
+		} else if !unicode.IsSpace(rune(ch)) || inQuotes {
+			current.WriteByte(ch)
+		}
+	}
+	
+	// Add last element
+	elem := strings.TrimSpace(current.String())
+	if elem != "" {
+		elements = append(elements, elem)
+	}
+	
+	return elements
+}
+
+// getIndent extracts the indentation from a line
+func getIndent(line string) string {
+	for i, ch := range line {
+		if ch != ' ' && ch != '\t' {
+			return line[:i]
+		}
+	}
+	return line
 }
 
 // containsHyphen checks if a string contains a hyphen
 func containsHyphen(s string) bool {
-	for _, c := range s {
-		if c == '-' {
-			return true
-		}
-	}
-	return false
+	return strings.Contains(s, "-")
 }
 
 // BuildTOMLConfig creates a TOMLConfig structure from workflow data

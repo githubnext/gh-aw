@@ -1042,48 +1042,49 @@ jobs:
           mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/config.toml << EOF
           [history]
-          persistence = "none"
-          
-          [mcp_servers.github]
-          user_agent = "duplicate-code-detector"
-          startup_timeout_sec = 120
-          tool_timeout_sec = 60
-          command = "docker"
-          args = [
-            "run",
-            "-i",
-            "--rm",
-            "-e",
-            "GITHUB_PERSONAL_ACCESS_TOKEN",
-            "-e",
-            "GITHUB_READ_ONLY=1",
-            "-e",
-            "GITHUB_TOOLSETS=default",
-            "ghcr.io/github/github-mcp-server:v0.20.1"
-          ]
-          
-          [mcp_servers.github.env]
-          GITHUB_PERSONAL_ACCESS_TOKEN = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-          
+            persistence = "none"
+
+            [mcp_servers.github]
+              user_agent = "duplicate-code-detector"
+              startup_timeout_sec = 120
+              tool_timeout_sec = 60
+              command = "docker"
+              args = [
+                "run",
+                "-i",
+                "--rm",
+                "-e",
+                "GITHUB_PERSONAL_ACCESS_TOKEN",
+                "-e",
+                "GITHUB_READ_ONLY=1",
+                "-e",
+                "GITHUB_TOOLSETS=default",
+                "ghcr.io/github/github-mcp-server:v0.20.1"
+              ]
+
+              [mcp_servers.github.env]
+                GITHUB_PERSONAL_ACCESS_TOKEN = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+            [mcp_servers.serena]
+              startup_timeout_sec = 0
+              tool_timeout_sec = 0
+              command = "uvx"
+              args = [
+                "--from",
+                "git+https://github.com/oraios/serena",
+                "serena",
+                "start-mcp-server",
+                "--context",
+                "codex",
+                "--project",
+                "${{ github.workspace }}"
+              ]
+
           [mcp_servers.safeoutputs]
           command = "node"
           args = [
             "/tmp/gh-aw/safeoutputs/mcp-server.cjs"
           ]
           env = { "GH_AW_ASSETS_ALLOWED_EXTS" = "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}", "GH_AW_ASSETS_BRANCH" = "${{ env.GH_AW_ASSETS_BRANCH }}", "GH_AW_ASSETS_MAX_SIZE_KB" = "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}", "GH_AW_SAFE_OUTPUTS" = "${{ env.GH_AW_SAFE_OUTPUTS }}", "GH_AW_SAFE_OUTPUTS_CONFIG" = ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}, "GITHUB_REPOSITORY" = "${{ github.repository }}", "GITHUB_SERVER_URL" = "${{ github.server_url }}" }
-          
-          [mcp_servers.serena]
-          command = "uvx"
-          args = [
-            "--from",
-            "git+https://github.com/oraios/serena",
-            "serena",
-            "start-mcp-server",
-            "--context",
-            "codex",
-            "--project",
-            "${{ github.workspace }}"
-          ]
           EOF
       - name: Create prompt
         env:
