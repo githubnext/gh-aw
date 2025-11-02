@@ -1,0 +1,12 @@
+# Zizmor security scanner configuration
+# This file configures which security findings to ignore for specific workflows
+
+rules:
+  dangerous-triggers:
+    ignore:
+      # CI Doctor - monitors other workflow failures
+      - ci-doctor.lock.yml:43
+      # Dev Hawk - monitors copilot branch workflows
+      - dev-hawk.lock.yml:35
+      # Smoke Detector - monitors smoke test failures
+      - smoke-detector.lock.yml:53
