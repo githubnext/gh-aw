@@ -52,6 +52,8 @@
 name: "Smoke Detector - Smoke Test Failure Investigator"
 "on":
   workflow_run:
+    branches:
+    - copilot/*
     types:
     - completed
     workflows:
