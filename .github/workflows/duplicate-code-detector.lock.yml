@@ -1182,7 +1182,7 @@ jobs:
                 main,
               };
             }
-            if (require.main === module) {
+            if (typeof process !== "undefined" && typeof process.env !== "undefined" && process.env.GH_AW_MCP_CONFIG_JSON) {
               main();
             }
       - name: Create prompt
