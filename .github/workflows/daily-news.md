@@ -33,6 +33,7 @@ imports:
   - shared/mcp/tavily.md
   - shared/jqschema.md
   - shared/reporting.md
+  - shared/trends.md
 ---
 
 # Daily News
