@@ -26,7 +26,15 @@ The frontmatter combines standard GitHub Actions properties (`on`, `permissions`
 
 ### Trigger Events (`on:`)
 
-The `on:` section uses standard GitHub Actions syntax to define workflow triggers. See [Trigger Events](/gh-aw/reference/triggers/).
+The `on:` section uses standard GitHub Actions syntax to define workflow triggers, with additional fields for security and approval controls:
+
+- Standard GitHub Actions triggers (push, pull_request, issues, schedule, etc.)
+- `reaction:` - Add emoji reactions to triggering items
+- `stop-after:` - Automatically disable triggers after a deadline
+- `manual-approval:` - Require manual approval using environment protection rules
+- `forks:` - Configure fork filtering for pull_request triggers
+
+See [Trigger Events](/gh-aw/reference/triggers/) for complete documentation.
 
 ### Description (`description:`)
 
