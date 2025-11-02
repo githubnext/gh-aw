@@ -1,0 +1,12 @@
+# Zizmor security scanner configuration
+# This file configures which security findings to ignore for specific workflows
+
+rules:
+  # Disable dangerous-triggers rule globally
+  # This rule flags workflow_run triggers as insecure, but we use them legitimately
+  # in several monitoring workflows:
+  # - ci-doctor.lock.yml: Monitors other workflow failures
+  # - dev-hawk.lock.yml: Monitors copilot branch workflows  
+  # - smoke-detector.lock.yml: Monitors smoke test failures
+  dangerous-triggers:
+    disable: true
