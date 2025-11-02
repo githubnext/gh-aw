@@ -1144,7 +1144,18 @@ jobs:
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
-            main();
+            if (typeof module !== "undefined" && module.exports) {
+              module.exports = {
+                escapeTOMLString,
+                toTOMLValue,
+                renderMCPServer,
+                generateCodexConfig,
+                main,
+              };
+            }
+            if (require.main === module) {
+              main();
+            }
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt

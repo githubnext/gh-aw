@@ -15,7 +15,7 @@ global.core = {
 };
 
 // Import the functions from the script
-const { escapeTOMLString, toTOMLValue, renderMCPServer, generateCodexConfig, main } = require("./generate_codex_config.cjs");
+const { escapeTOMLString, escapeTOMLKey, toTOMLValue, renderMCPServer, generateCodexConfig, main } = require("./generate_codex_config.cjs");
 
 describe("generate_codex_config", () => {
   const testOutputPath = "/tmp/test-codex-config.toml";
@@ -220,5 +220,86 @@ describe("generate_codex_config", () => {
     expect(content).toContain('\\"'); // Escaped quotes
     expect(content).toContain("\\\\"); // Escaped backslash
     expect(content).toContain("\\n"); // Escaped newline
+  });
+
+  it("should properly escape keys with special characters", () => {
+    const config = {
+      mcp_servers: {
+        "server-with-dash": {
+          command: "test",
+          args: ["arg1"],
+        },
+        "server.with.dots": {
+          command: "test2",
+          args: ["arg2"],
+        },
+        "server with spaces": {
+          command: "test3",
+          args: ["arg3"],
+        },
+      },
+    };
+
+    process.env.GH_AW_MCP_CONFIG_JSON = JSON.stringify(config);
+    process.env.GH_AW_MCP_CONFIG = testOutputPath;
+
+    main();
+
+    const content = fs.readFileSync(testOutputPath, "utf8");
+    // Keys with dashes should be quoted
+    expect(content).toContain('[mcp_servers."server-with-dash"]');
+    // Keys with dots should be quoted
+    expect(content).toContain('[mcp_servers."server.with.dots"]');
+    // Keys with spaces should be quoted
+    expect(content).toContain('[mcp_servers."server with spaces"]');
+  });
+
+  it("should properly escape environment variable keys with special characters", () => {
+    const config = {
+      mcp_servers: {
+        test: {
+          command: "node",
+          args: ["server.js"],
+          env: {
+            NORMAL_KEY: "value1",
+            "KEY-WITH-DASH": "value2",
+            "KEY.WITH.DOT": "value3",
+            "KEY WITH SPACE": "value4",
+          },
+        },
+      },
+    };
+
+    process.env.GH_AW_MCP_CONFIG_JSON = JSON.stringify(config);
+    process.env.GH_AW_MCP_CONFIG = testOutputPath;
+
+    main();
+
+    const content = fs.readFileSync(testOutputPath, "utf8");
+    // Normal keys don't need quotes
+    expect(content).toContain("NORMAL_KEY =");
+    // Keys with special chars should be quoted
+    expect(content).toContain('"KEY-WITH-DASH" =');
+    expect(content).toContain('"KEY.WITH.DOT" =');
+    expect(content).toContain('"KEY WITH SPACE" =');
+  });
+
+  it("should test escapeTOMLKey function directly", () => {
+    // Simple keys that don't need quoting
+    expect(escapeTOMLKey("simple")).toBe("simple");
+    expect(escapeTOMLKey("simple_key")).toBe("simple_key");
+    expect(escapeTOMLKey("simple-key")).toBe("simple-key");
+    
+    // Keys that need quoting
+    expect(escapeTOMLKey("key.with.dots")).toBe('"key.with.dots"');
+    expect(escapeTOMLKey("key with spaces")).toBe('"key with spaces"');
+    expect(escapeTOMLKey("key=value")).toBe('"key=value"');
+    expect(escapeTOMLKey("key[bracket]")).toBe('"key[bracket]"');
+    
+    // Keys starting with numbers need quoting
+    expect(escapeTOMLKey("123key")).toBe('"123key"');
+    
+    // Keys with quotes should be escaped
+    expect(escapeTOMLKey('key"with"quotes')).toBe('"key\\"with\\"quotes"');
   });
 });

@@ -9,12 +9,31 @@ const fs = require("fs");
 const path = require("path");
 
 /**
- * Escapes a string for use in TOML
+ * Escapes a string for use in TOML basic strings (values)
  * @param {string} str - The string to escape
  * @returns {string} - The escaped string
  */
 function escapeTOMLString(str) {
   return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
+}
+
+/**
+ * Escapes a key or section name for use in TOML
+ * Keys with special characters must be quoted
+ * @param {string} key - The key to escape
+ * @returns {string} - The escaped key (quoted if necessary)
+ */
+function escapeTOMLKey(key) {
+  // Check if key needs quoting (contains special chars or starts with number)
+  const needsQuoting = /[^a-zA-Z0-9_-]/.test(key) || /^[0-9]/.test(key);
+  
+  if (needsQuoting) {
+    // Escape the key and wrap in quotes
+    return `"${escapeTOMLString(key)}"`;
+  }
+  
+  // Simple keys don't need quotes
+  return key;
 }
 
 /**
@@ -40,7 +59,7 @@ function toTOMLValue(value, indent = 0) {
   } else if (typeof value === "object" && value !== null) {
     // Objects are rendered as inline tables in TOML
     const pairs = Object.entries(value)
-      .map(([k, v]) => `"${k}" = ${toTOMLValue(v, indent)}`)
+      .map(([k, v]) => `${escapeTOMLKey(k)} = ${toTOMLValue(v, indent)}`)
       .join(", ");
     return `{ ${pairs} }`;
   }
@@ -54,7 +73,9 @@ function toTOMLValue(value, indent = 0) {
  * @returns {string} - The TOML configuration block
  */
 function renderMCPServer(serverName, serverConfig) {
-  let toml = `\n[mcp_servers.${serverName}]\n`;
+  // Escape the server name for use in section headers
+  const escapedServerName = escapeTOMLKey(serverName);
+  let toml = `\n[mcp_servers.${escapedServerName}]\n`;
 
   // Handle different server types
   if (serverConfig.type === "http") {
@@ -88,9 +109,11 @@ function renderMCPServer(serverName, serverConfig) {
 
   // Add environment variables as a TOML section if present
   if (serverConfig.env && typeof serverConfig.env === "object" && Object.keys(serverConfig.env).length > 0) {
-    toml += `\n[mcp_servers.${serverName}.env]\n`;
+    toml += `\n[mcp_servers.${escapedServerName}.env]\n`;
     for (const [key, value] of Object.entries(serverConfig.env)) {
-      toml += `${key} = ${toTOMLValue(value)}\n`;
+      // Escape environment variable keys
+      const escapedKey = escapeTOMLKey(key);
+      toml += `${escapedKey} = ${toTOMLValue(value)}\n`;
     }
   }
 
@@ -109,7 +132,9 @@ function generateCodexConfig(mcpConfig) {
   if (mcpConfig.history) {
     toml += "[history]\n";
     for (const [key, value] of Object.entries(mcpConfig.history)) {
-      toml += `${key} = ${toTOMLValue(value)}\n`;
+      // Escape history configuration keys
+      const escapedKey = escapeTOMLKey(key);
+      toml += `${escapedKey} = ${toTOMLValue(value)}\n`;
     }
   }
 
@@ -188,6 +213,7 @@ function main() {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     escapeTOMLString,
+    escapeTOMLKey,
     toTOMLValue,
     renderMCPServer,
     generateCodexConfig,
