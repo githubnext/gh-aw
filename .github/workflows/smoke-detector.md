@@ -11,6 +11,8 @@ on:
     - Smoke Copilot
     - Smoke Copilot Firewall
     - Smoke Opencode
+    branches:
+    - 'copilot/*'
   reaction: "eyes"
 permissions:
   contents: read
