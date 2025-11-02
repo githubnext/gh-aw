@@ -35,6 +35,8 @@ imports:
 steps:
   - name: Checkout repository
     uses: actions/checkout@v5
+    with:
+      persist-credentials: false
 
   - name: Check if action.yml exists
     id: check_coverage_steps_file
