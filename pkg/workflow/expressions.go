@@ -328,10 +328,11 @@ func BuildActionEquals(action string) *ComparisonNode {
 
 // BuildNotFromFork creates a condition to check that a pull request is not from a forked repository
 // This prevents the job from running on forked PRs where write permissions are not available
+// Uses repository ID comparison instead of full name for more reliable matching
 func BuildNotFromFork() *ComparisonNode {
 	return BuildEquals(
-		BuildPropertyAccess("github.event.pull_request.head.repo.full_name"),
-		BuildPropertyAccess("github.repository"),
+		BuildPropertyAccess("github.event.pull_request.head.repo.id"),
+		BuildPropertyAccess("github.repository_id"),
 	)
 }
 

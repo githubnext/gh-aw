@@ -4964,7 +4964,7 @@ tools:
     allowed: [get_issue]
 ---`,
 			expectedConditions: []string{
-				"github.event.pull_request.head.repo.full_name == github.repository",
+				"github.event.pull_request.head.repo.id == github.repository_id",
 			},
 			shouldHaveIf: true,
 		},
@@ -4988,7 +4988,7 @@ tools:
     allowed: [get_issue]
 ---`,
 			expectedConditions: []string{
-				"github.event.pull_request.head.repo.full_name == github.repository",
+				"github.event.pull_request.head.repo.id == github.repository_id",
 				"github.event.pull_request.head.repo.full_name == 'githubnext/test-repo'",
 				"github.event.pull_request.head.repo.full_name == 'octocat/hello-world'",
 			},
@@ -5014,7 +5014,7 @@ tools:
     allowed: [get_issue]
 ---`,
 			expectedConditions: []string{
-				"github.event.pull_request.head.repo.full_name == github.repository",
+				"github.event.pull_request.head.repo.id == github.repository_id",
 				"startsWith(github.event.pull_request.head.repo.full_name, 'githubnext/')",
 				"startsWith(github.event.pull_request.head.repo.full_name, 'octocat/')",
 			},
@@ -5041,7 +5041,7 @@ tools:
     allowed: [get_issue]
 ---`,
 			expectedConditions: []string{
-				"github.event.pull_request.head.repo.full_name == github.repository",
+				"github.event.pull_request.head.repo.id == github.repository_id",
 				"github.event.pull_request.head.repo.full_name == 'githubnext/test-repo'",
 				"startsWith(github.event.pull_request.head.repo.full_name, 'octocat/')",
 				"github.event.pull_request.head.repo.full_name == 'microsoft/vscode'",
@@ -5066,7 +5066,7 @@ tools:
     allowed: [get_issue]
 ---`,
 			expectedConditions: []string{
-				"github.event.pull_request.head.repo.full_name == github.repository",
+				"github.event.pull_request.head.repo.id == github.repository_id",
 			},
 			shouldHaveIf: true,
 		},
@@ -5114,7 +5114,7 @@ tools:
     allowed: [get_issue]
 ---`,
 			expectedConditions: []string{
-				"github.event.pull_request.head.repo.full_name == github.repository",
+				"github.event.pull_request.head.repo.id == github.repository_id",
 				"github.event.pull_request.head.repo.full_name == 'githubnext/test-repo'",
 			},
 			shouldHaveIf: true,
@@ -5137,7 +5137,7 @@ tools:
     allowed: [get_issue]
 ---`,
 			expectedConditions: []string{
-				"github.event.pull_request.head.repo.full_name == github.repository",
+				"github.event.pull_request.head.repo.id == github.repository_id",
 				"startsWith(github.event.pull_request.head.repo.full_name, 'githubnext/')",
 			},
 			shouldHaveIf: true,

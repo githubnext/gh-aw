@@ -1313,40 +1313,6 @@
                         },
                         "paths-ignore": {
                           "$ref": "#/definitions/path"
-                        },
-                        "draft": {
-                          "type": "boolean",
-                          "description": "Filter pull requests by draft status. When true, only draft PRs trigger the workflow. When false, only non-draft PRs trigger the workflow. If not specified, both draft and non-draft PRs trigger the workflow."
-                        },
-                        "forks": {
-                          "oneOf": [
-                            {
-                              "type": "string",
-                              "description": "Filter pull requests from forked repositories. Use '*' to allow all forks, or specify a repository pattern (e.g., 'org/*' or 'org/repo'). Default behavior (when not specified): only same-repo PRs are allowed (forks are disallowed by default)."
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              },
-                              "description": "Filter pull requests from forked repositories. Provide a list of allowed repository patterns (e.g., ['org/*', 'org/repo']). Use ['*'] to allow all forks, or [] to allow only same-repo PRs. Default behavior (when not specified): only same-repo PRs are allowed (forks are disallowed by default)."
-                            }
-                          ]
-                        },
-                        "names": {
-                          "oneOf": [
-                            {
-                              "type": "string",
-                              "description": "Filter labeled/unlabeled events by label name. Only triggers when the specified label is added or removed."
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              },
-                              "description": "Filter labeled/unlabeled events by label names. Only triggers when one of the specified labels is added or removed."
-                            }
-                          ]
                         }
                       },
                       "additionalProperties": false
