@@ -14,6 +14,9 @@ global.core = {
   },
 };
 
+// Import the functions from the script
+const { escapeTOMLString, toTOMLValue, renderMCPServer, generateCodexConfig, main } = require("./generate_codex_config.cjs");
+
 describe("generate_codex_config", () => {
   const testOutputPath = "/tmp/test-codex-config.toml";
 
@@ -45,9 +48,8 @@ describe("generate_codex_config", () => {
     process.env.GH_AW_MCP_CONFIG_JSON = JSON.stringify(config);
     process.env.GH_AW_MCP_CONFIG = testOutputPath;
 
-    // Load and execute the script
-    delete require.cache[require.resolve("./generate_codex_config.cjs")];
-    require("./generate_codex_config.cjs");
+    // Execute main function
+    main();
 
     // Verify the file was created
     expect(fs.existsSync(testOutputPath)).toBe(true);
@@ -79,8 +81,7 @@ describe("generate_codex_config", () => {
     process.env.GH_AW_MCP_CONFIG_JSON = JSON.stringify(config);
     process.env.GH_AW_MCP_CONFIG = testOutputPath;
 
-    delete require.cache[require.resolve("./generate_codex_config.cjs")];
-    require("./generate_codex_config.cjs");
+    main();
 
     const content = fs.readFileSync(testOutputPath, "utf8");
     expect(content).toContain("[mcp_servers.github]");
@@ -112,8 +113,7 @@ describe("generate_codex_config", () => {
     process.env.GH_AW_MCP_CONFIG_JSON = JSON.stringify(config);
     process.env.GH_AW_MCP_CONFIG = testOutputPath;
 
-    delete require.cache[require.resolve("./generate_codex_config.cjs")];
-    require("./generate_codex_config.cjs");
+    main();
 
     const content = fs.readFileSync(testOutputPath, "utf8");
     expect(content).toContain("[mcp_servers.github]");
@@ -139,8 +139,7 @@ describe("generate_codex_config", () => {
     process.env.GH_AW_MCP_CONFIG_JSON = JSON.stringify(config);
     process.env.GH_AW_MCP_CONFIG = testOutputPath;
 
-    delete require.cache[require.resolve("./generate_codex_config.cjs")];
-    require("./generate_codex_config.cjs");
+    main();
 
     const content = fs.readFileSync(testOutputPath, "utf8");
     expect(content).toContain("[mcp_servers.playwright]");
@@ -174,8 +173,7 @@ describe("generate_codex_config", () => {
     process.env.GH_AW_MCP_CONFIG_JSON = JSON.stringify(config);
     process.env.GH_AW_MCP_CONFIG = testOutputPath;
 
-    delete require.cache[require.resolve("./generate_codex_config.cjs")];
-    require("./generate_codex_config.cjs");
+    main();
 
     const content = fs.readFileSync(testOutputPath, "utf8");
     expect(content).toContain("[mcp_servers.github]");
@@ -195,8 +193,7 @@ describe("generate_codex_config", () => {
     process.env.GH_AW_MCP_CONFIG_JSON = JSON.stringify(config);
     process.env.GH_AW_MCP_CONFIG = testOutputPath;
 
-    delete require.cache[require.resolve("./generate_codex_config.cjs")];
-    require("./generate_codex_config.cjs");
+    main();
 
     const content = fs.readFileSync(testOutputPath, "utf8");
     expect(content).toContain("# Custom configuration");
@@ -217,8 +214,7 @@ describe("generate_codex_config", () => {
     process.env.GH_AW_MCP_CONFIG_JSON = JSON.stringify(config);
     process.env.GH_AW_MCP_CONFIG = testOutputPath;
 
-    delete require.cache[require.resolve("./generate_codex_config.cjs")];
-    require("./generate_codex_config.cjs");
+    main();
 
     const content = fs.readFileSync(testOutputPath, "utf8");
     expect(content).toContain('\\"'); // Escaped quotes

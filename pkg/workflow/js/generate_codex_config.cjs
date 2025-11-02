@@ -184,5 +184,18 @@ function main() {
   }
 }
 
-// Execute main function
-main();
+// Export functions for testing
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    escapeTOMLString,
+    toTOMLValue,
+    renderMCPServer,
+    generateCodexConfig,
+    main,
+  };
+}
+
+// Execute main function only when run directly (not when required)
+if (require.main === module) {
+  main();
+}
