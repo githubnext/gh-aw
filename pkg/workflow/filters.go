@@ -89,6 +89,7 @@ func (c *Compiler) applyPullRequestDraftFilter(data *WorkflowData, frontmatter m
 
 // applyPullRequestForkFilter applies fork filter conditions for pull_request triggers
 // Supports "forks: []string" with glob patterns
+// Default behavior: When forks field is not specified, only same-repo PRs are allowed (forks are disallowed by default)
 func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter map[string]any) {
 	filtersLog.Print("Applying pull request fork filter")
 
@@ -119,28 +120,30 @@ func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter ma
 	// Check for "forks" field (string or array)
 	forksValue, hasForks := prMap["forks"]
 
-	if !hasForks {
-		return
-	}
-
-	filtersLog.Print("Found forks filter configuration")
-
-	// Convert forks value to []string, handling both string and array formats
+	// Default behavior: If forks field is not specified, only allow same-repo PRs (disallow all forks by default)
 	var allowedForks []string
-
-	// Handle string format (e.g., forks: "*" or forks: "org/*")
-	if forksStr, isForksStr := forksValue.(string); isForksStr {
-		allowedForks = []string{forksStr}
-	} else if forksArray, isForksArray := forksValue.([]any); isForksArray {
-		// Handle array format (e.g., forks: ["*", "org/repo"])
-		for _, fork := range forksArray {
-			if forkStr, isForkStr := fork.(string); isForkStr {
-				allowedForks = append(allowedForks, forkStr)
-			}
-		}
+	if !hasForks {
+		filtersLog.Print("No forks field specified - applying default fork filter (disallow all forks)")
+		// Empty allowedForks array means only same-repo PRs are allowed
+		allowedForks = []string{}
 	} else {
-		// Invalid forks format, skip
-		return
+		filtersLog.Print("Found forks filter configuration")
+
+		// Convert forks value to []string, handling both string and array formats
+		// Handle string format (e.g., forks: "*" or forks: "org/*")
+		if forksStr, isForksStr := forksValue.(string); isForksStr {
+			allowedForks = []string{forksStr}
+		} else if forksArray, isForksArray := forksValue.([]any); isForksArray {
+			// Handle array format (e.g., forks: ["*", "org/repo"])
+			for _, fork := range forksArray {
+				if forkStr, isForkStr := fork.(string); isForkStr {
+					allowedForks = append(allowedForks, forkStr)
+				}
+			}
+		} else {
+			// Invalid forks format, skip
+			return
+		}
 	}
 
 	// If "*" wildcard is present, skip fork filtering (allow all forks)

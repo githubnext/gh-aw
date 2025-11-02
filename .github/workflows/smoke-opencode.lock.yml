@@ -63,8 +63,8 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') ||
-      (github.event.label.name == 'smoke')))
+      (needs.pre_activation.outputs.activated == 'true') && (((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.full_name == github.repository)) &&
+      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke'))))
     runs-on: ubuntu-slim
     steps:
       - name: Check workflow file timestamps
@@ -2997,7 +2997,9 @@ jobs:
             });
 
   pre_activation:
-    if: (github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke'))
+    if: >
+      ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.full_name == github.repository)) &&
+      ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'smoke')))
     runs-on: ubuntu-slim
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}

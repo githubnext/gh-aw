@@ -4948,6 +4948,27 @@ func TestPullRequestForksArrayFilter(t *testing.T) {
 		shouldHaveIf       bool     // Whether an if condition should be present
 	}{
 		{
+			name: "pull_request without forks field (default: disallow all forks)",
+			frontmatter: `---
+on:
+  pull_request:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+tools:
+  github:
+    allowed: [get_issue]
+---`,
+			expectedConditions: []string{
+				"github.event.pull_request.head.repo.full_name == github.repository",
+			},
+			shouldHaveIf: true,
+		},
+		{
 			name: "pull_request with forks array (exact matches)",
 			frontmatter: `---
 on:

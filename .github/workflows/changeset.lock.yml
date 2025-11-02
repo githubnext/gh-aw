@@ -62,7 +62,8 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event.pull_request.base.ref == github.event.repository.default_branch) &&
+      (needs.pre_activation.outputs.activated == 'true') && (((github.event.pull_request.base.ref == github.event.repository.default_branch) &&
+      ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.full_name == github.repository))) &&
       ((github.event_name != 'pull_request') || ((github.event.action != 'labeled') || (github.event.label.name == 'changeset'))))
     runs-on: ubuntu-slim
     permissions:
@@ -5262,7 +5263,8 @@ jobs:
 
   pre_activation:
     if: >
-      (github.event.pull_request.base.ref == github.event.repository.default_branch) && ((github.event_name != 'pull_request') ||
+      ((github.event.pull_request.base.ref == github.event.repository.default_branch) && ((github.event_name != 'pull_request') ||
+      (github.event.pull_request.head.repo.full_name == github.repository))) && ((github.event_name != 'pull_request') ||
       ((github.event.action != 'labeled') || (github.event.label.name == 'changeset')))
     runs-on: ubuntu-slim
     outputs:
