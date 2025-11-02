@@ -19,7 +19,6 @@ func TestEngineInheritanceFromIncludes(t *testing.T) {
 
 	// Create include file with engine specification
 	includeContent := `---
-on: push
 engine: codex
 tools:
   github:
@@ -89,7 +88,6 @@ func TestEngineConflictDetection(t *testing.T) {
 
 	// Create include file with codex engine
 	includeContent := `---
-on: push
 engine: codex
 tools:
   github:
@@ -144,7 +142,6 @@ func TestEngineObjectFormatInIncludes(t *testing.T) {
 
 	// Create include file with object-format engine specification
 	includeContent := `---
-on: push
 engine:
   id: claude
   model: claude-3-5-sonnet-20241022
@@ -201,7 +198,6 @@ func TestNoEngineSpecifiedAnywhere(t *testing.T) {
 
 	// Create include file without engine specification
 	includeContent := `---
-on: push
 tools:
   github:
     allowed: ["list_issues"]
@@ -384,7 +380,6 @@ func TestImportedEngineWithCustomSteps(t *testing.T) {
 
 	// Create shared file with custom engine and steps
 	sharedContent := `---
-on: push
 engine:
   id: custom
   steps:
@@ -477,7 +472,6 @@ func TestImportedEngineWithEnvVars(t *testing.T) {
 
 	// Create shared file with custom engine, steps, and env vars
 	sharedContent := `---
-on: push
 engine:
   id: custom
   env:

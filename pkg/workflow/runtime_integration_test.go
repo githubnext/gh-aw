@@ -94,7 +94,6 @@ func TestCompileWorkflowWithRuntimesFromImports(t *testing.T) {
 
 	// Create shared workflow with runtime overrides
 	sharedContent := `---
-on: push
 runtimes:
   ruby:
     version: "3.2"
