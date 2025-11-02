@@ -813,7 +813,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			errContains: "allOf",
+			errContains: "command trigger cannot be used with 'issues' event",
 		},
 		{
 			name: "invalid: command trigger with issue_comment event",
@@ -826,7 +826,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			errContains: "allOf",
+			errContains: "command trigger cannot be used with 'issue_comment' event",
 		},
 		{
 			name: "invalid: command trigger with pull_request event",
@@ -841,7 +841,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			errContains: "allOf",
+			errContains: "command trigger cannot be used with 'pull_request' event",
 		},
 		{
 			name: "invalid: command trigger with pull_request_review_comment event",
@@ -854,7 +854,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			errContains: "allOf",
+			errContains: "command trigger cannot be used with 'pull_request_review_comment' event",
 		},
 		{
 			name: "invalid: command trigger with multiple conflicting events",
@@ -872,7 +872,7 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			errContains: "allOf",
+			errContains: "command trigger cannot be used with these events",
 		},
 		{
 			name: "valid: command trigger with non-conflicting events",

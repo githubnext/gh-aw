@@ -3062,8 +3062,7 @@
                   "required": ["pull_request_review_comment"]
                 }
               ]
-            },
-            "errorMessage": "Command trigger cannot be used with 'issues', 'issue_comment', 'pull_request', or 'pull_request_review_comment' events in the same workflow"
+            }
           }
         }
       }

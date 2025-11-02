@@ -599,7 +599,7 @@ tools:
 ---`,
 			filename:         "command-with-issues.md",
 			shouldError:      true,
-			expectedErrorMsg: "allOf",
+			expectedErrorMsg: "command trigger cannot be used with 'issues' event",
 		},
 		{
 			name: "command with conflicting issue_comment event - should error",
@@ -615,7 +615,7 @@ tools:
 ---`,
 			filename:         "command-with-issue-comment.md",
 			shouldError:      true,
-			expectedErrorMsg: "allOf",
+			expectedErrorMsg: "command trigger cannot be used with 'issue_comment' event",
 		},
 		{
 			name: "command with conflicting pull_request event - should error",
@@ -631,7 +631,7 @@ tools:
 ---`,
 			filename:         "command-with-pull-request.md",
 			shouldError:      true,
-			expectedErrorMsg: "allOf",
+			expectedErrorMsg: "command trigger cannot be used with 'pull_request' event",
 		},
 		{
 			name: "command with conflicting pull_request_review_comment event - should error",
@@ -647,7 +647,7 @@ tools:
 ---`,
 			filename:         "command-with-pull-request-review-comment.md",
 			shouldError:      true,
-			expectedErrorMsg: "allOf",
+			expectedErrorMsg: "command trigger cannot be used with 'pull_request_review_comment' event",
 		},
 	}
 
