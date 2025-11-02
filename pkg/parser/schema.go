@@ -60,13 +60,19 @@ func ValidateMainWorkflowFrontmatterWithSchema(frontmatter map[string]any) error
 	// Filter out ignored fields before validation
 	filtered := filterIgnoredFields(frontmatter)
 
-	// First run the standard schema validation
+	// First run custom validation for command trigger conflicts (provides better error messages)
+	if err := validateCommandTriggerConflicts(filtered); err != nil {
+		schemaLog.Printf("Command trigger validation failed: %v", err)
+		return err
+	}
+
+	// Then run the standard schema validation
 	if err := validateWithSchema(filtered, mainWorkflowSchema, "main workflow file"); err != nil {
 		schemaLog.Printf("Schema validation failed for main workflow: %v", err)
 		return err
 	}
 
-	// Then run custom validation for engine-specific rules
+	// Finally run other custom validation rules
 	return validateEngineSpecificRules(filtered)
 }
 
@@ -75,12 +81,17 @@ func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string
 	// Filter out ignored fields before validation
 	filtered := filterIgnoredFields(frontmatter)
 
-	// First run the standard schema validation with location
+	// First run custom validation for command trigger conflicts (provides better error messages)
+	if err := validateCommandTriggerConflicts(filtered); err != nil {
+		return err
+	}
+
+	// Then run the standard schema validation with location
 	if err := validateWithSchemaAndLocation(filtered, mainWorkflowSchema, "main workflow file", filePath); err != nil {
 		return err
 	}
 
-	// Then run custom validation for engine-specific rules
+	// Finally run other custom validation rules
 	return validateEngineSpecificRules(filtered)
 }
 
@@ -425,10 +436,50 @@ func min(a, b int) int {
 
 // validateEngineSpecificRules validates engine-specific rules that are not easily expressed in JSON schema
 func validateEngineSpecificRules(frontmatter map[string]any) error {
-	// Currently no engine-specific validation rules
-	// Network and firewall configuration is handled at the top-level, not under engine
-	// This function is kept as a placeholder for potential future engine-specific validation
+	// Custom validation rules are now handled separately
+	// Command trigger conflicts are validated before schema validation
+	// This function is kept as a placeholder for potential future validation rules
 	_ = frontmatter
+	return nil
+}
+
+// validateCommandTriggerConflicts checks that command triggers are not used with conflicting events
+func validateCommandTriggerConflicts(frontmatter map[string]any) error {
+	// Check if 'on' field exists and is a map
+	onValue, hasOn := frontmatter["on"]
+	if !hasOn {
+		return nil
+	}
+
+	onMap, isMap := onValue.(map[string]any)
+	if !isMap {
+		return nil
+	}
+
+	// Check if command trigger is present
+	commandValue, hasCommand := onMap["command"]
+	if !hasCommand || commandValue == nil {
+		return nil
+	}
+
+	// List of conflicting events
+	conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
+
+	// Check for conflicts
+	var foundConflicts []string
+	for _, eventName := range conflictingEvents {
+		if eventValue, hasEvent := onMap[eventName]; hasEvent && eventValue != nil {
+			foundConflicts = append(foundConflicts, eventName)
+		}
+	}
+
+	if len(foundConflicts) > 0 {
+		if len(foundConflicts) == 1 {
+			return fmt.Errorf("command trigger cannot be used with '%s' event in the same workflow. Command triggers are designed to respond to slash commands in comments and should not be combined with event-based triggers for issues or pull requests", foundConflicts[0])
+		}
+		return fmt.Errorf("command trigger cannot be used with these events in the same workflow: %s. Command triggers are designed to respond to slash commands in comments and should not be combined with event-based triggers for issues or pull requests", strings.Join(foundConflicts, ", "))
+	}
+
 	return nil
 }
 

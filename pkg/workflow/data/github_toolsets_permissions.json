@@ -1,29 +1,35 @@
 {
-  "version": "1.0",
-  "description": "GitHub MCP server toolsets and their required permissions",
+  "version": "2.0",
+  "description": "GitHub MCP server toolsets and their required permissions (updated to match actual MCP server capabilities)",
   "toolsets": {
     "context": {
       "description": "GitHub Actions context and environment",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["get_me", "get_teams", "get_team_members"]
+      "tools": [
+        "get_copilot_space",
+        "get_me",
+        "get_team_members",
+        "get_teams",
+        "github_support_docs_search",
+        "list_copilot_spaces"
+      ]
     },
     "repos": {
       "description": "Repository operations",
       "read_permissions": ["contents"],
       "write_permissions": ["contents"],
       "tools": [
-        "get_repository",
-        "get_file_contents",
-        "search_code",
-        "list_commits",
         "get_commit",
+        "get_file_contents",
         "get_latest_release",
-        "list_releases",
         "get_release_by_tag",
-        "list_branches",
         "get_tag",
-        "list_tags"
+        "list_branches",
+        "list_commits",
+        "list_releases",
+        "list_tags",
+        "search_repositories"
       ]
     },
     "issues": {
@@ -32,13 +38,9 @@
       "write_permissions": ["issues"],
       "tools": [
         "issue_read",
+        "list_issue_types",
         "list_issues",
-        "create_issue",
-        "update_issue",
-        "search_issues",
-        "add_reaction",
-        "create_issue_comment",
-        "list_issue_types"
+        "search_issues"
       ]
     },
     "pull_requests": {
@@ -46,12 +48,9 @@
       "read_permissions": ["pull-requests"],
       "write_permissions": ["pull-requests"],
       "tools": [
-        "pull_request_read",
         "list_pull_requests",
-        "get_pull_request",
-        "create_pull_request",
-        "search_pull_requests",
-        "create_pull_request_review_comment"
+        "pull_request_read",
+        "search_pull_requests"
       ]
     },
     "actions": {
@@ -59,36 +58,45 @@
       "read_permissions": ["actions"],
       "write_permissions": [],
       "tools": [
-        "list_workflows",
-        "list_workflow_runs",
-        "get_workflow_run",
         "download_workflow_run_artifact",
-        "list_workflow_run_artifacts",
-        "list_workflow_jobs",
         "get_job_logs",
+        "get_workflow_run",
         "get_workflow_run_logs",
         "get_workflow_run_usage",
-        "summarize_job_log_failures",
-        "summarize_run_log_failures"
+        "list_workflow_jobs",
+        "list_workflow_run_artifacts",
+        "list_workflow_runs",
+        "list_workflows"
       ]
     },
     "code_security": {
       "description": "Code scanning alerts",
       "read_permissions": ["security-events"],
       "write_permissions": ["security-events"],
-      "tools": ["list_code_scanning_alerts", "get_code_scanning_alert", "create_code_scanning_alert"]
+      "tools": [
+        "get_code_scanning_alert",
+        "list_code_scanning_alerts"
+      ]
     },
     "dependabot": {
       "description": "Dependabot alerts",
       "read_permissions": ["security-events"],
       "write_permissions": [],
-      "tools": ["list_dependabot_alerts", "get_dependabot_alert"]
+      "tools": [
+        "get_dependabot_alert",
+        "list_dependabot_alerts"
+      ]
     },
     "discussions": {
       "description": "GitHub Discussions",
       "read_permissions": ["discussions"],
       "write_permissions": ["discussions"],
-      "tools": ["list_discussions", "create_discussion", "get_discussion", "update_discussion"]
+      "tools": [
+        "get_discussion",
+        "get_discussion_comments",
+        "list_discussion_categories",
+        "list_discussions"
+      ]
     },
     "experiments": {
       "description": "Experimental features",
@@ -100,61 +108,97 @@
       "description": "Gist operations",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["create_gist", "list_gists", "get_gist"]
+      "tools": [
+        "list_gists"
+      ]
     },
     "labels": {
       "description": "Label management",
       "read_permissions": ["issues"],
       "write_permissions": ["issues"],
-      "tools": ["get_label", "list_labels", "create_label", "update_label", "delete_label"]
+      "tools": [
+        "get_label",
+        "list_label"
+      ]
     },
     "notifications": {
       "description": "Notification management",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["list_notifications", "mark_notifications_read"]
+      "tools": [
+        "get_notification_details",
+        "list_notifications"
+      ]
     },
     "orgs": {
       "description": "Organization operations",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["get_organization", "list_organizations"]
+      "tools": [
+        "list_org_repository_security_advisories",
+        "search_orgs"
+      ]
     },
     "projects": {
       "description": "GitHub Projects",
       "read_permissions": ["repository-projects"],
       "write_permissions": ["repository-projects"],
-      "tools": ["list_projects", "get_project", "create_project", "update_project"]
+      "tools": [
+        "get_project",
+        "get_project_field",
+        "get_project_item",
+        "list_project_fields",
+        "list_project_items",
+        "list_projects"
+      ]
     },
     "secret_protection": {
       "description": "Secret scanning",
       "read_permissions": ["security-events"],
       "write_permissions": [],
-      "tools": ["list_secret_scanning_alerts", "get_secret_scanning_alert"]
+      "tools": [
+        "get_secret_scanning_alert",
+        "list_secret_scanning_alerts"
+      ]
     },
     "security_advisories": {
       "description": "Security advisories",
       "read_permissions": ["security-events"],
       "write_permissions": ["security-events"],
-      "tools": ["list_security_advisories", "get_security_advisory", "create_security_advisory"]
+      "tools": [
+        "get_global_security_advisory",
+        "list_global_security_advisories",
+        "list_repository_security_advisories"
+      ]
     },
     "stargazers": {
       "description": "Repository stars",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["list_stargazers", "star_repository", "unstar_repository"]
+      "tools": [
+        "list_starred_repositories"
+      ]
     },
     "users": {
       "description": "User information",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["get_user", "list_users", "search_users"]
+      "tools": [
+        "search_users"
+      ]
     },
     "search": {
       "description": "Advanced search",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["search_code", "search_issues", "search_pull_requests", "search_repositories", "search_users"]
+      "tools": [
+        "search_code",
+        "search_issues",
+        "search_orgs",
+        "search_pull_requests",
+        "search_repositories",
+        "search_users"
+      ]
     }
   }
 }

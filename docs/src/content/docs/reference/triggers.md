@@ -59,6 +59,25 @@ on:
   reaction: "rocket"
 ```
 
+#### Fork Filtering (`forks:`)
+
+Pull request workflows block forks by default for security. Use the `forks:` field to allow specific fork patterns:
+
+```yaml
+on:
+  pull_request:
+    types: [opened, synchronize]
+    forks: ["trusted-org/*"]  # Allow forks from trusted-org
+```
+
+**Available patterns:**
+- `["*"]` - Allow all forks (use with caution)
+- `["owner/*"]` - Allow forks from specific organization or user
+- `["owner/repo"]` - Allow specific repository
+- Omit `forks` field - Default behavior (same-repository PRs only)
+
+The compiler uses repository ID comparison for reliable fork detection that is not affected by repository renames. See the [Security Guide](/gh-aw/guides/security/#fork-protection-for-pull-request-triggers) for detailed security implications.
+
 ### Comment Triggers
 ```yaml
 on:
@@ -70,6 +89,30 @@ on:
     types: [created]
   reaction: "eyes"
 ```
+
+### Workflow Run Triggers (`workflow_run:`)
+
+Trigger workflows after another workflow completes. [Full event reference](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#workflow_run).
+
+```yaml
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches:
+      - main
+      - develop
+```
+
+#### Security Protections
+
+Workflows with `workflow_run` triggers include automatic security protections:
+
+**Automatic repository validation:** The compiler automatically injects a repository ID check to prevent cross-repository attacks. This safety condition ensures workflows only execute when triggered by workflow runs from the same repository.
+
+**Branch restrictions required:** Include `branches` to limit which branch workflows can trigger the event. Without branch restrictions, the compiler emits warnings (or errors in strict mode). This prevents unexpected execution for workflow runs on all branches.
+
+See the [Security Guide](/gh-aw/guides/security/#workflow_run-trigger-security) for detailed security behavior and implementation.
 
 ### Command Triggers (`command:`)
 
@@ -171,6 +214,20 @@ on:
 ```
 
 Accepts absolute dates (`YYYY-MM-DD`, `MM/DD/YYYY`, `DD/MM/YYYY`, `January 2 2006`, `1st June 2025`, ISO 8601) or relative deltas (`+7d`, `+25h`, `+1d12h30m`) calculated from compilation time. The minimum granularity is hours - minute-only units (e.g., `+30m`) are not allowed. Recompiling the workflow resets the stop time.
+
+### Manual Approval Gates (`manual-approval:`)
+
+Require manual approval before workflow execution using GitHub environment protection rules:
+
+```yaml
+on:
+  workflow_dispatch:
+  manual-approval: production
+```
+
+The `manual-approval` field sets the `environment` on the activation job, enabling manual approval gates configured in repository or organization settings. This provides human-in-the-loop control for sensitive operations.
+
+The field accepts a string environment name that must match a configured environment in the repository. Configure approval rules, required reviewers, and wait timers in repository Settings → Environments. See [GitHub's environment documentation](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment) for environment configuration details.
 
 ## Related Documentation
 
