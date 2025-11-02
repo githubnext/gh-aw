@@ -481,6 +481,17 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	// Team member check is now handled by the separate check_membership job
 	// No inline role checks needed in the task job anymore
 
+	// Add shallow checkout for timestamp check
+	// Only checkout .github/workflows directory for minimal performance impact
+	steps = append(steps, "      - name: Checkout workflows\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          sparse-checkout: |\n")
+	steps = append(steps, "            .github/workflows\n")
+	steps = append(steps, "          sparse-checkout-cone-mode: false\n")
+	steps = append(steps, "          fetch-depth: 1\n")
+	steps = append(steps, "          persist-credentials: false\n")
+
 	// Add timestamp check for lock file vs source file
 	steps = append(steps, "      - name: Check workflow file timestamps\n")
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))

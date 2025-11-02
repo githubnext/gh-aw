@@ -236,12 +236,44 @@ engine: claude
 					t.Errorf("%s: Default checkout step should not be present when custom steps have checkout", tt.description)
 				}
 			} else {
-				// For other test cases, check if checkout step is present
-				hasCheckout := strings.Contains(lockContentStr, "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8")
+				// For other test cases, check if checkout step is present in the agent job
+				// Extract the agent job section
+				agentJobStart := strings.Index(lockContentStr, "agent:")
+				if agentJobStart == -1 {
+					t.Fatalf("Agent job not found in compiled workflow")
+				}
+
+				// Find the next job or end of file to bound the agent job section
+				agentJobEnd := len(lockContentStr)
+				nextJobIdx := strings.Index(lockContentStr[agentJobStart+6:], "\n  ")
+				if nextJobIdx != -1 {
+					// Look for the start of the next job (a line starting with two spaces followed by a word and colon)
+					searchStart := agentJobStart + 6 + nextJobIdx
+					for idx := searchStart; idx < len(lockContentStr); idx++ {
+						if lockContentStr[idx] == '\n' {
+							// Check if the next line starts a new job (at same indentation level as "agent:")
+							lineStart := idx + 1
+							if lineStart < len(lockContentStr) && lineStart+2 < len(lockContentStr) {
+								if lockContentStr[lineStart:lineStart+2] == "  " && lockContentStr[lineStart+2] != ' ' {
+									// Found a line that starts with exactly 2 spaces (not more)
+									// and has a non-space character after, indicating a new job
+									colonIdx := strings.Index(lockContentStr[lineStart:], ":")
+									if colonIdx > 0 && colonIdx < 50 { // Job names are typically short
+										agentJobEnd = idx
+										break
+									}
+								}
+							}
+						}
+					}
+				}
+
+				agentJobSection := lockContentStr[agentJobStart:agentJobEnd]
+				hasCheckout := strings.Contains(agentJobSection, "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8")
 
 				if hasCheckout != tt.expectedHasCheckout {
-					t.Errorf("%s: Expected hasCheckout=%v, got %v\nLock file content:\n%s",
-						tt.description, tt.expectedHasCheckout, hasCheckout, lockContentStr)
+					t.Errorf("%s: Expected hasCheckout=%v in agent job, got %v\nAgent job section:\n%s",
+						tt.description, tt.expectedHasCheckout, hasCheckout, agentJobSection)
 				}
 			}
 		})
