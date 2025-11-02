@@ -800,6 +800,124 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr:     true,
 			errContains: "additional properties 'invalid' not allowed",
 		},
+		{
+			name: "invalid: command trigger with issues event",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"command": map[string]any{
+						"name": "test-bot",
+					},
+					"issues": map[string]any{
+						"types": []string{"opened"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "allOf",
+		},
+		{
+			name: "invalid: command trigger with issue_comment event",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"command": "test-bot",
+					"issue_comment": map[string]any{
+						"types": []string{"created"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "allOf",
+		},
+		{
+			name: "invalid: command trigger with pull_request event",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"command": map[string]any{
+						"name": "test-bot",
+					},
+					"pull_request": map[string]any{
+						"types": []string{"opened"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "allOf",
+		},
+		{
+			name: "invalid: command trigger with pull_request_review_comment event",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"command": "test-bot",
+					"pull_request_review_comment": map[string]any{
+						"types": []string{"created"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "allOf",
+		},
+		{
+			name: "invalid: command trigger with multiple conflicting events",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"command": map[string]any{
+						"name": "test-bot",
+					},
+					"issues": map[string]any{
+						"types": []string{"opened"},
+					},
+					"pull_request": map[string]any{
+						"types": []string{"opened"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "allOf",
+		},
+		{
+			name: "valid: command trigger with non-conflicting events",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"command": map[string]any{
+						"name": "test-bot",
+					},
+					"workflow_dispatch": nil,
+					"schedule": []map[string]any{
+						{"cron": "0 0 * * *"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid: command trigger alone",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"command": "test-bot",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid: command trigger as null (default workflow name)",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"command": nil,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid: issues event without command",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"issues": map[string]any{
+						"types": []string{"opened"},
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

@@ -599,7 +599,7 @@ tools:
 ---`,
 			filename:         "command-with-issues.md",
 			shouldError:      true,
-			expectedErrorMsg: "cannot use 'command' with 'issues' in the same workflow",
+			expectedErrorMsg: "allOf",
 		},
 		{
 			name: "command with conflicting issue_comment event - should error",
@@ -615,7 +615,7 @@ tools:
 ---`,
 			filename:         "command-with-issue-comment.md",
 			shouldError:      true,
-			expectedErrorMsg: "cannot use 'command' with 'issue_comment'",
+			expectedErrorMsg: "allOf",
 		},
 		{
 			name: "command with conflicting pull_request event - should error",
@@ -631,7 +631,7 @@ tools:
 ---`,
 			filename:         "command-with-pull-request.md",
 			shouldError:      true,
-			expectedErrorMsg: "cannot use 'command' with 'pull_request'",
+			expectedErrorMsg: "allOf",
 		},
 		{
 			name: "command with conflicting pull_request_review_comment event - should error",
@@ -647,7 +647,7 @@ tools:
 ---`,
 			filename:         "command-with-pull-request-review-comment.md",
 			shouldError:      true,
-			expectedErrorMsg: "cannot use 'command' with 'pull_request_review_comment'",
+			expectedErrorMsg: "allOf",
 		},
 	}
 
