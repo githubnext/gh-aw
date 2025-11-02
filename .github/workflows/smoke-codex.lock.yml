@@ -1035,6 +1035,13 @@ jobs:
             function escapeTOMLString(str) {
               return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
             }
+            function escapeTOMLKey(key) {
+              const needsQuoting = /[^a-zA-Z0-9_-]/.test(key) || /^[0-9]/.test(key);
+              if (needsQuoting) {
+                return `"${escapeTOMLString(key)}"`;
+              }
+              return key;
+            }
             function toTOMLValue(value, indent = 0) {
               const indentStr = "  ".repeat(indent);
               if (typeof value === "string") {
@@ -1049,14 +1056,15 @@ jobs:
                 return `[\n${items}\n${indentStr}]`;
               } else if (typeof value === "object" && value !== null) {
                 const pairs = Object.entries(value)
-                  .map(([k, v]) => `"${k}" = ${toTOMLValue(v, indent)}`)
+                  .map(([k, v]) => `${escapeTOMLKey(k)} = ${toTOMLValue(v, indent)}`)
                   .join(", ");
                 return `{ ${pairs} }`;
               }
               return "null";
             }
             function renderMCPServer(serverName, serverConfig) {
-              let toml = `\n[mcp_servers.${serverName}]\n`;
+              const escapedServerName = escapeTOMLKey(serverName);
+              let toml = `\n[mcp_servers.${escapedServerName}]\n`;
               if (serverConfig.type === "http") {
                 if (serverConfig.url) {
                   toml += `url = ${toTOMLValue(serverConfig.url)}\n`;
@@ -1082,9 +1090,10 @@ jobs:
                 toml += `tool_timeout_sec = ${serverConfig.tool_timeout_sec}\n`;
               }
               if (serverConfig.env && typeof serverConfig.env === "object" && Object.keys(serverConfig.env).length > 0) {
-                toml += `\n[mcp_servers.${serverName}.env]\n`;
+                toml += `\n[mcp_servers.${escapedServerName}.env]\n`;
                 for (const [key, value] of Object.entries(serverConfig.env)) {
-                  toml += `${key} = ${toTOMLValue(value)}\n`;
+                  const escapedKey = escapeTOMLKey(key);
+                  toml += `${escapedKey} = ${toTOMLValue(value)}\n`;
                 }
               }
               return toml;
@@ -1094,7 +1103,8 @@ jobs:
               if (mcpConfig.history) {
                 toml += "[history]\n";
                 for (const [key, value] of Object.entries(mcpConfig.history)) {
-                  toml += `${key} = ${toTOMLValue(value)}\n`;
+                  const escapedKey = escapeTOMLKey(key);
+                  toml += `${escapedKey} = ${toTOMLValue(value)}\n`;
                 }
               }
               if (mcpConfig.mcp_servers && typeof mcpConfig.mcp_servers === "object") {
@@ -1147,6 +1157,7 @@ jobs:
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
                 escapeTOMLString,
+                escapeTOMLKey,
                 toTOMLValue,
                 renderMCPServer,
                 generateCodexConfig,
