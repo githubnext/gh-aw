@@ -1,3 +1,35 @@
+// Package workflow provides strict mode security validation for agentic workflows.
+//
+// # Strict Mode Validation
+//
+// This file contains validation functions that enforce security and safety constraints
+// when workflows are compiled with the --strict flag. Strict mode is designed for
+// production workflows that require enhanced security guarantees.
+//
+// # Validation Functions
+//
+// The strict mode validator performs progressive validation:
+//  1. validateStrictPermissions() - Refuses write permissions on sensitive scopes
+//  2. validateStrictNetwork() - Requires explicit network configuration
+//  3. validateStrictMCPNetwork() - Requires network config on custom MCP servers
+//  4. validateStrictBashTools() - Refuses bash wildcard tools ("*" and ":*")
+//
+// # Integration with Security Scanners
+//
+// Strict mode also affects the zizmor security scanner behavior (see pkg/cli/zizmor.go).
+// When zizmor is enabled with --zizmor flag, strict mode treats any security findings
+// as compilation errors rather than warnings.
+//
+// # When to Add Validation Here
+//
+// Add validation to this file when:
+//   - It enforces a strict mode security policy
+//   - It restricts permissions or access in production workflows
+//   - It validates network access controls
+//   - It enforces tool usage restrictions for security
+//
+// For general validation, see validation.go.
+// For detailed documentation, see specs/validation-architecture.md
 package workflow
 
 import (

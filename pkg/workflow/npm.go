@@ -1,3 +1,32 @@
+// Package workflow provides NPM package validation for agentic workflows.
+//
+// # NPM Package Validation
+//
+// This file validates NPM package availability on the npm registry for packages
+// used with npx (Node Package Execute). Validation ensures that Node.js packages
+// specified in workflows exist and can be installed at runtime.
+//
+// # Validation Functions
+//
+//   - validateNpxPackages() - Validates npm packages used with npx launcher
+//
+// # Validation Pattern: External Registry Check
+//
+// NPM package validation queries the npm registry using the npm CLI:
+//   - Uses `npm view <package> name` to check package existence
+//   - Returns hard errors if packages don't exist (unlike pip validation)
+//   - Requires npm to be installed on the system
+//
+// # When to Add Validation Here
+//
+// Add validation to this file when:
+//   - It validates Node.js/npm ecosystem packages
+//   - It checks npm registry package existence
+//   - It validates npx launcher packages
+//   - It validates Node.js version compatibility
+//
+// For general validation, see validation.go.
+// For detailed documentation, see specs/validation-architecture.md
 package workflow
 
 import (
