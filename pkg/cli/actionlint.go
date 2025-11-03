@@ -23,6 +23,52 @@ type actionlintError struct {
 	EndColumn int    `json:"end_column"`
 }
 
+// ensureActionlintConfig creates or updates .github/actionlint.yaml to configure custom runner labels
+func ensureActionlintConfig(gitRoot string) error {
+	configPath := filepath.Join(gitRoot, ".github", "actionlint.yaml")
+
+	// Check if config already exists
+	if _, err := os.Stat(configPath); err == nil {
+		// Config exists, check if it already has ubuntu-slim
+		content, readErr := os.ReadFile(configPath)
+		if readErr != nil {
+			return fmt.Errorf("failed to read existing actionlint.yaml: %w", readErr)
+		}
+
+		// If ubuntu-slim is already in the config, no need to update
+		if strings.Contains(string(content), "ubuntu-slim") {
+			compileLog.Print("actionlint.yaml already contains ubuntu-slim configuration")
+			return nil
+		}
+
+		compileLog.Print("actionlint.yaml exists but doesn't contain ubuntu-slim, updating...")
+	}
+
+	// Create or update the config file
+	configContent := `# Configuration for actionlint
+# See https://github.com/rhysd/actionlint/blob/main/docs/config.md
+
+self-hosted-runner:
+  # Labels of self-hosted runner in array of strings
+  labels:
+    - ubuntu-slim
+`
+
+	// Ensure .github directory exists
+	githubDir := filepath.Join(gitRoot, ".github")
+	if err := os.MkdirAll(githubDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .github directory: %w", err)
+	}
+
+	// Write the config file
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		return fmt.Errorf("failed to write actionlint.yaml: %w", err)
+	}
+
+	compileLog.Printf("Created/updated actionlint.yaml at %s", configPath)
+	return nil
+}
+
 // runActionlintOnFile runs the actionlint linter on a single .lock.yml file using Docker
 func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 	compileLog.Printf("Running actionlint linter on %s", lockFile)
@@ -31,6 +77,11 @@ func runActionlintOnFile(lockFile string, verbose bool, strict bool) error {
 	gitRoot, err := findGitRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find git root: %w", err)
+	}
+
+	// Ensure actionlint config exists with custom runner labels
+	if err := ensureActionlintConfig(gitRoot); err != nil {
+		return fmt.Errorf("failed to ensure actionlint config: %w", err)
 	}
 
 	// Get the relative path from git root
