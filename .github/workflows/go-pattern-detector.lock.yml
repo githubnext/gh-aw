@@ -1196,7 +1196,7 @@ jobs:
           GH_AW_EXPR_40362DC4: ${{ github.event.after }}
           GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
+          mkdir -p "$(dirname "$GH_AW_PROMPT")"
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           ## ast-grep MCP Server
           

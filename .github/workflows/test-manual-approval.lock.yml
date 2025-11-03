@@ -252,7 +252,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
+          mkdir -p "$(dirname "$GH_AW_PROMPT")"
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Test Manual Approval Workflow
           

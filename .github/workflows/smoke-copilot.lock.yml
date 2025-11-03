@@ -1091,7 +1091,7 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
+          mkdir -p "$(dirname "$GH_AW_PROMPT")"
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           Review the last 5 merged pull requests in this repository and post summary in an issue.
           

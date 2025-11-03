@@ -1247,7 +1247,7 @@ jobs:
           GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
           GH_AW_EXPR_F76B6721: ${{ github.workflow }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
+          mkdir -p "$(dirname "$GH_AW_PROMPT")"
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           ## jqschema - JSON Schema Discovery
           
