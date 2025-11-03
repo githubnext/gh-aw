@@ -545,47 +545,6 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	}
 }
 
-// renderPlaywrightCodexMCPConfig generates Playwright MCP server configuration for codex config.toml
-// Uses the shared helper for TOML format
-func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any) {
-	renderPlaywrightMCPConfigTOML(yaml, playwrightTool)
-}
-
-// renderCodexMCPConfig generates custom MCP server configuration for a single tool in codex workflow config.toml
-func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any) error {
-	yaml.WriteString("          \n")
-	fmt.Fprintf(yaml, "          [mcp_servers.%s]\n", toolName)
-
-	// Use the shared MCP config renderer with TOML format
-	renderer := MCPConfigRenderer{
-		IndentLevel: "          ",
-		Format:      "toml",
-	}
-
-	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// renderSafeOutputsCodexMCPConfig generates the Safe Outputs MCP server configuration for codex config.toml
-// Uses the shared helper for TOML format
-func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, workflowData *WorkflowData) {
-	// Add safe-outputs MCP server if safe-outputs are configured
-	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
-	if hasSafeOutputs {
-		renderSafeOutputsMCPConfigTOML(yaml)
-	}
-}
-
-// renderAgenticWorkflowsCodexMCPConfig generates the Agentic Workflows MCP server configuration for codex config.toml
-// Uses the shared helper for TOML format
-func (e *CodexEngine) renderAgenticWorkflowsCodexMCPConfig(yaml *strings.Builder) {
-	renderAgenticWorkflowsMCPConfigTOML(yaml)
-}
-
 // GetLogParserScriptId returns the JavaScript script name for parsing Codex logs
 func (e *CodexEngine) GetLogParserScriptId() string {
 	return "parse_codex_log"

@@ -803,66 +803,6 @@ This is a test workflow.
 	}
 }
 
-func TestGenerateCustomMCPCodexWorkflowConfig(t *testing.T) {
-	engine := NewCodexEngine()
-
-	tests := []struct {
-		name       string
-		toolConfig map[string]any
-		expected   []string // expected strings in output
-		wantErr    bool
-	}{
-		{
-			name: "valid stdio mcp server",
-			toolConfig: map[string]any{
-				"type":    "stdio",
-				"command": "custom-mcp-server",
-				"args":    []any{"--option", "value"},
-				"env": map[string]any{
-					"CUSTOM_TOKEN": "${CUSTOM_TOKEN}",
-				},
-			},
-			expected: []string{
-				"[mcp_servers.custom_server]",
-				"command = \"custom-mcp-server\"",
-				"--option",
-				"\"CUSTOM_TOKEN\" = \"${CUSTOM_TOKEN}\"",
-			},
-			wantErr: false,
-		},
-		{
-			name: "server with http type should be ignored for codex",
-			toolConfig: map[string]any{
-				"type": "http",
-				"url":  "https://example.com/api",
-			},
-			expected: []string{},
-			wantErr:  false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var yaml strings.Builder
-			err := engine.renderCodexMCPConfig(&yaml, "custom_server", tt.toolConfig)
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("generateCustomMCPCodexWorkflowConfigForTool() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if !tt.wantErr {
-				output := yaml.String()
-				for _, expected := range tt.expected {
-					if !strings.Contains(output, expected) {
-						t.Errorf("Expected output to contain '%s', but got: %s", expected, output)
-					}
-				}
-			}
-		})
-	}
-}
-
 func TestGenerateCustomMCPClaudeWorkflowConfig(t *testing.T) {
 	engine := NewClaudeEngine()
 

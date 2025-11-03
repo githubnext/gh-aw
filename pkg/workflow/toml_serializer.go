@@ -31,7 +31,7 @@ type MCPServerConfig struct {
 	BearerTokenEnvVar string            `toml:"bearer_token_env_var,omitempty"`
 	Command           string            `toml:"command,omitempty"`
 	Args              []string          `toml:"args,omitempty"`
-	Env               map[string]string `toml:"env,omitempty"`
+	Env               map[string]string `toml:"-"` // Use dotted keys, not toml encoding
 
 	// Internal field not serialized to TOML
 	UseInlineEnv bool `toml:"-"` // If true, use inline format for env instead of section format
@@ -59,6 +59,7 @@ func SerializeToTOML(config *TOMLConfig, indent string) (string, error) {
 	var buf bytes.Buffer
 
 	// Encode the regular config using TOML encoder
+	// Env is excluded via toml:"-" tag, so it won't be encoded
 	regularConfig := &TOMLConfig{
 		History:    config.History,
 		MCPServers: regularServers,
@@ -71,8 +72,8 @@ func SerializeToTOML(config *TOMLConfig, indent string) (string, error) {
 
 	output := buf.String()
 
-	// Post-process the TOML output to fix formatting
-	output = postProcessTOML(output)
+	// Post-process the TOML output to fix formatting and add dotted env keys
+	output = postProcessTOML(output, regularServers)
 
 	// Post-process to add servers with inline env
 	if len(inlineEnvServers) > 0 {
@@ -167,51 +168,98 @@ func applyIndentation(output string, indent string) string {
 
 // postProcessTOML fixes formatting issues from the TOML encoder
 // Also strips the encoder's indentation so we can apply our own later
-func postProcessTOML(output string) string {
+// Adds dotted env keys after each server section
+func postProcessTOML(output string, servers map[string]MCPServerConfig) string {
 	lines := strings.Split(output, "\n")
 	var result []string
-	
+	currentServer := ""
+
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
 		trimmed := strings.TrimSpace(line)
-		
+
 		// Skip the [mcp_servers] header added by encoder
 		if trimmed == "[mcp_servers]" {
 			continue
 		}
-		
+
 		// Strip encoder's indentation - we'll apply our own later
 		line = trimmed
-		
-		// Add quotes around hyphenated server names in section headers
-		if strings.HasPrefix(line, "[mcp_servers.") && !strings.Contains(line, `"`) {
-			// Check if the server name contains a hyphen
-			start := strings.Index(line, "[mcp_servers.") + len("[mcp_servers.")
-			end := strings.Index(line, "]")
-			if end > start {
-				serverName := line[start:end]
-				if containsHyphen(serverName) {
-					line = `[mcp_servers."` + serverName + `"]`
+
+		// Track which server section we're in
+		if strings.HasPrefix(line, "[mcp_servers.") {
+			// Add quotes around hyphenated server names in section headers
+			if !strings.Contains(line, `"`) {
+				// Check if the server name contains a hyphen
+				start := strings.Index(line, "[mcp_servers.") + len("[mcp_servers.")
+				end := strings.Index(line, "]")
+				if end > start {
+					serverName := line[start:end]
+					if containsHyphen(serverName) {
+						line = `[mcp_servers."` + serverName + `"]`
+					}
+					currentServer = serverName
+				}
+			} else {
+				// Extract server name from quoted version
+				start := strings.Index(line, `"`) + 1
+				end := strings.LastIndex(line, `"`)
+				if end > start {
+					currentServer = line[start:end]
 				}
 			}
 		}
-		
-		// Add blank line before env subsections
-		if strings.Contains(line, "[mcp_servers.") && strings.Contains(line, ".env]") {
-			result = append(result, "")
-		}
-		
+
+		result = append(result, line)
+
 		// Handle array formatting - convert compact arrays to multi-line
 		if strings.Contains(line, "args = [") && strings.Contains(line, "]") {
-			// Compact array on one line
+			// We already added the line, now add the expanded version
+			result = result[:len(result)-1] // Remove the compact line
 			reformatted := reformatCompactArray(line)
 			result = append(result, reformatted...)
+
+			// After args, check if this server has env variables and add them as dotted keys
+			if currentServer != "" {
+				if server, ok := servers[currentServer]; ok && len(server.Env) > 0 {
+					// Add env variables as dotted keys
+					envKeys := make([]string, 0, len(server.Env))
+					for k := range server.Env {
+						envKeys = append(envKeys, k)
+					}
+					sort.Strings(envKeys)
+
+					for _, k := range envKeys {
+						v := server.Env[k]
+						result = append(result, fmt.Sprintf("env.%s = \"%s\"", k, v))
+					}
+				}
+			}
 			continue
 		}
-		
-		result = append(result, line)
+
+		// If this is the last field of a server section (and args wasn't present), add env variables
+		if currentServer != "" && i+1 < len(lines) {
+			nextLine := strings.TrimSpace(lines[i+1])
+			// Check if the next line is a new section or empty
+			if strings.HasPrefix(nextLine, "[") || nextLine == "" {
+				if server, ok := servers[currentServer]; ok && len(server.Env) > 0 && !strings.Contains(line, "args = [") {
+					// Add env variables as dotted keys
+					envKeys := make([]string, 0, len(server.Env))
+					for k := range server.Env {
+						envKeys = append(envKeys, k)
+					}
+					sort.Strings(envKeys)
+
+					for _, k := range envKeys {
+						v := server.Env[k]
+						result = append(result, fmt.Sprintf("env.%s = \"%s\"", k, v))
+					}
+				}
+			}
+		}
 	}
-	
+
 	return strings.Join(result, "\n")
 }
 
@@ -224,14 +272,14 @@ func reformatCompactArray(line string) []string {
 	if start == -1 || end == -1 {
 		return []string{line}
 	}
-	
+
 	content := line[start+1 : end]
 	elements := parseArrayElements(content)
-	
+
 	if len(elements) == 0 {
 		return []string{line}
 	}
-	
+
 	// Reformat to multi-line without indentation (will be added later)
 	var result []string
 	result = append(result, "args = [")
@@ -251,10 +299,10 @@ func parseArrayElements(content string) []string {
 	var elements []string
 	var current bytes.Buffer
 	inQuotes := false
-	
+
 	for i := 0; i < len(content); i++ {
 		ch := content[i]
-		
+
 		if ch == '"' {
 			inQuotes = !inQuotes
 			current.WriteByte(ch)
@@ -268,24 +316,14 @@ func parseArrayElements(content string) []string {
 			current.WriteByte(ch)
 		}
 	}
-	
+
 	// Add last element
 	elem := strings.TrimSpace(current.String())
 	if elem != "" {
 		elements = append(elements, elem)
 	}
-	
-	return elements
-}
 
-// getIndent extracts the indentation from a line
-func getIndent(line string) string {
-	for i, ch := range line {
-		if ch != ' ' && ch != '\t' {
-			return line[:i]
-		}
-	}
-	return line
+	return elements
 }
 
 // containsHyphen checks if a string contains a hyphen

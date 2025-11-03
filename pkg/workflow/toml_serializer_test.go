@@ -44,8 +44,7 @@ func TestSerializeToTOML(t *testing.T) {
 				"user_agent = \"test-workflow\"",
 				"startup_timeout_sec = 120",
 				"tool_timeout_sec = 60",
-				"[mcp_servers.github.env]",
-				"GITHUB_PERSONAL_ACCESS_TOKEN = \"${{ secrets.GITHUB_TOKEN }}\"",
+				"env.GITHUB_PERSONAL_ACCESS_TOKEN = \"${{ secrets.GITHUB_TOKEN }}\"",
 			},
 		},
 		{
