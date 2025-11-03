@@ -34,6 +34,37 @@ type poutineOutput struct {
 	} `json:"rules"`
 }
 
+// ensurePoutineConfig creates .poutine.yml to configure allowed runners if it doesn't exist
+func ensurePoutineConfig(gitRoot string) error {
+	configPath := filepath.Join(gitRoot, ".poutine.yml")
+
+	// Check if config already exists
+	if _, err := os.Stat(configPath); err == nil {
+		// Config exists, do not update it
+		compileLog.Print(".poutine.yml already exists, skipping creation")
+		return nil
+	}
+
+	// Create the config file
+	configContent := `# Configure poutine security scanner
+# See: https://github.com/boostsecurityio/poutine
+
+# Set rule configuration options
+rulesConfig:
+  pr_runs_on_self_hosted:
+    allowed_runners:
+      - ubuntu-slim  # GitHub's new built-in runner (not self-hosted)
+`
+
+	// Write the config file
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		return fmt.Errorf("failed to write .poutine.yml: %w", err)
+	}
+
+	compileLog.Printf("Created .poutine.yml at %s", configPath)
+	return nil
+}
+
 // runPoutineOnFile runs the poutine security scanner on a single .lock.yml file using Docker
 func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 	compileLog.Printf("Running poutine security scanner on %s", lockFile)
@@ -42,6 +73,11 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 	gitRoot, err := findGitRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find git root: %w", err)
+	}
+
+	// Ensure poutine config exists with custom runner configuration
+	if err := ensurePoutineConfig(gitRoot); err != nil {
+		return fmt.Errorf("failed to ensure poutine config: %w", err)
 	}
 
 	// Get the relative path from git root

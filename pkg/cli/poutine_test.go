@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -287,4 +288,71 @@ func TestParseAndDisplayPoutineOutput(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEnsurePoutineConfig(t *testing.T) {
+	// Create a temporary directory
+	tmpDir := t.TempDir()
+
+	t.Run("creates config file when it doesn't exist", func(t *testing.T) {
+		err := ensurePoutineConfig(tmpDir)
+		if err != nil {
+			t.Fatalf("ensurePoutineConfig failed: %v", err)
+		}
+
+		// Check that the config file was created
+		configPath := filepath.Join(tmpDir, ".poutine.yml")
+		if _, err := os.Stat(configPath); os.IsNotExist(err) {
+			t.Errorf("Config file was not created at %s", configPath)
+		}
+
+		// Read and verify the content
+		content, err := os.ReadFile(configPath)
+		if err != nil {
+			t.Fatalf("Failed to read config file: %v", err)
+		}
+
+		expectedStrings := []string{
+			"# Configure poutine security scanner",
+			"rulesConfig:",
+			"pr_runs_on_self_hosted:",
+			"allowed_runners:",
+			"- ubuntu-slim",
+		}
+
+		for _, expected := range expectedStrings {
+			if !strings.Contains(string(content), expected) {
+				t.Errorf("Config file does not contain expected string %q. Content:\n%s", expected, string(content))
+			}
+		}
+	})
+
+	t.Run("does not overwrite existing config file", func(t *testing.T) {
+		// Create a different temporary directory
+		tmpDir2 := t.TempDir()
+		configPath := filepath.Join(tmpDir2, ".poutine.yml")
+
+		// Create a custom config file
+		customContent := "# My custom poutine config\ncustom: value\n"
+		err := os.WriteFile(configPath, []byte(customContent), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create custom config file: %v", err)
+		}
+
+		// Call ensurePoutineConfig
+		err = ensurePoutineConfig(tmpDir2)
+		if err != nil {
+			t.Fatalf("ensurePoutineConfig failed: %v", err)
+		}
+
+		// Read the file and verify it wasn't changed
+		content, err := os.ReadFile(configPath)
+		if err != nil {
+			t.Fatalf("Failed to read config file: %v", err)
+		}
+
+		if string(content) != customContent {
+			t.Errorf("Existing config file was overwritten. Expected:\n%s\nGot:\n%s", customContent, string(content))
+		}
+	})
 }
