@@ -311,9 +311,9 @@ async function main() {
       safeOutputsConfig = JSON.parse(configFileContent);
     }
   } catch (error) {
-    core.warning(`Failed to read config file from ${configPath}: ${error.message}`);
+    core.warning(`Failed to read config file from ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
   }
-  
+
   if (!outputFile) {
     core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
     core.setOutput("output", "");

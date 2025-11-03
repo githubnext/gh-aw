@@ -17,6 +17,15 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
     fs.mkdirSync(tempOutputDir, { recursive: true });
 
     tempConfigFile = path.join(tempOutputDir, "config.json");
+
+    // Create default config directory and file for all tests
+    const defaultConfigDir = "/tmp/gh-aw/safeoutputs";
+    if (!fs.existsSync(defaultConfigDir)) {
+      fs.mkdirSync(defaultConfigDir, { recursive: true });
+    }
+    const defaultConfigPath = path.join(defaultConfigDir, "config.json");
+    // Create a minimal default config
+    fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: true, missing_tool: true }));
   });
 
   afterEach(() => {
@@ -34,13 +43,17 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
   it("should use default output file when GH_AW_SAFE_OUTPUTS is not set", async () => {
     // Remove environment variables
     delete process.env.GH_AW_SAFE_OUTPUTS;
-    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
 
-    // Create default directories
+    // Create default directories and default config file
     const defaultOutputDir = "/tmp/gh-aw/safeoutputs";
     if (!fs.existsSync(defaultOutputDir)) {
       fs.mkdirSync(defaultOutputDir, { recursive: true });
     }
+
+    // Write a default config file so the server can start
+    const defaultConfigPath = path.join(defaultOutputDir, "config.json");
+    fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: true, missing_tool: true }));
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
@@ -105,7 +118,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
   it("should read config from default file when config file exists", async () => {
     // Remove environment variables
     delete process.env.GH_AW_SAFE_OUTPUTS;
-    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
 
     // Create default config file
     const defaultConfigDir = "/tmp/gh-aw/safeoutputs";
@@ -185,7 +198,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
   it("should use empty config when default file does not exist", async () => {
     // Remove environment variables
     delete process.env.GH_AW_SAFE_OUTPUTS;
-    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
 
     // Ensure default config file does not exist
     const defaultConfigFile = "/tmp/gh-aw/safeoutputs/config.json";
@@ -254,12 +267,20 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
 
     // Set GH_AW_SAFE_OUTPUTS to a path that doesn't exist yet
     process.env.GH_AW_SAFE_OUTPUTS = testOutputFile;
-    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
 
     // Ensure the directory does NOT exist before starting
     if (fs.existsSync(testOutputDir)) {
       fs.rmSync(testOutputDir, { recursive: true, force: true });
     }
+
+    // Create default config file so the server can start
+    const defaultConfigDir = "/tmp/gh-aw/safeoutputs";
+    if (!fs.existsSync(defaultConfigDir)) {
+      fs.mkdirSync(defaultConfigDir, { recursive: true });
+    }
+    const defaultConfigPath = path.join(defaultConfigDir, "config.json");
+    fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: true, missing_tool: true }));
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
