@@ -326,6 +326,7 @@ func init() {
 	rootCmd.AddCommand(cli.NewMCPCommand())
 	rootCmd.AddCommand(cli.NewMCPServerCommand())
 	rootCmd.AddCommand(cli.NewPRCommand())
+	rootCmd.AddCommand(cli.NewTaintCommand())
 	rootCmd.AddCommand(versionCmd)
 }
 
