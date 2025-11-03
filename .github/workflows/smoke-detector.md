@@ -29,6 +29,7 @@ timeout_minutes: 20
 engine: claude
 imports:
   - shared/mcp/gh-aw.md
+  - shared/reporting.md
 tools:
   cache-memory: true
   github:
@@ -134,20 +135,29 @@ You are the Smoke Detector, an expert investigative agent that analyzes failed s
    - Do NOT open a new issue since you found a duplicate already (skip next phase)
 
 ### Phase 7: Reporting and Recommendations
+
+**IMPORTANT: Follow the report formatting guidelines from shared/reporting.md**
+
 1. **Create Investigation Report**: Generate a comprehensive analysis including:
-   - **Executive Summary**: Quick overview of the failure
+   - **Executive Summary**: Quick overview of the failure (1-2 paragraphs)
    - **Root Cause**: Detailed explanation of what went wrong
    - **Reproduction Steps**: How to reproduce the issue locally (if applicable)
    - **Recommended Actions**: Specific steps to fix the issue
    - **Prevention Strategies**: How to avoid similar failures
    - **Historical Context**: Similar past failures and their resolutions
    
-2. **Determine Output Location**:
+2. **Apply Reporting Format**:
+   - Start with 1-2 summary paragraphs providing an overview
+   - Wrap detailed content in `<details>` and `<summary>` tags (with bold summary text)
+   - Format workflow run IDs as clickable URLs using the `[§RunID](url)` format
+   - Include up to 3 workflow run URLs as references at the end
+   
+3. **Determine Output Location**:
    - **First, check for associated pull request**: Use the GitHub API to search for pull requests associated with the branch from the failed workflow run (commit SHA: ${{ github.event.workflow_run.head_sha }})
    - **If a pull request is found**: Post the investigation report as a comment on that pull request using the `add_comment` tool
    - **If no pull request is found**: Create a new issue with the investigation results using the `create_issue` tool
    
-3. **Actionable Deliverables**:
+4. **Actionable Deliverables**:
    - Provide specific recommendations for fixing the issue
    - Suggest workflow improvements or configuration changes
 
@@ -163,50 +173,20 @@ To find a pull request associated with the failed workflow run:
 
 ### Investigation Report Template (for PR Comments)
 
-When posting a comment on a pull request, use this structure:
+When posting a comment on a pull request, follow the reporting format guidelines:
 
+**Start with a summary overview (1-2 paragraphs):**
 ```markdown
-## 🔍 Smoke Test Investigation - Run #${{ github.event.workflow_run.run_number }}
-
-### Summary
-[Brief description of the failure]
-
-### Failure Details
-- **Run**: [${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
-- **Commit**: ${{ github.event.workflow_run.head_sha }}
-- **Trigger**: ${{ github.event.workflow_run.event }}
-
-### Root Cause Analysis
-[Detailed analysis of what went wrong]
-
-### Failed Jobs and Errors
-[List of failed jobs with key error messages]
-
-### Investigation Findings
-[Deep analysis results]
-
-### Recommended Actions
-- [ ] [Specific actionable steps]
-
-### Prevention Strategies
-[How to prevent similar failures]
-
-### Historical Context
-[Similar past failures and patterns, if any found in cache]
+Brief overview of the smoke test failure and key findings. This investigation analyzed the failed workflow run and identified the root cause.
 ```
 
-### Investigation Issue Template (for Issues)
-
-When creating an investigation issue, use this structure:
-
+**Then wrap detailed content in `<details>` tags:**
 ```markdown
-# 🔍 Smoke Test Investigation - Run #${{ github.event.workflow_run.run_number }}
-
-## Summary
-[Brief description of the failure]
+<details>
+<summary><b>Full Investigation Report - Run #${{ github.event.workflow_run.run_number }}</b></summary>
 
 ## Failure Details
-- **Run**: [${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
+- **Run**: [§${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
 - **Commit**: ${{ github.event.workflow_run.head_sha }}
 - **Trigger**: ${{ github.event.workflow_run.event }}
 
@@ -227,6 +207,58 @@ When creating an investigation issue, use this structure:
 
 ## Historical Context
 [Similar past failures and patterns, if any found in cache]
+
+</details>
+
+---
+
+**References:**
+- [§${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
+```
+
+### Investigation Issue Template (for Issues)
+
+When creating an investigation issue, follow the reporting format guidelines:
+
+**Start with a summary overview (1-2 paragraphs):**
+```markdown
+Brief overview of the smoke test failure and key findings. This investigation analyzed the failed workflow run and identified the root cause.
+```
+
+**Then wrap detailed content in `<details>` tags:**
+```markdown
+<details>
+<summary><b>Full Investigation Report - Run #${{ github.event.workflow_run.run_number }}</b></summary>
+
+## Failure Details
+- **Run**: [§${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
+- **Commit**: ${{ github.event.workflow_run.head_sha }}
+- **Trigger**: ${{ github.event.workflow_run.event }}
+
+## Root Cause Analysis
+[Detailed analysis of what went wrong]
+
+## Failed Jobs and Errors
+[List of failed jobs with key error messages]
+
+## Investigation Findings
+[Deep analysis results]
+
+## Recommended Actions
+- [ ] [Specific actionable steps]
+
+## Prevention Strategies
+[How to prevent similar failures]
+
+## Historical Context
+[Similar past failures and patterns, if any found in cache]
+
+</details>
+
+---
+
+**References:**
+- [§${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
 ```
 
 ## Important Guidelines
