@@ -156,6 +156,7 @@ Examples:
 		dependabot, _ := cmd.Flags().GetBool("dependabot")
 		forceOverwrite, _ := cmd.Flags().GetBool("force")
 		zizmor, _ := cmd.Flags().GetBool("zizmor")
+		poutine, _ := cmd.Flags().GetBool("poutine")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -177,6 +178,7 @@ Examples:
 			Dependabot:           dependabot,
 			ForceOverwrite:       forceOverwrite,
 			Zizmor:               zizmor,
+			Poutine:              poutine,
 		}
 		if _, err := cli.CompileWorkflows(config); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -286,6 +288,7 @@ func init() {
 	compileCmd.Flags().Bool("dependabot", false, "Generate dependency manifests (package.json, requirements.txt, go.mod) and Dependabot config when dependencies are detected")
 	compileCmd.Flags().Bool("force", false, "Force overwrite of existing files (e.g., dependabot.yml)")
 	compileCmd.Flags().Bool("zizmor", false, "Run zizmor security scanner on generated .lock.yml files")
+	compileCmd.Flags().Bool("poutine", false, "Run poutine security scanner on generated .lock.yml files")
 	rootCmd.AddCommand(compileCmd)
 
 	// Add flags to remove command
