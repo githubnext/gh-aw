@@ -1095,16 +1095,7 @@ jobs:
                   "GITHUB_TOOLSETS=default,discussions",
                   "ghcr.io/github/github-mcp-server:v0.20.1"
                 ],
-                "tools": [
-                  "list_pull_requests",
-                  "list_issues",
-                  "list_commits",
-                  "get_pull_request",
-                  "issue_read",
-                  "search_issues",
-                  "search_pull_requests",
-                  "list_discussions"
-                ],
+                "tools": ["*"],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }

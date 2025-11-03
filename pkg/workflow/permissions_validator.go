@@ -126,6 +126,7 @@ func ValidatePermissions(permissions *Permissions, githubTool any) *PermissionsV
 	checkMissingPermissions(permissions, requiredPermissions, toolsets, result)
 
 	result.HasValidationIssues = len(result.MissingPermissions) > 0
+	permissionsValidatorLog.Printf("Validation complete: hasIssues=%v, missingCount=%d", result.HasValidationIssues, len(result.MissingPermissions))
 
 	return result
 }

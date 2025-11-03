@@ -10,12 +10,6 @@ engine: claude
 tools:
   github:
     toolsets: [context, repos, code_security, pull_requests]
-    allowed:
-      - list_code_scanning_alerts
-      - get_code_scanning_alert
-      - get_file_contents
-      - list_pull_requests
-      - get_pull_request
   edit:
   bash:
   cache-memory:

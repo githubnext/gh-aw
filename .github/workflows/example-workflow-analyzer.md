@@ -13,7 +13,6 @@ tools:
   agentic-workflows:
   github:
     toolsets: [default, actions]
-    allowed: [get_workflow_run, list_workflow_runs]
 safe-outputs:
   create-discussion:
     title-prefix: "[workflow-analysis] "

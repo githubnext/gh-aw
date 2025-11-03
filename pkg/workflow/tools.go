@@ -195,6 +195,7 @@ func (c *Compiler) mergeToolsAndMCPServers(topTools, mcpServers map[string]any, 
 
 // mergeRuntimes merges runtime configurations from frontmatter and imports
 func mergeRuntimes(topRuntimes map[string]any, importedRuntimesJSON string) (map[string]any, error) {
+	toolsLog.Printf("Merging runtimes: topRuntimes=%d", len(topRuntimes))
 	result := make(map[string]any)
 
 	// Start with top-level runtimes
@@ -223,6 +224,7 @@ func mergeRuntimes(topRuntimes map[string]any, importedRuntimesJSON string) (map
 		}
 	}
 
+	toolsLog.Printf("Merged %d total runtimes", len(result))
 	return result, nil
 }
 
