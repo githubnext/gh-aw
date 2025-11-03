@@ -1097,6 +1097,9 @@ Agentic workflows compile to GitHub Actions YAML:
   - Example: `gh aw compile issue-triage` compiles `issue-triage.md`
   - Supports partial matching and fuzzy search for workflow names
 - **`gh aw compile --purge`** - Remove orphaned `.lock.yml` files that no longer have corresponding `.md` files
+- **`gh aw compile --zizmor`** - Run zizmor security scanner on compiled workflows
+- **`gh aw compile --poutine`** - Run poutine security scanner on compiled workflows
+- **`gh aw compile --strict --zizmor`** - Strict mode with security scanning (fails on findings)
 
 ## Best Practices
 
@@ -1114,6 +1117,7 @@ Agentic workflows compile to GitHub Actions YAML:
 10. **Monitor costs with `gh aw logs`** to track AI model usage and expenses
 11. **Use `--engine` filter** in logs command to analyze specific AI engine performance
 12. **Prefer sanitized context text** - Use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields for security
+13. **Run security scanners** - Use `--zizmor` or `--poutine` flags to scan compiled workflows for security issues
 
 ## Validation
 
