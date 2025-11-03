@@ -1019,10 +1019,13 @@ func addEngineSecret(secretName, hostRepoSlug string, tracker *TrialSecretTracke
 		// Try common alternative environment variable names
 		switch secretName {
 		case "ANTHROPIC_API_KEY":
-			// Try CLAUDE_CODE_OAUTH_TOKEN first (preferred), then ANTHROPIC_KEY
+			// Try CLAUDE_CODE_OAUTH_TOKEN first (preferred), then ANTHROPIC_KEY, then ANTHROPIC_API_KEY as fallback
 			secretValue = os.Getenv("CLAUDE_CODE_OAUTH_TOKEN")
 			if secretValue == "" {
 				secretValue = os.Getenv("ANTHROPIC_KEY")
+			}
+			if secretValue == "" {
+				secretValue = os.Getenv("ANTHROPIC_API_KEY")
 			}
 		case "OPENAI_API_KEY":
 			secretValue = os.Getenv("OPENAI_KEY")
