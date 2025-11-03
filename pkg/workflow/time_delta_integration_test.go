@@ -21,7 +21,6 @@ func TestStopTimeResolutionIntegration(t *testing.T) {
 		{
 			name: "absolute stop-after unchanged",
 			frontmatter: `---
-on: push
 engine: claude
 on:
   schedule:
@@ -35,7 +34,6 @@ on:
 		{
 			name: "readable date format",
 			frontmatter: `---
-on: push
 engine: claude
 on:
   schedule:
@@ -49,7 +47,6 @@ on:
 		{
 			name: "ordinal date format",
 			frontmatter: `---
-on: push
 engine: claude
 on:
   schedule:
@@ -200,69 +197,6 @@ on:
 				if strings.Contains(compiledStr, "GH_AW_STOP_TIME:") {
 					t.Error("Compiled workflow should not contain stop-time check but does")
 				}
-			}
-		})
-	}
-}
-
-func TestDeprecatedStopTimeUsage(t *testing.T) {
-	tests := []struct {
-		name     string
-		stopTime string
-	}{
-		{
-			name:     "absolute stop-time at root level",
-			stopTime: "2025-12-31 23:59:59",
-		},
-		{
-			name:     "relative stop-time at root level",
-			stopTime: "+25h",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := t.TempDir()
-			mdFile := tmpDir + "/test-workflow.md"
-
-			content := fmt.Sprintf(`---
-engine: claude
-on:
-  schedule:
-    - cron: "0 9 * * 1"
-stop-time: "%s"
----
-
-# Test Workflow
-
-This workflow uses deprecated stop-time format.`, tt.stopTime)
-
-			err := os.WriteFile(mdFile, []byte(content), 0644)
-			if err != nil {
-				t.Fatalf("Failed to write test file: %v", err)
-			}
-
-			// Compile the workflow - should fail with helpful error
-			compiler := NewCompiler(false, "", "test-version")
-			err = compiler.CompileWorkflow(mdFile)
-			if err == nil {
-				t.Errorf("Expected compilation to fail with deprecated stop-time usage but it succeeded")
-				return
-			}
-
-			expectedError := "'stop-time' is no longer supported at the root level"
-			if !strings.Contains(err.Error(), expectedError) {
-				t.Errorf("Expected error to mention %q but got: %v", expectedError, err)
-			}
-
-			expectedMigrationHint := "Please move it under the 'on:' section and rename to 'stop-after:'"
-			if !strings.Contains(err.Error(), expectedMigrationHint) {
-				t.Errorf("Expected error to contain migration hint %q but got: %v", expectedMigrationHint, err)
-			}
-
-			expectedExample := fmt.Sprintf("stop-after: \"%s\"", tt.stopTime)
-			if !strings.Contains(err.Error(), expectedExample) {
-				t.Errorf("Expected error to contain example with value %q but got: %v", expectedExample, err)
 			}
 		})
 	}

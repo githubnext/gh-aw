@@ -329,9 +329,9 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 }
 
 // extractSafeJobsFromFrontmatter extracts safe-jobs section from frontmatter map
-// First checks the new location under safe-outputs.jobs, then falls back to old location safe-jobs (for backwards compatibility during transition)
+// Only checks the location under safe-outputs.jobs
 func extractSafeJobsFromFrontmatter(frontmatter map[string]any) map[string]*SafeJobConfig {
-	// Check new location: safe-outputs.jobs
+	// Check location: safe-outputs.jobs
 	if safeOutputs, exists := frontmatter["safe-outputs"]; exists {
 		if safeOutputsMap, ok := safeOutputs.(map[string]any); ok {
 			if jobs, exists := safeOutputsMap["jobs"]; exists {
@@ -342,18 +342,6 @@ func extractSafeJobsFromFrontmatter(frontmatter map[string]any) map[string]*Safe
 				}
 			}
 		}
-	}
-
-	// Fallback to old location: safe-jobs (for backwards compatibility)
-	safeJobs, exists := frontmatter["safe-jobs"]
-	if !exists {
-		return make(map[string]*SafeJobConfig)
-	}
-
-	if safeJobsMap, ok := safeJobs.(map[string]any); ok {
-		c := &Compiler{} // Create a temporary compiler instance for parsing
-		frontmatterCopy := map[string]any{"safe-jobs": safeJobsMap}
-		return c.parseSafeJobsConfig(frontmatterCopy)
 	}
 
 	return make(map[string]*SafeJobConfig)

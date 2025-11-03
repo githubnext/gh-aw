@@ -683,54 +683,6 @@ steps:
 # Jobs are normally auto-generated; if customizing, ensure valid names
 ```
 
-### Stop-Time No Longer Supported
-
-**Error Message:**
-```
-'stop-time' is no longer supported at the root level. Please move it under the 'on:' section and rename to 'stop-after:'
-```
-
-**Cause:** The workflow uses the deprecated `stop-time:` field at the root level of frontmatter.
-
-**Solution:** Move `stop-time:` under the `on:` section and rename it to `stop-after:`:
-
-```yaml
-# Incorrect - deprecated root-level stop-time
----
-on:
-  schedule:
-    - cron: "0 9 * * 1"
-stop-time: "+24h"
----
-
-# Correct - stop-after under on: section
----
-on:
-  schedule:
-    - cron: "0 9 * * 1"
-  stop-after: "+24h"
----
-```
-
-**Example:** Complete workflow with stop-after:
-
-```aw
----
-on:
-  schedule:
-    - cron: "0 9 * * 1"  # Monday 9AM
-  stop-after: "+24h"
-permissions:
-  contents: read
----
-
-# Weekly Report
-
-Generate report and stop after 24 hours if not complete.
-```
-
-**Preservation:** The error message includes your original value to make migration easier.
-
 ### Invalid Time Delta Format
 
 **Error Message:**
