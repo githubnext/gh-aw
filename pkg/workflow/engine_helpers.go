@@ -408,3 +408,54 @@ func RenderJSONMCPConfig(
 		options.PostEOFCommands(yaml)
 	}
 }
+
+// TOMLMCPConfigOptions contains configuration options for TOML MCP config rendering
+type TOMLMCPConfigOptions struct {
+	// ConfigPath is the path where the TOML config file will be created
+	ConfigPath string
+	// PostEOFCommands is an optional function to run after writing the config file
+	PostEOFCommands func(*strings.Builder)
+}
+
+// RenderTOMLMCPConfig renders MCP configuration in TOML format using the BurntSushi/toml encoder.
+// This shared function provides a file-based strategy for Codex engine configuration.
+//
+// Parameters:
+//   - yaml: The string builder for YAML output
+//   - tools: Map of tool configurations
+//   - mcpTools: Ordered list of MCP tool names to render
+//   - workflowData: Workflow configuration data
+//   - options: TOML MCP config rendering options
+//   - addServerFunc: Function to add MCP servers to the TOML config
+func RenderTOMLMCPConfig(
+	yaml *strings.Builder,
+	tools map[string]any,
+	mcpTools []string,
+	workflowData *WorkflowData,
+	options TOMLMCPConfigOptions,
+	addServerFunc func(config *TOMLConfig, tools map[string]any, mcpTools []string, workflowData *WorkflowData),
+) {
+	// Build TOML configuration using the serializer
+	config := BuildTOMLConfig()
+
+	// Use the provided function to add servers to the config
+	addServerFunc(config, tools, mcpTools, workflowData)
+
+	// Serialize the TOML configuration with proper indentation
+	tomlOutput, err := SerializeToTOML(config, "          ")
+	if err != nil {
+		// If serialization fails, log error and return without writing config
+		mcpLog.Printf("TOML serialization failed: %v", err)
+		return
+	}
+
+	// Write config file with heredoc
+	yaml.WriteString(fmt.Sprintf("          cat > %s << EOF\n", options.ConfigPath))
+	yaml.WriteString(tomlOutput)
+	yaml.WriteString("          EOF\n")
+
+	// Add any post-EOF commands (e.g., debug output)
+	if options.PostEOFCommands != nil {
+		options.PostEOFCommands(yaml)
+	}
+}

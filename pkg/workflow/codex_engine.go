@@ -199,11 +199,33 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(tools map[string]any) map[s
 }
 
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/config.toml << EOF\n")
+	// Use shared TOML MCP config renderer with file-based strategy
+	RenderTOMLMCPConfig(yaml, tools, mcpTools, workflowData, TOMLMCPConfigOptions{
+		ConfigPath: "/tmp/gh-aw/mcp-config/config.toml",
+		PostEOFCommands: func(yaml *strings.Builder) {
+			// Append custom config if provided
+			if workflowData.EngineConfig != nil && workflowData.EngineConfig.Config != "" {
+				yaml.WriteString("          cat >> /tmp/gh-aw/mcp-config/config.toml << 'CUSTOM_EOF'\n")
+				yaml.WriteString("          \n")
+				yaml.WriteString("          # Custom configuration\n")
+				// Write the custom config line by line with proper indentation
+				configLines := strings.Split(workflowData.EngineConfig.Config, "\n")
+				for _, line := range configLines {
+					if strings.TrimSpace(line) != "" {
+						yaml.WriteString("          " + line + "\n")
+					} else {
+						yaml.WriteString("          \n")
+					}
+				}
+				yaml.WriteString("          CUSTOM_EOF\n")
+			}
+		},
+	}, e.addMCPServersToConfig)
+}
 
-	// Build TOML configuration using the serializer
-	config := BuildTOMLConfig()
-
+// addMCPServersToConfig adds all MCP servers to the TOML configuration
+// This method is called by RenderTOMLMCPConfig to populate the config
+func (e *CodexEngine) addMCPServersToConfig(config *TOMLConfig, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	// Expand neutral tools (like playwright: null) to include the copilot agent tools
 	expandedTools := e.expandNeutralToolsToCodexTools(tools)
 
@@ -223,67 +245,6 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		default:
 			// Handle custom MCP tools (including web-fetch after transformation)
 			e.addCustomMCPServer(config, toolName, expandedTools)
-		}
-	}
-
-	// Serialize the TOML configuration with proper indentation
-	tomlOutput, err := SerializeToTOML(config, "          ")
-	if err != nil {
-		// Fallback to manual generation if serialization fails
-		mcpLog.Printf("TOML serialization failed: %v, falling back to manual generation", err)
-		e.renderMCPConfigManual(yaml, tools, mcpTools, workflowData)
-		return
-	}
-
-	yaml.WriteString(tomlOutput)
-
-	// Append custom config if provided
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Config != "" {
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Custom configuration\n")
-		// Write the custom config line by line with proper indentation
-		configLines := strings.Split(workflowData.EngineConfig.Config, "\n")
-		for _, line := range configLines {
-			if strings.TrimSpace(line) != "" {
-				yaml.WriteString("          " + line + "\n")
-			} else {
-				yaml.WriteString("          \n")
-			}
-		}
-	}
-
-	yaml.WriteString("          EOF\n")
-}
-
-// renderMCPConfigManual is a fallback method that uses the old manual string building approach
-func (e *CodexEngine) renderMCPConfigManual(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	// Add history configuration to disable persistence
-	yaml.WriteString("          [history]\n")
-	yaml.WriteString("          persistence = \"none\"\n")
-
-	// Expand neutral tools (like playwright: null) to include the copilot agent tools
-	expandedTools := e.expandNeutralToolsToCodexTools(tools)
-
-	// Generate [mcp_servers] section
-	for _, toolName := range mcpTools {
-		switch toolName {
-		case "github":
-			githubTool := expandedTools["github"]
-			e.renderGitHubCodexMCPConfig(yaml, githubTool, workflowData)
-		case "playwright":
-			playwrightTool := expandedTools["playwright"]
-			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool)
-		case "agentic-workflows":
-			e.renderAgenticWorkflowsCodexMCPConfig(yaml)
-		case "safe-outputs":
-			e.renderSafeOutputsCodexMCPConfig(yaml, workflowData)
-		case "web-fetch":
-			renderMCPFetchServerConfig(yaml, "toml", "          ", false, false)
-		default:
-			// Handle custom MCP tools using shared helper (with adapter for isLast parameter)
-			HandleCustomMCPToolInSwitch(yaml, toolName, expandedTools, false, func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
-				return e.renderCodexMCPConfig(yaml, toolName, toolConfig)
-			})
 		}
 	}
 }
