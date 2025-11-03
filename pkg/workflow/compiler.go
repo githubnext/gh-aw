@@ -150,6 +150,7 @@ type WorkflowData struct {
 	ImportedFiles       []string // list of files imported via imports field (rendered as comment in lock file)
 	IncludedFiles       []string // list of files included via @include directives (rendered as comment in lock file)
 	On                  string
+	ParsedTrigger       *TriggerConfig // Structured trigger configuration (parsed from On field)
 	Permissions         string
 	Network             string // top-level network permissions configuration
 	Concurrency         string // workflow-level concurrency configuration
@@ -1180,6 +1181,23 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 // This ensures we only extract keys at the root level, avoiding nested keys with the same name
 // parseOnSection parses the "on" section from frontmatter to extract command triggers, reactions, and other events
 func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *WorkflowData, markdownPath string) error {
+	// Parse the trigger configuration using the new TriggerConfig structure
+	if onValue, exists := frontmatter["on"]; exists {
+		parsedTrigger, err := ParseTrigger(onValue)
+		if err != nil {
+			return fmt.Errorf("failed to parse trigger configuration: %w", err)
+		}
+		workflowData.ParsedTrigger = parsedTrigger
+
+		// Validate reaction value if present
+		if parsedTrigger.Reaction != "" {
+			if !isValidReaction(parsedTrigger.Reaction) {
+				return fmt.Errorf("invalid reaction value '%s': must be one of %v", parsedTrigger.Reaction, getValidReactions())
+			}
+			workflowData.AIReaction = parsedTrigger.Reaction
+		}
+	}
+
 	// Check if "command" is used as a trigger in the "on" section
 	// Also extract "reaction" from the "on" section
 	var hasCommand bool
