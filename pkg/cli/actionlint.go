@@ -23,28 +23,18 @@ type actionlintError struct {
 	EndColumn int    `json:"end_column"`
 }
 
-// ensureActionlintConfig creates or updates .github/actionlint.yaml to configure custom runner labels
+// ensureActionlintConfig creates .github/actionlint.yaml to configure custom runner labels if it doesn't exist
 func ensureActionlintConfig(gitRoot string) error {
 	configPath := filepath.Join(gitRoot, ".github", "actionlint.yaml")
 
 	// Check if config already exists
 	if _, err := os.Stat(configPath); err == nil {
-		// Config exists, check if it already has ubuntu-slim
-		content, readErr := os.ReadFile(configPath)
-		if readErr != nil {
-			return fmt.Errorf("failed to read existing actionlint.yaml: %w", readErr)
-		}
-
-		// If ubuntu-slim is already in the config, no need to update
-		if strings.Contains(string(content), "ubuntu-slim") {
-			compileLog.Print("actionlint.yaml already contains ubuntu-slim configuration")
-			return nil
-		}
-
-		compileLog.Print("actionlint.yaml exists but doesn't contain ubuntu-slim, updating...")
+		// Config exists, do not update it
+		compileLog.Print("actionlint.yaml already exists, skipping creation")
+		return nil
 	}
 
-	// Create or update the config file
+	// Create the config file
 	configContent := `# Configuration for actionlint
 # See https://github.com/rhysd/actionlint/blob/main/docs/config.md
 
@@ -65,7 +55,7 @@ self-hosted-runner:
 		return fmt.Errorf("failed to write actionlint.yaml: %w", err)
 	}
 
-	compileLog.Printf("Created/updated actionlint.yaml at %s", configPath)
+	compileLog.Printf("Created actionlint.yaml at %s", configPath)
 	return nil
 }
 
