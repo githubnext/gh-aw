@@ -56,13 +56,7 @@ steps:
 tools:
   cache-memory: true
   github:
-    allowed:
-      - issue_read
-      - get_pull_request
-      - pull_request_read
-      - get_file_contents
-      - list_commits
-      - add_reaction
+    toolsets: [default]
   edit:
   bash:
 
