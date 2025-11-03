@@ -139,10 +139,13 @@ func TestClaudeEngineHasSecretValidation(t *testing.T) {
 		t.Fatal("Expected at least one installation step")
 	}
 
-	// First step should be secret validation
+	// First step should be secret validation (now supports both CLAUDE_CODE_OAUTH_TOKEN and ANTHROPIC_API_KEY)
 	firstStep := strings.Join(steps[0], "\n")
-	if !strings.Contains(firstStep, "Validate ANTHROPIC_API_KEY secret") {
-		t.Error("First installation step should validate ANTHROPIC_API_KEY secret")
+	if !strings.Contains(firstStep, "Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret") {
+		t.Error("First installation step should validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret")
+	}
+	if !strings.Contains(firstStep, "CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}") {
+		t.Error("Secret validation step should reference secrets.CLAUDE_CODE_OAUTH_TOKEN")
 	}
 	if !strings.Contains(firstStep, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
 		t.Error("Secret validation step should reference secrets.ANTHROPIC_API_KEY")

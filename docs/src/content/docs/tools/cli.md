@@ -323,7 +323,7 @@ gh aw trial ./workflow.md --use-local-secrets   # Use local API keys for trial
 ```
 
 **How it works:**
-- Reads API keys from environment variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `COPILOT_CLI_TOKEN`, etc.)
+- Reads API keys from environment variables (`CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `COPILOT_CLI_TOKEN`, etc.)
 - Temporarily pushes the required secrets to the repository before workflow execution
 - Automatically cleans up (deletes) the secrets after completion
 - Only pushes secrets that are actually needed by the workflow's AI engine
