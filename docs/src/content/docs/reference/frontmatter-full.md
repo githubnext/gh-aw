@@ -44,7 +44,6 @@ imports: []
 # Workflow triggers that define when the agentic workflow should run. Supports
 # standard GitHub Actions trigger events plus special command triggers for
 # /commands (required)
-# (optional)
 # This field supports multiple formats (oneOf):
 
 # Option 1: Simple trigger event name (e.g., 'push', 'issues', 'pull_request',
