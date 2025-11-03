@@ -1427,7 +1427,8 @@ jobs:
           GH_AW_EXPR_079D8664: ${{ github.event.pull_request.number }}
           GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
+          PROMPT_DIR=$(dirname "$GH_AW_PROMPT")
+          mkdir -p "$PROMPT_DIR"
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Mergefest - Merge Main into Pull Request Branch
           

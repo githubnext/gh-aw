@@ -1520,7 +1520,8 @@ jobs:
           GH_AW_EXPR_20984929: ${{ github.event.workflow_run.run_number }}
           GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
+          PROMPT_DIR=$(dirname "$GH_AW_PROMPT")
+          mkdir -p "$PROMPT_DIR"
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # CI Failure Doctor
           
