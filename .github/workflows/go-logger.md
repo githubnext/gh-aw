@@ -37,9 +37,7 @@ steps:
 
 tools:
   github:
-    allowed:
-      - get_file_contents
-      - search_code
+    toolsets: [default]
   edit:
   bash:
     - "find pkg -name '*.go' -type f ! -name '*_test.go'"
