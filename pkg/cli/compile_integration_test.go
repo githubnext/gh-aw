@@ -9,11 +9,69 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/creack/pty"
 )
+
+// Global binary path shared across all integration tests
+var (
+	globalBinaryPath string
+	globalBinaryOnce sync.Once
+	projectRoot      string
+)
+
+// TestMain builds the gh-aw binary once before running tests
+func TestMain(m *testing.M) {
+	// Get project root
+	wd, err := os.Getwd()
+	if err != nil {
+		panic("Failed to get current working directory: " + err.Error())
+	}
+	projectRoot = filepath.Join(wd, "..", "..")
+
+	// Build the binary once for all tests
+	globalBinaryOnce.Do(func() {
+		// Create temp directory for the shared binary
+		tempDir, err := os.MkdirTemp("", "gh-aw-integration-binary-*")
+		if err != nil {
+			panic("Failed to create temp directory for binary: " + err.Error())
+		}
+
+		globalBinaryPath = filepath.Join(tempDir, "gh-aw")
+
+		// Build the gh-aw binary
+		buildCmd := exec.Command("make", "build")
+		buildCmd.Dir = projectRoot
+		buildCmd.Stderr = os.Stderr
+		if err := buildCmd.Run(); err != nil {
+			panic("Failed to build gh-aw binary: " + err.Error())
+		}
+
+		// Copy binary to temp directory
+		srcBinary := filepath.Join(projectRoot, "gh-aw")
+		if err := copyFile(srcBinary, globalBinaryPath); err != nil {
+			panic("Failed to copy gh-aw binary to temp directory: " + err.Error())
+		}
+
+		// Make the binary executable
+		if err := os.Chmod(globalBinaryPath, 0755); err != nil {
+			panic("Failed to make binary executable: " + err.Error())
+		}
+	})
+
+	// Run the tests
+	code := m.Run()
+
+	// Clean up the shared binary directory
+	if globalBinaryPath != "" {
+		os.RemoveAll(filepath.Dir(globalBinaryPath))
+	}
+
+	os.Exit(code)
+}
 
 // integrationTestSetup holds the setup state for integration tests
 type integrationTestSetup struct {
@@ -24,7 +82,7 @@ type integrationTestSetup struct {
 	cleanup      func()
 }
 
-// setupIntegrationTest creates a temporary directory and builds the gh-aw binary
+// setupIntegrationTest creates a temporary directory and uses the pre-built gh-aw binary
 // This is the equivalent of @Before in Java - common setup for all integration tests
 func setupIntegrationTest(t *testing.T) *integrationTestSetup {
 	t.Helper()
@@ -44,19 +102,9 @@ func setupIntegrationTest(t *testing.T) *integrationTestSetup {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-	// Build the gh-aw binary
+	// Copy the pre-built binary to this test's temp directory
 	binaryPath := filepath.Join(tempDir, "gh-aw")
-	projectRoot := filepath.Join(originalWd, "..", "..")
-	buildCmd := exec.Command("make", "build")
-	buildCmd.Dir = projectRoot
-	buildCmd.Stderr = os.Stderr
-	if err := buildCmd.Run(); err != nil {
-		t.Fatalf("Failed to build gh-aw binary: %v", err)
-	}
-
-	// Copy binary to temp directory (use copy instead of move to avoid cross-device link issues)
-	srcBinary := filepath.Join(projectRoot, "gh-aw")
-	if err := copyFile(srcBinary, binaryPath); err != nil {
+	if err := copyFile(globalBinaryPath, binaryPath); err != nil {
 		t.Fatalf("Failed to copy gh-aw binary to temp directory: %v", err)
 	}
 
