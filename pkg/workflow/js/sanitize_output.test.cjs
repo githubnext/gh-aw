@@ -854,4 +854,152 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       delete process.env.GH_AW_COMMAND;
     });
   });
+
+  describe("URL Redaction Logging", () => {
+    beforeEach(() => {
+      // Clear all mocks before each test
+      vi.clearAllMocks();
+      // Ensure test directory exists
+      if (!fs.existsSync("/tmp/gh-aw")) {
+        fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+      }
+    });
+
+    it("should log when HTTPS URLs with disallowed domains are redacted", async () => {
+      const content = "Check out https://evil.com/malware for details";
+      const testFile = "/tmp/gh-aw/test-url-logging-https.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      // Check that core.info was called with the redacted URL
+      const infoCalls = mockCore.info.mock.calls;
+      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: https://evil.com/malware"));
+
+      expect(redactionLog).toBeDefined();
+      expect(redactionLog[0]).toBe("Redacted URL: https://evil.com/malware");
+
+      fs.unlinkSync(testFile);
+    });
+
+    it("should log when HTTP URLs are redacted", async () => {
+      const content = "Visit http://example.com for more info";
+      const testFile = "/tmp/gh-aw/test-url-logging-http.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      // Check that core.info was called with the redacted URL
+      const infoCalls = mockCore.info.mock.calls;
+      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: http://example.com"));
+
+      expect(redactionLog).toBeDefined();
+      expect(redactionLog[0]).toBe("Redacted URL: http://example.com");
+
+      fs.unlinkSync(testFile);
+    });
+
+    it("should log when javascript: URLs are redacted", async () => {
+      const content = "Click here: javascript:alert('xss')";
+      const testFile = "/tmp/gh-aw/test-url-logging-js.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      // Check that core.info was called with the redacted URL
+      // Note: The regex stops at '(' so it only captures "javascript:alert("
+      const infoCalls = mockCore.info.mock.calls;
+      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: javascript:alert("));
+
+      expect(redactionLog).toBeDefined();
+      expect(redactionLog[0]).toBe("Redacted URL: javascript:alert(");
+
+      fs.unlinkSync(testFile);
+    });
+
+    it("should log multiple URL redactions", async () => {
+      const content = "Links: http://bad1.com, https://bad2.com, ftp://bad3.com";
+      const testFile = "/tmp/gh-aw/test-url-logging-multiple.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      // Check that core.info was called for each redacted URL
+      const infoCalls = mockCore.info.mock.calls;
+      const redactionLogs = infoCalls.filter(call => call[0] && call[0].startsWith("Redacted URL:"));
+
+      expect(redactionLogs.length).toBeGreaterThanOrEqual(3);
+      expect(redactionLogs.some(log => log[0].includes("http://bad1.com"))).toBe(true);
+      expect(redactionLogs.some(log => log[0].includes("https://bad2.com"))).toBe(true);
+      expect(redactionLogs.some(log => log[0].includes("ftp://bad3.com"))).toBe(true);
+
+      fs.unlinkSync(testFile);
+    });
+
+    it("should not log when HTTPS URLs with allowed domains are preserved", async () => {
+      const content = "Visit https://github.com for more info";
+      const testFile = "/tmp/gh-aw/test-url-logging-allowed.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      // Check that core.info was NOT called for allowed URLs
+      const infoCalls = mockCore.info.mock.calls;
+      const redactionLogs = infoCalls.filter(call => call[0] && call[0].includes("Redacted URL: https://github.com"));
+
+      expect(redactionLogs.length).toBe(0);
+
+      fs.unlinkSync(testFile);
+    });
+
+    it("should log when data: URLs are redacted", async () => {
+      const content = "Image: data:text/html,<script>alert(1)</script>";
+      const testFile = "/tmp/gh-aw/test-url-logging-data.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      // Check that core.info was called with the redacted URL
+      // Note: The regex stops at '<' so it only captures "data:text/html,"
+      const infoCalls = mockCore.info.mock.calls;
+      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: data:text/html,"));
+
+      expect(redactionLog).toBeDefined();
+
+      fs.unlinkSync(testFile);
+    });
+
+    it("should handle mixed content with both redacted and allowed URLs", async () => {
+      const content = "Good: https://github.com/repo Bad: https://evil.com/bad More: http://another.bad";
+      const testFile = "/tmp/gh-aw/test-url-logging-mixed.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      // Check that core.info was called only for disallowed URLs
+      const infoCalls = mockCore.info.mock.calls;
+      const redactionLogs = infoCalls.filter(call => call[0] && call[0].startsWith("Redacted URL:"));
+
+      expect(redactionLogs.length).toBeGreaterThanOrEqual(2);
+      expect(redactionLogs.some(log => log[0].includes("https://evil.com/bad"))).toBe(true);
+      expect(redactionLogs.some(log => log[0].includes("http://another.bad"))).toBe(true);
+      expect(redactionLogs.some(log => log[0].includes("https://github.com/repo"))).toBe(false);
+
+      fs.unlinkSync(testFile);
+    });
+  });
 });

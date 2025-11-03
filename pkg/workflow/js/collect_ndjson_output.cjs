@@ -217,7 +217,7 @@ async function main() {
             error: `Line ${lineNum}: ${fieldName} must be a string`,
           };
         }
-        normalizedValue = sanitizeContent(value);
+        normalizedValue = sanitizeContent(value, undefined, core);
         break;
       case "boolean":
         if (typeof value !== "boolean") {
@@ -248,11 +248,11 @@ async function main() {
             error: `Line ${lineNum}: ${fieldName} must be one of: ${inputSchema.options.join(", ")}`,
           };
         }
-        normalizedValue = sanitizeContent(value);
+        normalizedValue = sanitizeContent(value, undefined, core);
         break;
       default:
         if (typeof value === "string") {
-          normalizedValue = sanitizeContent(value);
+          normalizedValue = sanitizeContent(value, undefined, core);
         }
         break;
     }
@@ -371,10 +371,10 @@ async function main() {
             errors.push(`Line ${i + 1}: create_issue requires a 'body' string field`);
             continue;
           }
-          item.title = sanitizeContent(item.title, 128);
-          item.body = sanitizeContent(item.body, maxBodyLength);
+          item.title = sanitizeContent(item.title, 128, core);
+          item.body = sanitizeContent(item.body, maxBodyLength, core);
           if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label, 128) : label));
+            item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label, 128, core) : label));
           }
           // Validate parent field if provided
           if (item.parent !== undefined) {
@@ -398,7 +398,7 @@ async function main() {
               continue;
             }
           }
-          item.body = sanitizeContent(item.body, maxBodyLength);
+          item.body = sanitizeContent(item.body, maxBodyLength, core);
           break;
         case "create_pull_request":
           if (!item.title || typeof item.title !== "string") {
@@ -413,11 +413,11 @@ async function main() {
             errors.push(`Line ${i + 1}: create_pull_request requires a 'branch' string field`);
             continue;
           }
-          item.title = sanitizeContent(item.title, 128);
-          item.body = sanitizeContent(item.body, maxBodyLength);
-          item.branch = sanitizeContent(item.branch, 256);
+          item.title = sanitizeContent(item.title, 128, core);
+          item.body = sanitizeContent(item.body, maxBodyLength, core);
+          item.branch = sanitizeContent(item.branch, 256, core);
           if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label, 128) : label));
+            item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label, 128, core) : label));
           }
           break;
         case "add_labels":
@@ -434,7 +434,7 @@ async function main() {
             if (labelsItemNumberValidation.error) errors.push(labelsItemNumberValidation.error);
             continue;
           }
-          item.labels = item.labels.map(label => sanitizeContent(label, 128));
+          item.labels = item.labels.map(label => sanitizeContent(label, 128, core));
           break;
         case "update_issue":
           const hasValidField = item.status !== undefined || item.title !== undefined || item.body !== undefined;
@@ -453,14 +453,14 @@ async function main() {
               errors.push(`Line ${i + 1}: update_issue 'title' must be a string`);
               continue;
             }
-            item.title = sanitizeContent(item.title, 128);
+            item.title = sanitizeContent(item.title, 128, core);
           }
           if (item.body !== undefined) {
             if (typeof item.body !== "string") {
               errors.push(`Line ${i + 1}: update_issue 'body' must be a string`);
               continue;
             }
-            item.body = sanitizeContent(item.body, maxBodyLength);
+            item.body = sanitizeContent(item.body, maxBodyLength, core);
           }
           const updateIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "update_issue 'issue_number'", i + 1);
           if (!updateIssueNumValidation.isValid) {
@@ -477,8 +477,8 @@ async function main() {
             errors.push(`Line ${i + 1}: push_to_pull_request_branch requires a 'message' string field`);
             continue;
           }
-          item.branch = sanitizeContent(item.branch, 256);
-          item.message = sanitizeContent(item.message, maxBodyLength);
+          item.branch = sanitizeContent(item.branch, 256, core);
+          item.message = sanitizeContent(item.message, maxBodyLength, core);
           const pushPRNumValidation = validateIssueOrPRNumber(
             item.pull_request_number,
             "push_to_pull_request_branch 'pull_request_number'",
@@ -504,7 +504,7 @@ async function main() {
             errors.push(`Line ${i + 1}: create_pull_request_review_comment requires a 'body' string field`);
             continue;
           }
-          item.body = sanitizeContent(item.body, maxBodyLength);
+          item.body = sanitizeContent(item.body, maxBodyLength, core);
           const startLineValidation = validateOptionalPositiveInteger(
             item.start_line,
             "create_pull_request_review_comment 'start_line'",
@@ -543,17 +543,17 @@ async function main() {
               errors.push(`Line ${i + 1}: create_discussion 'category' must be a string`);
               continue;
             }
-            item.category = sanitizeContent(item.category, 128);
+            item.category = sanitizeContent(item.category, 128, core);
           }
-          item.title = sanitizeContent(item.title, 128);
-          item.body = sanitizeContent(item.body, maxBodyLength);
+          item.title = sanitizeContent(item.title, 128, core);
+          item.body = sanitizeContent(item.body, maxBodyLength, core);
           break;
         case "create_agent_task":
           if (!item.body || typeof item.body !== "string") {
             errors.push(`Line ${i + 1}: create_agent_task requires a 'body' string field`);
             continue;
           }
-          item.body = sanitizeContent(item.body, maxBodyLength);
+          item.body = sanitizeContent(item.body, maxBodyLength, core);
           break;
         case "missing_tool":
           if (!item.tool || typeof item.tool !== "string") {
@@ -564,14 +564,14 @@ async function main() {
             errors.push(`Line ${i + 1}: missing_tool requires a 'reason' string field`);
             continue;
           }
-          item.tool = sanitizeContent(item.tool, 128);
-          item.reason = sanitizeContent(item.reason, 256);
+          item.tool = sanitizeContent(item.tool, 128, core);
+          item.reason = sanitizeContent(item.reason, 256, core);
           if (item.alternatives !== undefined) {
             if (typeof item.alternatives !== "string") {
               errors.push(`Line ${i + 1}: missing_tool 'alternatives' must be a string`);
               continue;
             }
-            item.alternatives = sanitizeContent(item.alternatives, 512);
+            item.alternatives = sanitizeContent(item.alternatives, 512, core);
           }
           break;
         case "upload_asset":
@@ -625,11 +625,11 @@ async function main() {
             }
           }
           item.severity = item.severity.toLowerCase();
-          item.file = sanitizeContent(item.file, 512);
-          item.severity = sanitizeContent(item.severity, 64);
-          item.message = sanitizeContent(item.message, 2048);
+          item.file = sanitizeContent(item.file, 512, core);
+          item.severity = sanitizeContent(item.severity, 64, core);
+          item.message = sanitizeContent(item.message, 2048, core);
           if (item.ruleIdSuffix) {
-            item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix, 128);
+            item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix, 128, core);
           }
           break;
         default:

@@ -2640,7 +2640,7 @@ jobs:
           script: |
             async function main() {
               const fs = require("fs");
-            function sanitizeContent(content, maxLength) {
+            function sanitizeContent(content, maxLength, logger) {
               if (!content || typeof content !== "string") {
                 return "";
               }
@@ -2659,8 +2659,8 @@ jobs:
               sanitized = convertXmlTags(sanitized);
               sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
               sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitizeUrlProtocols(sanitized);
-              sanitized = sanitizeUrlDomains(sanitized);
+              sanitized = sanitizeUrlProtocols(sanitized, logger);
+              sanitized = sanitizeUrlDomains(sanitized, logger);
               const lines = sanitized.split("\n");
               const maxLines = 65000;
               maxLength = maxLength || 524288;
@@ -2677,7 +2677,7 @@ jobs:
               }
               sanitized = neutralizeBotTriggers(sanitized);
               return sanitized.trim();
-              function sanitizeUrlDomains(s) {
+              function sanitizeUrlDomains(s, logger) {
                 s = s.replace(/\bhttps:\/\/([^\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, rest) => {
                   const hostname = rest.split(/[\/:\?#]/)[0].toLowerCase();
                   const isAllowed = allowedDomains.some(allowedDomain => {
@@ -2687,20 +2687,23 @@ jobs:
                   if (isAllowed) {
                     return match; 
                   }
+                  if (logger && typeof logger.info === "function") {
+                    logger.info(`Redacted URL: ${match}`);
+                  }
                   const urlParts = match.split(/([?&#])/);
                   let result = "(redacted)"; 
                   for (let i = 1; i < urlParts.length; i++) {
                     if (urlParts[i].match(/^[?&#]$/)) {
                       result += urlParts[i]; 
                     } else {
-                      result += sanitizeUrlDomains(urlParts[i]);
+                      result += sanitizeUrlDomains(urlParts[i], logger);
                     }
                   }
                   return result;
                 });
                 return s;
               }
-              function sanitizeUrlProtocols(s) {
+              function sanitizeUrlProtocols(s, logger) {
                 return s.replace(/(?<![-\/\w])([A-Za-z][A-Za-z0-9+.-]*):(?:\/\/|(?=[^\s:]))[^\s\])}'"<>&\x00-\x1f]+/g, (match, protocol) => {
                   if (protocol.toLowerCase() === "https") {
                     return match;
@@ -2709,10 +2712,16 @@ jobs:
                     return match;
                   }
                   if (match.includes("://")) {
+                    if (logger && typeof logger.info === "function") {
+                      logger.info(`Redacted URL: ${match}`);
+                    }
                     return "(redacted)";
                   }
                   const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
                   if (dangerousProtocols.includes(protocol.toLowerCase())) {
+                    if (logger && typeof logger.info === "function") {
+                      logger.info(`Redacted URL: ${match}`);
+                    }
                     return "(redacted)";
                   }
                   return match;
@@ -2969,7 +2978,7 @@ jobs:
                         error: `Line ${lineNum}: ${fieldName} must be a string`,
                       };
                     }
-                    normalizedValue = sanitizeContent(value);
+                    normalizedValue = sanitizeContent(value, undefined, core);
                     break;
                   case "boolean":
                     if (typeof value !== "boolean") {
@@ -3000,11 +3009,11 @@ jobs:
                         error: `Line ${lineNum}: ${fieldName} must be one of: ${inputSchema.options.join(", ")}`,
                       };
                     }
-                    normalizedValue = sanitizeContent(value);
+                    normalizedValue = sanitizeContent(value, undefined, core);
                     break;
                   default:
                     if (typeof value === "string") {
-                      normalizedValue = sanitizeContent(value);
+                      normalizedValue = sanitizeContent(value, undefined, core);
                     }
                     break;
                 }
@@ -3120,10 +3129,10 @@ jobs:
                         errors.push(`Line ${i + 1}: create_issue requires a 'body' string field`);
                         continue;
                       }
-                      item.title = sanitizeContent(item.title, 128);
-                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      item.title = sanitizeContent(item.title, 128, core);
+                      item.body = sanitizeContent(item.body, maxBodyLength, core);
                       if (item.labels && Array.isArray(item.labels)) {
-                        item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label, 128) : label));
+                        item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label, 128, core) : label));
                       }
                       if (item.parent !== undefined) {
                         const parentValidation = validateIssueOrPRNumber(item.parent, "create_issue 'parent'", i + 1);
@@ -3145,7 +3154,7 @@ jobs:
                           continue;
                         }
                       }
-                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      item.body = sanitizeContent(item.body, maxBodyLength, core);
                       break;
                     case "create_pull_request":
                       if (!item.title || typeof item.title !== "string") {
@@ -3160,11 +3169,11 @@ jobs:
                         errors.push(`Line ${i + 1}: create_pull_request requires a 'branch' string field`);
                         continue;
                       }
-                      item.title = sanitizeContent(item.title, 128);
-                      item.body = sanitizeContent(item.body, maxBodyLength);
-                      item.branch = sanitizeContent(item.branch, 256);
+                      item.title = sanitizeContent(item.title, 128, core);
+                      item.body = sanitizeContent(item.body, maxBodyLength, core);
+                      item.branch = sanitizeContent(item.branch, 256, core);
                       if (item.labels && Array.isArray(item.labels)) {
-                        item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label, 128) : label));
+                        item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label, 128, core) : label));
                       }
                       break;
                     case "add_labels":
@@ -3181,7 +3190,7 @@ jobs:
                         if (labelsItemNumberValidation.error) errors.push(labelsItemNumberValidation.error);
                         continue;
                       }
-                      item.labels = item.labels.map(label => sanitizeContent(label, 128));
+                      item.labels = item.labels.map(label => sanitizeContent(label, 128, core));
                       break;
                     case "update_issue":
                       const hasValidField = item.status !== undefined || item.title !== undefined || item.body !== undefined;
@@ -3200,14 +3209,14 @@ jobs:
                           errors.push(`Line ${i + 1}: update_issue 'title' must be a string`);
                           continue;
                         }
-                        item.title = sanitizeContent(item.title, 128);
+                        item.title = sanitizeContent(item.title, 128, core);
                       }
                       if (item.body !== undefined) {
                         if (typeof item.body !== "string") {
                           errors.push(`Line ${i + 1}: update_issue 'body' must be a string`);
                           continue;
                         }
-                        item.body = sanitizeContent(item.body, maxBodyLength);
+                        item.body = sanitizeContent(item.body, maxBodyLength, core);
                       }
                       const updateIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "update_issue 'issue_number'", i + 1);
                       if (!updateIssueNumValidation.isValid) {
@@ -3224,8 +3233,8 @@ jobs:
                         errors.push(`Line ${i + 1}: push_to_pull_request_branch requires a 'message' string field`);
                         continue;
                       }
-                      item.branch = sanitizeContent(item.branch, 256);
-                      item.message = sanitizeContent(item.message, maxBodyLength);
+                      item.branch = sanitizeContent(item.branch, 256, core);
+                      item.message = sanitizeContent(item.message, maxBodyLength, core);
                       const pushPRNumValidation = validateIssueOrPRNumber(
                         item.pull_request_number,
                         "push_to_pull_request_branch 'pull_request_number'",
@@ -3251,7 +3260,7 @@ jobs:
                         errors.push(`Line ${i + 1}: create_pull_request_review_comment requires a 'body' string field`);
                         continue;
                       }
-                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      item.body = sanitizeContent(item.body, maxBodyLength, core);
                       const startLineValidation = validateOptionalPositiveInteger(
                         item.start_line,
                         "create_pull_request_review_comment 'start_line'",
@@ -3290,17 +3299,17 @@ jobs:
                           errors.push(`Line ${i + 1}: create_discussion 'category' must be a string`);
                           continue;
                         }
-                        item.category = sanitizeContent(item.category, 128);
+                        item.category = sanitizeContent(item.category, 128, core);
                       }
-                      item.title = sanitizeContent(item.title, 128);
-                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      item.title = sanitizeContent(item.title, 128, core);
+                      item.body = sanitizeContent(item.body, maxBodyLength, core);
                       break;
                     case "create_agent_task":
                       if (!item.body || typeof item.body !== "string") {
                         errors.push(`Line ${i + 1}: create_agent_task requires a 'body' string field`);
                         continue;
                       }
-                      item.body = sanitizeContent(item.body, maxBodyLength);
+                      item.body = sanitizeContent(item.body, maxBodyLength, core);
                       break;
                     case "missing_tool":
                       if (!item.tool || typeof item.tool !== "string") {
@@ -3311,14 +3320,14 @@ jobs:
                         errors.push(`Line ${i + 1}: missing_tool requires a 'reason' string field`);
                         continue;
                       }
-                      item.tool = sanitizeContent(item.tool, 128);
-                      item.reason = sanitizeContent(item.reason, 256);
+                      item.tool = sanitizeContent(item.tool, 128, core);
+                      item.reason = sanitizeContent(item.reason, 256, core);
                       if (item.alternatives !== undefined) {
                         if (typeof item.alternatives !== "string") {
                           errors.push(`Line ${i + 1}: missing_tool 'alternatives' must be a string`);
                           continue;
                         }
-                        item.alternatives = sanitizeContent(item.alternatives, 512);
+                        item.alternatives = sanitizeContent(item.alternatives, 512, core);
                       }
                       break;
                     case "upload_asset":
@@ -3372,11 +3381,11 @@ jobs:
                         }
                       }
                       item.severity = item.severity.toLowerCase();
-                      item.file = sanitizeContent(item.file, 512);
-                      item.severity = sanitizeContent(item.severity, 64);
-                      item.message = sanitizeContent(item.message, 2048);
+                      item.file = sanitizeContent(item.file, 512, core);
+                      item.severity = sanitizeContent(item.severity, 64, core);
+                      item.message = sanitizeContent(item.message, 2048, core);
                       if (item.ruleIdSuffix) {
-                        item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix, 128);
+                        item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix, 128, core);
                       }
                       break;
                     default:

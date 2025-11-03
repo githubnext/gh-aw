@@ -28,7 +28,7 @@ async function main() {
     core.info("Output file is empty");
     core.setOutput("output", "");
   } else {
-    const sanitizedContent = sanitizeContent(outputContent);
+    const sanitizedContent = sanitizeContent(outputContent, undefined, core);
     core.info(`Collected agentic output (sanitized): ${sanitizedContent.substring(0, 200)}${sanitizedContent.length > 200 ? "..." : ""}`);
     core.setOutput("output", sanitizedContent);
   }
