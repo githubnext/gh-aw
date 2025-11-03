@@ -47,3 +47,32 @@ func getFirewallConfig(workflowData *WorkflowData) *FirewallConfig {
 
 	return nil
 }
+
+// enableFirewallByDefaultForCopilot enables firewall by default for copilot engine
+// when network restrictions are present but no explicit firewall configuration exists
+func enableFirewallByDefaultForCopilot(engineID string, networkPermissions *NetworkPermissions) {
+	// Only apply to copilot engine
+	if engineID != "copilot" {
+		return
+	}
+
+	// Check if network permissions exist
+	if networkPermissions == nil {
+		return
+	}
+
+	// Check if firewall is already configured
+	if networkPermissions.Firewall != nil {
+		firewallLog.Print("Firewall already configured, skipping default enablement")
+		return
+	}
+
+	// Check if network restrictions are present (allowed domains specified)
+	if len(networkPermissions.Allowed) > 0 {
+		// Enable firewall by default for copilot engine with network restrictions
+		networkPermissions.Firewall = &FirewallConfig{
+			Enabled: true,
+		}
+		firewallLog.Print("Enabled firewall by default for copilot engine with network restrictions")
+	}
+}
