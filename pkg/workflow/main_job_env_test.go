@@ -32,7 +32,7 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				"GH_AW_SAFE_OUTPUTS_CONFIG:",
+				// Config is now in file, not env var
 			},
 			shouldHaveEnv: true,
 		},
@@ -50,7 +50,7 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 				},
 			},
 			expectedEnvVars: []string{
-				"GH_AW_SAFE_OUTPUTS_CONFIG:",
+				// Config is now in file, not env var
 			},
 			shouldHaveEnv: true,
 		},
@@ -185,15 +185,9 @@ This workflow tests that job-level environment variables are properly set for sa
 		t.Error("Expected job-level 'env:' section in agent job")
 	}
 
-	// Check for required environment variables
-	expectedEnvVars := []string{
-		"      GH_AW_SAFE_OUTPUTS_CONFIG:",
-	}
-
-	for _, expectedEnvVar := range expectedEnvVars {
-		if !strings.Contains(agentJobSection, expectedEnvVar) {
-			t.Errorf("Expected environment variable %q not found in agent job section", expectedEnvVar)
-		}
+	// Check that GH_AW_SAFE_OUTPUTS_CONFIG is NOT in environment variables
+	if strings.Contains(agentJobSection, "GH_AW_SAFE_OUTPUTS_CONFIG:") {
+		t.Error("GH_AW_SAFE_OUTPUTS_CONFIG should NOT be in environment variables - config is now in file")
 	}
 
 	// Clean up

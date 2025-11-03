@@ -120,9 +120,9 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 	// Use shell environment variables instead of GitHub Actions expressions to prevent template injection
 	// For both Copilot and Claude/Custom engines, reference shell env vars
 	// The actual GitHub expressions are set in the step's env: block
+	// Config is now read from file, so we don't pass GH_AW_SAFE_OUTPUTS_CONFIG
 	if includeCopilotFields {
 		yaml.WriteString("                  \"GH_AW_SAFE_OUTPUTS\": \"\\${GH_AW_SAFE_OUTPUTS}\",\n")
-		yaml.WriteString("                  \"GH_AW_SAFE_OUTPUTS_CONFIG\": \"\\${GH_AW_SAFE_OUTPUTS_CONFIG}\",\n")
 		yaml.WriteString("                  \"GH_AW_ASSETS_BRANCH\": \"\\${GH_AW_ASSETS_BRANCH}\",\n")
 		yaml.WriteString("                  \"GH_AW_ASSETS_MAX_SIZE_KB\": \"\\${GH_AW_ASSETS_MAX_SIZE_KB}\",\n")
 		yaml.WriteString("                  \"GH_AW_ASSETS_ALLOWED_EXTS\": \"\\${GH_AW_ASSETS_ALLOWED_EXTS}\",\n")
@@ -130,7 +130,6 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 		yaml.WriteString("                  \"GITHUB_SERVER_URL\": \"\\${GITHUB_SERVER_URL}\"\n")
 	} else {
 		yaml.WriteString("                  \"GH_AW_SAFE_OUTPUTS\": \"$GH_AW_SAFE_OUTPUTS\",\n")
-		yaml.WriteString("                  \"GH_AW_SAFE_OUTPUTS_CONFIG\": $GH_AW_SAFE_OUTPUTS_CONFIG,\n")
 		yaml.WriteString("                  \"GH_AW_ASSETS_BRANCH\": \"$GH_AW_ASSETS_BRANCH\",\n")
 		yaml.WriteString("                  \"GH_AW_ASSETS_MAX_SIZE_KB\": \"$GH_AW_ASSETS_MAX_SIZE_KB\",\n")
 		yaml.WriteString("                  \"GH_AW_ASSETS_ALLOWED_EXTS\": \"$GH_AW_ASSETS_ALLOWED_EXTS\",\n")
@@ -223,7 +222,7 @@ func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          args = [\n")
 	yaml.WriteString("            \"/tmp/gh-aw/safeoutputs/mcp-server.cjs\",\n")
 	yaml.WriteString("          ]\n")
-	yaml.WriteString("          env = { \"GH_AW_SAFE_OUTPUTS\" = \"${{ env.GH_AW_SAFE_OUTPUTS }}\", \"GH_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}, \"GH_AW_ASSETS_BRANCH\" = \"${{ env.GH_AW_ASSETS_BRANCH }}\", \"GH_AW_ASSETS_MAX_SIZE_KB\" = \"${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}\", \"GH_AW_ASSETS_ALLOWED_EXTS\" = \"${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}\", \"GITHUB_REPOSITORY\" = \"${{ github.repository }}\", \"GITHUB_SERVER_URL\" = \"${{ github.server_url }}\" }\n")
+	yaml.WriteString("          env = { \"GH_AW_SAFE_OUTPUTS\" = \"${{ env.GH_AW_SAFE_OUTPUTS }}\", \"GH_AW_ASSETS_BRANCH\" = \"${{ env.GH_AW_ASSETS_BRANCH }}\", \"GH_AW_ASSETS_MAX_SIZE_KB\" = \"${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}\", \"GH_AW_ASSETS_ALLOWED_EXTS\" = \"${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}\", \"GITHUB_REPOSITORY\" = \"${{ github.repository }}\", \"GITHUB_SERVER_URL\" = \"${{ github.server_url }}\" }\n")
 }
 
 // renderAgenticWorkflowsMCPConfigTOML generates the Agentic Workflows MCP server configuration in TOML format for Codex

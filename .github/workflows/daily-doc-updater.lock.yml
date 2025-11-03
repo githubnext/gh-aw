@@ -138,7 +138,6 @@ jobs:
       group: "gh-aw-claude-${{ github.workflow }}"
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_pull_request\":{},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -383,39 +382,26 @@ jobs:
               normalized = normalized.toLowerCase();
               return normalized;
             }
-            const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+            const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
             let safeOutputsConfigRaw;
-            if (!configEnv) {
-              const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
-              debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
-              try {
-                if (fs.existsSync(defaultConfigPath)) {
-                  debug(`Reading config from file: ${defaultConfigPath}`);
-                  const configFileContent = fs.readFileSync(defaultConfigPath, "utf8");
-                  debug(`Config file content length: ${configFileContent.length} characters`);
-                  debug(`Config file read successfully, attempting to parse JSON`);
-                  safeOutputsConfigRaw = JSON.parse(configFileContent);
-                  debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
-                } else {
-                  debug(`Config file does not exist at: ${defaultConfigPath}`);
-                  debug(`Using minimal default configuration`);
-                  safeOutputsConfigRaw = {};
-                }
-              } catch (error) {
-                debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
-                debug(`Falling back to empty configuration`);
+            debug(`Reading config from file: ${configPath}`);
+            try {
+              if (fs.existsSync(configPath)) {
+                debug(`Config file exists at: ${configPath}`);
+                const configFileContent = fs.readFileSync(configPath, "utf8");
+                debug(`Config file content length: ${configFileContent.length} characters`);
+                debug(`Config file read successfully, attempting to parse JSON`);
+                safeOutputsConfigRaw = JSON.parse(configFileContent);
+                debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
+              } else {
+                debug(`Config file does not exist at: ${configPath}`);
+                debug(`Using minimal default configuration`);
                 safeOutputsConfigRaw = {};
               }
-            } else {
-              debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
-              debug(`Config environment variable length: ${configEnv.length} characters`);
-              try {
-                safeOutputsConfigRaw = JSON.parse(configEnv); 
-                debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
-              } catch (error) {
-                debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
-                throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
-              }
+            } catch (error) {
+              debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
+              debug(`Falling back to empty configuration`);
+              safeOutputsConfigRaw = {};
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
@@ -1147,7 +1133,6 @@ jobs:
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}
           GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
           GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
@@ -1179,7 +1164,6 @@ jobs:
                 "args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"],
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": $GH_AW_SAFE_OUTPUTS_CONFIG,
                   "GH_AW_ASSETS_BRANCH": "$GH_AW_ASSETS_BRANCH",
                   "GH_AW_ASSETS_MAX_SIZE_KB": "$GH_AW_ASSETS_MAX_SIZE_KB",
                   "GH_AW_ASSETS_ALLOWED_EXTS": "$GH_AW_ASSETS_ALLOWED_EXTS",
@@ -1855,7 +1839,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_pull_request\":{},\"missing_tool\":{}}"
           GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,*.githubusercontent.com,raw.githubusercontent.com,objects.githubusercontent.com,lfs.github.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,codeload.github.com"
         with:
           script: |

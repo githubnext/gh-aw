@@ -58,44 +58,30 @@ function normalizeBranchName(branchName) {
   return normalized;
 }
 
-// Handle GH_AW_SAFE_OUTPUTS_CONFIG with default fallback
-const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+// Read configuration from file
+const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
 let safeOutputsConfigRaw;
 
-if (!configEnv) {
-  // Default config file path
-  const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
-  debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
+debug(`Reading config from file: ${configPath}`);
 
-  try {
-    if (fs.existsSync(defaultConfigPath)) {
-      debug(`Reading config from file: ${defaultConfigPath}`);
-      const configFileContent = fs.readFileSync(defaultConfigPath, "utf8");
-      debug(`Config file content length: ${configFileContent.length} characters`);
-      // Don't log raw content to avoid exposing sensitive configuration data
-      debug(`Config file read successfully, attempting to parse JSON`);
-      safeOutputsConfigRaw = JSON.parse(configFileContent);
-      debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
-    } else {
-      debug(`Config file does not exist at: ${defaultConfigPath}`);
-      debug(`Using minimal default configuration`);
-      safeOutputsConfigRaw = {};
-    }
-  } catch (error) {
-    debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
-    debug(`Falling back to empty configuration`);
+try {
+  if (fs.existsSync(configPath)) {
+    debug(`Config file exists at: ${configPath}`);
+    const configFileContent = fs.readFileSync(configPath, "utf8");
+    debug(`Config file content length: ${configFileContent.length} characters`);
+    // Don't log raw content to avoid exposing sensitive configuration data
+    debug(`Config file read successfully, attempting to parse JSON`);
+    safeOutputsConfigRaw = JSON.parse(configFileContent);
+    debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
+  } else {
+    debug(`Config file does not exist at: ${configPath}`);
+    debug(`Using minimal default configuration`);
     safeOutputsConfigRaw = {};
   }
-} else {
-  debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
-  debug(`Config environment variable length: ${configEnv.length} characters`);
-  try {
-    safeOutputsConfigRaw = JSON.parse(configEnv); // uses dashes for keys
-    debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
-  } catch (error) {
-    debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
-    throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
-  }
+} catch (error) {
+  debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
+  debug(`Falling back to empty configuration`);
+  safeOutputsConfigRaw = {};
 }
 
 const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));

@@ -880,11 +880,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 
-	// Pass the safe-outputs configuration for validation
-	safeOutputConfig := generateSafeOutputsConfig(data)
-	if safeOutputConfig != "" {
-		fmt.Fprintf(yaml, "          GH_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
-	}
+	// Config is written to file, not passed as env var
 
 	// Add allowed domains configuration for sanitization
 	// Use manually configured domains if available, otherwise compute from network configuration

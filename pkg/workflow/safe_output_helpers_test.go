@@ -224,8 +224,7 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{},
 			},
 			expected: map[string]string{
-				"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
-				"GH_AW_SAFE_OUTPUTS_CONFIG": "\"{}\"",
+				"GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
 			},
 		},
 		{
@@ -237,7 +236,6 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 			},
 			expected: map[string]string{
 				"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
-				"GH_AW_SAFE_OUTPUTS_CONFIG": "\"{}\"",
 				"GH_AW_SAFE_OUTPUTS_STAGED": "true",
 			},
 		},
@@ -250,7 +248,6 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 			},
 			expected: map[string]string{
 				"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
-				"GH_AW_SAFE_OUTPUTS_CONFIG": "\"{}\"",
 				"GH_AW_SAFE_OUTPUTS_STAGED": "true",
 				"GH_AW_TARGET_REPO_SLUG":    "owner/repo",
 			},
@@ -268,7 +265,6 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 			},
 			expected: map[string]string{
 				"GH_AW_SAFE_OUTPUTS":        "${{ env.GH_AW_SAFE_OUTPUTS }}",
-				"GH_AW_SAFE_OUTPUTS_CONFIG": "\"{\\\"upload_asset\\\":{}}\"",
 				"GH_AW_ASSETS_BRANCH":       "\"gh-aw-assets\"",
 				"GH_AW_ASSETS_MAX_SIZE_KB":  "10240",
 				"GH_AW_ASSETS_ALLOWED_EXTS": "\".png,.jpg,.jpeg\"",

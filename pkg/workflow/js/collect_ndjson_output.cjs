@@ -302,7 +302,18 @@ async function main() {
     }
   }
   const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
-  const safeOutputsConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+  // Read config from file instead of environment variable
+  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+  let safeOutputsConfig;
+  try {
+    if (fs.existsSync(configPath)) {
+      const configFileContent = fs.readFileSync(configPath, "utf8");
+      safeOutputsConfig = JSON.parse(configFileContent);
+    }
+  } catch (error) {
+    core.warning(`Failed to read config file from ${configPath}: ${error.message}`);
+  }
+  
   if (!outputFile) {
     core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
     core.setOutput("output", "");

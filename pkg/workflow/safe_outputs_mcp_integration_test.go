@@ -73,9 +73,14 @@ Test safe outputs workflow with MCP server integration.
 		t.Error("Expected safeoutputs MCP server to be configured with node command")
 	}
 
-	// Check that safe outputs config is properly set
-	if !strings.Contains(yamlStr, "GH_AW_SAFE_OUTPUTS_CONFIG") {
-		t.Error("Expected GH_AW_SAFE_OUTPUTS_CONFIG environment variable to be set")
+	// Check that safe outputs config is written to file, not as environment variable
+	if strings.Contains(yamlStr, "GH_AW_SAFE_OUTPUTS_CONFIG:") {
+		t.Error("GH_AW_SAFE_OUTPUTS_CONFIG should NOT be in environment variables - config is now in file")
+	}
+
+	// Check that config file is created
+	if !strings.Contains(yamlStr, "cat > /tmp/gh-aw/safeoutputs/config.json") {
+		t.Error("Expected config file to be created")
 	}
 
 	t.Log("Safe outputs MCP server integration test passed")
