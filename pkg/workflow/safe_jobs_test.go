@@ -439,15 +439,17 @@ func TestSafeJobsInSafeOutputsConfig(t *testing.T) {
 
 func TestExtractSafeJobsFromFrontmatter(t *testing.T) {
 	frontmatter := map[string]any{
-		"safe-jobs": map[string]any{
-			"deploy": map[string]any{
-				"runs-on": "ubuntu-latest",
-				"inputs": map[string]any{
-					"environment": map[string]any{
-						"description": "Target environment",
-						"required":    true,
-						"type":        "choice",
-						"options":     []any{"staging", "production"},
+		"safe-outputs": map[string]any{
+			"jobs": map[string]any{
+				"deploy": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"inputs": map[string]any{
+						"environment": map[string]any{
+							"description": "Target environment",
+							"required":    true,
+							"type":        "choice",
+							"options":     []any{"staging", "production"},
+						},
 					},
 				},
 			},
@@ -519,16 +521,18 @@ func TestMergeSafeJobsFromIncludes(t *testing.T) {
 		},
 	}
 
-	// Simulate included content JSON that contains safe-jobs
+	// Simulate included content JSON that contains safe-outputs.jobs
 	includedJSON := `{
-		"safe-jobs": {
-			"test": {
-				"runs-on": "ubuntu-latest",
-				"inputs": {
-					"suite": {
-						"description": "Test suite to run",
-						"required": true,
-						"type": "string"
+		"safe-outputs": {
+			"jobs": {
+				"test": {
+					"runs-on": "ubuntu-latest",
+					"inputs": {
+						"suite": {
+							"description": "Test suite to run",
+							"required": true,
+							"type": "string"
+						}
 					}
 				}
 			}
@@ -555,9 +559,11 @@ func TestMergeSafeJobsFromIncludes(t *testing.T) {
 
 	// Test conflict detection
 	conflictingJSON := `{
-		"safe-jobs": {
-			"deploy": {
-				"runs-on": "windows-latest"
+		"safe-outputs": {
+			"jobs": {
+				"deploy": {
+					"runs-on": "windows-latest"
+				}
 			}
 		}
 	}`
