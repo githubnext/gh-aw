@@ -6,6 +6,7 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/gh-aw.md
+#     - shared/reporting.md
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -1983,6 +1984,75 @@ jobs:
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           
+          ## Report Formatting
+          
+          Structure your report with an overview followed by detailed content:
+          
+          1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
+          
+          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
+          
+          **Example format:**
+          
+          `````markdown
+          Brief overview paragraph 1 introducing the report and its main findings.
+          
+          Optional overview paragraph 2 with additional context or highlights.
+          
+          <details>
+          <summary><b>Full Report Details</b></summary>
+          
+          ## Detailed Analysis
+          
+          Full report content with all sections, tables, and detailed information goes here.
+          
+          ### Section 1
+          [Content]
+          
+          ### Section 2
+          [Content]
+          
+          </details>
+          `````
+          
+          ## Reporting Workflow Run Information
+          
+          When analyzing workflow run logs or reporting information from GitHub Actions runs:
+          
+          ### 1. Workflow Run ID Formatting
+          
+          **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
+          
+          **Format:**
+          `````markdown
+          [§12345](https://github.com/owner/repo/actions/runs/12345)
+          `````
+          
+          **Example:**
+          `````markdown
+          Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
+          `````
+          
+          ### 2. Document References for Workflow Runs
+          
+          When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
+          
+          **Format:**
+          `````markdown
+          ---
+          
+          **References:**
+          - [§12345](https://github.com/owner/repo/actions/runs/12345)
+          - [§12346](https://github.com/owner/repo/actions/runs/12346)
+          - [§12347](https://github.com/owner/repo/actions/runs/12347)
+          `````
+          
+          **Guidelines:**
+          - Include **maximum 3 references** to keep reports concise
+          - Choose the most relevant or representative runs (e.g., failed runs, high-cost runs, or runs with significant findings)
+          - Always use the actual URL from the workflow run data (specifically, use the `url` field from `RunData` or the `RunURL` field from `ErrorSummary`)
+          - If analyzing more than 3 runs, select the most important ones for references
+          
           # Smoke Detector - Smoke Test Failure Investigator
           
           You are the Smoke Detector, an expert investigative agent that analyzes failed smoke test workflows to identify root causes and patterns. Your mission is to conduct a deep investigation when any smoke test workflow fails.
@@ -2082,20 +2152,29 @@ jobs:
              - Do NOT open a new issue since you found a duplicate already (skip next phase)
           
           ### Phase 7: Reporting and Recommendations
+          
+          **IMPORTANT: Follow the report formatting guidelines from shared/reporting.md**
+          
           1. **Create Investigation Report**: Generate a comprehensive analysis including:
-             - **Executive Summary**: Quick overview of the failure
+             - **Executive Summary**: Quick overview of the failure (1-2 paragraphs)
              - **Root Cause**: Detailed explanation of what went wrong
              - **Reproduction Steps**: How to reproduce the issue locally (if applicable)
              - **Recommended Actions**: Specific steps to fix the issue
              - **Prevention Strategies**: How to avoid similar failures
              - **Historical Context**: Similar past failures and their resolutions
              
-          2. **Determine Output Location**:
+          2. **Apply Reporting Format**:
+             - Start with 1-2 summary paragraphs providing an overview
+             - Wrap detailed content in `<details>` and `<summary>` tags (with bold summary text)
+             - Format workflow run IDs as clickable URLs using the `[§RunID](url)` format
+             - Include up to 3 workflow run URLs as references at the end
+             
+          3. **Determine Output Location**:
              - **First, check for associated pull request**: Use the GitHub API to search for pull requests associated with the branch from the failed workflow run (commit SHA: ${GH_AW_EXPR_9A971DC4})
              - **If a pull request is found**: Post the investigation report as a comment on that pull request using the `add_comment` tool
              - **If no pull request is found**: Create a new issue with the investigation results using the `create_issue` tool
              
-          3. **Actionable Deliverables**:
+          4. **Actionable Deliverables**:
              - Provide specific recommendations for fixing the issue
              - Suggest workflow improvements or configuration changes
           
@@ -2111,50 +2190,20 @@ jobs:
           
           ### Investigation Report Template (for PR Comments)
           
-          When posting a comment on a pull request, use this structure:
+          When posting a comment on a pull request, follow the reporting format guidelines:
           
+          **Start with a summary overview (1-2 paragraphs):**
           ```markdown
-          ## 🔍 Smoke Test Investigation - Run #${GH_AW_EXPR_20984929}
-          
-          ### Summary
-          [Brief description of the failure]
-          
-          ### Failure Details
-          - **Run**: [${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
-          - **Commit**: ${GH_AW_EXPR_9A971DC4}
-          - **Trigger**: ${GH_AW_EXPR_948C4FD8}
-          
-          ### Root Cause Analysis
-          [Detailed analysis of what went wrong]
-          
-          ### Failed Jobs and Errors
-          [List of failed jobs with key error messages]
-          
-          ### Investigation Findings
-          [Deep analysis results]
-          
-          ### Recommended Actions
-          - [ ] [Specific actionable steps]
-          
-          ### Prevention Strategies
-          [How to prevent similar failures]
-          
-          ### Historical Context
-          [Similar past failures and patterns, if any found in cache]
+          Brief overview of the smoke test failure and key findings. This investigation analyzed the failed workflow run and identified the root cause.
           ```
           
-          ### Investigation Issue Template (for Issues)
-          
-          When creating an investigation issue, use this structure:
-          
+          **Then wrap detailed content in `<details>` tags:**
           ```markdown
-          # 🔍 Smoke Test Investigation - Run #${GH_AW_EXPR_20984929}
-          
-          ## Summary
-          [Brief description of the failure]
+          <details>
+          <summary><b>Full Investigation Report - Run #${GH_AW_EXPR_20984929}</b></summary>
           
           ## Failure Details
-          - **Run**: [${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
+          - **Run**: [§${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
           - **Commit**: ${GH_AW_EXPR_9A971DC4}
           - **Trigger**: ${GH_AW_EXPR_948C4FD8}
           
@@ -2175,6 +2224,58 @@ jobs:
           
           ## Historical Context
           [Similar past failures and patterns, if any found in cache]
+          
+          </details>
+          
+          ---
+          
+          **References:**
+          - [§${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
+          ```
+          
+          ### Investigation Issue Template (for Issues)
+          
+          When creating an investigation issue, follow the reporting format guidelines:
+          
+          **Start with a summary overview (1-2 paragraphs):**
+          ```markdown
+          Brief overview of the smoke test failure and key findings. This investigation analyzed the failed workflow run and identified the root cause.
+          ```
+          
+          **Then wrap detailed content in `<details>` tags:**
+          ```markdown
+          <details>
+          <summary><b>Full Investigation Report - Run #${GH_AW_EXPR_20984929}</b></summary>
+          
+          ## Failure Details
+          - **Run**: [§${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
+          - **Commit**: ${GH_AW_EXPR_9A971DC4}
+          - **Trigger**: ${GH_AW_EXPR_948C4FD8}
+          
+          ## Root Cause Analysis
+          [Detailed analysis of what went wrong]
+          
+          ## Failed Jobs and Errors
+          [List of failed jobs with key error messages]
+          
+          ## Investigation Findings
+          [Deep analysis results]
+          
+          ## Recommended Actions
+          - [ ] [Specific actionable steps]
+          
+          ## Prevention Strategies
+          [How to prevent similar failures]
+          
+          ## Historical Context
+          [Similar past failures and patterns, if any found in cache]
+          
+          </details>
+          
+          ---
+          
+          **References:**
+          - [§${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
           ```
           
           ## Important Guidelines
