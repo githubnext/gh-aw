@@ -202,6 +202,7 @@ on:
 				}
 			}
 		})
+	}
 }
 
 func TestStopTimeResolutionError(t *testing.T) {
