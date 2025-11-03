@@ -118,6 +118,148 @@ make lint
 
 ## Release Process
 
+## Architectural Patterns
+
+Understanding the architectural patterns used in this codebase will help you make consistent contributions.
+
+### Core Design Patterns
+
+#### 1. Create Functions Pattern
+
+The codebase uses a consistent pattern for GitHub API operations:
+
+- **One file per entity type**: `create_issue.go`, `create_pull_request.go`, `create_discussion.go`
+- **Consistent structure**: Configuration parsing, validation, job generation
+- **Parallel development**: Each creation type is independent
+
+**Example Structure**:
+```go
+// In create_issue.go
+type CreateIssuesConfig struct { ... }
+func (c *Compiler) parseIssuesConfig(...) *CreateIssuesConfig
+func (c *Compiler) generateCreateIssuesJob(...) map[string]any
+```
+
+#### 2. Engine Architecture
+
+Each AI engine follows a consistent pattern:
+
+- **Separate files**: `copilot_engine.go`, `claude_engine.go`, `codex_engine.go`
+- **Shared utilities**: `engine_helpers.go` contains common functionality
+- **Clear interfaces**: All engines implement common methods
+
+**Key Files**:
+- `agentic_engine.go` - Base engine interface
+- `<engine>_engine.go` - Engine-specific implementation
+- `engine_helpers.go` - Shared helper functions
+- `engine_helpers_test.go` - Common test utilities
+
+#### 3. Compiler Architecture
+
+The compiler is organized by responsibility:
+
+- `compiler.go` - Main compilation orchestration
+- `compiler_yaml.go` - YAML generation logic
+- `compiler_jobs.go` - Job generation logic
+- `compiler_test.go` - Comprehensive test coverage
+
+This separation allows working on different aspects without conflicts.
+
+#### 4. Expression Building
+
+The expression system (`expressions.go`) demonstrates cohesive design:
+
+- All expression-related logic in one file
+- Tree-based structure for complex conditions
+- Clean abstractions (ConditionNode interface)
+- Comprehensive tests in `expressions_test.go`
+
+### File Organization Best Practices
+
+#### ✅ Good Patterns
+
+1. **Focused files**: Each file has a clear, single responsibility
+2. **Descriptive names**: File names clearly indicate their purpose
+3. **Collocated tests**: Tests live next to implementation
+4. **Reasonable size**: Most files under 500 lines
+
+#### ❌ Anti-Patterns to Avoid
+
+1. **God files**: Single file doing too many things
+2. **Vague naming**: `utils.go`, `helpers.go` without context
+3. **Mixed concerns**: Unrelated functionality in one file
+4. **Massive tests**: All tests in one huge file
+
+### When to Create New Files
+
+Use this decision tree:
+
+1. **New safe output type?** → `create_<entity>.go`
+2. **New AI engine?** → `<engine>_engine.go`
+3. **New domain feature?** → `<feature>.go`
+4. **File over 800 lines?** → Consider splitting
+5. **Independent functionality?** → Create new file
+
+### Code Organization Guidelines
+
+#### File Size Targets
+
+- **Small** (50-200 lines): Simple utilities, helpers
+- **Medium** (200-500 lines): Feature implementations
+- **Large** (500-800 lines): Complex features
+- **Very Large** (800+ lines): Core infrastructure only
+
+#### Naming Conventions
+
+- **Create operations**: `create_<entity>.go`
+- **Engines**: `<engine>_engine.go`
+- **Features**: `<feature>.go`
+- **Helpers**: `<subsystem>_helpers.go`
+- **Tests**: `<feature>_test.go`, `<feature>_integration_test.go`
+
+### Package Structure
+
+```
+pkg/workflow/
+├── create_*.go              # GitHub entity creation
+├── *_engine.go              # AI engine implementations
+├── engine_helpers.go        # Shared engine utilities
+├── compiler*.go             # Compilation logic
+├── expressions.go           # Expression building
+├── validation.go            # Schema validation
+├── strings.go               # String utilities
+└── *_test.go                # Tests alongside code
+```
+
+### Testing Architecture
+
+#### Test Organization
+
+- **Unit tests**: `feature_test.go` - Fast, focused tests
+- **Integration tests**: `feature_integration_test.go` - Cross-component tests
+- **Scenario tests**: `feature_scenario_test.go` - Specific use cases
+
+#### Test Naming
+
+Use descriptive names that explain what's being tested:
+- ✅ `create_issue_assignees_test.go` - Clear purpose
+- ✅ `engine_error_patterns_infinite_loop_test.go` - Specific scenario
+- ❌ `test_utils.go` - Too vague
+
+### Contributing to Architecture
+
+When adding new features:
+
+1. **Follow existing patterns** - Look for similar features first
+2. **Keep files focused** - One responsibility per file
+3. **Use descriptive names** - Future you will thank present you
+4. **Write tests alongside** - Don't defer testing
+5. **Document patterns** - Update this guide when introducing new patterns
+
+For complete details, see [Code Organization Patterns](docs/CODE_ORGANIZATION.md).
+
+
+
 ### Prerequisites for Releases
 
 Before creating a release, ensure you have:

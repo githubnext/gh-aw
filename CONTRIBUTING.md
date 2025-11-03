@@ -94,10 +94,47 @@ fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 ```
 
 #### File Organization
-- Prefer creating new files grouped by functionality over adding to existing files
+
+Follow these principles when organizing code:
+
+- **Prefer many small files** over large monolithic files
+- **Group by functionality**, not by type (avoid generic `utils.go` files)
+- **Use descriptive names** that clearly indicate the file's purpose
+- **Follow established patterns** from the codebase
+
+**Key Patterns to Follow**:
+
+1. **Create Functions Pattern** - One file per GitHub entity creation
+   - Examples: `create_issue.go`, `create_pull_request.go`, `create_discussion.go`
+   - Use when: Implementing new safe output types or GitHub API operations
+
+2. **Engine Separation Pattern** - Each engine has its own file
+   - Examples: `copilot_engine.go`, `claude_engine.go`, `codex_engine.go`
+   - Shared helpers go in `engine_helpers.go`
+
+3. **Focused Utilities Pattern** - Self-contained feature files
+   - Examples: `expressions.go`, `strings.go`, `artifacts.go`
+   - Keep files under 500 lines when possible
+
+**File Placement**:
 - Place new CLI commands in `pkg/cli/`
 - Place workflow processing logic in `pkg/workflow/`
 - Add tests alongside your code (e.g., `feature.go` and `feature_test.go`)
+- Use descriptive test names: `feature_scenario_test.go`, `feature_integration_test.go`
+
+**When to Create a New File**:
+- Implementing a new safe output type → `create_<entity>.go`
+- Adding a new AI engine → `<engine>_engine.go`
+- Building a distinct feature module → `<feature>.go`
+- Current file exceeds 800 lines → Split by logical boundaries
+
+**File Size Guidelines**:
+- Small files (50-200 lines): Utilities, simple features
+- Medium files (200-500 lines): Most feature implementations
+- Large files (500-800 lines): Complex features (consider splitting)
+- Very large files (800+ lines): Core infrastructure only (refactor if possible)
+
+For detailed guidance, see [Code Organization Patterns](docs/CODE_ORGANIZATION.md).
 
 ### Documentation
 - Update documentation for any new features
