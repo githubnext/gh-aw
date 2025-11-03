@@ -332,9 +332,9 @@ async function main() {
   let expectedOutputTypes = {};
   if (safeOutputsConfig) {
     try {
-      const rawConfig = JSON.parse(safeOutputsConfig);
+      // safeOutputsConfig is already a parsed object from the file
       // Normalize all config keys to use underscores instead of dashes
-      expectedOutputTypes = Object.fromEntries(Object.entries(rawConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
+      expectedOutputTypes = Object.fromEntries(Object.entries(safeOutputsConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
       core.info(`Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
