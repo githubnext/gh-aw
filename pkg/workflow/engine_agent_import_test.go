@@ -181,7 +181,7 @@ func TestCodexEngineWithoutAgentFile(t *testing.T) {
 	}
 
 	// Should have the standard instruction reading
-	if !strings.Contains(stepContent, "INSTRUCTION=$(cat $GH_AW_PROMPT)") {
+	if !strings.Contains(stepContent, `INSTRUCTION=$(cat "$GH_AW_PROMPT")`) {
 		t.Errorf("Expected standard INSTRUCTION reading in codex command, got:\n%s", stepContent)
 	}
 }

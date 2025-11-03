@@ -606,7 +606,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	WriteShellScriptToYAML(yaml, createPromptFirstScript, "          ")
 
 	if len(chunks) > 0 {
-		yaml.WriteString("          cat > $GH_AW_PROMPT << 'PROMPT_EOF'\n")
+		yaml.WriteString("          cat > \"$GH_AW_PROMPT\" << 'PROMPT_EOF'\n")
 		// Pre-allocate buffer to avoid repeated allocations
 		lines := strings.Split(chunks[0], "\n")
 		for _, line := range lines {
@@ -616,7 +616,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		}
 		yaml.WriteString("          PROMPT_EOF\n")
 	} else {
-		yaml.WriteString("          touch $GH_AW_PROMPT\n")
+		yaml.WriteString("          touch \"$GH_AW_PROMPT\"\n")
 	}
 
 	// Create additional steps for remaining chunks
@@ -626,7 +626,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'\n")
+		yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << 'PROMPT_EOF'\n")
 		// Avoid string concatenation in loop - write components separately
 		lines := strings.Split(chunk, "\n")
 		for _, line := range lines {
@@ -659,7 +659,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'\n")
+		yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << 'PROMPT_EOF'\n")
 		yaml.WriteString("          ## Note\n")
 		yaml.WriteString(fmt.Sprintf("          This workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.\n", c.trialLogicalRepoSlug))
 		yaml.WriteString("          PROMPT_EOF\n")

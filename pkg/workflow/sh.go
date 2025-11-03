@@ -59,7 +59,7 @@ func WritePromptTextToYAML(yaml *strings.Builder, text string, indent string) {
 
 	// Write each chunk as a separate heredoc
 	for _, chunk := range chunks {
-		yaml.WriteString(indent + "cat >> $GH_AW_PROMPT << 'PROMPT_EOF'\n")
+		yaml.WriteString(indent + "cat >> \"$GH_AW_PROMPT\" << 'PROMPT_EOF'\n")
 		for _, line := range chunk {
 			fmt.Fprintf(yaml, "%s%s\n", indent, line)
 		}
