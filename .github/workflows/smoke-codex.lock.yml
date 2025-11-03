@@ -1214,14 +1214,16 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          echo "<details>" >> "$GITHUB_STEP_SUMMARY"
-          echo "<summary>Generated Prompt</summary>" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo '```markdown' >> "$GITHUB_STEP_SUMMARY"
-          cat "$GH_AW_PROMPT" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "<details>"
+            echo "<summary>Generated Prompt</summary>"
+            echo ""
+            echo '```markdown'
+            cat "$GH_AW_PROMPT"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

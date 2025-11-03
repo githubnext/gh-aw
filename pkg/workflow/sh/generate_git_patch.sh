@@ -120,11 +120,13 @@ if [ -f /tmp/gh-aw/aw.patch ]; then
   fi
   
   # Show the first 50 lines of the patch for review
-  echo '## Git Patch' >> "$GITHUB_STEP_SUMMARY"
-  echo '' >> "$GITHUB_STEP_SUMMARY"
-  echo '```diff' >> "$GITHUB_STEP_SUMMARY"
-  head -500 /tmp/gh-aw/aw.patch >> "$GITHUB_STEP_SUMMARY" || echo "Could not display patch contents" >> "$GITHUB_STEP_SUMMARY"
-  echo '...' >> "$GITHUB_STEP_SUMMARY"
-  echo '```' >> "$GITHUB_STEP_SUMMARY"
-  echo '' >> "$GITHUB_STEP_SUMMARY"
+  {
+    echo '## Git Patch'
+    echo ''
+    echo '```diff'
+    head -500 /tmp/gh-aw/aw.patch || echo "Could not display patch contents"
+    echo '...'
+    echo '```'
+    echo ''
+  } >> "$GITHUB_STEP_SUMMARY"
 fi
