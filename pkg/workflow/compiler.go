@@ -738,6 +738,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		c.IncrementWarningCount()
 	}
 
+	// Enable firewall by default for copilot engine when network restrictions are present
+	enableFirewallByDefaultForCopilot(engineSetting, networkPermissions)
+
 	// Save the initial strict mode state again for network support check
 	// (it was restored after validateStrictMode but we need it again)
 	initialStrictModeForNetwork := c.strictMode
