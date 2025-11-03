@@ -102,8 +102,15 @@ function sanitizeContent(content, maxLength) {
       }
 
       // Log the redaction
-      if (typeof core !== "undefined" && core.info) {
-        core.info(`Redacted URL: ${match}`);
+      if (typeof core !== "undefined") {
+        const domain = hostname;
+        const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+        if (core.info) {
+          core.info(`Redacted URL: ${truncated}`);
+        }
+        if (core.debug) {
+          core.debug(`Redacted URL (full): ${match}`);
+        }
       }
 
       // For disallowed URLs, check if there are any allowed URLs in the query/fragment
@@ -152,8 +159,17 @@ function sanitizeContent(content, maxLength) {
       // Redact if it has :// (definite protocol)
       if (match.includes("://")) {
         // Log the redaction
-        if (typeof core !== "undefined" && core.info) {
-          core.info(`Redacted URL: ${match}`);
+        if (typeof core !== "undefined") {
+          // Extract domain from URL
+          const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
+          const domain = domainMatch ? domainMatch[1] : match;
+          const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+          if (core.info) {
+            core.info(`Redacted URL: ${truncated}`);
+          }
+          if (core.debug) {
+            core.debug(`Redacted URL (full): ${match}`);
+          }
         }
         return "(redacted)";
       }
@@ -162,8 +178,15 @@ function sanitizeContent(content, maxLength) {
       const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
       if (dangerousProtocols.includes(protocol.toLowerCase())) {
         // Log the redaction
-        if (typeof core !== "undefined" && core.info) {
-          core.info(`Redacted URL: ${match}`);
+        if (typeof core !== "undefined") {
+          // For dangerous protocols without ://, show protocol and beginning of content
+          const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+          if (core.info) {
+            core.info(`Redacted URL: ${truncated}`);
+          }
+          if (core.debug) {
+            core.debug(`Redacted URL (full): ${match}`);
+          }
         }
         return "(redacted)";
       }

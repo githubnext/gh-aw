@@ -874,12 +874,17 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      // Check that core.info was called with the redacted URL
+      // Check that core.info was called with the truncated domain
       const infoCalls = mockCore.info.mock.calls;
-      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: https://evil.com/malware"));
+      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: evil.com"));
 
       expect(redactionLog).toBeDefined();
-      expect(redactionLog[0]).toBe("Redacted URL: https://evil.com/malware");
+      expect(redactionLog[0]).toBe("Redacted URL: evil.com");
+
+      // Check that core.debug was called with the full URL
+      const debugCalls = mockCore.debug.mock.calls;
+      const fullUrlLog = debugCalls.find(call => call[0] && call[0].includes("Redacted URL (full): https://evil.com/malware"));
+      expect(fullUrlLog).toBeDefined();
 
       fs.unlinkSync(testFile);
     });
@@ -893,12 +898,17 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      // Check that core.info was called with the redacted URL
+      // Check that core.info was called with the truncated domain
       const infoCalls = mockCore.info.mock.calls;
-      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: http://example.com"));
+      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: example.com"));
 
       expect(redactionLog).toBeDefined();
-      expect(redactionLog[0]).toBe("Redacted URL: http://example.com");
+      expect(redactionLog[0]).toBe("Redacted URL: example.com");
+
+      // Check that core.debug was called with the full URL
+      const debugCalls = mockCore.debug.mock.calls;
+      const fullUrlLog = debugCalls.find(call => call[0] && call[0].includes("Redacted URL (full): http://example.com"));
+      expect(fullUrlLog).toBeDefined();
 
       fs.unlinkSync(testFile);
     });
@@ -912,13 +922,18 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      // Check that core.info was called with the redacted URL
+      // Check that core.info was called with truncated version
       // Note: The regex stops at '(' so it only captures "javascript:alert("
       const infoCalls = mockCore.info.mock.calls;
-      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: javascript:alert("));
+      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: javascript:a"));
 
       expect(redactionLog).toBeDefined();
-      expect(redactionLog[0]).toBe("Redacted URL: javascript:alert(");
+      expect(redactionLog[0]).toBe("Redacted URL: javascript:a...");
+
+      // Check that core.debug was called with the full captured URL
+      const debugCalls = mockCore.debug.mock.calls;
+      const fullUrlLog = debugCalls.find(call => call[0] && call[0].includes("Redacted URL (full): javascript:alert("));
+      expect(fullUrlLog).toBeDefined();
 
       fs.unlinkSync(testFile);
     });
@@ -932,14 +947,14 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      // Check that core.info was called for each redacted URL
+      // Check that core.info was called for each redacted URL (with truncated domains)
       const infoCalls = mockCore.info.mock.calls;
       const redactionLogs = infoCalls.filter(call => call[0] && call[0].startsWith("Redacted URL:"));
 
       expect(redactionLogs.length).toBeGreaterThanOrEqual(3);
-      expect(redactionLogs.some(log => log[0].includes("http://bad1.com"))).toBe(true);
-      expect(redactionLogs.some(log => log[0].includes("https://bad2.com"))).toBe(true);
-      expect(redactionLogs.some(log => log[0].includes("ftp://bad3.com"))).toBe(true);
+      expect(redactionLogs.some(log => log[0].includes("bad1.com"))).toBe(true);
+      expect(redactionLogs.some(log => log[0].includes("bad2.com"))).toBe(true);
+      expect(redactionLogs.some(log => log[0].includes("bad3.com"))).toBe(true);
 
       fs.unlinkSync(testFile);
     });
@@ -955,7 +970,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
       // Check that core.info was NOT called for allowed URLs
       const infoCalls = mockCore.info.mock.calls;
-      const redactionLogs = infoCalls.filter(call => call[0] && call[0].includes("Redacted URL: https://github.com"));
+      const redactionLogs = infoCalls.filter(call => call[0] && call[0].includes("Redacted URL: github.com"));
 
       expect(redactionLogs.length).toBe(0);
 
@@ -971,10 +986,10 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      // Check that core.info was called with the redacted URL
+      // Check that core.info was called with truncated version
       // Note: The regex stops at '<' so it only captures "data:text/html,"
       const infoCalls = mockCore.info.mock.calls;
-      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: data:text/html,"));
+      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: data:text/ht"));
 
       expect(redactionLog).toBeDefined();
 
@@ -990,14 +1005,14 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      // Check that core.info was called only for disallowed URLs
+      // Check that core.info was called only for disallowed URLs (with truncated domains)
       const infoCalls = mockCore.info.mock.calls;
       const redactionLogs = infoCalls.filter(call => call[0] && call[0].startsWith("Redacted URL:"));
 
       expect(redactionLogs.length).toBeGreaterThanOrEqual(2);
-      expect(redactionLogs.some(log => log[0].includes("https://evil.com/bad"))).toBe(true);
-      expect(redactionLogs.some(log => log[0].includes("http://another.bad"))).toBe(true);
-      expect(redactionLogs.some(log => log[0].includes("https://github.com/repo"))).toBe(false);
+      expect(redactionLogs.some(log => log[0].includes("evil.com"))).toBe(true);
+      expect(redactionLogs.some(log => log[0].includes("another.bad"))).toBe(true);
+      expect(redactionLogs.some(log => log[0].includes("github.com"))).toBe(false);
 
       fs.unlinkSync(testFile);
     });

@@ -1553,8 +1553,15 @@ jobs:
                   if (isAllowed) {
                     return match; 
                   }
-                  if (typeof core !== "undefined" && core.info) {
-                    core.info(`Redacted URL: ${match}`);
+                  if (typeof core !== "undefined") {
+                    const domain = hostname;
+                    const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                    if (core.info) {
+                      core.info(`Redacted URL: ${truncated}`);
+                    }
+                    if (core.debug) {
+                      core.debug(`Redacted URL (full): ${match}`);
+                    }
                   }
                   const urlParts = match.split(/([?&#])/);
                   let result = "(redacted)"; 
@@ -1578,15 +1585,29 @@ jobs:
                     return match;
                   }
                   if (match.includes("://")) {
-                    if (typeof core !== "undefined" && core.info) {
-                      core.info(`Redacted URL: ${match}`);
+                    if (typeof core !== "undefined") {
+                      const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
+                      const domain = domainMatch ? domainMatch[1] : match;
+                      const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                      if (core.info) {
+                        core.info(`Redacted URL: ${truncated}`);
+                      }
+                      if (core.debug) {
+                        core.debug(`Redacted URL (full): ${match}`);
+                      }
                     }
                     return "(redacted)";
                   }
                   const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
                   if (dangerousProtocols.includes(protocol.toLowerCase())) {
-                    if (typeof core !== "undefined" && core.info) {
-                      core.info(`Redacted URL: ${match}`);
+                    if (typeof core !== "undefined") {
+                      const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+                      if (core.info) {
+                        core.info(`Redacted URL: ${truncated}`);
+                      }
+                      if (core.debug) {
+                        core.debug(`Redacted URL (full): ${match}`);
+                      }
                     }
                     return "(redacted)";
                   }
