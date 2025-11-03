@@ -102,7 +102,7 @@ async function main() {
   }
 
   // Sanitize the text before output
-  const sanitizedText = sanitizeContent(text, undefined, core);
+  const sanitizedText = sanitizeContent(text);
 
   // Display sanitized text in logs
   core.info(`text: ${sanitizedText}`);

@@ -9,10 +9,9 @@
  * Sanitizes content for safe output in GitHub Actions
  * @param {string} content - The content to sanitize
  * @param {number} [maxLength] - Maximum length of content (default: 524288)
- * @param {object} [logger] - Optional logger object with info method for logging redactions
  * @returns {string} The sanitized content
  */
-function sanitizeContent(content, maxLength, logger) {
+function sanitizeContent(content, maxLength) {
   if (!content || typeof content !== "string") {
     return "";
   }
@@ -49,10 +48,10 @@ function sanitizeContent(content, maxLength, logger) {
   sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 
   // URI filtering - replace non-https protocols with "(redacted)"
-  sanitized = sanitizeUrlProtocols(sanitized, logger);
+  sanitized = sanitizeUrlProtocols(sanitized);
 
   // Domain filtering for HTTPS URIs
-  sanitized = sanitizeUrlDomains(sanitized, logger);
+  sanitized = sanitizeUrlDomains(sanitized);
 
   // Check line count before length to provide more specific truncation message
   const lines = sanitized.split("\n");
@@ -83,10 +82,9 @@ function sanitizeContent(content, maxLength, logger) {
   /**
    * Remove unknown domains
    * @param {string} s - The string to process
-   * @param {object} [logger] - Optional logger object with info method
    * @returns {string} The string with unknown domains redacted
    */
-  function sanitizeUrlDomains(s, logger) {
+  function sanitizeUrlDomains(s) {
     // First pass: match all HTTPS URLs and process them
     // We need to handle URLs that might contain other URLs in query parameters
     s = s.replace(/\bhttps:\/\/([^\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, rest) => {
@@ -104,8 +102,8 @@ function sanitizeContent(content, maxLength, logger) {
       }
 
       // Log the redaction
-      if (logger && typeof logger.info === "function") {
-        logger.info(`Redacted URL: ${match}`);
+      if (typeof core !== "undefined" && core.info) {
+        core.info(`Redacted URL: ${match}`);
       }
 
       // For disallowed URLs, check if there are any allowed URLs in the query/fragment
@@ -119,7 +117,7 @@ function sanitizeContent(content, maxLength, logger) {
           result += urlParts[i]; // Keep separators
         } else {
           // Recursively process this part to preserve any allowed URLs
-          result += sanitizeUrlDomains(urlParts[i], logger);
+          result += sanitizeUrlDomains(urlParts[i]);
         }
       }
 
@@ -132,10 +130,9 @@ function sanitizeContent(content, maxLength, logger) {
   /**
    * Remove unknown protocols except https
    * @param {string} s - The string to process
-   * @param {object} [logger] - Optional logger object with info method
    * @returns {string} The string with non-https protocols redacted
    */
-  function sanitizeUrlProtocols(s, logger) {
+  function sanitizeUrlProtocols(s) {
     // Match protocol patterns but avoid command-line flags, file paths, and namespaces
     // Protocol patterns typically have :// or are well-known schemes followed by :
     // Use negative lookbehind to exclude patterns preceded by - (command flags)
@@ -155,8 +152,8 @@ function sanitizeContent(content, maxLength, logger) {
       // Redact if it has :// (definite protocol)
       if (match.includes("://")) {
         // Log the redaction
-        if (logger && typeof logger.info === "function") {
-          logger.info(`Redacted URL: ${match}`);
+        if (typeof core !== "undefined" && core.info) {
+          core.info(`Redacted URL: ${match}`);
         }
         return "(redacted)";
       }
@@ -165,8 +162,8 @@ function sanitizeContent(content, maxLength, logger) {
       const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
       if (dangerousProtocols.includes(protocol.toLowerCase())) {
         // Log the redaction
-        if (logger && typeof logger.info === "function") {
-          logger.info(`Redacted URL: ${match}`);
+        if (typeof core !== "undefined" && core.info) {
+          core.info(`Redacted URL: ${match}`);
         }
         return "(redacted)";
       }
