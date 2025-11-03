@@ -1174,7 +1174,8 @@ jobs:
           GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
           GH_AW_EXPR_1D5133EC: ${{ github.server_url }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
+          PROMPT_DIR=$(dirname "$GH_AW_PROMPT")
+          mkdir -p "$PROMPT_DIR"
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           ## Report Formatting
           

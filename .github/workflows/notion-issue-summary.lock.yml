@@ -1079,7 +1079,8 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_EXPR_FD3E9604: ${{ github.event.inputs.issue-number }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
+          PROMPT_DIR=$(dirname "$GH_AW_PROMPT")
+          mkdir -p "$PROMPT_DIR"
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           

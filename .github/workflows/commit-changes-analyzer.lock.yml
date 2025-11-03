@@ -1167,7 +1167,8 @@ jobs:
           GH_AW_EXPR_4F815B6F: ${{ github.event.inputs.commit_url }}
           GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
+          PROMPT_DIR=$(dirname "$GH_AW_PROMPT")
+          mkdir -p "$PROMPT_DIR"
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           ## Report Formatting
           
