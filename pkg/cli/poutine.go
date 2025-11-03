@@ -99,10 +99,12 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode := exitErr.ExitCode()
 			compileLog.Printf("Poutine exited with code %d", exitCode)
-			// Exit code 1 typically indicates findings
-			if exitCode == 1 && totalWarnings > 0 {
-				// In strict mode, findings are treated as errors
-				if strict {
+			// Exit code 1 typically indicates findings in the repository
+			// In non-strict mode, we allow this even if we don't have findings
+			// specific to the current file (poutine scans the whole directory)
+			if exitCode == 1 {
+				// In strict mode, any findings in the scan are treated as errors
+				if strict && totalWarnings > 0 {
 					return fmt.Errorf("strict mode: poutine found %d security warnings/errors in %s - workflows must have no poutine findings in strict mode", totalWarnings, filepath.Base(lockFile))
 				}
 				// In non-strict mode, findings are logged but not treated as errors
