@@ -253,6 +253,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// GH_AW_SAFE_OUTPUTS is now set at job level, no setup step needed
 
+	// Write safe outputs config to file if safe outputs are enabled
+	if HasSafeOutputsEnabled(data.SafeOutputs) {
+		c.generateSafeOutputsConfigFileStep(yaml, data)
+	}
+
 	// Add MCP setup
 	c.generateMCPSetup(yaml, data.Tools, engine, data)
 

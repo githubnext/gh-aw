@@ -653,12 +653,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// Set GH_AW_SAFE_OUTPUTS to fixed path
 		env["GH_AW_SAFE_OUTPUTS"] = "/tmp/gh-aw/safeoutputs/outputs.jsonl"
 
-		// Set GH_AW_SAFE_OUTPUTS_CONFIG with the safe outputs configuration
-		safeOutputConfig := generateSafeOutputsConfig(data)
-		if safeOutputConfig != "" {
-			// The JSON string needs to be properly quoted for YAML
-			env["GH_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
-		}
+		// Set GH_AW_SAFE_OUTPUTS_CONFIG_FILE to point to the config file
+		// The config file is written in the setup step
+		env["GH_AW_SAFE_OUTPUTS_CONFIG_FILE"] = "/tmp/gh-aw/safeoutputs/config.json"
 
 		// Add asset-related environment variables if upload-assets is configured
 		if data.SafeOutputs.UploadAssets != nil {

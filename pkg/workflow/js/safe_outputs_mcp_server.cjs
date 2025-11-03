@@ -58,22 +58,51 @@ function normalizeBranchName(branchName) {
   return normalized;
 }
 
-// Handle GH_AW_SAFE_OUTPUTS_CONFIG with default fallback
+// Handle GH_AW_SAFE_OUTPUTS_CONFIG with file-based and fallback strategies
+const configFileEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_FILE;
 const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
 let safeOutputsConfigRaw;
 
-if (!configEnv) {
-  // Default config file path
+if (configFileEnv) {
+  // Priority 1: Use GH_AW_SAFE_OUTPUTS_CONFIG_FILE if set
+  debug(`Using config file from GH_AW_SAFE_OUTPUTS_CONFIG_FILE: ${configFileEnv}`);
+  
+  try {
+    if (fs.existsSync(configFileEnv)) {
+      debug(`Reading config from file: ${configFileEnv}`);
+      const configFileContent = fs.readFileSync(configFileEnv, "utf8");
+      debug(`Config file content length: ${configFileContent.length} characters`);
+      safeOutputsConfigRaw = JSON.parse(configFileContent);
+      debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
+    } else {
+      debug(`Config file does not exist at: ${configFileEnv}`);
+      throw new Error(`GH_AW_SAFE_OUTPUTS_CONFIG_FILE points to non-existent file: ${configFileEnv}`);
+    }
+  } catch (error) {
+    debug(`Error reading config file from GH_AW_SAFE_OUTPUTS_CONFIG_FILE: ${error instanceof Error ? error.message : String(error)}`);
+    throw error;
+  }
+} else if (configEnv) {
+  // Priority 2: Use GH_AW_SAFE_OUTPUTS_CONFIG environment variable (legacy)
+  debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
+  debug(`Config environment variable length: ${configEnv.length} characters`);
+  try {
+    safeOutputsConfigRaw = JSON.parse(configEnv); // uses dashes for keys
+    debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
+  } catch (error) {
+    debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
+  }
+} else {
+  // Priority 3: Fall back to default config file path
   const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
-  debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
+  debug(`No config environment variable set, attempting to read from default path: ${defaultConfigPath}`);
 
   try {
     if (fs.existsSync(defaultConfigPath)) {
       debug(`Reading config from file: ${defaultConfigPath}`);
       const configFileContent = fs.readFileSync(defaultConfigPath, "utf8");
       debug(`Config file content length: ${configFileContent.length} characters`);
-      // Don't log raw content to avoid exposing sensitive configuration data
-      debug(`Config file read successfully, attempting to parse JSON`);
       safeOutputsConfigRaw = JSON.parse(configFileContent);
       debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
     } else {
@@ -85,16 +114,6 @@ if (!configEnv) {
     debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
     debug(`Falling back to empty configuration`);
     safeOutputsConfigRaw = {};
-  }
-} else {
-  debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
-  debug(`Config environment variable length: ${configEnv.length} characters`);
-  try {
-    safeOutputsConfigRaw = JSON.parse(configEnv); // uses dashes for keys
-    debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
-  } catch (error) {
-    debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
-    throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

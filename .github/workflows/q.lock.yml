@@ -1112,7 +1112,7 @@ jobs:
       pull-requests: read
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{}}"
+      GH_AW_SAFE_OUTPUTS_CONFIG_FILE: /tmp/gh-aw/safeoutputs/config.json
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -1237,6 +1237,12 @@ jobs:
           node-version: '24'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.353
+      - name: Write safe outputs config file
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs
+          cat > /tmp/gh-aw/safeoutputs/config.json << 'CONFIG_EOF'
+          {"add_comment":{"max":1},"create_pull_request":{},"missing_tool":{}}
+          CONFIG_EOF
       - name: Downloading container images
         run: |
           set -e
@@ -1269,17 +1275,44 @@ jobs:
               normalized = normalized.toLowerCase();
               return normalized;
             }
+            const configFileEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_FILE;
             const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
-            if (!configEnv) {
+            if (configFileEnv) {
+              debug(`Using config file from GH_AW_SAFE_OUTPUTS_CONFIG_FILE: ${configFileEnv}`);
+              try {
+                if (fs.existsSync(configFileEnv)) {
+                  debug(`Reading config from file: ${configFileEnv}`);
+                  const configFileContent = fs.readFileSync(configFileEnv, "utf8");
+                  debug(`Config file content length: ${configFileContent.length} characters`);
+                  safeOutputsConfigRaw = JSON.parse(configFileContent);
+                  debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
+                } else {
+                  debug(`Config file does not exist at: ${configFileEnv}`);
+                  throw new Error(`GH_AW_SAFE_OUTPUTS_CONFIG_FILE points to non-existent file: ${configFileEnv}`);
+                }
+              } catch (error) {
+                debug(`Error reading config file from GH_AW_SAFE_OUTPUTS_CONFIG_FILE: ${error instanceof Error ? error.message : String(error)}`);
+                throw error;
+              }
+            } else if (configEnv) {
+              debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
+              debug(`Config environment variable length: ${configEnv.length} characters`);
+              try {
+                safeOutputsConfigRaw = JSON.parse(configEnv); 
+                debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
+              } catch (error) {
+                debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
+                throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            } else {
               const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
-              debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
+              debug(`No config environment variable set, attempting to read from default path: ${defaultConfigPath}`);
               try {
                 if (fs.existsSync(defaultConfigPath)) {
                   debug(`Reading config from file: ${defaultConfigPath}`);
                   const configFileContent = fs.readFileSync(defaultConfigPath, "utf8");
                   debug(`Config file content length: ${configFileContent.length} characters`);
-                  debug(`Config file read successfully, attempting to parse JSON`);
                   safeOutputsConfigRaw = JSON.parse(configFileContent);
                   debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
                 } else {
@@ -1291,16 +1324,6 @@ jobs:
                 debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
                 debug(`Falling back to empty configuration`);
                 safeOutputsConfigRaw = {};
-              }
-            } else {
-              debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
-              debug(`Config environment variable length: ${configEnv.length} characters`);
-              try {
-                safeOutputsConfigRaw = JSON.parse(configEnv); 
-                debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
-              } catch (error) {
-                debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
-                throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));

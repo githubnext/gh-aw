@@ -737,6 +737,26 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 	return string(configJSON)
 }
 
+// generateSafeOutputsConfigFileStep generates a step that writes the safe outputs config to a file
+func (c *Compiler) generateSafeOutputsConfigFileStep(yaml *strings.Builder, data *WorkflowData) {
+	if data.SafeOutputs == nil {
+		return
+	}
+
+	safeOutputConfig := generateSafeOutputsConfig(data)
+	if safeOutputConfig == "" {
+		return
+	}
+
+	// Create the directory and write the config file
+	yaml.WriteString("      - name: Write safe outputs config file\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          mkdir -p /tmp/gh-aw/safeoutputs\n")
+	yaml.WriteString("          cat > /tmp/gh-aw/safeoutputs/config.json << 'CONFIG_EOF'\n")
+	yaml.WriteString(fmt.Sprintf("          %s\n", safeOutputConfig))
+	yaml.WriteString("          CONFIG_EOF\n")
+}
+
 // applySafeOutputEnvToMap adds safe-output related environment variables to an env map
 // This extracts the duplicated safe-output env setup logic across all engines (copilot, codex, claude, custom)
 func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
