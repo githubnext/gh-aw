@@ -17,8 +17,10 @@ func TestParseAndDisplayActionlintOutput(t *testing.T) {
 		expectedCount  int
 	}{
 		{
-			name:   "single error",
-			stdout: `{"message":"label \"ubuntu-slim\" is unknown. available labels are \"ubuntu-latest\", \"ubuntu-22.04\", \"ubuntu-20.04\", \"windows-latest\", \"windows-2022\", \"windows-2019\", \"macos-latest\", \"macos-13\", \"macos-12\", \"macos-11\". if it is a custom label for self-hosted runner, set list of labels in actionlint.yaml config file","filepath":".github/workflows/test.lock.yml","line":10,"column":14,"kind":"runner-label","snippet":"    runs-on: ubuntu-slim\n             ^~~~~~~~~~~","end_column":24}`,
+			name: "single error",
+			stdout: `[
+{"message":"label \"ubuntu-slim\" is unknown. available labels are \"ubuntu-latest\", \"ubuntu-22.04\", \"ubuntu-20.04\", \"windows-latest\", \"windows-2022\", \"windows-2019\", \"macos-latest\", \"macos-13\", \"macos-12\", \"macos-11\". if it is a custom label for self-hosted runner, set list of labels in actionlint.yaml config file","filepath":".github/workflows/test.lock.yml","line":10,"column":14,"kind":"runner-label","snippet":"    runs-on: ubuntu-slim\n             ^~~~~~~~~~~","end_column":24}
+]`,
 			expectedOutput: []string{
 				".github/workflows/test.lock.yml:10:14: error: [runner-label] label \"ubuntu-slim\" is unknown",
 			},
@@ -27,8 +29,10 @@ func TestParseAndDisplayActionlintOutput(t *testing.T) {
 		},
 		{
 			name: "multiple errors",
-			stdout: `{"message":"label \"ubuntu-slim\" is unknown. available labels are \"ubuntu-latest\", \"ubuntu-22.04\", \"ubuntu-20.04\", \"windows-latest\", \"windows-2022\", \"windows-2019\", \"macos-latest\", \"macos-13\", \"macos-12\", \"macos-11\". if it is a custom label for self-hosted runner, set list of labels in actionlint.yaml config file","filepath":".github/workflows/test.lock.yml","line":10,"column":14,"kind":"runner-label","snippet":"    runs-on: ubuntu-slim\n             ^~~~~~~~~~~","end_column":24}
-{"message":"shellcheck reported issue in this script: SC2086:info:1:8: Double quote to prevent globbing and word splitting","filepath":".github/workflows/test.lock.yml","line":25,"column":9,"kind":"shellcheck","snippet":"        run: |\n        ^~~~","end_column":12}`,
+			stdout: `[
+{"message":"label \"ubuntu-slim\" is unknown. available labels are \"ubuntu-latest\", \"ubuntu-22.04\", \"ubuntu-20.04\", \"windows-latest\", \"windows-2022\", \"windows-2019\", \"macos-latest\", \"macos-13\", \"macos-12\", \"macos-11\". if it is a custom label for self-hosted runner, set list of labels in actionlint.yaml config file","filepath":".github/workflows/test.lock.yml","line":10,"column":14,"kind":"runner-label","snippet":"    runs-on: ubuntu-slim\n             ^~~~~~~~~~~","end_column":24},
+{"message":"shellcheck reported issue in this script: SC2086:info:1:8: Double quote to prevent globbing and word splitting","filepath":".github/workflows/test.lock.yml","line":25,"column":9,"kind":"shellcheck","snippet":"        run: |\n        ^~~~","end_column":12}
+]`,
 			expectedOutput: []string{
 				".github/workflows/test.lock.yml:10:14: error: [runner-label] label \"ubuntu-slim\" is unknown",
 				".github/workflows/test.lock.yml:25:9: error: [shellcheck] shellcheck reported issue",
