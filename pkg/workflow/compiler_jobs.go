@@ -26,6 +26,8 @@ func (c *Compiler) isActivationJobNeeded() bool {
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
+	log.Printf("Building jobs for workflow: %s", markdownPath)
+
 	// Try to read frontmatter to determine event types for safe events check
 	// This is used for the enhanced permission checking logic
 	var frontmatter map[string]any
@@ -41,6 +43,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Determine if permission checks or stop-time checks are needed
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
 	hasStopTime := data.StopTime != ""
+	log.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasCommand=%v", needsPermissionCheck, hasStopTime, data.Command != "")
 
 	// Determine if we need to add workflow_run repository safety check
 	// Add the check if the agentic workflow declares a workflow_run trigger
@@ -48,6 +51,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	var workflowRunRepoSafety string
 	if c.hasWorkflowRunTrigger(frontmatter) {
 		workflowRunRepoSafety = c.buildWorkflowRunRepoSafetyCondition()
+		log.Print("Adding workflow_run repository safety check")
 	}
 
 	// Extract lock filename for timestamp check
@@ -108,6 +112,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
 	}
 
+	log.Print("Successfully built all jobs for workflow")
 	return nil
 }
 
@@ -116,6 +121,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	if data.SafeOutputs == nil {
 		return nil
 	}
+	log.Print("Building safe outputs jobs")
 
 	// Track whether threat detection job is enabled
 	threatDetectionEnabled := false

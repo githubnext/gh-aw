@@ -176,6 +176,8 @@ func ApplyActionPinToStep(stepMap map[string]any, data *WorkflowData) map[string
 		return stepMap
 	}
 
+	actionPinsLog.Printf("Pinning action: %s@%s -> %s", actionRepo, version, pinnedRef)
+
 	// Create a copy of the step map with the pinned reference
 	result := make(map[string]any)
 	for k, v := range stepMap {
