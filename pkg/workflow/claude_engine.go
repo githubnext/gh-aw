@@ -173,12 +173,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	if workflowData.AgentFile != "" {
 		// Extract markdown body from custom agent file and prepend to prompt
 		stepLines = append(stepLines, "          # Extract markdown body from custom agent file (skip frontmatter)")
-		stepLines = append(stepLines, fmt.Sprintf("          AGENT_CONTENT=$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)", workflowData.AgentFile))
+		stepLines = append(stepLines, fmt.Sprintf("          AGENT_CONTENT=\"$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)\"", workflowData.AgentFile))
 		stepLines = append(stepLines, "          # Combine agent content with prompt")
-		stepLines = append(stepLines, "          PROMPT_TEXT=$(printf '%s\\n\\n%s' \"$AGENT_CONTENT\" \"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\")")
+		stepLines = append(stepLines, "          PROMPT_TEXT=\"$(printf '%s\\n\\n%s' \"$AGENT_CONTENT\" \"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\")\"")
 		promptCommand = "\"$PROMPT_TEXT\""
 	} else {
-		promptCommand = "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
+		promptCommand = "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\""
 	}
 
 	// Build the command string with proper argument formatting

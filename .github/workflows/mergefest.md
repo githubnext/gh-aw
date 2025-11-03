@@ -100,7 +100,7 @@ Fetch the latest changes from both branches (use branch names from step 1):
 git fetch origin
 
 # Get the current branch name
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
 # Ensure we're on the PR branch (use the head.ref from PR details)
 # PR_BRANCH will be the value from pull_request_read
@@ -187,7 +187,7 @@ git status --short | grep '^UU' || git status --short | grep '^AA' || true
    - Accept the merge and then recompile:
    ```bash
    # Check if there are any .lock.yml conflicts
-   LOCK_CONFLICTS=$(git status --short | grep '\.lock\.yml$' || true)
+   LOCK_CONFLICTS="$(git status --short | grep '\.lock\.yml$' || true)"
    
    if [ -n "$LOCK_CONFLICTS" ]; then
      echo "📋 Detected .lock.yml conflicts, will regenerate after merge"
@@ -263,7 +263,7 @@ Before pushing, double-check that no `.yml` files from `.github/workflows/` are 
 
 ```bash
 # List all staged files
-STAGED_FILES=$(git diff --cached --name-only)
+STAGED_FILES="$(git diff --cached --name-only)"
 
 # Check for any .yml files in workflows directory
 WORKFLOW_YMLS=$(echo "$STAGED_FILES" | grep -E '^\.github/workflows/.*\.yml$' || true)

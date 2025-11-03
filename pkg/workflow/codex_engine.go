@@ -107,13 +107,13 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	if workflowData.AgentFile != "" {
 		// Extract markdown body from custom agent file (skip frontmatter) and prepend to prompt
 		instructionCommand = fmt.Sprintf(`set -o pipefail
-AGENT_CONTENT=$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)
-INSTRUCTION=$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat "$GH_AW_PROMPT")")
+AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)"
+INSTRUCTION="$(printf "%%s\n\n%%s" "$AGENT_CONTENT" "$(cat "$GH_AW_PROMPT")")"
 mkdir -p $CODEX_HOME/logs
 codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, workflowData.AgentFile, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
 	} else {
 		instructionCommand = fmt.Sprintf(`set -o pipefail
-INSTRUCTION=$(cat "$GH_AW_PROMPT")
+INSTRUCTION="$(cat "$GH_AW_PROMPT")"
 mkdir -p $CODEX_HOME/logs
 codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
 	}

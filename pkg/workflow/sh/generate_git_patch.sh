@@ -19,7 +19,7 @@ if [ -f "$GH_AW_SAFE_OUTPUTS" ]; then
       if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create_pull_request"'; then
         echo "Found create_pull_request line: $line"
         # Extract branch value using sed
-        BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+        BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
         if [ -n "$BRANCH_NAME" ]; then
           echo "Extracted branch name from create_pull_request: $BRANCH_NAME"
           break
@@ -29,7 +29,7 @@ if [ -f "$GH_AW_SAFE_OUTPUTS" ]; then
       elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push_to_pull_request_branch"'; then
         echo "Found push_to_pull_request_branch line: $line"
         # Extract branch value using sed
-        BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+        BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
         if [ -n "$BRANCH_NAME" ]; then
           echo "Extracted branch name from push_to_pull_request_branch: $BRANCH_NAME"
           break
@@ -62,7 +62,7 @@ if [ -n "$BRANCH_NAME" ]; then
       # Fetch the default branch to ensure it's available locally
       git fetch origin $DEFAULT_BRANCH
       # Find merge base between default branch and current branch
-      BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)
+      BASE_REF="$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)"
       echo "Using merge-base as base: $BASE_REF"
     fi
     
@@ -75,7 +75,7 @@ if [ -n "$BRANCH_NAME" ]; then
     # Diagnostic logging: Count commits to be included
     echo ""
     echo "=== Diagnostic: Commits to be included in patch ==="
-    COMMIT_COUNT=$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")
+    COMMIT_COUNT="$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")"
     echo "Number of commits: $COMMIT_COUNT"
     if [ "$COMMIT_COUNT" -gt 0 ]; then
       echo "Commit SHAs:"
@@ -102,15 +102,15 @@ if [ -f /tmp/gh-aw/aw.patch ]; then
   ls -lh /tmp/gh-aw/aw.patch
   
   # Get patch file size in KB
-  PATCH_SIZE=$(du -k /tmp/gh-aw/aw.patch | cut -f1)
+  PATCH_SIZE="$(du -k /tmp/gh-aw/aw.patch | cut -f1)"
   echo "Patch file size: ${PATCH_SIZE} KB"
   
   # Count lines in patch
-  PATCH_LINES=$(wc -l < /tmp/gh-aw/aw.patch)
+  PATCH_LINES="$(wc -l < /tmp/gh-aw/aw.patch)"
   echo "Patch file lines: $PATCH_LINES"
   
   # Extract and count commits from patch file (each commit starts with "From <sha>")
-  PATCH_COMMITS=$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")
+  PATCH_COMMITS="$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")"
   echo "Commits included in patch: $PATCH_COMMITS"
   
   # List commit SHAs in the patch

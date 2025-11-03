@@ -1491,7 +1491,7 @@ jobs:
           GH_AW_EXPR_758566AF: ${{ github.event.workflow_run.status }}
           GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
-          PROMPT_DIR=$(dirname "$GH_AW_PROMPT")
+          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Dev Hawk - Development Workflow Monitor
@@ -1808,7 +1808,7 @@ jobs:
         timeout-minutes: 10
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
@@ -4089,7 +4089,7 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/

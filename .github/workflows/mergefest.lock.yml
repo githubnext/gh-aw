@@ -1427,7 +1427,7 @@ jobs:
           GH_AW_EXPR_079D8664: ${{ github.event.pull_request.number }}
           GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
-          PROMPT_DIR=$(dirname "$GH_AW_PROMPT")
+          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Mergefest - Merge Main into Pull Request Branch
@@ -1478,7 +1478,7 @@ jobs:
           git fetch origin
           
           # Get the current branch name
-          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
           
           # Ensure we're on the PR branch (use the head.ref from PR details)
           # PR_BRANCH will be the value from pull_request_read
@@ -1565,7 +1565,7 @@ jobs:
              - Accept the merge and then recompile:
              ```bash
              # Check if there are any .lock.yml conflicts
-             LOCK_CONFLICTS=$(git status --short | grep '\.lock\.yml$' || true)
+             LOCK_CONFLICTS="$(git status --short | grep '\.lock\.yml$' || true)"
              
              if [ -n "$LOCK_CONFLICTS" ]; then
                echo "📋 Detected .lock.yml conflicts, will regenerate after merge"
@@ -1641,7 +1641,7 @@ jobs:
           
           ```bash
           # List all staged files
-          STAGED_FILES=$(git diff --cached --name-only)
+          STAGED_FILES="$(git diff --cached --name-only)"
           
           # Check for any .yml files in workflows directory
           WORKFLOW_YMLS=$(echo "$STAGED_FILES" | grep -E '^\.github/workflows/.*\.yml$' || true)
@@ -2011,7 +2011,7 @@ jobs:
         timeout-minutes: 10
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
@@ -4146,7 +4146,7 @@ jobs:
                 if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create_pull_request"'; then
                   echo "Found create_pull_request line: $line"
                   # Extract branch value using sed
-                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
                   if [ -n "$BRANCH_NAME" ]; then
                     echo "Extracted branch name from create_pull_request: $BRANCH_NAME"
                     break
@@ -4156,7 +4156,7 @@ jobs:
                 elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push_to_pull_request_branch"'; then
                   echo "Found push_to_pull_request_branch line: $line"
                   # Extract branch value using sed
-                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
                   if [ -n "$BRANCH_NAME" ]; then
                     echo "Extracted branch name from push_to_pull_request_branch: $BRANCH_NAME"
                     break
@@ -4186,7 +4186,7 @@ jobs:
                 # Fetch the default branch to ensure it's available locally
                 git fetch origin $DEFAULT_BRANCH
                 # Find merge base between default branch and current branch
-                BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)
+                BASE_REF="$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)"
                 echo "Using merge-base as base: $BASE_REF"
               fi
               # Diagnostic logging: Show diff stats before generating patch
@@ -4197,7 +4197,7 @@ jobs:
               # Diagnostic logging: Count commits to be included
               echo ""
               echo "=== Diagnostic: Commits to be included in patch ==="
-              COMMIT_COUNT=$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")
+              COMMIT_COUNT="$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")"
               echo "Number of commits: $COMMIT_COUNT"
               if [ "$COMMIT_COUNT" -gt 0 ]; then
                 echo "Commit SHAs:"
@@ -4220,13 +4220,13 @@ jobs:
             echo "=== Diagnostic: Patch file information ==="
             ls -lh /tmp/gh-aw/aw.patch
             # Get patch file size in KB
-            PATCH_SIZE=$(du -k /tmp/gh-aw/aw.patch | cut -f1)
+            PATCH_SIZE="$(du -k /tmp/gh-aw/aw.patch | cut -f1)"
             echo "Patch file size: ${PATCH_SIZE} KB"
             # Count lines in patch
-            PATCH_LINES=$(wc -l < /tmp/gh-aw/aw.patch)
+            PATCH_LINES="$(wc -l < /tmp/gh-aw/aw.patch)"
             echo "Patch file lines: $PATCH_LINES"
             # Extract and count commits from patch file (each commit starts with "From <sha>")
-            PATCH_COMMITS=$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")
+            PATCH_COMMITS="$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")"
             echo "Commits included in patch: $PATCH_COMMITS"
             # List commit SHAs in the patch
             if [ "$PATCH_COMMITS" -gt 0 ]; then
@@ -4420,7 +4420,7 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/

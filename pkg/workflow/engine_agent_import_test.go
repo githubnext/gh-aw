@@ -74,7 +74,7 @@ func TestClaudeEngineWithAgentFromImports(t *testing.T) {
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
 	// Check that custom agent content extraction is present
-	if !strings.Contains(stepContent, "AGENT_CONTENT=$(awk") {
+	if !strings.Contains(stepContent, `AGENT_CONTENT="$(awk`) {
 		t.Errorf("Expected agent content extraction in claude command, got:\n%s", stepContent)
 	}
 
@@ -113,7 +113,7 @@ func TestClaudeEngineWithoutAgentFile(t *testing.T) {
 	}
 
 	// Should still have the standard prompt
-	if !strings.Contains(stepContent, "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)") {
+	if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
 		t.Errorf("Expected standard prompt reading in claude command, got:\n%s", stepContent)
 	}
 }
@@ -138,7 +138,7 @@ func TestCodexEngineWithAgentFromImports(t *testing.T) {
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
 	// Check that agent content extraction is present
-	if !strings.Contains(stepContent, "AGENT_CONTENT=$(awk") {
+	if !strings.Contains(stepContent, `AGENT_CONTENT="$(awk`) {
 		t.Errorf("Expected agent content extraction in codex command, got:\n%s", stepContent)
 	}
 
@@ -148,7 +148,7 @@ func TestCodexEngineWithAgentFromImports(t *testing.T) {
 	}
 
 	// Check that agent content is prepended to prompt using printf
-	if !strings.Contains(stepContent, "INSTRUCTION=$(printf") {
+	if !strings.Contains(stepContent, `INSTRUCTION="$(printf`) {
 		t.Errorf("Expected printf with INSTRUCTION in codex command, got:\n%s", stepContent)
 	}
 
@@ -181,7 +181,7 @@ func TestCodexEngineWithoutAgentFile(t *testing.T) {
 	}
 
 	// Should have the standard instruction reading
-	if !strings.Contains(stepContent, `INSTRUCTION=$(cat "$GH_AW_PROMPT")`) {
+	if !strings.Contains(stepContent, `INSTRUCTION="$(cat "$GH_AW_PROMPT")"`) {
 		t.Errorf("Expected standard INSTRUCTION reading in codex command, got:\n%s", stepContent)
 	}
 }
