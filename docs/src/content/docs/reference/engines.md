@@ -159,7 +159,7 @@ engine:
 
 #### Required Secrets
 
-- **`CLAUDE_CODE_OAUTH_TOKEN`** or **`ANTHROPIC_API_KEY`**: Authentication token for Claude Code (either token name is supported, with `CLAUDE_CODE_OAUTH_TOKEN` taking precedence if both are set)
+- **`CLAUDE_CODE_OAUTH_TOKEN`** or **`ANTHROPIC_API_KEY`**: Authentication token for Claude Code. Both secrets are passed to the CLI if configured, and the CLI determines which to use (with `CLAUDE_CODE_OAUTH_TOKEN` taking precedence)
 - **`GH_AW_GITHUB_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#github-remote-mode)
 
 Set secrets using (choose one):

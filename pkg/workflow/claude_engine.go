@@ -207,8 +207,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add environment section - always include environment section for GH_AW_PROMPT
 	stepLines = append(stepLines, "        env:")
 
-	// Add Anthropic API key - supports both CLAUDE_CODE_OAUTH_TOKEN and ANTHROPIC_API_KEY as fallback
-	stepLines = append(stepLines, "          ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN || secrets.ANTHROPIC_API_KEY }}")
+	// Add both API keys - Claude Code CLI handles them separately and determines precedence
+	stepLines = append(stepLines, "          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}")
+	stepLines = append(stepLines, "          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}")
 
 	// Disable telemetry, error reporting, and bug command for privacy and security
 	stepLines = append(stepLines, "          DISABLE_TELEMETRY: \"1\"")

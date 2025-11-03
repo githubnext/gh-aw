@@ -120,8 +120,12 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected --output-format stream-json in CLI args: %s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN || secrets.ANTHROPIC_API_KEY }}") {
-		t.Errorf("Expected ANTHROPIC_API_KEY environment variable with fallback in step: %s", stepContent)
+	if !strings.Contains(stepContent, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
+		t.Errorf("Expected ANTHROPIC_API_KEY environment variable in step: %s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}") {
+		t.Errorf("Expected CLAUDE_CODE_OAUTH_TOKEN environment variable in step: %s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
