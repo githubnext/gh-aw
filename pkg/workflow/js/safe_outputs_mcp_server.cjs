@@ -58,15 +58,15 @@ function normalizeBranchName(branchName) {
   return normalized;
 }
 
-// Handle GH_AW_SAFE_OUTPUTS_CONFIG with file-based and fallback strategies
+// Handle GH_AW_SAFE_OUTPUTS_CONFIG_FILE with fallback to default file path
 const configFileEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_FILE;
-const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
 let safeOutputsConfigRaw;
 
 if (configFileEnv) {
   // Priority 1: Use GH_AW_SAFE_OUTPUTS_CONFIG_FILE if set
   debug(`Using config file from GH_AW_SAFE_OUTPUTS_CONFIG_FILE: ${configFileEnv}`);
-  
+
   try {
     if (fs.existsSync(configFileEnv)) {
       debug(`Reading config from file: ${configFileEnv}`);
@@ -82,21 +82,9 @@ if (configFileEnv) {
     debug(`Error reading config file from GH_AW_SAFE_OUTPUTS_CONFIG_FILE: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
   }
-} else if (configEnv) {
-  // Priority 2: Use GH_AW_SAFE_OUTPUTS_CONFIG environment variable (legacy)
-  debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
-  debug(`Config environment variable length: ${configEnv.length} characters`);
-  try {
-    safeOutputsConfigRaw = JSON.parse(configEnv); // uses dashes for keys
-    debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
-  } catch (error) {
-    debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
-    throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
-  }
 } else {
-  // Priority 3: Fall back to default config file path
-  const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
-  debug(`No config environment variable set, attempting to read from default path: ${defaultConfigPath}`);
+  // Priority 2: Fall back to default config file path
+  debug(`No config file specified, attempting to read from default path: ${defaultConfigPath}`);
 
   try {
     if (fs.existsSync(defaultConfigPath)) {

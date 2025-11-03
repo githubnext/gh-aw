@@ -34,7 +34,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
   it("should use default output file when GH_AW_SAFE_OUTPUTS is not set", async () => {
     // Remove environment variables
     delete process.env.GH_AW_SAFE_OUTPUTS;
-    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_FILE;
 
     // Create default directories
     const defaultOutputDir = "/tmp/gh-aw/safeoutputs";
@@ -93,9 +93,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
 
         // Check that default paths are mentioned in debug output
         expect(stderr).toContain("GH_AW_SAFE_OUTPUTS not set, using default: /tmp/gh-aw/safeoutputs/outputs.jsonl");
-        expect(stderr).toContain(
-          "No config environment variable set, attempting to read from default path: /tmp/gh-aw/safeoutputs/config.json"
-        );
+        expect(stderr).toContain("No config file specified, attempting to read from default path: /tmp/gh-aw/safeoutputs/config.json");
 
         resolve();
       }, 2000);
@@ -105,7 +103,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
   it("should read config from default file when config file exists", async () => {
     // Remove environment variables
     delete process.env.GH_AW_SAFE_OUTPUTS;
-    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_FILE;
 
     // Create default config file
     const defaultConfigDir = "/tmp/gh-aw/safeoutputs";
@@ -185,7 +183,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
   it("should use empty config when default file does not exist", async () => {
     // Remove environment variables
     delete process.env.GH_AW_SAFE_OUTPUTS;
-    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_FILE;
 
     // Ensure default config file does not exist
     const defaultConfigFile = "/tmp/gh-aw/safeoutputs/config.json";
@@ -254,7 +252,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
 
     // Set GH_AW_SAFE_OUTPUTS to a path that doesn't exist yet
     process.env.GH_AW_SAFE_OUTPUTS = testOutputFile;
-    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+    delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_FILE;
 
     // Ensure the directory does NOT exist before starting
     if (fs.existsSync(testOutputDir)) {
@@ -333,6 +331,10 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
       },
     };
 
+    // Write config to temp file
+    const tempConfigPath = path.join("/tmp", `test_config_${Date.now()}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -345,7 +347,7 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_FILE: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -410,6 +412,11 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
         clearTimeout(timeout);
         child.kill();
 
+        // Clean up temp config file
+        if (fs.existsSync(tempConfigPath)) {
+          fs.unlinkSync(tempConfigPath);
+        }
+
         // Find the tools/list response
         const listResponse = receivedMessages.find(m => m.id === 2);
         expect(listResponse).toBeDefined();
@@ -438,6 +445,10 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
       },
     };
 
+    // Write config to temp file
+    const tempConfigPath = path.join("/tmp", `test_config_2_${Date.now()}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -450,7 +461,7 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_FILE: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -546,6 +557,10 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
       },
     };
 
+    // Write config to temp file
+    const tempConfigPath = path.join("/tmp", `test_config_3_${Date.now()}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -558,7 +573,7 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_FILE: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -648,6 +663,10 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
       },
     };
 
+    // Write config to temp file
+    const tempConfigPath = path.join("/tmp", `test_config_4_${Date.now()}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -660,7 +679,7 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_FILE: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -746,6 +765,10 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
       },
     };
 
+    // Write config to temp file
+    const tempConfigPath = path.join("/tmp", `test_config_5_${Date.now()}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -758,7 +781,7 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_FILE: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -845,6 +868,10 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
       upload_asset: {},
     };
 
+    // Write config to temp file
+    const tempConfigPath = path.join("/tmp", `test_config_6_${Date.now()}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -857,7 +884,7 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_FILE: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
           GH_AW_ASSETS_MAX_SIZE_KB: "5120",
           GH_AW_ASSETS_ALLOWED_EXTS: ".pdf,.txt,.md",
@@ -947,6 +974,10 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
       upload_asset: {},
     };
 
+    // Write config to temp file
+    const tempConfigPath = path.join("/tmp", `test_config_7_${Date.now()}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -964,7 +995,7 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...envWithoutAssetVars,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_FILE: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -1055,6 +1086,10 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
       create_pull_request: {},
     };
 
+    // Write config to temp file
+    const tempConfigPath = path.join("/tmp", `test_config_8_${Date.now()}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -1067,7 +1102,7 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_FILE: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -1156,6 +1191,10 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
       push_to_pull_request_branch: {},
     };
 
+    // Write config to temp file
+    const tempConfigPath = path.join("/tmp", `test_config_9_${Date.now()}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -1168,7 +1207,7 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_FILE: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -1260,6 +1299,10 @@ describe("safe_outputs_mcp_server.cjs tool call response format", () => {
       create_issue: {},
     };
 
+    // Write config to temp file
+    const tempConfigPath = path.join("/tmp", `test_config_10_${Date.now()}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -1272,7 +1315,7 @@ describe("safe_outputs_mcp_server.cjs tool call response format", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_FILE: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-iserror.jsonl",
         },
       });
@@ -1361,6 +1404,10 @@ describe("safe_outputs_mcp_server.cjs tool call response format", () => {
       create_issue: {},
     };
 
+    // Write config to temp file
+    const tempConfigPath = path.join("/tmp", `test_config_11_${Date.now()}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -1373,7 +1420,7 @@ describe("safe_outputs_mcp_server.cjs tool call response format", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_FILE: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-json-response.jsonl",
         },
       });
