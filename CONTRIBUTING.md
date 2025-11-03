@@ -136,6 +136,34 @@ Follow these principles when organizing code:
 
 For detailed guidance, see [Code Organization Patterns](docs/CODE_ORGANIZATION.md).
 
+#### Validation Patterns
+
+When adding validation logic, follow the established architecture:
+
+**Centralized validation** (`pkg/workflow/validation.go`):
+- Cross-cutting concerns spanning multiple domains
+- Core workflow integrity checks
+- GitHub Actions compatibility validation
+- General schema and configuration validation
+- Repository-level feature detection
+
+**Domain-specific validation** (dedicated files):
+- `strict_mode.go` - Security and strict mode enforcement
+- `pip.go` - Python package validation
+- `npm.go` - NPM package validation
+- `expression_safety.go` - GitHub Actions expression security
+- `engine.go` - AI engine configuration
+- `mcp-config.go` - MCP server configuration
+- `docker.go` - Docker image validation
+- `template.go` - Template structure validation
+
+**When to create a new validation file**:
+- Validating a new external ecosystem (e.g., Ruby gems, Java packages)
+- Complex domain-specific validation logic (> 100 lines)
+- Security-focused validation requiring dedicated focus
+
+For detailed validation architecture and decision tree, see [specs/validation-architecture.md](specs/validation-architecture.md).
+
 ### Documentation
 - Update documentation for any new features
 - Add examples where helpful
