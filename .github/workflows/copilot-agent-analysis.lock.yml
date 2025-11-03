@@ -1393,7 +1393,7 @@ jobs:
           You can use `jq` to process this data directly. For example:
           ```bash
           # Get PRs from the last 24 hours
-          TODAY=$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')
+          TODAY="$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')"
           jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today)]' /tmp/gh-aw/pr-data/copilot-prs.json
           
           # Count total PRs
@@ -1416,7 +1416,7 @@ jobs:
           1. **Use `gh search prs --author` (Recommended - used by this workflow)**:
              ```bash
              # Server-side filtering for both date and author (current workflow approach)
-             DATE=$(date -d '24 hours ago' '+%Y-%m-%d')
+             DATE="$(date -d '24 hours ago' '+%Y-%m-%d')"
              gh search prs --repo ${GH_AW_EXPR_D892F163} \
                --author "copilot" \
                --created ">=$DATE" \

@@ -266,7 +266,7 @@ Before pushing, double-check that no `.yml` files from `.github/workflows/` are 
 STAGED_FILES="$(git diff --cached --name-only)"
 
 # Check for any .yml files in workflows directory
-WORKFLOW_YMLS=$(echo "$STAGED_FILES" | grep -E '^\.github/workflows/.*\.yml$' || true)
+WORKFLOW_YMLS="$(echo "$STAGED_FILES" | grep -E '^\.github/workflows/.*\.yml$' || true)"
 
 if [ -n "$WORKFLOW_YMLS" ]; then
   echo "⚠️ WARNING: Workflow .yml files are staged, removing them"
