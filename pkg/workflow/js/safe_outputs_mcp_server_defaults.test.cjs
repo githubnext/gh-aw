@@ -107,7 +107,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
         // Check that default paths are mentioned in debug output
         expect(stderr).toContain("GH_AW_SAFE_OUTPUTS not set, using default: /tmp/gh-aw/safeoutputs/outputs.jsonl");
         expect(stderr).toContain(
-          "GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: /tmp/gh-aw/safeoutputs/config.json"
+          "Reading config from file: /tmp/gh-aw/safeoutputs/config.json"
         );
 
         resolve();

@@ -39,7 +39,7 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
   it("should write large content to file when exceeding 16000 tokens", async () => {
     // Set up environment
     process.env.GH_AW_SAFE_OUTPUTS = tempOutputFile;
-    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = fs.readFileSync(tempConfigFile, "utf8");
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = tempConfigFile;
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
@@ -171,7 +171,7 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
   it("should handle normal content without writing to file", async () => {
     // Set up environment
     process.env.GH_AW_SAFE_OUTPUTS = tempOutputFile;
-    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = fs.readFileSync(tempConfigFile, "utf8");
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = tempConfigFile;
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
@@ -281,7 +281,7 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
   it("should detect JSON content and use .json extension", async () => {
     // Set up environment
     process.env.GH_AW_SAFE_OUTPUTS = tempOutputFile;
-    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = fs.readFileSync(tempConfigFile, "utf8");
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = tempConfigFile;
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
@@ -403,7 +403,7 @@ describe("safe_outputs_mcp_server.cjs large content handling", () => {
   it("should always use .json extension even for non-JSON content", async () => {
     // Set up environment
     process.env.GH_AW_SAFE_OUTPUTS = tempOutputFile;
-    process.env.GH_AW_SAFE_OUTPUTS_CONFIG = fs.readFileSync(tempConfigFile, "utf8");
+    process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = tempConfigFile;
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
