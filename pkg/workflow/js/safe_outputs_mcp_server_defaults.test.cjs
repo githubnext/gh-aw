@@ -354,6 +354,11 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
       },
     };
 
+    
+    // Write config to temporary file
+    const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -366,7 +371,7 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -459,6 +464,11 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
       },
     };
 
+    
+    // Write config to temporary file
+    const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -471,7 +481,7 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -567,6 +577,11 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
       },
     };
 
+    
+    // Write config to temporary file
+    const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -579,7 +594,7 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -669,6 +684,11 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
       },
     };
 
+    
+    // Write config to temporary file
+    const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -681,7 +701,7 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -767,6 +787,11 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
       },
     };
 
+    
+    // Write config to temporary file
+    const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -779,7 +804,7 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -866,6 +891,11 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
       upload_asset: {},
     };
 
+    
+    // Write config to temporary file
+    const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -878,7 +908,7 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
           GH_AW_ASSETS_MAX_SIZE_KB: "5120",
           GH_AW_ASSETS_ALLOWED_EXTS: ".pdf,.txt,.md",
@@ -968,6 +998,11 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
       upload_asset: {},
     };
 
+    
+    // Write config to temporary file
+    const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -985,7 +1020,7 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...envWithoutAssetVars,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -1076,6 +1111,11 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
       create_pull_request: {},
     };
 
+    
+    // Write config to temporary file
+    const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -1088,7 +1128,7 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -1177,6 +1217,11 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
       push_to_pull_request_branch: {},
     };
 
+    
+    // Write config to temporary file
+    const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -1189,7 +1234,7 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
@@ -1281,6 +1326,11 @@ describe("safe_outputs_mcp_server.cjs tool call response format", () => {
       create_issue: {},
     };
 
+    
+    // Write config to temporary file
+    const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -1293,7 +1343,7 @@ describe("safe_outputs_mcp_server.cjs tool call response format", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-iserror.jsonl",
         },
       });
@@ -1382,6 +1432,11 @@ describe("safe_outputs_mcp_server.cjs tool call response format", () => {
       create_issue: {},
     };
 
+    
+    // Write config to temporary file
+    const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
 
     return new Promise((resolve, reject) => {
@@ -1394,7 +1449,7 @@ describe("safe_outputs_mcp_server.cjs tool call response format", () => {
         stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
-          GH_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GH_AW_SAFE_OUTPUTS_CONFIG_PATH: tempConfigPath,
           GH_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-json-response.jsonl",
         },
       });
