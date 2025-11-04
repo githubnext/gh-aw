@@ -86,8 +86,8 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected command to contain log file name in step content:\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}") {
-		t.Errorf("Expected GITHUB_TOKEN environment variable with fallback in step content:\n%s", stepContent)
+	if !strings.Contains(stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}") {
+		t.Errorf("Expected COPILOT_GITHUB_TOKEN environment variable with fallback in step content:\n%s", stepContent)
 	}
 
 	// Test that GITHUB_HEAD_REF and GITHUB_REF_NAME are present for branch resolution
