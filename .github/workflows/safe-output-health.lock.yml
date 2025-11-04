@@ -3787,38 +3787,15 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
             async function main() {
               core.setOutput("discussion_number", "");
               core.setOutput("discussion_url", "");
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+              const result = loadAgentOutput();
+              if (!result.success) {
                 return;
               }
-              let outputContent;
-              try {
-                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
-                return;
-              }
-              const createDiscussionItems = validatedOutput.items.filter(item => item.type === "create_discussion");
+              const createDiscussionItems = result.items.filter(item => item.type === "create_discussion");
               if (createDiscussionItems.length === 0) {
                 core.warning("No create-discussion items found in agent output");
                 return;

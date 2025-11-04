@@ -807,6 +807,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
             function generateFooter(
               workflowName,
               runUrl,
@@ -890,35 +891,11 @@ jobs:
             async function main() {
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
               const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+              const result = loadAgentOutput();
+              if (!result.success) {
                 return;
               }
-              let outputContent;
-              try {
-                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const commentItems = validatedOutput.items.filter( item => item.type === "add_comment");
+              const commentItems = result.items.filter( item => item.type === "add_comment");
               if (commentItems.length === 0) {
                 core.info("No add-comment items found in agent output");
                 return;
@@ -1189,50 +1166,14 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            function sanitizeLabelContent(content) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              let sanitized = content.trim();
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitized.replace(
-                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                (_m, p1, p2) => `${p1}\`@${p2}\``
-              );
-              sanitized = sanitized.replace(/[<>&'"]/g, "");
-              return sanitized.trim();
-            }
+            const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
             async function main() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+              const result = loadAgentOutput();
+              if (!result.success) {
                 return;
               }
-              let outputContent;
-              try {
-                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
-                return;
-              }
-              const labelsItem = validatedOutput.items.find(item => item.type === "add_labels");
+              const labelsItem = result.items.find(item => item.type === "add_labels");
               if (!labelsItem) {
                 core.warning("No add-labels item found in agent output");
                 return;
@@ -5085,20 +5026,8 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            function sanitizeLabelContent(content) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              let sanitized = content.trim();
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitized.replace(
-                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                (_m, p1, p2) => `${p1}\`@${p2}\``
-              );
-              sanitized = sanitized.replace(/[<>&'"]/g, "");
-              return sanitized.trim();
-            }
+            const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
             function generateFooter(
               workflowName,
               runUrl,
@@ -5126,35 +5055,11 @@ jobs:
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+              const result = loadAgentOutput();
+              if (!result.success) {
                 return;
               }
-              let outputContent;
-              try {
-                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const createIssueItems = validatedOutput.items.filter(item => item.type === "create_issue");
+              const createIssueItems = result.items.filter(item => item.type === "create_issue");
               if (createIssueItems.length === 0) {
                 core.info("No create-issue items found in agent output");
                 return;
@@ -5402,6 +5307,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
             function generateFooter(
               workflowName,
               runUrl,
@@ -5439,37 +5345,11 @@ jobs:
                   return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
                 }
               }
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+              const result = loadAgentOutput();
+              if (!result.success) {
                 return;
               }
-              let outputContent;
-              try {
-                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const reviewCommentItems = validatedOutput.items.filter(
-                 item => item.type === "create_pull_request_review_comment"
-              );
+              const reviewCommentItems = result.items.filter( item => item.type === "create_pull_request_review_comment");
               if (reviewCommentItems.length === 0) {
                 core.info("No create-pull-request-review-comment items found in agent output");
                 return;
@@ -7097,37 +6977,14 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
             async function main() {
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+              const result = loadAgentOutput();
+              if (!result.success) {
                 return;
               }
-              let outputContent;
-              try {
-                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const updateItems = validatedOutput.items.filter( item => item.type === "update_issue");
+              const updateItems = result.items.filter( item => item.type === "update_issue");
               if (updateItems.length === 0) {
                 core.info("No update-issue items found in agent output");
                 return;
@@ -7481,6 +7338,7 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
                 return branchName;
@@ -7504,48 +7362,22 @@ jobs:
               }
               const normalizedBranchName = normalizeBranchName(branchName);
               core.info(`Using assets branch: ${normalizedBranchName}`);
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+              const result = loadAgentOutput();
+              if (!result.success) {
                 core.setOutput("upload_count", "0");
                 core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", normalizedBranchName);
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", normalizedBranchName);
-                return;
-              }
-              const uploadAssetItems = validatedOutput.items.filter( item => item.type === "upload_asset");
-              if (uploadAssetItems.length === 0) {
+              const uploadItems = result.items.filter( item => item.type === "upload_assets");
+              const uploadAssetItems = result.items.filter( item => item.type === "upload_asset");
+              const allUploadItems = [...uploadItems, ...uploadAssetItems];
+              if (allUploadItems.length === 0) {
                 core.info("No upload-asset items found in agent output");
                 core.setOutput("upload_count", "0");
                 core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
-              core.info(`Found ${uploadAssetItems.length} upload-asset item(s)`);
+              core.info(`Found ${allUploadItems.length} upload-asset item(s)`);
               let uploadCount = 0;
               let hasChanges = false;
               try {

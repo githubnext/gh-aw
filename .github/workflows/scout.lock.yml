@@ -813,6 +813,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
             function generateFooter(
               workflowName,
               runUrl,
@@ -896,35 +897,11 @@ jobs:
             async function main() {
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
               const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+              const result = loadAgentOutput();
+              if (!result.success) {
                 return;
               }
-              let outputContent;
-              try {
-                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const commentItems = validatedOutput.items.filter( item => item.type === "add_comment");
+              const commentItems = result.items.filter( item => item.type === "add_comment");
               if (commentItems.length === 0) {
                 core.info("No add-comment items found in agent output");
                 return;

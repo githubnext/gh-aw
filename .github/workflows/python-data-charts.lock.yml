@@ -4342,38 +4342,15 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
             async function main() {
               core.setOutput("discussion_number", "");
               core.setOutput("discussion_url", "");
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+              const result = loadAgentOutput();
+              if (!result.success) {
                 return;
               }
-              let outputContent;
-              try {
-                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
-                return;
-              }
-              const createDiscussionItems = validatedOutput.items.filter(item => item.type === "create_discussion");
+              const createDiscussionItems = result.items.filter(item => item.type === "create_discussion");
               if (createDiscussionItems.length === 0) {
                 core.warning("No create-discussion items found in agent output");
                 return;
@@ -4988,6 +4965,7 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
                 return branchName;
@@ -5011,48 +4989,22 @@ jobs:
               }
               const normalizedBranchName = normalizeBranchName(branchName);
               core.info(`Using assets branch: ${normalizedBranchName}`);
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+              const result = loadAgentOutput();
+              if (!result.success) {
                 core.setOutput("upload_count", "0");
                 core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", normalizedBranchName);
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", normalizedBranchName);
-                return;
-              }
-              const uploadAssetItems = validatedOutput.items.filter( item => item.type === "upload_asset");
-              if (uploadAssetItems.length === 0) {
+              const uploadItems = result.items.filter( item => item.type === "upload_assets");
+              const uploadAssetItems = result.items.filter( item => item.type === "upload_asset");
+              const allUploadItems = [...uploadItems, ...uploadAssetItems];
+              if (allUploadItems.length === 0) {
                 core.info("No upload-asset items found in agent output");
                 core.setOutput("upload_count", "0");
                 core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
-              core.info(`Found ${uploadAssetItems.length} upload-asset item(s)`);
+              core.info(`Found ${allUploadItems.length} upload-asset item(s)`);
               let uploadCount = 0;
               let hasChanges = false;
               try {
