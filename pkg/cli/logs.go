@@ -883,10 +883,24 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 			}
 
 			if err != nil {
-				// Check if this is a "no artifacts" case - mark as skipped for cancelled/failed runs
+				// Check if this is a "no artifacts" case
 				if errors.Is(err, ErrNoArtifacts) {
-					result.Skipped = true
-					result.Error = err
+					// For runs with important conclusions (timed_out, failure, cancelled),
+					// still process them even without artifacts to show the failure in reports
+					if run.Conclusion == "timed_out" || run.Conclusion == "failure" || run.Conclusion == "cancelled" {
+						// Don't skip - we want these to appear in the report
+						// Just use empty metrics
+						result.Metrics = LogMetrics{}
+						
+						// Try to fetch job details to get error count
+						if failedJobCount, jobErr := fetchJobStatuses(run.DatabaseID, verbose); jobErr == nil {
+							run.ErrorCount = failedJobCount
+						}
+					} else {
+						// For other runs (success, neutral, etc.) without artifacts, skip them
+						result.Skipped = true
+						result.Error = err
+					}
 				} else {
 					result.Error = err
 				}
