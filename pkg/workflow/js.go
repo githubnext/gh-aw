@@ -91,8 +91,8 @@ var redactSecretsScript string
 //go:embed js/notify_comment_error.cjs
 var notifyCommentErrorScript string
 
-//go:embed js/sanitize.cjs
-var sanitizeLibScript string
+//go:embed js/sanitize_content.cjs
+var sanitizeContentLibScript string
 
 // Source scripts that may contain local requires
 //
@@ -169,7 +169,7 @@ func getSanitizeOutputScript() string {
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
 	return map[string]string{
-		"sanitize.cjs": sanitizeLibScript,
+		"sanitize_content.cjs": sanitizeContentLibScript,
 	}
 }
 
