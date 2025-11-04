@@ -23,13 +23,17 @@ function extractDomainsFromUrl(url) {
     // Return both the exact hostname and common variations
     const domains = [hostname];
 
-    // For github.com, add api.github.com variation
+    // For github.com, add api and raw content domain variations
     if (hostname === "github.com") {
       domains.push("api.github.com");
+      domains.push("raw.githubusercontent.com");
+      domains.push("*.githubusercontent.com");
     }
-    // For custom GitHub Enterprise domains, add api. prefix
+    // For custom GitHub Enterprise domains, add api. prefix and raw content variations
     else if (!hostname.startsWith("api.")) {
       domains.push("api." + hostname);
+      // For GitHub Enterprise, raw content is typically served from raw.hostname
+      domains.push("raw." + hostname);
     }
 
     return domains;

@@ -1859,9 +1859,12 @@ jobs:
                 const domains = [hostname];
                 if (hostname === "github.com") {
                   domains.push("api.github.com");
+                  domains.push("raw.githubusercontent.com");
+                  domains.push("*.githubusercontent.com");
                 }
                 else if (!hostname.startsWith("api.")) {
                   domains.push("api." + hostname);
+                  domains.push("raw." + hostname);
                 }
                 return domains;
               } catch (e) {

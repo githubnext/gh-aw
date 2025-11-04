@@ -230,7 +230,7 @@ describe("sanitize_output.cjs", () => {
       const customSanitize = global.testSanitizeContent;
 
       const input =
-        "Links: https://custom.com/page https://github.example.com/repo https://api.github.example.com/v1 https://blocked.com/page";
+        "Links: https://custom.com/page https://github.example.com/repo https://api.github.example.com/v1 https://raw.github.example.com/file https://blocked.com/page";
       const result = customSanitize(input);
 
       // Should allow custom domain
@@ -240,9 +240,37 @@ describe("sanitize_output.cjs", () => {
       expect(result).toContain("https://github.example.com/repo");
       expect(result).toContain("https://api.github.example.com/v1");
 
+      // Should allow raw content domain
+      expect(result).toContain("https://raw.github.example.com/file");
+
       // Should block unknown domain
       expect(result).toContain("(redacted)");
       expect(result).not.toContain("https://blocked.com/page");
+
+      // Clean up
+      delete process.env.GITHUB_SERVER_URL;
+      delete process.env.GITHUB_API_URL;
+      delete process.env.GH_AW_ALLOWED_DOMAINS;
+    });
+
+    it("should allow raw.githubusercontent.com for github.com", () => {
+      // Test that GitHub.com also gets raw.githubusercontent.com support
+      process.env.GITHUB_SERVER_URL = "https://github.com";
+      process.env.GITHUB_API_URL = "https://api.github.com";
+      process.env.GH_AW_ALLOWED_DOMAINS = "";
+
+      const scriptWithExport = sanitizeScript.replace("await main();", "global.testSanitizeContent = sanitizeContent;");
+      eval(scriptWithExport);
+      const customSanitize = global.testSanitizeContent;
+
+      const input =
+        "Raw content: https://raw.githubusercontent.com/owner/repo/main/file.txt and API: https://api.github.com/repos/owner/repo";
+      const result = customSanitize(input);
+
+      // Should allow raw.githubusercontent.com
+      expect(result).toContain("https://raw.githubusercontent.com/owner/repo/main/file.txt");
+      expect(result).toContain("https://api.github.com/repos/owner/repo");
+      expect(result).not.toContain("(redacted)");
 
       // Clean up
       delete process.env.GITHUB_SERVER_URL;
