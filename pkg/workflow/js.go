@@ -10,9 +10,6 @@ import (
 //go:embed js/create_pull_request.cjs
 var createPullRequestScript string
 
-//go:embed js/create_issue.cjs
-var createIssueScript string
-
 //go:embed js/create_agent_task.cjs
 var createAgentTaskScript string
 
@@ -27,9 +24,6 @@ var createPRReviewCommentScript string
 
 //go:embed js/create_code_scanning_alert.cjs
 var createCodeScanningAlertScript string
-
-//go:embed js/add_labels.cjs
-var addLabelsScript string
 
 //go:embed js/assign_issue.cjs
 var assignIssueScript string
@@ -91,6 +85,9 @@ var notifyCommentErrorScript string
 //go:embed js/sanitize.cjs
 var sanitizeLibScript string
 
+//go:embed js/sanitize_label_content.cjs
+var sanitizeLabelContentScript string
+
 //go:embed js/sanitize_workflow_name.cjs
 var sanitizeWorkflowNameScript string
 
@@ -105,6 +102,12 @@ var computeTextScriptSource string
 //go:embed js/sanitize_output.cjs
 var sanitizeOutputScriptSource string
 
+//go:embed js/create_issue.cjs
+var createIssueScriptSource string
+
+//go:embed js/add_labels.cjs
+var addLabelsScriptSource string
+
 //go:embed js/parse_firewall_logs.cjs
 var parseFirewallLogsScriptSource string
 
@@ -118,6 +121,12 @@ var (
 
 	sanitizeOutputScript     string
 	sanitizeOutputScriptOnce sync.Once
+
+	createIssueScript     string
+	createIssueScriptOnce sync.Once
+
+	addLabelsScript     string
+	addLabelsScriptOnce sync.Once
 
 	parseFirewallLogsScript     string
 	parseFirewallLogsScriptOnce sync.Once
@@ -171,6 +180,38 @@ func getSanitizeOutputScript() string {
 	return sanitizeOutputScript
 }
 
+// getCreateIssueScript returns the bundled create_issue script
+// Bundling is performed on first access and cached for subsequent calls
+func getCreateIssueScript() string {
+	createIssueScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(createIssueScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			createIssueScript = createIssueScriptSource
+		} else {
+			createIssueScript = bundled
+		}
+	})
+	return createIssueScript
+}
+
+// getAddLabelsScript returns the bundled add_labels script
+// Bundling is performed on first access and cached for subsequent calls
+func getAddLabelsScript() string {
+	addLabelsScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(addLabelsScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			addLabelsScript = addLabelsScriptSource
+		} else {
+			addLabelsScript = bundled
+		}
+	})
+	return addLabelsScript
+}
+
 // getParseFirewallLogsScript returns the bundled parse_firewall_logs script
 // Bundling is performed on first access and cached for subsequent calls
 func getParseFirewallLogsScript() string {
@@ -191,7 +232,8 @@ func getParseFirewallLogsScript() string {
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
 	return map[string]string{
-		"sanitize.cjs":              sanitizeLibScript,
+		"sanitize.cjs":               sanitizeLibScript,
+		"sanitize_label_content.cjs": sanitizeLabelContentScript,
 		"sanitize_workflow_name.cjs": sanitizeWorkflowNameScript,
 	}
 }
