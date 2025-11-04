@@ -896,6 +896,11 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 		fmt.Fprintf(yaml, "          GH_AW_ALLOWED_DOMAINS: %q\n", domainsStr)
 	}
 
+	// Add GitHub server URL and API URL for dynamic domain extraction
+	// This allows the sanitization code to permit GitHub domains that vary by deployment
+	yaml.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
+	yaml.WriteString("          GITHUB_API_URL: ${{ github.api_url }}\n")
+
 	// Add command name for command trigger prevention in safe outputs
 	if data.Command != "" {
 		fmt.Fprintf(yaml, "          GH_AW_COMMAND: %s\n", data.Command)

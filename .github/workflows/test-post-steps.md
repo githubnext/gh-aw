@@ -37,7 +37,7 @@ post-steps:
         echo "## Post-Steps Test Summary"
         echo "✅ All post-steps executed successfully"
         echo "This validates the post-steps indentation fix"
-      } >> $GITHUB_STEP_SUMMARY
+      } >> "$GITHUB_STEP_SUMMARY"
 
 timeout_minutes: 5
 ---

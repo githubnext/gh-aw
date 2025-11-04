@@ -62,7 +62,7 @@ steps:
       # Check if gh CLI is available
       if ! command -v gh &> /dev/null; then
         echo "::error::GitHub CLI (gh) is not installed or not in PATH"
-        echo "SESSIONS_AVAILABLE=false" >> $GITHUB_OUTPUT
+        echo "SESSIONS_AVAILABLE=false" >> "$GITHUB_OUTPUT"
         exit 1
       fi
       echo "✓ GitHub CLI found: $(gh --version | head -1)"
@@ -72,7 +72,7 @@ steps:
         echo "::warning::gh agent-task extension is not installed"
         echo "::warning::To install: gh extension install github/agent-task"
         echo "::warning::This workflow requires GitHub Enterprise Copilot access"
-        echo "SESSIONS_AVAILABLE=false" >> $GITHUB_OUTPUT
+        echo "SESSIONS_AVAILABLE=false" >> "$GITHUB_OUTPUT"
         exit 1
       fi
       echo "✓ gh agent-task extension found"
@@ -82,7 +82,7 @@ steps:
         echo "::error::GH_TOKEN is not set"
         echo "::warning::Configure GH_AW_COPILOT_TOKEN secret with a Personal Access Token"
         echo "::warning::The default GITHUB_TOKEN does not have agent-task API access"
-        echo "SESSIONS_AVAILABLE=false" >> $GITHUB_OUTPUT
+        echo "SESSIONS_AVAILABLE=false" >> "$GITHUB_OUTPUT"
         exit 1
       fi
       echo "✓ GH_TOKEN is configured"
@@ -97,7 +97,7 @@ steps:
       if ! gh agent-task list --limit 50 --json number,title,state,createdAt,sessionId > /tmp/gh-aw/agent-sessions/sessions-list.json 2>&1; then
         echo "::error::Failed to list agent tasks"
         echo "::warning::This may indicate missing permissions or GitHub Enterprise Copilot is not enabled"
-        echo "SESSIONS_AVAILABLE=false" >> $GITHUB_OUTPUT
+        echo "SESSIONS_AVAILABLE=false" >> "$GITHUB_OUTPUT"
         exit 1
       fi
       
@@ -107,7 +107,7 @@ steps:
       
       if [ "$TOTAL_SESSIONS" -eq 0 ]; then
         echo "::warning::No sessions available for analysis"
-        echo "SESSIONS_AVAILABLE=false" >> $GITHUB_OUTPUT
+        echo "SESSIONS_AVAILABLE=false" >> "$GITHUB_OUTPUT"
         exit 0
       fi
       
@@ -124,7 +124,7 @@ steps:
       echo "Session logs downloaded to /tmp/gh-aw/agent-sessions/logs/"
       echo "Total log files: $LOG_COUNT"
       
-      echo "SESSIONS_AVAILABLE=true" >> $GITHUB_OUTPUT
+      echo "SESSIONS_AVAILABLE=true" >> "$GITHUB_OUTPUT"
       echo "::endgroup::"
   
   - name: Create fallback session data
