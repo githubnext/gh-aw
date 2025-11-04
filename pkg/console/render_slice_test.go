@@ -112,7 +112,7 @@ func TestRenderSlice_SimpleTypesAsList(t *testing.T) {
 		},
 		{
 			name:     "booleans",
-			data:     []bool{true, true, true}, // Note: false renders as "-" due to zero value handling
+			data:     []bool{true, true, true}, // Note: false renders as "false"
 			expected: []string{"• true", "• true", "• true"},
 		},
 	}
