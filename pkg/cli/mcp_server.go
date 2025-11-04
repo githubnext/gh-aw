@@ -243,7 +243,8 @@ Note: Output can be filtered using the jq parameter.`,
 		StartDate    string `json:"start_date,omitempty" jsonschema:"Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
 		EndDate      string `json:"end_date,omitempty" jsonschema:"Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
 		Engine       string `json:"engine,omitempty" jsonschema:"Filter logs by agentic engine type (claude, codex, copilot)"`
-		Firewall     string `json:"firewall,omitempty" jsonschema:"Filter runs by firewall usage: 'true' (only runs with firewall) or 'false' (only runs without firewall)"`
+		Firewall     bool   `json:"firewall,omitempty" jsonschema:"Filter to only runs with firewall enabled"`
+		NoFirewall   bool   `json:"no_firewall,omitempty" jsonschema:"Filter to only runs without firewall enabled"`
 		Branch       string `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
 		AfterRunID   int64  `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
 		BeforeRunID  int64  `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
@@ -269,6 +270,15 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
   - .runs[:5] (get first 5 runs)
   - .runs | map(select(.conclusion == "failure")) (get only failed runs)`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
+		// Validate firewall parameters
+		if args.Firewall && args.NoFirewall {
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: "Error: cannot specify both 'firewall' and 'no_firewall' parameters"},
+				},
+			}, nil, nil
+		}
+
 		// Build command arguments
 		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server
 		cmdArgs := []string{"logs", "-o", "/tmp/gh-aw/aw-mcp/logs"}
@@ -287,8 +297,11 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 		if args.Engine != "" {
 			cmdArgs = append(cmdArgs, "--engine", args.Engine)
 		}
-		if args.Firewall != "" {
-			cmdArgs = append(cmdArgs, "--firewall", args.Firewall)
+		if args.Firewall {
+			cmdArgs = append(cmdArgs, "--firewall")
+		}
+		if args.NoFirewall {
+			cmdArgs = append(cmdArgs, "--no-firewall")
 		}
 		if args.Branch != "" {
 			cmdArgs = append(cmdArgs, "--branch", args.Branch)

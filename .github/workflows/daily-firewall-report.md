@@ -167,7 +167,7 @@ Use the `logs` tool from the agentic-workflows MCP server to efficiently collect
 
 **Using the logs tool:**
 Call the `logs` tool with the following parameters:
-- `firewall`: "true" (to filter only runs with firewall enabled)
+- `firewall`: true (boolean - to filter only runs with firewall enabled)
 - `start_date`: "-7d" (to get runs from the past 7 days)
 - `count`: 100 (to get up to 100 matching runs)
 
@@ -180,7 +180,7 @@ The tool will:
 **Tool call example:**
 ```json
 {
-  "firewall": "true",
+  "firewall": true,
   "start_date": "-7d",
   "count": 100
 }
