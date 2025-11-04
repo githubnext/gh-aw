@@ -1,15 +1,15 @@
 ---
 title: Custom Safe Outputs
-description: Learn how to create custom safe outputs for third-party integrations using safe-jobs and MCP servers.
+description: Learn how to create custom safe outputs for third-party integrations using custom jobs and MCP servers.
 sidebar:
   order: 700
 ---
 
-Custom safe outputs extend GitHub Agentic Workflows with your own output processing logic for third-party services. Create reusable, secure integrations using safe-jobs combined with MCP servers.
+Custom safe outputs extend GitHub Agentic Workflows with your own output processing logic for third-party services. Create reusable, secure integrations using custom jobs combined with MCP servers.
 
 ## Architecture
 
-The pattern separates read and write operations for security: a read-only MCP server queries external services, while a custom safe-job handles write operations with appropriate permissions. Store configuration in shared files for reusability across workflows.
+The pattern separates read and write operations for security: a read-only MCP server queries external services, while a custom job handles write operations with appropriate permissions. Store configuration in shared files for reusability across workflows.
 
 ## Creating a Custom Safe Output
 
@@ -34,9 +34,9 @@ mcp-servers:
 
 Use `container:` for Docker-based servers or `command:`/`args:` for npx commands. List only read-only tools in `allowed` and store tokens in GitHub Secrets.
 
-### Step 2: Define the Custom Safe-Job (Write Operations)
+### Step 2: Define the Custom Job (Write Operations)
 
-In the same shared configuration file, add a safe-job for write operations:
+In the same shared configuration file, add a custom job under `safe-outputs.jobs` for write operations:
 
 ```yaml
 ---
@@ -120,7 +120,7 @@ safe-outputs:
 ---
 ```
 
-The `description` appears in MCP tool registration. All safe-jobs require an `inputs` section defining parameters. Use `output` for custom success messages and `actions/github-script@v8` for API calls with `core.setFailed()` error handling. Store configurations in `.github/workflows/shared/` for reusability.
+The `description` appears in MCP tool registration. All custom jobs require an `inputs` section defining parameters. Use `output` for custom success messages and `actions/github-script@v8` for API calls with `core.setFailed()` error handling. Store configurations in `.github/workflows/shared/` for reusability.
 
 ### Step 3: Use the Custom Safe Output in a Workflow
 
@@ -296,16 +296,16 @@ safe-outputs:
 ---
 ```
 
-**Result:** Both `deploy` and `test` safe-jobs are available.
+**Result:** Both `deploy` and `test` custom jobs are available.
 
-**Conflict Detection:** If both files define a safe-job with the same name, compilation fails with:
+**Conflict Detection:** If both files define a custom job with the same name, compilation fails with:
 ```
 failed to merge safe-jobs: safe-job name conflict: 'deploy' is defined in both main workflow and included files
 ```
 
 ### MCP Server Integration
 
-Safe-jobs are automatically registered as tools in the safe-outputs MCP server, allowing the agentic workflow to call them:
+Custom jobs are automatically registered as tools in the safe-outputs MCP server, allowing the agentic workflow to call them:
 
 ```yaml
 safe-outputs:

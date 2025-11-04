@@ -26,6 +26,8 @@ func (c *Compiler) isActivationJobNeeded() bool {
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
+	log.Printf("Building jobs for workflow: %s", markdownPath)
+
 	// Try to read frontmatter to determine event types for safe events check
 	// This is used for the enhanced permission checking logic
 	var frontmatter map[string]any
@@ -41,6 +43,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Determine if permission checks or stop-time checks are needed
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
 	hasStopTime := data.StopTime != ""
+	log.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasCommand=%v", needsPermissionCheck, hasStopTime, data.Command != "")
 
 	// Determine if we need to add workflow_run repository safety check
 	// Add the check if the agentic workflow declares a workflow_run trigger
@@ -48,6 +51,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	var workflowRunRepoSafety string
 	if c.hasWorkflowRunTrigger(frontmatter) {
 		workflowRunRepoSafety = c.buildWorkflowRunRepoSafetyCondition()
+		log.Print("Adding workflow_run repository safety check")
 	}
 
 	// Extract lock filename for timestamp check
@@ -108,6 +112,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
 	}
 
+	log.Print("Successfully built all jobs for workflow")
 	return nil
 }
 
@@ -116,6 +121,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	if data.SafeOutputs == nil {
 		return nil
 	}
+	log.Print("Building safe outputs jobs")
 
 	// Track whether threat detection job is enabled
 	threatDetectionEnabled := false
@@ -669,12 +675,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// Set GH_AW_SAFE_OUTPUTS to fixed path
 		env["GH_AW_SAFE_OUTPUTS"] = "/tmp/gh-aw/safeoutputs/outputs.jsonl"
 
-		// Set GH_AW_SAFE_OUTPUTS_CONFIG with the safe outputs configuration
-		safeOutputConfig := generateSafeOutputsConfig(data)
-		if safeOutputConfig != "" {
-			// The JSON string needs to be properly quoted for YAML
-			env["GH_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
-		}
+		// Config is written to /tmp/gh-aw/safeoutputs/config.json file, not passed as env var
 
 		// Add asset-related environment variables if upload-assets is configured
 		if data.SafeOutputs.UploadAssets != nil {

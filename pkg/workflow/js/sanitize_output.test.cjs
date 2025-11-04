@@ -854,4 +854,167 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       delete process.env.GH_AW_COMMAND;
     });
   });
+
+  describe("URL Redaction Logging", () => {
+    beforeEach(() => {
+      // Clear all mocks before each test
+      vi.clearAllMocks();
+      // Ensure test directory exists
+      if (!fs.existsSync("/tmp/gh-aw")) {
+        fs.mkdirSync("/tmp/gh-aw", { recursive: true });
+      }
+    });
+
+    it("should log when HTTPS URLs with disallowed domains are redacted", async () => {
+      const content = "Check out https://evil.com/malware for details";
+      const testFile = "/tmp/gh-aw/test-url-logging-https.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      // Check that core.info was called with the truncated domain
+      const infoCalls = mockCore.info.mock.calls;
+      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: evil.com"));
+
+      expect(redactionLog).toBeDefined();
+      expect(redactionLog[0]).toBe("Redacted URL: evil.com");
+
+      // Check that core.debug was called with the full URL
+      const debugCalls = mockCore.debug.mock.calls;
+      const fullUrlLog = debugCalls.find(call => call[0] && call[0].includes("Redacted URL (full): https://evil.com/malware"));
+      expect(fullUrlLog).toBeDefined();
+
+      fs.unlinkSync(testFile);
+    });
+
+    it("should log when HTTP URLs are redacted", async () => {
+      const content = "Visit http://example.com for more info";
+      const testFile = "/tmp/gh-aw/test-url-logging-http.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      // Check that core.info was called with the truncated domain
+      const infoCalls = mockCore.info.mock.calls;
+      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: example.com"));
+
+      expect(redactionLog).toBeDefined();
+      expect(redactionLog[0]).toBe("Redacted URL: example.com");
+
+      // Check that core.debug was called with the full URL
+      const debugCalls = mockCore.debug.mock.calls;
+      const fullUrlLog = debugCalls.find(call => call[0] && call[0].includes("Redacted URL (full): http://example.com"));
+      expect(fullUrlLog).toBeDefined();
+
+      fs.unlinkSync(testFile);
+    });
+
+    it("should log when javascript: URLs are redacted", async () => {
+      const content = "Click here: javascript:alert('xss')";
+      const testFile = "/tmp/gh-aw/test-url-logging-js.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      // Check that core.info was called with truncated version
+      // Note: The regex stops at '(' so it only captures "javascript:alert("
+      const infoCalls = mockCore.info.mock.calls;
+      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: javascript:a"));
+
+      expect(redactionLog).toBeDefined();
+      expect(redactionLog[0]).toBe("Redacted URL: javascript:a...");
+
+      // Check that core.debug was called with the full captured URL
+      const debugCalls = mockCore.debug.mock.calls;
+      const fullUrlLog = debugCalls.find(call => call[0] && call[0].includes("Redacted URL (full): javascript:alert("));
+      expect(fullUrlLog).toBeDefined();
+
+      fs.unlinkSync(testFile);
+    });
+
+    it("should log multiple URL redactions", async () => {
+      const content = "Links: http://bad1.com, https://bad2.com, ftp://bad3.com";
+      const testFile = "/tmp/gh-aw/test-url-logging-multiple.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      // Check that core.info was called for each redacted URL (with truncated domains)
+      const infoCalls = mockCore.info.mock.calls;
+      const redactionLogs = infoCalls.filter(call => call[0] && call[0].startsWith("Redacted URL:"));
+
+      expect(redactionLogs.length).toBeGreaterThanOrEqual(3);
+      expect(redactionLogs.some(log => log[0].includes("bad1.com"))).toBe(true);
+      expect(redactionLogs.some(log => log[0].includes("bad2.com"))).toBe(true);
+      expect(redactionLogs.some(log => log[0].includes("bad3.com"))).toBe(true);
+
+      fs.unlinkSync(testFile);
+    });
+
+    it("should not log when HTTPS URLs with allowed domains are preserved", async () => {
+      const content = "Visit https://github.com for more info";
+      const testFile = "/tmp/gh-aw/test-url-logging-allowed.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      // Check that core.info was NOT called for allowed URLs
+      const infoCalls = mockCore.info.mock.calls;
+      const redactionLogs = infoCalls.filter(call => call[0] && call[0].includes("Redacted URL: github.com"));
+
+      expect(redactionLogs.length).toBe(0);
+
+      fs.unlinkSync(testFile);
+    });
+
+    it("should log when data: URLs are redacted", async () => {
+      const content = "Image: data:text/html,<script>alert(1)</script>";
+      const testFile = "/tmp/gh-aw/test-url-logging-data.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      // Check that core.info was called with truncated version
+      // Note: The regex stops at '<' so it only captures "data:text/html,"
+      const infoCalls = mockCore.info.mock.calls;
+      const redactionLog = infoCalls.find(call => call[0] && call[0].includes("Redacted URL: data:text/ht"));
+
+      expect(redactionLog).toBeDefined();
+
+      fs.unlinkSync(testFile);
+    });
+
+    it("should handle mixed content with both redacted and allowed URLs", async () => {
+      const content = "Good: https://github.com/repo Bad: https://evil.com/bad More: http://another.bad";
+      const testFile = "/tmp/gh-aw/test-url-logging-mixed.txt";
+      fs.writeFileSync(testFile, content);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+
+      // Execute the script
+      await eval(`(async () => { ${sanitizeScript} })()`);
+
+      // Check that core.info was called only for disallowed URLs (with truncated domains)
+      const infoCalls = mockCore.info.mock.calls;
+      const redactionLogs = infoCalls.filter(call => call[0] && call[0].startsWith("Redacted URL:"));
+
+      expect(redactionLogs.length).toBeGreaterThanOrEqual(2);
+      expect(redactionLogs.some(log => log[0].includes("evil.com"))).toBe(true);
+      expect(redactionLogs.some(log => log[0].includes("another.bad"))).toBe(true);
+      expect(redactionLogs.some(log => log[0].includes("github.com"))).toBe(false);
+
+      fs.unlinkSync(testFile);
+    });
+  });
 });

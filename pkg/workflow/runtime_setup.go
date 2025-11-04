@@ -141,6 +141,7 @@ func init() {
 
 // DetectRuntimeRequirements analyzes workflow data to detect required runtimes
 func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement {
+	log.Print("Detecting runtime requirements from workflow data")
 	requirements := make(map[string]*RuntimeRequirement) // map of runtime ID -> requirement
 
 	// Detect from custom steps
@@ -199,6 +200,9 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		result = append(result, *requirements[id])
 	}
 
+	if log.Enabled() {
+		log.Printf("Detected %d runtime requirements: %v", len(result), runtimeIDs)
+	}
 	return result
 }
 
@@ -335,6 +339,7 @@ func updateRequiredRuntime(runtime *Runtime, newVersion string, requirements map
 
 // GenerateRuntimeSetupSteps creates GitHub Actions steps for runtime setup
 func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubActionStep {
+	log.Printf("Generating runtime setup steps for %d requirements", len(requirements))
 	var steps []GitHubActionStep
 
 	for _, req := range requirements {

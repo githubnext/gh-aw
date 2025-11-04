@@ -101,6 +101,12 @@ function sanitizeContent(content, maxLength) {
         return match; // Keep allowed URLs as-is
       }
 
+      // Log the redaction
+      const domain = hostname;
+      const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+      core.info(`Redacted URL: ${truncated}`);
+      core.debug(`Redacted URL (full): ${match}`);
+
       // For disallowed URLs, check if there are any allowed URLs in the query/fragment
       // and preserve those while redacting the main URL
       const urlParts = match.split(/([?&#])/);
@@ -146,12 +152,24 @@ function sanitizeContent(content, maxLength) {
 
       // Redact if it has :// (definite protocol)
       if (match.includes("://")) {
+        // Log the redaction
+        // Extract domain from URL
+        const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
+        const domain = domainMatch ? domainMatch[1] : match;
+        const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+        core.info(`Redacted URL: ${truncated}`);
+        core.debug(`Redacted URL (full): ${match}`);
         return "(redacted)";
       }
 
       // Redact well-known dangerous protocols like javascript:, data:, etc.
       const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
       if (dangerousProtocols.includes(protocol.toLowerCase())) {
+        // Log the redaction
+        // For dangerous protocols without ://, show protocol and beginning of content
+        const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+        core.info(`Redacted URL: ${truncated}`);
+        core.debug(`Redacted URL (full): ${match}`);
         return "(redacted)";
       }
 

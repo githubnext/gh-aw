@@ -280,14 +280,14 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		// Add environment variables step with GH_AW_AGENT_OUTPUT and job-specific env vars
 		steps = append(steps, "      - name: Setup Safe Job Environment Variables\n")
 		steps = append(steps, "        run: |\n")
-		steps = append(steps, "          find /tmp/gh-aw/safe-jobs/ -type f -print\n")
+		steps = append(steps, "          find \"/tmp/gh-aw/safe-jobs/\" -type f -print\n")
 		// Configure GH_AW_AGENT_OUTPUT to point to downloaded artifact file
-		steps = append(steps, fmt.Sprintf("          echo \"GH_AW_AGENT_OUTPUT=%s\" >> $GITHUB_ENV\n", agentOutputArtifactFilename))
+		steps = append(steps, fmt.Sprintf("          echo \"GH_AW_AGENT_OUTPUT=%s\" >> \"$GITHUB_ENV\"\n", agentOutputArtifactFilename))
 
 		// Add job-specific environment variables
 		if jobConfig.Env != nil {
 			for key, value := range jobConfig.Env {
-				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> $GITHUB_ENV\n", key, value))
+				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> \"$GITHUB_ENV\"\n", key, value))
 			}
 		}
 
@@ -329,9 +329,9 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 }
 
 // extractSafeJobsFromFrontmatter extracts safe-jobs section from frontmatter map
-// First checks the new location under safe-outputs.jobs, then falls back to old location safe-jobs (for backwards compatibility during transition)
+// Only checks the location under safe-outputs.jobs
 func extractSafeJobsFromFrontmatter(frontmatter map[string]any) map[string]*SafeJobConfig {
-	// Check new location: safe-outputs.jobs
+	// Check location: safe-outputs.jobs
 	if safeOutputs, exists := frontmatter["safe-outputs"]; exists {
 		if safeOutputsMap, ok := safeOutputs.(map[string]any); ok {
 			if jobs, exists := safeOutputsMap["jobs"]; exists {
@@ -342,18 +342,6 @@ func extractSafeJobsFromFrontmatter(frontmatter map[string]any) map[string]*Safe
 				}
 			}
 		}
-	}
-
-	// Fallback to old location: safe-jobs (for backwards compatibility)
-	safeJobs, exists := frontmatter["safe-jobs"]
-	if !exists {
-		return make(map[string]*SafeJobConfig)
-	}
-
-	if safeJobsMap, ok := safeJobs.(map[string]any); ok {
-		c := &Compiler{} // Create a temporary compiler instance for parsing
-		frontmatterCopy := map[string]any{"safe-jobs": safeJobsMap}
-		return c.parseSafeJobsConfig(frontmatterCopy)
 	}
 
 	return make(map[string]*SafeJobConfig)

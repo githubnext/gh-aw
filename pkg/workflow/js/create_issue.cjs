@@ -114,6 +114,7 @@ async function main() {
       summaryContent += "---\n\n";
     }
     await core.summary.addRaw(summaryContent).write();
+    core.info(summaryContent);
     core.info("📝 Issue creation preview written to step summary");
     return;
   }

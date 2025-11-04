@@ -15,10 +15,10 @@ const ExpressionBreakThreshold = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion = "2.0.31"
+const DefaultClaudeCodeVersion = "2.0.32"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
-const DefaultCopilotVersion = "0.0.353"
+const DefaultCopilotVersion = "0.0.354"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion = "0.53.0"
@@ -326,7 +326,8 @@ var PriorityJobFields = []string{"name", "runs-on", "needs", "if", "permissions"
 var PriorityWorkflowFields = []string{"on", "permissions", "if", "network", "imports", "safe-outputs", "steps"}
 
 // IgnoredFrontmatterFields are fields that should be silently ignored during frontmatter validation
-var IgnoredFrontmatterFields = []string{"description", "applyTo"}
+// NOTE: This is now empty as description and applyTo are properly validated by the schema
+var IgnoredFrontmatterFields = []string{}
 
 func GetWorkflowDir() string {
 	return filepath.Join(".github", "workflows")

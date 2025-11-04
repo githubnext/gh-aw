@@ -36,9 +36,9 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 
 	var steps []GitHubActionStep
 
-	// Add secret validation step
-	secretValidation := GenerateSecretValidationStep(
-		"ANTHROPIC_API_KEY",
+	// Add secret validation step - Claude supports both CLAUDE_CODE_OAUTH_TOKEN and ANTHROPIC_API_KEY as fallback
+	secretValidation := GenerateMultiSecretValidationStep(
+		[]string{"CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"},
 		"Claude Code",
 		"https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code",
 	)
@@ -173,12 +173,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	if workflowData.AgentFile != "" {
 		// Extract markdown body from custom agent file and prepend to prompt
 		stepLines = append(stepLines, "          # Extract markdown body from custom agent file (skip frontmatter)")
-		stepLines = append(stepLines, fmt.Sprintf("          AGENT_CONTENT=$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)", workflowData.AgentFile))
+		stepLines = append(stepLines, fmt.Sprintf("          AGENT_CONTENT=\"$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)\"", workflowData.AgentFile))
 		stepLines = append(stepLines, "          # Combine agent content with prompt")
-		stepLines = append(stepLines, "          PROMPT_TEXT=$(printf '%s\\n\\n%s' \"$AGENT_CONTENT\" \"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\")")
+		stepLines = append(stepLines, "          PROMPT_TEXT=\"$(printf '%s\\n\\n%s' \"$AGENT_CONTENT\" \"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\")\"")
 		promptCommand = "\"$PROMPT_TEXT\""
 	} else {
-		promptCommand = "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
+		promptCommand = "\"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\""
 	}
 
 	// Build the command string with proper argument formatting
@@ -187,19 +187,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	commandParts = append(commandParts, claudeArgs...)
 	commandParts = append(commandParts, promptCommand)
 
-	// Join command parts with proper escaping for complex arguments
-	command := ""
-	for i, part := range commandParts {
-		if i > 0 {
-			command += " "
-		}
-		// For complex arguments that contain spaces or special characters, quote them
-		if strings.Contains(part, " ") || strings.Contains(part, ",") {
-			command += "\"" + part + "\""
-		} else {
-			command += part
-		}
-	}
+	// Join command parts with proper escaping using shellJoinArgs helper
+	// This handles already-quoted arguments correctly and prevents double-escaping
+	command := shellJoinArgs(commandParts)
 
 	// Add the command with proper indentation and tee output (preserves exit code with pipefail)
 	stepLines = append(stepLines, fmt.Sprintf("          %s 2>&1 | tee %s", command, logFile))
@@ -207,8 +197,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add environment section - always include environment section for GH_AW_PROMPT
 	stepLines = append(stepLines, "        env:")
 
-	// Add Anthropic API key
+	// Add both API keys - Claude Code CLI handles them separately and determines precedence
 	stepLines = append(stepLines, "          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}")
+	stepLines = append(stepLines, "          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}")
 
 	// Disable telemetry, error reporting, and bug command for privacy and security
 	stepLines = append(stepLines, "          DISABLE_TELEMETRY: \"1\"")

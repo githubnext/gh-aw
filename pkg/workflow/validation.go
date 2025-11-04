@@ -1,3 +1,41 @@
+// Package workflow provides validation functions for agentic workflow compilation.
+//
+// # Validation Architecture
+//
+// This file contains general-purpose validation functions that apply across the entire
+// workflow system. For domain-specific validation (e.g., strict mode, package validation,
+// expression safety), see the corresponding domain files:
+//   - strict_mode.go: Security and strict mode validation
+//   - pip.go: Python package validation
+//   - npm.go: NPM package validation
+//   - expression_safety.go: GitHub Actions expression security
+//   - engine.go: AI engine configuration validation
+//   - mcp-config.go: MCP server configuration validation
+//   - docker.go: Docker image validation
+//   - template.go: Template structure validation
+//
+// # When to Add Validation Here
+//
+// Add validation to this file when:
+//   - It's a cross-cutting concern spanning multiple domains
+//   - It validates core workflow integrity
+//   - It checks GitHub Actions compatibility
+//   - It validates general schema or configuration
+//   - It detects repository-level features
+//
+// For domain-specific validation, add to or create a dedicated file.
+//
+// # Validation Patterns
+//
+// This file uses several validation patterns:
+//   - Schema validation: validateGitHubActionsSchema()
+//   - External resource validation: validateContainerImages()
+//   - Size limit validation: validateExpressionSizes()
+//   - Feature detection: validateRepositoryFeatures()
+//   - Error collection: Collecting multiple validation errors before returning
+//
+// For detailed documentation on validation architecture, see:
+// specs/validation-architecture.md
 package workflow
 
 import (

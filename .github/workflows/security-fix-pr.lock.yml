@@ -136,7 +136,6 @@ jobs:
       group: "gh-aw-claude-${{ github.workflow }}"
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_pull_request\":{},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -217,24 +216,29 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Validate ANTHROPIC_API_KEY secret
+      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "Error: ANTHROPIC_API_KEY secret is not set"
-            echo "The Claude Code engine requires the ANTHROPIC_API_KEY secret to be configured."
-            echo "Please configure this secret in your repository settings."
+          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
+            echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
+            echo "Please configure one of these secrets in your repository settings."
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
             exit 1
           fi
-          echo "ANTHROPIC_API_KEY secret is configured"
+          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "CLAUDE_CODE_OAUTH_TOKEN secret is configured"
+          else
+            echo "ANTHROPIC_API_KEY secret is configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
+          fi
         env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.31
+        run: npm install -g @anthropic-ai/claude-code@2.0.32
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -376,39 +380,26 @@ jobs:
               normalized = normalized.toLowerCase();
               return normalized;
             }
-            const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+            const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
             let safeOutputsConfigRaw;
-            if (!configEnv) {
-              const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
-              debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
-              try {
-                if (fs.existsSync(defaultConfigPath)) {
-                  debug(`Reading config from file: ${defaultConfigPath}`);
-                  const configFileContent = fs.readFileSync(defaultConfigPath, "utf8");
-                  debug(`Config file content length: ${configFileContent.length} characters`);
-                  debug(`Config file read successfully, attempting to parse JSON`);
-                  safeOutputsConfigRaw = JSON.parse(configFileContent);
-                  debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
-                } else {
-                  debug(`Config file does not exist at: ${defaultConfigPath}`);
-                  debug(`Using minimal default configuration`);
-                  safeOutputsConfigRaw = {};
-                }
-              } catch (error) {
-                debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
-                debug(`Falling back to empty configuration`);
+            debug(`Reading config from file: ${configPath}`);
+            try {
+              if (fs.existsSync(configPath)) {
+                debug(`Config file exists at: ${configPath}`);
+                const configFileContent = fs.readFileSync(configPath, "utf8");
+                debug(`Config file content length: ${configFileContent.length} characters`);
+                debug(`Config file read successfully, attempting to parse JSON`);
+                safeOutputsConfigRaw = JSON.parse(configFileContent);
+                debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
+              } else {
+                debug(`Config file does not exist at: ${configPath}`);
+                debug(`Using minimal default configuration`);
                 safeOutputsConfigRaw = {};
               }
-            } else {
-              debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
-              debug(`Config environment variable length: ${configEnv.length} characters`);
-              try {
-                safeOutputsConfigRaw = JSON.parse(configEnv); 
-                debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
-              } catch (error) {
-                debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
-                throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
-              }
+            } catch (error) {
+              debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
+              debug(`Falling back to empty configuration`);
+              safeOutputsConfigRaw = {};
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
@@ -1140,7 +1131,6 @@ jobs:
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}
           GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
           GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
@@ -1172,7 +1162,6 @@ jobs:
                 "args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"],
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": $GH_AW_SAFE_OUTPUTS_CONFIG,
                   "GH_AW_ASSETS_BRANCH": "$GH_AW_ASSETS_BRANCH",
                   "GH_AW_ASSETS_MAX_SIZE_KB": "$GH_AW_ASSETS_MAX_SIZE_KB",
                   "GH_AW_ASSETS_ALLOWED_EXTS": "$GH_AW_ASSETS_ALLOWED_EXTS",
@@ -1190,8 +1179,9 @@ jobs:
           GH_AW_EXPR_E80C082D: ${{ github.actor }}
           GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
-          cat > $GH_AW_PROMPT << 'PROMPT_EOF'
+          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
+          mkdir -p "$PROMPT_DIR"
+          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Security Issue Fix Agent
           
           You are a security-focused code analysis agent that identifies and fixes code security issues automatically.
@@ -1328,7 +1318,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1360,7 +1350,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1373,7 +1363,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           
           ---
@@ -1392,7 +1382,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1417,7 +1407,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1443,7 +1433,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1512,14 +1502,16 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          echo "<details>" >> $GITHUB_STEP_SUMMARY
-          echo "<summary>Generated Prompt</summary>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "<details>"
+            echo "<summary>Generated Prompt</summary>"
+            echo ""
+            echo '```markdown'
+            cat "$GH_AW_PROMPT"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -1538,7 +1530,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: "2.0.31",
+              agent_version: "2.0.32",
               workflow_name: "Security Fix PR",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1592,18 +1584,66 @@ jobs:
         # - TodoWrite
         # - Write
         # - Write(/tmp/gh-aw/cache-memory/*)
+        # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
+        # - mcp__github__get_commit
+        # - mcp__github__get_dependabot_alert
+        # - mcp__github__get_discussion
+        # - mcp__github__get_discussion_comments
         # - mcp__github__get_file_contents
+        # - mcp__github__get_job_logs
+        # - mcp__github__get_label
+        # - mcp__github__get_latest_release
+        # - mcp__github__get_me
+        # - mcp__github__get_notification_details
         # - mcp__github__get_pull_request
+        # - mcp__github__get_pull_request_comments
+        # - mcp__github__get_pull_request_diff
+        # - mcp__github__get_pull_request_files
+        # - mcp__github__get_pull_request_review_comments
+        # - mcp__github__get_pull_request_reviews
+        # - mcp__github__get_pull_request_status
+        # - mcp__github__get_release_by_tag
+        # - mcp__github__get_secret_scanning_alert
+        # - mcp__github__get_tag
+        # - mcp__github__get_workflow_run
+        # - mcp__github__get_workflow_run_logs
+        # - mcp__github__get_workflow_run_usage
+        # - mcp__github__issue_read
+        # - mcp__github__list_branches
         # - mcp__github__list_code_scanning_alerts
+        # - mcp__github__list_commits
+        # - mcp__github__list_dependabot_alerts
+        # - mcp__github__list_discussion_categories
+        # - mcp__github__list_discussions
+        # - mcp__github__list_issue_types
+        # - mcp__github__list_issues
+        # - mcp__github__list_label
+        # - mcp__github__list_notifications
         # - mcp__github__list_pull_requests
+        # - mcp__github__list_releases
+        # - mcp__github__list_secret_scanning_alerts
+        # - mcp__github__list_starred_repositories
+        # - mcp__github__list_tags
+        # - mcp__github__list_workflow_jobs
+        # - mcp__github__list_workflow_run_artifacts
+        # - mcp__github__list_workflow_runs
+        # - mcp__github__list_workflows
+        # - mcp__github__pull_request_read
+        # - mcp__github__search_code
+        # - mcp__github__search_issues
+        # - mcp__github__search_orgs
+        # - mcp__github__search_pull_requests
+        # - mcp__github__search_repositories
+        # - mcp__github__search_users
         timeout-minutes: 20
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash,BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__get_code_scanning_alert,mcp__github__get_file_contents,mcp__github__get_pull_request,mcp__github__list_code_scanning_alerts,mcp__github__list_pull_requests" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools 'Bash,BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users' --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
@@ -1731,8 +1771,9 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,CLAUDE_CODE_OAUTH_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SECRET_CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
@@ -1747,7 +1788,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_pull_request\":{},\"missing_tool\":{}}"
           GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com"
         with:
           script: |
@@ -1800,6 +1840,10 @@ jobs:
                   if (isAllowed) {
                     return match; 
                   }
+                  const domain = hostname;
+                  const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                  core.info(`Redacted URL: ${truncated}`);
+                  core.debug(`Redacted URL (full): ${match}`);
                   const urlParts = match.split(/([?&#])/);
                   let result = "(redacted)"; 
                   for (let i = 1; i < urlParts.length; i++) {
@@ -1822,10 +1866,18 @@ jobs:
                     return match;
                   }
                   if (match.includes("://")) {
+                    const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
+                    const domain = domainMatch ? domainMatch[1] : match;
+                    const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
                     return "(redacted)";
                   }
                   const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
                   if (dangerousProtocols.includes(protocol.toLowerCase())) {
+                    const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
                     return "(redacted)";
                   }
                   return match;
@@ -2167,7 +2219,16 @@ jobs:
                 }
               }
               const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
-              const safeOutputsConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+              const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+              let safeOutputsConfig;
+              try {
+                if (fs.existsSync(configPath)) {
+                  const configFileContent = fs.readFileSync(configPath, "utf8");
+                  safeOutputsConfig = JSON.parse(configFileContent);
+                }
+              } catch (error) {
+                core.warning(`Failed to read config file from ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
+              }
               if (!outputFile) {
                 core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
                 core.setOutput("output", "");
@@ -2186,8 +2247,7 @@ jobs:
               let expectedOutputTypes = {};
               if (safeOutputsConfig) {
                 try {
-                  const rawConfig = JSON.parse(safeOutputsConfig);
-                  expectedOutputTypes = Object.fromEntries(Object.entries(rawConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
+                  expectedOutputTypes = Object.fromEntries(Object.entries(safeOutputsConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
                   core.info(`Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                 } catch (error) {
                   const errorMsg = error instanceof Error ? error.message : String(error);
@@ -3277,7 +3337,7 @@ jobs:
                 if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create_pull_request"'; then
                   echo "Found create_pull_request line: $line"
                   # Extract branch value using sed
-                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
                   if [ -n "$BRANCH_NAME" ]; then
                     echo "Extracted branch name from create_pull_request: $BRANCH_NAME"
                     break
@@ -3287,7 +3347,7 @@ jobs:
                 elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push_to_pull_request_branch"'; then
                   echo "Found push_to_pull_request_branch line: $line"
                   # Extract branch value using sed
-                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
                   if [ -n "$BRANCH_NAME" ]; then
                     echo "Extracted branch name from push_to_pull_request_branch: $BRANCH_NAME"
                     break
@@ -3304,10 +3364,10 @@ jobs:
           if [ -n "$BRANCH_NAME" ]; then
             echo "Looking for branch: $BRANCH_NAME"
             # Check if the branch exists
-            if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
+            if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
               echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
               # Check if origin/$BRANCH_NAME exists to use as base
-              if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
+              if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
                 echo "Using origin/$BRANCH_NAME as base for patch generation"
                 BASE_REF="origin/$BRANCH_NAME"
               else
@@ -3315,9 +3375,9 @@ jobs:
                 # Use the default branch name from environment variable
                 echo "Default branch: $DEFAULT_BRANCH"
                 # Fetch the default branch to ensure it's available locally
-                git fetch origin $DEFAULT_BRANCH
+                git fetch origin "$DEFAULT_BRANCH"
                 # Find merge base between default branch and current branch
-                BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)
+                BASE_REF="$(git merge-base "origin/$DEFAULT_BRANCH" "$BRANCH_NAME")"
                 echo "Using merge-base as base: $BASE_REF"
               fi
               # Diagnostic logging: Show diff stats before generating patch
@@ -3328,7 +3388,7 @@ jobs:
               # Diagnostic logging: Count commits to be included
               echo ""
               echo "=== Diagnostic: Commits to be included in patch ==="
-              COMMIT_COUNT=$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")
+              COMMIT_COUNT="$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")"
               echo "Number of commits: $COMMIT_COUNT"
               if [ "$COMMIT_COUNT" -gt 0 ]; then
                 echo "Commit SHAs:"
@@ -3351,13 +3411,13 @@ jobs:
             echo "=== Diagnostic: Patch file information ==="
             ls -lh /tmp/gh-aw/aw.patch
             # Get patch file size in KB
-            PATCH_SIZE=$(du -k /tmp/gh-aw/aw.patch | cut -f1)
+            PATCH_SIZE="$(du -k /tmp/gh-aw/aw.patch | cut -f1)"
             echo "Patch file size: ${PATCH_SIZE} KB"
             # Count lines in patch
-            PATCH_LINES=$(wc -l < /tmp/gh-aw/aw.patch)
+            PATCH_LINES="$(wc -l < /tmp/gh-aw/aw.patch)"
             echo "Patch file lines: $PATCH_LINES"
             # Extract and count commits from patch file (each commit starts with "From <sha>")
-            PATCH_COMMITS=$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")
+            PATCH_COMMITS="$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")"
             echo "Commits included in patch: $PATCH_COMMITS"
             # List commit SHAs in the patch
             if [ "$PATCH_COMMITS" -gt 0 ]; then
@@ -3365,13 +3425,15 @@ jobs:
               grep "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch | sed 's/^From \([0-9a-f]\{40\}\).*/  \1/' || echo "Failed to extract commit SHAs"
             fi
             # Show the first 50 lines of the patch for review
-            echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
-            echo '```diff' >> $GITHUB_STEP_SUMMARY
-            head -500 /tmp/gh-aw/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
-            echo '...' >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
+            {
+              echo '## Git Patch'
+              echo ''
+              echo '```diff'
+              head -500 /tmp/gh-aw/aw.patch || echo "Could not display patch contents"
+              echo '...'
+              echo '```'
+              echo ''
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload git patch
         if: always()
@@ -3432,8 +3494,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Pull Request
         id: create_pull_request
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -3892,6 +3954,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}
         run: |
+          # shellcheck disable=SC2086
           gh api --method POST /repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers \
             -f 'reviewers[]=copilot-pull-request-reviewer[bot]'
 
@@ -4036,24 +4099,29 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Validate ANTHROPIC_API_KEY secret
+      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "Error: ANTHROPIC_API_KEY secret is not set"
-            echo "The Claude Code engine requires the ANTHROPIC_API_KEY secret to be configured."
-            echo "Please configure this secret in your repository settings."
+          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
+            echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
+            echo "Please configure one of these secrets in your repository settings."
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
             exit 1
           fi
-          echo "ANTHROPIC_API_KEY secret is configured"
+          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "CLAUDE_CODE_OAUTH_TOKEN secret is configured"
+          else
+            echo "ANTHROPIC_API_KEY secret is configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
+          fi
         env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.31
+        run: npm install -g @anthropic-ai/claude-code@2.0.32
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -4078,9 +4146,10 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          claude --print --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
@@ -4155,8 +4224,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd

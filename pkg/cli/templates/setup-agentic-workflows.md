@@ -51,7 +51,7 @@ gh secret set COPILOT_CLI_TOKEN -a actions --body "your-github-pat-here"
 
 Say to the user:
 ````
-You'll need an Anthropic API key.
+You'll need an Anthropic API key or Claude Code OAuth token.
 
 **Steps:**
 1. Sign up for Anthropic API access at [console.anthropic.com](https://console.anthropic.com/)
@@ -59,9 +59,13 @@ You'll need an Anthropic API key.
 
 **Documentation:** [Anthropic Claude Code Engine](https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code)
 
-**Set the secret** in a separate terminal window:
+**Set the secret** in a separate terminal window (choose one):
 
 ```bash
+# Option 1: Using CLAUDE_CODE_OAUTH_TOKEN
+gh secret set CLAUDE_CODE_OAUTH_TOKEN -a actions --body "your-claude-oauth-token-here"
+
+# Option 2: Using ANTHROPIC_API_KEY
 gh secret set ANTHROPIC_API_KEY -a actions --body "your-anthropic-api-key-here"
 ```
 ````

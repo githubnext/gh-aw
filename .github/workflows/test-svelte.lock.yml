@@ -200,7 +200,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.353
+        run: npm install -g @github/copilot@0.0.354
       - name: Downloading container images
         run: |
           set -e
@@ -259,8 +259,9 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
-          cat > $GH_AW_PROMPT << 'PROMPT_EOF'
+          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
+          mkdir -p "$PROMPT_DIR"
+          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           
           # Test Svelte MCP
@@ -284,7 +285,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -316,7 +317,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -329,7 +330,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -398,14 +399,16 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          echo "<details>" >> $GITHUB_STEP_SUMMARY
-          echo "<summary>Generated Prompt</summary>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "<details>"
+            echo "<summary>Generated Prompt</summary>"
+            echo ""
+            echo '```markdown'
+            cat "$GH_AW_PROMPT"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -424,7 +427,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.353",
+              agent_version: "0.0.354",
               workflow_name: "Test Svelte MCP",
               experimental: false,
               supports_tools_allowlist: true,
@@ -481,7 +484,7 @@ jobs:
         timeout-minutes: 5
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/

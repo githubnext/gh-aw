@@ -146,7 +146,6 @@ jobs:
       group: "gh-aw-codex-${{ github.workflow }}"
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":3},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -280,39 +279,26 @@ jobs:
               normalized = normalized.toLowerCase();
               return normalized;
             }
-            const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+            const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
             let safeOutputsConfigRaw;
-            if (!configEnv) {
-              const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
-              debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
-              try {
-                if (fs.existsSync(defaultConfigPath)) {
-                  debug(`Reading config from file: ${defaultConfigPath}`);
-                  const configFileContent = fs.readFileSync(defaultConfigPath, "utf8");
-                  debug(`Config file content length: ${configFileContent.length} characters`);
-                  debug(`Config file read successfully, attempting to parse JSON`);
-                  safeOutputsConfigRaw = JSON.parse(configFileContent);
-                  debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
-                } else {
-                  debug(`Config file does not exist at: ${defaultConfigPath}`);
-                  debug(`Using minimal default configuration`);
-                  safeOutputsConfigRaw = {};
-                }
-              } catch (error) {
-                debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
-                debug(`Falling back to empty configuration`);
+            debug(`Reading config from file: ${configPath}`);
+            try {
+              if (fs.existsSync(configPath)) {
+                debug(`Config file exists at: ${configPath}`);
+                const configFileContent = fs.readFileSync(configPath, "utf8");
+                debug(`Config file content length: ${configFileContent.length} characters`);
+                debug(`Config file read successfully, attempting to parse JSON`);
+                safeOutputsConfigRaw = JSON.parse(configFileContent);
+                debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
+              } else {
+                debug(`Config file does not exist at: ${configPath}`);
+                debug(`Using minimal default configuration`);
                 safeOutputsConfigRaw = {};
               }
-            } else {
-              debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
-              debug(`Config environment variable length: ${configEnv.length} characters`);
-              try {
-                safeOutputsConfigRaw = JSON.parse(configEnv); 
-                debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
-              } catch (error) {
-                debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
-                throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
-              }
+            } catch (error) {
+              debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
+              debug(`Falling back to empty configuration`);
+              safeOutputsConfigRaw = {};
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
@@ -1044,7 +1030,6 @@ jobs:
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}
           GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
           GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
@@ -1080,7 +1065,7 @@ jobs:
           args = [
             "/tmp/gh-aw/safeoutputs/mcp-server.cjs",
           ]
-          env = { "GH_AW_SAFE_OUTPUTS" = "${{ env.GH_AW_SAFE_OUTPUTS }}", "GH_AW_SAFE_OUTPUTS_CONFIG" = ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}, "GH_AW_ASSETS_BRANCH" = "${{ env.GH_AW_ASSETS_BRANCH }}", "GH_AW_ASSETS_MAX_SIZE_KB" = "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}", "GH_AW_ASSETS_ALLOWED_EXTS" = "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}", "GITHUB_REPOSITORY" = "${{ github.repository }}", "GITHUB_SERVER_URL" = "${{ github.server_url }}" }
+          env = { "GH_AW_SAFE_OUTPUTS" = "${{ env.GH_AW_SAFE_OUTPUTS }}", "GH_AW_ASSETS_BRANCH" = "${{ env.GH_AW_ASSETS_BRANCH }}", "GH_AW_ASSETS_MAX_SIZE_KB" = "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}", "GH_AW_ASSETS_ALLOWED_EXTS" = "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}", "GITHUB_REPOSITORY" = "${{ github.repository }}", "GITHUB_SERVER_URL" = "${{ github.server_url }}" }
           
           [mcp_servers.serena]
           command = "uvx"
@@ -1104,8 +1089,9 @@ jobs:
           GH_AW_EXPR_D892F163: ${{ github.repository }}
           GH_AW_EXPR_2D1CC6E7: ${{ github.workspace }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
-          cat > $GH_AW_PROMPT << 'PROMPT_EOF'
+          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
+          mkdir -p "$PROMPT_DIR"
+          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           ## Serena configuration
           
           The active workspaces is ${GH_AW_EXPR_2D1CC6E7}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
@@ -1142,9 +1128,9 @@ jobs:
           
           Identify and analyze modified files:
           - Determine files changed in the recent commits
-          - **ONLY analyze .go files** - exclude all other file types
-          - **Exclude all JavaScript files** from analysis (files matching patterns: `*.js`, `*.cjs`, `*.mjs`, `*.jsx`, `*.ts`, `*.tsx`)
-          - **Exclude test files** from analysis (files matching patterns: `*_test.go`, `*.test.js`, `*.spec.js`, `*.test.ts`, `*.spec.ts`, `*_test.py`, `test_*.py`, or located in directories named `test`, `tests`, `__tests__`, or `spec`)
+          - **ONLY analyze .go and .cjs files** - exclude all other file types
+          - **Exclude JavaScript files except .cjs** from analysis (files matching patterns: `*.js`, `*.mjs`, `*.jsx`, `*.ts`, `*.tsx`)
+          - **Exclude test files** from analysis (files matching patterns: `*_test.go`, `*.test.js`, `*.test.cjs`, `*.spec.js`, `*.spec.cjs`, `*.test.ts`, `*.spec.ts`, `*_test.py`, `test_*.py`, or located in directories named `test`, `tests`, `__tests__`, or `spec`)
           - **Exclude workflow files** from analysis (files under `.github/workflows/*`)
           - Use `get_symbols_overview` to understand file structure
           - Use `read_file` to examine modified file contents
@@ -1217,8 +1203,8 @@ jobs:
           
           - Standard boilerplate code (imports, exports, etc.)
           - Test setup/teardown code (acceptable duplication in tests)
-          - **All JavaScript files** (files matching: `*.js`, `*.cjs`, `*.mjs`, `*.jsx`, `*.ts`, `*.tsx`)
-          - **All test files** (files matching: `*_test.go`, `*.test.js`, `*.spec.js`, `*.test.ts`, `*.spec.ts`, `*_test.py`, `test_*.py`, or in `test/`, `tests/`, `__tests__/`, `spec/` directories)
+          - **JavaScript files except .cjs** (files matching: `*.js`, `*.mjs`, `*.jsx`, `*.ts`, `*.tsx`)
+          - **All test files** (files matching: `*_test.go`, `*.test.js`, `*.test.cjs`, `*.spec.js`, `*.spec.cjs`, `*.test.ts`, `*.spec.ts`, `*_test.py`, `test_*.py`, or in `test/`, `tests/`, `__tests__/`, `spec/` directories)
           - **All workflow files** (files under `.github/workflows/*`)
           - Configuration files with similar structure
           - Language-specific patterns (constructors, getters/setters)
@@ -1226,10 +1212,10 @@ jobs:
           
           ### Analysis Depth
           
-          - **File Type Restriction**: ONLY analyze .go files - ignore all other file types
-          - **Primary Focus**: All .go files changed in the current push (excluding test files and workflow files)
-          - **Secondary Analysis**: Check for duplication with existing .go codebase (excluding test files and workflow files)
-          - **Cross-Reference**: Look for patterns across .go files in the repository
+          - **File Type Restriction**: ONLY analyze .go and .cjs files - ignore all other file types
+          - **Primary Focus**: All .go and .cjs files changed in the current push (excluding test files and workflow files)
+          - **Secondary Analysis**: Check for duplication with existing .go and .cjs codebase (excluding test files and workflow files)
+          - **Cross-Reference**: Look for patterns across .go and .cjs files in the repository
           - **Historical Context**: Consider if duplication is new or existing
           
           ## Issue Template
@@ -1338,7 +1324,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1370,7 +1356,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1383,7 +1369,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1404,7 +1390,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1473,14 +1459,16 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          echo "<details>" >> $GITHUB_STEP_SUMMARY
-          echo "<summary>Generated Prompt</summary>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "<details>"
+            echo "<summary>Generated Prompt</summary>"
+            echo ""
+            echo '```markdown'
+            cat "$GH_AW_PROMPT"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -1534,7 +1522,7 @@ jobs:
       - name: Run Codex
         run: |
           set -o pipefail
-          INSTRUCTION=$(cat $GH_AW_PROMPT)
+          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
           mkdir -p $CODEX_HOME/logs
           codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
@@ -1544,7 +1532,6 @@ jobs:
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":3},\"missing_tool\":{}}"
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
       - name: Redact secrets in logs
@@ -1675,7 +1662,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":3},\"missing_tool\":{}}"
           GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com"
         with:
           script: |
@@ -1728,6 +1714,10 @@ jobs:
                   if (isAllowed) {
                     return match; 
                   }
+                  const domain = hostname;
+                  const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                  core.info(`Redacted URL: ${truncated}`);
+                  core.debug(`Redacted URL (full): ${match}`);
                   const urlParts = match.split(/([?&#])/);
                   let result = "(redacted)"; 
                   for (let i = 1; i < urlParts.length; i++) {
@@ -1750,10 +1740,18 @@ jobs:
                     return match;
                   }
                   if (match.includes("://")) {
+                    const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
+                    const domain = domainMatch ? domainMatch[1] : match;
+                    const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
                     return "(redacted)";
                   }
                   const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
                   if (dangerousProtocols.includes(protocol.toLowerCase())) {
+                    const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
                     return "(redacted)";
                   }
                   return match;
@@ -2095,7 +2093,16 @@ jobs:
                 }
               }
               const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
-              const safeOutputsConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+              const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+              let safeOutputsConfig;
+              try {
+                if (fs.existsSync(configPath)) {
+                  const configFileContent = fs.readFileSync(configPath, "utf8");
+                  safeOutputsConfig = JSON.parse(configFileContent);
+                }
+              } catch (error) {
+                core.warning(`Failed to read config file from ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
+              }
               if (!outputFile) {
                 core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
                 core.setOutput("output", "");
@@ -2114,8 +2121,7 @@ jobs:
               let expectedOutputTypes = {};
               if (safeOutputsConfig) {
                 try {
-                  const rawConfig = JSON.parse(safeOutputsConfig);
-                  expectedOutputTypes = Object.fromEntries(Object.entries(rawConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
+                  expectedOutputTypes = Object.fromEntries(Object.entries(safeOutputsConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
                   core.info(`Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                 } catch (error) {
                   const errorMsg = error instanceof Error ? error.message : String(error);
@@ -3038,8 +3044,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Output Issue
         id: create_issue
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -3142,6 +3148,7 @@ jobs:
                   summaryContent += "---\n\n";
                 }
                 await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
                 core.info("📝 Issue creation preview written to step summary");
                 return;
               }
@@ -3556,7 +3563,7 @@ jobs:
       - name: Run Codex
         run: |
           set -o pipefail
-          INSTRUCTION=$(cat $GH_AW_PROMPT)
+          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
           mkdir -p $CODEX_HOME/logs
           codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
@@ -3633,8 +3640,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd

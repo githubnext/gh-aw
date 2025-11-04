@@ -731,4 +731,43 @@ describe("create_issue.cjs", () => {
     expect(callArgs.body).not.toMatch(/for #\d+/);
     expect(callArgs.body).not.toMatch(/for discussion #\d+/);
   });
+
+  it("should log summary content to core.info in staged mode", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "create_issue",
+          title: "Staged Issue Title",
+          body: "Staged issue body content",
+          labels: ["bug", "enhancement"],
+        },
+      ],
+    });
+    process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    // Should not create any issues in staged mode
+    expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+
+    // Should write to step summary
+    expect(mockCore.summary.addRaw).toHaveBeenCalled();
+    expect(mockCore.summary.write).toHaveBeenCalled();
+
+    // Should log the summary content to core.info
+    const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("🎭 Staged Mode: Create Issues Preview"));
+    expect(infoCall).toBeDefined();
+    expect(infoCall[0]).toContain("### Issue 1");
+    expect(infoCall[0]).toContain("**Title:** Staged Issue Title");
+    expect(infoCall[0]).toContain("**Body:**");
+    expect(infoCall[0]).toContain("Staged issue body content");
+    expect(infoCall[0]).toContain("**Labels:** bug, enhancement");
+
+    // Should also log the completion message
+    expect(mockCore.info).toHaveBeenCalledWith("📝 Issue creation preview written to step summary");
+
+    // Clean up
+    delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
+  });
 });

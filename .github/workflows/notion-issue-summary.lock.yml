@@ -137,7 +137,6 @@ jobs:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"notion-add-comment\":{\"description\":\"Add a comment to a Notion page\",\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"}},\"output\":\"Comment added to Notion successfully!\"}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -215,7 +214,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.353
+        run: npm install -g @github/copilot@0.0.354
       - name: Downloading container images
         run: |
           set -e
@@ -249,39 +248,26 @@ jobs:
               normalized = normalized.toLowerCase();
               return normalized;
             }
-            const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+            const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
             let safeOutputsConfigRaw;
-            if (!configEnv) {
-              const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
-              debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
-              try {
-                if (fs.existsSync(defaultConfigPath)) {
-                  debug(`Reading config from file: ${defaultConfigPath}`);
-                  const configFileContent = fs.readFileSync(defaultConfigPath, "utf8");
-                  debug(`Config file content length: ${configFileContent.length} characters`);
-                  debug(`Config file read successfully, attempting to parse JSON`);
-                  safeOutputsConfigRaw = JSON.parse(configFileContent);
-                  debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
-                } else {
-                  debug(`Config file does not exist at: ${defaultConfigPath}`);
-                  debug(`Using minimal default configuration`);
-                  safeOutputsConfigRaw = {};
-                }
-              } catch (error) {
-                debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
-                debug(`Falling back to empty configuration`);
+            debug(`Reading config from file: ${configPath}`);
+            try {
+              if (fs.existsSync(configPath)) {
+                debug(`Config file exists at: ${configPath}`);
+                const configFileContent = fs.readFileSync(configPath, "utf8");
+                debug(`Config file content length: ${configFileContent.length} characters`);
+                debug(`Config file read successfully, attempting to parse JSON`);
+                safeOutputsConfigRaw = JSON.parse(configFileContent);
+                debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
+              } else {
+                debug(`Config file does not exist at: ${configPath}`);
+                debug(`Using minimal default configuration`);
                 safeOutputsConfigRaw = {};
               }
-            } else {
-              debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
-              debug(`Config environment variable length: ${configEnv.length} characters`);
-              try {
-                safeOutputsConfigRaw = JSON.parse(configEnv); 
-                debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
-              } catch (error) {
-                debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
-                throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
-              }
+            } catch (error) {
+              debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
+              debug(`Falling back to empty configuration`);
+              safeOutputsConfigRaw = {};
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
@@ -1013,7 +999,6 @@ jobs:
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}
           GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
           GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
@@ -1071,7 +1056,6 @@ jobs:
                 "tools": ["*"],
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\${GH_AW_SAFE_OUTPUTS_CONFIG}",
                   "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
                   "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
                   "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
@@ -1095,8 +1079,9 @@ jobs:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_EXPR_FD3E9604: ${{ github.event.inputs.issue-number }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
-          cat > $GH_AW_PROMPT << 'PROMPT_EOF'
+          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
+          mkdir -p "$PROMPT_DIR"
+          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           
           # Issue Summary to Notion
@@ -1114,7 +1099,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1146,7 +1131,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1159,7 +1144,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1172,7 +1157,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1241,14 +1226,16 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          echo "<details>" >> $GITHUB_STEP_SUMMARY
-          echo "<summary>Generated Prompt</summary>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "<details>"
+            echo "<summary>Generated Prompt</summary>"
+            echo ""
+            echo '```markdown'
+            cat "$GH_AW_PROMPT"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -1267,7 +1254,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.353",
+              agent_version: "0.0.354",
               workflow_name: "Issue Summary to Notion",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1312,7 +1299,7 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
@@ -1323,7 +1310,6 @@ jobs:
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"notion-add-comment\":{\"description\":\"Add a comment to a Notion page\",\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"}},\"output\":\"Comment added to Notion successfully!\"}}"
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -1459,7 +1445,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"notion-add-comment\":{\"description\":\"Add a comment to a Notion page\",\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"}},\"output\":\"Comment added to Notion successfully!\"}}"
           GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
         with:
           script: |
@@ -1512,6 +1497,10 @@ jobs:
                   if (isAllowed) {
                     return match; 
                   }
+                  const domain = hostname;
+                  const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                  core.info(`Redacted URL: ${truncated}`);
+                  core.debug(`Redacted URL (full): ${match}`);
                   const urlParts = match.split(/([?&#])/);
                   let result = "(redacted)"; 
                   for (let i = 1; i < urlParts.length; i++) {
@@ -1534,10 +1523,18 @@ jobs:
                     return match;
                   }
                   if (match.includes("://")) {
+                    const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
+                    const domain = domainMatch ? domainMatch[1] : match;
+                    const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
                     return "(redacted)";
                   }
                   const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
                   if (dangerousProtocols.includes(protocol.toLowerCase())) {
+                    const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
                     return "(redacted)";
                   }
                   return match;
@@ -1879,7 +1876,16 @@ jobs:
                 }
               }
               const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
-              const safeOutputsConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+              const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+              let safeOutputsConfig;
+              try {
+                if (fs.existsSync(configPath)) {
+                  const configFileContent = fs.readFileSync(configPath, "utf8");
+                  safeOutputsConfig = JSON.parse(configFileContent);
+                }
+              } catch (error) {
+                core.warning(`Failed to read config file from ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
+              }
               if (!outputFile) {
                 core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
                 core.setOutput("output", "");
@@ -1898,8 +1904,7 @@ jobs:
               let expectedOutputTypes = {};
               if (safeOutputsConfig) {
                 try {
-                  const rawConfig = JSON.parse(safeOutputsConfig);
-                  expectedOutputTypes = Object.fromEntries(Object.entries(rawConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
+                  expectedOutputTypes = Object.fromEntries(Object.entries(safeOutputsConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
                   core.info(`Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                 } catch (error) {
                   const errorMsg = error instanceof Error ? error.message : String(error);
@@ -3426,8 +3431,8 @@ jobs:
           path: /tmp/gh-aw/safe-jobs/
       - name: Setup Safe Job Environment Variables
         run: |
-          find /tmp/gh-aw/safe-jobs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safe-jobs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent_output.json" >> "$GITHUB_ENV"
       - name: Add comment to Notion page
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:

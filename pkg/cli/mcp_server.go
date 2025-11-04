@@ -191,15 +191,30 @@ Note: Output can be filtered using the jq parameter.`,
 
 	// Add compile tool
 	type compileArgs struct {
-		Workflows []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile (empty for all)"`
+		Workflows  []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile (empty for all)"`
+		Zizmor     bool     `json:"zizmor,omitempty" jsonschema:"Run zizmor security scanner on generated .lock.yml files"`
+		Poutine    bool     `json:"poutine,omitempty" jsonschema:"Run poutine security scanner on generated .lock.yml files"`
+		Actionlint bool     `json:"actionlint,omitempty" jsonschema:"Run actionlint linter on generated .lock.yml files"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "compile",
-		Description: "Compile markdown workflow files to YAML workflows",
+		Description: "Compile markdown workflow files to YAML workflows with optional static analysis tools (zizmor, poutine, actionlint)",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
 		// Always validate workflows during compilation
 		cmdArgs := []string{"compile", "--validate"}
+
+		// Add static analysis flags if requested
+		if args.Zizmor {
+			cmdArgs = append(cmdArgs, "--zizmor")
+		}
+		if args.Poutine {
+			cmdArgs = append(cmdArgs, "--poutine")
+		}
+		if args.Actionlint {
+			cmdArgs = append(cmdArgs, "--actionlint")
+		}
+
 		cmdArgs = append(cmdArgs, args.Workflows...)
 
 		// Execute the CLI command

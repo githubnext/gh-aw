@@ -22,9 +22,7 @@ tools:
   bash:
     - "*"
   github:
-    allowed:
-      - get_file_contents
-      - search_code
+    toolsets: [default]
 
 safe-outputs:
   create-pull-request:

@@ -18,15 +18,16 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: ./gh-aw logs --start-date -1d -o /tmp/gh-aw/aw-mcp/logs
 safe-outputs:
+  upload-assets:
   create-discussion:
     category: "audits"
     max: 1
 timeout_minutes: 30
-strict: true
 imports:
   - shared/mcp/gh-aw.md
   - shared/jqschema.md
   - shared/reporting.md
+  - shared/trends.md
 ---
 
 # Agentic Workflow Audit Agent
@@ -40,6 +41,106 @@ Daily audit all agentic workflow runs from the last 24 hours to identify issues,
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
+
+## 📊 Trend Charts Requirement
+
+**IMPORTANT**: Generate exactly 2 trend charts that showcase workflow health metrics over time.
+
+### Chart Generation Process
+
+**Phase 1: Data Collection**
+
+Collect data for the past 30 days (or available data) using workflow audit logs:
+
+1. **Workflow Success/Failure Data**:
+   - Count of successful workflow runs per day
+   - Count of failed workflow runs per day
+   - Success rate percentage per day
+
+2. **Token Usage and Cost Data**:
+   - Total tokens used per day across all workflows
+   - Estimated cost per day
+   - Average tokens per workflow run
+
+**Phase 2: Data Preparation**
+
+1. Create CSV files in `/tmp/gh-aw/python/data/` with the collected data:
+   - `workflow_health.csv` - Daily success/failure counts and rates
+   - `token_usage.csv` - Daily token consumption and costs
+
+2. Each CSV should have a date column and metric columns with appropriate headers
+
+**Phase 3: Chart Generation**
+
+Generate exactly **2 high-quality trend charts**:
+
+**Chart 1: Workflow Success/Failure Trends**
+- Multi-line chart showing:
+  - Successful runs (line, green)
+  - Failed runs (line, red)
+  - Success rate percentage (line with secondary y-axis)
+- X-axis: Date (last 30 days)
+- Y-axis: Count (left), Percentage (right)
+- Save as: `/tmp/gh-aw/python/charts/workflow_health_trends.png`
+
+**Chart 2: Token Usage & Cost Trends**
+- Dual visualization showing:
+  - Daily token usage (bar chart or area chart)
+  - Estimated daily cost (line overlay)
+  - 7-day moving average for smoothing
+- X-axis: Date (last 30 days)
+- Y-axis: Token count (left), Cost in USD (right)
+- Save as: `/tmp/gh-aw/python/charts/token_cost_trends.png`
+
+**Chart Quality Requirements**:
+- DPI: 300 minimum
+- Figure size: 12x7 inches for better readability
+- Use seaborn styling with a professional color palette
+- Include grid lines for easier reading
+- Clear, large labels and legend
+- Title with context (e.g., "Workflow Health - Last 30 Days")
+- Annotations for significant peaks or anomalies
+
+**Phase 4: Upload Charts**
+
+1. Upload both charts using the `upload asset` tool
+2. Collect the returned URLs for embedding in the discussion
+
+**Phase 5: Embed Charts in Discussion**
+
+Include the charts in your audit report with this structure:
+
+```markdown
+## 📈 Workflow Health Trends
+
+### Success/Failure Patterns
+![Workflow Health Trends](URL_FROM_UPLOAD_ASSET_CHART_1)
+
+[Brief 2-3 sentence analysis of the trends shown in this chart, highlighting notable patterns, improvements, or concerns]
+
+### Token Usage & Costs
+![Token and Cost Trends](URL_FROM_UPLOAD_ASSET_CHART_2)
+
+[Brief 2-3 sentence analysis of resource consumption trends, noting efficiency improvements or cost spikes]
+```
+
+### Python Implementation Notes
+
+- Use pandas for data manipulation and date handling
+- Use matplotlib.pyplot and seaborn for visualization
+- Set appropriate date formatters for x-axis labels
+- Use `plt.xticks(rotation=45)` for readable date labels
+- Apply `plt.tight_layout()` before saving
+- Handle cases where data might be sparse or missing
+
+### Error Handling
+
+If insufficient data is available (less than 7 days):
+- Generate the charts with available data
+- Add a note in the analysis mentioning the limited data range
+- Consider using a bar chart instead of line chart for very sparse data
+
+---
 
 ## Audit Process
 

@@ -54,6 +54,45 @@ When invoked with the `/q` command in an issue or pull request comment, analyze 
 - **Triggering Content**: "${{ needs.activation.outputs.text }}"
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
 - **Triggered by**: @${{ github.actor }}
+
+{{#if ${{ github.event.issue.number }} }}
+### Parent Issue Context
+
+This workflow was triggered from a comment on issue #${{ github.event.issue.number }}.
+
+**Important**: Before proceeding with your analysis, retrieve the full issue details to understand the context of the work to be done:
+
+1. Use the `issue_read` tool with method `get` to fetch issue #${{ github.event.issue.number }}
+2. Review the issue title, body, and labels to understand what workflows or problems are being discussed
+3. Consider any linked issues or previous comments for additional context
+4. Use this issue context to inform your investigation and recommendations
+{{/if}}
+
+{{#if ${{ github.event.pull_request.number }} }}
+### Parent Pull Request Context
+
+This workflow was triggered from a comment on pull request #${{ github.event.pull_request.number }}.
+
+**Important**: Before proceeding with your analysis, retrieve the full PR details to understand the context of the work to be done:
+
+1. Use the `pull_request_read` tool with method `get` to fetch PR #${{ github.event.pull_request.number }}
+2. Review the PR title, description, and changed files to understand what changes are being proposed
+3. Consider the PR's relationship to workflow optimizations or issues
+4. Use this PR context to inform your investigation and recommendations
+{{/if}}
+
+{{#if ${{ github.event.discussion.number }} }}
+### Parent Discussion Context
+
+This workflow was triggered from a comment on discussion #${{ github.event.discussion.number }}.
+
+**Important**: Before proceeding with your analysis, retrieve the full discussion details to understand the context of the work to be done:
+
+1. Use GitHub tools to fetch discussion #${{ github.event.discussion.number }}
+2. Review the discussion title and body to understand the topic being discussed
+3. Consider the discussion context when planning your workflow optimizations
+4. Use this discussion context to inform your investigation and recommendations
+{{/if}}
 </current_context>
 
 ## Investigation Protocol

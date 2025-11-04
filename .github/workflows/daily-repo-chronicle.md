@@ -19,15 +19,6 @@ tools:
     toolsets:
       - default
       - discussions
-    allowed:
-      - list_pull_requests
-      - list_issues
-      - list_commits
-      - get_pull_request
-      - issue_read
-      - search_issues
-      - search_pull_requests
-      - list_discussions
 safe-outputs:
   upload-assets:
   create-discussion:

@@ -179,7 +179,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		// Add safe-outputs env vars if present
 		if hasSafeOutputs {
 			yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
-			yaml.WriteString("          GH_AW_SAFE_OUTPUTS_CONFIG: ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}\n")
+			// Config is now read from file, not passed as env var
 			yaml.WriteString("          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}\n")
 			yaml.WriteString("          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}\n")
 			yaml.WriteString("          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}\n")

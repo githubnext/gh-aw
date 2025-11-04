@@ -34,12 +34,7 @@ network:
 tools:
   cache-memory: true
   github:
-    allowed:
-      - get_repository
-      - get_file_contents
-      - list_commits
-      - get_pull_request
-      - search_pull_requests
+    toolsets: [default]
   edit:
   playwright:
     args: ["--viewport-size", "1920x1080"]

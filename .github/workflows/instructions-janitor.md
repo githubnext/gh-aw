@@ -27,12 +27,7 @@ safe-outputs:
 tools:
   cache-memory: true
   github:
-    allowed:
-      - list_commits
-      - get_commit
-      - get_file_contents
-      - search_code
-      - get_latest_release
+    toolsets: [default]
   edit:
   bash:
     - "cat .github/instructions/github-agentic-workflows.instructions.md"

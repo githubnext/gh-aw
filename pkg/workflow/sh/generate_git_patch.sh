@@ -19,7 +19,7 @@ if [ -f "$GH_AW_SAFE_OUTPUTS" ]; then
       if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create_pull_request"'; then
         echo "Found create_pull_request line: $line"
         # Extract branch value using sed
-        BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+        BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
         if [ -n "$BRANCH_NAME" ]; then
           echo "Extracted branch name from create_pull_request: $BRANCH_NAME"
           break
@@ -29,7 +29,7 @@ if [ -f "$GH_AW_SAFE_OUTPUTS" ]; then
       elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push_to_pull_request_branch"'; then
         echo "Found push_to_pull_request_branch line: $line"
         # Extract branch value using sed
-        BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+        BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
         if [ -n "$BRANCH_NAME" ]; then
           echo "Extracted branch name from push_to_pull_request_branch: $BRANCH_NAME"
           break
@@ -48,11 +48,11 @@ fi
 if [ -n "$BRANCH_NAME" ]; then
   echo "Looking for branch: $BRANCH_NAME"
   # Check if the branch exists
-  if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
+  if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
     echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
     
     # Check if origin/$BRANCH_NAME exists to use as base
-    if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
+    if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
       echo "Using origin/$BRANCH_NAME as base for patch generation"
       BASE_REF="origin/$BRANCH_NAME"
     else
@@ -60,9 +60,9 @@ if [ -n "$BRANCH_NAME" ]; then
       # Use the default branch name from environment variable
       echo "Default branch: $DEFAULT_BRANCH"
       # Fetch the default branch to ensure it's available locally
-      git fetch origin $DEFAULT_BRANCH
+      git fetch origin "$DEFAULT_BRANCH"
       # Find merge base between default branch and current branch
-      BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)
+      BASE_REF="$(git merge-base "origin/$DEFAULT_BRANCH" "$BRANCH_NAME")"
       echo "Using merge-base as base: $BASE_REF"
     fi
     
@@ -75,7 +75,7 @@ if [ -n "$BRANCH_NAME" ]; then
     # Diagnostic logging: Count commits to be included
     echo ""
     echo "=== Diagnostic: Commits to be included in patch ==="
-    COMMIT_COUNT=$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")
+    COMMIT_COUNT="$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")"
     echo "Number of commits: $COMMIT_COUNT"
     if [ "$COMMIT_COUNT" -gt 0 ]; then
       echo "Commit SHAs:"
@@ -102,15 +102,15 @@ if [ -f /tmp/gh-aw/aw.patch ]; then
   ls -lh /tmp/gh-aw/aw.patch
   
   # Get patch file size in KB
-  PATCH_SIZE=$(du -k /tmp/gh-aw/aw.patch | cut -f1)
+  PATCH_SIZE="$(du -k /tmp/gh-aw/aw.patch | cut -f1)"
   echo "Patch file size: ${PATCH_SIZE} KB"
   
   # Count lines in patch
-  PATCH_LINES=$(wc -l < /tmp/gh-aw/aw.patch)
+  PATCH_LINES="$(wc -l < /tmp/gh-aw/aw.patch)"
   echo "Patch file lines: $PATCH_LINES"
   
   # Extract and count commits from patch file (each commit starts with "From <sha>")
-  PATCH_COMMITS=$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")
+  PATCH_COMMITS="$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")"
   echo "Commits included in patch: $PATCH_COMMITS"
   
   # List commit SHAs in the patch
@@ -120,11 +120,13 @@ if [ -f /tmp/gh-aw/aw.patch ]; then
   fi
   
   # Show the first 50 lines of the patch for review
-  echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
-  echo '' >> $GITHUB_STEP_SUMMARY
-  echo '```diff' >> $GITHUB_STEP_SUMMARY
-  head -500 /tmp/gh-aw/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
-  echo '...' >> $GITHUB_STEP_SUMMARY
-  echo '```' >> $GITHUB_STEP_SUMMARY
-  echo '' >> $GITHUB_STEP_SUMMARY
+  {
+    echo '## Git Patch'
+    echo ''
+    echo '```diff'
+    head -500 /tmp/gh-aw/aw.patch || echo "Could not display patch contents"
+    echo '...'
+    echo '```'
+    echo ''
+  } >> "$GITHUB_STEP_SUMMARY"
 fi

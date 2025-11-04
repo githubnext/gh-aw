@@ -156,7 +156,6 @@ jobs:
       GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
       GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -278,8 +277,18 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
+      - name: Install awf binary
+        run: |
+          echo "Installing awf from release: v0.1.1"
+          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.1.1/awf-linux-x64 -o awf
+          chmod +x awf
+          sudo mv awf /usr/local/bin/
+          which awf
+          awf --version
+      - name: Cleanup any existing awf resources
+        run: ./scripts/ci/cleanup.sh || true
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.353
+        run: npm install -g @github/copilot@0.0.354
       - name: Downloading container images
         run: |
           set -e
@@ -313,39 +322,26 @@ jobs:
               normalized = normalized.toLowerCase();
               return normalized;
             }
-            const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+            const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
             let safeOutputsConfigRaw;
-            if (!configEnv) {
-              const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
-              debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
-              try {
-                if (fs.existsSync(defaultConfigPath)) {
-                  debug(`Reading config from file: ${defaultConfigPath}`);
-                  const configFileContent = fs.readFileSync(defaultConfigPath, "utf8");
-                  debug(`Config file content length: ${configFileContent.length} characters`);
-                  debug(`Config file read successfully, attempting to parse JSON`);
-                  safeOutputsConfigRaw = JSON.parse(configFileContent);
-                  debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
-                } else {
-                  debug(`Config file does not exist at: ${defaultConfigPath}`);
-                  debug(`Using minimal default configuration`);
-                  safeOutputsConfigRaw = {};
-                }
-              } catch (error) {
-                debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
-                debug(`Falling back to empty configuration`);
+            debug(`Reading config from file: ${configPath}`);
+            try {
+              if (fs.existsSync(configPath)) {
+                debug(`Config file exists at: ${configPath}`);
+                const configFileContent = fs.readFileSync(configPath, "utf8");
+                debug(`Config file content length: ${configFileContent.length} characters`);
+                debug(`Config file read successfully, attempting to parse JSON`);
+                safeOutputsConfigRaw = JSON.parse(configFileContent);
+                debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
+              } else {
+                debug(`Config file does not exist at: ${configPath}`);
+                debug(`Using minimal default configuration`);
                 safeOutputsConfigRaw = {};
               }
-            } else {
-              debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
-              debug(`Config environment variable length: ${configEnv.length} characters`);
-              try {
-                safeOutputsConfigRaw = JSON.parse(configEnv); 
-                debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
-              } catch (error) {
-                debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
-                throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
-              }
+            } catch (error) {
+              debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
+              debug(`Falling back to empty configuration`);
+              safeOutputsConfigRaw = {};
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
@@ -1077,7 +1073,6 @@ jobs:
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}
           GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
           GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
@@ -1102,16 +1097,7 @@ jobs:
                   "GITHUB_TOOLSETS=default,discussions",
                   "ghcr.io/github/github-mcp-server:v0.20.1"
                 ],
-                "tools": [
-                  "list_pull_requests",
-                  "list_issues",
-                  "list_commits",
-                  "get_pull_request",
-                  "issue_read",
-                  "search_issues",
-                  "search_pull_requests",
-                  "list_discussions"
-                ],
+                "tools": ["*"],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
@@ -1123,7 +1109,6 @@ jobs:
                 "tools": ["*"],
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\${GH_AW_SAFE_OUTPUTS_CONFIG}",
                   "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
                   "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
                   "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
@@ -1169,8 +1154,9 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
-          cat > $GH_AW_PROMPT << 'PROMPT_EOF'
+          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
+          mkdir -p "$PROMPT_DIR"
+          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           
           ## jqschema - JSON Schema Discovery
@@ -1692,7 +1678,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           missing = set(required_cols) - set(data.columns)
           if missing:
               raise ValueError(f"Missing columns: {missing}")
@@ -1908,7 +1894,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1940,7 +1926,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1953,7 +1939,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           
           ---
@@ -1972,7 +1958,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1997,7 +1983,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -2022,7 +2008,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -2091,14 +2077,16 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          echo "<details>" >> $GITHUB_STEP_SUMMARY
-          echo "<summary>Generated Prompt</summary>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "<details>"
+            echo "<summary>Generated Prompt</summary>"
+            echo ""
+            echo '```markdown'
+            cat "$GH_AW_PROMPT"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -2117,7 +2105,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.353",
+              agent_version: "0.0.354",
               workflow_name: "Daily News",
               experimental: false,
               supports_tools_allowlist: true,
@@ -2132,7 +2120,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               steps: {
-                firewall: ""
+                firewall: "squid"
               },
               created_at: new Date().toISOString()
             };
@@ -2155,13 +2143,20 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          mkdir -p /tmp/
-          mkdir -p /tmp/gh-aw/
-          mkdir -p /tmp/gh-aw/agent/
-          mkdir -p /tmp/gh-aw/cache-memory/
-          mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          sudo -E awf --env-all \
+            --allow-domains '*.pythonhosted.org,anaconda.org,api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.npmjs.org,repo.anaconda.com,repo.continuum.io,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' \
+            --log-level info \
+            "npx -y @github/copilot@0.0.354 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
+            2>&1 | tee /tmp/gh-aw/agent-stdio.log
+
+          # Move preserved Copilot logs to expected location
+          COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+          if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
+            echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/.copilot/logs/"
+            sudo mkdir -p /tmp/gh-aw/.copilot/logs/
+            sudo mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/.copilot/logs/ || true
+            sudo rmdir "$COPILOT_LOGS_DIR" || true
+          fi
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
@@ -2170,7 +2165,6 @@ jobs:
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -2307,7 +2301,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
           GH_AW_ALLOWED_DOMAINS: "*.pythonhosted.org,anaconda.org,api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.npmjs.org,repo.anaconda.com,repo.continuum.io,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
         with:
           script: |
@@ -2360,6 +2353,10 @@ jobs:
                   if (isAllowed) {
                     return match; 
                   }
+                  const domain = hostname;
+                  const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                  core.info(`Redacted URL: ${truncated}`);
+                  core.debug(`Redacted URL (full): ${match}`);
                   const urlParts = match.split(/([?&#])/);
                   let result = "(redacted)"; 
                   for (let i = 1; i < urlParts.length; i++) {
@@ -2382,10 +2379,18 @@ jobs:
                     return match;
                   }
                   if (match.includes("://")) {
+                    const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
+                    const domain = domainMatch ? domainMatch[1] : match;
+                    const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
                     return "(redacted)";
                   }
                   const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
                   if (dangerousProtocols.includes(protocol.toLowerCase())) {
+                    const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
                     return "(redacted)";
                   }
                   return match;
@@ -2727,7 +2732,16 @@ jobs:
                 }
               }
               const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
-              const safeOutputsConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+              const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+              let safeOutputsConfig;
+              try {
+                if (fs.existsSync(configPath)) {
+                  const configFileContent = fs.readFileSync(configPath, "utf8");
+                  safeOutputsConfig = JSON.parse(configFileContent);
+                }
+              } catch (error) {
+                core.warning(`Failed to read config file from ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
+              }
               if (!outputFile) {
                 core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
                 core.setOutput("output", "");
@@ -2746,8 +2760,7 @@ jobs:
               let expectedOutputTypes = {};
               if (safeOutputsConfig) {
                 try {
-                  const rawConfig = JSON.parse(safeOutputsConfig);
-                  expectedOutputTypes = Object.fromEntries(Object.entries(rawConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
+                  expectedOutputTypes = Object.fromEntries(Object.entries(safeOutputsConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
                   core.info(`Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                 } catch (error) {
                   const errorMsg = error instanceof Error ? error.message : String(error);
@@ -4015,6 +4028,375 @@ jobs:
               };
             }
             main();
+      - name: Agent Firewall logs
+        if: always()
+        run: |
+          # Squid logs are preserved in timestamped directories
+          SQUID_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+          if [ -n "$SQUID_LOGS_DIR" ] && [ -d "$SQUID_LOGS_DIR" ]; then
+            echo "Found Squid logs at: $SQUID_LOGS_DIR"
+            mkdir -p /tmp/gh-aw/squid-logs-daily-news/
+            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-daily-news/ || true
+            sudo chmod -R a+r /tmp/gh-aw/squid-logs-daily-news/ || true
+          fi
+      - name: Upload Firewall Logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: squid-logs-daily-news
+          path: /tmp/gh-aw/squid-logs-daily-news/
+          if-no-files-found: ignore
+      - name: Parse firewall logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        with:
+          script: |
+            function main() {
+
+              const fs = require("fs");
+
+              const path = require("path");
+
+              try {
+
+                const workflowName = process.env.GITHUB_WORKFLOW || "workflow";
+
+                const sanitizedName = sanitizeWorkflowName(workflowName);
+
+                const squidLogsDir = `/tmp/gh-aw/squid-logs-${sanitizedName}/`;
+
+                if (!fs.existsSync(squidLogsDir)) {
+
+                  core.info(`No firewall logs directory found at: ${squidLogsDir}`);
+
+                  return;
+
+                }
+
+                const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
+
+                if (files.length === 0) {
+
+                  core.info(`No firewall log files found in: ${squidLogsDir}`);
+
+                  return;
+
+                }
+
+                core.info(`Found ${files.length} firewall log file(s)`);
+
+                let totalRequests = 0;
+
+                let allowedRequests = 0;
+
+                let deniedRequests = 0;
+
+                const allowedDomains = new Set();
+
+                const deniedDomains = new Set();
+
+                const requestsByDomain = new Map();
+
+                for (const file of files) {
+
+                  const filePath = path.join(squidLogsDir, file);
+
+                  core.info(`Parsing firewall log: ${file}`);
+
+                  const content = fs.readFileSync(filePath, "utf8");
+
+                  const lines = content.split("\n").filter(line => line.trim());
+
+                  for (const line of lines) {
+
+                    const entry = parseFirewallLogLine(line);
+
+                    if (!entry) {
+
+                      continue;
+
+                    }
+
+                    totalRequests++;
+
+                    const isAllowed = isRequestAllowed(entry.decision, entry.status);
+
+                    if (isAllowed) {
+
+                      allowedRequests++;
+
+                      allowedDomains.add(entry.domain);
+
+                    } else {
+
+                      deniedRequests++;
+
+                      deniedDomains.add(entry.domain);
+
+                    }
+
+                    if (!requestsByDomain.has(entry.domain)) {
+
+                      requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
+
+                    }
+
+                    const domainStats = requestsByDomain.get(entry.domain);
+
+                    if (isAllowed) {
+
+                      domainStats.allowed++;
+
+                    } else {
+
+                      domainStats.denied++;
+
+                    }
+
+                  }
+
+                }
+
+                const summary = generateFirewallSummary({
+
+                  totalRequests,
+
+                  allowedRequests,
+
+                  deniedRequests,
+
+                  allowedDomains: Array.from(allowedDomains).sort(),
+
+                  deniedDomains: Array.from(deniedDomains).sort(),
+
+                  requestsByDomain,
+
+                });
+
+                core.summary.addRaw(summary).write();
+
+                core.info("Firewall log summary generated successfully");
+
+              } catch (error) {
+
+                core.setFailed(error instanceof Error ? error : String(error));
+
+              }
+
+            }
+
+            function parseFirewallLogLine(line) {
+
+              const trimmed = line.trim();
+
+              if (!trimmed || trimmed.startsWith("#")) {
+
+                return null;
+
+              }
+
+              const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
+
+              if (!fields || fields.length < 10) {
+
+                return null;
+
+              }
+
+              const timestamp = fields[0];
+
+              if (!/^\d+(\.\d+)?$/.test(timestamp)) {
+
+                return null;
+
+              }
+
+              const clientIpPort = fields[1];
+
+              if (clientIpPort !== "-" && !/^[\d.]+:\d+$/.test(clientIpPort)) {
+
+                return null;
+
+              }
+
+              const domain = fields[2];
+
+              if (domain !== "-" && !/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*:\d+$/.test(domain)) {
+
+                return null;
+
+              }
+
+              const destIpPort = fields[3];
+
+              if (destIpPort !== "-" && !/^[\d.]+:\d+$/.test(destIpPort)) {
+
+                return null;
+
+              }
+
+              const status = fields[6];
+
+              if (status !== "-" && !/^\d+$/.test(status)) {
+
+                return null;
+
+              }
+
+              const decision = fields[7];
+
+              if (decision !== "-" && !decision.includes(":")) {
+
+                return null;
+
+              }
+
+              return {
+
+                timestamp: timestamp,
+
+                clientIpPort: clientIpPort,
+
+                domain: domain,
+
+                destIpPort: destIpPort,
+
+                proto: fields[4],
+
+                method: fields[5],
+
+                status: status,
+
+                decision: decision,
+
+                url: fields[8],
+
+                userAgent: fields[9] ? fields[9].replace(/^"|"$/g, "") : "-",
+
+              };
+
+            }
+
+            function isRequestAllowed(decision, status) {
+
+              const statusCode = parseInt(status, 10);
+
+              if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
+
+                return true;
+
+              }
+
+              if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
+
+                return true;
+
+              }
+
+              if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
+
+                return false;
+
+              }
+
+              return false;
+
+            }
+
+            function generateFirewallSummary(analysis) {
+
+              const { totalRequests, deniedRequests, deniedDomains, requestsByDomain } = analysis;
+
+              let summary = "### 🔥 Firewall Blocked Requests\n\n";
+
+              const validDeniedDomains = deniedDomains.filter(domain => domain !== "-");
+
+              const validDeniedRequests = validDeniedDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
+
+              if (validDeniedRequests > 0) {
+
+                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
+
+                summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
+
+                summary += "<details>\n";
+
+                summary += "<summary>🚫 Blocked Domains (click to expand)</summary>\n\n";
+
+                summary += "| Domain | Blocked Requests |\n";
+
+                summary += "|--------|------------------|\n";
+
+                for (const domain of validDeniedDomains) {
+
+                  const stats = requestsByDomain.get(domain);
+
+                  summary += `| ${domain} | ${stats.denied} |\n`;
+
+                }
+
+                summary += "\n</details>\n\n";
+
+              } else {
+
+                summary += "✅ **No blocked requests detected**\n\n";
+
+                if (totalRequests > 0) {
+
+                  summary += `All ${totalRequests} request${totalRequests !== 1 ? "s" : ""} were allowed through the firewall.\n\n`;
+
+                } else {
+
+                  summary += "No firewall activity detected.\n\n";
+
+                }
+
+              }
+
+              return summary;
+
+            }
+
+            function sanitizeWorkflowName(name) {
+
+              return name
+
+                .toLowerCase()
+
+                .replace(/[:\\/\s]/g, "-")
+
+                .replace(/[^a-z0-9._-]/g, "-");
+
+            }
+
+            if (typeof module !== "undefined" && module.exports) {
+
+              module.exports = {
+
+                parseFirewallLogLine,
+
+                isRequestAllowed,
+
+                generateFirewallSummary,
+
+                sanitizeWorkflowName,
+
+                main,
+
+              };
+
+            }
+
+            const isDirectExecution =
+
+              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
+
+            if (isDirectExecution) {
+
+              main();
+
+            }
+
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -4022,6 +4404,9 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      - name: Cleanup awf resources
+        if: always()
+        run: ./scripts/ci/cleanup.sh || true
       - name: Upload safe outputs assets
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -4289,8 +4674,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Output Discussion
         id: create_discussion
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -4672,7 +5057,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.353
+        run: npm install -g @github/copilot@0.0.354
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -4686,7 +5071,7 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
@@ -4767,8 +5152,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -4926,8 +5311,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Upload Assets to Orphaned Branch
         id: upload_assets
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
