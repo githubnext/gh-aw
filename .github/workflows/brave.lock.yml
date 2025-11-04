@@ -1163,7 +1163,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.353
+        run: npm install -g @github/copilot@0.0.354
       - name: Downloading container images
         run: |
           set -e
@@ -2325,7 +2325,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: "0.0.353",
+              agent_version: "0.0.354",
               workflow_name: "Brave Web Search Agent",
               experimental: false,
               supports_tools_allowlist: true,
@@ -4640,7 +4640,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.353
+        run: npm install -g @github/copilot@0.0.354
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
