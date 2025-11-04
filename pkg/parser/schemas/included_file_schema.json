@@ -466,6 +466,7 @@
         },
         "command": {
           "type": "string",
+          "minLength": 1,
           "description": "Command for stdio MCP connections"
         },
         "container": {
@@ -493,6 +494,7 @@
         },
         "url": {
           "type": "string",
+          "minLength": 1,
           "description": "URL for HTTP MCP connections"
         },
         "headers": {
@@ -593,6 +595,7 @@
         },
         "url": {
           "type": "string",
+          "minLength": 1,
           "description": "URL for HTTP MCP connections"
         },
         "headers": {
