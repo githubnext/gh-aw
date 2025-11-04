@@ -37,12 +37,22 @@ func NewMCPTestClient(t *testing.T, outputFile string, config map[string]any) *M
 	env = append(env, "GITHUB_SERVER_URL=https://github.com")
 	env = append(env, "GITHUB_REPOSITORY=test/repo")
 
+	// Write config to file in the same directory as the output file
 	if config != nil {
+		configFile := filepath.Join(filepath.Dir(outputFile), "config.json")
 		configJSON, err := json.Marshal(config)
 		if err != nil {
 			t.Fatalf("Failed to marshal config: %v", err)
 		}
-		env = append(env, fmt.Sprintf("GH_AW_SAFE_OUTPUTS_CONFIG=%s", string(configJSON)))
+		if err := os.WriteFile(configFile, configJSON, 0644); err != nil {
+			t.Fatalf("Failed to write config file: %v", err)
+		}
+		// Set config path environment variable to point to the test config file
+		env = append(env, fmt.Sprintf("GH_AW_SAFE_OUTPUTS_CONFIG_PATH=%s", configFile))
+		// Clean up config file after test
+		t.Cleanup(func() {
+			os.Remove(configFile)
+		})
 	}
 
 	// Create command for the MCP server

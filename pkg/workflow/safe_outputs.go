@@ -746,9 +746,6 @@ func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
 
 	env["GH_AW_SAFE_OUTPUTS"] = "${{ env.GH_AW_SAFE_OUTPUTS }}"
 
-	safeOutputConfig := generateSafeOutputsConfig(data)
-	env["GH_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
-
 	// Add staged flag if specified
 	if data.TrialMode || data.SafeOutputs.Staged {
 		env["GH_AW_SAFE_OUTPUTS_STAGED"] = "true"

@@ -194,48 +194,21 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 				SafeOutputs: config,
 			}
 
-			// Use the compiler's generateOutputCollectionStep to test the GH_AW_SAFE_OUTPUTS_CONFIG generation
+			// Use the compiler's generateOutputCollectionStep to verify config is not in env vars
 			var yamlBuilder strings.Builder
 			compiler.generateOutputCollectionStep(&yamlBuilder, workflowData)
 			generatedYAML := yamlBuilder.String()
 
-			// Look specifically for the GH_AW_SAFE_OUTPUTS_CONFIG environment variable line
+			// Config should NOT be in environment variables anymore - it's in a file
 			configLinePresent := strings.Contains(generatedYAML, "GH_AW_SAFE_OUTPUTS_CONFIG:")
 
 			if len(tt.expectedInConfig) > 0 {
-				// If we expect items in config, the config line should be present
-				if !configLinePresent {
-					t.Errorf("Expected GH_AW_SAFE_OUTPUTS_CONFIG environment variable to be present, but it was not found")
+				// Even if we expect items in config, they should be written to file, not env var
+				if configLinePresent {
+					t.Errorf("GH_AW_SAFE_OUTPUTS_CONFIG should NOT be in environment variables - config is now in file")
 					return
 				}
-
-				// Extract the config line to check its contents
-				configLine := ""
-				lines := strings.Split(generatedYAML, "\n")
-				for _, line := range lines {
-					if strings.Contains(line, "GH_AW_SAFE_OUTPUTS_CONFIG:") {
-						configLine = line
-						break
-					}
-				}
-
-				// Check expected items are present in the config line
-				for _, expected := range tt.expectedInConfig {
-					if !strings.Contains(configLine, expected) {
-						t.Errorf("Expected %q to be in GH_AW_SAFE_OUTPUTS_CONFIG, but it was not found in config line: %s", expected, configLine)
-					}
-				}
-
-				// Check unexpected items are not present in the config line
-				for _, unexpected := range tt.unexpectedInConfig {
-					if strings.Contains(configLine, unexpected) {
-						t.Errorf("Did not expect %q to be in GH_AW_SAFE_OUTPUTS_CONFIG, but it was found in config line: %s", unexpected, configLine)
-					}
-				}
 			}
-			// If we don't expect any items and no unexpected items specified,
-			// the config line may or may not be present (depending on whether SafeOutputs is nil)
-			// This is acceptable behavior
 		})
 	}
 }

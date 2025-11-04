@@ -302,7 +302,18 @@ async function main() {
     }
   }
   const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
-  const safeOutputsConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+  // Read config from file instead of environment variable
+  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+  let safeOutputsConfig;
+  try {
+    if (fs.existsSync(configPath)) {
+      const configFileContent = fs.readFileSync(configPath, "utf8");
+      safeOutputsConfig = JSON.parse(configFileContent);
+    }
+  } catch (error) {
+    core.warning(`Failed to read config file from ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
   if (!outputFile) {
     core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
     core.setOutput("output", "");
@@ -321,9 +332,9 @@ async function main() {
   let expectedOutputTypes = {};
   if (safeOutputsConfig) {
     try {
-      const rawConfig = JSON.parse(safeOutputsConfig);
+      // safeOutputsConfig is already a parsed object from the file
       // Normalize all config keys to use underscores instead of dashes
-      expectedOutputTypes = Object.fromEntries(Object.entries(rawConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
+      expectedOutputTypes = Object.fromEntries(Object.entries(safeOutputsConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
       core.info(`Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
