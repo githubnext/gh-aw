@@ -8,32 +8,41 @@ The documentation for this project is available in the `docs/` directory. It use
 
 ## Documentation Versioning
 
-The documentation is versioned per minor release (0.27, 0.28, etc.) using the `starlight-versions` plugin. 
+The documentation supports versioning per minor release (0.27, 0.28, etc.) using the `starlight-versions` plugin. Versioning is configured lazily - versions are only created when a minor release is published.
 
-**When editing documentation files:**
+**When creating a new minor release version:**
 
-1. **Before making changes** to any file in `docs/src/content/docs/`, first check the current version from the latest release tag
-2. **Copy the current documentation** for the previous minor release into a versioned directory (e.g., `docs/src/content/docs/0.27/`)
-3. **Update the version configuration** in `docs/astro.config.mjs` to add the previous version to the `versions` array
-4. **Make your changes** to the main documentation files (not the versioned copies)
-5. **Build and verify** that both the "Latest (Unreleased)" and versioned documentation render correctly
+1. **Check the current version** from the latest release tag (e.g., v0.27.x)
+2. **Uncomment and configure the starlight-versions plugin** in `docs/astro.config.mjs`:
+   ```javascript
+   import starlightVersions from 'starlight-versions';
+   
+   // In plugins array:
+   starlightVersions({
+     current: {
+       label: 'Latest (Unreleased)',
+       redirect: 'same-page'
+     },
+     versions: [
+       { slug: '0.27', label: 'v0.27', redirect: 'same-page' }
+     ]
+   })
+   ```
+3. **Build the documentation** - The plugin will automatically create the version directory on build:
+   ```bash
+   cd docs && npm run build
+   ```
+4. **Commit the generated version directory** (e.g., `docs/src/content/docs/0.27/`)
+5. **Make your changes** to the main documentation files (not the versioned copies)
+6. **Build and verify** that both the "Latest (Unreleased)" and versioned documentation render correctly
 
 **Version Structure:**
 - Main documentation in `docs/src/content/docs/` = "Latest (Unreleased)" version
 - Previous versions in `docs/src/content/docs/{version}/` (e.g., `0.27/`, `0.26/`)
 - The `starlight-versions` plugin automatically adds version slugs to frontmatter and generates version selectors
 
-**Example workflow:**
-```bash
-# When starting work on documentation for v0.28
-# 1. Current version is v0.27, so we need to archive it first
-# 2. The plugin will auto-create the 0.27 directory on build
-# 3. Update astro.config.mjs to list v0.27 in versions array
-# 4. Make your documentation changes to the main docs/ files
-# 5. Build to verify: cd docs && npm run build
-```
-
-**Note:** The versioning plugin automatically creates version directories during the build process. Manual copying is not required - just update the configuration.
+**For subsequent releases:**
+Add the new version to the `versions` array in `astro.config.mjs` and rebuild. The plugin creates version directories on-demand during the build process.
 
 ## Diátaxis Framework
 
