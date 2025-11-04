@@ -561,9 +561,12 @@ jobs:
               }
               throw new Error("Failed to determine current branch: git command failed and no GitHub environment variables available");
             }
+            function getBaseBranch() {
+              return process.env.GH_AW_BASE_BRANCH || "main";
+            }
             const createPullRequestHandler = args => {
               const entry = { ...args, type: "create_pull_request" };
-              const baseBranch = process.env.GH_AW_BASE_BRANCH || "main";
+              const baseBranch = getBaseBranch();
               if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
                 const detectedBranch = getCurrentBranch();
                 if (entry.branch === baseBranch) {
@@ -585,7 +588,7 @@ jobs:
             };
             const pushToPullRequestBranchHandler = args => {
               const entry = { ...args, type: "push_to_pull_request_branch" };
-              const baseBranch = process.env.GH_AW_BASE_BRANCH || "main";
+              const baseBranch = getBaseBranch();
               if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
                 const detectedBranch = getCurrentBranch();
                 if (entry.branch === baseBranch) {
