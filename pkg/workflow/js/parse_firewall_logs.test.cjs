@@ -17,7 +17,6 @@ describe("parse_firewall_logs.cjs", () => {
   let parseFirewallLogLine;
   let isRequestAllowed;
   let generateFirewallSummary;
-  let sanitizeWorkflowName;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -32,7 +31,6 @@ describe("parse_firewall_logs.cjs", () => {
         `global.testParseFirewallLogLine = parseFirewallLogLine;
         global.testIsRequestAllowed = isRequestAllowed;
         global.testGenerateFirewallSummary = generateFirewallSummary;
-        global.testSanitizeWorkflowName = sanitizeWorkflowName;
         // Export for testing`
       );
 
@@ -41,7 +39,6 @@ describe("parse_firewall_logs.cjs", () => {
     parseFirewallLogLine = global.testParseFirewallLogLine;
     isRequestAllowed = global.testIsRequestAllowed;
     generateFirewallSummary = global.testGenerateFirewallSummary;
-    sanitizeWorkflowName = global.testSanitizeWorkflowName;
   });
 
   describe("parseFirewallLogLine", () => {
@@ -136,12 +133,6 @@ describe("parse_firewall_logs.cjs", () => {
 
     test("should deny request with NONE_NONE decision", () => {
       expect(isRequestAllowed("NONE_NONE:HIER_NONE", "0")).toBe(false);
-    });
-  });
-
-  describe("sanitizeWorkflowName", () => {
-    test("should convert to lowercase", () => {
-      expect(sanitizeWorkflowName("MyWorkflow")).toBe("myworkflow");
     });
   });
 
