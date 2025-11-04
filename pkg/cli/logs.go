@@ -168,7 +168,7 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 		}
 
 		// Count jobs with failure conclusions as errors
-		if job.Conclusion == "failure" || job.Conclusion == "cancelled" || job.Conclusion == "timed_out" {
+		if isFailureConclusion(job.Conclusion) {
 			failedJobs++
 			logsLog.Printf("Found failed job: name=%s, conclusion=%s", job.Name, job.Conclusion)
 			if verbose {
@@ -249,6 +249,12 @@ type JobInfo struct {
 	Conclusion  string    `json:"conclusion"`
 	StartedAt   time.Time `json:"started_at,omitempty"`
 	CompletedAt time.Time `json:"completed_at,omitempty"`
+}
+
+// isFailureConclusion returns true if the conclusion represents a failure state
+// (timed_out, failure, or cancelled) that should be counted as an error
+func isFailureConclusion(conclusion string) bool {
+	return conclusion == "timed_out" || conclusion == "failure" || conclusion == "cancelled"
 }
 
 // JobInfoWithDuration extends JobInfo with calculated duration
@@ -883,10 +889,24 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 			}
 
 			if err != nil {
-				// Check if this is a "no artifacts" case - mark as skipped for cancelled/failed runs
+				// Check if this is a "no artifacts" case
 				if errors.Is(err, ErrNoArtifacts) {
-					result.Skipped = true
-					result.Error = err
+					// For runs with important conclusions (timed_out, failure, cancelled),
+					// still process them even without artifacts to show the failure in reports
+					if isFailureConclusion(run.Conclusion) {
+						// Don't skip - we want these to appear in the report
+						// Just use empty metrics
+						result.Metrics = LogMetrics{}
+
+						// Try to fetch job details to get error count
+						if failedJobCount, jobErr := fetchJobStatuses(run.DatabaseID, verbose); jobErr == nil {
+							run.ErrorCount = failedJobCount
+						}
+					} else {
+						// For other runs (success, neutral, etc.) without artifacts, skip them
+						result.Skipped = true
+						result.Error = err
+					}
 				} else {
 					result.Error = err
 				}
