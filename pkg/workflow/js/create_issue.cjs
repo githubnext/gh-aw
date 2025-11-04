@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
+const { loadAgentOutput } = require("./load_agent_output.cjs");
 
 /**
  * Generate footer with AI attribution and workflow installation instructions
@@ -48,38 +49,13 @@ async function main() {
   core.setOutput("issue_url", "");
 
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  if (!agentOutputFile) {
-    core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+
+  const result = loadAgentOutput();
+  if (!result.success) {
     return;
   }
 
-  // Read agent output from file
-  let outputContent;
-  try {
-    outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
-  } catch (error) {
-    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
-
-  if (outputContent.trim() === "") {
-    core.info("Agent output content is empty");
-    return;
-  }
-  core.info(`Agent output content length: ${outputContent.length}`);
-  let validatedOutput;
-  try {
-    validatedOutput = JSON.parse(outputContent);
-  } catch (error) {
-    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
-  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    core.info("No valid items found in agent output");
-    return;
-  }
-  const createIssueItems = validatedOutput.items.filter(item => item.type === "create_issue");
+  const createIssueItems = result.items.filter(item => item.type === "create_issue");
   if (createIssueItems.length === 0) {
     core.info("No create-issue items found in agent output");
     return;

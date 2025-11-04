@@ -1,49 +1,19 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { loadAgentOutput } = require("./load_agent_output.cjs");
+
 async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
 
-  // Read the validated output content from environment variable
-  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  if (!agentOutputFile) {
-    core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-    return;
-  }
-
-  // Read agent output from file
-  let outputContent;
-  try {
-    outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
-  } catch (error) {
-    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
-
-  if (outputContent.trim() === "") {
-    core.info("Agent output content is empty");
-    return;
-  }
-
-  core.info(`Agent output content length: ${outputContent.length}`);
-
-  // Parse the validated output JSON
-  let validatedOutput;
-  try {
-    validatedOutput = JSON.parse(outputContent);
-  } catch (error) {
-    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
-
-  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    core.info("No valid items found in agent output");
+  const result = loadAgentOutput();
+  if (!result.success) {
     return;
   }
 
   // Find all update-issue items
-  const updateItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "update_issue");
+  const updateItems = result.items.filter(/** @param {any} item */ item => item.type === "update_issue");
   if (updateItems.length === 0) {
     core.info("No update-issue items found in agent output");
     return;
