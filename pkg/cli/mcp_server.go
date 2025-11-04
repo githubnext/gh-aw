@@ -243,6 +243,7 @@ Note: Output can be filtered using the jq parameter.`,
 		StartDate    string `json:"start_date,omitempty" jsonschema:"Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
 		EndDate      string `json:"end_date,omitempty" jsonschema:"Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
 		Engine       string `json:"engine,omitempty" jsonschema:"Filter logs by agentic engine type (claude, codex, copilot)"`
+		Firewall     string `json:"firewall,omitempty" jsonschema:"Filter runs by firewall usage: 'true' (only runs with firewall) or 'false' (only runs without firewall)"`
 		Branch       string `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
 		AfterRunID   int64  `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
 		BeforeRunID  int64  `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
@@ -285,6 +286,9 @@ to filter the output to a manageable size, or adjust the 'max_tokens' parameter.
 		}
 		if args.Engine != "" {
 			cmdArgs = append(cmdArgs, "--engine", args.Engine)
+		}
+		if args.Firewall != "" {
+			cmdArgs = append(cmdArgs, "--firewall", args.Firewall)
 		}
 		if args.Branch != "" {
 			cmdArgs = append(cmdArgs, "--branch", args.Branch)
