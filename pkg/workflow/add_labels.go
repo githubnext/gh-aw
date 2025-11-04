@@ -62,7 +62,7 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 		StepID:        "add_labels",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
-		Script:        addLabelsScript,
+		Script:        getAddLabelsScript(),
 		Token:         token,
 	})
 

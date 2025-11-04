@@ -225,17 +225,22 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Validate COPILOT_CLI_TOKEN secret
+      - name: Validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret
         run: |
-          if [ -z "$COPILOT_CLI_TOKEN" ]; then
-            echo "Error: COPILOT_CLI_TOKEN secret is not set"
-            echo "The GitHub Copilot CLI engine requires the COPILOT_CLI_TOKEN secret to be configured."
-            echo "Please configure this secret in your repository settings."
+          if [ -z "$COPILOT_GITHUB_TOKEN" ] && [ -z "$COPILOT_CLI_TOKEN" ]; then
+            echo "Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
+            echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
+            echo "Please configure one of these secrets in your repository settings."
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
             exit 1
           fi
-          echo "COPILOT_CLI_TOKEN secret is configured"
+          if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
+            echo "COPILOT_GITHUB_TOKEN secret is configured"
+          else
+            echo "COPILOT_CLI_TOKEN secret is configured (using as fallback for COPILOT_GITHUB_TOKEN)"
+          fi
         env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
@@ -1571,6 +1576,7 @@ jobs:
           fi
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -1578,7 +1584,6 @@ jobs:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
           XDG_CONFIG_HOME: /home/runner
       - name: Redact secrets in logs
@@ -1692,8 +1697,9 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          GH_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+          SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
@@ -1709,22 +1715,57 @@ jobs:
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,ghcr.io,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_API_URL: ${{ github.api_url }}
         with:
           script: |
             async function main() {
               const fs = require("fs");
+            function extractDomainsFromUrl(url) {
+              if (!url || typeof url !== "string") {
+                return [];
+              }
+              try {
+                const urlObj = new URL(url);
+                const hostname = urlObj.hostname.toLowerCase();
+                const domains = [hostname];
+                if (hostname === "github.com") {
+                  domains.push("api.github.com");
+                  domains.push("raw.githubusercontent.com");
+                  domains.push("*.githubusercontent.com");
+                }
+                else if (!hostname.startsWith("api.")) {
+                  domains.push("api." + hostname);
+                  domains.push("raw." + hostname);
+                }
+                return domains;
+              } catch (e) {
+                return [];
+              }
+            }
             function sanitizeContent(content, maxLength) {
               if (!content || typeof content !== "string") {
                 return "";
               }
               const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
               const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-              const allowedDomains = allowedDomainsEnv
+              let allowedDomains = allowedDomainsEnv
                 ? allowedDomainsEnv
                     .split(",")
                     .map(d => d.trim())
                     .filter(d => d)
                 : defaultAllowedDomains;
+              const githubServerUrl = process.env.GITHUB_SERVER_URL;
+              const githubApiUrl = process.env.GITHUB_API_URL;
+              if (githubServerUrl) {
+                const serverDomains = extractDomainsFromUrl(githubServerUrl);
+                allowedDomains = allowedDomains.concat(serverDomains);
+              }
+              if (githubApiUrl) {
+                const apiDomains = extractDomainsFromUrl(githubApiUrl);
+                allowedDomains = allowedDomains.concat(apiDomains);
+              }
+              allowedDomains = [...new Set(allowedDomains)];
               let sanitized = content;
               sanitized = neutralizeCommands(sanitized);
               sanitized = neutralizeMentions(sanitized);
@@ -3458,6 +3499,18 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
+            function sanitizeWorkflowName(name) {
+
+              return name
+
+                .toLowerCase()
+
+                .replace(/[:\\/\s]/g, "-")
+
+                .replace(/[^a-z0-9._-]/g, "-");
+
+            }
+
             function main() {
 
               const fs = require("fs");
@@ -3764,18 +3817,6 @@ jobs:
 
             }
 
-            function sanitizeWorkflowName(name) {
-
-              return name
-
-                .toLowerCase()
-
-                .replace(/[:\\/\s]/g, "-")
-
-                .replace(/[^a-z0-9._-]/g, "-");
-
-            }
-
             if (typeof module !== "undefined" && module.exports) {
 
               module.exports = {
@@ -3785,8 +3826,6 @@ jobs:
                 isRequestAllowed,
 
                 generateFirewallSummary,
-
-                sanitizeWorkflowName,
 
                 main,
 
@@ -4091,8 +4130,8 @@ jobs:
                 return "";
               }
               let sanitized = content.trim();
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
               sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
               sanitized = sanitized.replace(
                 /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
                 (_m, p1, p2) => `${p1}\`@${p2}\``
@@ -4506,17 +4545,22 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Validate COPILOT_CLI_TOKEN secret
+      - name: Validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret
         run: |
-          if [ -z "$COPILOT_CLI_TOKEN" ]; then
-            echo "Error: COPILOT_CLI_TOKEN secret is not set"
-            echo "The GitHub Copilot CLI engine requires the COPILOT_CLI_TOKEN secret to be configured."
-            echo "Please configure this secret in your repository settings."
+          if [ -z "$COPILOT_GITHUB_TOKEN" ] && [ -z "$COPILOT_CLI_TOKEN" ]; then
+            echo "Error: Neither COPILOT_GITHUB_TOKEN nor COPILOT_CLI_TOKEN secret is set"
+            echo "The GitHub Copilot CLI engine requires either COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret to be configured."
+            echo "Please configure one of these secrets in your repository settings."
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
             exit 1
           fi
-          echo "COPILOT_CLI_TOKEN secret is configured"
+          if [ -n "$COPILOT_GITHUB_TOKEN" ]; then
+            echo "COPILOT_GITHUB_TOKEN secret is configured"
+          else
+            echo "COPILOT_CLI_TOKEN secret is configured (using as fallback for COPILOT_GITHUB_TOKEN)"
+          fi
         env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
@@ -4545,11 +4589,11 @@ jobs:
           copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
           XDG_CONFIG_HOME: /home/runner
       - name: Parse threat detection results

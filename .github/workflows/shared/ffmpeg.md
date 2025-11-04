@@ -26,7 +26,7 @@ steps:
     run: |
       sudo apt-get update && sudo apt-get install -y ffmpeg
       version=$(ffmpeg -version | head -n1)
-      echo "version=$version" >> $GITHUB_OUTPUT
+      echo "version=$version" >> "$GITHUB_OUTPUT"
       mkdir -p /tmp/gh-aw/ffmpeg
 ---
 
