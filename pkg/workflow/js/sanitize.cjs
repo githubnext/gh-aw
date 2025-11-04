@@ -6,6 +6,40 @@
  */
 
 /**
+ * Extract domains from a URL and return an array of domain variations
+ * @param {string} url - The URL to extract domains from
+ * @returns {string[]} Array of domain variations
+ */
+function extractDomainsFromUrl(url) {
+  if (!url || typeof url !== "string") {
+    return [];
+  }
+  
+  try {
+    // Parse the URL
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+    
+    // Return both the exact hostname and common variations
+    const domains = [hostname];
+    
+    // For github.com, add api.github.com variation
+    if (hostname === "github.com") {
+      domains.push("api.github.com");
+    }
+    // For custom GitHub Enterprise domains, add api. prefix
+    else if (!hostname.startsWith("api.")) {
+      domains.push("api." + hostname);
+    }
+    
+    return domains;
+  } catch (e) {
+    // Invalid URL, return empty array
+    return [];
+  }
+}
+
+/**
  * Sanitizes content for safe output in GitHub Actions
  * @param {string} content - The content to sanitize
  * @param {number} [maxLength] - Maximum length of content (default: 524288)
@@ -20,12 +54,30 @@ function sanitizeContent(content, maxLength) {
   const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
   const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
 
-  const allowedDomains = allowedDomainsEnv
+  let allowedDomains = allowedDomainsEnv
     ? allowedDomainsEnv
         .split(",")
         .map(d => d.trim())
         .filter(d => d)
     : defaultAllowedDomains;
+
+  // Extract and add GitHub domains from GitHub context URLs
+  // This handles GitHub Enterprise deployments with custom domains
+  const githubServerUrl = process.env.GITHUB_SERVER_URL;
+  const githubApiUrl = process.env.GITHUB_API_URL;
+  
+  if (githubServerUrl) {
+    const serverDomains = extractDomainsFromUrl(githubServerUrl);
+    allowedDomains = allowedDomains.concat(serverDomains);
+  }
+  
+  if (githubApiUrl) {
+    const apiDomains = extractDomainsFromUrl(githubApiUrl);
+    allowedDomains = allowedDomains.concat(apiDomains);
+  }
+  
+  // Remove duplicates
+  allowedDomains = [...new Set(allowedDomains)];
 
   let sanitized = content;
 

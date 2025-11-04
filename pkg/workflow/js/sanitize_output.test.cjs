@@ -193,6 +193,12 @@ describe("sanitize_output.cjs", () => {
     });
 
     it("should respect custom allowed domains from environment", () => {
+      // Clear GitHub environment variables to test custom domains behavior
+      const originalServerUrl = process.env.GITHUB_SERVER_URL;
+      const originalApiUrl = process.env.GITHUB_API_URL;
+      delete process.env.GITHUB_SERVER_URL;
+      delete process.env.GITHUB_API_URL;
+      
       process.env.GH_AW_ALLOWED_DOMAINS = "example.com,trusted.org";
 
       // Re-run the script setup to pick up env variable
@@ -206,6 +212,41 @@ describe("sanitize_output.cjs", () => {
       expect(result).toContain("https://trusted.org/file");
       expect(result).toContain("(redacted)"); // github.com now blocked
       expect(result).not.toContain("https://github.com/repo");
+      
+      // Restore GitHub environment variables
+      if (originalServerUrl) process.env.GITHUB_SERVER_URL = originalServerUrl;
+      if (originalApiUrl) process.env.GITHUB_API_URL = originalApiUrl;
+    });
+
+    it("should allow GitHub domains from environment variables", () => {
+      // Set GitHub environment variables to test dynamic domain extraction
+      process.env.GITHUB_SERVER_URL = "https://github.example.com";
+      process.env.GITHUB_API_URL = "https://api.github.example.com";
+      process.env.GH_AW_ALLOWED_DOMAINS = "custom.com";
+
+      // Re-run the script setup to pick up env variables
+      const scriptWithExport = sanitizeScript.replace("await main();", "global.testSanitizeContent = sanitizeContent;");
+      eval(scriptWithExport);
+      const customSanitize = global.testSanitizeContent;
+
+      const input = "Links: https://custom.com/page https://github.example.com/repo https://api.github.example.com/v1 https://blocked.com/page";
+      const result = customSanitize(input);
+      
+      // Should allow custom domain
+      expect(result).toContain("https://custom.com/page");
+      
+      // Should allow GitHub domains from environment
+      expect(result).toContain("https://github.example.com/repo");
+      expect(result).toContain("https://api.github.example.com/v1");
+      
+      // Should block unknown domain
+      expect(result).toContain("(redacted)");
+      expect(result).not.toContain("https://blocked.com/page");
+      
+      // Clean up
+      delete process.env.GITHUB_SERVER_URL;
+      delete process.env.GITHUB_API_URL;
+      delete process.env.GH_AW_ALLOWED_DOMAINS;
     });
 
     it("should handle subdomain matching correctly", () => {
@@ -284,6 +325,12 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
     });
 
     it("should handle empty environment variable gracefully", () => {
+      // Clear GitHub environment variables to test empty domains behavior
+      const originalServerUrl = process.env.GITHUB_SERVER_URL;
+      const originalApiUrl = process.env.GITHUB_API_URL;
+      delete process.env.GITHUB_SERVER_URL;
+      delete process.env.GITHUB_API_URL;
+      
       process.env.GH_AW_ALLOWED_DOMAINS = "  ,  ,  ";
 
       const scriptWithExport = sanitizeScript.replace("await main();", "global.testSanitizeContent = sanitizeContent;");
@@ -295,6 +342,10 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       // With empty allowedDomains array, all HTTPS URLs get blocked
       expect(result).toContain("(redacted)");
       expect(result).not.toContain("https://github.com/repo");
+      
+      // Restore GitHub environment variables
+      if (originalServerUrl) process.env.GITHUB_SERVER_URL = originalServerUrl;
+      if (originalApiUrl) process.env.GITHUB_API_URL = originalApiUrl;
     });
 
     it("should handle @mentions with various formats", () => {

@@ -1709,22 +1709,54 @@ jobs:
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_API_URL: ${{ github.api_url }}
         with:
           script: |
             async function main() {
               const fs = require("fs");
+            function extractDomainsFromUrl(url) {
+              if (!url || typeof url !== "string") {
+                return [];
+              }
+              try {
+                const urlObj = new URL(url);
+                const hostname = urlObj.hostname.toLowerCase();
+                const domains = [hostname];
+                if (hostname === "github.com") {
+                  domains.push("api.github.com");
+                }
+                else if (!hostname.startsWith("api.")) {
+                  domains.push("api." + hostname);
+                }
+                return domains;
+              } catch (e) {
+                return [];
+              }
+            }
             function sanitizeContent(content, maxLength) {
               if (!content || typeof content !== "string") {
                 return "";
               }
               const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
               const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-              const allowedDomains = allowedDomainsEnv
+              let allowedDomains = allowedDomainsEnv
                 ? allowedDomainsEnv
                     .split(",")
                     .map(d => d.trim())
                     .filter(d => d)
                 : defaultAllowedDomains;
+              const githubServerUrl = process.env.GITHUB_SERVER_URL;
+              const githubApiUrl = process.env.GITHUB_API_URL;
+              if (githubServerUrl) {
+                const serverDomains = extractDomainsFromUrl(githubServerUrl);
+                allowedDomains = allowedDomains.concat(serverDomains);
+              }
+              if (githubApiUrl) {
+                const apiDomains = extractDomainsFromUrl(githubApiUrl);
+                allowedDomains = allowedDomains.concat(apiDomains);
+              }
+              allowedDomains = [...new Set(allowedDomains)];
               let sanitized = content;
               sanitized = neutralizeCommands(sanitized);
               sanitized = neutralizeMentions(sanitized);

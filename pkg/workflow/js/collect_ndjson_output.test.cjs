@@ -1930,6 +1930,12 @@ Line 3"}
     });
 
     it("should handle custom allowed domains from environment", async () => {
+      // Clear GitHub environment variables to test custom domains behavior
+      const originalServerUrl = process.env.GITHUB_SERVER_URL;
+      const originalApiUrl = process.env.GITHUB_API_URL;
+      delete process.env.GITHUB_SERVER_URL;
+      delete process.env.GITHUB_API_URL;
+      
       // Set custom allowed domains
       process.env.GH_AW_ALLOWED_DOMAINS = "example.com,test.org";
 
@@ -1954,6 +1960,10 @@ Line 3"}
 
       // Clean up
       delete process.env.GH_AW_ALLOWED_DOMAINS;
+      
+      // Restore GitHub environment variables
+      if (originalServerUrl) process.env.GITHUB_SERVER_URL = originalServerUrl;
+      if (originalApiUrl) process.env.GITHUB_API_URL = originalApiUrl;
     });
 
     it("should handle edge cases with colons in different contexts", async () => {

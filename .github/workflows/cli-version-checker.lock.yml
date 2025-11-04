@@ -1709,22 +1709,54 @@ jobs:
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,ghcr.io,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_API_URL: ${{ github.api_url }}
         with:
           script: |
             async function main() {
               const fs = require("fs");
+            function extractDomainsFromUrl(url) {
+              if (!url || typeof url !== "string") {
+                return [];
+              }
+              try {
+                const urlObj = new URL(url);
+                const hostname = urlObj.hostname.toLowerCase();
+                const domains = [hostname];
+                if (hostname === "github.com") {
+                  domains.push("api.github.com");
+                }
+                else if (!hostname.startsWith("api.")) {
+                  domains.push("api." + hostname);
+                }
+                return domains;
+              } catch (e) {
+                return [];
+              }
+            }
             function sanitizeContent(content, maxLength) {
               if (!content || typeof content !== "string") {
                 return "";
               }
               const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
               const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-              const allowedDomains = allowedDomainsEnv
+              let allowedDomains = allowedDomainsEnv
                 ? allowedDomainsEnv
                     .split(",")
                     .map(d => d.trim())
                     .filter(d => d)
                 : defaultAllowedDomains;
+              const githubServerUrl = process.env.GITHUB_SERVER_URL;
+              const githubApiUrl = process.env.GITHUB_API_URL;
+              if (githubServerUrl) {
+                const serverDomains = extractDomainsFromUrl(githubServerUrl);
+                allowedDomains = allowedDomains.concat(serverDomains);
+              }
+              if (githubApiUrl) {
+                const apiDomains = extractDomainsFromUrl(githubApiUrl);
+                allowedDomains = allowedDomains.concat(apiDomains);
+              }
+              allowedDomains = [...new Set(allowedDomains)];
               let sanitized = content;
               sanitized = neutralizeCommands(sanitized);
               sanitized = neutralizeMentions(sanitized);
