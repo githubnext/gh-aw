@@ -586,6 +586,17 @@ jobs:
               };
             };
             function getCurrentBranch() {
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
+              try {
+                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+                  encoding: "utf8",
+                  cwd: cwd,
+                }).trim();
+                debug(`Resolved current branch from git in ${cwd}: ${branch}`);
+                return branch;
+              } catch (error) {
+                debug(`Failed to get branch from git: ${error instanceof Error ? error.message : String(error)}`);
+              }
               const ghHeadRef = process.env.GITHUB_HEAD_REF;
               const ghRefName = process.env.GITHUB_REF_NAME;
               if (ghHeadRef) {
@@ -596,23 +607,22 @@ jobs:
                 debug(`Resolved current branch from GITHUB_REF_NAME: ${ghRefName}`);
                 return ghRefName;
               }
-              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
-              try {
-                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
-                  encoding: "utf8",
-                  cwd: cwd,
-                }).trim();
-                debug(`Resolved current branch from git in ${cwd}: ${branch}`);
-                return branch;
-              } catch (error) {
-                throw new Error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`);
-              }
+              throw new Error("Failed to determine current branch: git command failed and no GitHub environment variables available");
+            }
+            function getBaseBranch() {
+              return process.env.GH_AW_BASE_BRANCH || "main";
             }
             const createPullRequestHandler = args => {
               const entry = { ...args, type: "create_pull_request" };
-              if (!entry.branch || entry.branch.trim() === "") {
-                entry.branch = getCurrentBranch();
-                debug(`Using current branch for create_pull_request: ${entry.branch}`);
+              const baseBranch = getBaseBranch();
+              if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
+                const detectedBranch = getCurrentBranch();
+                if (entry.branch === baseBranch) {
+                  debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
+                } else {
+                  debug(`Using current branch for create_pull_request: ${detectedBranch}`);
+                }
+                entry.branch = detectedBranch;
               }
               appendSafeOutput(entry);
               return {
@@ -626,9 +636,15 @@ jobs:
             };
             const pushToPullRequestBranchHandler = args => {
               const entry = { ...args, type: "push_to_pull_request_branch" };
-              if (!entry.branch || entry.branch.trim() === "") {
-                entry.branch = getCurrentBranch();
-                debug(`Using current branch for push_to_pull_request_branch: ${entry.branch}`);
+              const baseBranch = getBaseBranch();
+              if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
+                const detectedBranch = getCurrentBranch();
+                if (entry.branch === baseBranch) {
+                  debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
+                } else {
+                  debug(`Using current branch for push_to_pull_request_branch: ${detectedBranch}`);
+                }
+                entry.branch = detectedBranch;
               }
               appendSafeOutput(entry);
               return {
@@ -1991,6 +2007,25 @@ jobs:
           **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/agent/` directory** that has been pre-created for you. Do NOT use the root `/tmp/` directory directly.
           
           PROMPT_EOF
+      - name: Append edit tool accessibility instructions to prompt
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          
+          
+          ---
+          
+          ## File Editing Access
+          
+          **IMPORTANT**: The edit tool provides file editing capabilities. You have write access to files in the following directories:
+          
+          - **Current workspace**: `$GITHUB_WORKSPACE` - The repository you're working on
+          - **Temporary directory**: `/tmp/gh-aw/` - For temporary files and agent work
+          
+          **Do NOT** attempt to edit files outside these directories as you do not have the necessary permissions.
+          
+          PROMPT_EOF
       - name: Append cache memory instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2175,7 +2210,7 @@ jobs:
           sudo -E awf --env-all \
             --allow-domains '*.pythonhosted.org,anaconda.org,api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.npmjs.org,repo.anaconda.com,repo.continuum.io,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' \
             --log-level info \
-            "npx -y @github/copilot@0.0.354 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
+            "npx -y @github/copilot@0.0.354 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved Copilot logs to expected location

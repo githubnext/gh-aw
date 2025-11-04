@@ -35,7 +35,7 @@ tools:
   edit:
   github:
     toolsets: [default]
-  bash: "*"
+  bash: ["*"]
 
 steps:
   - name: Fetch Copilot PR data from last 24 hours
