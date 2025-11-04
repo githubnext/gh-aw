@@ -1661,77 +1661,77 @@ func TestValidateIncludedFileWithIgnoredFields(t *testing.T) {
 }
 
 func TestValidateMCPConfigWithSchema(t *testing.T) {
-tests := []struct {
-name        string
-mcpConfig   map[string]any
-toolName    string
-wantErr     bool
-errContains string
-}{
-{
-name: "valid stdio MCP config with command",
-mcpConfig: map[string]any{
-"type":    "stdio",
-"command": "npx",
-"args":    []string{"-y", "@modelcontextprotocol/server-memory"},
-},
-toolName: "memory",
-wantErr:  false,
-},
-{
-name: "valid http MCP config with url",
-mcpConfig: map[string]any{
-"type": "http",
-"url":  "https://api.example.com/mcp",
-},
-toolName: "api-server",
-wantErr:  false,
-},
-{
-name: "invalid: empty string for command field",
-mcpConfig: map[string]any{
-"type":    "stdio",
-"command": "",
-},
-toolName:    "test-tool",
-wantErr:     true,
-errContains: "minLength",
-},
-{
-name: "invalid: empty string for url field",
-mcpConfig: map[string]any{
-"type": "http",
-"url":  "",
-},
-toolName:    "test-tool",
-wantErr:     true,
-errContains: "minLength",
-},
-{
-name: "valid stdio MCP config with container",
-mcpConfig: map[string]any{
-"type":      "stdio",
-"container": "ghcr.io/modelcontextprotocol/server-memory",
-},
-toolName: "memory",
-wantErr:  false,
-},
-}
+	tests := []struct {
+		name        string
+		mcpConfig   map[string]any
+		toolName    string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "valid stdio MCP config with command",
+			mcpConfig: map[string]any{
+				"type":    "stdio",
+				"command": "npx",
+				"args":    []string{"-y", "@modelcontextprotocol/server-memory"},
+			},
+			toolName: "memory",
+			wantErr:  false,
+		},
+		{
+			name: "valid http MCP config with url",
+			mcpConfig: map[string]any{
+				"type": "http",
+				"url":  "https://api.example.com/mcp",
+			},
+			toolName: "api-server",
+			wantErr:  false,
+		},
+		{
+			name: "invalid: empty string for command field",
+			mcpConfig: map[string]any{
+				"type":    "stdio",
+				"command": "",
+			},
+			toolName:    "test-tool",
+			wantErr:     true,
+			errContains: "minLength",
+		},
+		{
+			name: "invalid: empty string for url field",
+			mcpConfig: map[string]any{
+				"type": "http",
+				"url":  "",
+			},
+			toolName:    "test-tool",
+			wantErr:     true,
+			errContains: "minLength",
+		},
+		{
+			name: "valid stdio MCP config with container",
+			mcpConfig: map[string]any{
+				"type":      "stdio",
+				"container": "ghcr.io/modelcontextprotocol/server-memory",
+			},
+			toolName: "memory",
+			wantErr:  false,
+		},
+	}
 
-for _, tt := range tests {
-t.Run(tt.name, func(t *testing.T) {
-err := ValidateMCPConfigWithSchema(tt.mcpConfig, tt.toolName)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateMCPConfigWithSchema(tt.mcpConfig, tt.toolName)
 
-if (err != nil) != tt.wantErr {
-t.Errorf("ValidateMCPConfigWithSchema() error = %v, wantErr %v", err, tt.wantErr)
-return
-}
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateMCPConfigWithSchema() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
 
-if err != nil && tt.errContains != "" {
-if !strings.Contains(err.Error(), tt.errContains) {
-t.Errorf("Error message should contain %q, got: %v", tt.errContains, err)
-}
-}
-})
-}
+			if err != nil && tt.errContains != "" {
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("Error message should contain %q, got: %v", tt.errContains, err)
+				}
+			}
+		})
+	}
 }
