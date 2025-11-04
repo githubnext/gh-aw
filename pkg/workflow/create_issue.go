@@ -112,7 +112,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		StepID:        "create_issue",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
-		Script:        createIssueScript,
+		Script:        getCreateIssueScript(),
 		Token:         token,
 	})
 	steps = append(steps, scriptSteps...)
