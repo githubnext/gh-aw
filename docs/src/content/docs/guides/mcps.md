@@ -237,7 +237,7 @@ Configure the Docker image version (default: `"sha-09deac4"`):
 tools:
   github:
     version: "sha-09deac4"
-    toolset: [default, actions]  # Recommended: use toolsets
+    toolsets: [default, actions]  # Recommended: use toolsets
 ```
 
 ### GitHub Authentication

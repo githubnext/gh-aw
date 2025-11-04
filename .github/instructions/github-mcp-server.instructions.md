@@ -71,7 +71,7 @@ tools:
 The GitHub MCP server organizes tools into logical toolsets. You can enable specific toolsets, use `[default]` for the recommended defaults, or use `[all]` to enable everything.
 
 :::tip[Best Practice]
-**Always prefer using `toolset:` over listing individual tools with `allowed:`**. Toolsets provide:
+**Always prefer using `toolsets:` over listing individual tools with `allowed:`**. Toolsets provide:
 - Better organization and discoverability
 - Complete functionality for each area
 - Reduced configuration verbosity
@@ -80,7 +80,7 @@ The GitHub MCP server organizes tools into logical toolsets. You can enable spec
 
 ### Recommended Default Toolsets
 
-The following toolsets are enabled by default when `toolset:` is not specified:
+The following toolsets are enabled by default when `toolsets:` is not specified:
 - `context` - User and environment context (strongly recommended)
 - `repos` - Repository management
 - `issues` - Issue management  
@@ -113,7 +113,7 @@ The following toolsets are enabled by default when `toolset:` is not specified:
 
 ## Available Tools by Toolset
 
-This section maps individual tools to their respective toolsets to help with migration from `allowed:` to `toolset:`.
+This section maps individual tools to their respective toolsets to help with migration from `allowed:` to `toolsets:`.
 
 ### Context Toolset
 - `get_me` - Get current user information
@@ -241,15 +241,15 @@ Ensure your GitHub token has appropriate permissions for the toolsets you're ena
 ### Common Issues
 
 **Issue**: Tool not found or not available
-- **Solution**: Check if you're using `allowed:` to restrict tools. Consider using `toolset:` instead to get all related tools.
+- **Solution**: Check if you're using `allowed:` to restrict tools. Consider using `toolsets:` instead to get all related tools.
 - **Verify**: Run `gh aw mcp inspect <workflow-name>` to see which tools are actually available.
 
 **Issue**: Missing functionality after specifying toolset
 - **Cause**: Using a too-narrow toolset that doesn't include all needed tools
-- **Solution**: Either add additional toolsets (e.g., `toolset: [default, actions]`) or use `[all]` for full access
+- **Solution**: Either add additional toolsets (e.g., `toolsets: [default, actions]`) or use `[all]` for full access
 
 **Issue**: Workflow using `allowed:` list is verbose and hard to maintain
-- **Solution**: Migrate to `toolset:` configuration using the migration guide above
+- **Solution**: Migrate to `toolsets:` configuration using the migration guide above
 
 ### Best Practices for Debugging
 
