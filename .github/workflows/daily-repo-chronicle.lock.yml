@@ -2038,7 +2038,7 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 20
+        timeout-minutes: 45
         run: |
           set -o pipefail
           sudo -E awf --env-all \
