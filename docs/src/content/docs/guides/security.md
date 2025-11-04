@@ -51,13 +51,18 @@ Configure GitHub Actions with defense in depth:
 
 #### Permission Configuration
 
-Set minimal permissions for the agentic processing:
+Set minimal read-only permissions for the agentic processing. Use `safe-outputs` for write operations:
 
 ```yaml
-# Applies to the agentic processing
+# Applies to the agentic processing (read-only)
 permissions:
-  issues: write
   contents: read
+  actions: read
+
+# Use safe-outputs for write operations
+safe-outputs:
+  create-issue:
+  add-comment:
 ```
 
 #### Fork Protection for Pull Request Triggers
