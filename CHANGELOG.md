@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.28.0 - 2025-11-04
+
+### Features
+
+#### Replace engine.custom-agent field with imports-based agent files
+
+#### Remove safe output "min" field
+
+
+### Bug Fixes
+
+#### Add `jqschema` utility script to agent context
+
+#### Add comprehensive tests for console renderSlice function (+56.2% function coverage, +0.1% overall)
+
+#### Convert .prompt.md files to custom agent format
+
+#### Convert shell script extraction prompt to custom agent format
+
+#### Fix copilot-session-insights workflow error handling for missing gh agent-task extension
+
+#### Implement JavaScript bundler with on-demand bundling and caching for embedded sources
+
+#### Refactor SanitizeIdentifier to use unified SanitizeName
+
+#### Refactor SanitizeWorkflowName to use unified SanitizeName
+
+#### Remove redundant agent version capture step, use installation version
+
+#### Add unified SanitizeName function with configurable options
+
+
 ## v0.27.0 - 2025-10-31
 
 ### Features

@@ -10,7 +10,6 @@
 #   agent["agent"]
 #   create_issue["create_issue"]
 #   detection["detection"]
-#   investigate-on-failure["investigate-on-failure"]
 #   missing_tool["missing_tool"]
 #   pre_activation["pre_activation"]
 #   pre_activation --> activation
@@ -18,7 +17,6 @@
 #   agent --> create_issue
 #   detection --> create_issue
 #   agent --> detection
-#   agent --> investigate-on-failure
 #   agent --> missing_tool
 #   detection --> missing_tool
 # ```
@@ -1101,7 +1099,7 @@ jobs:
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          Review the last 5 merged pull requests in this repository and post summary in an issue.
+          Review the last 2 merged pull requests in this repository and post summary in an issue.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -4420,23 +4418,6 @@ jobs:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
-
-  investigate-on-failure:
-    needs: agent
-    if: failure()
-    permissions:
-      actions: read
-      contents: read
-      pull-requests: read
-
-    uses: ./.github/workflows/smoke-detector.lock.yml
-    with:
-      conclusion: failure
-      head_sha: ${{ github.sha }}
-      html_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      run_id: ${{ github.run_id }}
-      run_number: ${{ github.run_number }}
-      workflow_name: Smoke Copilot
 
   missing_tool:
     needs:

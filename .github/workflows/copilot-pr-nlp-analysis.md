@@ -10,6 +10,8 @@ permissions:
   contents: read
   pull-requests: read
   actions: read
+  issues: read
+  discussions: write
 
 engine: copilot
 
