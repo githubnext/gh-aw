@@ -42,20 +42,26 @@ This architecture balances maintainability with domain expertise, allowing valid
 
 Domain-specific validation is organized into separate files based on functional area:
 
-#### 1. **Strict Mode Validation**: `strict_mode.go`
+#### 1. **Strict Mode Validation**: `strict_mode.go` and `validation_strict_mode.go`
 
-**Location**: `pkg/workflow/strict_mode.go` (162 lines)
+**Location**: 
+- `pkg/workflow/strict_mode.go` (70 lines) - Main orchestrator
+- `pkg/workflow/validation_strict_mode.go` (170 lines) - Individual validation functions
 
 **Purpose**: Enforces security and safety constraints in strict mode
 
 **Validation Functions**:
-- `validateStrictMode()` - Main strict mode validator
-- `validateStrictPermissions()` - Refuses write permissions
-- `validateStrictNetwork()` - Requires explicit network configuration
-- `validateStrictMCPNetwork()` - Requires network config on custom MCP servers
-- `validateStrictBashTools()` - Refuses bash wildcard tools
+- `validateStrictMode()` - Main strict mode orchestrator (in `strict_mode.go`)
+- `validateStrictPermissions()` - Refuses write permissions (in `validation_strict_mode.go`)
+- `validateStrictNetwork()` - Requires explicit network configuration (in `validation_strict_mode.go`)
+- `validateStrictMCPNetwork()` - Requires network config on custom MCP servers (in `validation_strict_mode.go`)
+- `validateStrictBashTools()` - Refuses bash wildcard tools (in `validation_strict_mode.go`)
 
 **Pattern**: Security policy enforcement with progressive validation
+
+**Architecture**: The strict mode validation is split across two files for better organization:
+- `strict_mode.go` contains the main orchestrator that coordinates validation
+- `validation_strict_mode.go` contains the individual validation function implementations
 
 **When to add validation here**:
 - ✅ Strict mode security policies
