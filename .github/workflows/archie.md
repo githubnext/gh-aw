@@ -18,9 +18,8 @@ tools:
   github:
     toolsets:
       - default
+  edit:
   bash:
-    - "echo"
-    - "cat"
 safe-outputs:
   add-comment:
     max: 1
