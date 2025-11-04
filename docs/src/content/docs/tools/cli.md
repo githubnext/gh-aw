@@ -92,17 +92,17 @@ gh aw init --mcp  # Configure GitHub Copilot Agent MCP integration
 **What it does:**
 - Configures `.gitattributes` to mark `.lock.yml` files as generated
 - Creates GitHub Copilot custom instructions at `.github/instructions/github-agentic-workflows.instructions.md`
-- Creates the `/create-agentic-workflow` prompt at `.github/prompts/create-agentic-workflow.prompt.md`
+- Creates the custom agent for workflow creation at `.github/agents/create-agentic-workflow.md`
 
 **With `--mcp` flag:**
 - Creates `.github/workflows/copilot-setup-steps.yml` with steps to install the gh-aw extension
 - Creates `.vscode/mcp.json` with gh-aw MCP server configuration
 - Enables the gh-aw MCP server in GitHub Copilot Agent, providing tools like `status`, `compile`, `logs`, and `audit`
 
-After initialization, start a chat with an AI agent and use the following prompt to create a new workflow:
+After initialization, start a chat with an AI agent and reference the custom agent to create a new workflow:
 
 ```
-activate @.github/prompts/create-agentic-workflow.prompt.md
+@.github/agents/create-agentic-workflow.md
 ```
 
 Alternatively, add pre-built workflows from the catalog using `gh aw add <workflow-name>`.
