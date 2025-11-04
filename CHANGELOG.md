@@ -143,7 +143,6 @@ All notable changes to this project will be documented in this file.
 
 #### Add firewall version of research workflow
 
-#### Add smoke-copilot.firewall workflow with firewall enabled for network monitoring
 
 #### Fix audit command to cache downloads and prevent duplicate artifact fetches
 
