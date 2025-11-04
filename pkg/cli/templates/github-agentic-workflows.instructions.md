@@ -1037,6 +1037,196 @@ permissions:
   models: read      # Typically needed for AI workflows
 ```
 
+### Security Scanning Tools
+
+GitHub Agentic Workflows supports multiple security scanning tools to validate compiled workflows for security vulnerabilities, code quality issues, and supply chain risks. These tools can be run automatically during compilation using command-line flags.
+
+#### actionlint - GitHub Actions Linter
+
+**actionlint** is a comprehensive linter for GitHub Actions workflows that validates workflow syntax, best practices, and includes **shellcheck** integration for inline shell scripts.
+
+**Features:**
+- Validates GitHub Actions YAML syntax and structure
+- Checks for common workflow mistakes and anti-patterns
+- **Integrates shellcheck** to lint shell scripts in `run:` steps
+- Validates custom runner labels (e.g., `ubuntu-slim`)
+- Reports issues with file location, line numbers, and context
+
+**Configuration:**
+- Auto-generates `.github/actionlint.yaml` with custom runner labels
+- Supports Docker-based execution: `rhysd/actionlint:latest`
+- Validates workflows with shellcheck SC rules (e.g., SC2086 for unquoted variables)
+
+**Running actionlint:**
+```bash
+# Run actionlint on all compiled workflows
+gh aw compile --actionlint
+
+# Run on specific workflow
+gh aw compile workflow-name --actionlint
+
+# Strict mode: fail compilation if actionlint finds errors
+gh aw compile --strict --actionlint
+
+# Verbose mode: show Docker command for manual execution
+gh aw compile --actionlint --verbose
+```
+
+**Example Output:**
+```
+.github/workflows/example.lock.yml:25:9: error: [shellcheck] shellcheck reported issue in this script: SC2086:info:1:8: Double quote to prevent globbing and word splitting
+   23 |     steps:
+   24 |       - name: Run command
+   25 |         run: echo $VAR
+                  ^~~~
+```
+
+**Common actionlint Rules:**
+- **shellcheck integration**: Detects shell script issues (SC* rules)
+- **expression syntax**: Validates `${{ }}` expressions
+- **workflow syntax**: Checks job dependencies, step ordering
+- **runner labels**: Validates `runs-on` against known runners
+
+#### zizmor - Security Scanner
+
+**zizmor** is a security scanner specifically designed for GitHub Actions workflows that identifies security vulnerabilities and misconfigurations.
+
+**Features:**
+- Detects security vulnerabilities in workflow configurations
+- Identifies privilege escalation risks
+- Checks for secret exposure and injection vulnerabilities
+- Provides severity levels: Critical, High, Medium, Low
+- Links to detailed documentation for each finding
+
+**Configuration:**
+- Uses Docker image: `ghcr.io/zizmorcore/zizmor:latest`
+- Outputs findings in JSON format for structured parsing
+- Exit codes indicate finding severity (10-14 for findings)
+
+**Running zizmor:**
+```bash
+# Run zizmor on all compiled workflows
+gh aw compile --zizmor
+
+# Run on specific workflow
+gh aw compile workflow-name --zizmor
+
+# Strict mode: fail compilation if zizmor finds security issues
+gh aw compile --strict --zizmor
+
+# Verbose mode: show Docker command for manual execution
+gh aw compile --zizmor --verbose
+```
+
+**Example Output:**
+```
+.github/workflows/example.lock.yml:15:3: error: [High] artipacked: Artifacts from previous jobs may be packed with attacker-controlled content (https://woodruffw.github.io/zizmor/audits/artipacked/)
+   13 |   build:
+   14 |     runs-on: ubuntu-latest
+   15 |     steps:
+         ^~~~
+```
+
+**Common zizmor Rules:**
+- **artipacked**: Artifact tampering vulnerabilities
+- **excessive-permissions**: Overly broad token permissions
+- **injection-sink**: Script injection vulnerabilities
+- **unsafe-checkout**: Insecure repository checkout configurations
+
+#### poutine - Supply Chain Security Scanner
+
+**poutine** is a supply chain security scanner that analyzes GitHub Actions workflows for dependencies, third-party actions, and supply chain risks.
+
+**Features:**
+- Identifies supply chain security risks
+- Validates third-party GitHub Actions usage
+- Checks for outdated or vulnerable action versions
+- Analyzes self-hosted runner configurations
+- Provides actionable recommendations
+
+**Configuration:**
+- Uses Docker image: `ghcr.io/boostsecurityio/poutine:latest`
+- Auto-generates `.poutine.yml` with allowed runner configurations
+- Analyzes entire repository (not just individual files)
+- Outputs findings with severity levels: error, warning, note
+
+**Running poutine:**
+```bash
+# Run poutine on all compiled workflows
+gh aw compile --poutine
+
+# Run on specific workflow
+gh aw compile workflow-name --poutine
+
+# Strict mode: fail compilation if poutine finds security issues
+gh aw compile --strict --poutine
+
+# Verbose mode: show Docker command for manual execution
+gh aw compile --poutine --verbose
+```
+
+**Example Output:**
+```
+.github/workflows/example.lock.yml:12:1: warning: [pr_runs_on_self_hosted] Pull request workflows should not run on self-hosted runners - Use GitHub-hosted runners for untrusted code
+   10 |   test:
+   11 |     name: Test
+   12 |     runs-on: self-hosted
+         ^~~~
+```
+
+**Common poutine Rules:**
+- **pr_runs_on_self_hosted**: Self-hosted runners with untrusted code
+- **unpinned_action**: Actions without pinned versions
+- **known_vulnerability**: Actions with known CVEs
+- **third_party_action**: Usage of third-party actions
+
+#### Running Multiple Scanners
+
+You can combine multiple security scanners in a single compilation:
+
+```bash
+# Run all three scanners
+gh aw compile --actionlint --zizmor --poutine
+
+# Strict mode with all scanners (fail on any findings)
+gh aw compile --strict --actionlint --zizmor --poutine
+
+# Run on specific workflow with all scanners
+gh aw compile workflow-name --actionlint --zizmor --poutine --verbose
+```
+
+#### Best Practices for Security Scanning
+
+1. **Run actionlint regularly** to catch workflow syntax errors and shell script issues
+2. **Use zizmor for security review** before deploying workflows to production
+3. **Use poutine for supply chain analysis** when adding new third-party actions
+4. **Enable strict mode** (`--strict`) in CI/CD to enforce zero-findings policy
+5. **Review scanner output** and fix Critical/High severity issues immediately
+6. **Use verbose mode** (`--verbose`) to see Docker commands for local testing
+7. **Combine with --purge** to clean up orphaned workflows during security reviews
+
+#### Security Scanner Exit Codes
+
+Understanding exit codes helps with CI/CD integration:
+
+**actionlint:**
+- 0 = No errors found
+- 1 = Errors found (shellcheck or workflow issues)
+- Other = Actual command failure
+
+**zizmor:**
+- 0 = No findings
+- 10-13 = Findings at specific severity levels
+- 14 = Mixed severity findings
+- Other = Actual command failure
+
+**poutine:**
+- 0 = No findings
+- 1 = Findings present
+- Other = Actual command failure
+
+In strict mode (`--strict`), any non-zero exit code from security scanners will fail the compilation.
+
 ## Debugging and Inspection
 
 ### MCP Server Inspection
@@ -1097,9 +1287,10 @@ Agentic workflows compile to GitHub Actions YAML:
   - Example: `gh aw compile issue-triage` compiles `issue-triage.md`
   - Supports partial matching and fuzzy search for workflow names
 - **`gh aw compile --purge`** - Remove orphaned `.lock.yml` files that no longer have corresponding `.md` files
+- **`gh aw compile --actionlint`** - Run actionlint linter on compiled workflows (includes shellcheck)
 - **`gh aw compile --zizmor`** - Run zizmor security scanner on compiled workflows
 - **`gh aw compile --poutine`** - Run poutine security scanner on compiled workflows
-- **`gh aw compile --strict --zizmor`** - Strict mode with security scanning (fails on findings)
+- **`gh aw compile --strict --actionlint --zizmor --poutine`** - Strict mode with all security scanners (fails on findings)
 
 ## Best Practices
 
@@ -1117,7 +1308,7 @@ Agentic workflows compile to GitHub Actions YAML:
 10. **Monitor costs with `gh aw logs`** to track AI model usage and expenses
 11. **Use `--engine` filter** in logs command to analyze specific AI engine performance
 12. **Prefer sanitized context text** - Use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields for security
-13. **Run security scanners** - Use `--zizmor` or `--poutine` flags to scan compiled workflows for security issues
+13. **Run security scanners** - Use `--actionlint`, `--zizmor`, and `--poutine` flags to scan compiled workflows for security issues, code quality, and supply chain risks
 
 ## Validation
 
