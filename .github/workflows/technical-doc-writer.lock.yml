@@ -1545,9 +1545,47 @@ jobs:
           
           ## Documentation Versioning
           
-          The documentation supports versioning per minor release (0.28, 0.29, etc.) using the `starlight-versions` plugin. Versioning is configured lazily - versions are only created when a minor release is published.
+          The documentation supports versioning per minor release (0.28, 0.29, etc.) using the `starlight-versions` plugin.
           
-          **When creating a new minor release version:**
+          ### About Versioning
+          
+          The Starlight Versions plugin adds support for versioning documentation pages. Versioning allows maintaining multiple versions of documentation, each with its own pages and assets. This is useful for different release versions but increases complexity, build times, and maintenance overhead.
+          
+          **Versioning Process:**
+          
+          The current version always lives in `docs/src/content/docs/`. Creating a new version archives the current documentation so you can continue working on the latest while archived versions remain accessible.
+          
+          **Example Directory Structure:**
+          
+          Before versioning:
+          ```
+          docs/src/content/docs/
+          ├── guides/
+          ├── reference/
+          └── index.mdx
+          ```
+          
+          After creating version `0.28`:
+          ```
+          docs/src/content/docs/
+          ├── 0.28/
+          │   ├── guides/
+          │   ├── reference/
+          │   └── index.mdx
+          ├── guides/
+          ├── reference/
+          └── index.mdx
+          ```
+          
+          **Versioning Strategy:**
+          
+          The plugin uses **folder-based versioning** where each version is stored in dedicated directories (e.g., `0.28/`, `0.29/`). This approach is simple - cloning the repository includes all versions with no additional knowledge required. However, it creates multiple copies of files, making navigation harder and losing easy change tracking between versions.
+          
+          ### Creating a New Version
+          
+          Versioning is configured lazily - versions are only created when a minor release is published.
+          
+          **Steps:**
           
           1. **Check the current version** from the latest release tag (e.g., v0.28.x)
           2. **Uncomment and configure the starlight-versions plugin** in `docs/astro.config.mjs`:
@@ -1565,18 +1603,13 @@ jobs:
                ]
              })
              ```
-          3. **Build the documentation** - The plugin will automatically create the version directory on build:
+          3. **Build the documentation** - The plugin automatically creates the version directory:
              ```bash
              cd docs && npm run build
              ```
           4. **Commit the generated version directory** (e.g., `docs/src/content/docs/0.28/`)
           5. **Make your changes** to the main documentation files (not the versioned copies)
-          6. **Build and verify** that both the "Latest (Unreleased)" and versioned documentation render correctly
-          
-          **Version Structure:**
-          - Main documentation in `docs/src/content/docs/` = "Latest (Unreleased)" version
-          - Previous versions in `docs/src/content/docs/{version}/` (e.g., `0.28/`, `0.29/`)
-          - The `starlight-versions` plugin automatically adds version slugs to frontmatter and generates version selectors
+          6. **Build and verify** that both versions render correctly
           
           **For subsequent releases:**
           Add the new version to the `versions` array in `astro.config.mjs` and rebuild. The plugin creates version directories on-demand during the build process.
