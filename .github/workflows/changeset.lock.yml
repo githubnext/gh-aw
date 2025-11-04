@@ -3948,6 +3948,18 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
+            function sanitizeWorkflowName(name) {
+
+              return name
+
+                .toLowerCase()
+
+                .replace(/[:\\/\s]/g, "-")
+
+                .replace(/[^a-z0-9._-]/g, "-");
+
+            }
+
             function main() {
 
               const fs = require("fs");
@@ -4254,18 +4266,6 @@ jobs:
 
             }
 
-            function sanitizeWorkflowName(name) {
-
-              return name
-
-                .toLowerCase()
-
-                .replace(/[:\\/\s]/g, "-")
-
-                .replace(/[^a-z0-9._-]/g, "-");
-
-            }
-
             if (typeof module !== "undefined" && module.exports) {
 
               module.exports = {
@@ -4275,8 +4275,6 @@ jobs:
                 isRequestAllowed,
 
                 generateFirewallSummary,
-
-                sanitizeWorkflowName,
 
                 main,
 
