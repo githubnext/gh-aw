@@ -218,7 +218,7 @@ func TestAdditionalPropertiesFalse_MCPConfigSchema(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateMCPConfigWithSchema(tt.frontmatter, tt.typoField)
+			err := ValidateMCPConfigWithSchema(tt.frontmatter, "test-tool")
 
 			if err == nil {
 				t.Fatalf("Expected validation error for typo field '%s', but validation passed", tt.typoField)
