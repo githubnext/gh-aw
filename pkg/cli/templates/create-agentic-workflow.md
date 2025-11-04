@@ -5,6 +5,7 @@ tools:
   - read
   - edit
   - search
+  - github-agentic-workflows/*
 ---
 
 This file will configure the agent into a mode to create agentic workflows. Read the ENTIRE content of this file carefully before proceeding. Follow the instructions precisely.

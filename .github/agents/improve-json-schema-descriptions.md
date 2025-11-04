@@ -5,6 +5,7 @@ tools:
   - read
   - edit
   - search
+  - github-agentic-workflows/*
 ---
 
 # Improve JSON Schema Descriptions

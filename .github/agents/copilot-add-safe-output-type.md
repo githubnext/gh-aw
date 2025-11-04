@@ -5,6 +5,7 @@ tools:
   - read
   - edit
   - search
+  - github-agentic-workflows/*
 ---
 
 # Copilot Agent: Adding a New Safe Output Type to GitHub Agentic Workflows

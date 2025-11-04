@@ -5,6 +5,7 @@ tools:
   - read
   - edit
   - search
+  - github-agentic-workflows/*
 ---
 
 # Extract Shell Script to Embedded Resource
