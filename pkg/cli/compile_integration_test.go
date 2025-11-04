@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -19,7 +18,6 @@ import (
 // Global binary path shared across all integration tests
 var (
 	globalBinaryPath string
-	globalBinaryOnce sync.Once
 	projectRoot      string
 )
 
@@ -32,35 +30,32 @@ func TestMain(m *testing.M) {
 	}
 	projectRoot = filepath.Join(wd, "..", "..")
 
-	// Build the binary once for all tests
-	globalBinaryOnce.Do(func() {
-		// Create temp directory for the shared binary
-		tempDir, err := os.MkdirTemp("", "gh-aw-integration-binary-*")
-		if err != nil {
-			panic("Failed to create temp directory for binary: " + err.Error())
-		}
+	// Create temp directory for the shared binary
+	tempDir, err := os.MkdirTemp("", "gh-aw-integration-binary-*")
+	if err != nil {
+		panic("Failed to create temp directory for binary: " + err.Error())
+	}
 
-		globalBinaryPath = filepath.Join(tempDir, "gh-aw")
+	globalBinaryPath = filepath.Join(tempDir, "gh-aw")
 
-		// Build the gh-aw binary
-		buildCmd := exec.Command("make", "build")
-		buildCmd.Dir = projectRoot
-		buildCmd.Stderr = os.Stderr
-		if err := buildCmd.Run(); err != nil {
-			panic("Failed to build gh-aw binary: " + err.Error())
-		}
+	// Build the gh-aw binary
+	buildCmd := exec.Command("make", "build")
+	buildCmd.Dir = projectRoot
+	buildCmd.Stderr = os.Stderr
+	if err := buildCmd.Run(); err != nil {
+		panic("Failed to build gh-aw binary: " + err.Error())
+	}
 
-		// Copy binary to temp directory
-		srcBinary := filepath.Join(projectRoot, "gh-aw")
-		if err := copyFile(srcBinary, globalBinaryPath); err != nil {
-			panic("Failed to copy gh-aw binary to temp directory: " + err.Error())
-		}
+	// Copy binary to temp directory
+	srcBinary := filepath.Join(projectRoot, "gh-aw")
+	if err := copyFile(srcBinary, globalBinaryPath); err != nil {
+		panic("Failed to copy gh-aw binary to temp directory: " + err.Error())
+	}
 
-		// Make the binary executable
-		if err := os.Chmod(globalBinaryPath, 0755); err != nil {
-			panic("Failed to make binary executable: " + err.Error())
-		}
-	})
+	// Make the binary executable
+	if err := os.Chmod(globalBinaryPath, 0755); err != nil {
+		panic("Failed to make binary executable: " + err.Error())
+	}
 
 	// Run the tests
 	code := m.Run()
