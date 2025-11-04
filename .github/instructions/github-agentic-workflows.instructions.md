@@ -1037,6 +1037,26 @@ permissions:
   models: read      # Typically needed for AI workflows
 ```
 
+### Security Scanning Tools
+
+GitHub Agentic Workflows supports security scanning during compilation with `--actionlint`, `--zizmor`, and `--poutine` flags.
+
+**actionlint** - Lints GitHub Actions workflows and validates shell scripts with integrated shellcheck
+**zizmor** - Scans for security vulnerabilities, privilege escalation, and secret exposure  
+**poutine** - Analyzes supply chain risks and third-party action usage
+
+```bash
+# Run individual scanners
+gh aw compile --actionlint  # Includes shellcheck
+gh aw compile --zizmor      # Security vulnerabilities
+gh aw compile --poutine     # Supply chain risks
+
+# Run all scanners with strict mode (fail on findings)
+gh aw compile --strict --actionlint --zizmor --poutine
+```
+
+**Exit codes**: actionlint (0=clean, 1=errors), zizmor (0=clean, 10-14=findings), poutine (0=clean, 1=findings). In strict mode, non-zero exits fail compilation.
+
 ## Debugging and Inspection
 
 ### MCP Server Inspection
@@ -1097,9 +1117,10 @@ Agentic workflows compile to GitHub Actions YAML:
   - Example: `gh aw compile issue-triage` compiles `issue-triage.md`
   - Supports partial matching and fuzzy search for workflow names
 - **`gh aw compile --purge`** - Remove orphaned `.lock.yml` files that no longer have corresponding `.md` files
+- **`gh aw compile --actionlint`** - Run actionlint linter on compiled workflows (includes shellcheck)
 - **`gh aw compile --zizmor`** - Run zizmor security scanner on compiled workflows
 - **`gh aw compile --poutine`** - Run poutine security scanner on compiled workflows
-- **`gh aw compile --strict --zizmor`** - Strict mode with security scanning (fails on findings)
+- **`gh aw compile --strict --actionlint --zizmor --poutine`** - Strict mode with all security scanners (fails on findings)
 
 ## Best Practices
 
@@ -1117,7 +1138,7 @@ Agentic workflows compile to GitHub Actions YAML:
 10. **Monitor costs with `gh aw logs`** to track AI model usage and expenses
 11. **Use `--engine` filter** in logs command to analyze specific AI engine performance
 12. **Prefer sanitized context text** - Use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields for security
-13. **Run security scanners** - Use `--zizmor` or `--poutine` flags to scan compiled workflows for security issues
+13. **Run security scanners** - Use `--actionlint`, `--zizmor`, and `--poutine` flags to scan compiled workflows for security issues, code quality, and supply chain risks
 
 ## Validation
 

@@ -1,9 +1,17 @@
 package workflow
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
+)
+
+var claudeMCPLog = logger.New("workflow:claude_mcp")
 
 // RenderMCPConfig renders the MCP configuration for Claude engine
 func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+	claudeMCPLog.Printf("Rendering MCP config for Claude: tool_count=%d, mcp_tool_count=%d", len(tools), len(mcpTools))
+
 	// Use shared JSON MCP config renderer
 	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
 		ConfigPath: "/tmp/gh-aw/mcp-config/mcp-servers.json",
@@ -27,6 +35,8 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 	githubType := getGitHubType(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
 	toolsets := getGitHubToolsets(githubTool)
+
+	claudeMCPLog.Printf("Rendering GitHub MCP config: type=%s, read_only=%t, toolsets=%v", githubType, readOnly, toolsets)
 
 	yaml.WriteString("              \"github\": {\n")
 

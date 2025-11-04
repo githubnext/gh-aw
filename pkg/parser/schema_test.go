@@ -945,6 +945,45 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "invalid: empty string for name field",
+			frontmatter: map[string]any{
+				"on":   "push",
+				"name": "",
+			},
+			wantErr:     true,
+			errContains: "minLength",
+		},
+		{
+			name: "invalid: empty string for on field (string format)",
+			frontmatter: map[string]any{
+				"on": "",
+			},
+			wantErr:     true,
+			errContains: "minLength",
+		},
+		{
+			name: "invalid: empty string for command trigger (string format)",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"command": "",
+				},
+			},
+			wantErr:     true,
+			errContains: "minLength",
+		},
+		{
+			name: "invalid: empty string for command.name field",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"command": map[string]any{
+						"name": "",
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "minLength",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1358,27 +1397,29 @@ func TestFilterIgnoredFields(t *testing.T) {
 			expected:    map[string]any{},
 		},
 		{
-			name: "frontmatter with description only",
+			name: "frontmatter with description - no longer filtered",
 			frontmatter: map[string]any{
 				"description": "This is a test workflow",
 				"on":          "push",
 			},
 			expected: map[string]any{
-				"on": "push",
+				"description": "This is a test workflow",
+				"on":          "push",
 			},
 		},
 		{
-			name: "frontmatter with applyTo only",
+			name: "frontmatter with applyTo - no longer filtered",
 			frontmatter: map[string]any{
 				"applyTo": "some-value",
 				"on":      "push",
 			},
 			expected: map[string]any{
-				"on": "push",
+				"applyTo": "some-value",
+				"on":      "push",
 			},
 		},
 		{
-			name: "frontmatter with both description and applyTo",
+			name: "frontmatter with both description and applyTo - no longer filtered",
 			frontmatter: map[string]any{
 				"description": "This is a test workflow",
 				"applyTo":     "some-value",
@@ -1386,8 +1427,10 @@ func TestFilterIgnoredFields(t *testing.T) {
 				"engine":      "claude",
 			},
 			expected: map[string]any{
-				"on":     "push",
-				"engine": "claude",
+				"description": "This is a test workflow",
+				"applyTo":     "some-value",
+				"on":          "push",
+				"engine":      "claude",
 			},
 		},
 		{
@@ -1457,7 +1500,7 @@ func TestValidateMainWorkflowWithIgnoredFields(t *testing.T) {
 		errContains string
 	}{
 		{
-			name: "valid frontmatter with description field - should be silently ignored",
+			name: "valid frontmatter with description field - now properly validated",
 			frontmatter: map[string]any{
 				"on":          "push",
 				"description": "This is a test workflow description",
@@ -1466,20 +1509,20 @@ func TestValidateMainWorkflowWithIgnoredFields(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "valid frontmatter with applyTo field - should be silently ignored",
+			name: "invalid frontmatter with applyTo field - not allowed in main workflow",
 			frontmatter: map[string]any{
 				"on":      "push",
 				"applyTo": "some-target",
 				"engine":  "claude",
 			},
-			wantErr: false,
+			wantErr:     true,
+			errContains: "applyTo",
 		},
 		{
-			name: "valid frontmatter with both description and applyTo - should be silently ignored",
+			name: "valid frontmatter with description - now properly validated",
 			frontmatter: map[string]any{
 				"on":          "push",
 				"description": "Test workflow",
-				"applyTo":     "some-target",
 				"engine":      "claude",
 			},
 			wantErr: false,
@@ -1523,7 +1566,7 @@ func TestValidateIncludedFileWithIgnoredFields(t *testing.T) {
 		errContains string
 	}{
 		{
-			name: "valid included file with description field - should be silently ignored",
+			name: "valid included file with description field - now properly validated",
 			frontmatter: map[string]any{
 				"description": "This is a shared config",
 				"tools": map[string]any{
@@ -1535,7 +1578,7 @@ func TestValidateIncludedFileWithIgnoredFields(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "valid included file with applyTo field - should be silently ignored",
+			name: "valid included file with applyTo field - now properly validated",
 			frontmatter: map[string]any{
 				"applyTo": "some-target",
 				"tools": map[string]any{
@@ -1547,7 +1590,19 @@ func TestValidateIncludedFileWithIgnoredFields(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "valid included file with both description and applyTo - should be silently ignored",
+			name: "valid included file with applyTo array - now properly validated",
+			frontmatter: map[string]any{
+				"applyTo": []string{"**/*.py", "**/*.pyw"},
+				"tools": map[string]any{
+					"github": map[string]any{
+						"allowed": []string{"get_repository"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid included file with both description and applyTo - now properly validated",
 			frontmatter: map[string]any{
 				"description": "Shared config",
 				"applyTo":     "some-target",
@@ -1559,6 +1614,32 @@ func TestValidateIncludedFileWithIgnoredFields(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "invalid included file with wrong type for applyTo - should fail",
+			frontmatter: map[string]any{
+				"applyTo": 123, // number instead of string or array
+				"tools": map[string]any{
+					"github": map[string]any{
+						"allowed": []string{"get_repository"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "applyTo",
+		},
+		{
+			name: "invalid included file with wrong type for description - should fail",
+			frontmatter: map[string]any{
+				"description": 123, // number instead of string
+				"tools": map[string]any{
+					"github": map[string]any{
+						"allowed": []string{"get_repository"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "description",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1567,6 +1648,82 @@ func TestValidateIncludedFileWithIgnoredFields(t *testing.T) {
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateIncludedFileFrontmatterWithSchema() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if err != nil && tt.errContains != "" {
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("Error message should contain %q, got: %v", tt.errContains, err)
+				}
+			}
+		})
+	}
+}
+
+func TestValidateMCPConfigWithSchema(t *testing.T) {
+	tests := []struct {
+		name        string
+		mcpConfig   map[string]any
+		toolName    string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "valid stdio MCP config with command",
+			mcpConfig: map[string]any{
+				"type":    "stdio",
+				"command": "npx",
+				"args":    []string{"-y", "@modelcontextprotocol/server-memory"},
+			},
+			toolName: "memory",
+			wantErr:  false,
+		},
+		{
+			name: "valid http MCP config with url",
+			mcpConfig: map[string]any{
+				"type": "http",
+				"url":  "https://api.example.com/mcp",
+			},
+			toolName: "api-server",
+			wantErr:  false,
+		},
+		{
+			name: "invalid: empty string for command field",
+			mcpConfig: map[string]any{
+				"type":    "stdio",
+				"command": "",
+			},
+			toolName:    "test-tool",
+			wantErr:     true,
+			errContains: "minLength",
+		},
+		{
+			name: "invalid: empty string for url field",
+			mcpConfig: map[string]any{
+				"type": "http",
+				"url":  "",
+			},
+			toolName:    "test-tool",
+			wantErr:     true,
+			errContains: "minLength",
+		},
+		{
+			name: "valid stdio MCP config with container",
+			mcpConfig: map[string]any{
+				"type":      "stdio",
+				"container": "ghcr.io/modelcontextprotocol/server-memory",
+			},
+			toolName: "memory",
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateMCPConfigWithSchema(tt.mcpConfig, tt.toolName)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateMCPConfigWithSchema() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 

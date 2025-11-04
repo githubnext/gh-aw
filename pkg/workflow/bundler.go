@@ -5,22 +5,30 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var bundlerLog = logger.New("workflow:bundler")
 
 // BundleJavaScriptFromSources bundles JavaScript from in-memory sources
 // sources is a map where keys are file paths (e.g., "sanitize.cjs") and values are the content
 // mainContent is the main JavaScript content that may contain require() calls
 // basePath is the base directory path for resolving relative imports (e.g., "js")
 func BundleJavaScriptFromSources(mainContent string, sources map[string]string, basePath string) (string, error) {
+	bundlerLog.Printf("Bundling JavaScript: source_count=%d, base_path=%s", len(sources), basePath)
+
 	// Track already processed files to avoid circular dependencies
 	processed := make(map[string]bool)
 
 	// Bundle the main content recursively
 	bundled, err := bundleFromSources(mainContent, basePath, sources, processed)
 	if err != nil {
+		bundlerLog.Printf("Bundling failed: %v", err)
 		return "", err
 	}
 
+	bundlerLog.Printf("Bundling completed: processed_files=%d, output_size=%d bytes", len(processed), len(bundled))
 	return bundled, nil
 }
 

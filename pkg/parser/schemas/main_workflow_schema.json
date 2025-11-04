@@ -5,6 +5,7 @@
   "properties": {
     "name": {
       "type": "string",
+      "minLength": 1,
       "description": "Workflow name that appears in the GitHub Actions interface. If not specified, defaults to the filename without extension.",
       "examples": ["Copilot Agent PR Analysis", "Dev Hawk", "Smoke Claude"]
     },
@@ -40,6 +41,7 @@
       "oneOf": [
         {
           "type": "string",
+          "minLength": 1,
           "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call')",
           "examples": ["push", "issues", "workflow_dispatch"]
         },
@@ -56,6 +58,7 @@
                 },
                 {
                   "type": "string",
+                  "minLength": 1,
                   "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers)"
                 },
                 {
@@ -64,6 +67,7 @@
                   "properties": {
                     "name": {
                       "type": "string",
+                      "minLength": 1,
                       "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Defaults to workflow filename without .md extension if not specified."
                     },
                     "events": {
@@ -3228,6 +3232,7 @@
         },
         "command": {
           "type": "string",
+          "minLength": 1,
           "description": "Command for stdio MCP connections"
         },
         "container": {
@@ -3341,6 +3346,7 @@
         },
         "url": {
           "type": "string",
+          "minLength": 1,
           "description": "URL for HTTP MCP connections"
         },
         "headers": {
