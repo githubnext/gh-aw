@@ -38,14 +38,11 @@ jobs:
 
   build:
     name: Build Code and Recompile
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     permissions:
       contents: read
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}-${{ matrix.os }}
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
       cancel-in-progress: true
     steps:
       - name: Checkout code

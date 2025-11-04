@@ -1015,14 +1015,14 @@ func determineAndAddEngineSecret(engineConfig *workflow.EngineConfig, hostRepoSl
 		return addEngineSecret("OPENAI_API_KEY", hostRepoSlug, tracker, verbose)
 	case "copilot":
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting COPILOT_CLI_TOKEN secret for Copilot engine"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting COPILOT_GITHUB_TOKEN secret for Copilot engine"))
 		}
-		return addEngineSecret("COPILOT_CLI_TOKEN", hostRepoSlug, tracker, verbose)
+		return addEngineSecret("COPILOT_GITHUB_TOKEN", hostRepoSlug, tracker, verbose)
 	default:
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Unknown engine type '%s', defaulting to Copilot", engineType)))
 		}
-		return addEngineSecret("COPILOT_CLI_TOKEN", hostRepoSlug, tracker, verbose)
+		return addEngineSecret("COPILOT_GITHUB_TOKEN", hostRepoSlug, tracker, verbose)
 	}
 }
 
@@ -1054,8 +1054,15 @@ func addEngineSecret(secretName, hostRepoSlug string, tracker *TrialSecretTracke
 			// Already checked by os.Getenv(secretName) above
 		case "OPENAI_API_KEY":
 			secretValue = os.Getenv("OPENAI_KEY")
-		case "COPILOT_CLI_TOKEN":
+		case "COPILOT_GITHUB_TOKEN":
 			// Use the proper GitHub token helper that handles both env vars and gh CLI
+			var err error
+			secretValue, err = parser.GetGitHubToken()
+			if err != nil {
+				return fmt.Errorf("failed to get GitHub token for COPILOT_GITHUB_TOKEN: %w", err)
+			}
+		case "COPILOT_CLI_TOKEN":
+			// Legacy support - use the proper GitHub token helper that handles both env vars and gh CLI
 			var err error
 			secretValue, err = parser.GetGitHubToken()
 			if err != nil {
