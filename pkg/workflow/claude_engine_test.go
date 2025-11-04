@@ -455,3 +455,55 @@ func TestClaudeEngineWithSafeOutputs(t *testing.T) {
 		t.Errorf("Expected GH_AW_MCP_CONFIG environment variable when safe-outputs are configured: %s", stepContent)
 	}
 }
+
+// TestClaudeEngineNoDoubleEscapePrompt tests that the prompt argument is not double-escaped
+func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	// Test without agent file (standard prompt)
+	t.Run("without_agent_file", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "claude",
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// Should have single-quoted prompt, not double-quoted
+		if strings.Contains(stepContent, `""$(cat /tmp/gh-aw/aw-prompts/prompt.txt)""`) {
+			t.Errorf("Found double-escaped prompt argument (with double quotes), expected single quotes:\n%s", stepContent)
+		}
+
+		// Should have correctly quoted prompt
+		if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
+			t.Errorf("Expected correctly quoted prompt argument, got:\n%s", stepContent)
+		}
+	})
+
+	// Test with agent file (custom prompt)
+	t.Run("with_agent_file", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "claude",
+			},
+			AgentFile: "/path/to/agent.md",
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// Should have single-quoted PROMPT_TEXT, not double-quoted
+		if strings.Contains(stepContent, `""$PROMPT_TEXT""`) {
+			t.Errorf("Found double-escaped PROMPT_TEXT variable (with double quotes), expected single quotes:\n%s", stepContent)
+		}
+
+		// Should have correctly quoted PROMPT_TEXT
+		if !strings.Contains(stepContent, `"$PROMPT_TEXT"`) {
+			t.Errorf("Expected correctly quoted PROMPT_TEXT variable, got:\n%s", stepContent)
+		}
+	})
+}

@@ -187,19 +187,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	commandParts = append(commandParts, claudeArgs...)
 	commandParts = append(commandParts, promptCommand)
 
-	// Join command parts with proper escaping for complex arguments
-	command := ""
-	for i, part := range commandParts {
-		if i > 0 {
-			command += " "
-		}
-		// For complex arguments that contain spaces or special characters, quote them
-		if strings.Contains(part, " ") || strings.Contains(part, ",") {
-			command += "\"" + part + "\""
-		} else {
-			command += part
-		}
-	}
+	// Join command parts with proper escaping using shellJoinArgs helper
+	// This handles already-quoted arguments correctly and prevents double-escaping
+	command := shellJoinArgs(commandParts)
 
 	// Add the command with proper indentation and tee output (preserves exit code with pipefail)
 	stepLines = append(stepLines, fmt.Sprintf("          %s 2>&1 | tee %s", command, logFile))
