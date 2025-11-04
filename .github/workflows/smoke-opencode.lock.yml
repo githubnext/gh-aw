@@ -1218,7 +1218,7 @@ jobs:
           if-no-files-found: warn
       - name: Install OpenCode and jq
         run: |
-          npm install -g opencode-ai@${GH_AW_AGENT_VERSION}
+          npm install -g "opencode-ai@${GH_AW_AGENT_VERSION}"
           sudo apt-get update && sudo apt-get install -y jq
         env:
           GH_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
@@ -2741,7 +2741,7 @@ jobs:
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install OpenCode and jq
         run: |
-          npm install -g opencode-ai@${GH_AW_AGENT_VERSION}
+          npm install -g "opencode-ai@${GH_AW_AGENT_VERSION}"
           sudo apt-get update && sudo apt-get install -y jq
         env:
           GH_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
