@@ -161,13 +161,16 @@ func TestCopilotEngineHasSecretValidation(t *testing.T) {
 		t.Fatal("Expected at least one installation step")
 	}
 
-	// First step should be secret validation
+	// First step should be secret validation with both new and legacy secret names
 	firstStep := strings.Join(steps[0], "\n")
-	if !strings.Contains(firstStep, "Validate COPILOT_CLI_TOKEN secret") {
-		t.Error("First installation step should validate COPILOT_CLI_TOKEN secret")
+	if !strings.Contains(firstStep, "Validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret") {
+		t.Error("First installation step should validate COPILOT_GITHUB_TOKEN or COPILOT_CLI_TOKEN secret")
+	}
+	if !strings.Contains(firstStep, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}") {
+		t.Error("Secret validation step should reference secrets.COPILOT_GITHUB_TOKEN")
 	}
 	if !strings.Contains(firstStep, "COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}") {
-		t.Error("Secret validation step should reference secrets.COPILOT_CLI_TOKEN")
+		t.Error("Secret validation step should reference secrets.COPILOT_CLI_TOKEN for backward compatibility")
 	}
 }
 
