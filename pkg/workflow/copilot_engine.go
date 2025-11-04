@@ -236,7 +236,7 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 	env := map[string]string{
 		"XDG_CONFIG_HOME":           "/home/runner",
 		"COPILOT_AGENT_RUNNER_TYPE": "STANDALONE",
-		"GITHUB_TOKEN":              copilotGitHubToken,
+		"COPILOT_GITHUB_TOKEN":      copilotGitHubToken,
 		"GITHUB_STEP_SUMMARY":       "${{ env.GITHUB_STEP_SUMMARY }}",
 		"GITHUB_HEAD_REF":           "${{ github.head_ref }}",
 		"GITHUB_REF_NAME":           "${{ github.ref_name }}",
