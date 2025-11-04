@@ -8,10 +8,10 @@ import (
 // TestTimedOutConclusionDetection tests that timed_out conclusions are properly detected as failures
 func TestTimedOutConclusionDetection(t *testing.T) {
 	tests := []struct {
-		name           string
-		jobConclusion  string
-		expectFailure  bool
-		description    string
+		name          string
+		jobConclusion string
+		expectFailure bool
+		description   string
 	}{
 		{
 			name:          "success conclusion",
@@ -60,8 +60,8 @@ func TestTimedOutConclusionDetection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Simulate the logic from fetchJobStatuses
-			isFailure := tt.jobConclusion == "failure" || 
-				tt.jobConclusion == "cancelled" || 
+			isFailure := tt.jobConclusion == "failure" ||
+				tt.jobConclusion == "cancelled" ||
 				tt.jobConclusion == "timed_out"
 
 			if isFailure != tt.expectFailure {

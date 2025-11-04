@@ -891,7 +891,7 @@ func downloadRunArtifactsConcurrent(runs []WorkflowRun, outputDir string, verbos
 						// Don't skip - we want these to appear in the report
 						// Just use empty metrics
 						result.Metrics = LogMetrics{}
-						
+
 						// Try to fetch job details to get error count
 						if failedJobCount, jobErr := fetchJobStatuses(run.DatabaseID, verbose); jobErr == nil {
 							run.ErrorCount = failedJobCount
