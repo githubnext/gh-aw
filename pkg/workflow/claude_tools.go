@@ -7,10 +7,14 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var claudeToolsLog = logger.New("workflow:claude_tools")
 
 // expandNeutralToolsToClaudeTools converts neutral tool names to Claude-specific tool configurations
 func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map[string]any {
+	claudeToolsLog.Printf("Expanding neutral tools to Claude-specific tools: tool_count=%d", len(tools))
 	result := make(map[string]any)
 
 	// Copy existing tools that are not neutral tools
@@ -111,6 +115,8 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 // 3. adds default Claude tools and git commands based on safe outputs configuration
 // 4. generates the allowed tools string for Claude
 func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, safeOutputs *SafeOutputsConfig, cacheMemoryConfig *CacheMemoryConfig) string {
+	claudeToolsLog.Print("Computing allowed Claude tools string")
+
 	// Initialize tools map if nil
 	if tools == nil {
 		tools = make(map[string]any)
