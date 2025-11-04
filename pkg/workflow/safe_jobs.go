@@ -280,14 +280,14 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		// Add environment variables step with GH_AW_AGENT_OUTPUT and job-specific env vars
 		steps = append(steps, "      - name: Setup Safe Job Environment Variables\n")
 		steps = append(steps, "        run: |\n")
-		steps = append(steps, "          find /tmp/gh-aw/safe-jobs/ -type f -print\n")
+		steps = append(steps, "          find \"/tmp/gh-aw/safe-jobs/\" -type f -print\n")
 		// Configure GH_AW_AGENT_OUTPUT to point to downloaded artifact file
-		steps = append(steps, fmt.Sprintf("          echo \"GH_AW_AGENT_OUTPUT=%s\" >> $GITHUB_ENV\n", agentOutputArtifactFilename))
+		steps = append(steps, fmt.Sprintf("          echo \"GH_AW_AGENT_OUTPUT=%s\" >> \"$GITHUB_ENV\"\n", agentOutputArtifactFilename))
 
 		// Add job-specific environment variables
 		if jobConfig.Env != nil {
 			for key, value := range jobConfig.Env {
-				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> $GITHUB_ENV\n", key, value))
+				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> \"$GITHUB_ENV\"\n", key, value))
 			}
 		}
 

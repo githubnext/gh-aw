@@ -48,11 +48,11 @@ fi
 if [ -n "$BRANCH_NAME" ]; then
   echo "Looking for branch: $BRANCH_NAME"
   # Check if the branch exists
-  if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
+  if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
     echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
     
     # Check if origin/$BRANCH_NAME exists to use as base
-    if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
+    if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
       echo "Using origin/$BRANCH_NAME as base for patch generation"
       BASE_REF="origin/$BRANCH_NAME"
     else
@@ -60,9 +60,9 @@ if [ -n "$BRANCH_NAME" ]; then
       # Use the default branch name from environment variable
       echo "Default branch: $DEFAULT_BRANCH"
       # Fetch the default branch to ensure it's available locally
-      git fetch origin $DEFAULT_BRANCH
+      git fetch origin "$DEFAULT_BRANCH"
       # Find merge base between default branch and current branch
-      BASE_REF="$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)"
+      BASE_REF="$(git merge-base "origin/$DEFAULT_BRANCH" "$BRANCH_NAME")"
       echo "Using merge-base as base: $BASE_REF"
     fi
     
