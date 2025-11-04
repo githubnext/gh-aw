@@ -17,7 +17,8 @@
 #   create_issue["create_issue"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
-#   update_reaction["update_reaction"]
+#   pre_activation["pre_activation"]
+#   pre_activation --> activation
 #   agent --> add_comment
 #   create_issue --> add_comment
 #   detection --> add_comment
@@ -27,11 +28,6 @@
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
-#   agent --> update_reaction
-#   activation --> update_reaction
-#   create_issue --> update_reaction
-#   add_comment --> update_reaction
-#   missing_tool --> update_reaction
 # ```
 #
 # Pinned GitHub Actions:
@@ -52,22 +48,37 @@
 
 name: "Smoke Detector - Smoke Test Failure Investigator"
 "on":
-  workflow_run:
-    branches:
-    - copilot/*
-    types:
-    - completed
-    workflows:
-    - Smoke Claude
-    - Smoke Codex
-    - Smoke Copilot
-    - Smoke Copilot Firewall
-    - Smoke Opencode
+  workflow_call:
+    inputs:
+      conclusion:
+        description: Conclusion of the workflow run (failure, success, etc.)
+        required: true
+        type: string
+      head_sha:
+        description: Commit SHA that triggered the workflow run
+        required: true
+        type: string
+      html_url:
+        description: URL to the workflow run
+        required: true
+        type: string
+      run_id:
+        description: ID of the workflow run that failed
+        required: true
+        type: string
+      run_number:
+        description: Run number of the workflow run
+        required: true
+        type: string
+      workflow_name:
+        description: Name of the workflow that failed
+        required: true
+        type: string
 
 permissions:
   actions: read
   contents: read
-  issues: read
+  issues: write
   pull-requests: read
 
 concurrency:
@@ -77,18 +88,9 @@ run-name: "Smoke Detector - Smoke Test Failure Investigator"
 
 jobs:
   activation:
-    if: >
-      (github.event.workflow_run.conclusion == 'failure') && ((github.event_name != 'workflow_run') || (github.event.workflow_run.repository.id == github.repository_id))
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
-    permissions:
-      discussions: write
-      issues: write
-      pull-requests: write
-    outputs:
-      comment_id: ${{ steps.react.outputs.comment-id }}
-      comment_repo: ${{ steps.react.outputs.comment-repo }}
-      comment_url: ${{ steps.react.outputs.comment-url }}
-      reaction_id: ${{ steps.react.outputs.reaction-id }}
     steps:
       - name: Checkout workflows
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -163,336 +165,6 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Add eyes reaction to the triggering item
-        id: react
-        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        env:
-          GH_AW_REACTION: eyes
-          GH_AW_WORKFLOW_NAME: "Smoke Detector - Smoke Test Failure Investigator"
-        with:
-          script: |
-            async function main() {
-              const reaction = process.env.GH_AW_REACTION || "eyes";
-              const command = process.env.GH_AW_COMMAND; 
-              const runId = context.runId;
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              core.info(`Reaction type: ${reaction}`);
-              core.info(`Command name: ${command || "none"}`);
-              core.info(`Run ID: ${runId}`);
-              core.info(`Run URL: ${runUrl}`);
-              const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
-              if (!validReactions.includes(reaction)) {
-                core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
-                return;
-              }
-              let reactionEndpoint;
-              let commentUpdateEndpoint;
-              let shouldCreateComment = false;
-              const eventName = context.eventName;
-              const owner = context.repo.owner;
-              const repo = context.repo.repo;
-              try {
-                switch (eventName) {
-                  case "issues":
-                    const issueNumber = context.payload?.issue?.number;
-                    if (!issueNumber) {
-                      core.setFailed("Issue number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
-                    shouldCreateComment = true;
-                    break;
-                  case "issue_comment":
-                    const commentId = context.payload?.comment?.id;
-                    const issueNumberForComment = context.payload?.issue?.number;
-                    if (!commentId) {
-                      core.setFailed("Comment ID not found in event payload");
-                      return;
-                    }
-                    if (!issueNumberForComment) {
-                      core.setFailed("Issue number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumberForComment}/comments`;
-                    shouldCreateComment = true;
-                    break;
-                  case "pull_request":
-                    const prNumber = context.payload?.pull_request?.number;
-                    if (!prNumber) {
-                      core.setFailed("Pull request number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
-                    shouldCreateComment = true;
-                    break;
-                  case "pull_request_review_comment":
-                    const reviewCommentId = context.payload?.comment?.id;
-                    const prNumberForReviewComment = context.payload?.pull_request?.number;
-                    if (!reviewCommentId) {
-                      core.setFailed("Review comment ID not found in event payload");
-                      return;
-                    }
-                    if (!prNumberForReviewComment) {
-                      core.setFailed("Pull request number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumberForReviewComment}/comments`;
-                    shouldCreateComment = true;
-                    break;
-                  case "discussion":
-                    const discussionNumber = context.payload?.discussion?.number;
-                    if (!discussionNumber) {
-                      core.setFailed("Discussion number not found in event payload");
-                      return;
-                    }
-                    const discussion = await getDiscussionId(owner, repo, discussionNumber);
-                    reactionEndpoint = discussion.id; 
-                    commentUpdateEndpoint = `discussion:${discussionNumber}`; 
-                    shouldCreateComment = true;
-                    break;
-                  case "discussion_comment":
-                    const discussionCommentNumber = context.payload?.discussion?.number;
-                    const discussionCommentId = context.payload?.comment?.id;
-                    if (!discussionCommentNumber || !discussionCommentId) {
-                      core.setFailed("Discussion or comment information not found in event payload");
-                      return;
-                    }
-                    const commentNodeId = context.payload?.comment?.node_id;
-                    if (!commentNodeId) {
-                      core.setFailed("Discussion comment node ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = commentNodeId; 
-                    commentUpdateEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`; 
-                    shouldCreateComment = true;
-                    break;
-                  default:
-                    core.setFailed(`Unsupported event type: ${eventName}`);
-                    return;
-                }
-                core.info(`Reaction API endpoint: ${reactionEndpoint}`);
-                const isDiscussionEvent = eventName === "discussion" || eventName === "discussion_comment";
-                if (isDiscussionEvent) {
-                  await addDiscussionReaction(reactionEndpoint, reaction);
-                } else {
-                  await addReaction(reactionEndpoint, reaction);
-                }
-                if (shouldCreateComment && commentUpdateEndpoint) {
-                  core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
-                  await addCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
-                } else {
-                  core.info(`Skipping comment for event type: ${eventName}`);
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to process reaction and comment creation: ${errorMessage}`);
-                core.setFailed(`Failed to process reaction and comment creation: ${errorMessage}`);
-              }
-            }
-            async function addReaction(endpoint, reaction) {
-              const response = await github.request("POST " + endpoint, {
-                content: reaction,
-                headers: {
-                  Accept: "application/vnd.github+json",
-                },
-              });
-              const reactionId = response.data?.id;
-              if (reactionId) {
-                core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-                core.setOutput("reaction-id", reactionId.toString());
-              } else {
-                core.info(`Successfully added reaction: ${reaction}`);
-                core.setOutput("reaction-id", "");
-              }
-            }
-            async function addDiscussionReaction(subjectId, reaction) {
-              const reactionMap = {
-                "+1": "THUMBS_UP",
-                "-1": "THUMBS_DOWN",
-                laugh: "LAUGH",
-                confused: "CONFUSED",
-                heart: "HEART",
-                hooray: "HOORAY",
-                rocket: "ROCKET",
-                eyes: "EYES",
-              };
-              const reactionContent = reactionMap[reaction];
-              if (!reactionContent) {
-                throw new Error(`Invalid reaction type for GraphQL: ${reaction}`);
-              }
-              const result = await github.graphql(
-                `
-                mutation($subjectId: ID!, $content: ReactionContent!) {
-                  addReaction(input: { subjectId: $subjectId, content: $content }) {
-                    reaction {
-                      id
-                      content
-                    }
-                  }
-                }`,
-                { subjectId, content: reactionContent }
-              );
-              const reactionId = result.addReaction.reaction.id;
-              core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-              core.setOutput("reaction-id", reactionId);
-            }
-            async function getDiscussionId(owner, repo, discussionNumber) {
-              const { repository } = await github.graphql(
-                `
-                query($owner: String!, $repo: String!, $num: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    discussion(number: $num) { 
-                      id 
-                      url
-                    }
-                  }
-                }`,
-                { owner, repo, num: discussionNumber }
-              );
-              if (!repository || !repository.discussion) {
-                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
-              }
-              return {
-                id: repository.discussion.id,
-                url: repository.discussion.url,
-              };
-            }
-            async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) {
-              const discussion = await getDiscussionId(owner, repo, discussionNumber);
-              if (!discussion) throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
-              const nodeId = context.payload?.comment?.node_id;
-              if (nodeId) {
-                return {
-                  id: nodeId,
-                  url: context.payload.comment?.html_url || discussion?.url,
-                };
-              }
-              throw new Error(`Discussion comment node ID not found in event payload for comment ${commentId}`);
-            }
-            async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
-              try {
-                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-                if (eventName === "discussion") {
-                  const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion.`;
-                  const { repository } = await github.graphql(
-                    `
-                    query($owner: String!, $repo: String!, $num: Int!) {
-                      repository(owner: $owner, name: $repo) {
-                        discussion(number: $num) { 
-                          id 
-                        }
-                      }
-                    }`,
-                    { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
-                  );
-                  const discussionId = repository.discussion.id;
-                  const result = await github.graphql(
-                    `
-                    mutation($dId: ID!, $body: String!) {
-                      addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-                        comment { 
-                          id 
-                          url
-                        }
-                      }
-                    }`,
-                    { dId: discussionId, body: workflowLinkText }
-                  );
-                  const comment = result.addDiscussionComment.comment;
-                  core.info(`Successfully created discussion comment with workflow link`);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
-                  core.setOutput("comment-id", comment.id);
-                  core.setOutput("comment-url", comment.url);
-                  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
-                  return;
-                } else if (eventName === "discussion_comment") {
-                  const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion comment.`;
-                  const { repository } = await github.graphql(
-                    `
-                    query($owner: String!, $repo: String!, $num: Int!) {
-                      repository(owner: $owner, name: $repo) {
-                        discussion(number: $num) { 
-                          id 
-                        }
-                      }
-                    }`,
-                    { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
-                  );
-                  const discussionId = repository.discussion.id;
-                  const commentNodeId = context.payload?.comment?.node_id;
-                  const result = await github.graphql(
-                    `
-                    mutation($dId: ID!, $body: String!, $replyToId: ID!) {
-                      addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
-                        comment { 
-                          id 
-                          url
-                        }
-                      }
-                    }`,
-                    { dId: discussionId, body: workflowLinkText, replyToId: commentNodeId }
-                  );
-                  const comment = result.addDiscussionComment.comment;
-                  core.info(`Successfully created discussion comment with workflow link`);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
-                  core.setOutput("comment-id", comment.id);
-                  core.setOutput("comment-url", comment.url);
-                  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
-                  return;
-                }
-                let eventTypeDescription;
-                switch (eventName) {
-                  case "issues":
-                    eventTypeDescription = "issue";
-                    break;
-                  case "pull_request":
-                    eventTypeDescription = "pull request";
-                    break;
-                  case "issue_comment":
-                    eventTypeDescription = "issue comment";
-                    break;
-                  case "pull_request_review_comment":
-                    eventTypeDescription = "pull request review comment";
-                    break;
-                  default:
-                    eventTypeDescription = "event";
-                }
-                const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventTypeDescription}.`;
-                const createResponse = await github.request("POST " + endpoint, {
-                  body: workflowLinkText,
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-                core.info(`Successfully created comment with workflow link`);
-                core.info(`Comment ID: ${createResponse.data.id}`);
-                core.info(`Comment URL: ${createResponse.data.html_url}`);
-                core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
-                core.setOutput("comment-id", createResponse.data.id.toString());
-                core.setOutput("comment-url", createResponse.data.html_url);
-                core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(
-                  "Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
-                );
-              }
-            }
-            await main();
 
   add_comment:
     needs:
@@ -891,7 +563,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-      issues: read
+      issues: write
       pull-requests: read
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
@@ -1955,13 +1627,13 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_EXPR_FD224667: ${{ github.event.workflow_run.conclusion }}
-          GH_AW_EXPR_948C4FD8: ${{ github.event.workflow_run.event }}
-          GH_AW_EXPR_9A971DC4: ${{ github.event.workflow_run.head_sha }}
-          GH_AW_EXPR_D611C113: ${{ github.event.workflow_run.html_url }}
-          GH_AW_EXPR_3906A565: ${{ github.event.workflow_run.id }}
-          GH_AW_EXPR_20984929: ${{ github.event.workflow_run.run_number }}
           GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_2CBA5CE1: ${{ inputs.conclusion }}
+          GH_AW_EXPR_B4F8C8D5: ${{ inputs.head_sha }}
+          GH_AW_EXPR_475F31C3: ${{ inputs.html_url }}
+          GH_AW_EXPR_7172678D: ${{ inputs.run_id }}
+          GH_AW_EXPR_1CDB85B1: ${{ inputs.run_number }}
+          GH_AW_EXPR_5830D129: ${{ inputs.workflow_name }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
@@ -2046,15 +1718,17 @@ jobs:
           ## Current Context
           
           - **Repository**: ${GH_AW_EXPR_D892F163}
-          - **Workflow Run**: ${GH_AW_EXPR_3906A565}
-          - **Conclusion**: ${GH_AW_EXPR_FD224667}
-          - **Run URL**: ${GH_AW_EXPR_D611C113}
-          - **Head SHA**: ${GH_AW_EXPR_9A971DC4}
+          - **Workflow Name**: ${GH_AW_EXPR_5830D129}
+          - **Workflow Run**: ${GH_AW_EXPR_7172678D}
+          - **Run Number**: ${GH_AW_EXPR_1CDB85B1}
+          - **Conclusion**: ${GH_AW_EXPR_2CBA5CE1}
+          - **Run URL**: ${GH_AW_EXPR_475F31C3}
+          - **Head SHA**: ${GH_AW_EXPR_B4F8C8D5}
           
           ## Investigation Protocol
           
           ### Phase 1: Initial Triage
-          1. **Use gh-aw_audit Tool**: Run `gh-aw_audit` with the workflow run ID `${GH_AW_EXPR_3906A565}` to get comprehensive diagnostic information
+          1. **Use gh-aw_audit Tool**: Run `gh-aw_audit` with the workflow run ID `${GH_AW_EXPR_7172678D}` to get comprehensive diagnostic information
           2. **Analyze Audit Report**: Review the audit report for:
              - Failed jobs and their errors
              - Error patterns and classifications
@@ -2154,7 +1828,7 @@ jobs:
              - Include up to 3 workflow run URLs as references at the end
              
           3. **Determine Output Location**:
-             - **First, check for associated pull request**: Use the GitHub API to search for pull requests associated with the branch from the failed workflow run (commit SHA: ${GH_AW_EXPR_9A971DC4})
+             - **First, check for associated pull request**: Use the GitHub API to search for pull requests associated with the branch from the failed workflow run (commit SHA: ${GH_AW_EXPR_B4F8C8D5})
              - **If a pull request is found**: Post the investigation report as a comment on that pull request using the `add_comment` tool
              - **If no pull request is found**: Create a new issue with the investigation results using the `create_issue` tool
              
@@ -2167,8 +1841,8 @@ jobs:
           ### Finding Associated Pull Request
           
           To find a pull request associated with the failed workflow run:
-          1. Use the GitHub search API to search for pull requests with the commit SHA: `${GH_AW_EXPR_9A971DC4}`
-          2. Query: `repo:${GH_AW_EXPR_D892F163} is:pr ${GH_AW_EXPR_9A971DC4}`
+          1. Use the GitHub search API to search for pull requests with the commit SHA: `${GH_AW_EXPR_B4F8C8D5}`
+          2. Query: `repo:${GH_AW_EXPR_D892F163} is:pr ${GH_AW_EXPR_B4F8C8D5}`
           3. If a pull request is found, use its number for the `add_comment` tool
           4. If no pull request is found, proceed with creating an issue
           
@@ -2184,12 +1858,12 @@ jobs:
           **Then wrap detailed content in `<details>` tags:**
           ```markdown
           <details>
-          <summary><b>Full Investigation Report - Run #${GH_AW_EXPR_20984929}</b></summary>
+          <summary><b>Full Investigation Report - Run #${GH_AW_EXPR_1CDB85B1}</b></summary>
           
           ## Failure Details
-          - **Run**: [§${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
-          - **Commit**: ${GH_AW_EXPR_9A971DC4}
-          - **Trigger**: ${GH_AW_EXPR_948C4FD8}
+          - **Run**: [§${GH_AW_EXPR_7172678D}](${GH_AW_EXPR_475F31C3})
+          - **Commit**: ${GH_AW_EXPR_B4F8C8D5}
+          - **Workflow**: ${GH_AW_EXPR_5830D129}
           
           ## Root Cause Analysis
           [Detailed analysis of what went wrong]
@@ -2214,7 +1888,7 @@ jobs:
           ---
           
           **References:**
-          - [§${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
+          - [§${GH_AW_EXPR_7172678D}](${GH_AW_EXPR_475F31C3})
           ```
           
           ### Investigation Issue Template (for Issues)
@@ -2229,12 +1903,12 @@ jobs:
           **Then wrap detailed content in `<details>` tags:**
           ```markdown
           <details>
-          <summary><b>Full Investigation Report - Run #${GH_AW_EXPR_20984929}</b></summary>
+          <summary><b>Full Investigation Report - Run #${GH_AW_EXPR_1CDB85B1}</b></summary>
           
           ## Failure Details
-          - **Run**: [§${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
-          - **Commit**: ${GH_AW_EXPR_9A971DC4}
-          - **Trigger**: ${GH_AW_EXPR_948C4FD8}
+          - **Run**: [§${GH_AW_EXPR_7172678D}](${GH_AW_EXPR_475F31C3})
+          - **Commit**: ${GH_AW_EXPR_B4F8C8D5}
+          - **Workflow**: ${GH_AW_EXPR_5830D129}
           
           ## Root Cause Analysis
           [Detailed analysis of what went wrong]
@@ -2259,7 +1933,7 @@ jobs:
           ---
           
           **References:**
-          - [§${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
+          - [§${GH_AW_EXPR_7172678D}](${GH_AW_EXPR_475F31C3})
           ```
           
           ## Important Guidelines
@@ -4944,139 +4618,83 @@ jobs:
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
 
-  update_reaction:
-    needs:
-      - agent
-      - activation
-      - create_issue
-      - add_comment
-      - missing_tool
-    if: >
-      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!contains(needs.agent.outputs.output_types, 'add_comment'))) &&
-      (!contains(needs.agent.outputs.output_types, 'create_pull_request'))) && (!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
+  pre_activation:
     runs-on: ubuntu-slim
-    permissions:
-      contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
-      - name: Debug job inputs
-        env:
-          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
-          AGENT_CONCLUSION: ${{ needs.agent.result }}
-        run: |
-          echo "Comment ID: $COMMENT_ID"
-          echo "Comment Repo: $COMMENT_REPO"
-          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
-          echo "Agent Conclusion: $AGENT_CONCLUSION"
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Update reaction comment with completion status
-        id: update_reaction
+      - name: Check team membership for workflow
+        id: check_membership
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Smoke Detector - Smoke Test Failure Investigator"
-          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
-              const commentId = process.env.GH_AW_COMMENT_ID;
-              const commentRepo = process.env.GH_AW_COMMENT_REPO;
-              const runUrl = process.env.GH_AW_RUN_URL;
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "failure";
-              core.info(`Comment ID: ${commentId}`);
-              core.info(`Comment Repo: ${commentRepo}`);
-              core.info(`Run URL: ${runUrl}`);
-              core.info(`Workflow Name: ${workflowName}`);
-              core.info(`Agent Conclusion: ${agentConclusion}`);
-              if (!commentId) {
-                core.info("No comment ID found, skipping comment update");
-                return;
-              }
-              if (!runUrl) {
-                core.setFailed("Run URL is required");
-                return;
-              }
-              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
-              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
-              core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              let statusEmoji = "❌";
-              let statusText = "failed";
-              let message;
-              if (agentConclusion === "success") {
-                statusEmoji = "✅";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) completed successfully.`;
-              } else if (agentConclusion === "cancelled") {
-                statusEmoji = "🚫";
-                statusText = "was cancelled";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              } else if (agentConclusion === "skipped") {
-                statusEmoji = "⏭️";
-                statusText = "was skipped";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              } else if (agentConclusion === "timed_out") {
-                statusEmoji = "⏱️";
-                statusText = "timed out";
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              } else {
-                message = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              }
-              const isDiscussionComment = commentId.startsWith("DC_");
-              try {
-                if (isDiscussionComment) {
-                  const result = await github.graphql(
-                    `
-                    mutation($commentId: ID!, $body: String!) {
-                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
-                        comment {
-                          id
-                          url
-                        }
-                      }
-                    }`,
-                    { commentId: commentId, body: message }
-                  );
-                  const comment = result.updateDiscussionComment.comment;
-                  core.info(`Successfully updated discussion comment`);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                } else {
-                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    body: message,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully updated comment`);
-                  core.info(`Comment ID: ${response.data.id}`);
-                  core.info(`Comment URL: ${response.data.html_url}`);
+              const { eventName } = context;
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
+              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+              if (eventName === "workflow_dispatch") {
+                const hasWriteRole = requiredPermissions.includes("write");
+                if (hasWriteRole) {
+                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
+                  core.setOutput("is_team_member", "true");
+                  core.setOutput("result", "safe_event");
+                  return;
                 }
-              } catch (error) {
-                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
+                core.info(`Event ${eventName} requires validation (write role not allowed)`);
+              }
+              const safeEvents = ["workflow_run", "schedule"];
+              if (safeEvents.includes(eventName)) {
+                core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
+                return;
+              }
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
+                return;
+              }
+              try {
+                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.info(`Repository permission level: ${permission}`);
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    core.setOutput("is_team_member", "true");
+                    core.setOutput("result", "authorized");
+                    core.setOutput("user_permission", permission);
+                    return;
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", permission);
+                core.setOutput(
+                  "error_message",
+                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+                );
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
+                return;
               }
             }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
+            await main();
 

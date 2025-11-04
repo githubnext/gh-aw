@@ -55,6 +55,7 @@ var (
 	expressionRegex = regexp.MustCompile(`(?s)\$\{\{(.*?)\}\}`)
 	needsStepsRegex = regexp.MustCompile(`^(needs|steps)\.[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$`)
 	inputsRegex     = regexp.MustCompile(`^github\.event\.inputs\.[a-zA-Z0-9_-]+$`)
+	workflowCallInputsRegex = regexp.MustCompile(`^inputs\.[a-zA-Z0-9_-]+$`)
 	envRegex        = regexp.MustCompile(`^env\.[a-zA-Z0-9_-]+$`)
 	// comparisonExtractionRegex extracts property accesses from comparison expressions
 	// Matches patterns like "github.workflow == 'value'" and extracts "github.workflow"
@@ -92,14 +93,14 @@ func validateExpressionSafety(markdownContent string) error {
 		if parseErr == nil {
 			// If we can parse it, validate each literal expression in the tree
 			validationErr := VisitExpressionTree(parsed, func(expr *ExpressionNode) error {
-				return validateSingleExpression(expr.Expression, needsStepsRegex, inputsRegex, envRegex, &unauthorizedExpressions)
+				return validateSingleExpression(expr.Expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, envRegex, &unauthorizedExpressions)
 			})
 			if validationErr != nil {
 				return validationErr
 			}
 		} else {
 			// If parsing fails, fall back to validating the whole expression as a literal
-			err := validateSingleExpression(expression, needsStepsRegex, inputsRegex, envRegex, &unauthorizedExpressions)
+			err := validateSingleExpression(expression, needsStepsRegex, inputsRegex, workflowCallInputsRegex, envRegex, &unauthorizedExpressions)
 			if err != nil {
 				return err
 			}
@@ -128,6 +129,7 @@ func validateExpressionSafety(markdownContent string) error {
 		allowedList.WriteString("  - needs.*\n")
 		allowedList.WriteString("  - steps.*\n")
 		allowedList.WriteString("  - github.event.inputs.*\n")
+		allowedList.WriteString("  - inputs.* (workflow_call)\n")
 		allowedList.WriteString("  - env.*\n")
 
 		return fmt.Errorf("unauthorized expressions:%s\nallowed:%s",
@@ -138,7 +140,7 @@ func validateExpressionSafety(markdownContent string) error {
 }
 
 // validateSingleExpression validates a single literal expression
-func validateSingleExpression(expression string, needsStepsRe, inputsRe, envRe *regexp.Regexp, unauthorizedExpressions *[]string) error {
+func validateSingleExpression(expression string, needsStepsRe, inputsRe, workflowCallInputsRe, envRe *regexp.Regexp, unauthorizedExpressions *[]string) error {
 	expression = strings.TrimSpace(expression)
 
 	// Check if this expression is in the allowed list
@@ -149,6 +151,9 @@ func validateSingleExpression(expression string, needsStepsRe, inputsRe, envRe *
 		allowed = true
 	} else if inputsRe.MatchString(expression) {
 		// Check if this expression matches github.event.inputs.* pattern
+		allowed = true
+	} else if workflowCallInputsRe.MatchString(expression) {
+		// Check if this expression matches inputs.* pattern (workflow_call inputs)
 		allowed = true
 	} else if envRe.MatchString(expression) {
 		// check if this expression matches env.* pattern
@@ -178,6 +183,8 @@ func validateSingleExpression(expression string, needsStepsRe, inputsRe, envRe *
 					if needsStepsRe.MatchString(property) {
 						propertyAllowed = true
 					} else if inputsRe.MatchString(property) {
+						propertyAllowed = true
+					} else if workflowCallInputsRe.MatchString(property) {
 						propertyAllowed = true
 					} else if envRe.MatchString(property) {
 						propertyAllowed = true

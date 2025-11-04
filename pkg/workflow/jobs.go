@@ -27,6 +27,11 @@ type Job struct {
 	Steps          []string
 	Needs          []string // Job dependencies (needs clause)
 	Outputs        map[string]string
+	
+	// Reusable workflow call properties
+	Uses    string            // Path to reusable workflow (e.g., ./.github/workflows/reusable.yml)
+	With    map[string]any    // Input parameters for reusable workflow
+	Secrets map[string]string // Secrets for reusable workflow
 }
 
 // JobManager manages a collection of jobs and handles dependency validation
@@ -272,12 +277,59 @@ func (jm *JobManager) renderJob(job *Job) string {
 		}
 	}
 
-	// Add steps section
-	if len(job.Steps) > 0 {
-		yaml.WriteString("    steps:\n")
-		for _, step := range job.Steps {
-			// Each step is already formatted with proper indentation
-			yaml.WriteString(step)
+	// Check if this is a reusable workflow call
+	if job.Uses != "" {
+		// Add uses directive for reusable workflow
+		yaml.WriteString(fmt.Sprintf("    uses: %s\n", job.Uses))
+		
+		// Add with parameters if present
+		if len(job.With) > 0 {
+			yaml.WriteString("    with:\n")
+			// Sort keys for consistent output
+			withKeys := make([]string, 0, len(job.With))
+			for key := range job.With {
+				withKeys = append(withKeys, key)
+			}
+			sort.Strings(withKeys)
+			
+			for _, key := range withKeys {
+				value := job.With[key]
+				// Format the value based on its type
+				switch v := value.(type) {
+				case string:
+					yaml.WriteString(fmt.Sprintf("      %s: %s\n", key, v))
+				case int, int64, float64:
+					yaml.WriteString(fmt.Sprintf("      %s: %v\n", key, v))
+				case bool:
+					yaml.WriteString(fmt.Sprintf("      %s: %t\n", key, v))
+				default:
+					yaml.WriteString(fmt.Sprintf("      %s: %v\n", key, v))
+				}
+			}
+		}
+		
+		// Add secrets if present
+		if len(job.Secrets) > 0 {
+			yaml.WriteString("    secrets:\n")
+			// Sort secret keys for consistent output
+			secretKeys := make([]string, 0, len(job.Secrets))
+			for key := range job.Secrets {
+				secretKeys = append(secretKeys, key)
+			}
+			sort.Strings(secretKeys)
+			
+			for _, key := range secretKeys {
+				yaml.WriteString(fmt.Sprintf("      %s: %s\n", key, job.Secrets[key]))
+			}
+		}
+	} else {
+		// Add steps section (only for non-reusable workflow jobs)
+		if len(job.Steps) > 0 {
+			yaml.WriteString("    steps:\n")
+			for _, step := range job.Steps {
+				// Each step is already formatted with proper indentation
+				yaml.WriteString(step)
+			}
 		}
 	}
 
