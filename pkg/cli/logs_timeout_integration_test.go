@@ -78,7 +78,7 @@ func TestTimedOutRunProcessing(t *testing.T) {
 
 			if !tt.hasArtifacts {
 				// This is the new logic we implemented
-				if run.Conclusion == "timed_out" || run.Conclusion == "failure" || run.Conclusion == "cancelled" {
+				if isFailureConclusion(run.Conclusion) {
 					// Don't skip - we want these to appear in the report
 					shouldSkip = false
 					shouldCountAsError = true
@@ -90,7 +90,7 @@ func TestTimedOutRunProcessing(t *testing.T) {
 			} else {
 				// Has artifacts - process normally
 				shouldSkip = false
-				if run.Conclusion == "timed_out" || run.Conclusion == "failure" || run.Conclusion == "cancelled" {
+				if isFailureConclusion(run.Conclusion) {
 					shouldCountAsError = true
 				}
 			}
