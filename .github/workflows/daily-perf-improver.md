@@ -45,9 +45,9 @@ steps:
     id: check_build_steps_file
     run: |
       if [ -f ".github/actions/daily-perf-improver/build-steps/action.yml" ]; then
-        echo "exists=true" >> $GITHUB_OUTPUT
+        echo "exists=true" >> "$GITHUB_OUTPUT"
       else
-        echo "exists=false" >> $GITHUB_OUTPUT
+        echo "exists=false" >> "$GITHUB_OUTPUT"
       fi
     shell: bash
   - name: Build the project ready for performance testing, logging to build-steps.log

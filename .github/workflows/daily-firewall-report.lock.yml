@@ -1773,48 +1773,62 @@ jobs:
           
           This prevents unnecessary re-analysis of the same data and significantly reduces token usage.
           
-          ### Step 1: Identify Workflows with Firewall Feature
+          ### Step 1: Collect Recent Firewall-Enabled Workflow Runs
           
-          1. List all workflows in the repository
-          2. For each workflow that has `network.firewall: true` in its frontmatter, note the workflow name
-          3. Create a list of all firewall-enabled workflows
+          Use the `logs` tool from the agentic-workflows MCP server to efficiently collect workflow runs that have firewall enabled:
           
-          **Example frontmatter structure:**
-          ```yaml
-          network:
-            firewall: true
+          **Using the logs tool:**
+          Call the `logs` tool with the following parameters:
+          - `firewall`: true (boolean - to filter only runs with firewall enabled)
+          - `start_date`: "-7d" (to get runs from the past 7 days)
+          - `count`: 100 (to get up to 100 matching runs)
+          
+          The tool will:
+          1. Filter runs based on the `steps.firewall` field in `aw_info.json` (e.g., "squid" when enabled)
+          2. Return only runs where firewall was enabled
+          3. Limit to runs from the past 7 days
+          4. Return up to 100 matching runs
+          
+          **Tool call example:**
+          ```json
+          {
+            "firewall": true,
+            "start_date": "-7d",
+            "count": 100
+          }
           ```
           
-          **Note:** The firewall field is under `network`, not `features`.
+          ### Step 2: Analyze Firewall Logs from Collected Runs
           
-          ### Step 2: Collect Recent Workflow Runs
-          
-          For each firewall-enabled workflow:
-          1. Get up to 10 workflow runs that occurred within the past 7 days (if there are fewer than 10 runs in that window, include all available; if there are more, include only the most recent 10)
-          2. For each run ID, use the `audit` tool from the agentic-workflows MCP server with `--json` flag to get detailed firewall information
-          3. Store the run ID, workflow name, and timestamp for tracking
+          For each run collected in Step 1:
+          1. Use the `audit` tool from the agentic-workflows MCP server to get detailed firewall information
+          2. Store the run ID, workflow name, and timestamp for tracking
           
           **Using the audit tool:**
-          ```bash
-          # Get firewall analysis in JSON format
-          gh aw audit <run-id> --json
+          Call the `audit` tool with the run_id parameter for each run from Step 1.
           
-          # Example jq filter to extract firewall data:
-          gh aw audit <run-id> --json | jq '{
-            run_id: .overview.run_id,
-            workflow: .overview.workflow_name,
-            firewall: .firewall_analysis // {},
-            denied_domains: .firewall_analysis.denied_domains // [],
-            allowed_domains: .firewall_analysis.allowed_domains // [],
-            total_requests: .firewall_analysis.total_requests // 0,
-            denied_requests: .firewall_analysis.denied_requests // 0
-          }'
+          **Tool call example:**
+          ```json
+          {
+            "run_id": 12345678
+          }
           ```
           
-          **Important:** Do NOT manually download and parse firewall log files. Always use the `audit` tool which provides structured firewall analysis data including:
+          The audit tool returns structured firewall analysis data including:
           - Total requests, allowed requests, denied requests
           - Lists of allowed and denied domains
           - Request statistics per domain
+          
+          **Example of extracting firewall data from audit result:**
+          ```javascript
+          // From the audit tool result, access:
+          result.firewall_analysis.denied_domains  // Array of denied domain names
+          result.firewall_analysis.allowed_domains  // Array of allowed domain names
+          result.firewall_analysis.total_requests   // Total number of network requests
+          result.firewall_analysis.denied_requests  // Number of denied requests
+          ```
+          
+          **Important:** Do NOT manually download and parse firewall log files. Always use the `audit` tool which provides structured firewall analysis data.
           
           ### Step 3: Parse and Analyze Firewall Logs
           

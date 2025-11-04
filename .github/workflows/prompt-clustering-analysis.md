@@ -61,7 +61,7 @@ steps:
 
       # Search for PRs created by Copilot in the last 30 days
       echo "Fetching Copilot PRs from the last 30 days..."
-      gh search prs --repo ${{ github.repository }} \
+      gh search prs --repo "${{ github.repository }}" \
         --author "copilot" \
         --created ">=$DATE_30_DAYS_AGO" \
         --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository,mergedAt \
@@ -87,20 +87,20 @@ steps:
       echo "Processing $PR_COUNT PRs..."
       
       # Extract PR numbers and download full data for each
-      jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read pr_number; do
+      jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read -r pr_number; do
         echo "Downloading full data for PR #$pr_number..."
         
         # Download full PR data with all available fields
         gh pr view "$pr_number" \
-          --repo ${{ github.repository }} \
+          --repo "${{ github.repository }}" \
           --json additions,assignees,author,autoMergeRequest,baseRefName,baseRefOid,body,changedFiles,closed,closedAt,closingIssuesReferences,comments,commits,createdAt,deletions,files,fullDatabaseId,headRefName,headRefOid,headRepository,headRepositoryOwner,id,isCrossRepository,isDraft,labels,latestReviews,maintainerCanModify,mergeCommit,mergeStateStatus,mergeable,mergedAt,mergedBy,milestone,number,potentialMergeCommit,projectCards,projectItems,reactionGroups,reviewDecision,reviewRequests,reviews,state,statusCheckRollup,title,updatedAt,url \
-          > /tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json
+          > "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json"
         
         echo "Downloaded PR #$pr_number"
       done
       
       # Create an index file listing all downloaded PRs
-      ls -1 /tmp/gh-aw/prompt-cache/pr-full-data/ | grep -E '^pr-[0-9]+\.json$' | \
+      find /tmp/gh-aw/prompt-cache/pr-full-data/ -maxdepth 1 -name 'pr-[0-9]*.json' -type f -printf '%f\n' | \
         sed 's/pr-\([0-9]*\)\.json/\1/' | sort -n > /tmp/gh-aw/prompt-cache/pr-full-data/index.txt
       
       echo "Full PR data cached in /tmp/gh-aw/prompt-cache/pr-full-data/"

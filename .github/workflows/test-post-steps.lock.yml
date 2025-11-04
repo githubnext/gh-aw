@@ -1727,6 +1727,6 @@ jobs:
           path: /tmp/gh-aw/
           retention-days: 1
       - name: Final Summary
-        run: "{\n  echo \"## Post-Steps Test Summary\"\n  echo \"✅ All post-steps executed successfully\"\n  echo \"This validates the post-steps indentation fix\"\n} >> $GITHUB_STEP_SUMMARY\n"
+        run: "{\n  echo \"## Post-Steps Test Summary\"\n  echo \"✅ All post-steps executed successfully\"\n  echo \"This validates the post-steps indentation fix\"\n} >> \"$GITHUB_STEP_SUMMARY\"\n"
 
 
