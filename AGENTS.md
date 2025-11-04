@@ -27,6 +27,35 @@ make build       # Rebuild gh-aw after modifying JSON schemas in pkg/parser/sche
 ```
 Schema files are embedded in the binary using `//go:embed` directives, so changes require rebuilding the binary.
 
+**ALWAYS USE GITHUB MCP FOR GITHUB API ACCESS WITH COPILOT ENGINE:**
+
+The Copilot agent **cannot directly access api.github.com**. When using the `copilot` engine, you **must** configure the GitHub MCP server to access GitHub information (repositories, issues, pull requests, etc.).
+
+**CORRECT - Using GitHub MCP:**
+```yaml
+engine: copilot
+tools:
+  github:
+    mode: remote           # or "local" for Docker-based
+    toolsets: [default]    # Enables repos, issues, pull_requests, etc.
+```
+
+**INCORRECT - Trying to access api.github.com directly:**
+```yaml
+engine: copilot
+network:
+  allowed:
+    - "api.github.com"     # ❌ This will NOT work - Copilot cannot access api.github.com
+```
+
+**Key points:**
+- The GitHub MCP server provides all necessary GitHub API functionality
+- Use `toolsets: [default]` for common operations, or specify toolsets like `[repos, issues, pull_requests]`
+- Both `mode: remote` (hosted) and `mode: local` (Docker) work with Copilot
+- Never rely on direct `api.github.com` access in Copilot workflows
+
+See [GitHub MCP Server Documentation](.github/instructions/github-mcp-server.instructions.md) for complete configuration details.
+
 ## Merging Main Branch
 
 **When instructed to "merge main", follow these steps WITHOUT asking for confirmation:**
