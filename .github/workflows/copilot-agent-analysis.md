@@ -6,7 +6,11 @@ on:
     - cron: "0 18 * * *"
   workflow_dispatch:
 
-permissions: read-all
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  actions: read
 
 engine: claude
 
@@ -28,13 +32,7 @@ imports:
 tools:
   cache-memory: true
   github:
-    allowed:
-      - search_pull_requests
-      - pull_request_read
-      - list_pull_requests
-      - get_file_contents
-      - list_commits
-      - get_commit
+    toolsets: [default]
   bash:
     - "find .github -name '*.md'"
     - "find .github -type f -exec cat {} +"
@@ -63,7 +61,7 @@ steps:
       echo "Fetching Copilot PRs from the last 30 days..."
       gh search prs --repo ${{ github.repository }} \
         --author "copilot" \
-        --created ">=$DATE_30_DAYS_AGO" \
+        --created ">=${DATE_30_DAYS_AGO}" \
         --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository \
         --limit 1000 \
         > /tmp/gh-aw/pr-data/copilot-prs.json
@@ -103,7 +101,7 @@ Daily analysis of pull requests created by copilot-swe-agent in the last 24 hour
 You can use `jq` to process this data directly. For example:
 ```bash
 # Get PRs from the last 24 hours
-TODAY=$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')
+TODAY="$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')"
 jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today)]' /tmp/gh-aw/pr-data/copilot-prs.json
 
 # Count total PRs
@@ -126,10 +124,10 @@ Use the GitHub tools with one of these strategies:
 1. **Use `gh search prs --author` (Recommended - used by this workflow)**:
    ```bash
    # Server-side filtering for both date and author (current workflow approach)
-   DATE=$(date -d '24 hours ago' '+%Y-%m-%d')
+   DATE="$(date -d '24 hours ago' '+%Y-%m-%d')"
    gh search prs --repo ${{ github.repository }} \
      --author "copilot" \
-     --created ">=$DATE" \
+     --created ">=${DATE}" \
      --limit 1000 \
      --json number,title,state,createdAt,closedAt,author
    ```

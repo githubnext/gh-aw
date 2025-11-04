@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var secretMaskingLog = logger.New("workflow:secret_masking")
 
 // escapeSingleQuote escapes single quotes and backslashes in a string to prevent injection
 // when embedding data in single-quoted YAML strings
@@ -44,7 +48,7 @@ func CollectSecretReferences(yamlContent string) []string {
 }
 
 // generateSecretRedactionStep generates a workflow step that redacts secrets from files in /tmp
-func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlContent string) {
+func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlContent string, data *WorkflowData) {
 	// Extract secret references from the generated YAML
 	secretReferences := CollectSecretReferences(yamlContent)
 
@@ -59,36 +63,142 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 		yaml.WriteString("      - name: Redact secrets in logs\n")
 		yaml.WriteString("        if: always()\n")
 		yaml.WriteString("        run: echo 'No secrets to redact'\n")
-		return
+	} else {
+		yaml.WriteString("      - name: Redact secrets in logs\n")
+		yaml.WriteString("        if: always()\n")
+		yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		yaml.WriteString("        with:\n")
+		yaml.WriteString("          script: |\n")
+
+		// Use the embedded JavaScript code without comments
+		WriteJavaScriptToYAML(yaml, redactSecretsScript)
+
+		// Add environment variables
+		yaml.WriteString("        env:\n")
+
+		// Pass the list of secret names as a comma-separated string
+		// Escape each secret reference to prevent injection when embedding in YAML
+		escapedRefs := make([]string, len(secretReferences))
+		for i, ref := range secretReferences {
+			escapedRefs[i] = escapeSingleQuote(ref)
+		}
+		yaml.WriteString(fmt.Sprintf("          GH_AW_SECRET_NAMES: '%s'\n", strings.Join(escapedRefs, ",")))
+
+		// Pass the actual secret values as environment variables so they can be redacted
+		// Each secret will be available as an environment variable
+		for _, secretName := range secretReferences {
+			// Escape secret name to prevent injection in YAML
+			escapedSecretName := escapeSingleQuote(secretName)
+			// Use original secretName in GitHub Actions expression since it's already validated
+			// to only contain safe characters (uppercase letters, numbers, underscores)
+			yaml.WriteString(fmt.Sprintf("          SECRET_%s: ${{ secrets.%s }}\n", escapedSecretName, secretName))
+		}
 	}
 
-	yaml.WriteString("      - name: Redact secrets in logs\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          script: |\n")
-
-	// Use the embedded JavaScript code without comments
-	WriteJavaScriptToYAML(yaml, redactSecretsScript)
-
-	// Add environment variables
-	yaml.WriteString("        env:\n")
-
-	// Pass the list of secret names as a comma-separated string
-	// Escape each secret reference to prevent injection when embedding in YAML
-	escapedRefs := make([]string, len(secretReferences))
-	for i, ref := range secretReferences {
-		escapedRefs[i] = escapeSingleQuote(ref)
+	// Inject custom secret masking steps if configured
+	if data.SecretMasking != nil && len(data.SecretMasking.Steps) > 0 {
+		secretMaskingLog.Printf("Injecting %d custom secret masking steps", len(data.SecretMasking.Steps))
+		for _, step := range data.SecretMasking.Steps {
+			c.generateCustomSecretMaskingStep(yaml, step, data)
+		}
 	}
-	yaml.WriteString(fmt.Sprintf("          GH_AW_SECRET_NAMES: '%s'\n", strings.Join(escapedRefs, ",")))
+}
 
-	// Pass the actual secret values as environment variables so they can be redacted
-	// Each secret will be available as an environment variable
-	for _, secretName := range secretReferences {
-		// Escape secret name to prevent injection in YAML
-		escapedSecretName := escapeSingleQuote(secretName)
-		// Use original secretName in GitHub Actions expression since it's already validated
-		// to only contain safe characters (uppercase letters, numbers, underscores)
-		yaml.WriteString(fmt.Sprintf("          SECRET_%s: ${{ secrets.%s }}\n", escapedSecretName, secretName))
+// generateCustomSecretMaskingStep generates a custom secret masking step from configuration
+func (c *Compiler) generateCustomSecretMaskingStep(yaml *strings.Builder, step map[string]any, data *WorkflowData) {
+	// Record the custom secret masking step for validation
+	stepName := "Custom secret masking"
+	if name, ok := step["name"].(string); ok {
+		stepName = name
+	}
+	c.stepOrderTracker.RecordSecretRedaction(stepName)
+
+	// Generate the step YAML
+	c.renderStepFromMap(yaml, step, data, "      ")
+}
+
+// renderStepFromMap renders a GitHub Actions step from a map to YAML
+func (c *Compiler) renderStepFromMap(yaml *strings.Builder, step map[string]any, data *WorkflowData, indent string) {
+	// Start the step with a dash
+	yaml.WriteString(indent + "- ")
+
+	// Track if we've written the first line
+	firstField := true
+
+	// Order of fields to write (matches GitHub Actions convention)
+	fieldOrder := []string{"name", "id", "if", "uses", "with", "run", "env", "working-directory", "continue-on-error", "timeout-minutes", "shell"}
+
+	for _, field := range fieldOrder {
+		if value, exists := step[field]; exists {
+			// Add proper indentation for non-first fields
+			if !firstField {
+				yaml.WriteString(indent + "  ")
+			}
+			firstField = false
+
+			// Render the field based on its type
+			switch v := value.(type) {
+			case string:
+				// Handle multi-line strings (especially for 'run' field)
+				if field == "run" && strings.Contains(v, "\n") {
+					yaml.WriteString(fmt.Sprintf("%s: |\n", field))
+					lines := strings.Split(v, "\n")
+					for _, line := range lines {
+						yaml.WriteString(fmt.Sprintf("%s    %s\n", indent, line))
+					}
+				} else {
+					yaml.WriteString(fmt.Sprintf("%s: %s\n", field, v))
+				}
+			case map[string]any:
+				// For complex fields like "with" or "env"
+				yaml.WriteString(fmt.Sprintf("%s:\n", field))
+				for key, val := range v {
+					yaml.WriteString(fmt.Sprintf("%s    %s: %v\n", indent, key, val))
+				}
+			default:
+				yaml.WriteString(fmt.Sprintf("%s: %v\n", field, v))
+			}
+		}
+	}
+
+	// Add any remaining fields not in the predefined order
+	for field, value := range step {
+		// Skip fields we've already processed
+		skip := false
+		for _, f := range fieldOrder {
+			if f == field {
+				skip = true
+				break
+			}
+		}
+		if skip {
+			continue
+		}
+
+		if !firstField {
+			yaml.WriteString(indent + "  ")
+		}
+		firstField = false
+
+		switch v := value.(type) {
+		case string:
+			// Handle multi-line strings
+			if strings.Contains(v, "\n") {
+				yaml.WriteString(fmt.Sprintf("%s: |\n", field))
+				lines := strings.Split(v, "\n")
+				for _, line := range lines {
+					yaml.WriteString(fmt.Sprintf("%s    %s\n", indent, line))
+				}
+			} else {
+				yaml.WriteString(fmt.Sprintf("%s: %s\n", field, v))
+			}
+		case map[string]any:
+			yaml.WriteString(fmt.Sprintf("%s:\n", field))
+			for key, val := range v {
+				yaml.WriteString(fmt.Sprintf("%s    %s: %v\n", indent, key, val))
+			}
+		default:
+			yaml.WriteString(fmt.Sprintf("%s: %v\n", field, v))
+		}
 	}
 }

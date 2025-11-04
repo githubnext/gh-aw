@@ -976,10 +976,38 @@ func determineAndAddEngineSecret(engineConfig *workflow.EngineConfig, hostRepoSl
 	// Set the appropriate secret based on engine type
 	switch engineType {
 	case "claude":
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting ANTHROPIC_API_KEY secret for Claude engine"))
+		// Claude supports both CLAUDE_CODE_OAUTH_TOKEN and ANTHROPIC_API_KEY
+		// Try to set both if available, fail only if neither is set
+		var hasSecret bool
+
+		// Try CLAUDE_CODE_OAUTH_TOKEN first
+		if os.Getenv("CLAUDE_CODE_OAUTH_TOKEN") != "" {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting CLAUDE_CODE_OAUTH_TOKEN secret for Claude engine"))
+			}
+			if err := addEngineSecret("CLAUDE_CODE_OAUTH_TOKEN", hostRepoSlug, tracker, verbose); err == nil {
+				hasSecret = true
+			} else if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to set CLAUDE_CODE_OAUTH_TOKEN: "+err.Error()))
+			}
 		}
-		return addEngineSecret("ANTHROPIC_API_KEY", hostRepoSlug, tracker, verbose)
+
+		// Try ANTHROPIC_API_KEY
+		if os.Getenv("ANTHROPIC_API_KEY") != "" || os.Getenv("ANTHROPIC_KEY") != "" {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting ANTHROPIC_API_KEY secret for Claude engine"))
+			}
+			if err := addEngineSecret("ANTHROPIC_API_KEY", hostRepoSlug, tracker, verbose); err == nil {
+				hasSecret = true
+			} else if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to set ANTHROPIC_API_KEY: "+err.Error()))
+			}
+		}
+
+		if !hasSecret {
+			return fmt.Errorf("neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY environment variable is set")
+		}
+		return nil
 	case "codex", "openai":
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting OPENAI_API_KEY secret for OpenAI engine"))
@@ -1019,7 +1047,11 @@ func addEngineSecret(secretName, hostRepoSlug string, tracker *TrialSecretTracke
 		// Try common alternative environment variable names
 		switch secretName {
 		case "ANTHROPIC_API_KEY":
+			// Try alternative name ANTHROPIC_KEY
 			secretValue = os.Getenv("ANTHROPIC_KEY")
+		case "CLAUDE_CODE_OAUTH_TOKEN":
+			// No alternative names for CLAUDE_CODE_OAUTH_TOKEN
+			// Already checked by os.Getenv(secretName) above
 		case "OPENAI_API_KEY":
 			secretValue = os.Getenv("OPENAI_KEY")
 		case "COPILOT_CLI_TOKEN":

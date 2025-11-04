@@ -170,32 +170,33 @@ type WorkflowData struct {
 	EngineConfig        *EngineConfig // Extended engine configuration
 	AgentFile           string        // Path to custom agent file (from imports)
 	StopTime            string
-	Command             string              // for /command trigger support
-	CommandEvents       []string            // events where command should be active (nil = all events)
-	CommandOtherEvents  map[string]any      // for merging command with other events
-	AIReaction          string              // AI reaction type like "eyes", "heart", etc.
-	Jobs                map[string]any      // custom job configurations with dependencies
-	Cache               string              // cache configuration
-	NeedsTextOutput     bool                // whether the workflow uses ${{ needs.task.outputs.text }}
-	NetworkPermissions  *NetworkPermissions // parsed network permissions
-	SafeOutputs         *SafeOutputsConfig  // output configuration for automatic output routes
-	Roles               []string            // permission levels required to trigger workflow
-	CacheMemoryConfig   *CacheMemoryConfig  // parsed cache-memory configuration
-	SafetyPrompt        bool                // whether to include XPIA safety prompt (default true)
-	Runtimes            map[string]any      // runtime version overrides from frontmatter
-	ToolsTimeout        int                 // timeout in seconds for tool/MCP operations (0 = use engine default)
-	GitHubToken         string              // top-level github-token expression from frontmatter
-	ToolsStartupTimeout int                 // timeout in seconds for MCP server startup (0 = use engine default)
-	Features            map[string]bool     // feature flags from frontmatter
-	ActionCache         *ActionCache        // cache for action pin resolutions
-	ActionResolver      *ActionResolver     // resolver for action pins
-	StrictMode          bool                // strict mode for action pinning
+	ManualApproval      string               // environment name for manual approval from on: section
+	Command             string               // for /command trigger support
+	CommandEvents       []string             // events where command should be active (nil = all events)
+	CommandOtherEvents  map[string]any       // for merging command with other events
+	AIReaction          string               // AI reaction type like "eyes", "heart", etc.
+	Jobs                map[string]any       // custom job configurations with dependencies
+	Cache               string               // cache configuration
+	NeedsTextOutput     bool                 // whether the workflow uses ${{ needs.task.outputs.text }}
+	NetworkPermissions  *NetworkPermissions  // parsed network permissions
+	SafeOutputs         *SafeOutputsConfig   // output configuration for automatic output routes
+	Roles               []string             // permission levels required to trigger workflow
+	CacheMemoryConfig   *CacheMemoryConfig   // parsed cache-memory configuration
+	SafetyPrompt        bool                 // whether to include XPIA safety prompt (default true)
+	Runtimes            map[string]any       // runtime version overrides from frontmatter
+	ToolsTimeout        int                  // timeout in seconds for tool/MCP operations (0 = use engine default)
+	GitHubToken         string               // top-level github-token expression from frontmatter
+	ToolsStartupTimeout int                  // timeout in seconds for MCP server startup (0 = use engine default)
+	Features            map[string]bool      // feature flags from frontmatter
+	ActionCache         *ActionCache         // cache for action pin resolutions
+	ActionResolver      *ActionResolver      // resolver for action pins
+	StrictMode          bool                 // strict mode for action pinning
+	SecretMasking       *SecretMaskingConfig // secret masking configuration
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
 type BaseSafeOutputConfig struct {
 	Max         int    `yaml:"max,omitempty"`          // Maximum number of items to create
-	Min         int    `yaml:"min,omitempty"`          // Minimum number of items to create
 	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
@@ -221,6 +222,11 @@ type SafeOutputsConfig struct {
 	GitHubToken                     string                                 `yaml:"github-token,omitempty"`   // GitHub token for safe output jobs
 	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
 	RunsOn                          string                                 `yaml:"runs-on,omitempty"`        // Runner configuration for safe-outputs jobs
+}
+
+// SecretMaskingConfig holds configuration for secret redaction behavior
+type SecretMaskingConfig struct {
+	Steps []map[string]any `yaml:"steps,omitempty"` // Additional secret redaction steps to inject after built-in redaction
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -279,6 +285,12 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	// Validate agent file exists if specified in engine config
 	log.Printf("Validating agent file if specified")
 	if err := c.validateAgentFile(workflowData, markdownPath); err != nil {
+		return err
+	}
+
+	// Validate workflow_run triggers have branch restrictions
+	log.Printf("Validating workflow_run triggers for branch restrictions")
+	if err := c.validateWorkflowRunBranches(workflowData, markdownPath); err != nil {
 		return err
 	}
 
@@ -579,11 +591,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("no markdown content found")
 	}
 
-	// Check for deprecated stop-time usage at root level BEFORE schema validation
-	if stopTimeValue := c.extractYAMLValue(result.Frontmatter, "stop-time"); stopTimeValue != "" {
-		return nil, fmt.Errorf("'stop-time' is no longer supported at the root level. Please move it under the 'on:' section and rename to 'stop-after:'.\n\nExample:\n---\non:\n  schedule:\n    - cron: \"0 9 * * 1\"\n  stop-after: \"%s\"\n---", stopTimeValue)
-	}
-
 	// Validate main workflow frontmatter contains only expected entries
 	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(result.Frontmatter, markdownPath); err != nil {
 		return nil, err
@@ -731,6 +738,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		c.IncrementWarningCount()
 	}
 
+	// Enable firewall by default for copilot engine when network restrictions are present
+	enableFirewallByDefaultForCopilot(engineSetting, networkPermissions)
+
 	// Save the initial strict mode state again for network support check
 	// (it was restored after validateStrictMode but we need it again)
 	initialStrictModeForNetwork := c.strictMode
@@ -756,6 +766,17 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Extract SafeOutputs configuration early so we can use it when applying default tools
 	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
+
+	// Extract SecretMasking configuration
+	secretMasking := c.extractSecretMaskingConfig(result.Frontmatter)
+
+	// Merge secret-masking from imports with top-level secret-masking
+	if importsResult.MergedSecretMasking != "" {
+		secretMasking, err = c.MergeSecretMasking(secretMasking, importsResult.MergedSecretMasking)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge secret-masking: %w", err)
+		}
+	}
 
 	var tools map[string]any
 
@@ -928,6 +949,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		TrialLogicalRepo:    c.trialLogicalRepoSlug,
 		GitHubToken:         extractStringValue(result.Frontmatter, "github-token"),
 		StrictMode:          c.strictMode,
+		SecretMasking:       secretMasking,
 	}
 
 	// Initialize action cache and resolver
@@ -1088,6 +1110,12 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
+	// Process manual-approval configuration from the on: section
+	err = c.processManualApprovalConfiguration(result.Frontmatter, workflowData)
+	if err != nil {
+		return nil, err
+	}
+
 	workflowData.Command, workflowData.CommandEvents = c.extractCommandConfig(result.Frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
 	workflowData.Roles = c.extractRoles(result.Frontmatter)
@@ -1223,6 +1251,8 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})
 		if err == nil {
 			yamlStr := strings.TrimSuffix(string(onEventsYAML), "\n")
+			// Apply comment processing to filter fields (draft, forks, names)
+			yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr)
 			// Keep "on" quoted as it's a YAML boolean keyword
 			workflowData.On = yamlStr
 		} else {
@@ -1533,13 +1563,6 @@ func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *B
 	if max, exists := configMap["max"]; exists {
 		if maxInt, ok := parseIntValue(max); ok {
 			config.Max = maxInt
-		}
-	}
-
-	// Parse min
-	if min, exists := configMap["min"]; exists {
-		if minInt, ok := parseIntValue(min); ok {
-			config.Min = minInt
 		}
 	}
 

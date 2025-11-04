@@ -7,7 +7,7 @@ on:
     types:
       - completed
     branches:
-      - 'copilot/**'
+      - 'copilot/*'
 if: ${{ github.event.workflow_run.event == 'workflow_dispatch' }}
 permissions:
   contents: read

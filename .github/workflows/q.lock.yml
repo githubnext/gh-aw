@@ -121,27 +121,85 @@ jobs:
       reaction_id: ${{ steps.react.outputs.reaction-id }}
       text: ${{ steps.compute-text.outputs.text }}
     steps:
+      - name: Checkout workflows
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          sparse-checkout: |
+            .github/workflows
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+          persist-credentials: false
       - name: Check workflow file timestamps
-        run: |
-          WORKFLOW_FILE="${GITHUB_WORKSPACE}/.github/workflows/$(basename "$GITHUB_WORKFLOW" .lock.yml).md"
-          LOCK_FILE="${GITHUB_WORKSPACE}/.github/workflows/$GITHUB_WORKFLOW"
-          
-          if [ -f "$WORKFLOW_FILE" ] && [ -f "$LOCK_FILE" ]; then
-            if [ "$WORKFLOW_FILE" -nt "$LOCK_FILE" ]; then
-              echo "🔴🔴🔴 WARNING: Lock file '$LOCK_FILE' is outdated! The workflow file '$WORKFLOW_FILE' has been modified more recently. Run 'gh aw compile' to regenerate the lock file." >&2
-              echo "## ⚠️ Workflow Lock File Warning" >> $GITHUB_STEP_SUMMARY
-              echo "🔴🔴🔴 **WARNING**: Lock file \`$LOCK_FILE\` is outdated!" >> $GITHUB_STEP_SUMMARY
-              echo "The workflow file \`$WORKFLOW_FILE\` has been modified more recently." >> $GITHUB_STEP_SUMMARY
-              echo "Run \`gh aw compile\` to regenerate the lock file." >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-          fi
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_WORKFLOW_FILE: "q.lock.yml"
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            async function main() {
+              const workspace = process.env.GITHUB_WORKSPACE;
+              const workflowFile = process.env.GH_AW_WORKFLOW_FILE;
+              if (!workspace) {
+                core.setFailed("Configuration error: GITHUB_WORKSPACE not available.");
+                return;
+              }
+              if (!workflowFile) {
+                core.setFailed("Configuration error: GH_AW_WORKFLOW_FILE not available.");
+                return;
+              }
+              const workflowBasename = path.basename(workflowFile, ".lock.yml");
+              const workflowMdFile = path.join(workspace, ".github", "workflows", `${workflowBasename}.md`);
+              const lockFile = path.join(workspace, ".github", "workflows", workflowFile);
+              core.info(`Checking workflow timestamps:`);
+              core.info(`  Source: ${workflowMdFile}`);
+              core.info(`  Lock file: ${lockFile}`);
+              let workflowExists = false;
+              let lockExists = false;
+              try {
+                fs.accessSync(workflowMdFile, fs.constants.F_OK);
+                workflowExists = true;
+              } catch (error) {
+                core.info(`Source file does not exist: ${workflowMdFile}`);
+              }
+              try {
+                fs.accessSync(lockFile, fs.constants.F_OK);
+                lockExists = true;
+              } catch (error) {
+                core.info(`Lock file does not exist: ${lockFile}`);
+              }
+              if (!workflowExists || !lockExists) {
+                core.info("Skipping timestamp check - one or both files not found");
+                return;
+              }
+              const workflowStat = fs.statSync(workflowMdFile);
+              const lockStat = fs.statSync(lockFile);
+              const workflowMtime = workflowStat.mtime.getTime();
+              const lockMtime = lockStat.mtime.getTime();
+              core.info(`  Source modified: ${workflowStat.mtime.toISOString()}`);
+              core.info(`  Lock modified: ${lockStat.mtime.toISOString()}`);
+              if (workflowMtime > lockMtime) {
+                const warningMessage = `🔴🔴🔴 WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
+                core.error(warningMessage);
+                await core.summary
+                  .addRaw("## ⚠️ Workflow Lock File Warning\n\n")
+                  .addRaw(`🔴🔴🔴 **WARNING**: Lock file \`${lockFile}\` is outdated!\n\n`)
+                  .addRaw(`The workflow file \`${workflowMdFile}\` has been modified more recently.\n\n`)
+                  .addRaw("Run `gh aw compile` to regenerate the lock file.\n\n")
+                  .write();
+              } else {
+                core.info("✅ Lock file is up to date");
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
       - name: Compute current body text
         id: compute-text
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
-            function sanitizeContent(content) {
+            function sanitizeContent(content, maxLength) {
               if (!content || typeof content !== "string") {
                 return "";
               }
@@ -154,72 +212,116 @@ jobs:
                     .filter(d => d)
                 : defaultAllowedDomains;
               let sanitized = content;
+              sanitized = neutralizeCommands(sanitized);
               sanitized = neutralizeMentions(sanitized);
+              sanitized = removeXmlComments(sanitized);
+              sanitized = convertXmlTags(sanitized);
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
               sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = convertXmlTagsToParentheses(sanitized);
               sanitized = sanitizeUrlProtocols(sanitized);
               sanitized = sanitizeUrlDomains(sanitized);
-              const maxLength = 524288;
-              if (sanitized.length > maxLength) {
-                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-              }
               const lines = sanitized.split("\n");
               const maxLines = 65000;
+              maxLength = maxLength || 524288;
               if (lines.length > maxLines) {
-                sanitized = lines.slice(0, maxLines).join("\n") + "\n[Content truncated due to line count]";
+                const truncationMsg = "\n[Content truncated due to line count]";
+                const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
+                if (truncatedLines.length > maxLength) {
+                  sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
+                } else {
+                  sanitized = truncatedLines;
+                }
+              } else if (sanitized.length > maxLength) {
+                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
               }
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
               sanitized = neutralizeBotTriggers(sanitized);
               return sanitized.trim();
-              function convertXmlTagsToParentheses(s) {
-                if (!s || typeof s !== "string") {
-                  return s;
-                }
-                return (
-                  s
-                    .replace(/<\/?[a-zA-Z][a-zA-Z0-9\-_:]*(?:\s[^>]*|\/)?>/g, match => {
-                      const innerContent = match.slice(1, -1);
-                      return `(${innerContent})`;
-                    })
-                    .replace(/<!--[\s\S]*?-->/g, match => {
-                      const innerContent = match.slice(4, -3); 
-                      return `(!--${innerContent}--)`;
-                    })
-                    .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, match => {
-                      const innerContent = match.slice(9, -3); 
-                      return `(![CDATA[${innerContent}]])`;
-                    })
-                    .replace(/<\?[\s\S]*?\?>/g, match => {
-                      const innerContent = match.slice(2, -2); 
-                      return `(?${innerContent}?)`;
-                    })
-                    .replace(/<!DOCTYPE[^>]*>/gi, match => {
-                      const innerContent = match.slice(9, -1); 
-                      return `(!DOCTYPE${innerContent})`;
-                    })
-                );
-              }
               function sanitizeUrlDomains(s) {
-                s = s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
-                  const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
+                s = s.replace(/\bhttps:\/\/([^\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, rest) => {
+                  const hostname = rest.split(/[\/:\?#]/)[0].toLowerCase();
                   const isAllowed = allowedDomains.some(allowedDomain => {
                     const normalizedAllowed = allowedDomain.toLowerCase();
                     return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
                   });
-                  return isAllowed ? match : "(redacted)";
+                  if (isAllowed) {
+                    return match; 
+                  }
+                  const domain = hostname;
+                  const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                  core.info(`Redacted URL: ${truncated}`);
+                  core.debug(`Redacted URL (full): ${match}`);
+                  const urlParts = match.split(/([?&#])/);
+                  let result = "(redacted)"; 
+                  for (let i = 1; i < urlParts.length; i++) {
+                    if (urlParts[i].match(/^[?&#]$/)) {
+                      result += urlParts[i]; 
+                    } else {
+                      result += sanitizeUrlDomains(urlParts[i]);
+                    }
+                  }
+                  return result;
                 });
                 return s;
               }
               function sanitizeUrlProtocols(s) {
-                return s.replace(/\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
-                  return protocol.toLowerCase() === "https" ? match : "(redacted)";
+                return s.replace(/(?<![-\/\w])([A-Za-z][A-Za-z0-9+.-]*):(?:\/\/|(?=[^\s:]))[^\s\])}'"<>&\x00-\x1f]+/g, (match, protocol) => {
+                  if (protocol.toLowerCase() === "https") {
+                    return match;
+                  }
+                  if (match.includes("::")) {
+                    return match;
+                  }
+                  if (match.includes("://")) {
+                    const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
+                    const domain = domainMatch ? domainMatch[1] : match;
+                    const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
+                    return "(redacted)";
+                  }
+                  const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
+                  if (dangerousProtocols.includes(protocol.toLowerCase())) {
+                    const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
+                    return "(redacted)";
+                  }
+                  return match;
                 });
+              }
+              function neutralizeCommands(s) {
+                const commandName = process.env.GH_AW_COMMAND;
+                if (!commandName) {
+                  return s;
+                }
+                const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
               }
               function neutralizeMentions(s) {
                 return s.replace(
                   /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
                   (_m, p1, p2) => `${p1}\`@${p2}\``
                 );
+              }
+              function removeXmlComments(s) {
+                return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+              }
+              function convertXmlTags(s) {
+                const allowedTags = ["details", "summary", "code", "em", "b"];
+                s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
+                  const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
+                  return `(![CDATA[${convertedContent}]])`;
+                });
+                return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
+                  const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
+                  if (tagNameMatch) {
+                    const tagName = tagNameMatch[1].toLowerCase();
+                    if (allowedTags.includes(tagName)) {
+                      return match; 
+                    }
+                  }
+                  return `(${tagContent})`; 
+                });
               }
               function neutralizeBotTriggers(s) {
                 return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
@@ -300,7 +402,7 @@ jobs:
             await main();
       - name: Add rocket reaction to the triggering item
         id: react
-        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_REACTION: rocket
@@ -636,8 +738,8 @@ jobs:
       - create_pull_request
       - detection
     if: >
-      ((!cancelled()) && (contains(needs.agent.outputs.output_types, 'add_comment'))) && (((github.event.issue.number) ||
-      (github.event.pull_request.number)) || (github.event.discussion.number))
+      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))) &&
+      (((github.event.issue.number) || (github.event.pull_request.number)) || (github.event.discussion.number))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -665,8 +767,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Add Issue Comment
         id: add_comment
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -1032,7 +1134,6 @@ jobs:
       pull-requests: read
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -1092,13 +1193,15 @@ jobs:
           name: cache-memory
           path: /tmp/gh-aw/cache-memory
       - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
           SERVER_URL="${{ github.server_url }}"
           SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${{ github.repository }}.git"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Checkout PR branch
         if: |
@@ -1154,7 +1257,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.353
+        run: npm install -g @github/copilot@0.0.354
       - name: Downloading container images
         run: |
           set -e
@@ -1187,39 +1290,26 @@ jobs:
               normalized = normalized.toLowerCase();
               return normalized;
             }
-            const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+            const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
             let safeOutputsConfigRaw;
-            if (!configEnv) {
-              const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
-              debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
-              try {
-                if (fs.existsSync(defaultConfigPath)) {
-                  debug(`Reading config from file: ${defaultConfigPath}`);
-                  const configFileContent = fs.readFileSync(defaultConfigPath, "utf8");
-                  debug(`Config file content length: ${configFileContent.length} characters`);
-                  debug(`Config file read successfully, attempting to parse JSON`);
-                  safeOutputsConfigRaw = JSON.parse(configFileContent);
-                  debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
-                } else {
-                  debug(`Config file does not exist at: ${defaultConfigPath}`);
-                  debug(`Using minimal default configuration`);
-                  safeOutputsConfigRaw = {};
-                }
-              } catch (error) {
-                debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
-                debug(`Falling back to empty configuration`);
+            debug(`Reading config from file: ${configPath}`);
+            try {
+              if (fs.existsSync(configPath)) {
+                debug(`Config file exists at: ${configPath}`);
+                const configFileContent = fs.readFileSync(configPath, "utf8");
+                debug(`Config file content length: ${configFileContent.length} characters`);
+                debug(`Config file read successfully, attempting to parse JSON`);
+                safeOutputsConfigRaw = JSON.parse(configFileContent);
+                debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
+              } else {
+                debug(`Config file does not exist at: ${configPath}`);
+                debug(`Using minimal default configuration`);
                 safeOutputsConfigRaw = {};
               }
-            } else {
-              debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
-              debug(`Config environment variable length: ${configEnv.length} characters`);
-              try {
-                safeOutputsConfigRaw = JSON.parse(configEnv); 
-                debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
-              } catch (error) {
-                debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
-                throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
-              }
+            } catch (error) {
+              debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
+              debug(`Falling back to empty configuration`);
+              safeOutputsConfigRaw = {};
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
@@ -1948,6 +2038,12 @@ jobs:
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
       - name: Setup MCPs
+        env:
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
+          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
+          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -1988,10 +2084,11 @@ jobs:
                 "tools": ["*"],
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\${GH_AW_SAFE_OUTPUTS_CONFIG}",
                   "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
                   "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}"
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
+                  "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
+                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}"
                 }
               },
               "serena": {
@@ -2038,14 +2135,23 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_EXPR_E80C082D: ${{ github.actor }}
+          GH_AW_EXPR_2497EEDF: ${{ github.event.discussion.number }}
+          GH_AW_EXPR_799BE623: ${{ github.event.issue.number || github.event.pull_request.number }}
+          GH_AW_EXPR_9C6DBB26: ${{ github.event.issue.number }}
+          GH_AW_EXPR_079D8664: ${{ github.event.pull_request.number }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_2D1CC6E7: ${{ github.workspace }}
+          GH_AW_EXPR_0BABF60D: ${{ needs.activation.outputs.text }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
-          cat > $GH_AW_PROMPT << 'PROMPT_EOF'
+          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
+          mkdir -p "$PROMPT_DIR"
+          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           
           ## Serena configuration
           
-          The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
+          The active workspaces is ${GH_AW_EXPR_2D1CC6E7}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
           
           
           
@@ -2068,10 +2174,49 @@ jobs:
           <current_context>
           ## Current Context
           
-          - **Repository**: ${{ github.repository }}
-          - **Triggering Content**: "${{ needs.activation.outputs.text }}"
-          - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
-          - **Triggered by**: @${{ github.actor }}
+          - **Repository**: ${GH_AW_EXPR_D892F163}
+          - **Triggering Content**: "${GH_AW_EXPR_0BABF60D}"
+          - **Issue/PR Number**: ${GH_AW_EXPR_799BE623}
+          - **Triggered by**: @${GH_AW_EXPR_E80C082D}
+          
+          {{#if ${GH_AW_EXPR_9C6DBB26} }}
+          ### Parent Issue Context
+          
+          This workflow was triggered from a comment on issue #${GH_AW_EXPR_9C6DBB26}.
+          
+          **Important**: Before proceeding with your analysis, retrieve the full issue details to understand the context of the work to be done:
+          
+          1. Use the `issue_read` tool with method `get` to fetch issue #${GH_AW_EXPR_9C6DBB26}
+          2. Review the issue title, body, and labels to understand what workflows or problems are being discussed
+          3. Consider any linked issues or previous comments for additional context
+          4. Use this issue context to inform your investigation and recommendations
+          {{/if}}
+          
+          {{#if ${GH_AW_EXPR_079D8664} }}
+          ### Parent Pull Request Context
+          
+          This workflow was triggered from a comment on pull request #${GH_AW_EXPR_079D8664}.
+          
+          **Important**: Before proceeding with your analysis, retrieve the full PR details to understand the context of the work to be done:
+          
+          1. Use the `pull_request_read` tool with method `get` to fetch PR #${GH_AW_EXPR_079D8664}
+          2. Review the PR title, description, and changed files to understand what changes are being proposed
+          3. Consider the PR's relationship to workflow optimizations or issues
+          4. Use this PR context to inform your investigation and recommendations
+          {{/if}}
+          
+          {{#if ${GH_AW_EXPR_2497EEDF} }}
+          ### Parent Discussion Context
+          
+          This workflow was triggered from a comment on discussion #${GH_AW_EXPR_2497EEDF}.
+          
+          **Important**: Before proceeding with your analysis, retrieve the full discussion details to understand the context of the work to be done:
+          
+          1. Use GitHub tools to fetch discussion #${GH_AW_EXPR_2497EEDF}
+          2. Review the discussion title and body to understand the topic being discussed
+          3. Consider the discussion context when planning your workflow optimizations
+          4. Use this discussion context to inform your investigation and recommendations
+          {{/if}}
           </current_context>
           
           ## Investigation Protocol
@@ -2371,7 +2516,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -2403,7 +2548,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -2416,7 +2561,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           
           ---
@@ -2435,7 +2580,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -2460,7 +2605,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -2490,7 +2635,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -2526,7 +2671,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -2581,14 +2726,16 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          echo "<details>" >> $GITHUB_STEP_SUMMARY
-          echo "<summary>Generated Prompt</summary>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "<details>"
+            echo "<summary>Generated Prompt</summary>"
+            echo ""
+            echo '```markdown'
+            cat "$GH_AW_PROMPT"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -2596,13 +2743,6 @@ jobs:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
           if-no-files-found: warn
-      - name: Capture agent version
-        run: |
-          VERSION_OUTPUT=$(copilot --version 2>&1 || echo "unknown")
-          # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)
-          CLEAN_VERSION=$(echo "$VERSION_OUTPUT" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo "unknown")
-          echo "AGENT_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
-          echo "Agent version: $VERSION_OUTPUT"
       - name: Generate agentic run info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
@@ -2614,7 +2754,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: process.env.AGENT_VERSION || "",
+              agent_version: "0.0.354",
               workflow_name: "Q",
               experimental: false,
               supports_tools_allowlist: true,
@@ -2680,7 +2820,7 @@ jobs:
         timeout-minutes: 15
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
@@ -2692,7 +2832,6 @@ jobs:
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{}}"
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -2829,78 +2968,141 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{}}"
           GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
           GH_AW_COMMAND: q
         with:
           script: |
             async function main() {
               const fs = require("fs");
-              const maxBodyLength = 65000;
-              function sanitizeContent(content, maxLength) {
-                if (!content || typeof content !== "string") {
-                  return "";
-                }
-                const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
-                const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-                const allowedDomains = allowedDomainsEnv
-                  ? allowedDomainsEnv
-                      .split(",")
-                      .map(d => d.trim())
-                      .filter(d => d)
-                  : defaultAllowedDomains;
-                let sanitized = content;
-                sanitized = neutralizeMentions(sanitized);
-                sanitized = removeXmlComments(sanitized);
-                sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-                sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-                sanitized = sanitizeUrlProtocols(sanitized);
-                sanitized = sanitizeUrlDomains(sanitized);
-                const lines = sanitized.split("\n");
-                const maxLines = 65000;
-                maxLength = maxLength || 524288;
-                if (lines.length > maxLines) {
-                  const truncationMsg = "\n[Content truncated due to line count]";
-                  const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
-                  if (truncatedLines.length > maxLength) {
-                    sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
-                  } else {
-                    sanitized = truncatedLines;
-                  }
-                } else if (sanitized.length > maxLength) {
-                  sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-                }
-                sanitized = neutralizeBotTriggers(sanitized);
-                return sanitized.trim();
-                function sanitizeUrlDomains(s) {
-                  return s.replace(/\bhttps:\/\/[^\s\])}'"<>&\x00-\x1f,;]+/gi, match => {
-                    const urlAfterProtocol = match.slice(8);
-                    const hostname = urlAfterProtocol.split(/[\/:\?#]/)[0].toLowerCase();
-                    const isAllowed = allowedDomains.some(allowedDomain => {
-                      const normalizedAllowed = allowedDomain.toLowerCase();
-                      return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
-                    });
-                    return isAllowed ? match : "(redacted)";
-                  });
-                }
-                function sanitizeUrlProtocols(s) {
-                  return s.replace(/\b(\w+):\/\/[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
-                    return protocol.toLowerCase() === "https" ? match : "(redacted)";
-                  });
-                }
-                function neutralizeMentions(s) {
-                  return s.replace(
-                    /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                    (_m, p1, p2) => `${p1}\`@${p2}\``
-                  );
-                }
-                function removeXmlComments(s) {
-                  return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
-                }
-                function neutralizeBotTriggers(s) {
-                  return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-                }
+            function sanitizeContent(content, maxLength) {
+              if (!content || typeof content !== "string") {
+                return "";
               }
+              const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
+              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
+              const allowedDomains = allowedDomainsEnv
+                ? allowedDomainsEnv
+                    .split(",")
+                    .map(d => d.trim())
+                    .filter(d => d)
+                : defaultAllowedDomains;
+              let sanitized = content;
+              sanitized = neutralizeCommands(sanitized);
+              sanitized = neutralizeMentions(sanitized);
+              sanitized = removeXmlComments(sanitized);
+              sanitized = convertXmlTags(sanitized);
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitizeUrlProtocols(sanitized);
+              sanitized = sanitizeUrlDomains(sanitized);
+              const lines = sanitized.split("\n");
+              const maxLines = 65000;
+              maxLength = maxLength || 524288;
+              if (lines.length > maxLines) {
+                const truncationMsg = "\n[Content truncated due to line count]";
+                const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
+                if (truncatedLines.length > maxLength) {
+                  sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
+                } else {
+                  sanitized = truncatedLines;
+                }
+              } else if (sanitized.length > maxLength) {
+                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
+              }
+              sanitized = neutralizeBotTriggers(sanitized);
+              return sanitized.trim();
+              function sanitizeUrlDomains(s) {
+                s = s.replace(/\bhttps:\/\/([^\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, rest) => {
+                  const hostname = rest.split(/[\/:\?#]/)[0].toLowerCase();
+                  const isAllowed = allowedDomains.some(allowedDomain => {
+                    const normalizedAllowed = allowedDomain.toLowerCase();
+                    return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
+                  });
+                  if (isAllowed) {
+                    return match; 
+                  }
+                  const domain = hostname;
+                  const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                  core.info(`Redacted URL: ${truncated}`);
+                  core.debug(`Redacted URL (full): ${match}`);
+                  const urlParts = match.split(/([?&#])/);
+                  let result = "(redacted)"; 
+                  for (let i = 1; i < urlParts.length; i++) {
+                    if (urlParts[i].match(/^[?&#]$/)) {
+                      result += urlParts[i]; 
+                    } else {
+                      result += sanitizeUrlDomains(urlParts[i]);
+                    }
+                  }
+                  return result;
+                });
+                return s;
+              }
+              function sanitizeUrlProtocols(s) {
+                return s.replace(/(?<![-\/\w])([A-Za-z][A-Za-z0-9+.-]*):(?:\/\/|(?=[^\s:]))[^\s\])}'"<>&\x00-\x1f]+/g, (match, protocol) => {
+                  if (protocol.toLowerCase() === "https") {
+                    return match;
+                  }
+                  if (match.includes("::")) {
+                    return match;
+                  }
+                  if (match.includes("://")) {
+                    const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
+                    const domain = domainMatch ? domainMatch[1] : match;
+                    const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
+                    return "(redacted)";
+                  }
+                  const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
+                  if (dangerousProtocols.includes(protocol.toLowerCase())) {
+                    const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
+                    return "(redacted)";
+                  }
+                  return match;
+                });
+              }
+              function neutralizeCommands(s) {
+                const commandName = process.env.GH_AW_COMMAND;
+                if (!commandName) {
+                  return s;
+                }
+                const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+              }
+              function neutralizeMentions(s) {
+                return s.replace(
+                  /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                  (_m, p1, p2) => `${p1}\`@${p2}\``
+                );
+              }
+              function removeXmlComments(s) {
+                return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+              }
+              function convertXmlTags(s) {
+                const allowedTags = ["details", "summary", "code", "em", "b"];
+                s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
+                  const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
+                  return `(![CDATA[${convertedContent}]])`;
+                });
+                return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
+                  const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
+                  if (tagNameMatch) {
+                    const tagName = tagNameMatch[1].toLowerCase();
+                    if (allowedTags.includes(tagName)) {
+                      return match; 
+                    }
+                  }
+                  return `(${tagContent})`; 
+                });
+              }
+              function neutralizeBotTriggers(s) {
+                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
+              }
+            }
+              const maxBodyLength = 65000;
               function getMaxAllowedForType(itemType, config) {
                 const itemConfig = config?.[itemType];
                 if (itemConfig && typeof itemConfig === "object" && "max" in itemConfig && itemConfig.max) {
@@ -3198,7 +3400,16 @@ jobs:
                 }
               }
               const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
-              const safeOutputsConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+              const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+              let safeOutputsConfig;
+              try {
+                if (fs.existsSync(configPath)) {
+                  const configFileContent = fs.readFileSync(configPath, "utf8");
+                  safeOutputsConfig = JSON.parse(configFileContent);
+                }
+              } catch (error) {
+                core.warning(`Failed to read config file from ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
+              }
               if (!outputFile) {
                 core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
                 core.setOutput("output", "");
@@ -3217,8 +3428,7 @@ jobs:
               let expectedOutputTypes = {};
               if (safeOutputsConfig) {
                 try {
-                  const rawConfig = JSON.parse(safeOutputsConfig);
-                  expectedOutputTypes = Object.fromEntries(Object.entries(rawConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
+                  expectedOutputTypes = Object.fromEntries(Object.entries(safeOutputsConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
                   core.info(`Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                 } catch (error) {
                   const errorMsg = error instanceof Error ? error.message : String(error);
@@ -4733,6 +4943,7 @@ jobs:
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_SHA: ${{ github.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           # Diagnostic logging: Show recent commits before patch generation
           echo "=== Diagnostic: Recent commits (last 5) ==="
@@ -4753,7 +4964,7 @@ jobs:
                 if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create_pull_request"'; then
                   echo "Found create_pull_request line: $line"
                   # Extract branch value using sed
-                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
                   if [ -n "$BRANCH_NAME" ]; then
                     echo "Extracted branch name from create_pull_request: $BRANCH_NAME"
                     break
@@ -4763,7 +4974,7 @@ jobs:
                 elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push_to_pull_request_branch"'; then
                   echo "Found push_to_pull_request_branch line: $line"
                   # Extract branch value using sed
-                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
                   if [ -n "$BRANCH_NAME" ]; then
                     echo "Extracted branch name from push_to_pull_request_branch: $BRANCH_NAME"
                     break
@@ -4780,21 +4991,20 @@ jobs:
           if [ -n "$BRANCH_NAME" ]; then
             echo "Looking for branch: $BRANCH_NAME"
             # Check if the branch exists
-            if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
+            if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
               echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
               # Check if origin/$BRANCH_NAME exists to use as base
-              if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
+              if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
                 echo "Using origin/$BRANCH_NAME as base for patch generation"
                 BASE_REF="origin/$BRANCH_NAME"
               else
                 echo "origin/$BRANCH_NAME does not exist, using merge-base with default branch"
-                # Get the default branch name
-                DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+                # Use the default branch name from environment variable
                 echo "Default branch: $DEFAULT_BRANCH"
                 # Fetch the default branch to ensure it's available locally
-                git fetch origin $DEFAULT_BRANCH
+                git fetch origin "$DEFAULT_BRANCH"
                 # Find merge base between default branch and current branch
-                BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)
+                BASE_REF="$(git merge-base "origin/$DEFAULT_BRANCH" "$BRANCH_NAME")"
                 echo "Using merge-base as base: $BASE_REF"
               fi
               # Diagnostic logging: Show diff stats before generating patch
@@ -4805,7 +5015,7 @@ jobs:
               # Diagnostic logging: Count commits to be included
               echo ""
               echo "=== Diagnostic: Commits to be included in patch ==="
-              COMMIT_COUNT=$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")
+              COMMIT_COUNT="$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")"
               echo "Number of commits: $COMMIT_COUNT"
               if [ "$COMMIT_COUNT" -gt 0 ]; then
                 echo "Commit SHAs:"
@@ -4828,13 +5038,13 @@ jobs:
             echo "=== Diagnostic: Patch file information ==="
             ls -lh /tmp/gh-aw/aw.patch
             # Get patch file size in KB
-            PATCH_SIZE=$(du -k /tmp/gh-aw/aw.patch | cut -f1)
+            PATCH_SIZE="$(du -k /tmp/gh-aw/aw.patch | cut -f1)"
             echo "Patch file size: ${PATCH_SIZE} KB"
             # Count lines in patch
-            PATCH_LINES=$(wc -l < /tmp/gh-aw/aw.patch)
+            PATCH_LINES="$(wc -l < /tmp/gh-aw/aw.patch)"
             echo "Patch file lines: $PATCH_LINES"
             # Extract and count commits from patch file (each commit starts with "From <sha>")
-            PATCH_COMMITS=$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")
+            PATCH_COMMITS="$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")"
             echo "Commits included in patch: $PATCH_COMMITS"
             # List commit SHAs in the patch
             if [ "$PATCH_COMMITS" -gt 0 ]; then
@@ -4842,13 +5052,15 @@ jobs:
               grep "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch | sed 's/^From \([0-9a-f]\{40\}\).*/  \1/' || echo "Failed to extract commit SHAs"
             fi
             # Show the first 50 lines of the patch for review
-            echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
-            echo '```diff' >> $GITHUB_STEP_SUMMARY
-            head -500 /tmp/gh-aw/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
-            echo '...' >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
+            {
+              echo '## Git Patch'
+              echo ''
+              echo '```diff'
+              head -500 /tmp/gh-aw/aw.patch || echo "Could not display patch contents"
+              echo '...'
+              echo '```'
+              echo ''
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload git patch
         if: always()
@@ -4862,7 +5074,8 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+    if: >
+      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
     runs-on: ubuntu-slim
     permissions:
       contents: write
@@ -4889,13 +5102,15 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
           SERVER_URL="${{ github.server_url }}"
           SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${{ github.repository }}.git"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Download agent output artifact
         continue-on-error: true
@@ -4906,8 +5121,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Pull Request
         id: create_pull_request
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -5366,6 +5581,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}
         run: |
+          # shellcheck disable=SC2086
           gh api --method POST /repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers \
             -f 'reviewers[]=copilot-pull-request-reviewer[bot]'
 
@@ -5525,7 +5741,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.353
+        run: npm install -g @github/copilot@0.0.354
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -5539,7 +5755,7 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
@@ -5602,7 +5818,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -5620,8 +5836,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -5913,8 +6129,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Update reaction comment with completion status
         id: update_reaction
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd

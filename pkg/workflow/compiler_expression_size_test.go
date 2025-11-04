@@ -21,6 +21,7 @@ func TestCompileWorkflowExpressionSizeValidation(t *testing.T) {
 	t.Run("workflow with normal expression sizes should compile successfully", func(t *testing.T) {
 		// Create a workflow with normal-sized expressions
 		testContent := `---
+on: push
 timeout_minutes: 10
 permissions:
   contents: read
@@ -61,6 +62,7 @@ The content is reasonable and won't generate overly long environment variables.
 		// We need 25KB+ of content to trigger the validation
 		largeContent := strings.Repeat("x", 25000)
 		testContent := fmt.Sprintf(`---
+on: push
 timeout_minutes: 10
 permissions:
   contents: read

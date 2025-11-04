@@ -179,3 +179,73 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 	// For command workflows, they are not considered "safe only"
 	return false
 }
+
+// hasWorkflowRunTrigger checks if the agentic workflow's frontmatter declares a workflow_run trigger
+func (c *Compiler) hasWorkflowRunTrigger(frontmatter map[string]any) bool {
+	if frontmatter == nil {
+		return false
+	}
+
+	// Check the "on" section in frontmatter
+	if onValue, exists := frontmatter["on"]; exists {
+		// Handle map format (most common)
+		if onMap, ok := onValue.(map[string]any); ok {
+			_, hasWorkflowRun := onMap["workflow_run"]
+			return hasWorkflowRun
+		}
+		// Handle string format
+		if onStr, ok := onValue.(string); ok {
+			return onStr == "workflow_run"
+		}
+	}
+
+	return false
+}
+
+// buildWorkflowRunRepoSafetyCondition generates the if condition to ensure workflow_run is from same repo
+// The condition uses: (event_name != 'workflow_run') OR (repository IDs match)
+// This allows all non-workflow_run events, but requires repository match for workflow_run events
+func (c *Compiler) buildWorkflowRunRepoSafetyCondition() string {
+	// Check that event is NOT workflow_run
+	eventNotWorkflowRun := BuildNotEquals(
+		BuildPropertyAccess("github.event_name"),
+		BuildStringLiteral("workflow_run"),
+	)
+
+	// Check that repository IDs match
+	repoIDCheck := BuildEquals(
+		BuildPropertyAccess("github.event.workflow_run.repository.id"),
+		BuildPropertyAccess("github.repository_id"),
+	)
+
+	// Combine with OR: allow if NOT workflow_run OR repository matches
+	combinedCheck := buildOr(eventNotWorkflowRun, repoIDCheck)
+
+	// Wrap in ${{ }} for GitHub Actions
+	return fmt.Sprintf("${{ %s }}", combinedCheck.Render())
+}
+
+// combineJobIfConditions combines an existing if condition with workflow_run repository safety check
+// Returns the combined condition, or just one of them if the other is empty
+func (c *Compiler) combineJobIfConditions(existingCondition, workflowRunRepoSafety string) string {
+	// If no workflow_run safety check needed, return existing condition
+	if workflowRunRepoSafety == "" {
+		return existingCondition
+	}
+
+	// If no existing condition, return just the workflow_run safety check
+	if existingCondition == "" {
+		return workflowRunRepoSafety
+	}
+
+	// Both conditions present - combine them with AND
+	// Strip ${{ }} wrapper from existingCondition if present
+	unwrappedExisting := stripExpressionWrapper(existingCondition)
+	unwrappedSafety := stripExpressionWrapper(workflowRunRepoSafety)
+
+	existingNode := &ExpressionNode{Expression: unwrappedExisting}
+	safetyNode := &ExpressionNode{Expression: unwrappedSafety}
+
+	combinedExpr := buildAnd(existingNode, safetyNode)
+	return combinedExpr.Render()
+}

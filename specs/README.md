@@ -9,6 +9,7 @@ This directory contains design specifications and implementation documentation f
 | [Safe Output Messages Design System](./safe-output-messages.md) | ✅ Implemented | `pkg/workflow/safe_outputs.go` |
 | [MCP Logs Guardrail](./MCP_LOGS_GUARDRAIL.md) | ✅ Implemented | `pkg/cli/mcp_logs_guardrail.go` |
 | [YAML Version Compatibility](./yaml-version-gotchas.md) | ✅ Documented | `pkg/workflow/compiler.go` |
+| [Validation Architecture](./validation-architecture.md) | ✅ Documented | `pkg/workflow/validation.go` and domain-specific files |
 
 ## Related Documentation
 
@@ -26,4 +27,4 @@ When adding new specifications:
 
 ---
 
-**Last Updated**: 2025-10-29
+**Last Updated**: 2025-11-03

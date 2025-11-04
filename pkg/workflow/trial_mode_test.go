@@ -127,9 +127,39 @@ This is a test workflow for trial mode compilation.
 			t.Error("Expected create_issue job in trial mode")
 		}
 
-		// Checkout should include github-token in trial mode
-		// Check specifically that the checkout step has the token parameter
-		lines := strings.Split(lockContent, "\n")
+		// Checkout in agent job should include github-token in trial mode
+		// Extract the agent job section first
+		agentJobStart := strings.Index(lockContent, "agent:")
+		if agentJobStart == -1 {
+			t.Error("Expected agent job in trial mode")
+			return
+		}
+
+		// Find the end of the agent job (next job or end of file)
+		agentJobEnd := len(lockContent)
+		nextJobStart := strings.Index(lockContent[agentJobStart+6:], "\n  ")
+		if nextJobStart != -1 {
+			searchPos := agentJobStart + 6 + nextJobStart
+			for idx := searchPos; idx < len(lockContent); idx++ {
+				if lockContent[idx] == '\n' {
+					lineStart := idx + 1
+					if lineStart < len(lockContent) && lineStart+2 < len(lockContent) {
+						if lockContent[lineStart:lineStart+2] == "  " && lockContent[lineStart+2] != ' ' {
+							colonIdx := strings.Index(lockContent[lineStart:], ":")
+							if colonIdx > 0 && colonIdx < 50 {
+								agentJobEnd = idx
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+
+		agentJobContent := lockContent[agentJobStart:agentJobEnd]
+
+		// Check specifically that the checkout step in agent job has the token parameter
+		lines := strings.Split(agentJobContent, "\n")
 		foundCheckoutToken := false
 		for i, line := range lines {
 			if strings.Contains(line, "actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8") {

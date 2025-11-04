@@ -32,6 +32,7 @@ func TestCompilerNetworkPermissionsExtraction(t *testing.T) {
 
 	t.Run("Extract top-level network permissions", func(t *testing.T) {
 		yamlContent := `---
+on: push
 engine:
   id: claude
   model: claude-3-5-sonnet-20241022
@@ -71,6 +72,7 @@ This is a test workflow with network permissions.`
 
 	t.Run("No network permissions specified", func(t *testing.T) {
 		yamlContent := `---
+on: push
 engine:
   id: claude
   model: claude-3-5-sonnet-20241022
@@ -97,6 +99,7 @@ This workflow has no network permissions.`
 
 	t.Run("Empty network permissions", func(t *testing.T) {
 		yamlContent := `---
+on: push
 engine:
   id: claude
   model: claude-3-5-sonnet-20241022
@@ -126,6 +129,7 @@ This workflow has empty network permissions (deny all).`
 
 	t.Run("Network permissions with single domain", func(t *testing.T) {
 		yamlContent := `---
+on: push
 engine:
   id: claude
   model: claude-3-5-sonnet-20241022
@@ -160,6 +164,7 @@ This workflow has a single allowed domain.`
 
 	t.Run("Network permissions passed to compilation", func(t *testing.T) {
 		yamlContent := `---
+on: push
 engine:
   id: claude
   model: claude-3-5-sonnet-20241022
@@ -192,6 +197,7 @@ Test that network permissions are passed to engine during compilation.`
 
 	t.Run("Multiple workflows with different network permissions", func(t *testing.T) {
 		yaml1 := `---
+on: push
 engine:
   id: claude
   model: claude-3-5-sonnet-20241022
@@ -203,6 +209,7 @@ network:
 # First Workflow`
 
 		yaml2 := `---
+on: push
 engine:
   id: claude
   model: claude-3-5-sonnet-20241022

@@ -82,6 +82,78 @@ permissions:
   contents: read
 ```
 
+#### Fork Protection for Pull Request Triggers
+
+Pull request workflows block forks by default for security. Workflows triggered by `pull_request` events only execute for pull requests from the same repository unless explicitly configured to allow forks.
+
+**Default behavior (blocks all forks):**
+```yaml
+on:
+  pull_request:
+    types: [opened, synchronize]
+# Blocks all forked PRs, only allows same-repo PRs
+```
+
+**Allow specific fork patterns:**
+```yaml
+on:
+  pull_request:
+    types: [opened, synchronize]
+    forks: ["trusted-org/*"]  # Allow forks from specific org
+```
+
+**Allow all forks (use with caution):**
+```yaml
+on:
+  pull_request:
+    types: [opened, synchronize]
+    forks: ["*"]  # Allow all forks
+```
+
+The compiler generates conditions using repository ID comparison (`github.event.pull_request.head.repo.id == github.repository_id`) for reliable fork detection that is not affected by repository renames.
+
+#### workflow_run Trigger Security
+
+Workflows triggered by `workflow_run` events include automatic protections against cross-repository attacks:
+
+**Automatic repository validation:**
+
+The compiler automatically injects a repository ID check into the activation job for all workflows using `workflow_run` triggers:
+
+```yaml
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+```
+
+This generates a safety condition that prevents execution if the triggering workflow_run is from a different repository:
+
+```yaml
+if: >
+  (user_condition) &&
+  ((github.event_name != 'workflow_run') ||
+   (github.event.workflow_run.repository.id == github.repository_id))
+```
+
+The safety check combines with user-specified conditions using AND logic and protects all downstream jobs through job dependencies.
+
+**Branch restriction validation:**
+
+Workflows with `workflow_run` triggers should include branch restrictions to prevent execution for workflow runs on all branches:
+
+```yaml
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches:
+      - main
+      - develop
+```
+
+Without branch restrictions, workflows emit warnings during compilation (or errors in strict mode). Branch restrictions improve security by limiting which branch workflows can trigger the workflow_run event.
+
 **Production workflows**: Consider using strict mode to enforce additional security constraints:
 
 ```yaml
@@ -101,7 +173,13 @@ Strict mode prevents write permissions (`contents:write`, `issues:write`, `pull-
 
 GitHub Actions workflows are designed to be steps within a larger process. Some critical operations should always involve human review:
 
-- **Approval gates**: Use manual approval steps for high-risk operations like deployments, secret management, or external tool invocations
+- **Approval gates**: Use the `manual-approval` field to require manual approval before workflow execution. Configure environment protection rules in repository settings to specify required reviewers and approval policies:
+  ```yaml
+  on:
+    workflow_dispatch:
+    manual-approval: production
+  ```
+  See [Manual Approval Gates](/gh-aw/reference/triggers/#manual-approval-gates-manual-approval) for configuration details.
 - **Pull requests require humans**: GitHub Actions cannot approve or merge pull requests. This means a human will always be involved in reviewing and merging pull requests that contain agentic workflows.
 - **Plan-apply separation**: Implement a "plan" phase that generates a preview of actions before execution. This allows human reviewers to assess the impact of changes. This is usually done via an output issue or pull request.
 - **Review and audit**: Regularly review workflow history, permissions, and tool usage to ensure compliance with security policies.
@@ -446,7 +524,29 @@ GitHub Agentic Workflows includes automatic threat detection to analyze agent ou
 
 The system uses AI-powered analysis with workflow source context to distinguish between legitimate actions and threats, helping reduce false positives while maintaining strong security controls.
 
-See the [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for threat detection configuration options.
+**Configuration Options:**
+
+Threat detection is automatically enabled when safe outputs are configured, but can be customized:
+
+```yaml
+safe-outputs:
+  create-pull-request:
+  threat-detection:
+    enabled: true                    # Enable/disable (default: true)
+    prompt: "Focus on SQL injection" # Custom analysis instructions
+    engine:                          # Custom detection engine
+      id: claude
+      model: claude-sonnet-4
+    steps:                           # Additional security scanning
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@main
+```
+
+**Custom Detection Tools:**
+
+Add specialized security scanners like Ollama/LlamaGuard, Semgrep, or TruffleHog alongside AI analysis for defense-in-depth security.
+
+See the [Threat Detection Guide](/gh-aw/guides/threat-detection/) for comprehensive documentation, configuration examples, and the LlamaGuard integration pattern.
 
 ### Automated Security Scanning
 
@@ -621,6 +721,7 @@ Copilot and Claude expose richer default tools and optional Bash; Codex relies m
 
 ## See also
 
+- [Threat Detection Guide](/gh-aw/guides/threat-detection/) - Comprehensive threat detection configuration and examples
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/)
 - [Network Configuration](/gh-aw/reference/network/)
 - [Tools](/gh-aw/reference/tools/)

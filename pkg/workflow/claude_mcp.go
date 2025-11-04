@@ -1,12 +1,17 @@
 package workflow
 
 import (
-	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var claudeMCPLog = logger.New("workflow:claude_mcp")
 
 // RenderMCPConfig renders the MCP configuration for Claude engine
 func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+	claudeMCPLog.Printf("Rendering MCP config for Claude: tool_count=%d, mcp_tool_count=%d", len(tools), len(mcpTools))
+
 	// Use shared JSON MCP config renderer
 	RenderJSONMCPConfig(yaml, tools, mcpTools, workflowData, JSONMCPConfigOptions{
 		ConfigPath: "/tmp/gh-aw/mcp-config/mcp-servers.json",
@@ -28,22 +33,22 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 // Supports both local (Docker) and remote (hosted) modes
 func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 	githubType := getGitHubType(githubTool)
-	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
 	toolsets := getGitHubToolsets(githubTool)
+
+	claudeMCPLog.Printf("Rendering GitHub MCP config: type=%s, read_only=%t, toolsets=%v", githubType, readOnly, toolsets)
 
 	yaml.WriteString("              \"github\": {\n")
 
 	// Check if remote mode is enabled (type: remote)
 	if githubType == "remote" {
-		// Use effective token with precedence: custom > top-level > default
-		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
-
+		// Use shell environment variable instead of GitHub Actions expression to prevent template injection
+		// The actual GitHub expression is set in the step's env: block
 		// Render remote configuration using shared helper
 		RenderGitHubMCPRemoteConfig(yaml, GitHubMCPRemoteOptions{
 			ReadOnly:           readOnly,
 			Toolsets:           toolsets,
-			AuthorizationValue: fmt.Sprintf("Bearer %s", effectiveToken),
+			AuthorizationValue: "Bearer $GITHUB_MCP_SERVER_TOKEN",
 			IncludeToolsField:  false, // Claude doesn't use tools field
 			AllowedTools:       nil,
 			IncludeEnvSection:  false, // Claude doesn't use env section
@@ -53,9 +58,8 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 		customArgs := getGitHubCustomArgs(githubTool)
 
-		// Use effective token with precedence: custom > top-level > default
-		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
-
+		// Use shell environment variable instead of GitHub Actions expression to prevent template injection
+		// The actual GitHub expression is set in the step's env: block
 		RenderGitHubMCPDockerConfig(yaml, GitHubMCPDockerOptions{
 			ReadOnly:           readOnly,
 			Toolsets:           toolsets,
@@ -63,7 +67,7 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 			CustomArgs:         customArgs,
 			IncludeTypeField:   false, // Claude doesn't include "type" field
 			AllowedTools:       nil,   // Claude doesn't use tools field
-			EffectiveToken:     effectiveToken,
+			EffectiveToken:     "",    // Not used anymore - token passed via env
 		})
 	}
 

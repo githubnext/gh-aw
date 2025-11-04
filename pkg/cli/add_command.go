@@ -551,7 +551,7 @@ func updateWorkflowTitle(content string, number int) string {
 func compileWorkflow(filePath string, verbose bool, engineOverride string) error {
 	// Create compiler and compile the workflow
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
-	if err := CompileWorkflowWithValidation(compiler, filePath, verbose, false, false); err != nil {
+	if err := CompileWorkflowWithValidation(compiler, filePath, verbose, false, false, false, false); err != nil {
 		return err
 	}
 
@@ -607,7 +607,7 @@ func compileWorkflowWithTracking(filePath string, verbose bool, engineOverride s
 	// Create compiler and set the file tracker
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
 	compiler.SetFileTracker(tracker)
-	if err := CompileWorkflowWithValidation(compiler, filePath, verbose, false, false); err != nil {
+	if err := CompileWorkflowWithValidation(compiler, filePath, verbose, false, false, false, false); err != nil {
 		return err
 	}
 
@@ -704,14 +704,14 @@ func ensureAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
 	return ensureAgentFromTemplate("create-agentic-workflow.md", agenticWorkflowAgentTemplate, verbose, skipInstructions)
 }
 
-// ensureSharedAgenticWorkflowPrompt ensures that .github/prompts/create-shared-agentic-workflow.prompt.md contains the shared workflow creation prompt
-func ensureSharedAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
-	return ensurePromptFromTemplate("create-shared-agentic-workflow.prompt.md", sharedAgenticWorkflowPromptTemplate, verbose, skipInstructions)
+// ensureSharedAgenticWorkflowAgent ensures that .github/agents/create-shared-agentic-workflow.md contains the shared workflow creation agent
+func ensureSharedAgenticWorkflowAgent(verbose bool, skipInstructions bool) error {
+	return ensureAgentFromTemplate("create-shared-agentic-workflow.md", sharedAgenticWorkflowAgentTemplate, verbose, skipInstructions)
 }
 
-// ensureGettingStartedPrompt ensures that .github/prompts/setup-agentic-workflows.prompt.md contains the getting started guide
-func ensureGettingStartedPrompt(verbose bool, skipInstructions bool) error {
-	return ensurePromptFromTemplate("setup-agentic-workflows.prompt.md", gettingStartedPromptTemplate, verbose, skipInstructions)
+// ensureSetupAgenticWorkflowsAgent ensures that .github/agents/setup-agentic-workflows.md contains the setup guide agent
+func ensureSetupAgenticWorkflowsAgent(verbose bool, skipInstructions bool) error {
+	return ensureAgentFromTemplate("setup-agentic-workflows.md", setupAgenticWorkflowsAgentTemplate, verbose, skipInstructions)
 }
 
 // checkCleanWorkingDirectory checks if there are uncommitted changes

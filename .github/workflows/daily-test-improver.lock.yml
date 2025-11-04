@@ -58,7 +58,6 @@ permissions:
   contents: read
   deployments: read
   discussions: read
-  id-token: write
   issues: read
   models: read
   packages: read
@@ -77,21 +76,79 @@ jobs:
   activation:
     runs-on: ubuntu-slim
     steps:
+      - name: Checkout workflows
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          sparse-checkout: |
+            .github/workflows
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+          persist-credentials: false
       - name: Check workflow file timestamps
-        run: |
-          WORKFLOW_FILE="${GITHUB_WORKSPACE}/.github/workflows/$(basename "$GITHUB_WORKFLOW" .lock.yml).md"
-          LOCK_FILE="${GITHUB_WORKSPACE}/.github/workflows/$GITHUB_WORKFLOW"
-          
-          if [ -f "$WORKFLOW_FILE" ] && [ -f "$LOCK_FILE" ]; then
-            if [ "$WORKFLOW_FILE" -nt "$LOCK_FILE" ]; then
-              echo "🔴🔴🔴 WARNING: Lock file '$LOCK_FILE' is outdated! The workflow file '$WORKFLOW_FILE' has been modified more recently. Run 'gh aw compile' to regenerate the lock file." >&2
-              echo "## ⚠️ Workflow Lock File Warning" >> $GITHUB_STEP_SUMMARY
-              echo "🔴🔴🔴 **WARNING**: Lock file \`$LOCK_FILE\` is outdated!" >> $GITHUB_STEP_SUMMARY
-              echo "The workflow file \`$WORKFLOW_FILE\` has been modified more recently." >> $GITHUB_STEP_SUMMARY
-              echo "Run \`gh aw compile\` to regenerate the lock file." >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-          fi
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_WORKFLOW_FILE: "daily-test-improver.lock.yml"
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            async function main() {
+              const workspace = process.env.GITHUB_WORKSPACE;
+              const workflowFile = process.env.GH_AW_WORKFLOW_FILE;
+              if (!workspace) {
+                core.setFailed("Configuration error: GITHUB_WORKSPACE not available.");
+                return;
+              }
+              if (!workflowFile) {
+                core.setFailed("Configuration error: GH_AW_WORKFLOW_FILE not available.");
+                return;
+              }
+              const workflowBasename = path.basename(workflowFile, ".lock.yml");
+              const workflowMdFile = path.join(workspace, ".github", "workflows", `${workflowBasename}.md`);
+              const lockFile = path.join(workspace, ".github", "workflows", workflowFile);
+              core.info(`Checking workflow timestamps:`);
+              core.info(`  Source: ${workflowMdFile}`);
+              core.info(`  Lock file: ${lockFile}`);
+              let workflowExists = false;
+              let lockExists = false;
+              try {
+                fs.accessSync(workflowMdFile, fs.constants.F_OK);
+                workflowExists = true;
+              } catch (error) {
+                core.info(`Source file does not exist: ${workflowMdFile}`);
+              }
+              try {
+                fs.accessSync(lockFile, fs.constants.F_OK);
+                lockExists = true;
+              } catch (error) {
+                core.info(`Lock file does not exist: ${lockFile}`);
+              }
+              if (!workflowExists || !lockExists) {
+                core.info("Skipping timestamp check - one or both files not found");
+                return;
+              }
+              const workflowStat = fs.statSync(workflowMdFile);
+              const lockStat = fs.statSync(lockFile);
+              const workflowMtime = workflowStat.mtime.getTime();
+              const lockMtime = lockStat.mtime.getTime();
+              core.info(`  Source modified: ${workflowStat.mtime.toISOString()}`);
+              core.info(`  Lock modified: ${lockStat.mtime.toISOString()}`);
+              if (workflowMtime > lockMtime) {
+                const warningMessage = `🔴🔴🔴 WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
+                core.error(warningMessage);
+                await core.summary
+                  .addRaw("## ⚠️ Workflow Lock File Warning\n\n")
+                  .addRaw(`🔴🔴🔴 **WARNING**: Lock file \`${lockFile}\` is outdated!\n\n`)
+                  .addRaw(`The workflow file \`${workflowMdFile}\` has been modified more recently.\n\n`)
+                  .addRaw("Run `gh aw compile` to regenerate the lock file.\n\n")
+                  .write();
+              } else {
+                core.info("✅ Lock file is up to date");
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
 
   add_comment:
     needs:
@@ -99,7 +156,7 @@ jobs:
       - create_discussion
       - create_pull_request
       - detection
-    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'add_comment'))
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -127,8 +184,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Add Issue Comment
         id: add_comment
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -500,7 +557,6 @@ jobs:
       contents: read
       deployments: read
       discussions: read
-      id-token: write
       issues: read
       models: read
       packages: read
@@ -513,13 +569,14 @@ jobs:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1,\"target\":\"*\"},\"create_discussion\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: false
       - id: check_coverage_steps_file
         name: Check if action.yml exists
         run: |
@@ -540,13 +597,15 @@ jobs:
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
           SERVER_URL="${{ github.server_url }}"
           SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${{ github.repository }}.git"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Checkout PR branch
         if: |
@@ -602,7 +661,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.353
+        run: npm install -g @github/copilot@0.0.354
       - name: Downloading container images
         run: |
           set -e
@@ -636,39 +695,26 @@ jobs:
               normalized = normalized.toLowerCase();
               return normalized;
             }
-            const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+            const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
             let safeOutputsConfigRaw;
-            if (!configEnv) {
-              const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
-              debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
-              try {
-                if (fs.existsSync(defaultConfigPath)) {
-                  debug(`Reading config from file: ${defaultConfigPath}`);
-                  const configFileContent = fs.readFileSync(defaultConfigPath, "utf8");
-                  debug(`Config file content length: ${configFileContent.length} characters`);
-                  debug(`Config file read successfully, attempting to parse JSON`);
-                  safeOutputsConfigRaw = JSON.parse(configFileContent);
-                  debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
-                } else {
-                  debug(`Config file does not exist at: ${defaultConfigPath}`);
-                  debug(`Using minimal default configuration`);
-                  safeOutputsConfigRaw = {};
-                }
-              } catch (error) {
-                debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
-                debug(`Falling back to empty configuration`);
+            debug(`Reading config from file: ${configPath}`);
+            try {
+              if (fs.existsSync(configPath)) {
+                debug(`Config file exists at: ${configPath}`);
+                const configFileContent = fs.readFileSync(configPath, "utf8");
+                debug(`Config file content length: ${configFileContent.length} characters`);
+                debug(`Config file read successfully, attempting to parse JSON`);
+                safeOutputsConfigRaw = JSON.parse(configFileContent);
+                debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
+              } else {
+                debug(`Config file does not exist at: ${configPath}`);
+                debug(`Using minimal default configuration`);
                 safeOutputsConfigRaw = {};
               }
-            } else {
-              debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
-              debug(`Config environment variable length: ${configEnv.length} characters`);
-              try {
-                safeOutputsConfigRaw = JSON.parse(configEnv); 
-                debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
-              } catch (error) {
-                debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
-                throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
-              }
+            } catch (error) {
+              debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
+              debug(`Falling back to empty configuration`);
+              safeOutputsConfigRaw = {};
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
@@ -1397,6 +1443,12 @@ jobs:
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
       - name: Setup MCPs
+        env:
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
+          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
+          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -1430,10 +1482,11 @@ jobs:
                 "tools": ["*"],
                 "env": {
                   "GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": "\${GH_AW_SAFE_OUTPUTS_CONFIG}",
                   "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
                   "GH_AW_ASSETS_MAX_SIZE_KB": "\${GH_AW_ASSETS_MAX_SIZE_KB}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}"
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
+                  "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}",
+                  "GITHUB_SERVER_URL": "\${GITHUB_SERVER_URL}"
                 }
               },
               "web-fetch": {
@@ -1460,26 +1513,29 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_F76B6721: ${{ github.workflow }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
-          cat > $GH_AW_PROMPT << 'PROMPT_EOF'
+          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
+          mkdir -p "$PROMPT_DIR"
+          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           ## Report Formatting
           
           Structure your report with an overview followed by detailed content:
           
           1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
           
-          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information.
+          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
           
           **Example format:**
           
-          ```markdown
+          `````markdown
           Brief overview paragraph 1 introducing the report and its main findings.
           
           Optional overview paragraph 2 with additional context or highlights.
           
           <details>
-          <summary>Full Report Details</summary>
+          <summary><b>Full Report Details</b></summary>
           
           ## Detailed Analysis
           
@@ -1492,7 +1548,7 @@ jobs:
           [Content]
           
           </details>
-          ```
+          `````
           
           ## Reporting Workflow Run Information
           
@@ -1503,28 +1559,28 @@ jobs:
           **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
           
           **Format:**
-          ```markdown
+          `````markdown
           [§12345](https://github.com/owner/repo/actions/runs/12345)
-          ```
+          `````
           
           **Example:**
-          ```markdown
+          `````markdown
           Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
-          ```
+          `````
           
           ### 2. Document References for Workflow Runs
           
           When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
           
           **Format:**
-          ```markdown
+          `````markdown
           ---
           
           **References:**
           - [§12345](https://github.com/owner/repo/actions/runs/12345)
           - [§12346](https://github.com/owner/repo/actions/runs/12346)
           - [§12347](https://github.com/owner/repo/actions/runs/12347)
-          ```
+          `````
           
           **Guidelines:**
           - Include **maximum 3 references** to keep reports concise
@@ -1536,7 +1592,7 @@ jobs:
           
           ## Job Description
           
-          You are an AI test engineer for `${{ github.repository }}`. Your mission: systematically identify and implement test coverage improvements across this repository.
+          You are an AI test engineer for `${GH_AW_EXPR_D892F163}`. Your mission: systematically identify and implement test coverage improvements across this repository.
           
           You are doing your work in phases. Right now you will perform just one of the following three phases. Choose the phase depending on what has been done so far.
           
@@ -1544,7 +1600,7 @@ jobs:
           
           To decide which phase to perform:
           
-          1. First check for existing open discussion titled "${{ github.workflow }}" using `list_discussions`. If found, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
+          1. First check for existing open discussion titled "${GH_AW_EXPR_F76B6721}" using `list_discussions`. If found, read it and maintainer comments. If not found, then perform Phase 1 and nothing else.
           
           2. Next check if `.github/actions/daily-test-improver/coverage-steps/action.yml` exists. If yes then read it. If not then perform Phase 2 and nothing else.
           
@@ -1554,7 +1610,7 @@ jobs:
           
           1. Research the current state of test coverage in the repository. Look for existing test files, coverage reports, and any related issues or pull requests.
           
-          2. Create a discussion with title "${{ github.workflow }} - Research and Plan" that includes:
+          2. Create a discussion with title "${GH_AW_EXPR_F76B6721} - Research and Plan" that includes:
             - A summary of your findings about the repository, its testing strategies, its test coverage
             - A plan for how you will approach improving test coverage, including specific areas to focus on and strategies to use
             - Details of the commands needed to run to build the project, run tests, and generate coverage reports
@@ -1566,13 +1622,13 @@ jobs:
           
           ## Phase 2 - Coverage steps inference and configuration
           
-          1. Check if an open pull request with title "${{ github.workflow }} - Updates to complete configuration" exists in this repo. If it does, add a comment to the pull request saying configuration needs to be completed, then exit the workflow.
+          1. Check if an open pull request with title "${GH_AW_EXPR_F76B6721} - Updates to complete configuration" exists in this repo. If it does, add a comment to the pull request saying configuration needs to be completed, then exit the workflow.
           
           2. Have a careful think about the CI commands needed to build the repository, run tests, produce a combined coverage report and upload it as an artifact. Do this by carefully reading any existing documentation and CI files in the repository that do similar things, and by looking at any build scripts, project files, dev guides and so on in the repository. If multiple projects are present, perform build and coverage testing on as many as possible, and where possible merge the coverage reports into one combined report. Work out the steps you worked out, in order, as a series of YAML steps suitable for inclusion in a GitHub Action.
           
           3. Create the file `.github/actions/daily-test-improver/coverage-steps/action.yml` containing these steps, ensuring that the action.yml file is valid. Leave comments in the file to explain what the steps are doing, where the coverage report will be generated, and any other relevant information. Ensure that the steps include uploading the coverage report(s) as an artifact called "coverage".  Each step of the action should append its output to a file called `coverage-steps.log` in the root of the repository. Ensure that the action.yml file is valid and correctly formatted.
           
-          4. Before running any of the steps, make a pull request for the addition of the `action.yml` file, with title "${{ github.workflow }} - Updates to complete configuration". Encourage the maintainer to review the files carefully to ensure they are appropriate for the project.
+          4. Before running any of the steps, make a pull request for the addition of the `action.yml` file, with title "${GH_AW_EXPR_F76B6721} - Updates to complete configuration". Encourage the maintainer to review the files carefully to ensure they are appropriate for the project.
           
           5. Try to run through the steps you worked out manually one by one. If the a step needs updating, then update the branch you created in step 2e. Continue through all the steps. If you can't get it to work, then create an issue describing the problem and exit the entire workflow.
           
@@ -1586,9 +1642,9 @@ jobs:
           
              b. Read the coverge report. Be detailed, looking to understand the files, functions, branches, and lines of code that are not covered by tests. Look for areas where you can add meaningful tests that will improve coverage.
              
-             c. Check the most recent pull request with title starting with "${{ github.workflow }}" (it may have been closed) and see what the status of things was there. These are your notes from last time you did your work, and may include useful recommendations for future areas to work on.
+             c. Check the most recent pull request with title starting with "${GH_AW_EXPR_F76B6721}" (it may have been closed) and see what the status of things was there. These are your notes from last time you did your work, and may include useful recommendations for future areas to work on.
           
-             d. Check for existing open pull opened by you starting with title "${{ github.workflow }}". Don't repeat work from any open pull requests.
+             d. Check for existing open pull opened by you starting with title "${GH_AW_EXPR_F76B6721}". Don't repeat work from any open pull requests.
              
              e. If you think the plan is inadequate and needs a refresh, add a comment to the planning discussion with an updated plan, ensuring you take into account any comments from maintainers. Explain in the comment why the plan has been updated. Then continue to step (f).
             
@@ -1628,16 +1684,16 @@ jobs:
           
               - After creation, check the pull request to ensure it is correct, includes all expected files, and doesn't include any unwanted files or changes. Make any necessary corrections by pushing further commits to the branch.
           
-          3. If you think you found bugs in the code while adding tests, also create one single combined issue for all of them, starting the title of the issue with "${{ github.workflow }}". Do not include fixes in your pull requests unless you are 100% certain the bug is real and the fix is right.
+          3. If you think you found bugs in the code while adding tests, also create one single combined issue for all of them, starting the title of the issue with "${GH_AW_EXPR_F76B6721}". Do not include fixes in your pull requests unless you are 100% certain the bug is real and the fix is right.
           
-          4. At the end of your work, add a very, very brief comment (at most two-sentences) to the discussion titled "${{ github.workflow }}" found earlier, saying you have worked on the particular goal, linking to any pull request you created, and indicating whether you made any progress or not, and reporting the coverage improvement numbers achieved and current overall coverage numbers.
+          4. At the end of your work, add a very, very brief comment (at most two-sentences) to the discussion titled "${GH_AW_EXPR_F76B6721}" found earlier, saying you have worked on the particular goal, linking to any pull request you created, and indicating whether you made any progress or not, and reporting the coverage improvement numbers achieved and current overall coverage numbers.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1669,7 +1725,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1682,7 +1738,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           
           ---
@@ -1701,7 +1757,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1731,7 +1787,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1800,14 +1856,16 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          echo "<details>" >> $GITHUB_STEP_SUMMARY
-          echo "<summary>Generated Prompt</summary>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "<details>"
+            echo "<summary>Generated Prompt</summary>"
+            echo ""
+            echo '```markdown'
+            cat "$GH_AW_PROMPT"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -1815,13 +1873,6 @@ jobs:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
           if-no-files-found: warn
-      - name: Capture agent version
-        run: |
-          VERSION_OUTPUT=$(copilot --version 2>&1 || echo "unknown")
-          # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)
-          CLEAN_VERSION=$(echo "$VERSION_OUTPUT" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo "unknown")
-          echo "AGENT_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
-          echo "Agent version: $VERSION_OUTPUT"
       - name: Generate agentic run info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
@@ -1833,7 +1884,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: process.env.AGENT_VERSION || "",
+              agent_version: "0.0.354",
               workflow_name: "Daily Test Coverage Improver",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1871,7 +1922,7 @@ jobs:
         timeout-minutes: 30
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
@@ -1882,7 +1933,6 @@ jobs:
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1,\"target\":\"*\"},\"create_discussion\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{}}"
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -2017,77 +2067,140 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1,\"target\":\"*\"},\"create_discussion\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{}}"
           GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
         with:
           script: |
             async function main() {
               const fs = require("fs");
-              const maxBodyLength = 65000;
-              function sanitizeContent(content, maxLength) {
-                if (!content || typeof content !== "string") {
-                  return "";
-                }
-                const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
-                const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-                const allowedDomains = allowedDomainsEnv
-                  ? allowedDomainsEnv
-                      .split(",")
-                      .map(d => d.trim())
-                      .filter(d => d)
-                  : defaultAllowedDomains;
-                let sanitized = content;
-                sanitized = neutralizeMentions(sanitized);
-                sanitized = removeXmlComments(sanitized);
-                sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-                sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-                sanitized = sanitizeUrlProtocols(sanitized);
-                sanitized = sanitizeUrlDomains(sanitized);
-                const lines = sanitized.split("\n");
-                const maxLines = 65000;
-                maxLength = maxLength || 524288;
-                if (lines.length > maxLines) {
-                  const truncationMsg = "\n[Content truncated due to line count]";
-                  const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
-                  if (truncatedLines.length > maxLength) {
-                    sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
-                  } else {
-                    sanitized = truncatedLines;
-                  }
-                } else if (sanitized.length > maxLength) {
-                  sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-                }
-                sanitized = neutralizeBotTriggers(sanitized);
-                return sanitized.trim();
-                function sanitizeUrlDomains(s) {
-                  return s.replace(/\bhttps:\/\/[^\s\])}'"<>&\x00-\x1f,;]+/gi, match => {
-                    const urlAfterProtocol = match.slice(8);
-                    const hostname = urlAfterProtocol.split(/[\/:\?#]/)[0].toLowerCase();
-                    const isAllowed = allowedDomains.some(allowedDomain => {
-                      const normalizedAllowed = allowedDomain.toLowerCase();
-                      return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
-                    });
-                    return isAllowed ? match : "(redacted)";
-                  });
-                }
-                function sanitizeUrlProtocols(s) {
-                  return s.replace(/\b(\w+):\/\/[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
-                    return protocol.toLowerCase() === "https" ? match : "(redacted)";
-                  });
-                }
-                function neutralizeMentions(s) {
-                  return s.replace(
-                    /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                    (_m, p1, p2) => `${p1}\`@${p2}\``
-                  );
-                }
-                function removeXmlComments(s) {
-                  return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
-                }
-                function neutralizeBotTriggers(s) {
-                  return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-                }
+            function sanitizeContent(content, maxLength) {
+              if (!content || typeof content !== "string") {
+                return "";
               }
+              const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
+              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
+              const allowedDomains = allowedDomainsEnv
+                ? allowedDomainsEnv
+                    .split(",")
+                    .map(d => d.trim())
+                    .filter(d => d)
+                : defaultAllowedDomains;
+              let sanitized = content;
+              sanitized = neutralizeCommands(sanitized);
+              sanitized = neutralizeMentions(sanitized);
+              sanitized = removeXmlComments(sanitized);
+              sanitized = convertXmlTags(sanitized);
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitizeUrlProtocols(sanitized);
+              sanitized = sanitizeUrlDomains(sanitized);
+              const lines = sanitized.split("\n");
+              const maxLines = 65000;
+              maxLength = maxLength || 524288;
+              if (lines.length > maxLines) {
+                const truncationMsg = "\n[Content truncated due to line count]";
+                const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
+                if (truncatedLines.length > maxLength) {
+                  sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
+                } else {
+                  sanitized = truncatedLines;
+                }
+              } else if (sanitized.length > maxLength) {
+                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
+              }
+              sanitized = neutralizeBotTriggers(sanitized);
+              return sanitized.trim();
+              function sanitizeUrlDomains(s) {
+                s = s.replace(/\bhttps:\/\/([^\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, rest) => {
+                  const hostname = rest.split(/[\/:\?#]/)[0].toLowerCase();
+                  const isAllowed = allowedDomains.some(allowedDomain => {
+                    const normalizedAllowed = allowedDomain.toLowerCase();
+                    return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
+                  });
+                  if (isAllowed) {
+                    return match; 
+                  }
+                  const domain = hostname;
+                  const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                  core.info(`Redacted URL: ${truncated}`);
+                  core.debug(`Redacted URL (full): ${match}`);
+                  const urlParts = match.split(/([?&#])/);
+                  let result = "(redacted)"; 
+                  for (let i = 1; i < urlParts.length; i++) {
+                    if (urlParts[i].match(/^[?&#]$/)) {
+                      result += urlParts[i]; 
+                    } else {
+                      result += sanitizeUrlDomains(urlParts[i]);
+                    }
+                  }
+                  return result;
+                });
+                return s;
+              }
+              function sanitizeUrlProtocols(s) {
+                return s.replace(/(?<![-\/\w])([A-Za-z][A-Za-z0-9+.-]*):(?:\/\/|(?=[^\s:]))[^\s\])}'"<>&\x00-\x1f]+/g, (match, protocol) => {
+                  if (protocol.toLowerCase() === "https") {
+                    return match;
+                  }
+                  if (match.includes("::")) {
+                    return match;
+                  }
+                  if (match.includes("://")) {
+                    const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
+                    const domain = domainMatch ? domainMatch[1] : match;
+                    const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
+                    return "(redacted)";
+                  }
+                  const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
+                  if (dangerousProtocols.includes(protocol.toLowerCase())) {
+                    const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
+                    return "(redacted)";
+                  }
+                  return match;
+                });
+              }
+              function neutralizeCommands(s) {
+                const commandName = process.env.GH_AW_COMMAND;
+                if (!commandName) {
+                  return s;
+                }
+                const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+              }
+              function neutralizeMentions(s) {
+                return s.replace(
+                  /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                  (_m, p1, p2) => `${p1}\`@${p2}\``
+                );
+              }
+              function removeXmlComments(s) {
+                return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+              }
+              function convertXmlTags(s) {
+                const allowedTags = ["details", "summary", "code", "em", "b"];
+                s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
+                  const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
+                  return `(![CDATA[${convertedContent}]])`;
+                });
+                return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
+                  const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
+                  if (tagNameMatch) {
+                    const tagName = tagNameMatch[1].toLowerCase();
+                    if (allowedTags.includes(tagName)) {
+                      return match; 
+                    }
+                  }
+                  return `(${tagContent})`; 
+                });
+              }
+              function neutralizeBotTriggers(s) {
+                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
+              }
+            }
+              const maxBodyLength = 65000;
               function getMaxAllowedForType(itemType, config) {
                 const itemConfig = config?.[itemType];
                 if (itemConfig && typeof itemConfig === "object" && "max" in itemConfig && itemConfig.max) {
@@ -2385,7 +2498,16 @@ jobs:
                 }
               }
               const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
-              const safeOutputsConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+              const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+              let safeOutputsConfig;
+              try {
+                if (fs.existsSync(configPath)) {
+                  const configFileContent = fs.readFileSync(configPath, "utf8");
+                  safeOutputsConfig = JSON.parse(configFileContent);
+                }
+              } catch (error) {
+                core.warning(`Failed to read config file from ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
+              }
               if (!outputFile) {
                 core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
                 core.setOutput("output", "");
@@ -2404,8 +2526,7 @@ jobs:
               let expectedOutputTypes = {};
               if (safeOutputsConfig) {
                 try {
-                  const rawConfig = JSON.parse(safeOutputsConfig);
-                  expectedOutputTypes = Object.fromEntries(Object.entries(rawConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
+                  expectedOutputTypes = Object.fromEntries(Object.entries(safeOutputsConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
                   core.info(`Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                 } catch (error) {
                   const errorMsg = error instanceof Error ? error.message : String(error);
@@ -3920,6 +4041,7 @@ jobs:
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GITHUB_SHA: ${{ github.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           # Diagnostic logging: Show recent commits before patch generation
           echo "=== Diagnostic: Recent commits (last 5) ==="
@@ -3940,7 +4062,7 @@ jobs:
                 if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create_pull_request"'; then
                   echo "Found create_pull_request line: $line"
                   # Extract branch value using sed
-                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
                   if [ -n "$BRANCH_NAME" ]; then
                     echo "Extracted branch name from create_pull_request: $BRANCH_NAME"
                     break
@@ -3950,7 +4072,7 @@ jobs:
                 elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push_to_pull_request_branch"'; then
                   echo "Found push_to_pull_request_branch line: $line"
                   # Extract branch value using sed
-                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
                   if [ -n "$BRANCH_NAME" ]; then
                     echo "Extracted branch name from push_to_pull_request_branch: $BRANCH_NAME"
                     break
@@ -3967,21 +4089,20 @@ jobs:
           if [ -n "$BRANCH_NAME" ]; then
             echo "Looking for branch: $BRANCH_NAME"
             # Check if the branch exists
-            if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
+            if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
               echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
               # Check if origin/$BRANCH_NAME exists to use as base
-              if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
+              if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
                 echo "Using origin/$BRANCH_NAME as base for patch generation"
                 BASE_REF="origin/$BRANCH_NAME"
               else
                 echo "origin/$BRANCH_NAME does not exist, using merge-base with default branch"
-                # Get the default branch name
-                DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+                # Use the default branch name from environment variable
                 echo "Default branch: $DEFAULT_BRANCH"
                 # Fetch the default branch to ensure it's available locally
-                git fetch origin $DEFAULT_BRANCH
+                git fetch origin "$DEFAULT_BRANCH"
                 # Find merge base between default branch and current branch
-                BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)
+                BASE_REF="$(git merge-base "origin/$DEFAULT_BRANCH" "$BRANCH_NAME")"
                 echo "Using merge-base as base: $BASE_REF"
               fi
               # Diagnostic logging: Show diff stats before generating patch
@@ -3992,7 +4113,7 @@ jobs:
               # Diagnostic logging: Count commits to be included
               echo ""
               echo "=== Diagnostic: Commits to be included in patch ==="
-              COMMIT_COUNT=$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")
+              COMMIT_COUNT="$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")"
               echo "Number of commits: $COMMIT_COUNT"
               if [ "$COMMIT_COUNT" -gt 0 ]; then
                 echo "Commit SHAs:"
@@ -4015,13 +4136,13 @@ jobs:
             echo "=== Diagnostic: Patch file information ==="
             ls -lh /tmp/gh-aw/aw.patch
             # Get patch file size in KB
-            PATCH_SIZE=$(du -k /tmp/gh-aw/aw.patch | cut -f1)
+            PATCH_SIZE="$(du -k /tmp/gh-aw/aw.patch | cut -f1)"
             echo "Patch file size: ${PATCH_SIZE} KB"
             # Count lines in patch
-            PATCH_LINES=$(wc -l < /tmp/gh-aw/aw.patch)
+            PATCH_LINES="$(wc -l < /tmp/gh-aw/aw.patch)"
             echo "Patch file lines: $PATCH_LINES"
             # Extract and count commits from patch file (each commit starts with "From <sha>")
-            PATCH_COMMITS=$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")
+            PATCH_COMMITS="$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")"
             echo "Commits included in patch: $PATCH_COMMITS"
             # List commit SHAs in the patch
             if [ "$PATCH_COMMITS" -gt 0 ]; then
@@ -4029,13 +4150,15 @@ jobs:
               grep "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch | sed 's/^From \([0-9a-f]\{40\}\).*/  \1/' || echo "Failed to extract commit SHAs"
             fi
             # Show the first 50 lines of the patch for review
-            echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
-            echo '```diff' >> $GITHUB_STEP_SUMMARY
-            head -500 /tmp/gh-aw/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
-            echo '...' >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
+            {
+              echo '## Git Patch'
+              echo ''
+              echo '```diff'
+              head -500 /tmp/gh-aw/aw.patch || echo "Could not display patch contents"
+              echo '...'
+              echo '```'
+              echo ''
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload git patch
         if: always()
@@ -4049,7 +4172,8 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
+    if: >
+      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -4068,8 +4192,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Output Discussion
         id: create_discussion
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -4298,7 +4422,8 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+    if: >
+      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
     runs-on: ubuntu-slim
     permissions:
       contents: write
@@ -4325,13 +4450,15 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
           SERVER_URL="${{ github.server_url }}"
           SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${{ github.repository }}.git"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Download agent output artifact
         continue-on-error: true
@@ -4342,8 +4469,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Pull Request
         id: create_pull_request
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -4948,7 +5075,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.353
+        run: npm install -g @github/copilot@0.0.354
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -4962,7 +5089,7 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
@@ -5025,7 +5152,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -5043,8 +5170,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd

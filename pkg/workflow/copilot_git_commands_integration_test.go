@@ -11,6 +11,7 @@ import (
 func TestCopilotGitCommandsIntegrationWithCreatePullRequest(t *testing.T) {
 	// Create a simple workflow with create-pull-request enabled
 	workflowContent := `---
+on: push
 name: Test Git Commands Integration
 tools:
   edit:
@@ -62,6 +63,7 @@ This is a test workflow that should automatically get Git commands when create-p
 func TestCopilotGitCommandsNotAddedWithoutPullRequestOutput(t *testing.T) {
 	// Create a workflow with only create-issue (no PR-related outputs)
 	workflowContent := `---
+on: push
 name: Test No Git Commands
 tools:
   edit:

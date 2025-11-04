@@ -140,7 +140,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 	}
 
 	// Build the job condition using expression tree
-	jobCondition := BuildSafeOutputType("upload_asset", data.SafeOutputs.UploadAssets.Min)
+	jobCondition := BuildSafeOutputType("upload_asset")
 
 	job := &Job{
 		Name:           "upload_assets",

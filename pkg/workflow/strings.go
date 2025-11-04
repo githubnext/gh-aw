@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-var sanitizeNamePattern = regexp.MustCompile(`[^a-z0-9._-]+`)
 var multipleHyphens = regexp.MustCompile(`-+`)
 
 // SanitizeOptions configures the behavior of the SanitizeName function.
@@ -150,24 +149,17 @@ func SanitizeName(name string, opts *SanitizeOptions) string {
 //   - Converts to lowercase
 //   - Replaces colons, slashes, backslashes, and spaces with hyphens
 //   - Replaces any remaining special characters (except dots, underscores, and hyphens) with hyphens
+//   - Consolidates multiple consecutive hyphens into a single hyphen
 //
 // Example:
 //
-//	SanitizeWorkflowName("My Workflow: Test/Build") // returns "my-workflow--test-build"
+//	SanitizeWorkflowName("My Workflow: Test/Build") // returns "my-workflow-test-build"
 func SanitizeWorkflowName(name string) string {
-	name = strings.ToLower(name)
-	name = strings.ReplaceAll(name, ":", "-")
-	name = strings.ReplaceAll(name, "\\", "-")
-	name = strings.ReplaceAll(name, "/", "-")
-	name = strings.ReplaceAll(name, " ", "-")
-
-	// Replace any other non-alphanumeric characters (except . _ -) with "-"
-	name = sanitizeNamePattern.ReplaceAllString(name, "-")
-
-	// Consolidate multiple consecutive hyphens into a single hyphen
-	name = multipleHyphens.ReplaceAllString(name, "-")
-
-	return name
+	return SanitizeName(name, &SanitizeOptions{
+		PreserveSpecialChars: []rune{'.', '_', '-'},
+		TrimHyphens:          false,
+		DefaultValue:         "",
+	})
 }
 
 // ShortenCommand creates a short identifier for bash commands.

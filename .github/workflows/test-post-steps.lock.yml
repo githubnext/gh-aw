@@ -37,21 +37,79 @@ jobs:
   activation:
     runs-on: ubuntu-slim
     steps:
+      - name: Checkout workflows
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          sparse-checkout: |
+            .github/workflows
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+          persist-credentials: false
       - name: Check workflow file timestamps
-        run: |
-          WORKFLOW_FILE="${GITHUB_WORKSPACE}/.github/workflows/$(basename "$GITHUB_WORKFLOW" .lock.yml).md"
-          LOCK_FILE="${GITHUB_WORKSPACE}/.github/workflows/$GITHUB_WORKFLOW"
-          
-          if [ -f "$WORKFLOW_FILE" ] && [ -f "$LOCK_FILE" ]; then
-            if [ "$WORKFLOW_FILE" -nt "$LOCK_FILE" ]; then
-              echo "🔴🔴🔴 WARNING: Lock file '$LOCK_FILE' is outdated! The workflow file '$WORKFLOW_FILE' has been modified more recently. Run 'gh aw compile' to regenerate the lock file." >&2
-              echo "## ⚠️ Workflow Lock File Warning" >> $GITHUB_STEP_SUMMARY
-              echo "🔴🔴🔴 **WARNING**: Lock file \`$LOCK_FILE\` is outdated!" >> $GITHUB_STEP_SUMMARY
-              echo "The workflow file \`$WORKFLOW_FILE\` has been modified more recently." >> $GITHUB_STEP_SUMMARY
-              echo "Run \`gh aw compile\` to regenerate the lock file." >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-          fi
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_WORKFLOW_FILE: "test-post-steps.lock.yml"
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            async function main() {
+              const workspace = process.env.GITHUB_WORKSPACE;
+              const workflowFile = process.env.GH_AW_WORKFLOW_FILE;
+              if (!workspace) {
+                core.setFailed("Configuration error: GITHUB_WORKSPACE not available.");
+                return;
+              }
+              if (!workflowFile) {
+                core.setFailed("Configuration error: GH_AW_WORKFLOW_FILE not available.");
+                return;
+              }
+              const workflowBasename = path.basename(workflowFile, ".lock.yml");
+              const workflowMdFile = path.join(workspace, ".github", "workflows", `${workflowBasename}.md`);
+              const lockFile = path.join(workspace, ".github", "workflows", workflowFile);
+              core.info(`Checking workflow timestamps:`);
+              core.info(`  Source: ${workflowMdFile}`);
+              core.info(`  Lock file: ${lockFile}`);
+              let workflowExists = false;
+              let lockExists = false;
+              try {
+                fs.accessSync(workflowMdFile, fs.constants.F_OK);
+                workflowExists = true;
+              } catch (error) {
+                core.info(`Source file does not exist: ${workflowMdFile}`);
+              }
+              try {
+                fs.accessSync(lockFile, fs.constants.F_OK);
+                lockExists = true;
+              } catch (error) {
+                core.info(`Lock file does not exist: ${lockFile}`);
+              }
+              if (!workflowExists || !lockExists) {
+                core.info("Skipping timestamp check - one or both files not found");
+                return;
+              }
+              const workflowStat = fs.statSync(workflowMdFile);
+              const lockStat = fs.statSync(lockFile);
+              const workflowMtime = workflowStat.mtime.getTime();
+              const lockMtime = lockStat.mtime.getTime();
+              core.info(`  Source modified: ${workflowStat.mtime.toISOString()}`);
+              core.info(`  Lock modified: ${lockStat.mtime.toISOString()}`);
+              if (workflowMtime > lockMtime) {
+                const warningMessage = `🔴🔴🔴 WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
+                core.error(warningMessage);
+                await core.summary
+                  .addRaw("## ⚠️ Workflow Lock File Warning\n\n")
+                  .addRaw(`🔴🔴🔴 **WARNING**: Lock file \`${lockFile}\` is outdated!\n\n`)
+                  .addRaw(`The workflow file \`${workflowMdFile}\` has been modified more recently.\n\n`)
+                  .addRaw("Run `gh aw compile` to regenerate the lock file.\n\n")
+                  .write();
+              } else {
+                core.info("✅ Lock file is up to date");
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
 
   agent:
     needs: activation
@@ -70,13 +128,15 @@ jobs:
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
           SERVER_URL="${{ github.server_url }}"
           SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${{ github.repository }}.git"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Checkout PR branch
         if: |
@@ -132,12 +192,14 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.353
+        run: npm install -g @github/copilot@0.0.354
       - name: Downloading container images
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.20.1
       - name: Setup MCPs
+        env:
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -179,9 +241,11 @@ jobs:
       - name: Create prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
-          cat > $GH_AW_PROMPT << 'PROMPT_EOF'
+          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
+          mkdir -p "$PROMPT_DIR"
+          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Test Post-Steps Workflow
           
           This is a test workflow to validate that post-steps compile correctly with proper YAML indentation.
@@ -190,14 +254,14 @@ jobs:
           
           Respond with a simple message acknowledging this test workflow.
           
-          **Repository**: ${{ github.repository }}
+          **Repository**: ${GH_AW_EXPR_D892F163}
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -229,7 +293,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -242,7 +306,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -311,14 +375,16 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          echo "<details>" >> $GITHUB_STEP_SUMMARY
-          echo "<summary>Generated Prompt</summary>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "<details>"
+            echo "<summary>Generated Prompt</summary>"
+            echo ""
+            echo '```markdown'
+            cat "$GH_AW_PROMPT"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -326,13 +392,6 @@ jobs:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
           if-no-files-found: warn
-      - name: Capture agent version
-        run: |
-          VERSION_OUTPUT=$(copilot --version 2>&1 || echo "unknown")
-          # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)
-          CLEAN_VERSION=$(echo "$VERSION_OUTPUT" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo "unknown")
-          echo "AGENT_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
-          echo "Agent version: $VERSION_OUTPUT"
       - name: Generate agentic run info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
@@ -344,7 +403,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              agent_version: process.env.AGENT_VERSION || "",
+              agent_version: "0.0.354",
               workflow_name: "Test Post-Steps Workflow",
               experimental: false,
               supports_tools_allowlist: true,
@@ -383,7 +442,7 @@ jobs:
         timeout-minutes: 5
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
           mkdir -p /tmp/
           mkdir -p /tmp/gh-aw/
           mkdir -p /tmp/gh-aw/agent/
@@ -1662,6 +1721,6 @@ jobs:
           path: /tmp/gh-aw/
           retention-days: 1
       - name: Final Summary
-        run: "echo \"## Post-Steps Test Summary\" >> $GITHUB_STEP_SUMMARY\necho \"✅ All post-steps executed successfully\" >> $GITHUB_STEP_SUMMARY\necho \"This validates the post-steps indentation fix\" >> $GITHUB_STEP_SUMMARY\n"
+        run: "{\n  echo \"## Post-Steps Test Summary\"\n  echo \"✅ All post-steps executed successfully\"\n  echo \"This validates the post-steps indentation fix\"\n} >> $GITHUB_STEP_SUMMARY\n"
 
 

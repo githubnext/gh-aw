@@ -29,7 +29,7 @@ network: {}
 
 tools:
   github:
-    allowed: [list_pull_requests, pull_request_read, search_pull_requests]
+    toolsets: [default]
   edit:
   bash: ["make:*", "git restore:*", "git status"]
 

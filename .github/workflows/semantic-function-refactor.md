@@ -24,9 +24,7 @@ safe-outputs:
 
 tools:
   github:
-    allowed:
-      - get_file_contents
-      - search_code
+    toolsets: [default]
   edit:
   bash:
     - "find pkg -name '*.go' ! -name '*_test.go' -type f"

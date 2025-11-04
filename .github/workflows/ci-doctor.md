@@ -8,7 +8,13 @@ on:
     workflows:
     - Daily Perf Improver
     - Daily Test Coverage Improver
-permissions: read-all
+    branches:
+      - main
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  actions: read
 safe-outputs:
   add-comment: null
   create-issue:

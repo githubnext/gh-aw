@@ -28,6 +28,7 @@ func TestGitHubMCPConfiguration(t *testing.T) {
 		{
 			name: "default Docker server",
 			frontmatter: `---
+on: push
 engine: claude
 tools:
   github:
@@ -95,8 +96,12 @@ This is a test workflow for MCP configuration.
 				if !strings.Contains(lockContent, tt.expectedDockerImage) {
 					t.Errorf("Expected Docker image '%s' but didn't find it in:\n%s", tt.expectedDockerImage, lockContent)
 				}
-				if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"`) {
-					t.Errorf("Expected GITHUB_PERSONAL_ACCESS_TOKEN env var but didn't find it in:\n%s", lockContent)
+				// Security fix: Verify env block contains GitHub expression and JSON contains shell variable
+				if !strings.Contains(lockContent, `GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`) {
+					t.Errorf("Expected GITHUB_MCP_SERVER_TOKEN in env block but didn't find it in:\n%s", lockContent)
+				}
+				if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"`) {
+					t.Errorf("Expected GITHUB_PERSONAL_ACCESS_TOKEN to use shell variable but didn't find it in:\n%s", lockContent)
 				}
 				// Should NOT contain HTTP configuration
 				if strings.Contains(lockContent, `"type": "http"`) {
@@ -243,6 +248,7 @@ func TestCustomDockerMCPConfiguration(t *testing.T) {
 		{
 			name: "custom docker MCP with default settings",
 			frontmatter: `---
+on: push
 tools:
   github:
     allowed: [list_issues, create_issue]
@@ -258,6 +264,7 @@ tools:
 		{
 			name: "custom docker MCP with different settings",
 			frontmatter: `---
+on: push
 tools:
   github:
     allowed: [list_issues, create_issue]
@@ -273,6 +280,7 @@ tools:
 		{
 			name: "mixed MCP configuration with defaults",
 			frontmatter: `---
+on: push
 tools:
   github:
     allowed: [list_issues, create_issue]
@@ -293,6 +301,7 @@ tools:
 		{
 			name: "custom docker MCP with custom Docker image version",
 			frontmatter: `---
+on: push
 tools:
   github:
     version: "v2.0.0"

@@ -5,31 +5,30 @@ import (
 	"testing"
 )
 
-// TestBuildSafeOutputTypeWithCancelled verifies that BuildSafeOutputType uses !cancelled()
-// instead of always() to properly respect workflow cancellation.
+// TestBuildSafeOutputTypeWithCancelled verifies that BuildSafeOutputType properly handles workflow cancellation.
 //
 // Background:
 // - always() runs even when the workflow is cancelled (incorrect behavior)
-// - !cancelled() runs unless the workflow is cancelled (correct behavior)
+// - !cancelled() alone is insufficient (returns true when dependencies are skipped during cancellation)
+// - !cancelled() && needs.agent.result != 'skipped' is correct (prevents running when workflow is cancelled)
 //
 // This test ensures safe-output jobs:
 // 1. Run when dependencies succeed
 // 2. Run when dependencies fail (for error reporting)
-// 3. Skip when the workflow is cancelled (respecting user intent)
+// 3. Skip when the workflow is cancelled (dependencies get skipped, not cancelled)
 func TestBuildSafeOutputTypeWithCancelled(t *testing.T) {
 	tests := []struct {
 		name               string
 		outputType         string
-		min                int
 		expectedContains   []string
 		unexpectedContains []string
 	}{
 		{
-			name:       "min=0 should use !cancelled() with contains check",
+			name:       "create_issue should use !cancelled() and agent not skipped with contains check",
 			outputType: "create_issue",
-			min:        0,
 			expectedContains: []string{
 				"!cancelled()",
+				"needs.agent.result != 'skipped'",
 				"contains(needs.agent.outputs.output_types, 'create_issue')",
 			},
 			unexpectedContains: []string{
@@ -37,23 +36,11 @@ func TestBuildSafeOutputTypeWithCancelled(t *testing.T) {
 			},
 		},
 		{
-			name:       "min>0 should use (!cancelled()) without contains check",
-			outputType: "create_issue",
-			min:        1,
-			expectedContains: []string{
-				"(!cancelled())",
-			},
-			unexpectedContains: []string{
-				"always()",
-				"contains(needs.agent.outputs.output_types, 'create_issue')",
-			},
-		},
-		{
-			name:       "push-to-pull-request-branch should use !cancelled()",
+			name:       "push-to-pull-request-branch should use !cancelled() and agent not skipped",
 			outputType: "push_to_pull_request_branch",
-			min:        0,
 			expectedContains: []string{
 				"!cancelled()",
+				"needs.agent.result != 'skipped'",
 				"contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')",
 			},
 			unexpectedContains: []string{
@@ -64,7 +51,7 @@ func TestBuildSafeOutputTypeWithCancelled(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			condition := BuildSafeOutputType(tt.outputType, tt.min).Render()
+			condition := BuildSafeOutputType(tt.outputType).Render()
 
 			// Verify expected strings are present
 			for _, expected := range tt.expectedContains {

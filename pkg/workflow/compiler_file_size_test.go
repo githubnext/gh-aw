@@ -21,6 +21,7 @@ func TestCompileWorkflowFileSizeValidation(t *testing.T) {
 	t.Run("workflow under 1MB should compile successfully", func(t *testing.T) {
 		// Create a normal workflow that should be well under 1MB
 		testContent := `---
+on: push
 timeout_minutes: 10
 permissions:
   contents: read
@@ -62,6 +63,7 @@ This is a normal workflow that should compile successfully.
 
 		// Create a normal workflow
 		testContent := `---
+on: push
 timeout_minutes: 10
 permissions:
   contents: read

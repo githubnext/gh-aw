@@ -25,6 +25,7 @@ func TestImportsMarkdownPrepending(t *testing.T) {
 	// Create imported file with both frontmatter and markdown
 	importedFile := filepath.Join(sharedDir, "common.md")
 	importedContent := `---
+on: push
 tools:
   github:
     allowed:

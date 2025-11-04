@@ -328,34 +328,45 @@ func BuildActionEquals(action string) *ComparisonNode {
 
 // BuildNotFromFork creates a condition to check that a pull request is not from a forked repository
 // This prevents the job from running on forked PRs where write permissions are not available
+// Uses repository ID comparison instead of full name for more reliable matching
 func BuildNotFromFork() *ComparisonNode {
 	return BuildEquals(
-		BuildPropertyAccess("github.event.pull_request.head.repo.full_name"),
-		BuildPropertyAccess("github.repository"),
+		BuildPropertyAccess("github.event.pull_request.head.repo.id"),
+		BuildPropertyAccess("github.repository_id"),
 	)
 }
 
-func BuildSafeOutputType(outputType string, min int) ConditionNode {
-	// Use !cancelled() instead of always() to respect workflow cancellation
+func BuildSafeOutputType(outputType string) ConditionNode {
+	// Use !cancelled() && needs.agent.result != 'skipped' to properly handle workflow cancellation
 	// !cancelled() allows jobs to run when dependencies fail (for error reporting)
-	// but skips them when the workflow is cancelled (desired behavior)
+	// needs.agent.result != 'skipped' prevents running when workflow is cancelled (dependencies get skipped)
 	notCancelledFunc := &NotNode{
 		Child: BuildFunctionCall("cancelled"),
 	}
 
-	// If min > 0, only return !cancelled() without the contains check
-	// This is needed to ensure the job runs even with 0 outputs to enforce the minimum constraint
-	// Wrap in parentheses to ensure proper YAML interpretation
-	if min > 0 {
-		return &ParenthesesNode{Child: notCancelledFunc}
+	// Check that agent job was not skipped (happens when workflow is cancelled)
+	agentNotSkipped := &ComparisonNode{
+		Left:     BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
+		Operator: "!=",
+		Right:    BuildStringLiteral("skipped"),
 	}
 
+	// Combine !cancelled() with agent not skipped check
+	baseCondition := &AndNode{
+		Left:  notCancelledFunc,
+		Right: agentNotSkipped,
+	}
+
+	// Always check that the output type is present in agent outputs
+	// This prevents the job from running when the agent didn't produce any outputs of this type
+	// The min constraint is enforced by the job itself, not by skipping this check
 	containsFunc := BuildFunctionCall("contains",
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
 		BuildStringLiteral(outputType),
 	)
+
 	return &AndNode{
-		Left:  notCancelledFunc,
+		Left:  baseCondition,
 		Right: containsFunc,
 	}
 }

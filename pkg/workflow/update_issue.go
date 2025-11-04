@@ -60,7 +60,7 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 		"issue_url":    "${{ steps.update_issue.outputs.issue_url }}",
 	}
 
-	var jobCondition = BuildSafeOutputType("update_issue", data.SafeOutputs.UpdateIssues.Min)
+	var jobCondition = BuildSafeOutputType("update_issue")
 	if data.SafeOutputs.UpdateIssues != nil && data.SafeOutputs.UpdateIssues.Target == "" {
 		eventCondition := BuildPropertyAccess("github.event.issue.number")
 		jobCondition = buildAnd(jobCondition, eventCondition)

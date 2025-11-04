@@ -123,29 +123,33 @@ func TestRenderSafeOutputsMCPConfigWithOptions(t *testing.T) {
 				`"tools": ["*"]`,
 				`"env": {`,
 				`"GH_AW_SAFE_OUTPUTS": "\${GH_AW_SAFE_OUTPUTS}"`,
-				`"GH_AW_SAFE_OUTPUTS_CONFIG": "\${GH_AW_SAFE_OUTPUTS_CONFIG}"`,
 				`              }`,
 			},
 			unexpectedContent: []string{
 				`${{ env.`,
+				`GH_AW_SAFE_OUTPUTS_CONFIG`, // Config is now in file, not env var
 			},
 		},
 		{
-			name:                 "Claude/Custom without type/tools, with GitHub expressions",
+			name:                 "Claude/Custom without type/tools, with shell env vars",
 			isLast:               false,
 			includeCopilotFields: false,
 			expectedContent: []string{
 				`"safeoutputs": {`,
 				`"command": "node"`,
 				`"args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"]`,
-				`"GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}"`,
-				`${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}`,
+				// Security fix: Now uses shell variables instead of GitHub expressions
+				`"GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS"`,
 				`              },`,
 			},
 			unexpectedContent: []string{
 				`"type"`,
 				`"tools"`,
 				`\\${`,
+				// Verify GitHub expressions are NOT in the output (security fix)
+				`${{ env.`,
+				`${{ toJSON(`,
+				`GH_AW_SAFE_OUTPUTS_CONFIG`, // Config is now in file, not env var
 			},
 		},
 	}
@@ -203,20 +207,23 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 			},
 		},
 		{
-			name:                 "Claude/Custom without type/tools, with GitHub secrets",
+			name:                 "Claude/Custom without type/tools, with shell env vars",
 			isLast:               true,
 			includeCopilotFields: false,
 			expectedContent: []string{
 				`"agentic_workflows": {`,
 				`"command": "gh"`,
 				`"args": ["aw", "mcp-server"]`,
-				`"GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"`,
+				// Security fix: Now uses shell variable instead of GitHub secret expression
+				`"GITHUB_TOKEN": "$GITHUB_TOKEN"`,
 				`              }`,
 			},
 			unexpectedContent: []string{
 				`"type"`,
 				`"tools"`,
 				`\\${`,
+				// Verify GitHub expressions are NOT in the output (security fix)
+				`${{ secrets.`,
 			},
 		},
 	}
@@ -314,12 +321,22 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 		`"/tmp/gh-aw/safeoutputs/mcp-server.cjs"`,
 		`env = {`,
 		`"GH_AW_SAFE_OUTPUTS" = "${{ env.GH_AW_SAFE_OUTPUTS }}"`,
-		`${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}`,
+	}
+
+	unexpectedContent := []string{
+		`GH_AW_SAFE_OUTPUTS_CONFIG`, // Config is now in file, not env var
+		`${{ toJSON(`,
 	}
 
 	for _, expected := range expectedContent {
 		if !strings.Contains(result, expected) {
 			t.Errorf("Expected content not found: %q\nActual output:\n%s", expected, result)
+		}
+	}
+
+	for _, unexpected := range unexpectedContent {
+		if strings.Contains(result, unexpected) {
+			t.Errorf("Unexpected content found: %q\nActual output:\n%s", unexpected, result)
 		}
 	}
 }

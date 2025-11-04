@@ -143,7 +143,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		"issue_url":    "${{ steps.create_issue.outputs.issue_url }}",
 	}
 
-	jobCondition := BuildSafeOutputType("create_issue", data.SafeOutputs.CreateIssues.Min)
+	jobCondition := BuildSafeOutputType("create_issue")
 
 	job := &Job{
 		Name:           "create_issue",

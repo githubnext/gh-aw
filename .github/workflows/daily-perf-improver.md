@@ -9,7 +9,6 @@ timeout_minutes: 60
 
 permissions:
   all: read
-  id-token: write  # for auth in some actions
 
 network: defaults
 
@@ -39,6 +38,8 @@ imports:
 steps:
   - name: Checkout repository
     uses: actions/checkout@v5
+    with:
+      persist-credentials: false
 
   - name: Check if action.yml exists
     id: check_build_steps_file

@@ -68,7 +68,7 @@ This is a test workflow for compilation.
 	// Define paths for instruction files
 	copilotInstructionsPath := filepath.Join(tempDir, ".github", "instructions", "github-agentic-workflows.instructions.md")
 	agenticWorkflowAgentPath := filepath.Join(tempDir, ".github", "agents", "create-agentic-workflow.md")
-	sharedAgenticWorkflowPromptPath := filepath.Join(tempDir, ".github", "prompts", "create-shared-agentic-workflow.prompt.md")
+	sharedAgenticWorkflowAgentPath := filepath.Join(tempDir, ".github", "agents", "create-shared-agentic-workflow.md")
 
 	// Compile the workflow
 	config := CompileConfig{
@@ -106,8 +106,8 @@ This is a test workflow for compilation.
 		t.Errorf("Expected agentic workflow agent file NOT to exist, but it was created at %s", agenticWorkflowAgentPath)
 	}
 
-	if _, err := os.Stat(sharedAgenticWorkflowPromptPath); !os.IsNotExist(err) {
-		t.Errorf("Expected shared agentic workflow agent file NOT to exist, but it was created at %s", sharedAgenticWorkflowPromptPath)
+	if _, err := os.Stat(sharedAgenticWorkflowAgentPath); !os.IsNotExist(err) {
+		t.Errorf("Expected shared agentic workflow agent file NOT to exist, but it was created at %s", sharedAgenticWorkflowAgentPath)
 	}
 }
 
@@ -172,7 +172,7 @@ This is a test workflow for compilation.
 	// Define paths for instruction files
 	copilotInstructionsPath := filepath.Join(tempDir, ".github", "instructions", "github-agentic-workflows.instructions.md")
 	agenticWorkflowAgentPath := filepath.Join(tempDir, ".github", "agents", "create-agentic-workflow.md")
-	sharedAgenticWorkflowPromptPath := filepath.Join(tempDir, ".github", "prompts", "create-shared-agentic-workflow.prompt.md")
+	sharedAgenticWorkflowAgentPath := filepath.Join(tempDir, ".github", "agents", "create-shared-agentic-workflow.md")
 
 	// Compile all workflows (no specific files)
 	config := CompileConfig{
@@ -211,7 +211,7 @@ This is a test workflow for compilation.
 		t.Errorf("Expected agentic workflow agent file NOT to exist, but it was created at %s", agenticWorkflowAgentPath)
 	}
 
-	if _, err := os.Stat(sharedAgenticWorkflowPromptPath); !os.IsNotExist(err) {
-		t.Errorf("Expected shared agentic workflow agent file NOT to exist, but it was created at %s", sharedAgenticWorkflowPromptPath)
+	if _, err := os.Stat(sharedAgenticWorkflowAgentPath); !os.IsNotExist(err) {
+		t.Errorf("Expected shared agentic workflow agent file NOT to exist, but it was created at %s", sharedAgenticWorkflowAgentPath)
 	}
 }

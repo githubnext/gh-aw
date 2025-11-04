@@ -294,6 +294,7 @@ func TestExtractPermissionsFromContent(t *testing.T) {
 		{
 			name: "Simple permissions",
 			content: `---
+on: push
 permissions:
   contents: read
   issues: write

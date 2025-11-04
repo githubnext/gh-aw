@@ -67,6 +67,14 @@ test-js: build-js
 build-js:
 	cd pkg/workflow/js && npm run typecheck
 
+# Bundle JavaScript files with local requires
+.PHONY: bundle-js
+bundle-js:
+	@echo "Building bundle-js tool..."
+	@go build -o bundle-js ./cmd/bundle-js
+	@echo "✓ bundle-js tool built"
+	@echo "To bundle a JavaScript file: ./bundle-js <input-file> [output-file]"
+
 # Test all code (Go and JavaScript)
 .PHONY: test-all
 test-all: test test-js
@@ -105,7 +113,9 @@ download-github-actions-schema:
 	@mkdir -p pkg/workflow/schemas
 	@curl -s -o pkg/workflow/schemas/github-workflow.json \
 		"https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/github-workflow.json"
-	@echo "✓ Downloaded GitHub Actions schema to pkg/workflow/schemas/github-workflow.json"
+	@echo "Formatting schema with prettier..."
+	@prettier --write pkg/workflow/schemas/github-workflow.json --ignore-path /dev/null >/dev/null 2>&1
+	@echo "✓ Downloaded and formatted GitHub Actions schema to pkg/workflow/schemas/github-workflow.json"
 
 # Run linter
 .PHONY: golint
@@ -205,8 +215,8 @@ sync-templates:
 	@mkdir -p pkg/cli/templates
 	@cp .github/instructions/github-agentic-workflows.instructions.md pkg/cli/templates/
 	@cp .github/agents/create-agentic-workflow.md pkg/cli/templates/
-	@cp .github/prompts/create-shared-agentic-workflow.prompt.md pkg/cli/templates/
-	@cp .github/prompts/setup-agentic-workflows.prompt.md pkg/cli/templates/
+	@cp .github/agents/setup-agentic-workflows.md pkg/cli/templates/
+	@cp .github/agents/create-shared-agentic-workflow.md pkg/cli/templates/
 	@echo "✓ Templates synced successfully"
 
 # Recompile all workflow files
@@ -255,6 +265,7 @@ help:
 	@echo "  test-js          - Run JavaScript tests"
 	@echo "  test-all         - Run all tests (Go and JavaScript)"
 	@echo "  test-coverage    - Run tests with coverage report"
+	@echo "  bundle-js        - Build JavaScript bundler tool (./bundle-js <input> [output])"
 	@echo "  clean            - Clean build artifacts"
 	@echo "  deps             - Install dependencies"
 	@echo "  lint             - Run linter"

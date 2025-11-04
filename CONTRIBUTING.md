@@ -94,10 +94,75 @@ fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 ```
 
 #### File Organization
-- Prefer creating new files grouped by functionality over adding to existing files
+
+Follow these principles when organizing code:
+
+- **Prefer many small files** over large monolithic files
+- **Group by functionality**, not by type (avoid generic `utils.go` files)
+- **Use descriptive names** that clearly indicate the file's purpose
+- **Follow established patterns** from the codebase
+
+**Key Patterns to Follow**:
+
+1. **Create Functions Pattern** - One file per GitHub entity creation
+   - Examples: `create_issue.go`, `create_pull_request.go`, `create_discussion.go`
+   - Use when: Implementing new safe output types or GitHub API operations
+
+2. **Engine Separation Pattern** - Each engine has its own file
+   - Examples: `copilot_engine.go`, `claude_engine.go`, `codex_engine.go`
+   - Shared helpers go in `engine_helpers.go`
+
+3. **Focused Utilities Pattern** - Self-contained feature files
+   - Examples: `expressions.go`, `strings.go`, `artifacts.go`
+   - Keep files under 500 lines when possible
+
+**File Placement**:
 - Place new CLI commands in `pkg/cli/`
 - Place workflow processing logic in `pkg/workflow/`
 - Add tests alongside your code (e.g., `feature.go` and `feature_test.go`)
+- Use descriptive test names: `feature_scenario_test.go`, `feature_integration_test.go`
+
+**When to Create a New File**:
+- Implementing a new safe output type → `create_<entity>.go`
+- Adding a new AI engine → `<engine>_engine.go`
+- Building a distinct feature module → `<feature>.go`
+- Current file exceeds 800 lines → Split by logical boundaries
+
+**File Size Guidelines**:
+- Small files (50-200 lines): Utilities, simple features
+- Medium files (200-500 lines): Most feature implementations
+- Large files (500-800 lines): Complex features (consider splitting)
+- Very large files (800+ lines): Core infrastructure only (refactor if possible)
+
+For detailed guidance, see [Code Organization Patterns](docs/CODE_ORGANIZATION.md).
+
+#### Validation Patterns
+
+When adding validation logic, follow the established architecture:
+
+**Centralized validation** (`pkg/workflow/validation.go`):
+- Cross-cutting concerns spanning multiple domains
+- Core workflow integrity checks
+- GitHub Actions compatibility validation
+- General schema and configuration validation
+- Repository-level feature detection
+
+**Domain-specific validation** (dedicated files):
+- `strict_mode.go` - Security and strict mode enforcement
+- `pip.go` - Python package validation
+- `npm.go` - NPM package validation
+- `expression_safety.go` - GitHub Actions expression security
+- `engine.go` - AI engine configuration
+- `mcp-config.go` - MCP server configuration
+- `docker.go` - Docker image validation
+- `template.go` - Template structure validation
+
+**When to create a new validation file**:
+- Validating a new external ecosystem (e.g., Ruby gems, Java packages)
+- Complex domain-specific validation logic (> 100 lines)
+- Security-focused validation requiring dedicated focus
+
+For detailed validation architecture and decision tree, see [specs/validation-architecture.md](specs/validation-architecture.md).
 
 ### Documentation
 - Update documentation for any new features

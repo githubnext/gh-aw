@@ -112,23 +112,65 @@ settings:                         # Custom runtime or connection settings
 
 #### tools (array of strings, optional)
 - List of tools the agent is allowed to use
-- If omitted or empty, agent has access to all available tools
-- Common tools include:
-  - `createFile` - Create new files
-  - `editFiles` - Modify existing files
-  - `deleteFiles` - Remove files
-  - `search` - Search codebase
-  - `codeSearch` - Semantic code search
-  - `runCommand` - Execute shell commands
-  - `getFile` - Read file contents
-  - `listFiles` - List directory contents
+- If omitted or set to `["*"]`, agent has access to all available tools
+- Tool names are **case-insensitive**
+- Supports both GitHub's standard tool aliases and legacy naming conventions
 
-**Example:**
+**GitHub Standard Tool Aliases:**
+
+GitHub Copilot defines a standardized set of tool aliases for custom agents:
+
+- **`read`** - Access and read contents of files or code
+- **`edit`** - Make changes in code files, apply edits or refactoring
+- **`search`** - Search codebase for keywords, references, or patterns
+- **`pr`** - Create, manage, or update pull requests
+- **`issue`** - Create, manage, or update issues
+
+**Legacy Tool Names:**
+
+For backward compatibility, these legacy tool names are still supported:
+
+- `createFile` - Create new files (use `edit` instead)
+- `editFiles` - Modify existing files (use `edit` instead)
+- `deleteFiles` - Remove files (use `edit` instead)
+- `codeSearch` - Semantic code search (use `search` instead)
+- `runCommand` - Execute shell commands
+- `getFile` - Read file contents (use `read` instead)
+- `listFiles` - List directory contents (use `read` instead)
+
+**MCP Server Tool Prefixes:**
+
+When using Model Context Protocol (MCP) servers, you can specify tools with server prefixes:
+- Single tool: `my-mcp-server/tool-name`
+- All tools from a server: `my-mcp-server/*`
+
+**Examples:**
+
 ```yaml
+# Using standard tool aliases
+tools:
+  - read
+  - edit
+  - search
+
+# Enable all tools with wildcard
+tools: ["*"]
+
+# Using legacy names (still supported)
 tools:
   - editFiles
   - createFile
   - search
+
+# Mixed standard and MCP server tools
+tools:
+  - read
+  - edit
+  - github-mcp/create_issue
+  - custom-mcp/*
+
+# Empty list disables all tools
+tools: []
 ```
 
 ### Path Targeting
@@ -238,10 +280,9 @@ applyTo:
 name: readme-creator
 description: Agent specializing in creating and improving README files
 tools:
-  - createFile
-  - editFiles
+  - read
+  - edit
   - search
-  - getFile
 ---
 
 # README Creator Agent
@@ -277,9 +318,8 @@ You are a documentation specialist focused on creating clear, comprehensive READ
 name: test-writer
 description: Specialized agent for writing comprehensive test suites
 tools:
-  - createFile
-  - editFiles
-  - codeSearch
+  - read
+  - edit
   - search
 ---
 
@@ -340,9 +380,8 @@ Review the pull request changes and provide constructive feedback.
 name: code-reviewer
 description: Agent specialized in performing code reviews
 tools:
+  - read
   - search
-  - codeSearch
-  - getFile
 ---
 
 # Code Review Agent
@@ -466,28 +505,42 @@ Analyze the issue and categorize it appropriately.
 ```yaml
 name: documentation-specialist
 description: Creates and maintains technical documentation
-tools: [createFile, editFiles, search, getFile]
+tools: [read, edit, search]
 ```
 
 ### Refactoring Agent
 ```yaml
 name: code-refactorer
 description: Improves code quality and structure
-tools: [editFiles, codeSearch, search]
+tools: [read, edit, search]
 ```
 
 ### Security Auditor
 ```yaml
 name: security-auditor
 description: Reviews code for security vulnerabilities
-tools: [search, codeSearch, getFile]
+tools: [read, search]
 ```
 
 ### Migration Assistant
 ```yaml
 name: migration-helper
 description: Assists with framework or library migrations
-tools: [editFiles, createFile, search, codeSearch]
+tools: [read, edit, search]
+```
+
+### Issue Management Agent
+```yaml
+name: issue-manager
+description: Manages GitHub issues and project tracking
+tools: [read, issue]
+```
+
+### Pull Request Assistant
+```yaml
+name: pr-assistant
+description: Assists with pull request creation and management
+tools: [read, edit, pr]
 ```
 
 ## Troubleshooting
@@ -516,6 +569,7 @@ tools: [editFiles, createFile, search, codeSearch]
 
 ## References
 
+- [GitHub Copilot Custom Agents Configuration](https://docs.github.com/en/copilot/reference/custom-agents-configuration) - Official reference for custom agent configuration including tool aliases
 - [GitHub Copilot Custom Instructions Documentation](https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions)
 - [About Custom Agents](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-custom-agents)
 - [GitHub Blog: Custom Instructions Support](https://github.blog/changelog/2025-07-23-github-copilot-coding-agent-now-supports-instructions-md-custom-instructions/)

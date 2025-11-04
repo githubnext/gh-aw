@@ -91,7 +91,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 		"push_url":    "${{ steps.push_to_pull_request_branch.outputs.push_url }}",
 	}
 
-	safeOutputCondition := BuildSafeOutputType("push_to_pull_request_branch", data.SafeOutputs.PushToPullRequestBranch.Min)
+	safeOutputCondition := BuildSafeOutputType("push_to_pull_request_branch")
 	issueWithPR := &AndNode{
 		Left:  &ExpressionNode{Expression: "github.event.issue.number"},
 		Right: &ExpressionNode{Expression: "github.event.issue.pull_request"},

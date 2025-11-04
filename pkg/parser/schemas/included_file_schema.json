@@ -2,6 +2,32 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
+    "description": {
+      "type": "string",
+      "description": "Optional description for the included file or custom agent configuration. Used for documentation and clarity.",
+      "examples": ["Agent instructions", "Shared tool configuration", "Common workflow steps"]
+    },
+    "applyTo": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Single glob pattern for files/directories where these instructions apply (for custom agent instruction files)",
+          "examples": ["**/*.py", "src/**/*.js", "pkg/workflow/*.go"]
+        },
+        {
+          "type": "array",
+          "description": "Multiple glob patterns for files/directories where these instructions apply (for custom agent instruction files)",
+          "items": {
+            "type": "string",
+            "description": "Glob pattern for file/directory matching"
+          },
+          "examples": [
+            ["**/*.py", "**/*.pyw"],
+            ["src/**/*.ts", "src/**/*.tsx"]
+          ]
+        }
+      ]
+    },
     "services": {
       "type": "object",
       "description": "Service containers to be merged with main workflow services",
@@ -257,6 +283,21 @@
       },
       "additionalProperties": false
     },
+    "secret-masking": {
+      "type": "object",
+      "description": "Secret masking configuration to be merged with main workflow",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "description": "Additional secret redaction steps to inject after the built-in secret redaction",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "runtimes": {
       "type": "object",
       "description": "Runtime environment version overrides. Allows customizing runtime versions (e.g., Node.js, Python) or defining new runtimes. Merged with main workflow runtimes.",
@@ -425,6 +466,7 @@
         },
         "command": {
           "type": "string",
+          "minLength": 1,
           "description": "Command for stdio MCP connections"
         },
         "container": {
@@ -452,6 +494,7 @@
         },
         "url": {
           "type": "string",
+          "minLength": 1,
           "description": "URL for HTTP MCP connections"
         },
         "headers": {
@@ -552,6 +595,7 @@
         },
         "url": {
           "type": "string",
+          "minLength": 1,
           "description": "URL for HTTP MCP connections"
         },
         "headers": {

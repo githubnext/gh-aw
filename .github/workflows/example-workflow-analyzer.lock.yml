@@ -56,21 +56,79 @@ jobs:
   activation:
     runs-on: ubuntu-slim
     steps:
+      - name: Checkout workflows
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          sparse-checkout: |
+            .github/workflows
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+          persist-credentials: false
       - name: Check workflow file timestamps
-        run: |
-          WORKFLOW_FILE="${GITHUB_WORKSPACE}/.github/workflows/$(basename "$GITHUB_WORKFLOW" .lock.yml).md"
-          LOCK_FILE="${GITHUB_WORKSPACE}/.github/workflows/$GITHUB_WORKFLOW"
-          
-          if [ -f "$WORKFLOW_FILE" ] && [ -f "$LOCK_FILE" ]; then
-            if [ "$WORKFLOW_FILE" -nt "$LOCK_FILE" ]; then
-              echo "🔴🔴🔴 WARNING: Lock file '$LOCK_FILE' is outdated! The workflow file '$WORKFLOW_FILE' has been modified more recently. Run 'gh aw compile' to regenerate the lock file." >&2
-              echo "## ⚠️ Workflow Lock File Warning" >> $GITHUB_STEP_SUMMARY
-              echo "🔴🔴🔴 **WARNING**: Lock file \`$LOCK_FILE\` is outdated!" >> $GITHUB_STEP_SUMMARY
-              echo "The workflow file \`$WORKFLOW_FILE\` has been modified more recently." >> $GITHUB_STEP_SUMMARY
-              echo "Run \`gh aw compile\` to regenerate the lock file." >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-          fi
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_WORKFLOW_FILE: "example-workflow-analyzer.lock.yml"
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            async function main() {
+              const workspace = process.env.GITHUB_WORKSPACE;
+              const workflowFile = process.env.GH_AW_WORKFLOW_FILE;
+              if (!workspace) {
+                core.setFailed("Configuration error: GITHUB_WORKSPACE not available.");
+                return;
+              }
+              if (!workflowFile) {
+                core.setFailed("Configuration error: GH_AW_WORKFLOW_FILE not available.");
+                return;
+              }
+              const workflowBasename = path.basename(workflowFile, ".lock.yml");
+              const workflowMdFile = path.join(workspace, ".github", "workflows", `${workflowBasename}.md`);
+              const lockFile = path.join(workspace, ".github", "workflows", workflowFile);
+              core.info(`Checking workflow timestamps:`);
+              core.info(`  Source: ${workflowMdFile}`);
+              core.info(`  Lock file: ${lockFile}`);
+              let workflowExists = false;
+              let lockExists = false;
+              try {
+                fs.accessSync(workflowMdFile, fs.constants.F_OK);
+                workflowExists = true;
+              } catch (error) {
+                core.info(`Source file does not exist: ${workflowMdFile}`);
+              }
+              try {
+                fs.accessSync(lockFile, fs.constants.F_OK);
+                lockExists = true;
+              } catch (error) {
+                core.info(`Lock file does not exist: ${lockFile}`);
+              }
+              if (!workflowExists || !lockExists) {
+                core.info("Skipping timestamp check - one or both files not found");
+                return;
+              }
+              const workflowStat = fs.statSync(workflowMdFile);
+              const lockStat = fs.statSync(lockFile);
+              const workflowMtime = workflowStat.mtime.getTime();
+              const lockMtime = lockStat.mtime.getTime();
+              core.info(`  Source modified: ${workflowStat.mtime.toISOString()}`);
+              core.info(`  Lock modified: ${lockStat.mtime.toISOString()}`);
+              if (workflowMtime > lockMtime) {
+                const warningMessage = `🔴🔴🔴 WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
+                core.error(warningMessage);
+                await core.summary
+                  .addRaw("## ⚠️ Workflow Lock File Warning\n\n")
+                  .addRaw(`🔴🔴🔴 **WARNING**: Lock file \`${lockFile}\` is outdated!\n\n`)
+                  .addRaw(`The workflow file \`${workflowMdFile}\` has been modified more recently.\n\n`)
+                  .addRaw("Run `gh aw compile` to regenerate the lock file.\n\n")
+                  .write();
+              } else {
+                core.info("✅ Lock file is up to date");
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
 
   agent:
     needs: activation
@@ -84,7 +142,6 @@ jobs:
       group: "gh-aw-claude-${{ github.workflow }}"
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-      GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -98,13 +155,15 @@ jobs:
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Configure Git credentials
+        env:
+          REPO_NAME: ${{ github.repository }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           # Re-authenticate git with GitHub token
           SERVER_URL="${{ github.server_url }}"
           SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${{ github.repository }}.git"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
           echo "Git configured with standard GitHub Actions identity"
       - name: Checkout PR branch
         if: |
@@ -143,24 +202,29 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Validate ANTHROPIC_API_KEY secret
+      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "Error: ANTHROPIC_API_KEY secret is not set"
-            echo "The Claude Code engine requires the ANTHROPIC_API_KEY secret to be configured."
-            echo "Please configure this secret in your repository settings."
+          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
+            echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
+            echo "Please configure one of these secrets in your repository settings."
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
             exit 1
           fi
-          echo "ANTHROPIC_API_KEY secret is configured"
+          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "CLAUDE_CODE_OAUTH_TOKEN secret is configured"
+          else
+            echo "ANTHROPIC_API_KEY secret is configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
+          fi
         env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.29
+        run: npm install -g @anthropic-ai/claude-code@2.0.32
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -309,39 +373,26 @@ jobs:
               normalized = normalized.toLowerCase();
               return normalized;
             }
-            const configEnv = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+            const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
             let safeOutputsConfigRaw;
-            if (!configEnv) {
-              const defaultConfigPath = "/tmp/gh-aw/safeoutputs/config.json";
-              debug(`GH_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
-              try {
-                if (fs.existsSync(defaultConfigPath)) {
-                  debug(`Reading config from file: ${defaultConfigPath}`);
-                  const configFileContent = fs.readFileSync(defaultConfigPath, "utf8");
-                  debug(`Config file content length: ${configFileContent.length} characters`);
-                  debug(`Config file read successfully, attempting to parse JSON`);
-                  safeOutputsConfigRaw = JSON.parse(configFileContent);
-                  debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
-                } else {
-                  debug(`Config file does not exist at: ${defaultConfigPath}`);
-                  debug(`Using minimal default configuration`);
-                  safeOutputsConfigRaw = {};
-                }
-              } catch (error) {
-                debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
-                debug(`Falling back to empty configuration`);
+            debug(`Reading config from file: ${configPath}`);
+            try {
+              if (fs.existsSync(configPath)) {
+                debug(`Config file exists at: ${configPath}`);
+                const configFileContent = fs.readFileSync(configPath, "utf8");
+                debug(`Config file content length: ${configFileContent.length} characters`);
+                debug(`Config file read successfully, attempting to parse JSON`);
+                safeOutputsConfigRaw = JSON.parse(configFileContent);
+                debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
+              } else {
+                debug(`Config file does not exist at: ${configPath}`);
+                debug(`Using minimal default configuration`);
                 safeOutputsConfigRaw = {};
               }
-            } else {
-              debug(`Using GH_AW_SAFE_OUTPUTS_CONFIG from environment variable`);
-              debug(`Config environment variable length: ${configEnv.length} characters`);
-              try {
-                safeOutputsConfigRaw = JSON.parse(configEnv); 
-                debug(`Successfully parsed config from environment: ${JSON.stringify(safeOutputsConfigRaw)}`);
-              } catch (error) {
-                debug(`Error parsing config from environment: ${error instanceof Error ? error.message : String(error)}`);
-                throw new Error(`Failed to parse GH_AW_SAFE_OUTPUTS_CONFIG: ${error instanceof Error ? error.message : String(error)}`);
-              }
+            } catch (error) {
+              debug(`Error reading config file: ${error instanceof Error ? error.message : String(error)}`);
+              debug(`Falling back to empty configuration`);
+              safeOutputsConfigRaw = {};
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
@@ -1070,6 +1121,13 @@ jobs:
           chmod +x /tmp/gh-aw/safeoutputs/mcp-server.cjs
           
       - name: Setup MCPs
+        env:
+          GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
+          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
+          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
+          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
@@ -1079,7 +1137,7 @@ jobs:
                 "command": "gh",
                 "args": ["aw", "mcp-server"],
                 "env": {
-                  "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
+                  "GITHUB_TOKEN": "$GITHUB_TOKEN"
                 }
               },
               "github": {
@@ -1097,18 +1155,19 @@ jobs:
                   "ghcr.io/github/github-mcp-server:v0.20.1"
                 ],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "$GITHUB_MCP_SERVER_TOKEN"
                 }
               },
               "safeoutputs": {
                 "command": "node",
                 "args": ["/tmp/gh-aw/safeoutputs/mcp-server.cjs"],
                 "env": {
-                  "GH_AW_SAFE_OUTPUTS": "${{ env.GH_AW_SAFE_OUTPUTS }}",
-                  "GH_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }},
-                  "GH_AW_ASSETS_BRANCH": "${{ env.GH_AW_ASSETS_BRANCH }}",
-                  "GH_AW_ASSETS_MAX_SIZE_KB": "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}",
-                  "GH_AW_ASSETS_ALLOWED_EXTS": "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}"
+                  "GH_AW_SAFE_OUTPUTS": "$GH_AW_SAFE_OUTPUTS",
+                  "GH_AW_ASSETS_BRANCH": "$GH_AW_ASSETS_BRANCH",
+                  "GH_AW_ASSETS_MAX_SIZE_KB": "$GH_AW_ASSETS_MAX_SIZE_KB",
+                  "GH_AW_ASSETS_ALLOWED_EXTS": "$GH_AW_ASSETS_ALLOWED_EXTS",
+                  "GITHUB_REPOSITORY": "$GITHUB_REPOSITORY",
+                  "GITHUB_SERVER_URL": "$GITHUB_SERVER_URL"
                 }
               }
             }
@@ -1119,25 +1178,26 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
         run: |
-          mkdir -p $(dirname "$GH_AW_PROMPT")
-          cat > $GH_AW_PROMPT << 'PROMPT_EOF'
+          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
+          mkdir -p "$PROMPT_DIR"
+          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           ## Report Formatting
           
           Structure your report with an overview followed by detailed content:
           
           1. **Content Overview**: Start with 1-2 paragraphs that summarize the key findings, highlights, or main points of your report. This should give readers a quick understanding of what the report contains without needing to expand the details.
           
-          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information.
+          2. **Detailed Content**: Place the rest of your report inside HTML `<details>` and `<summary>` tags to allow readers to expand and view the full information. **IMPORTANT**: Always wrap the summary text in `<b>` tags to make it bold.
           
           **Example format:**
           
-          ```markdown
+          `````markdown
           Brief overview paragraph 1 introducing the report and its main findings.
           
           Optional overview paragraph 2 with additional context or highlights.
           
           <details>
-          <summary>Full Report Details</summary>
+          <summary><b>Full Report Details</b></summary>
           
           ## Detailed Analysis
           
@@ -1150,7 +1210,7 @@ jobs:
           [Content]
           
           </details>
-          ```
+          `````
           
           ## Reporting Workflow Run Information
           
@@ -1161,28 +1221,28 @@ jobs:
           **Always render workflow run IDs as clickable URLs** when mentioning them in your report. The workflow run data includes a `url` field that provides the full GitHub Actions run page URL.
           
           **Format:**
-          ```markdown
+          `````markdown
           [§12345](https://github.com/owner/repo/actions/runs/12345)
-          ```
+          `````
           
           **Example:**
-          ```markdown
+          `````markdown
           Analysis based on [§456789](https://github.com/githubnext/gh-aw/actions/runs/456789)
-          ```
+          `````
           
           ### 2. Document References for Workflow Runs
           
           When your analysis is based on information mined from one or more workflow runs, **include up to 3 workflow run URLs as document references** at the end of your report.
           
           **Format:**
-          ```markdown
+          `````markdown
           ---
           
           **References:**
           - [§12345](https://github.com/owner/repo/actions/runs/12345)
           - [§12346](https://github.com/owner/repo/actions/runs/12346)
           - [§12347](https://github.com/owner/repo/actions/runs/12347)
-          ```
+          `````
           
           **Guidelines:**
           - Include **maximum 3 references** to keep reports concise
@@ -1223,7 +1283,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1255,7 +1315,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1268,7 +1328,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1285,7 +1345,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           ---
           
@@ -1354,14 +1414,16 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          echo "<details>" >> $GITHUB_STEP_SUMMARY
-          echo "<summary>Generated Prompt</summary>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GH_AW_PROMPT >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "<details>"
+            echo "<summary>Generated Prompt</summary>"
+            echo ""
+            echo '```markdown'
+            cat "$GH_AW_PROMPT"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -1369,13 +1431,6 @@ jobs:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
           if-no-files-found: warn
-      - name: Capture agent version
-        run: |
-          VERSION_OUTPUT=$(claude --version 2>&1 || echo "unknown")
-          # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)
-          CLEAN_VERSION=$(echo "$VERSION_OUTPUT" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo "unknown")
-          echo "AGENT_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
-          echo "Agent version: $VERSION_OUTPUT"
       - name: Generate agentic run info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
@@ -1387,7 +1442,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: process.env.AGENT_VERSION || "",
+              agent_version: "2.0.32",
               workflow_name: "Weekly Workflow Analysis",
               experimental: false,
               supports_tools_allowlist: true,
@@ -1431,15 +1486,66 @@ jobs:
         # - Task
         # - TodoWrite
         # - Write
+        # - mcp__github__download_workflow_run_artifact
+        # - mcp__github__get_code_scanning_alert
+        # - mcp__github__get_commit
+        # - mcp__github__get_dependabot_alert
+        # - mcp__github__get_discussion
+        # - mcp__github__get_discussion_comments
+        # - mcp__github__get_file_contents
+        # - mcp__github__get_job_logs
+        # - mcp__github__get_label
+        # - mcp__github__get_latest_release
+        # - mcp__github__get_me
+        # - mcp__github__get_notification_details
+        # - mcp__github__get_pull_request
+        # - mcp__github__get_pull_request_comments
+        # - mcp__github__get_pull_request_diff
+        # - mcp__github__get_pull_request_files
+        # - mcp__github__get_pull_request_review_comments
+        # - mcp__github__get_pull_request_reviews
+        # - mcp__github__get_pull_request_status
+        # - mcp__github__get_release_by_tag
+        # - mcp__github__get_secret_scanning_alert
+        # - mcp__github__get_tag
         # - mcp__github__get_workflow_run
+        # - mcp__github__get_workflow_run_logs
+        # - mcp__github__get_workflow_run_usage
+        # - mcp__github__issue_read
+        # - mcp__github__list_branches
+        # - mcp__github__list_code_scanning_alerts
+        # - mcp__github__list_commits
+        # - mcp__github__list_dependabot_alerts
+        # - mcp__github__list_discussion_categories
+        # - mcp__github__list_discussions
+        # - mcp__github__list_issue_types
+        # - mcp__github__list_issues
+        # - mcp__github__list_label
+        # - mcp__github__list_notifications
+        # - mcp__github__list_pull_requests
+        # - mcp__github__list_releases
+        # - mcp__github__list_secret_scanning_alerts
+        # - mcp__github__list_starred_repositories
+        # - mcp__github__list_tags
+        # - mcp__github__list_workflow_jobs
+        # - mcp__github__list_workflow_run_artifacts
         # - mcp__github__list_workflow_runs
+        # - mcp__github__list_workflows
+        # - mcp__github__pull_request_read
+        # - mcp__github__search_code
+        # - mcp__github__search_issues
+        # - mcp__github__search_orgs
+        # - mcp__github__search_pull_requests
+        # - mcp__github__search_repositories
+        # - mcp__github__search_users
         timeout-minutes: 10
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__get_workflow_run,mcp__github__list_workflow_runs" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__issue_read,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
@@ -1567,8 +1673,9 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          GH_AW_SECRET_NAMES: 'ANTHROPIC_API_KEY,CLAUDE_CODE_OAUTH_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SECRET_CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
@@ -1583,77 +1690,140 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
           GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com"
         with:
           script: |
             async function main() {
               const fs = require("fs");
-              const maxBodyLength = 65000;
-              function sanitizeContent(content, maxLength) {
-                if (!content || typeof content !== "string") {
-                  return "";
-                }
-                const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
-                const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-                const allowedDomains = allowedDomainsEnv
-                  ? allowedDomainsEnv
-                      .split(",")
-                      .map(d => d.trim())
-                      .filter(d => d)
-                  : defaultAllowedDomains;
-                let sanitized = content;
-                sanitized = neutralizeMentions(sanitized);
-                sanitized = removeXmlComments(sanitized);
-                sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-                sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-                sanitized = sanitizeUrlProtocols(sanitized);
-                sanitized = sanitizeUrlDomains(sanitized);
-                const lines = sanitized.split("\n");
-                const maxLines = 65000;
-                maxLength = maxLength || 524288;
-                if (lines.length > maxLines) {
-                  const truncationMsg = "\n[Content truncated due to line count]";
-                  const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
-                  if (truncatedLines.length > maxLength) {
-                    sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
-                  } else {
-                    sanitized = truncatedLines;
-                  }
-                } else if (sanitized.length > maxLength) {
-                  sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-                }
-                sanitized = neutralizeBotTriggers(sanitized);
-                return sanitized.trim();
-                function sanitizeUrlDomains(s) {
-                  return s.replace(/\bhttps:\/\/[^\s\])}'"<>&\x00-\x1f,;]+/gi, match => {
-                    const urlAfterProtocol = match.slice(8);
-                    const hostname = urlAfterProtocol.split(/[\/:\?#]/)[0].toLowerCase();
-                    const isAllowed = allowedDomains.some(allowedDomain => {
-                      const normalizedAllowed = allowedDomain.toLowerCase();
-                      return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
-                    });
-                    return isAllowed ? match : "(redacted)";
-                  });
-                }
-                function sanitizeUrlProtocols(s) {
-                  return s.replace(/\b(\w+):\/\/[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
-                    return protocol.toLowerCase() === "https" ? match : "(redacted)";
-                  });
-                }
-                function neutralizeMentions(s) {
-                  return s.replace(
-                    /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                    (_m, p1, p2) => `${p1}\`@${p2}\``
-                  );
-                }
-                function removeXmlComments(s) {
-                  return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
-                }
-                function neutralizeBotTriggers(s) {
-                  return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-                }
+            function sanitizeContent(content, maxLength) {
+              if (!content || typeof content !== "string") {
+                return "";
               }
+              const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
+              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
+              const allowedDomains = allowedDomainsEnv
+                ? allowedDomainsEnv
+                    .split(",")
+                    .map(d => d.trim())
+                    .filter(d => d)
+                : defaultAllowedDomains;
+              let sanitized = content;
+              sanitized = neutralizeCommands(sanitized);
+              sanitized = neutralizeMentions(sanitized);
+              sanitized = removeXmlComments(sanitized);
+              sanitized = convertXmlTags(sanitized);
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitizeUrlProtocols(sanitized);
+              sanitized = sanitizeUrlDomains(sanitized);
+              const lines = sanitized.split("\n");
+              const maxLines = 65000;
+              maxLength = maxLength || 524288;
+              if (lines.length > maxLines) {
+                const truncationMsg = "\n[Content truncated due to line count]";
+                const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
+                if (truncatedLines.length > maxLength) {
+                  sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
+                } else {
+                  sanitized = truncatedLines;
+                }
+              } else if (sanitized.length > maxLength) {
+                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
+              }
+              sanitized = neutralizeBotTriggers(sanitized);
+              return sanitized.trim();
+              function sanitizeUrlDomains(s) {
+                s = s.replace(/\bhttps:\/\/([^\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, rest) => {
+                  const hostname = rest.split(/[\/:\?#]/)[0].toLowerCase();
+                  const isAllowed = allowedDomains.some(allowedDomain => {
+                    const normalizedAllowed = allowedDomain.toLowerCase();
+                    return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
+                  });
+                  if (isAllowed) {
+                    return match; 
+                  }
+                  const domain = hostname;
+                  const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                  core.info(`Redacted URL: ${truncated}`);
+                  core.debug(`Redacted URL (full): ${match}`);
+                  const urlParts = match.split(/([?&#])/);
+                  let result = "(redacted)"; 
+                  for (let i = 1; i < urlParts.length; i++) {
+                    if (urlParts[i].match(/^[?&#]$/)) {
+                      result += urlParts[i]; 
+                    } else {
+                      result += sanitizeUrlDomains(urlParts[i]);
+                    }
+                  }
+                  return result;
+                });
+                return s;
+              }
+              function sanitizeUrlProtocols(s) {
+                return s.replace(/(?<![-\/\w])([A-Za-z][A-Za-z0-9+.-]*):(?:\/\/|(?=[^\s:]))[^\s\])}'"<>&\x00-\x1f]+/g, (match, protocol) => {
+                  if (protocol.toLowerCase() === "https") {
+                    return match;
+                  }
+                  if (match.includes("::")) {
+                    return match;
+                  }
+                  if (match.includes("://")) {
+                    const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
+                    const domain = domainMatch ? domainMatch[1] : match;
+                    const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
+                    return "(redacted)";
+                  }
+                  const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
+                  if (dangerousProtocols.includes(protocol.toLowerCase())) {
+                    const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
+                    return "(redacted)";
+                  }
+                  return match;
+                });
+              }
+              function neutralizeCommands(s) {
+                const commandName = process.env.GH_AW_COMMAND;
+                if (!commandName) {
+                  return s;
+                }
+                const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+              }
+              function neutralizeMentions(s) {
+                return s.replace(
+                  /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                  (_m, p1, p2) => `${p1}\`@${p2}\``
+                );
+              }
+              function removeXmlComments(s) {
+                return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+              }
+              function convertXmlTags(s) {
+                const allowedTags = ["details", "summary", "code", "em", "b"];
+                s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
+                  const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
+                  return `(![CDATA[${convertedContent}]])`;
+                });
+                return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
+                  const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
+                  if (tagNameMatch) {
+                    const tagName = tagNameMatch[1].toLowerCase();
+                    if (allowedTags.includes(tagName)) {
+                      return match; 
+                    }
+                  }
+                  return `(${tagContent})`; 
+                });
+              }
+              function neutralizeBotTriggers(s) {
+                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
+              }
+            }
+              const maxBodyLength = 65000;
               function getMaxAllowedForType(itemType, config) {
                 const itemConfig = config?.[itemType];
                 if (itemConfig && typeof itemConfig === "object" && "max" in itemConfig && itemConfig.max) {
@@ -1951,7 +2121,16 @@ jobs:
                 }
               }
               const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
-              const safeOutputsConfig = process.env.GH_AW_SAFE_OUTPUTS_CONFIG;
+              const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || "/tmp/gh-aw/safeoutputs/config.json";
+              let safeOutputsConfig;
+              try {
+                if (fs.existsSync(configPath)) {
+                  const configFileContent = fs.readFileSync(configPath, "utf8");
+                  safeOutputsConfig = JSON.parse(configFileContent);
+                }
+              } catch (error) {
+                core.warning(`Failed to read config file from ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
+              }
               if (!outputFile) {
                 core.info("GH_AW_SAFE_OUTPUTS not set, no output to collect");
                 core.setOutput("output", "");
@@ -1970,8 +2149,7 @@ jobs:
               let expectedOutputTypes = {};
               if (safeOutputsConfig) {
                 try {
-                  const rawConfig = JSON.parse(safeOutputsConfig);
-                  expectedOutputTypes = Object.fromEntries(Object.entries(rawConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
+                  expectedOutputTypes = Object.fromEntries(Object.entries(safeOutputsConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
                   core.info(`Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                 } catch (error) {
                   const errorMsg = error instanceof Error ? error.message : String(error);
@@ -3040,7 +3218,8 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
+    if: >
+      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -3059,8 +3238,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Output Discussion
         id: create_discussion
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -3426,24 +3605,29 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Validate ANTHROPIC_API_KEY secret
+      - name: Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "Error: ANTHROPIC_API_KEY secret is not set"
-            echo "The Claude Code engine requires the ANTHROPIC_API_KEY secret to be configured."
-            echo "Please configure this secret in your repository settings."
+          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "Error: Neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY secret is set"
+            echo "The Claude Code engine requires either CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret to be configured."
+            echo "Please configure one of these secrets in your repository settings."
             echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
             exit 1
           fi
-          echo "ANTHROPIC_API_KEY secret is configured"
+          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "CLAUDE_CODE_OAUTH_TOKEN secret is configured"
+          else
+            echo "ANTHROPIC_API_KEY secret is configured (using as fallback for CLAUDE_CODE_OAUTH_TOKEN)"
+          fi
         env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.29
+        run: npm install -g @anthropic-ai/claude-code@2.0.32
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -3468,9 +3652,10 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          claude --print --allowed-tools 'Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite' --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
@@ -3527,7 +3712,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!cancelled()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -3545,8 +3730,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd

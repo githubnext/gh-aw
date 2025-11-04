@@ -106,7 +106,7 @@ Extract code snippets from the blog page and validate them against the latest ag
 
 2. **Create Temporary Directory**: Use bash with `mktemp` to create a secure temporary directory
    ```bash
-   TEMP_DIR=$(mktemp -d)
+   TEMP_DIR="$(mktemp -d)"
    ```
 
 3. **Write Snippets to Files**: For each extracted code snippet, write it to a temporary file

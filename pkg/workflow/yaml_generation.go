@@ -4,13 +4,15 @@ package workflow
 func (c *Compiler) generateGitConfigurationSteps() []string {
 	return []string{
 		"      - name: Configure Git credentials\n",
+		"        env:\n",
+		"          REPO_NAME: ${{ github.repository }}\n",
 		"        run: |\n",
 		"          git config --global user.email \"github-actions[bot]@users.noreply.github.com\"\n",
 		"          git config --global user.name \"github-actions[bot]\"\n",
 		"          # Re-authenticate git with GitHub token\n",
 		"          SERVER_URL=\"${{ github.server_url }}\"\n",
 		"          SERVER_URL=\"${SERVER_URL#https://}\"\n",
-		"          git remote set-url origin \"https://x-access-token:${{ github.token }}@${SERVER_URL}/${{ github.repository }}.git\"\n",
+		"          git remote set-url origin \"https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git\"\n",
 		"          echo \"Git configured with standard GitHub Actions identity\"\n",
 	}
 }

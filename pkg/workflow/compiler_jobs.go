@@ -26,6 +26,8 @@ func (c *Compiler) isActivationJobNeeded() bool {
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
+	log.Printf("Building jobs for workflow: %s", markdownPath)
+
 	// Try to read frontmatter to determine event types for safe events check
 	// This is used for the enhanced permission checking logic
 	var frontmatter map[string]any
@@ -41,6 +43,19 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Determine if permission checks or stop-time checks are needed
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
 	hasStopTime := data.StopTime != ""
+	log.Printf("Job configuration: needsPermissionCheck=%v, hasStopTime=%v, hasCommand=%v", needsPermissionCheck, hasStopTime, data.Command != "")
+
+	// Determine if we need to add workflow_run repository safety check
+	// Add the check if the agentic workflow declares a workflow_run trigger
+	// This prevents cross-repository workflow_run attacks
+	var workflowRunRepoSafety string
+	if c.hasWorkflowRunTrigger(frontmatter) {
+		workflowRunRepoSafety = c.buildWorkflowRunRepoSafetyCondition()
+		log.Print("Adding workflow_run repository safety check")
+	}
+
+	// Extract lock filename for timestamp check
+	lockFilename := filepath.Base(strings.TrimSuffix(markdownPath, ".md") + ".lock.yml")
 
 	// Build pre-activation job if needed (combines membership checks, stop-time validation, and command position check)
 	var preActivationJobCreated bool
@@ -61,7 +76,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	var activationJobCreated bool
 
 	if c.isActivationJobNeeded() {
-		activationJob, err := c.buildActivationJob(data, preActivationJobCreated)
+		activationJob, err := c.buildActivationJob(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename)
 		if err != nil {
 			return fmt.Errorf("failed to build activation job: %w", err)
 		}
@@ -97,6 +112,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
 	}
 
+	log.Print("Successfully built all jobs for workflow")
 	return nil
 }
 
@@ -105,6 +121,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	if data.SafeOutputs == nil {
 		return nil
 	}
+	log.Print("Building safe outputs jobs")
 
 	// Track whether threat detection job is enabled
 	threatDetectionEnabled := false
@@ -448,9 +465,13 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		"activated": activatedExpression,
 	}
 
+	// Pre-activation job uses the user's original if condition (data.If)
+	// The workflow_run safety check is NOT applied here - it's only on the activation job
+	jobIfCondition := data.If
+
 	job := &Job{
 		Name:        constants.PreActivationJobName,
-		If:          data.If, // Use the existing condition (which may include alias checks)
+		If:          jobIfCondition,
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: permissions,
 		Steps:       steps,
@@ -461,29 +482,36 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 }
 
 // buildActivationJob creates the preamble activation job that acts as a barrier for runtime conditions
-func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool) (*Job, error) {
+// The workflow_run repository safety check is applied exclusively to this job
+func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool, workflowRunRepoSafety string, lockFilename string) (*Job, error) {
 	outputs := map[string]string{}
 	var steps []string
 
 	// Team member check is now handled by the separate check_membership job
 	// No inline role checks needed in the task job anymore
 
+	// Add shallow checkout for timestamp check
+	// Only checkout .github/workflows directory for minimal performance impact
+	steps = append(steps, "      - name: Checkout workflows\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/checkout")))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          sparse-checkout: |\n")
+	steps = append(steps, "            .github/workflows\n")
+	steps = append(steps, "          sparse-checkout-cone-mode: false\n")
+	steps = append(steps, "          fetch-depth: 1\n")
+	steps = append(steps, "          persist-credentials: false\n")
+
 	// Add timestamp check for lock file vs source file
 	steps = append(steps, "      - name: Check workflow file timestamps\n")
-	steps = append(steps, "        run: |\n")
-	steps = append(steps, "          WORKFLOW_FILE=\"${GITHUB_WORKSPACE}/.github/workflows/$(basename \"$GITHUB_WORKFLOW\" .lock.yml).md\"\n")
-	steps = append(steps, "          LOCK_FILE=\"${GITHUB_WORKSPACE}/.github/workflows/$GITHUB_WORKFLOW\"\n")
-	steps = append(steps, "          \n")
-	steps = append(steps, "          if [ -f \"$WORKFLOW_FILE\" ] && [ -f \"$LOCK_FILE\" ]; then\n")
-	steps = append(steps, "            if [ \"$WORKFLOW_FILE\" -nt \"$LOCK_FILE\" ]; then\n")
-	steps = append(steps, "              echo \"🔴🔴🔴 WARNING: Lock file '$LOCK_FILE' is outdated! The workflow file '$WORKFLOW_FILE' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.\" >&2\n")
-	steps = append(steps, "              echo \"## ⚠️ Workflow Lock File Warning\" >> $GITHUB_STEP_SUMMARY\n")
-	steps = append(steps, "              echo \"🔴🔴🔴 **WARNING**: Lock file \\`$LOCK_FILE\\` is outdated!\" >> $GITHUB_STEP_SUMMARY\n")
-	steps = append(steps, "              echo \"The workflow file \\`$WORKFLOW_FILE\\` has been modified more recently.\" >> $GITHUB_STEP_SUMMARY\n")
-	steps = append(steps, "              echo \"Run \\`gh aw compile\\` to regenerate the lock file.\" >> $GITHUB_STEP_SUMMARY\n")
-	steps = append(steps, "              echo \"\" >> $GITHUB_STEP_SUMMARY\n")
-	steps = append(steps, "            fi\n")
-	steps = append(steps, "          fi\n")
+	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	steps = append(steps, "        env:\n")
+	steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_FILE: \"%s\"\n", lockFilename))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+
+	// Add the JavaScript script with proper indentation
+	formattedScript := FormatJavaScriptForYAML(checkWorkflowTimestampScript)
+	steps = append(steps, formattedScript...)
 
 	// Use inlined compute-text script only if needed (no shared action)
 	if data.NeedsTextOutput {
@@ -494,7 +522,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "          script: |\n")
 
 		// Inline the JavaScript directly instead of using shared action
-		steps = append(steps, FormatJavaScriptForYAML(computeTextScript)...)
+		steps = append(steps, FormatJavaScriptForYAML(getComputeTextScript())...)
 
 		// Set up outputs
 		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
@@ -558,8 +586,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			activationCondition = activatedExpr.Render()
 		}
 	} else {
-		// No pre-activation check needed
+		// No pre-activation check needed, use user's if condition
 		activationCondition = data.If
+	}
+
+	// Apply workflow_run repository safety check exclusively to activation job
+	// This check is combined with any existing activation condition
+	if workflowRunRepoSafety != "" {
+		activationCondition = c.combineJobIfConditions(activationCondition, workflowRunRepoSafety)
 	}
 
 	// Set permissions - add reaction permissions if reaction is configured and not "none"
@@ -573,11 +607,18 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		permissions = perms.RenderToYAML()
 	}
 
+	// Set environment if manual-approval is configured
+	var environment string
+	if data.ManualApproval != "" {
+		environment = fmt.Sprintf("environment: %s", data.ManualApproval)
+	}
+
 	job := &Job{
 		Name:        constants.ActivationJobName,
 		If:          activationCondition,
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: permissions,
+		Environment: environment,
 		Steps:       steps,
 		Outputs:     outputs,
 		Needs:       activationNeeds, // Depend on pre-activation job if it exists
@@ -594,6 +635,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	if activationJobCreated {
 		jobCondition = "" // Main job depends on activation job, so no need for inline condition
 	}
+
+	// Note: workflow_run repository safety check is applied exclusively to activation job
+
 	// Permission checks are now handled by the separate check_membership job
 	// No role checks needed in the main job
 
@@ -631,12 +675,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// Set GH_AW_SAFE_OUTPUTS to fixed path
 		env["GH_AW_SAFE_OUTPUTS"] = "/tmp/gh-aw/safeoutputs/outputs.jsonl"
 
-		// Set GH_AW_SAFE_OUTPUTS_CONFIG with the safe outputs configuration
-		safeOutputConfig := generateSafeOutputsConfig(data)
-		if safeOutputConfig != "" {
-			// The JSON string needs to be properly quoted for YAML
-			env["GH_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
-		}
+		// Config is written to /tmp/gh-aw/safeoutputs/config.json file, not passed as env var
 
 		// Add asset-related environment variables if upload-assets is configured
 		if data.SafeOutputs.UploadAssets != nil {

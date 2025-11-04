@@ -18,9 +18,6 @@ var createPromptFirstScript string
 //go:embed sh/generate_git_patch.sh
 var generateGitPatchScript string
 
-//go:embed sh/capture_agent_version.sh
-var captureAgentVersionScript string
-
 //go:embed sh/create_cache_memory_dir.sh
 var createCacheMemoryDirScript string
 
@@ -62,7 +59,7 @@ func WritePromptTextToYAML(yaml *strings.Builder, text string, indent string) {
 
 	// Write each chunk as a separate heredoc
 	for _, chunk := range chunks {
-		yaml.WriteString(indent + "cat >> $GH_AW_PROMPT << 'PROMPT_EOF'\n")
+		yaml.WriteString(indent + "cat >> \"$GH_AW_PROMPT\" << 'PROMPT_EOF'\n")
 		for _, line := range chunk {
 			fmt.Fprintf(yaml, "%s%s\n", indent, line)
 		}

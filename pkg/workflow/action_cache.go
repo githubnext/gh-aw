@@ -78,6 +78,9 @@ func (c *ActionCache) Save() error {
 		return err
 	}
 
+	// Add trailing newline for prettier compliance
+	data = append(data, '\n')
+
 	if err := os.WriteFile(c.path, data, 0644); err != nil {
 		actionCacheLog.Printf("Failed to write cache file: %v", err)
 		return err

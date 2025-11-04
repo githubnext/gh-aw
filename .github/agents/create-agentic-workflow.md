@@ -2,14 +2,9 @@
 name: create-agentic-workflow
 description: Design agentic workflows using GitHub Agentic Workflows (gh-aw) extension with interactive guidance on triggers, tools, and security best practices.
 tools:
-  - runInTerminal
-  - getTerminalOutput
-  - createFile
-  - createDirectory
-  - editFiles
+  - read
+  - edit
   - search
-  - changes
-  - githubRepo
 ---
 
 This file will configure the agent into a mode to create agentic workflows. Read the ENTIRE content of this file carefully before proceeding. Follow the instructions precisely.

@@ -59,24 +59,24 @@ func InitRepository(verbose bool, mcp bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created custom agent for workflow creation"))
 	}
 
-	// Write shared agentic workflow prompt
-	initLog.Print("Writing shared agentic workflow prompt")
-	if err := ensureSharedAgenticWorkflowPrompt(verbose, false); err != nil {
-		initLog.Printf("Failed to write shared agentic workflow prompt: %v", err)
-		return fmt.Errorf("failed to write shared agentic workflow prompt: %w", err)
+	// Write shared agentic workflow agent
+	initLog.Print("Writing shared agentic workflow agent")
+	if err := ensureSharedAgenticWorkflowAgent(verbose, false); err != nil {
+		initLog.Printf("Failed to write shared agentic workflow agent: %v", err)
+		return fmt.Errorf("failed to write shared agentic workflow agent: %w", err)
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created /create-shared-agentic-workflow command"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created /create-shared-agentic-workflow agent"))
 	}
 
-	// Write getting started prompt
-	initLog.Print("Writing getting started prompt")
-	if err := ensureGettingStartedPrompt(verbose, false); err != nil {
-		initLog.Printf("Failed to write getting started prompt: %v", err)
-		return fmt.Errorf("failed to write getting started prompt: %w", err)
+	// Write setup agentic workflows agent
+	initLog.Print("Writing setup agentic workflows agent")
+	if err := ensureSetupAgenticWorkflowsAgent(verbose, false); err != nil {
+		initLog.Printf("Failed to write setup agentic workflows agent: %v", err)
+		return fmt.Errorf("failed to write setup agentic workflows agent: %w", err)
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created getting started guide"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created setup agentic workflows agent"))
 	}
 
 	// Configure MCP if requested

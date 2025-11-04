@@ -12,6 +12,7 @@ permissions:
   pull-requests: read
 
 safe-outputs:
+  upload-assets:
   create-discussion:
     category: "audits"
     max: 1
@@ -25,13 +26,114 @@ tools:
   bash:
     - "*"
   edit:
+  cache-memory:
 imports:
   - shared/reporting.md
+  - shared/trends.md
 ---
 
 # Daily Firewall Logs Collector and Reporter
 
 Collect and analyze firewall logs from all agentic workflows that use the firewall feature.
+
+## 📊 Trend Charts Requirement
+
+**IMPORTANT**: Generate exactly 2 trend charts that showcase firewall activity patterns over time.
+
+### Chart Generation Process
+
+**Phase 1: Data Collection**
+
+Collect data for the past 30 days (or available data) from cache memory and firewall audit logs:
+
+1. **Firewall Request Data**:
+   - Count of allowed requests per day
+   - Count of denied/blocked requests per day
+   - Total requests per day
+
+2. **Top Blocked Domains Data**:
+   - Frequency of top 10 blocked domains over the period
+   - Trends in blocking patterns by domain category
+
+**Phase 2: Data Preparation**
+
+1. Create CSV files in `/tmp/gh-aw/python/data/` with the collected data:
+   - `firewall_requests.csv` - Daily allowed/denied request counts
+   - `blocked_domains.csv` - Top blocked domains with frequencies
+
+2. Each CSV should have a date column and metric columns with appropriate headers
+
+**Phase 3: Chart Generation**
+
+Generate exactly **2 high-quality trend charts**:
+
+**Chart 1: Firewall Request Trends**
+- Stacked area chart or multi-line chart showing:
+  - Allowed requests (area/line, green)
+  - Denied requests (area/line, red)
+  - Total requests trend line
+- X-axis: Date (last 30 days)
+- Y-axis: Request count
+- Save as: `/tmp/gh-aw/python/charts/firewall_requests_trends.png`
+
+**Chart 2: Top Blocked Domains Frequency**
+- Horizontal bar chart showing:
+  - Top 10-15 most frequently blocked domains
+  - Total block count for each domain
+  - Color-coded by domain category if applicable
+- X-axis: Block count
+- Y-axis: Domain names
+- Save as: `/tmp/gh-aw/python/charts/blocked_domains_frequency.png`
+
+**Chart Quality Requirements**:
+- DPI: 300 minimum
+- Figure size: 12x7 inches for better readability
+- Use seaborn styling with a professional color palette
+- Include grid lines for easier reading
+- Clear, large labels and legend
+- Title with context (e.g., "Firewall Activity - Last 30 Days")
+- Annotations for significant spikes or patterns
+
+**Phase 4: Upload Charts**
+
+1. Upload both charts using the `upload asset` tool
+2. Collect the returned URLs for embedding in the discussion
+
+**Phase 5: Embed Charts in Discussion**
+
+Include the charts in your firewall report with this structure:
+
+```markdown
+## 📈 Firewall Activity Trends
+
+### Request Patterns
+![Firewall Request Trends](URL_FROM_UPLOAD_ASSET_CHART_1)
+
+[Brief 2-3 sentence analysis of firewall activity trends, noting increases in blocked traffic or changes in patterns]
+
+### Top Blocked Domains
+![Blocked Domains Frequency](URL_FROM_UPLOAD_ASSET_CHART_2)
+
+[Brief 2-3 sentence analysis of frequently blocked domains, identifying potential security concerns or overly restrictive rules]
+```
+
+### Python Implementation Notes
+
+- Use pandas for data manipulation and date handling
+- Use matplotlib.pyplot and seaborn for visualization
+- Set appropriate date formatters for x-axis labels
+- Use `plt.xticks(rotation=45)` for readable date labels
+- Apply `plt.tight_layout()` before saving
+- Handle cases where data might be sparse or missing
+
+### Error Handling
+
+If insufficient data is available (less than 7 days):
+- Generate the charts with available data
+- Add a note in the analysis mentioning the limited data range
+- Consider using a bar chart instead of line chart for very sparse data
+
+---
 
 ## Objective
 
@@ -42,6 +144,22 @@ Generate a comprehensive daily report of all rejected domains across all agentic
 - Security insights from blocked requests
 
 ## Instructions
+
+### Step 0: Check Cache for Recent Analysis
+
+**EFFICIENCY FIRST**: Before starting the full analysis:
+
+1. Check `/tmp/gh-aw/cache-memory/firewall-reports/` for the most recent report
+2. If a report exists from the last 24 hours:
+   - Read the cached run IDs that were analyzed
+   - Determine if any new workflow runs have occurred since then
+   - If no new runs, update the existing report with current timestamp and exit early
+3. Cache the following for the next run:
+   - Last analysis timestamp
+   - List of run IDs analyzed
+   - Aggregated blocked domains data
+
+This prevents unnecessary re-analysis of the same data and significantly reduces token usage.
 
 ### Step 1: Identify Workflows with Firewall Feature
 

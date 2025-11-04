@@ -94,16 +94,6 @@ func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
 	return []string{logsFolder}
 }
 
-// GetVersionCommand returns the command to get Copilot CLI's version
-func (e *CopilotEngine) GetVersionCommand() string {
-	if isFeatureEnabled("firewall", nil) {
-		// When firewall is enabled, use version pinning with npx
-		return fmt.Sprintf("npx -y @github/copilot@%s --version", constants.DefaultCopilotVersion)
-	}
-	// When firewall is disabled, use unpinned command
-	return "copilot --version"
-}
-
 // extractAddDirPaths extracts all directory paths from copilot args that follow --add-dir flags
 func extractAddDirPaths(args []string) []string {
 	var dirs []string
@@ -226,7 +216,7 @@ sudo -E awf --env-all \
   2>&1 | tee %s
 
 # Move preserved Copilot logs to expected location
-COPILOT_LOGS_DIR=$(ls -td /tmp/copilot-logs-* 2>/dev/null | head -1)
+COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
 if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   echo "Moving Copilot logs from $COPILOT_LOGS_DIR to %s"
   sudo mkdir -p %s
@@ -236,7 +226,7 @@ fi`, shellEscapeArg(allowedDomains), shellEscapeArg(awfLogLevel), shellEscapeCom
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail
-COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 %s%s 2>&1 | tee %s`, mkdirCommands.String(), copilotCommand, logFile)
 	}
 
@@ -910,7 +900,7 @@ func generateSquidLogsCollectionStep(workflowName string) GitHubActionStep {
 		"        if: always()",
 		"        run: |",
 		"          # Squid logs are preserved in timestamped directories",
-		"          SQUID_LOGS_DIR=$(ls -td /tmp/squid-logs-* 2>/dev/null | head -1)",
+		"          SQUID_LOGS_DIR=\"$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)\"",
 		"          if [ -n \"$SQUID_LOGS_DIR\" ] && [ -d \"$SQUID_LOGS_DIR\" ]; then",
 		"            echo \"Found Squid logs at: $SQUID_LOGS_DIR\"",
 		fmt.Sprintf("            mkdir -p %s", squidLogsDir),

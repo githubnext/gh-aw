@@ -25,11 +25,11 @@ var copilotInstructionsTemplate string
 //go:embed templates/create-agentic-workflow.md
 var agenticWorkflowAgentTemplate string
 
-//go:embed templates/create-shared-agentic-workflow.prompt.md
-var sharedAgenticWorkflowPromptTemplate string
+//go:embed templates/create-shared-agentic-workflow.md
+var sharedAgenticWorkflowAgentTemplate string
 
-//go:embed templates/setup-agentic-workflows.prompt.md
-var gettingStartedPromptTemplate string
+//go:embed templates/setup-agentic-workflows.md
+var setupAgenticWorkflowsAgentTemplate string
 
 // SetVersionInfo sets the version information for the CLI
 func SetVersionInfo(v string) {
@@ -94,6 +94,8 @@ func resolveWorkflowFile(fileOrWorkflowName string, verbose bool) (string, error
 
 // NewWorkflow creates a new workflow markdown file with template content
 func NewWorkflow(workflowName string, verbose bool, force bool) error {
+	commandsLog.Printf("Creating new workflow: name=%s, force=%v", workflowName, force)
+
 	if verbose {
 		fmt.Printf("Creating new workflow: %s\n", workflowName)
 	}
@@ -101,20 +103,26 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 	// Get current working directory for .github/workflows
 	workingDir, err := os.Getwd()
 	if err != nil {
+		commandsLog.Printf("Failed to get working directory: %v", err)
 		return fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
 	// Create .github/workflows directory if it doesn't exist
 	githubWorkflowsDir := filepath.Join(workingDir, constants.GetWorkflowDir())
+	commandsLog.Printf("Creating workflows directory: %s", githubWorkflowsDir)
+
 	if err := os.MkdirAll(githubWorkflowsDir, 0755); err != nil {
+		commandsLog.Printf("Failed to create workflows directory: %v", err)
 		return fmt.Errorf("failed to create .github/workflows directory: %w", err)
 	}
 
 	// Construct the destination file path
 	destFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
+	commandsLog.Printf("Destination file: %s", destFile)
 
 	// Check if destination file already exists
 	if _, err := os.Stat(destFile); err == nil && !force {
+		commandsLog.Printf("Workflow file already exists and force=false: %s", destFile)
 		return fmt.Errorf("workflow file '%s' already exists. Use --force to overwrite", destFile)
 	}
 

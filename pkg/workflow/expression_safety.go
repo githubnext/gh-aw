@@ -1,3 +1,45 @@
+// Package workflow provides GitHub Actions expression security validation.
+//
+// # Expression Safety Validation
+//
+// This file validates that GitHub Actions expressions used in workflow markdown
+// are safe and authorized. It prevents injection attacks and ensures workflows
+// only use approved expression patterns.
+//
+// # Validation Functions
+//
+//   - validateExpressionSafety() - Validates all expressions in markdown content
+//   - validateSingleExpression() - Validates individual expression syntax
+//
+// # Validation Pattern: Allowlist Security
+//
+// Expression validation uses a strict allowlist approach:
+//   - Only pre-approved GitHub context expressions are allowed
+//   - Unauthorized expressions cause compilation to fail
+//   - Prevents injection of secrets or environment variables
+//   - Uses regex patterns to match allowed expression formats
+//
+// # Allowed Expression Patterns
+//
+// Expressions must match one of these patterns:
+//   - github.event.* (event context properties)
+//   - github.actor, github.repository, etc. (core GitHub context)
+//   - needs.*.outputs.* (job dependencies)
+//   - steps.*.outputs.* (step outputs)
+//   - github.event.inputs.* (workflow_dispatch inputs)
+//
+// See pkg/constants for the complete list of allowed expressions.
+//
+// # When to Add Validation Here
+//
+// Add validation to this file when:
+//   - It validates GitHub Actions expression parsing
+//   - It enforces expression security policies
+//   - It prevents expression injection attacks
+//   - It validates expression syntax and structure
+//
+// For general validation, see validation.go.
+// For detailed documentation, see specs/validation-architecture.md
 package workflow
 
 import (

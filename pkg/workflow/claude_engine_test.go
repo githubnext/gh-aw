@@ -38,10 +38,13 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected 3 installation steps for Claude (secret validation + Node.js setup + install), got %d", len(installSteps))
 	}
 
-	// Check for secret validation step
+	// Check for secret validation step (now supports both CLAUDE_CODE_OAUTH_TOKEN and ANTHROPIC_API_KEY)
 	secretValidationStep := strings.Join([]string(installSteps[0]), "\n")
-	if !strings.Contains(secretValidationStep, "Validate ANTHROPIC_API_KEY secret") {
-		t.Errorf("Expected 'Validate ANTHROPIC_API_KEY secret' in first installation step, got: %s", secretValidationStep)
+	if !strings.Contains(secretValidationStep, "Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret") {
+		t.Errorf("Expected 'Validate CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY secret' in first installation step, got: %s", secretValidationStep)
+	}
+	if !strings.Contains(secretValidationStep, "CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}") {
+		t.Errorf("Expected 'CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}' in secret validation step, got: %s", secretValidationStep)
 	}
 	if !strings.Contains(secretValidationStep, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
 		t.Errorf("Expected 'ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}' in secret validation step, got: %s", secretValidationStep)
@@ -119,6 +122,10 @@ func TestClaudeEngine(t *testing.T) {
 
 	if !strings.Contains(stepContent, "ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}") {
 		t.Errorf("Expected ANTHROPIC_API_KEY environment variable in step: %s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}") {
+		t.Errorf("Expected CLAUDE_CODE_OAUTH_TOKEN environment variable in step: %s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
@@ -447,4 +454,56 @@ func TestClaudeEngineWithSafeOutputs(t *testing.T) {
 	if !strings.Contains(stepContent, "GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
 		t.Errorf("Expected GH_AW_MCP_CONFIG environment variable when safe-outputs are configured: %s", stepContent)
 	}
+}
+
+// TestClaudeEngineNoDoubleEscapePrompt tests that the prompt argument is not double-escaped
+func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	// Test without agent file (standard prompt)
+	t.Run("without_agent_file", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "claude",
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// Should have single-quoted prompt, not double-quoted
+		if strings.Contains(stepContent, `""$(cat /tmp/gh-aw/aw-prompts/prompt.txt)""`) {
+			t.Errorf("Found double-escaped prompt argument (with double quotes), expected single quotes:\n%s", stepContent)
+		}
+
+		// Should have correctly quoted prompt
+		if !strings.Contains(stepContent, `"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`) {
+			t.Errorf("Expected correctly quoted prompt argument, got:\n%s", stepContent)
+		}
+	})
+
+	// Test with agent file (custom prompt)
+	t.Run("with_agent_file", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "claude",
+			},
+			AgentFile: "/path/to/agent.md",
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		stepContent := strings.Join([]string(steps[0]), "\n")
+
+		// Should have single-quoted PROMPT_TEXT, not double-quoted
+		if strings.Contains(stepContent, `""$PROMPT_TEXT""`) {
+			t.Errorf("Found double-escaped PROMPT_TEXT variable (with double quotes), expected single quotes:\n%s", stepContent)
+		}
+
+		// Should have correctly quoted PROMPT_TEXT
+		if !strings.Contains(stepContent, `"$PROMPT_TEXT"`) {
+			t.Errorf("Expected correctly quoted PROMPT_TEXT variable, got:\n%s", stepContent)
+		}
+	})
 }

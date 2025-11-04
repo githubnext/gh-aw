@@ -28,14 +28,7 @@ safe-outputs:
 tools:
   cache-memory: true
   github:
-    allowed:
-      - search_pull_requests
-      - list_pull_requests
-      - pull_request_read
-      - get_file_contents
-      - list_commits
-      - get_commit
-      - search_code
+    toolsets: [default]
   edit:
   bash:
     - "find docs -name '*.md' -o -name '*.mdx'"

@@ -17,6 +17,7 @@ var mcpLog = logger.New("workflow:mcp-config")
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
 // This is a shared function used by both Claude and Custom engines
 func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
+	mcpLog.Print("Rendering Playwright MCP configuration")
 	renderPlaywrightMCPConfigWithOptions(yaml, playwrightTool, isLast, false, false)
 }
 
@@ -24,6 +25,15 @@ func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast
 func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool any, isLast bool, includeCopilotFields bool, inlineArgs bool) {
 	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
+
+	// Extract all expressions from playwright arguments and replace them with env var references
+	expressions := extractExpressionsFromPlaywrightArgs(args.AllowedDomains, customArgs)
+	allowedDomains := replaceExpressionsInPlaywrightArgs(args.AllowedDomains, expressions)
+
+	// Also replace expressions in custom args
+	if len(customArgs) > 0 {
+		customArgs = replaceExpressionsInPlaywrightArgs(customArgs, expressions)
+	}
 
 	// Determine version to use - respect version configuration if provided
 	playwrightPackage := "@playwright/mcp@latest"
@@ -43,8 +53,8 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 	if inlineArgs {
 		// Inline format for Copilot
 		yaml.WriteString("                \"args\": [\"" + playwrightPackage + "\", \"--output-dir\", \"/tmp/gh-aw/mcp-logs/playwright\"")
-		if len(args.AllowedDomains) > 0 {
-			yaml.WriteString(", \"--allowed-origins\", \"" + strings.Join(args.AllowedDomains, ";") + "\"")
+		if len(allowedDomains) > 0 {
+			yaml.WriteString(", \"--allowed-origins\", \"" + strings.Join(allowedDomains, ";") + "\"")
 		}
 		// Append custom args if present
 		writeArgsToYAMLInline(yaml, customArgs)
@@ -55,10 +65,10 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 		yaml.WriteString("                  \"" + playwrightPackage + "\",\n")
 		yaml.WriteString("                  \"--output-dir\",\n")
 		yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs/playwright\"")
-		if len(args.AllowedDomains) > 0 {
+		if len(allowedDomains) > 0 {
 			yaml.WriteString(",\n")
 			yaml.WriteString("                  \"--allowed-origins\",\n")
-			yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ";") + "\"")
+			yaml.WriteString("                  \"" + strings.Join(allowedDomains, ";") + "\"")
 		}
 		// Append custom args if present
 		writeArgsToYAML(yaml, customArgs, "                  ")
@@ -84,6 +94,7 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 // renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration
 // This is a shared function used by both Claude and Custom engines
 func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
+	mcpLog.Print("Rendering Safe Outputs MCP configuration")
 	renderSafeOutputsMCPConfigWithOptions(yaml, isLast, false)
 }
 
@@ -106,19 +117,24 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 
 	yaml.WriteString("                \"env\": {\n")
 
-	// Use escaped env vars for Copilot, regular for Claude/Custom
+	// Use shell environment variables instead of GitHub Actions expressions to prevent template injection
+	// For both Copilot and Claude/Custom engines, reference shell env vars
+	// The actual GitHub expressions are set in the step's env: block
+	// Config is now read from file, so we don't pass GH_AW_SAFE_OUTPUTS_CONFIG
 	if includeCopilotFields {
 		yaml.WriteString("                  \"GH_AW_SAFE_OUTPUTS\": \"\\${GH_AW_SAFE_OUTPUTS}\",\n")
-		yaml.WriteString("                  \"GH_AW_SAFE_OUTPUTS_CONFIG\": \"\\${GH_AW_SAFE_OUTPUTS_CONFIG}\",\n")
 		yaml.WriteString("                  \"GH_AW_ASSETS_BRANCH\": \"\\${GH_AW_ASSETS_BRANCH}\",\n")
 		yaml.WriteString("                  \"GH_AW_ASSETS_MAX_SIZE_KB\": \"\\${GH_AW_ASSETS_MAX_SIZE_KB}\",\n")
-		yaml.WriteString("                  \"GH_AW_ASSETS_ALLOWED_EXTS\": \"\\${GH_AW_ASSETS_ALLOWED_EXTS}\"\n")
+		yaml.WriteString("                  \"GH_AW_ASSETS_ALLOWED_EXTS\": \"\\${GH_AW_ASSETS_ALLOWED_EXTS}\",\n")
+		yaml.WriteString("                  \"GITHUB_REPOSITORY\": \"\\${GITHUB_REPOSITORY}\",\n")
+		yaml.WriteString("                  \"GITHUB_SERVER_URL\": \"\\${GITHUB_SERVER_URL}\"\n")
 	} else {
-		yaml.WriteString("                  \"GH_AW_SAFE_OUTPUTS\": \"${{ env.GH_AW_SAFE_OUTPUTS }}\",\n")
-		yaml.WriteString("                  \"GH_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }},\n")
-		yaml.WriteString("                  \"GH_AW_ASSETS_BRANCH\": \"${{ env.GH_AW_ASSETS_BRANCH }}\",\n")
-		yaml.WriteString("                  \"GH_AW_ASSETS_MAX_SIZE_KB\": \"${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}\",\n")
-		yaml.WriteString("                  \"GH_AW_ASSETS_ALLOWED_EXTS\": \"${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}\"\n")
+		yaml.WriteString("                  \"GH_AW_SAFE_OUTPUTS\": \"$GH_AW_SAFE_OUTPUTS\",\n")
+		yaml.WriteString("                  \"GH_AW_ASSETS_BRANCH\": \"$GH_AW_ASSETS_BRANCH\",\n")
+		yaml.WriteString("                  \"GH_AW_ASSETS_MAX_SIZE_KB\": \"$GH_AW_ASSETS_MAX_SIZE_KB\",\n")
+		yaml.WriteString("                  \"GH_AW_ASSETS_ALLOWED_EXTS\": \"$GH_AW_ASSETS_ALLOWED_EXTS\",\n")
+		yaml.WriteString("                  \"GITHUB_REPOSITORY\": \"$GITHUB_REPOSITORY\",\n")
+		yaml.WriteString("                  \"GITHUB_SERVER_URL\": \"$GITHUB_SERVER_URL\"\n")
 	}
 
 	yaml.WriteString("                }\n")
@@ -155,11 +171,13 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 
 	yaml.WriteString("                \"env\": {\n")
 
-	// Use escaped env vars for Copilot, regular for Claude/Custom
+	// Use shell environment variables instead of GitHub Actions expressions to prevent template injection
+	// For both Copilot and Claude/Custom engines, reference shell env vars
+	// The actual GitHub expressions are set in the step's env: block
 	if includeCopilotFields {
 		yaml.WriteString("                  \"GITHUB_TOKEN\": \"\\${GITHUB_TOKEN}\"\n")
 	} else {
-		yaml.WriteString("                  \"GITHUB_TOKEN\": \"${{ secrets.GITHUB_TOKEN }}\"\n")
+		yaml.WriteString("                  \"GITHUB_TOKEN\": \"$GITHUB_TOKEN\"\n")
 	}
 
 	yaml.WriteString("                }\n")
@@ -204,7 +222,7 @@ func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          args = [\n")
 	yaml.WriteString("            \"/tmp/gh-aw/safeoutputs/mcp-server.cjs\",\n")
 	yaml.WriteString("          ]\n")
-	yaml.WriteString("          env = { \"GH_AW_SAFE_OUTPUTS\" = \"${{ env.GH_AW_SAFE_OUTPUTS }}\", \"GH_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GH_AW_SAFE_OUTPUTS_CONFIG) }}, \"GH_AW_ASSETS_BRANCH\" = \"${{ env.GH_AW_ASSETS_BRANCH }}\", \"GH_AW_ASSETS_MAX_SIZE_KB\" = \"${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}\", \"GH_AW_ASSETS_ALLOWED_EXTS\" = \"${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}\" }\n")
+	yaml.WriteString("          env = { \"GH_AW_SAFE_OUTPUTS\" = \"${{ env.GH_AW_SAFE_OUTPUTS }}\", \"GH_AW_ASSETS_BRANCH\" = \"${{ env.GH_AW_ASSETS_BRANCH }}\", \"GH_AW_ASSETS_MAX_SIZE_KB\" = \"${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}\", \"GH_AW_ASSETS_ALLOWED_EXTS\" = \"${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}\", \"GITHUB_REPOSITORY\" = \"${{ github.repository }}\", \"GITHUB_SERVER_URL\" = \"${{ github.server_url }}\" }\n")
 }
 
 // renderAgenticWorkflowsMCPConfigTOML generates the Agentic Workflows MCP server configuration in TOML format for Codex

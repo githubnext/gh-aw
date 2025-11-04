@@ -7,7 +7,11 @@ on:
         required: true
         type: string
 
-permissions: read-all
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  actions: read
 
 engine:
   id: copilot
@@ -52,13 +56,7 @@ steps:
 tools:
   cache-memory: true
   github:
-    allowed:
-      - issue_read
-      - get_pull_request
-      - pull_request_read
-      - get_file_contents
-      - list_commits
-      - add_reaction
+    toolsets: [default]
   edit:
   bash:
 

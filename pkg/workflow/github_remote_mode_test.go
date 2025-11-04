@@ -254,10 +254,14 @@ This is a test workflow for GitHub remote mode configuration.
 							t.Errorf("Expected env section with GITHUB_PERSONAL_ACCESS_TOKEN passthrough but didn't find it in:\n%s", lockContent)
 						}
 					} else {
-						// For other engines, check for old GitHub Actions expression syntax
+						// Security fix: For other engines, check for shell variable in Authorization header
+						// and GitHub expression in env block
+						if !strings.Contains(lockContent, `"Authorization": "Bearer $GITHUB_MCP_SERVER_TOKEN"`) {
+							t.Errorf("Expected Authorization header with shell variable but didn't find it in:\n%s", lockContent)
+						}
 						if tt.expectedToken != "" {
-							if !strings.Contains(lockContent, `"Authorization": "Bearer `+tt.expectedToken) {
-								t.Errorf("Expected Authorization header with token %s but didn't find it in:\n%s", tt.expectedToken, lockContent)
+							if !strings.Contains(lockContent, `GITHUB_MCP_SERVER_TOKEN: `+tt.expectedToken) {
+								t.Errorf("Expected env block with token %s but didn't find it in:\n%s", tt.expectedToken, lockContent)
 							}
 						}
 					}

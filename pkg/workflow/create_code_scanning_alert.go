@@ -74,7 +74,7 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 		"codeql_uploaded":   "${{ steps.create_code_scanning_alert.outputs.codeql_uploaded }}",
 	}
 
-	jobCondition := BuildSafeOutputType("create_code_scanning_alert", data.SafeOutputs.CreateCodeScanningAlerts.Min).Render()
+	jobCondition := BuildSafeOutputType("create_code_scanning_alert").Render()
 
 	job := &Job{
 		Name:           "create_code_scanning_alert",

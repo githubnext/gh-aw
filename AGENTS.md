@@ -27,6 +27,34 @@ make build       # Rebuild gh-aw after modifying JSON schemas in pkg/parser/sche
 ```
 Schema files are embedded in the binary using `//go:embed` directives, so changes require rebuilding the binary.
 
+## Merging Main Branch
+
+**When instructed to "merge main", follow these steps WITHOUT asking for confirmation:**
+
+1. **Start the merge from origin/main:**
+   ```bash
+   git fetch origin main
+   git merge origin/main
+   ```
+
+2. **Fix merge conflicts in .go and .cjs files:**
+   - Manually resolve conflicts in Go files (`.go`)
+   - Manually resolve conflicts in CommonJS files (`.cjs`)
+   - Stage resolved files with `git add <file>`
+
+3. **Build and recompile lock files:**
+   ```bash
+   make build        # Rebuild the binary
+   make recompile    # Recompile all workflow lock files
+   ```
+
+4. **Finish the merge:**
+   ```bash
+   git commit        # Complete the merge (accept default merge message)
+   ```
+
+**Important**: Do NOT ask for confirmation when performing a merge - execute all steps automatically.
+
 ## Quick Setup
 
 ```bash

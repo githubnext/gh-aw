@@ -25,6 +25,7 @@ func TestManifestRendering(t *testing.T) {
 	// Create imported tools file
 	toolsFile := filepath.Join(sharedDir, "tools.md")
 	toolsContent := `---
+on: push
 tools:
   github:
     allowed:

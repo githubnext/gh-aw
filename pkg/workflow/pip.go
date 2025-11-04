@@ -1,3 +1,35 @@
+// Package workflow provides Python package validation for agentic workflows.
+//
+// # Python Package Validation
+//
+// This file validates Python package availability on PyPI using pip and uv package managers.
+// Validation ensures that Python packages specified in workflows exist and can be installed
+// at runtime, preventing failures due to typos or non-existent packages.
+//
+// # Validation Functions
+//
+//   - validatePythonPackagesWithPip() - Generic pip validation helper
+//   - validatePipPackages() - Validates pip packages from workflow configuration
+//   - validateUvPackages() - Validates uv packages from workflow configuration
+//   - validateUvPackagesWithPip() - Validates uv packages using pip index
+//
+// # Validation Pattern: Warning vs Error
+//
+// Python package validation uses a warning-based approach rather than hard errors:
+//   - If pip validation fails, a warning is emitted but compilation continues
+//   - This allows for experimental packages or packages not yet published
+//   - Verbose mode provides detailed validation feedback
+//
+// # When to Add Validation Here
+//
+// Add validation to this file when:
+//   - It validates Python/pip ecosystem packages
+//   - It checks PyPI package existence
+//   - It validates Python version compatibility
+//   - It validates uv package manager packages
+//
+// For general validation, see validation.go.
+// For detailed documentation, see specs/validation-architecture.md
 package workflow
 
 import (

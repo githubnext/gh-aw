@@ -158,7 +158,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		testFiles := []string{"test1.md", "test2.md", "test3.md"}
 		for _, file := range testFiles {
 			filePath := filepath.Join(workflowsDir, file)
-			content := fmt.Sprintf("---\nengine: claude\n---\n# %s\n\nTest workflow content", strings.TrimSuffix(file, ".md"))
+			content := fmt.Sprintf("---\non: push\nengine: claude\n---\n# %s\n\nTest workflow content", strings.TrimSuffix(file, ".md"))
 			os.WriteFile(filePath, []byte(content), 0644)
 		}
 
@@ -229,7 +229,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 
 		// Create a valid test file
 		testFile := filepath.Join(workflowsDir, "verbose-test.md")
-		content := "---\nengine: claude\n---\n# Verbose Test\n\nTest content for verbose mode"
+		content := "---\non: push\nengine: claude\n---\n# Verbose Test\n\nTest content for verbose mode"
 		os.WriteFile(testFile, []byte(content), 0644)
 
 		compiler := workflow.NewCompiler(false, "", "test")
@@ -257,7 +257,7 @@ func TestCompileModifiedFiles(t *testing.T) {
 		file1 := filepath.Join(workflowsDir, "recent.md")
 		file2 := filepath.Join(workflowsDir, "old.md")
 
-		content := "---\nengine: claude\n---\n# Test\n\nTest content"
+		content := "---\non: push\nengine: claude\n---\n# Test\n\nTest content"
 
 		os.WriteFile(file1, []byte(content), 0644)
 		os.WriteFile(file2, []byte(content), 0644)
@@ -305,7 +305,7 @@ func TestCompileModifiedFiles(t *testing.T) {
 
 		// Create a recent file
 		recentFile := filepath.Join(workflowsDir, "recent.md")
-		content := "---\nengine: claude\n---\n# Recent Test\n\nRecent content"
+		content := "---\non: push\nengine: claude\n---\n# Recent Test\n\nRecent content"
 		os.WriteFile(recentFile, []byte(content), 0644)
 
 		compiler := workflow.NewCompiler(false, "", "test")

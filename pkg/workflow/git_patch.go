@@ -12,6 +12,7 @@ func (c *Compiler) generateGitPatchStep(yaml *strings.Builder) {
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 	yaml.WriteString("          GITHUB_SHA: ${{ github.sha }}\n")
+	yaml.WriteString("          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}\n")
 	yaml.WriteString("        run: |\n")
 	WriteShellScriptToYAML(yaml, generateGitPatchScript, "          ")
 	yaml.WriteString("      - name: Upload git patch\n")

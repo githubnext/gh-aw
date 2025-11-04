@@ -1,14 +1,18 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 jobs:
   test:
     name: Run Unit Tests
     runs-on: ubuntu-latest
+    needs: build
     permissions:
       contents: read
     concurrency:
-      group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-test
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
       cancel-in-progress: true
     steps:
       - name: Checkout code
@@ -41,7 +45,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     concurrency:
-      group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-build-${{ matrix.os }}
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}-${{ matrix.os }}
       cancel-in-progress: true
     steps:
       - name: Checkout code
@@ -68,10 +72,11 @@ jobs:
   js:
     name: Build JavaScript
     runs-on: ubuntu-latest
+    needs: build
     permissions:
       contents: read
     concurrency:
-      group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-js
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
       cancel-in-progress: true
     steps:
       - name: Checkout code
@@ -92,7 +97,7 @@ jobs:
     permissions:
       contents: read
     concurrency:
-      group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-lint
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
       cancel-in-progress: true
     steps:
       - name: Checkout code

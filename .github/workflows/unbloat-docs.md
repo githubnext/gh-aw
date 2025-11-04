@@ -34,12 +34,7 @@ network:
 tools:
   cache-memory: true
   github:
-    allowed:
-      - get_repository
-      - get_file_contents
-      - list_commits
-      - get_pull_request
-      - search_pull_requests
+    toolsets: [default]
   edit:
   playwright:
     args: ["--viewport-size", "1920x1080"]
@@ -77,6 +72,8 @@ timeout_minutes: 12
 steps:
   - name: Checkout repository
     uses: actions/checkout@v5
+    with:
+      persist-credentials: false
 
   - name: Setup Node.js
     uses: actions/setup-node@v6

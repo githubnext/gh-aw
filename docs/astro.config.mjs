@@ -80,6 +80,10 @@ export default defineConfig({
 					label: 'Tools',
 					autogenerate: { directory: 'tools' },
 				},
+				{
+					label: 'Troubleshooting',
+					autogenerate: { directory: 'troubleshooting' },
+				},
 				// ...makeChangelogsSidebarLinks([
 				// 	{ type: 'all', base: 'changelog', label: 'Changelog' }
 				// ]),

@@ -65,15 +65,24 @@ The activation job references text output: "${{ needs.activation.outputs.text }}
 		t.Error("Expected activation job to be present in generated workflow")
 	}
 
-	// Test 2: Verify activation job has no checkout step
+	// Test 2: Verify activation job has checkout step for timestamp check (sparse checkout)
 	activationJobSection := extractJobSection(lockContentStr, constants.ActivationJobName)
-	if strings.Contains(activationJobSection, "actions/checkout") {
-		t.Error("Activation job should not contain actions/checkout step")
+	if !strings.Contains(activationJobSection, "actions/checkout") {
+		t.Error("Activation job should contain actions/checkout step for timestamp check")
 	}
 
-	// Test 3: Verify activation job has no contents permission
+	// Verify it's a sparse checkout of workflows directory
+	if !strings.Contains(activationJobSection, "sparse-checkout:") {
+		t.Error("Activation job checkout should use sparse-checkout")
+	}
+	if !strings.Contains(activationJobSection, ".github/workflows") {
+		t.Error("Activation job checkout should checkout .github/workflows directory")
+	}
+
+	// Test 3: Verify activation job has no contents permission explicitly set
+	// (sparse checkout works with read-all default permissions)
 	if strings.Contains(activationJobSection, "contents:") {
-		t.Error("Activation job should not have contents permission")
+		t.Error("Activation job should not explicitly set contents permission")
 	}
 
 	// Test 4: Verify no separate add_reaction job exists

@@ -1,9 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
+  "required": ["on"],
   "properties": {
     "name": {
       "type": "string",
+      "minLength": 1,
       "description": "Workflow name that appears in the GitHub Actions interface. If not specified, defaults to the filename without extension.",
       "examples": ["Copilot Agent PR Analysis", "Dev Hawk", "Smoke Claude"]
     },
@@ -39,6 +41,7 @@
       "oneOf": [
         {
           "type": "string",
+          "minLength": 1,
           "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call')",
           "examples": ["push", "issues", "workflow_dispatch"]
         },
@@ -55,6 +58,7 @@
                 },
                 {
                   "type": "string",
+                  "minLength": 1,
                   "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers)"
                 },
                 {
@@ -63,6 +67,7 @@
                   "properties": {
                     "name": {
                       "type": "string",
+                      "minLength": 1,
                       "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Defaults to workflow filename without .md extension if not specified."
                     },
                     "events": {
@@ -859,6 +864,10 @@
             "stop-after": {
               "type": "string",
               "description": "Time when workflow should stop running. Supports multiple formats: absolute dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or relative time deltas (+25h, +3d, +1d12h30m)"
+            },
+            "manual-approval": {
+              "type": "string",
+              "description": "Environment name that requires manual approval before the workflow can run. Must match a valid environment configured in the repository settings."
             },
             "reaction": {
               "type": "string",
@@ -2133,12 +2142,6 @@
                   "minimum": 1,
                   "maximum": 100
                 },
-                "min": {
-                  "type": "integer",
-                  "description": "Minimum number of issues to create (default: 0 - no requirement)",
-                  "minimum": 0,
-                  "maximum": 100
-                },
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository issue creation. Takes precedence over trial target repo settings."
@@ -2159,9 +2162,6 @@
                   "title-prefix": "[duplicate-code] ",
                   "labels": ["code-quality", "automated-analysis"],
                   "assignees": "copilot"
-                },
-                {
-                  "min": 1
                 }
               ]
             },
@@ -2185,12 +2185,6 @@
                   "type": "integer",
                   "description": "Maximum number of agent tasks to create (default: 1)",
                   "minimum": 1,
-                  "maximum": 1
-                },
-                "min": {
-                  "type": "integer",
-                  "description": "Minimum number of agent tasks to create (default: 0 - no requirement)",
-                  "minimum": 0,
                   "maximum": 1
                 },
                 "target-repo": {
@@ -2239,12 +2233,6 @@
                   "minimum": 1,
                   "maximum": 100
                 },
-                "min": {
-                  "type": "integer",
-                  "description": "Minimum number of discussions to create (default: 0 - no requirement)",
-                  "minimum": 0,
-                  "maximum": 100
-                },
                 "target-repo": {
                   "type": "string",
                   "description": "Target repository in format 'owner/repo' for cross-repository discussion creation. Takes precedence over trial target repo settings."
@@ -2285,12 +2273,6 @@
                   "type": "integer",
                   "description": "Maximum number of comments to create (default: 1)",
                   "minimum": 1,
-                  "maximum": 100
-                },
-                "min": {
-                  "type": "integer",
-                  "description": "Minimum number of comments to create (default: 0 - no requirement)",
-                  "minimum": 0,
                   "maximum": 100
                 },
                 "target": {
@@ -2412,12 +2394,6 @@
                   "minimum": 1,
                   "maximum": 100
                 },
-                "min": {
-                  "type": "integer",
-                  "description": "Minimum number of review comments to create (default: 0 - no requirement)",
-                  "minimum": 0,
-                  "maximum": 100
-                },
                 "side": {
                   "type": "string",
                   "description": "Side of the diff for comments: 'LEFT' or 'RIGHT' (default: 'RIGHT')",
@@ -2454,12 +2430,6 @@
                   "type": "integer",
                   "description": "Maximum number of security findings to include (default: unlimited)",
                   "minimum": 1
-                },
-                "min": {
-                  "type": "integer",
-                  "description": "Minimum number of security findings to include (default: 0 - no requirement)",
-                  "minimum": 0,
-                  "maximum": 100
                 },
                 "driver": {
                   "type": "string",
@@ -2500,11 +2470,6 @@
                   "type": "integer",
                   "description": "Optional maximum number of labels to add (default: 3)",
                   "minimum": 1
-                },
-                "min": {
-                  "type": "integer",
-                  "description": "Minimum number of labels to add (default: 0 - no requirement)",
-                  "minimum": 0
                 },
                 "target": {
                   "type": "string",
@@ -2549,12 +2514,6 @@
                   "type": "integer",
                   "description": "Maximum number of issues to update (default: 1)",
                   "minimum": 1,
-                  "maximum": 100
-                },
-                "min": {
-                  "type": "integer",
-                  "description": "Minimum number of issues to update (default: 0 - no requirement)",
-                  "minimum": 0,
                   "maximum": 100
                 },
                 "target-repo": {
@@ -2632,12 +2591,6 @@
                   "description": "Maximum number of missing tool reports (default: unlimited)",
                   "minimum": 1
                 },
-                "min": {
-                  "type": "integer",
-                  "description": "Minimum number of missing tool reports (default: 0 - no requirement)",
-                  "minimum": 0,
-                  "maximum": 100
-                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -2686,12 +2639,6 @@
                   "type": "integer",
                   "description": "Maximum number of assets to upload (default: 10)",
                   "minimum": 1,
-                  "maximum": 100
-                },
-                "min": {
-                  "type": "integer",
-                  "description": "Minimum number of assets to upload (default: 0 - no requirement)",
-                  "minimum": 0,
                   "maximum": 100
                 },
                 "github-token": {
@@ -2904,6 +2851,28 @@
       },
       "additionalProperties": false
     },
+    "secret-masking": {
+      "type": "object",
+      "description": "Configuration for secret redaction behavior in workflow outputs and artifacts",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "description": "Additional secret redaction steps to inject after the built-in secret redaction. Use this to mask secrets in generated files using custom patterns.",
+          "items": {
+            "$ref": "#/properties/githubActionsStep"
+          },
+          "examples": [
+            [
+              {
+                "name": "Redact custom secrets",
+                "run": "find /tmp/gh-aw -type f -exec sed -i 's/password123/REDACTED/g' {} +"
+              }
+            ]
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "roles": {
       "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
       "oneOf": [
@@ -3035,6 +3004,75 @@
     }
   },
   "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "on": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            },
+            "required": ["command"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "on": {
+            "not": {
+              "anyOf": [
+                {
+                  "properties": {
+                    "issues": {
+                      "not": {
+                        "type": "null"
+                      }
+                    }
+                  },
+                  "required": ["issues"]
+                },
+                {
+                  "properties": {
+                    "issue_comment": {
+                      "not": {
+                        "type": "null"
+                      }
+                    }
+                  },
+                  "required": ["issue_comment"]
+                },
+                {
+                  "properties": {
+                    "pull_request": {
+                      "not": {
+                        "type": "null"
+                      }
+                    }
+                  },
+                  "required": ["pull_request"]
+                },
+                {
+                  "properties": {
+                    "pull_request_review_comment": {
+                      "not": {
+                        "type": "null"
+                      }
+                    }
+                  },
+                  "required": ["pull_request_review_comment"]
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "engine_config": {
       "examples": [
@@ -3194,6 +3232,7 @@
         },
         "command": {
           "type": "string",
+          "minLength": 1,
           "description": "Command for stdio MCP connections"
         },
         "container": {
@@ -3307,6 +3346,7 @@
         },
         "url": {
           "type": "string",
+          "minLength": 1,
           "description": "URL for HTTP MCP connections"
         },
         "headers": {

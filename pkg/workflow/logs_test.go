@@ -63,6 +63,7 @@ This is a test workflow.`
 	notExpected := []string{
 		"touch /tmp/gh-aw/agent-stdio.log",
 		"cat /tmp/gh-aw/agent-stdio.log >> $GITHUB_STEP_SUMMARY",
+		"cat /tmp/gh-aw/agent-stdio.log >> \"$GITHUB_STEP_SUMMARY\"",
 	}
 
 	for _, notExpected := range notExpected {

@@ -6,16 +6,24 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
+var compilerYamlLog = logger.New("workflow:compiler_yaml")
+
 func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, error) {
+	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
+
 	// Reset job manager for this compilation
 	c.jobManager = NewJobManager()
 
 	// Build all jobs
 	if err := c.buildJobs(data, markdownPath); err != nil {
+		compilerYamlLog.Printf("Failed to build jobs: %v", err)
 		return "", fmt.Errorf("failed to build jobs: %w", err)
 	}
+
+	compilerYamlLog.Printf("Built %d jobs successfully", len(c.jobManager.GetAllJobs()))
 
 	// Validate job dependencies
 	if err := c.jobManager.ValidateDependencies(); err != nil {
@@ -75,6 +83,12 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		yaml.WriteString(fmt.Sprintf("# Effective stop-time: %s\n", data.StopTime))
 	}
 
+	// Add manual-approval comment if configured
+	if data.ManualApproval != "" {
+		yaml.WriteString("#\n")
+		yaml.WriteString(fmt.Sprintf("# Manual approval required: environment '%s'\n", data.ManualApproval))
+	}
+
 	// Add Mermaid graph of job dependencies
 	mermaidGraph := c.jobManager.GenerateMermaidGraph()
 	if mermaidGraph != "" {
@@ -91,6 +105,9 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// Write basic workflow structure
 	yaml.WriteString(fmt.Sprintf("name: \"%s\"\n", data.Name))
 	yaml.WriteString(data.On + "\n\n")
+
+	// Note: GitHub Actions doesn't support workflow-level if conditions
+	// The workflow_run safety check is added to individual jobs instead
 
 	// Add permissions if present
 	if data.Permissions != "" {
@@ -119,6 +136,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	// Collect used action pins from the generated YAML and add them to the header
 	usedPins := collectUsedActionPins(yamlContent)
+	compilerYamlLog.Printf("Collected %d pinned actions", len(usedPins))
 	pinnedActionsComment := generatePinnedActionsComment(usedPins)
 
 	// If we have pinned actions, insert the comment before the workflow name
@@ -135,9 +153,11 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// If we're in non-cloning trial mode and this workflow has issue triggers,
 	// replace github.event.issue.number with inputs.issue_number
 	if c.trialMode && c.hasIssueTrigger(data.On) {
+		compilerYamlLog.Print("Trial mode enabled, replacing issue number references")
 		yamlContent = c.replaceIssueNumberReferences(yamlContent)
 	}
 
+	compilerYamlLog.Printf("Successfully generated YAML for workflow: %s (%d bytes)", data.Name, len(yamlContent))
 	return yamlContent, nil
 }
 
@@ -248,9 +268,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	logFile := "agent-stdio"
 	logFileFull := "/tmp/gh-aw/agent-stdio.log"
 
-	// Capture agent version if engine supports it
-	c.generateAgentVersionCapture(yaml, engine)
-
 	// Generate aw_info.json with agentic run metadata
 	c.generateCreateAwInfo(yaml, data, engine)
 
@@ -265,7 +282,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add secret redaction step BEFORE any artifact uploads
 	// This ensures all artifacts are scanned for secrets before being uploaded
-	c.generateSecretRedactionStep(yaml, yaml.String())
+	c.generateSecretRedactionStep(yaml, yaml.String(), data)
 
 	// Add output collection step only if safe-outputs feature is used (GH_AW_SAFE_OUTPUTS functionality)
 	if data.SafeOutputs != nil {
@@ -551,6 +568,20 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Clean the markdown content
 	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
 
+	// Extract expressions and create environment variable mappings for security
+	extractor := NewExpressionExtractor()
+	expressionMappings, err := extractor.ExtractExpressions(cleanedMarkdownContent)
+	if err != nil {
+		// Log error but continue - this is a compiler step, we shouldn't fail
+		// The original expressions will be used if extraction fails
+		expressionMappings = nil
+	}
+
+	// Replace expressions with environment variable references
+	if len(expressionMappings) > 0 {
+		cleanedMarkdownContent = extractor.ReplaceExpressionsWithEnvVars(cleanedMarkdownContent)
+	}
+
 	// Wrap GitHub expressions in template conditionals
 	cleanedMarkdownContent = wrapExpressionsInTemplateConditionals(cleanedMarkdownContent)
 
@@ -564,11 +595,18 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	if data.SafeOutputs != nil {
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 	}
+
+	// Add environment variables for extracted expressions
+	for _, mapping := range expressionMappings {
+		// Write the environment variable with the original GitHub expression
+		fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
+	}
+
 	yaml.WriteString("        run: |\n")
 	WriteShellScriptToYAML(yaml, createPromptFirstScript, "          ")
 
 	if len(chunks) > 0 {
-		yaml.WriteString("          cat > $GH_AW_PROMPT << 'PROMPT_EOF'\n")
+		yaml.WriteString("          cat > \"$GH_AW_PROMPT\" << 'PROMPT_EOF'\n")
 		// Pre-allocate buffer to avoid repeated allocations
 		lines := strings.Split(chunks[0], "\n")
 		for _, line := range lines {
@@ -578,7 +616,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		}
 		yaml.WriteString("          PROMPT_EOF\n")
 	} else {
-		yaml.WriteString("          touch $GH_AW_PROMPT\n")
+		yaml.WriteString("          touch \"$GH_AW_PROMPT\"\n")
 	}
 
 	// Create additional steps for remaining chunks
@@ -588,7 +626,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'\n")
+		yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << 'PROMPT_EOF'\n")
 		// Avoid string concatenation in loop - write components separately
 		lines := strings.Split(chunk, "\n")
 		for _, line := range lines {
@@ -621,7 +659,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          cat >> $GH_AW_PROMPT << 'PROMPT_EOF'\n")
+		yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << 'PROMPT_EOF'\n")
 		yaml.WriteString("          ## Note\n")
 		yaml.WriteString(fmt.Sprintf("          This workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.\n", c.trialLogicalRepoSlug))
 		yaml.WriteString("          PROMPT_EOF\n")
@@ -714,19 +752,26 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 	}
 }
 
-func (c *Compiler) generateAgentVersionCapture(yaml *strings.Builder, engine CodingAgentEngine) {
-	versionCmd := engine.GetVersionCommand()
-	if versionCmd == "" {
-		// Engine doesn't support version reporting, set empty env var
-		yaml.WriteString("      - name: Set agent version (not available)\n")
-		yaml.WriteString("        run: echo \"AGENT_VERSION=\" >> $GITHUB_ENV\n")
-		return
+// getInstallationVersion returns the version that will be installed for the given engine.
+// This matches the logic in BuildStandardNpmEngineInstallSteps.
+func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string {
+	// If version is specified in engine config, use it
+	if data.EngineConfig != nil && data.EngineConfig.Version != "" {
+		return data.EngineConfig.Version
 	}
 
-	yaml.WriteString("      - name: Capture agent version\n")
-	yaml.WriteString("        run: |\n")
-	fmt.Fprintf(yaml, "          VERSION_OUTPUT=$(%s 2>&1 || echo \"unknown\")\n", versionCmd)
-	WriteShellScriptToYAML(yaml, captureAgentVersionScript, "          ")
+	// Otherwise, use the default version for the engine
+	switch engine.GetID() {
+	case "copilot":
+		return constants.DefaultCopilotVersion
+	case "claude":
+		return constants.DefaultClaudeCodeVersion
+	case "codex":
+		return constants.DefaultCodexVersion
+	default:
+		// Custom or unknown engines don't have a default version
+		return ""
+	}
 }
 
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
@@ -757,15 +802,17 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	}
 	fmt.Fprintf(yaml, "              model: \"%s\",\n", model)
 
-	// Version information
+	// Version information (from engine config, kept for backwards compatibility)
 	version := ""
 	if data.EngineConfig != nil && data.EngineConfig.Version != "" {
 		version = data.EngineConfig.Version
 	}
 	fmt.Fprintf(yaml, "              version: \"%s\",\n", version)
 
-	// Agent version captured from running version command
-	yaml.WriteString("              agent_version: process.env.AGENT_VERSION || \"\",\n")
+	// Agent version - use the actual installation version (includes defaults)
+	// This matches what BuildStandardNpmEngineInstallSteps uses
+	agentVersion := getInstallationVersion(data, engine)
+	fmt.Fprintf(yaml, "              agent_version: \"%s\",\n", agentVersion)
 
 	// Workflow information
 	fmt.Fprintf(yaml, "              workflow_name: \"%s\",\n", data.Name)
@@ -833,11 +880,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 
-	// Pass the safe-outputs configuration for validation
-	safeOutputConfig := generateSafeOutputsConfig(data)
-	if safeOutputConfig != "" {
-		fmt.Fprintf(yaml, "          GH_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
-	}
+	// Config is written to file, not passed as env var
 
 	// Add allowed domains configuration for sanitization
 	// Use manually configured domains if available, otherwise compute from network configuration
@@ -862,7 +905,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("          script: |\n")
 
 	// Add each line of the script with proper indentation
-	WriteJavaScriptToYAML(yaml, collectJSONLOutputScript)
+	WriteJavaScriptToYAML(yaml, getCollectJSONLOutputScript())
 
 	// Record artifact upload for validation
 	c.stepOrderTracker.RecordArtifactUpload("Upload sanitized agent output", []string{"${{ env.GH_AW_AGENT_OUTPUT }}"})

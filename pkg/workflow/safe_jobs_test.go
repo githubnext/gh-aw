@@ -226,7 +226,7 @@ func TestBuildSafeJobs(t *testing.T) {
 	}
 
 	// Check if condition - should now combine safe output type check with user condition
-	expectedIf := "((!cancelled()) && (contains(needs.agent.outputs.output_types, 'deploy'))) && (github.event.issue.number)"
+	expectedIf := "(((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'deploy'))) && (github.event.issue.number)"
 	if job.If != expectedIf {
 		t.Errorf("Expected if condition to be '%s', got '%s'", expectedIf, job.If)
 	}
@@ -330,7 +330,7 @@ func TestBuildSafeJobsWithoutCustomIfCondition(t *testing.T) {
 	}
 
 	// Check if condition - should only have safe output type check (no custom condition)
-	expectedIf := "(!cancelled()) && (contains(needs.agent.outputs.output_types, 'notify'))"
+	expectedIf := "((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'notify'))"
 	if job.If != expectedIf {
 		t.Errorf("Expected if condition to be '%s', got '%s'", expectedIf, job.If)
 	}
@@ -378,7 +378,7 @@ func TestBuildSafeJobsWithDashesInName(t *testing.T) {
 	}
 
 	// Check if condition - should check for underscore version in output_types
-	expectedIf := "(!cancelled()) && (contains(needs.agent.outputs.output_types, 'send_notification'))"
+	expectedIf := "((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'send_notification'))"
 	if job.If != expectedIf {
 		t.Errorf("Expected if condition to be '%s', got '%s'", expectedIf, job.If)
 	}
@@ -439,15 +439,17 @@ func TestSafeJobsInSafeOutputsConfig(t *testing.T) {
 
 func TestExtractSafeJobsFromFrontmatter(t *testing.T) {
 	frontmatter := map[string]any{
-		"safe-jobs": map[string]any{
-			"deploy": map[string]any{
-				"runs-on": "ubuntu-latest",
-				"inputs": map[string]any{
-					"environment": map[string]any{
-						"description": "Target environment",
-						"required":    true,
-						"type":        "choice",
-						"options":     []any{"staging", "production"},
+		"safe-outputs": map[string]any{
+			"jobs": map[string]any{
+				"deploy": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"inputs": map[string]any{
+						"environment": map[string]any{
+							"description": "Target environment",
+							"required":    true,
+							"type":        "choice",
+							"options":     []any{"staging", "production"},
+						},
 					},
 				},
 			},
@@ -519,16 +521,18 @@ func TestMergeSafeJobsFromIncludes(t *testing.T) {
 		},
 	}
 
-	// Simulate included content JSON that contains safe-jobs
+	// Simulate included content JSON that contains safe-outputs.jobs
 	includedJSON := `{
-		"safe-jobs": {
-			"test": {
-				"runs-on": "ubuntu-latest",
-				"inputs": {
-					"suite": {
-						"description": "Test suite to run",
-						"required": true,
-						"type": "string"
+		"safe-outputs": {
+			"jobs": {
+				"test": {
+					"runs-on": "ubuntu-latest",
+					"inputs": {
+						"suite": {
+							"description": "Test suite to run",
+							"required": true,
+							"type": "string"
+						}
 					}
 				}
 			}
@@ -555,9 +559,11 @@ func TestMergeSafeJobsFromIncludes(t *testing.T) {
 
 	// Test conflict detection
 	conflictingJSON := `{
-		"safe-jobs": {
-			"deploy": {
-				"runs-on": "windows-latest"
+		"safe-outputs": {
+			"jobs": {
+				"deploy": {
+					"runs-on": "windows-latest"
+				}
 			}
 		}
 	}`

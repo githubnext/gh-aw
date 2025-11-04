@@ -50,7 +50,6 @@ func TestParseAgentTaskConfig(t *testing.T) {
 					"base":        "main",
 					"target-repo": "owner/repo",
 					"max":         1,
-					"min":         0,
 				},
 			},
 			wantConfig: true,
