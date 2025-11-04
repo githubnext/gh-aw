@@ -27,7 +27,7 @@ type Job struct {
 	Steps          []string
 	Needs          []string // Job dependencies (needs clause)
 	Outputs        map[string]string
-	
+
 	// Reusable workflow call properties
 	Uses    string            // Path to reusable workflow (e.g., ./.github/workflows/reusable.yml)
 	With    map[string]any    // Input parameters for reusable workflow
@@ -281,7 +281,7 @@ func (jm *JobManager) renderJob(job *Job) string {
 	if job.Uses != "" {
 		// Add uses directive for reusable workflow
 		yaml.WriteString(fmt.Sprintf("    uses: %s\n", job.Uses))
-		
+
 		// Add with parameters if present
 		if len(job.With) > 0 {
 			yaml.WriteString("    with:\n")
@@ -291,7 +291,7 @@ func (jm *JobManager) renderJob(job *Job) string {
 				withKeys = append(withKeys, key)
 			}
 			sort.Strings(withKeys)
-			
+
 			for _, key := range withKeys {
 				value := job.With[key]
 				// Format the value based on its type
@@ -307,7 +307,7 @@ func (jm *JobManager) renderJob(job *Job) string {
 				}
 			}
 		}
-		
+
 		// Add secrets if present
 		if len(job.Secrets) > 0 {
 			yaml.WriteString("    secrets:\n")
@@ -317,7 +317,7 @@ func (jm *JobManager) renderJob(job *Job) string {
 				secretKeys = append(secretKeys, key)
 			}
 			sort.Strings(secretKeys)
-			
+
 			for _, key := range secretKeys {
 				yaml.WriteString(fmt.Sprintf("      %s: %s\n", key, job.Secrets[key]))
 			}

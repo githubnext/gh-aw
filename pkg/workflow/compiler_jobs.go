@@ -776,14 +776,14 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 			if uses, hasUses := configMap["uses"]; hasUses {
 				if usesStr, ok := uses.(string); ok {
 					job.Uses = usesStr
-					
+
 					// Extract with parameters for reusable workflow
 					if with, hasWith := configMap["with"]; hasWith {
 						if withMap, ok := with.(map[string]any); ok {
 							job.With = withMap
 						}
 					}
-					
+
 					// Extract secrets for reusable workflow
 					if secrets, hasSecrets := configMap["secrets"]; hasSecrets {
 						if secretsMap, ok := secrets.(map[string]any); ok {

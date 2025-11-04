@@ -524,7 +524,15 @@ on:
 
   # Option 2: object
   workflow_call:
-    {}
+    # Input parameters that can be passed to the workflow when it is called
+    # (optional)
+    inputs:
+      {}
+
+    # Secrets that can be passed to the workflow when it is called
+    # (optional)
+    secrets:
+      {}
 
   # Time when workflow should stop running. Supports multiple formats: absolute
   # dates (YYYY-MM-DD HH:MM:SS, June 1 2025, 1st June 2025, 06/01/2025, etc.) or
