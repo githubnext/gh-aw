@@ -1,5 +1,5 @@
 import { describe, it as test, expect } from "vitest";
-import { sanitizeWorkflowName } from "./sanitize_workflow_name.cjs";
+const { sanitizeWorkflowName } = require("./sanitize_workflow_name.cjs");
 
 describe("sanitize_workflow_name.cjs", () => {
   describe("sanitizeWorkflowName", () => {
