@@ -106,9 +106,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
 
         // Check that default paths are mentioned in debug output
         expect(stderr).toContain("GH_AW_SAFE_OUTPUTS not set, using default: /tmp/gh-aw/safeoutputs/outputs.jsonl");
-        expect(stderr).toContain(
-          "Reading config from file: /tmp/gh-aw/safeoutputs/config.json"
-        );
+        expect(stderr).toContain("Reading config from file: /tmp/gh-aw/safeoutputs/config.json");
 
         resolve();
       }, 2000);
@@ -354,7 +352,6 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
       },
     };
 
-    
     // Write config to temporary file
     const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
     fs.writeFileSync(tempConfigPath, JSON.stringify(config));
@@ -464,7 +461,6 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
       },
     };
 
-    
     // Write config to temporary file
     const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
     fs.writeFileSync(tempConfigPath, JSON.stringify(config));
@@ -577,7 +573,6 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
       },
     };
 
-    
     // Write config to temporary file
     const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
     fs.writeFileSync(tempConfigPath, JSON.stringify(config));
@@ -684,7 +679,6 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
       },
     };
 
-    
     // Write config to temporary file
     const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
     fs.writeFileSync(tempConfigPath, JSON.stringify(config));
@@ -787,7 +781,6 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
       },
     };
 
-    
     // Write config to temporary file
     const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
     fs.writeFileSync(tempConfigPath, JSON.stringify(config));
@@ -891,7 +884,6 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
       upload_asset: {},
     };
 
-    
     // Write config to temporary file
     const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
     fs.writeFileSync(tempConfigPath, JSON.stringify(config));
@@ -998,7 +990,6 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
       upload_asset: {},
     };
 
-    
     // Write config to temporary file
     const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
     fs.writeFileSync(tempConfigPath, JSON.stringify(config));
@@ -1111,7 +1102,6 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
       create_pull_request: {},
     };
 
-    
     // Write config to temporary file
     const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
     fs.writeFileSync(tempConfigPath, JSON.stringify(config));
@@ -1217,7 +1207,6 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
       push_to_pull_request_branch: {},
     };
 
-    
     // Write config to temporary file
     const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
     fs.writeFileSync(tempConfigPath, JSON.stringify(config));
@@ -1326,7 +1315,6 @@ describe("safe_outputs_mcp_server.cjs tool call response format", () => {
       create_issue: {},
     };
 
-    
     // Write config to temporary file
     const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
     fs.writeFileSync(tempConfigPath, JSON.stringify(config));
@@ -1432,7 +1420,6 @@ describe("safe_outputs_mcp_server.cjs tool call response format", () => {
       create_issue: {},
     };
 
-    
     // Write config to temporary file
     const tempConfigPath = path.join("/tmp", `test-config-${Date.now()}-${Math.random().toString(36).substring(7)}.json`);
     fs.writeFileSync(tempConfigPath, JSON.stringify(config));

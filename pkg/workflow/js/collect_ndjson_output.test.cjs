@@ -486,9 +486,9 @@ describe("collect_ndjson_output.cjs", () => {
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -509,9 +509,9 @@ describe("collect_ndjson_output.cjs", () => {
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -532,9 +532,9 @@ describe("collect_ndjson_output.cjs", () => {
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -555,9 +555,9 @@ describe("collect_ndjson_output.cjs", () => {
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -578,9 +578,9 @@ describe("collect_ndjson_output.cjs", () => {
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -601,9 +601,9 @@ describe("collect_ndjson_output.cjs", () => {
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -625,9 +625,9 @@ describe("collect_ndjson_output.cjs", () => {
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -648,9 +648,9 @@ describe("collect_ndjson_output.cjs", () => {
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -671,9 +671,9 @@ describe("collect_ndjson_output.cjs", () => {
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"add_labels": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -695,9 +695,9 @@ describe("collect_ndjson_output.cjs", () => {
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -724,9 +724,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true, "add_comment": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -749,9 +749,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -773,9 +773,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -797,9 +797,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -821,9 +821,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"add_labels": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -844,9 +844,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"add_labels": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -875,9 +875,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -899,9 +899,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -924,9 +924,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -951,9 +951,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -979,9 +979,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1006,9 +1006,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1033,9 +1033,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1060,9 +1060,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1090,9 +1090,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1118,9 +1118,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1144,9 +1144,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1170,9 +1170,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1196,9 +1196,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1220,9 +1220,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1246,9 +1246,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1278,9 +1278,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1301,9 +1301,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1325,9 +1325,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1349,9 +1349,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"add_labels": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1373,9 +1373,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1404,9 +1404,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"add_labels": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1428,9 +1428,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1537,9 +1537,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_code_scanning_alert": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1593,9 +1593,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_code_scanning_alert": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1623,9 +1623,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_code_scanning_alert": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1651,9 +1651,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_code_scanning_alert": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1677,9 +1677,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_code_scanning_alert": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1707,9 +1707,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_code_scanning_alert": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1737,9 +1737,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_code_scanning_alert": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1767,9 +1767,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1789,9 +1789,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1810,9 +1810,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1831,9 +1831,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1852,9 +1852,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1873,9 +1873,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1892,9 +1892,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1917,9 +1917,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1939,9 +1939,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1963,9 +1963,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1986,9 +1986,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -2011,9 +2011,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -2033,9 +2033,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -2054,9 +2054,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_pull_request": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -2076,9 +2076,9 @@ Line 3"}
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       const __config = '{"create_issue": true}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -2100,9 +2100,9 @@ Line 3"}
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       // Set min to 2 for create_issue
       const __config = '{"create_issue": {"min": 2, "max": 5}}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -2123,9 +2123,9 @@ Line 3"}
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       // Set min to 3 for create_issue, but we only have 1 item
       const __config = '{"create_issue": {"min": 3, "max": 5}}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -2149,9 +2149,9 @@ Line 3"}
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       // Set min to 1 for create_issue (satisfied) and min to 2 for add-comment (not satisfied)
       const __config = '{"create_issue": {"min": 1, "max": 5}, "add_comment": {"min": 2, "max": 5}}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -2173,9 +2173,9 @@ Line 3"}
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       // Set min to 0 for create_issue (should be ignored)
       const __config = '{"create_issue": {"min": 0, "max": 5}}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -2196,9 +2196,9 @@ Line 3"}
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       // No min specified, should default to 0
       const __config = '{"create_issue": {"max": 5}}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -2219,9 +2219,9 @@ Line 3"}
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       // Set min to 1 for create_issue, but no items present
       const __config = '{"create_issue": {"min": 1, "max": 5}}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -2245,9 +2245,9 @@ Line 3"}
       process.env.GH_AW_SAFE_OUTPUTS = testFile;
       // Set min requirements for different types
       const __config = '{"add_comment": {"min": 2, "max": 5}, "create_discussion": {"min": 1, "max": 5}}';
-    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
-    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
-    fs.writeFileSync(configPath, __config);
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
 
       await eval(`(async () => { ${collectScript} })()`);
 
