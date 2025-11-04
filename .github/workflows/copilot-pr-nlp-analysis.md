@@ -32,18 +32,10 @@ imports:
 
 tools:
   cache-memory: true
+  edit:
   github:
     toolsets: [default]
-  bash:
-    - "gh pr list *"
-    - "gh pr view *"
-    - "gh search prs *"
-    - "jq *"
-    - "/tmp/gh-aw/jqschema.sh"
-    - "find /tmp -type f"
-    - "cat /tmp/*"
-    - "python3 *"
-    - "pip install *"
+  bash: "*"
 
 steps:
   - name: Fetch Copilot PR data from last 24 hours
