@@ -161,26 +161,31 @@ Generate a comprehensive daily report of all rejected domains across all agentic
 
 This prevents unnecessary re-analysis of the same data and significantly reduces token usage.
 
-### Step 1: Identify Workflows with Firewall Feature
+### Step 1: Collect Recent Firewall-Enabled Workflow Runs
 
-1. List all workflows in the repository
-2. For each workflow that has `network.firewall: true` in its frontmatter, note the workflow name
-3. Create a list of all firewall-enabled workflows
+Use the `logs` command with `--firewall true` to efficiently collect workflow runs that have firewall enabled:
 
-**Example frontmatter structure:**
-```yaml
-network:
-  firewall: true
+```bash
+# Get up to 100 recent workflow runs that used firewall (within past 7 days)
+gh aw logs --firewall true --start-date -7d -c 100
 ```
 
-**Note:** The firewall field is under `network`, not `features`.
+This command:
+1. Filters runs based on the `steps.firewall` field in `aw_info.json` (e.g., "squid" when enabled)
+2. Returns only runs where firewall was enabled
+3. Limits to runs from the past 7 days
+4. Returns up to 100 matching runs
 
-### Step 2: Collect Recent Workflow Runs
+**Alternative:** To get runs for all firewall-enabled workflows across all time:
+```bash
+gh aw logs --firewall true -c 100
+```
 
-For each firewall-enabled workflow:
-1. Get up to 10 workflow runs that occurred within the past 7 days (if there are fewer than 10 runs in that window, include all available; if there are more, include only the most recent 10)
-2. For each run ID, use the `audit` tool from the agentic-workflows MCP server with `--json` flag to get detailed firewall information
-3. Store the run ID, workflow name, and timestamp for tracking
+### Step 2: Analyze Firewall Logs from Collected Runs
+
+For each run collected in Step 1:
+1. Use the `audit` tool from the agentic-workflows MCP server with `--json` flag to get detailed firewall information
+2. Store the run ID, workflow name, and timestamp for tracking
 
 **Using the audit tool:**
 ```bash
