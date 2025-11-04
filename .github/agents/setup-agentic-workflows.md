@@ -93,12 +93,11 @@ gh secret set OPENAI_API_KEY -a actions --body "your-openai-api-key-here"
 
 Say to the user:
 ````
-When you're ready, just type the command:
+When you're ready, use the custom agent to create your workflow:
 
-```
-/create-agentic-workflow
-```
+1. Type `/agent` in the chat
+2. Select `create-agentic-workflow` from the list of available custom agents
 
-This will start the configuration flow to help you create your first agentic workflow.
+This will activate the workflow creation custom agent to help you create your first agentic workflow.
 
 ````

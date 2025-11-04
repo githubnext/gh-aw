@@ -19,13 +19,7 @@ This material documents some notes on the security of using partially-automated 
 
 ## Before You Begin
 
-When working with agentic workflows, thorough review is essential:
-
-1. **Review workflow contents** before installation, particularly third-party workflows that may contain unexpected automation. Treat prompt templates and rule files as code.
-2. **Assess compiled workflows** (`.lock.yml` files) to understand the actual permissions and operations being performed
-3. **Understand GitHub's security model** - GitHub Actions provides built-in protections like read-only defaults for fork PRs and restricted secret access. These apply to agentic workflows as well. See [GitHub Actions security](https://docs.github.com/en/actions/reference/security/secure-use) and [permissions documentation](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions)
-4. **Remember permission defaults** - when you specify any permission explicitly, all unspecified permissions default to `none`
-5. **Check repository access restrictions** - By default, agentic workflows restrict execution to users with `admin`, `maintainer`, or `write` repository permissions. Use `roles: all` carefully, especially in public repositories where any user can potentially trigger workflows
+Thorough review is essential when working with agentic workflows. Review workflow contents before installation, treating prompt templates and rule files as code. Assess compiled `.lock.yml` files to understand actual permissions and operations. GitHub Actions' built-in protections (read-only defaults for fork PRs, restricted secret access) apply to agentic workflows. See [GitHub Actions security](https://docs.github.com/en/actions/reference/security/secure-use) and [permissions documentation](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions). When specifying permissions explicitly, all unspecified permissions default to `none`. By default, workflows restrict execution to users with `admin`, `maintainer`, or `write` permissions—use `roles: all` carefully in public repositories.
 
 ## Threat Model
 
@@ -33,37 +27,21 @@ Understanding the security risks in agentic workflows helps inform protective me
 
 ### Primary Threats
 
-- **Command execution**: Agentic workflows are, executed in the partially-sandboxed environment of GitHub Actions. By default, they are configured to disallow the execution of arbitrary shell commands. However, they may optionally be manually configured to allow specific commands, and if so they will not ask for confirmation before executing these specific commands as part of the GitHub Actions workflow run. If these configuration options are used inappropriately, or on sensitive code, an attacker might use this capability to make the coding agent fetch and run malicious code to exfiltrate data or perform unauthorized execution within this environment.
-- **Malicious inputs**: Attackers can craft inputs that poison an coding agent. Agentic workflows often pull data from many sources, including GitHub Issues, PRs, comments and code. If considered untrusted, e.g. in an open source setting, any of those inputs could carry a hidden payload for AI. Agentic workflows are designed to minimize the risk of malicious inputs by restricting the expressions that can be used in workflow markdown content. This means inputs such as GitHub Issues and Pull Requests must be accessed via the GitHub MCP, however the returned data can, in principle, be used to manipulate the AI's behavior if not properly assessed and sanitized.
-- **Tool exposure**: By default, Agentic Workflows are configured to have no access to MCPs except the GitHub MCP in read-only mode. However unconstrained use of 3rd-party MCP tools can enable data exfiltration or privilege escalation.
-- **Supply chain attacks and other generic GitHub Actions threats**: Unpinned Actions, npm packages and container images are vulnerable to tampering. These threats are generic to all GitHub Actions workflows, and Agentic Workflows are no exception.
+**Command execution**: Workflows run in GitHub Actions' partially-sandboxed environment. By default, arbitrary shell commands are disallowed, but specific commands can be manually allowlisted. If misconfigured on sensitive code, attackers might fetch and run malicious code to exfiltrate data or perform unauthorized execution.
+
+**Malicious inputs**: Attackers can craft inputs that poison AI agents. Workflows pull data from Issues, PRs, comments, and code. Untrusted inputs (e.g., in open source settings) can carry hidden AI payloads. Workflows minimize risk by restricting expressions in markdown content, requiring GitHub MCP access, though returned data can still manipulate AI behavior if not sanitized.
+
+**Tool exposure**: By default, workflows only access GitHub MCP in read-only mode. Unconstrained 3rd-party MCP tools enable data exfiltration or privilege escalation.
+
+**Supply chain**: Unpinned Actions, npm packages, and container images are vulnerable to tampering—standard GitHub Actions threats apply.
 
 ### Core Security Principles
 
-The fundamental principle of security for Agentic Workflows is that they are GitHub Actions workflows and should be reviewed with the same rigour and rules that are applied to all GitHub Actions. See [GitHub Actions security](https://docs.github.com/en/actions/reference/security/secure-use).
+Agentic Workflows are GitHub Actions workflows and inherit their security model: isolated repository copies, read-only defaults for forked PRs, restricted secret access, and explicit permissions (default `none`). See [GitHub Actions security](https://docs.github.com/en/actions/reference/security/secure-use).
 
-This means they inherit the security model of GitHub Actions, which includes:
+Additional compilation-time security measures include expression restrictions (limited frontmatter expressions), highly restricted commands (explicit allowlisting required), tool allowlisting, engine network restrictions (domain allowlists), workflow longevity limits, and chat iteration limits.
 
-- **Isolated copy of the repository** - each workflow runs in a separate copy of the repository, so it cannot access other repositories or workflows
-- **Read-only defaults** for forked PRs
-- **Restricted secret access** - secrets are not available in forked PRs by default
-- **Explicit permissions** - all permissions default to `none` unless explicitly set
-
-In addition, the compilation step of Agentic Workflows enforces additional security measures:
-
-- **Expression restrictions** - only a limited set of expressions are allowed in the workflow frontmatter, preventing arbitrary code execution
-- **Highly restricted commands** - by default, no commands are allowed to be executed, and any commands that are allowed must be explicitly specified in the workflow
-- **Explicit tool allowlisting** - only tools explicitly allowed in the workflow can be used
-- **Engine network restrictions** - control network access for AI engines using domain allowlists
-- **Limit workflow longevity** - workflows can be configured to stop triggering after a certain time period
-- **Limit chat iterations** - workflows can be configured to limit the number of chat iterations per run, preventing runaway loops and excessive resource consumption
-
-Apply these principles consistently across all workflow components:
-
-1. **Least privilege by default** - elevate permissions only when required, scoped to specific jobs or steps
-2. **Default-deny approach** - explicitly allowlist tools
-3. **Separation of concerns** - implement "plan" and "apply" phases with approval gates for risky operations
-4. **Supply chain integrity** - pin all dependencies (Actions, containers) to immutable SHAs
+Apply consistently: least privilege by default (elevate permissions only when required), default-deny approach (explicit tool allowlisting), separation of concerns (plan/apply phases with approval gates), and supply chain integrity (pin dependencies to immutable SHAs).
 
 ## Implementation Guidelines
 
@@ -73,13 +51,18 @@ Configure GitHub Actions with defense in depth:
 
 #### Permission Configuration
 
-Set minimal permissions for the agentic processing:
+Set minimal read-only permissions for the agentic processing. Use `safe-outputs` for write operations:
 
 ```yaml
-# Applies to the agentic processing
+# Applies to the agentic processing (read-only)
 permissions:
-  issues: write
   contents: read
+  actions: read
+
+# Use safe-outputs for write operations
+safe-outputs:
+  create-issue:
+  add-comment:
 ```
 
 #### Fork Protection for Pull Request Triggers
@@ -171,28 +154,16 @@ Strict mode prevents write permissions (`contents:write`, `issues:write`, `pull-
 
 ### Human in the Loop
 
-GitHub Actions workflows are designed to be steps within a larger process. Some critical operations should always involve human review:
-
-- **Approval gates**: Use the `manual-approval` field to require manual approval before workflow execution. Configure environment protection rules in repository settings to specify required reviewers and approval policies:
-  ```yaml
-  on:
-    workflow_dispatch:
-    manual-approval: production
-  ```
-  See [Manual Approval Gates](/gh-aw/reference/triggers/#manual-approval-gates-manual-approval) for configuration details.
-- **Pull requests require humans**: GitHub Actions cannot approve or merge pull requests. This means a human will always be involved in reviewing and merging pull requests that contain agentic workflows.
-- **Plan-apply separation**: Implement a "plan" phase that generates a preview of actions before execution. This allows human reviewers to assess the impact of changes. This is usually done via an output issue or pull request.
-- **Review and audit**: Regularly review workflow history, permissions, and tool usage to ensure compliance with security policies.
+Critical operations require human review. Use `manual-approval` to require approval before execution (configure environment protection rules in repository settings). See [Manual Approval Gates](/gh-aw/reference/triggers/#manual-approval-gates-manual-approval). GitHub Actions cannot approve or merge PRs, ensuring human involvement. Implement plan-apply separation (preview via output issue/PR). Regularly audit workflow history, permissions, and tool usage.
 
 ### Limit operations
 
 #### Strict Mode Validation
 
-For production workflows, use strict mode to enforce enhanced security and reliability constraints:
+Enable strict mode for production workflows to enforce enhanced security constraints:
 
 ```yaml
-# Enable strict mode declaratively in frontmatter
-strict: true
+strict: true  # In frontmatter
 permissions:
   contents: read
 network:
@@ -200,31 +171,11 @@ network:
     - "api.example.com"
 ```
 
-Or enable for all workflows during compilation:
+Or via CLI: `gh aw compile --strict`
 
-```bash
-gh aw compile --strict
-```
+**Enforces**: write permissions blocked (use `safe-outputs`), explicit network configuration required, no network wildcards, MCP network configuration required.
 
-**Strict mode enforces:**
-
-1. **Write Permissions Blocked**: Refuses `contents:write`, `issues:write`, and `pull-requests:write` (use `safe-outputs` instead)
-2. **Network Configuration Required**: Must explicitly configure network access (cannot rely on defaults)
-3. **No Network Wildcards**: Cannot use wildcard `*` in `network.allowed` domains
-4. **MCP Network Configuration**: Custom MCP servers with containers must have network configuration
-
-**Benefits:**
-- **Security**: Minimizes attack surface by blocking write permissions and requiring explicit network access
-- **Compliance**: Ensures workflows meet organizational security standards
-- **Auditability**: Clear security requirements make workflows easier to review
-
-**Behavior:**
-- CLI `--strict` flag applies to all workflows during compilation
-- Frontmatter `strict: true` enables strict mode for individual workflows
-- CLI flag takes precedence over frontmatter settings
-- Default is non-strict mode for backward compatibility
-
-See the [Frontmatter Reference](/gh-aw/reference/frontmatter/#strict-mode-strict) for complete strict mode documentation.
+**Benefits**: Minimizes attack surface, ensures compliance, improves auditability. CLI flag takes precedence over frontmatter. See [Frontmatter Reference](/gh-aw/reference/frontmatter/#strict-mode-strict).
 
 #### Limit workflow longevity by `stop-after:`
 
@@ -259,220 +210,87 @@ Use `gh aw logs` to monitor the costs of running agentic workflows. This command
 
 ### Repository Access Control
 
-Agentic workflows include built-in access control to prevent unauthorized execution:
+By default, workflows restrict execution to users with `admin`, `maintainer`, or `write` permissions. Permission checks auto-apply to potentially unsafe triggers (`push`, `issues`, `pull_request`). Safe triggers (`schedule`, `workflow_run`) skip checks. `workflow_dispatch` is safe only when `write` is allowed.
 
-By default, workflows restrict execution to users with admin, maintainer, or write permissions:
-
-- **Default roles**: `admin`, `maintainer`, and `write` repository permissions are required
-- **Automatic enforcement**: Permission checks are automatically added to workflows with potentially unsafe triggers (`push`, `issues`, `pull_request`, etc.)
-- **Safe trigger exceptions**: Workflows that only use "safe" triggers (`schedule`, `workflow_run`) skip permission checks by default
-- **workflow_dispatch** is treated as safe only when `write` is in the allowed roles, since workflow_dispatch can be triggered by users with write access
-
-Use the `roles:` frontmatter field to customize who can trigger workflows:
+Customize via `roles:` frontmatter:
 
 ```yaml
-# Default (admin, maintainer, or write access)
-roles: [admin, maintainer, write]
-
-# More restrictive - only admin/maintainer (use for sensitive operations)
-roles: [admin, maintainer]
-
-# Only write access
-roles: [write]
-
-# Disable restrictions entirely (high risk in public repos)
-roles: all
+roles: [admin, maintainer, write]  # Default
+roles: [admin, maintainer]         # Restrictive (recommended for sensitive ops)
+roles: [write]                     # Write access only
+roles: all                         # All users (high risk in public repos)
 ```
 
-**workflow_dispatch Examples:**
-
-```yaml
-# Permission check REQUIRED - write role not allowed
-on:
-  workflow_dispatch:
-roles: [admin, maintainer]  # Users with write access will be denied
-
-# Permission check SKIPPED - write role allowed (default)
-on:
-  workflow_dispatch:
-roles: [admin, maintainer, write]  # Users with write access allowed
-
-# Permission check SKIPPED - all users allowed
-on:
-  workflow_dispatch:
-roles: all
-```
-
-#### Security Behavior
-
-- Permission checks happen at workflow runtime, not when the workflow is installed
-- Failed permission checks automatically cancel the workflow with a logged warning
-- Users see the workflow start but then immediately stop if they lack permissions
-- All permission check results are visible in the Actions tab for debugging
-
-**Important:** Use `roles: all` with extreme caution, especially in public repositories where any authenticated user can potentially trigger workflows through issues, comments, or pull requests.
+Permission checks occur at runtime, not installation. Failed checks auto-cancel with logged warnings. Use `roles: all` with extreme caution in public repositories.
 
 ### Authorization and Token Management
 
-GitHub Agentic Workflows support flexible token configuration for different execution contexts and security requirements.
-
-#### GitHub Token Precedence
-
-Workflows use a hierarchical token precedence system that allows you to configure authentication tokens at different levels. The precedence order from highest to lowest is:
-
-1. **Individual safe-output `github-token`** - Token specified for a specific safe-output (e.g., `create-issue.github-token`)
-2. **Safe-outputs global `github-token`** - Token specified at the `safe-outputs` level
-3. **Top-level `github-token`** - Token specified in workflow frontmatter (new)
-4. **Default fallback** - `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`
-
-This allows you to set a default token for the entire workflow while still allowing specific safe-outputs to use different tokens when needed.
+Token precedence (highest to lowest): individual safe-output `github-token` → safe-outputs global `github-token` → top-level `github-token` → default fallback (`${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`).
 
 :::tip[Automatic Secret Validation]
-All `github-token` fields are automatically validated during compilation to ensure they use GitHub Actions secret expressions (e.g., `${{ secrets.CUSTOM_PAT }}`). This prevents accidental plaintext secret leakage in workflow files.
-
-If you specify a plaintext token like `ghp_1234...` or use an environment variable like `${{ env.MY_TOKEN }}`, compilation will fail with a clear error message.
+`github-token` fields are validated during compilation to ensure use of GitHub Actions secret expressions. Plaintext tokens or environment variables cause compilation failure.
 :::
 
 #### Token Configuration Examples
 
-**Top-level token for entire workflow:**
-
 ```yaml
----
-on: push
+# Top-level token
 github-token: ${{ secrets.CUSTOM_PAT }}
-engine: claude
-tools:
-  github:
-    allowed: [list_issues]
----
-```
 
-This token will be used for:
-- Engine authentication (GitHub MCP server, etc.)
-- Checkout steps (in trial mode)
-- Safe-output operations (unless overridden)
-
-**Safe outputs with custom tokens:**
-
-```yaml
----
-on: push
-github-token: ${{ secrets.DEFAULT_PAT }}
+# Per safe-output tokens
 safe-outputs:
   github-token: ${{ secrets.SAFE_OUTPUT_PAT }}
   create-issue:
     github-token: ${{ secrets.ISSUE_SPECIFIC_PAT }}
-  create-pull-request:
-    # Uses safe-outputs global token
----
 ```
 
-In this example:
-- `create-issue` uses `ISSUE_SPECIFIC_PAT` (highest precedence)
-- `create-pull-request` uses `SAFE_OUTPUT_PAT` (safe-outputs level)
-- Engine and other operations use `DEFAULT_PAT` (top-level)
-
-**Per-job token configuration (legacy):**
-
-```yaml
-jobs:
-  agentic-task:
-    runs-on: ubuntu-latest
-    env:
-      GH_AW_GITHUB_TOKEN: ${{ secrets.ENHANCED_PAT }}
-    steps:
-      # Workflow steps use the enhanced token
-```
-
-#### Security Considerations
-
-When using custom tokens:
-
-- **Principle of least privilege**: Grant only the minimum permissions required
-- **Token rotation**: Regularly rotate Personal Access Tokens
-- **Scope limitation**: Use fine-grained PATs when possible to limit repository access
-- **Audit logging**: Monitor token usage through GitHub's audit logs
-- **Secret management**: Store tokens as GitHub repository or organization secrets, never in code
+**Security**: Use least privilege, rotate PATs regularly, use fine-grained PATs, monitor via audit logs, store as secrets (never in code).
 
 ### MCP Tool Hardening
 
-Model Context Protocol tools require strict containment:
-
-#### Sandboxing and Isolation
-
-Run MCP servers in explicit sandboxes to constrain blast radius:
-
-- Container isolation: Prefer running each MCP server in its own container with no shared state between workflows, repos, or users.
-- Non-root, least-capability: Use non-root UIDs, drop Linux capabilities, and apply seccomp/AppArmor where supported. Disable privilege escalation.
-- Supply-chain sanity: Use pinned images/binaries (digest/SHAs), run vulnerability scans, and track SBOMs for MCP containers.
-
-Example (pinned container with minimal allowances):
+Run MCP servers in sandboxes: container isolation (no shared state), non-root UIDs, drop capabilities, apply seccomp/AppArmor, disable privilege escalation. Pin images (digest/SHAs), scan vulnerabilities, track SBOMs.
 
 ```yaml
 tools:
   web:
     mcp:
-      container: "ghcr.io/example/web-mcp@sha256:abc123..."  # Pinned image digest
+      container: "ghcr.io/example/web-mcp@sha256:abc123..."
     allowed: [fetch]
 ```
 
-#### Tool Allow/Disallow Examples
+#### Tool Allow/Disallow
 
-Configure explicit allow-lists for tools. See also `docs/tools.md` for full options.
-
-- Minimal GitHub tool set (read + specific writes):
+Configure explicit allow-lists. See `docs/tools.md` for full options.
 
 ```yaml
+# Minimal GitHub tools (recommended)
 tools:
   github:
     allowed: [get_issue, add_issue_comment]
-```
 
-- Restricted Claude bash and editing:
-
-```yaml
+# Restricted bash (avoid wildcards)
 engine: claude
 tools:
   edit:
-  bash: ["echo", "git status"]   # keep tight; avoid wildcards
-```
+  bash: ["echo", "git status"]
 
-- Patterns to avoid:
-
-```yaml
-tools:
-  github:
-    allowed: ["*"]            # Too broad
-  bash: [":*"]           # Unrestricted shell access
+# Avoid: ["*"] or [":*"] (too broad)
 ```
 
 #### Egress Filtering
 
-A critical guardrail is strict control over outbound network connections. Agentic Workflows now supports declarative network allowlists for containerized MCP servers.
-
-Example (domain allowlist):
+Declarative network allowlists for containerized MCP servers:
 
 ```yaml
 mcp-servers:
   fetch:
     container: mcp/fetch
     network:
-      allowed:
-        - "example.com"
+      allowed: ["example.com"]
     allowed: ["fetch"]
 ```
 
-Enforcement details:
-
-- Compiler generates a per‑tool Squid proxy and Docker network; MCP egress is forced through the proxy via iptables.
-- Only listed domains are reachable; all others are denied at the network layer.
-- Applies to `mcp.container` stdio servers. Non‑container stdio and `type: http` servers are not supported and will cause compilation errors.
-
-Operational guidance:
-
-- Use bare domains (no scheme). Explicitly list each domain you intend to permit.
-- Prefer minimal allowlists; review the compiled `.lock.yml` to verify proxy setup and rules.
+Compiler generates per-tool Squid proxy; MCP egress forced through proxy via iptables. Only listed domains reachable. Applies to `mcp.container` stdio servers only. Use bare domains, minimal allowlists; review `.lock.yml`.
 
 ### Agent Security and Prompt Injection Defense
 
@@ -480,35 +298,19 @@ Protect against model manipulation through layered defenses:
 
 #### Sanitized Context Text Usage
 
-**CRITICAL**: Always use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields when accessing user-controlled content.
+**CRITICAL**: Always use `${{ needs.activation.outputs.text }}` instead of raw `github.event` fields. Raw fields enable prompt injection, @mentions, bot triggers, XML/HTML injection, and resource exhaustion.
 
-Raw context fields like `${{ github.event.issue.title }}`, `${{ github.event.issue.body }}`, and `${{ github.event.comment.body }}` contain unsanitized user input that can:
-- Inject malicious prompts to manipulate AI behavior
-- Trigger unintended @mentions and bot commands  
-- Include XML/HTML content that could affect output processing
-- Contain excessive content leading to resource exhaustion
-
-The `needs.activation.outputs.text` provides the same content but with security protections:
-- @mentions are neutralized: `@user` becomes `` `@user` ``
-- Bot triggers are escaped: `fixes #123` becomes `` `fixes #123` ``
-- XML tags converted to safe parentheses format
-- Only HTTPS URIs from trusted domains allowed
-- Content size limited to 0.5MB and 65k lines maximum
-- Control characters and ANSI sequences removed
+Sanitized output provides: neutralized @mentions/bot triggers, safe XML format, only HTTPS URIs from trusted domains, 0.5MB/65k line limits, removed control characters.
 
 ```aw wrap
-# SECURE: Use sanitized context
-Analyze this content: "${{ needs.activation.outputs.text }}"
+# SECURE
+Analyze: "${{ needs.activation.outputs.text }}"
 
-# INSECURE: Raw user input (vulnerable to injection)
+# INSECURE (vulnerable)
 Title: "${{ github.event.issue.title }}"
-Body: "${{ github.event.issue.body }}"
 ```
 
-#### Policy Enforcement
-
-- **Input sanitization**: Always use sanitized context text for user-controlled content
-- **Action validation**: Implement a plan-validate-execute flow where policy layers check each tool call against risk thresholds
+Implement plan-validate-execute flow with policy checks against risk thresholds.
 
 ### Safe Outputs Security Model
 
@@ -520,91 +322,33 @@ See the [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for complete co
 
 ### Threat Detection
 
-GitHub Agentic Workflows includes automatic threat detection to analyze agent output and code changes for potential security issues before they are applied. When safe outputs are configured, a threat detection job automatically runs to identify prompt injection attempts, secret leaks, and malicious code patches.
-
-The system uses AI-powered analysis with workflow source context to distinguish between legitimate actions and threats, helping reduce false positives while maintaining strong security controls.
-
-**Configuration Options:**
-
-Threat detection is automatically enabled when safe outputs are configured, but can be customized:
+Automatic threat detection analyzes agent output and code changes for prompt injection, secret leaks, and malicious patches. Auto-enabled with safe outputs; uses AI-powered analysis with workflow context to reduce false positives.
 
 ```yaml
 safe-outputs:
   create-pull-request:
   threat-detection:
-    enabled: true                    # Enable/disable (default: true)
-    prompt: "Focus on SQL injection" # Custom analysis instructions
-    engine:                          # Custom detection engine
+    enabled: true                    # Default
+    prompt: "Focus on SQL injection" # Optional
+    engine:                          # Optional custom engine
       id: claude
-      model: claude-sonnet-4
-    steps:                           # Additional security scanning
+    steps:                           # Optional additional scanning
       - name: Run TruffleHog
         uses: trufflesecurity/trufflehog@main
 ```
 
-**Custom Detection Tools:**
-
-Add specialized security scanners like Ollama/LlamaGuard, Semgrep, or TruffleHog alongside AI analysis for defense-in-depth security.
-
-See the [Threat Detection Guide](/gh-aw/guides/threat-detection/) for comprehensive documentation, configuration examples, and the LlamaGuard integration pattern.
+Add specialized scanners (Ollama/LlamaGuard, Semgrep, TruffleHog) for defense-in-depth. See [Threat Detection Guide](/gh-aw/guides/threat-detection/).
 
 ### Automated Security Scanning
 
-GitHub Agentic Workflows supports automated security scanning of compiled workflows using [zizmor](https://github.com/zizmorcore/zizmor), a specialized security scanner for GitHub Actions workflows. Zizmor runs during compilation to identify potential vulnerabilities before workflows are deployed.
-
-**Enable security scanning:**
+[zizmor](https://github.com/zizmorcore/zizmor) scans compiled workflows during compilation:
 
 ```bash
-gh aw compile --zizmor
+gh aw compile --zizmor              # Scan with warnings
+gh aw compile --strict --zizmor     # Block on findings
 ```
 
-Zizmor analyzes generated `.lock.yml` files for common security issues:
-
-- Excessive or overly broad permissions
-- Insecure workflow practices
-- Supply chain vulnerabilities
-- Workflow misconfigurations
-
-**Security findings are reported in IDE-parseable format:**
-
-```
-./.github/workflows/workflow.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions
-5 |     steps:
-6 |       - uses: actions/checkout@v4
-7 |   permissions:
-        ^^^^^^^^^^^^^
-8 |     contents: write
-9 |     issues: write
-```
-
-Each finding includes:
-- **Severity level**: Low, Medium, High, or Critical
-- **File location**: Clickable line and column numbers for IDE navigation
-- **Context**: Surrounding code lines showing the issue
-- **Description**: Clear explanation of the security concern
-
-**Enforcement with strict mode:**
-
-Combine `--zizmor` with `--strict` to block compilation when security issues are found:
-
-```bash
-gh aw compile --strict --zizmor  # Fails if security findings exist
-```
-
-This ensures workflows meet security standards before deployment to production environments. In non-strict mode, findings are reported as warnings but do not prevent compilation.
-
-**Requirements:**
-
-- Docker must be installed and running
-- The scanner runs in a container (`ghcr.io/zizmorcore/zizmor:latest`)
-- Each `.lock.yml` file is scanned independently
-
-**Best practices:**
-
-- Run `--zizmor` during development to catch security issues early
-- Use `--strict --zizmor` in CI/CD pipelines for production workflows
-- Review and address all High and Critical severity findings
-- Consider Medium and Low findings for defense-in-depth improvements
+Analyzes `.lock.yml` files for excessive permissions, insecure practices, supply chain vulnerabilities, and misconfigurations. Reports include severity, location, context, and description in IDE-parseable format. Requires Docker. Best practices: run during development, use `--strict --zizmor` in CI/CD, address High/Critical findings.
 
 ### Network Isolation
 
@@ -617,107 +361,47 @@ See the [Network Reference](/gh-aw/reference/network/) for detailed configuratio
 
 ## Engine Network Permissions
 
-### Overview
+Fine-grained control over AI engine network access, separate from MCP tool permissions. Provides defense in depth, compliance, audit trails, and least privilege.
 
-Engine network permissions provide fine-grained control over network access for AI engines themselves, separate from MCP tool network permissions. This feature uses Claude Code's hook system to enforce domain-based access controls.
+**Claude Engine**: Hook-based enforcement (PreToolUse hooks), runtime validation, clear error messages, ~10ms overhead.
 
-### Security Benefits
+**Copilot Engine with AWF**: Uses [AWF](https://github.com/githubnext/gh-aw-firewall) firewall wrapper, process-level domain allowlisting, execution wrapping, activity logging. See [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network-permissions).
 
-1. **Defense in Depth**: Additional layer beyond MCP tool restrictions
-2. **Compliance**: Meet organizational security requirements for AI network access
-3. **Audit Trail**: Network access attempts are logged through Claude Code hooks
-4. **Principle of Least Privilege**: Only grant network access to required domains
-
-### Implementation Details
-
-Engine network permissions are implemented differently based on the AI engine:
-
-**Claude Engine:**
-- **Hook-Based Enforcement**: Uses Claude Code's PreToolUse hooks to intercept network requests
-- **Runtime Validation**: Domain checking happens at request time, not compilation time
-- **Error Handling**: Blocked requests receive clear error messages with allowed domains
-- **Performance Impact**: Minimal overhead (~10ms per network request)
-
-**Copilot Engine with AWF:**
-- **Firewall Wrapper**: Uses AWF (Agent Workflow Firewall) from [github.com/githubnext/gh-aw-firewall](https://github.com/githubnext/gh-aw-firewall)
-- **Domain Allowlisting**: Enforces network access at the process level via `--allow-domains` flag
-- **Execution Wrapping**: AWF wraps the entire Copilot CLI execution command
-- **Activity Logging**: All network activity is logged for audit purposes
-- **Configuration**: Configure via `network.firewall` in workflow frontmatter
-
-See [Copilot Engine - Network Permissions](/gh-aw/reference/engines/#network-permissions) for detailed AWF configuration.
-
-### Best Practices
-
-1. **Start with Minimal Access**: Begin with `defaults` and add only needed ecosystems
-2. **Use Ecosystem Identifiers**: Prefer `python`, `node`, etc. over listing individual domains
-3. **Use Wildcards Carefully**: `*.example.com` matches any subdomain including nested ones (e.g., `api.example.com`, `nested.api.example.com`) - ensure this broad access is intended
-4. **Test Thoroughly**: Verify that all required domains/ecosystems are included in allowlist
-5. **Monitor Usage**: Review workflow logs to identify any blocked legitimate requests
-6. **Document Reasoning**: Comment why specific domains/ecosystems are required for maintenance
+**Best Practices**: Start with `defaults`, add needed ecosystems; use ecosystem identifiers over individual domains; use wildcards carefully (matches all subdomains); test thoroughly, monitor logs, document reasoning.
 
 ### Permission Modes
 
-1. **No network permissions**: Defaults to basic infrastructure only (backwards compatible)
-   ```yaml
-   engine:
-     id: claude
-     # No network block - defaults to basic infrastructure
-   ```
+```yaml
+# No network (defaults to basic infrastructure)
+engine:
+  id: claude
 
-2. **Basic infrastructure only**: Explicit basic infrastructure access
-   ```yaml
-   engine:
-     id: claude
+# Basic infrastructure only
+network: defaults
 
-   network: defaults  # Or use "allowed: [defaults]"
-   ```
+# Ecosystem-based
+network:
+  allowed:
+    - defaults
+    - python
+    - node
+    - containers
 
-3. **Ecosystem-based access**: Use ecosystem identifiers for common development tools
-   ```yaml
-   engine:
-     id: claude
+# Granular domains
+network:
+  allowed:
+    - "api.github.com"
+    - "*.company-internal.com"
 
-   network:
-     allowed:
-       - defaults         # Basic infrastructure
-       - python          # Python/PyPI ecosystem
-       - node            # Node.js/NPM ecosystem
-       - containers      # Container registries
-   ```
-
-4. **Granular domain control**: Specific domains only
-   ```yaml
-   engine:
-     id: claude
-
-   network:
-     allowed:
-       - "api.github.com"
-       - "*.company-internal.com"
-   ```
-
-5. **Complete denial**: No network access
-   ```yaml
-   engine:
-     id: claude
-
-   network: {}  # Deny all network access
-   ```
+# Complete denial
+network: {}
+```
 
 ## Engine Security Guide
 
-Different agentic engines have distinct defaults and operational surfaces.
+**Claude**: Restrict `claude.allowed` to needed capabilities, keep `allowed_tools` minimal, use network permissions with ecosystem identifiers.
 
-#### `engine: claude`
-
-- Restrict `claude.allowed` to only the needed capabilities (Edit/Write/WebFetch/Bash with a short list)
-- Keep `allowed_tools` minimal in the compiled step; review `.lock.yml` outputs
-- Use engine network permissions with ecosystem identifiers to grant access to only required development tools
-
-#### Security posture differences across engines
-
-Copilot and Claude expose richer default tools and optional Bash; Codex relies more on CLI behaviors. In all cases, tool allow-lists, network restrictions, and pinned dependencies are your primary controls.
+**Security posture**: Copilot/Claude expose richer default tools and optional Bash; Codex relies on CLI behaviors. Primary controls: tool allow-lists, network restrictions, pinned dependencies.
 
 ## See also
 

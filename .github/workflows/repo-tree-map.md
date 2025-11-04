@@ -1,5 +1,7 @@
 ---
 on:
+  schedule:
+    - cron: "0 15 * * 1"  # Weekly on Mondays at 3 PM UTC
   workflow_dispatch:
 
 permissions:
