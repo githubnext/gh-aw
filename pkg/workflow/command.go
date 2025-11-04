@@ -3,17 +3,25 @@ package workflow
 import (
 	"fmt"
 	"slices"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var commandLog = logger.New("workflow:command")
 
 // buildEventAwareCommandCondition creates a condition that only applies command checks to comment-related events
 // commandEvents: list of event identifiers where command should be active (nil = all events)
 func buildEventAwareCommandCondition(commandName string, commandEvents []string, hasOtherEvents bool) ConditionNode {
+	commandLog.Printf("Building event-aware command condition: command=%s, event_count=%d, has_other_events=%t",
+		commandName, len(commandEvents), hasOtherEvents)
+
 	// Define the command condition using proper expression nodes
 	commandText := fmt.Sprintf("/%s", commandName)
 
 	// Get the filtered events where command should be active
 	filteredEvents := FilterCommentEvents(commandEvents)
 	eventNames := GetCommentEventNames(filteredEvents)
+	commandLog.Printf("Filtered command events: command=%s, filtered_count=%d", commandName, len(eventNames))
 
 	// Build command checks for different content sources based on filtered events
 	var commandChecks []ConditionNode
