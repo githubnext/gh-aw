@@ -43,7 +43,7 @@ You'll need a GitHub Personal Access Token with Copilot subscription.
 **Set the secret** in a separate terminal window (never share your secret directly with the agent):
 
 ```bash
-gh secret set COPILOT_CLI_TOKEN -a actions --body "your-github-pat-here"
+gh secret set COPILOT_GITHUB_TOKEN -a actions --body "your-github-pat-here"
 ```
 ````
 

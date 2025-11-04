@@ -9,58 +9,59 @@ import (
 
 // TestCreateIssueSubissueFeature tests that the create_issue.js script includes subissue functionality
 func TestCreateIssueSubissueFeature(t *testing.T) {
+	script := getCreateIssueScript()
 	// Test that the script contains the subissue detection logic
-	if !strings.Contains(createIssueScript, "context.payload?.issue?.number") {
+	if !strings.Contains(script, "context.payload?.issue?.number") {
 		t.Error("Expected create_issue.js to check for parent issue context")
 	}
 
 	// Test that the script modifies the body when in issue context
-	if !strings.Contains(createIssueScript, "Related to #${effectiveParentIssueNumber}") {
+	if !strings.Contains(script, "Related to #${effectiveParentIssueNumber}") {
 		t.Error("Expected create_issue.js to add parent issue reference to body")
 	}
 
 	// Test that the script supports explicit parent field
-	if !strings.Contains(createIssueScript, "createIssueItem.parent") {
+	if !strings.Contains(script, "createIssueItem.parent") {
 		t.Error("Expected create_issue.js to support explicit parent field")
 	}
 
 	// Test that the script uses effectiveParentIssueNumber
-	if !strings.Contains(createIssueScript, "effectiveParentIssueNumber") {
+	if !strings.Contains(script, "effectiveParentIssueNumber") {
 		t.Error("Expected create_issue.js to use effectiveParentIssueNumber variable")
 	}
 
 	// Test that the script includes GraphQL sub-issue linking
-	if !strings.Contains(createIssueScript, "addSubIssue") {
+	if !strings.Contains(script, "addSubIssue") {
 		t.Error("Expected create_issue.js to include addSubIssue GraphQL mutation")
 	}
 
 	// Test that the script calls github.graphql for sub-issue linking
-	if !strings.Contains(createIssueScript, "github.graphql(addSubIssueMutation") {
+	if !strings.Contains(script, "github.graphql(addSubIssueMutation") {
 		t.Error("Expected create_issue.js to call github.graphql for sub-issue linking")
 	}
 
 	// Test that the script fetches node IDs before linking
-	if !strings.Contains(createIssueScript, "getIssueNodeIdQuery") {
+	if !strings.Contains(script, "getIssueNodeIdQuery") {
 		t.Error("Expected create_issue.js to fetch issue node IDs before linking")
 	}
 
 	// Test that the script creates a comment on the parent issue
-	if !strings.Contains(createIssueScript, "github.rest.issues.createComment") {
+	if !strings.Contains(script, "github.rest.issues.createComment") {
 		t.Error("Expected create_issue.js to create comment on parent issue")
 	}
 
 	// Test that the script has proper error handling for sub-issue linking
-	if !strings.Contains(createIssueScript, "Warning: Could not link sub-issue to parent") {
+	if !strings.Contains(script, "Warning: Could not link sub-issue to parent") {
 		t.Error("Expected create_issue.js to have error handling for sub-issue linking")
 	}
 
 	// Test console logging for debugging
-	if !strings.Contains(createIssueScript, "Detected issue context, parent issue") {
+	if !strings.Contains(script, "Detected issue context, parent issue") {
 		t.Error("Expected create_issue.js to log when issue context is detected")
 	}
 
 	// Test that it logs successful sub-issue linking
-	if !strings.Contains(createIssueScript, "Successfully linked issue #") {
+	if !strings.Contains(script, "Successfully linked issue #") {
 		t.Error("Expected create_issue.js to log successful sub-issue linking")
 	}
 }

@@ -37,7 +37,7 @@ engine:
 
 #### Required Secrets
 
-- **`COPILOT_CLI_TOKEN`**: GitHub Personal Access Token (PAT) with "Copilot Requests" permission
+- **`COPILOT_GITHUB_TOKEN`**: GitHub Personal Access Token (PAT) with "Copilot Requests" permission
 - **`GH_AW_GITHUB_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#github-remote-mode)
 
 #### Authenticating with a Personal Access Token (PAT)
@@ -47,11 +47,15 @@ To use the Copilot engine, you need a fine-grained Personal Access Token with th
 1. Visit https://github.com/settings/personal-access-tokens/new
 2. Under "Permissions," click "add permissions" and select "Copilot Requests"
 3. Generate your token
-4. Add the token to your repository secrets as `COPILOT_CLI_TOKEN`:
+4. Add the token to your repository secrets as `COPILOT_GITHUB_TOKEN`:
 
 ```bash
-gh secret set COPILOT_CLI_TOKEN -a actions --body "<your-github-pat>"
+gh secret set COPILOT_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 ```
+
+:::note[Backward Compatibility]
+The legacy secret name `COPILOT_CLI_TOKEN` is still supported for backward compatibility, but `COPILOT_GITHUB_TOKEN` is now the recommended name.
+:::
 
 For GitHub Tools Remote Mode, also configure:
 ```bash

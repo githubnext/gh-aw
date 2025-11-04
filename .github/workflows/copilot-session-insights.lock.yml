@@ -190,7 +190,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GITHUB_TOKEN }}
         id: download-sessions
         name: List and download Copilot agent sessions
-        run: "# Create output directory\nmkdir -p /tmp/gh-aw/agent-sessions\nmkdir -p /tmp/gh-aw/agent-sessions/logs\n\n# Pre-flight validation checks\necho \"::group::Pre-flight Validation\"\n\n# Check if gh CLI is available\nif ! command -v gh &> /dev/null; then\n  echo \"::error::GitHub CLI (gh) is not installed or not in PATH\"\n  echo \"SESSIONS_AVAILABLE=false\" >> $GITHUB_OUTPUT\n  exit 1\nfi\necho \"✓ GitHub CLI found: $(gh --version | head -1)\"\n\n# Check if gh agent-task extension is installed\nif ! gh agent-task --help &> /dev/null; then\n  echo \"::warning::gh agent-task extension is not installed\"\n  echo \"::warning::To install: gh extension install github/agent-task\"\n  echo \"::warning::This workflow requires GitHub Enterprise Copilot access\"\n  echo \"SESSIONS_AVAILABLE=false\" >> $GITHUB_OUTPUT\n  exit 1\nfi\necho \"✓ gh agent-task extension found\"\n\n# Check authentication\nif [ -z \"$GH_TOKEN\" ]; then\n  echo \"::error::GH_TOKEN is not set\"\n  echo \"::warning::Configure GH_AW_COPILOT_TOKEN secret with a Personal Access Token\"\n  echo \"::warning::The default GITHUB_TOKEN does not have agent-task API access\"\n  echo \"SESSIONS_AVAILABLE=false\" >> $GITHUB_OUTPUT\n  exit 1\nfi\necho \"✓ GH_TOKEN is configured\"\n\necho \"::endgroup::\"\n\n# Attempt to fetch sessions\necho \"::group::Fetching Copilot Agent Sessions\"\necho \"Fetching Copilot agent task sessions...\"\n\n# List recent agent tasks (limit to 50 for manageable analysis)\nif ! gh agent-task list --limit 50 --json number,title,state,createdAt,sessionId > /tmp/gh-aw/agent-sessions/sessions-list.json 2>&1; then\n  echo \"::error::Failed to list agent tasks\"\n  echo \"::warning::This may indicate missing permissions or GitHub Enterprise Copilot is not enabled\"\n  echo \"SESSIONS_AVAILABLE=false\" >> $GITHUB_OUTPUT\n  exit 1\nfi\n\necho \"Sessions list saved to /tmp/gh-aw/agent-sessions/sessions-list.json\"\nTOTAL_SESSIONS=$(jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json)\necho \"Total sessions found: $TOTAL_SESSIONS\"\n\nif [ \"$TOTAL_SESSIONS\" -eq 0 ]; then\n  echo \"::warning::No sessions available for analysis\"\n  echo \"SESSIONS_AVAILABLE=false\" >> $GITHUB_OUTPUT\n  exit 0\nfi\n\n# Download logs for each session (limit to first 50)\necho \"Downloading session logs...\"\njq -r '.[] | .sessionId // .number' /tmp/gh-aw/agent-sessions/sessions-list.json | head -50 | while read -r session_id; do\n  if [ ! -z \"$session_id\" ]; then\n    echo \"Downloading session: $session_id\"\n    gh agent-task view \"$session_id\" --log > \"/tmp/gh-aw/agent-sessions/logs/${session_id}.log\" 2>&1 || true\n  fi\ndone\n\nLOG_COUNT=$(find /tmp/gh-aw/agent-sessions/logs/ -maxdepth 1 -type f 2>/dev/null | wc -l)\necho \"Session logs downloaded to /tmp/gh-aw/agent-sessions/logs/\"\necho \"Total log files: $LOG_COUNT\"\n\necho \"SESSIONS_AVAILABLE=true\" >> $GITHUB_OUTPUT\necho \"::endgroup::\"\n"
+        run: "# Create output directory\nmkdir -p /tmp/gh-aw/agent-sessions\nmkdir -p /tmp/gh-aw/agent-sessions/logs\n\n# Pre-flight validation checks\necho \"::group::Pre-flight Validation\"\n\n# Check if gh CLI is available\nif ! command -v gh &> /dev/null; then\n  echo \"::error::GitHub CLI (gh) is not installed or not in PATH\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ GitHub CLI found: $(gh --version | head -1)\"\n\n# Check if gh agent-task extension is installed\nif ! gh agent-task --help &> /dev/null; then\n  echo \"::warning::gh agent-task extension is not installed\"\n  echo \"::warning::To install: gh extension install github/agent-task\"\n  echo \"::warning::This workflow requires GitHub Enterprise Copilot access\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ gh agent-task extension found\"\n\n# Check authentication\nif [ -z \"$GH_TOKEN\" ]; then\n  echo \"::error::GH_TOKEN is not set\"\n  echo \"::warning::Configure GH_AW_COPILOT_TOKEN secret with a Personal Access Token\"\n  echo \"::warning::The default GITHUB_TOKEN does not have agent-task API access\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ GH_TOKEN is configured\"\n\necho \"::endgroup::\"\n\n# Attempt to fetch sessions\necho \"::group::Fetching Copilot Agent Sessions\"\necho \"Fetching Copilot agent task sessions...\"\n\n# List recent agent tasks (limit to 50 for manageable analysis)\nif ! gh agent-task list --limit 50 --json number,title,state,createdAt,sessionId > /tmp/gh-aw/agent-sessions/sessions-list.json 2>&1; then\n  echo \"::error::Failed to list agent tasks\"\n  echo \"::warning::This may indicate missing permissions or GitHub Enterprise Copilot is not enabled\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\n\necho \"Sessions list saved to /tmp/gh-aw/agent-sessions/sessions-list.json\"\nTOTAL_SESSIONS=$(jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json)\necho \"Total sessions found: $TOTAL_SESSIONS\"\n\nif [ \"$TOTAL_SESSIONS\" -eq 0 ]; then\n  echo \"::warning::No sessions available for analysis\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 0\nfi\n\n# Download logs for each session (limit to first 50)\necho \"Downloading session logs...\"\njq -r '.[] | .sessionId // .number' /tmp/gh-aw/agent-sessions/sessions-list.json | head -50 | while read -r session_id; do\n  if [ ! -z \"$session_id\" ]; then\n    echo \"Downloading session: $session_id\"\n    gh agent-task view \"$session_id\" --log > \"/tmp/gh-aw/agent-sessions/logs/${session_id}.log\" 2>&1 || true\n  fi\ndone\n\nLOG_COUNT=$(find /tmp/gh-aw/agent-sessions/logs/ -maxdepth 1 -type f 2>/dev/null | wc -l)\necho \"Session logs downloaded to /tmp/gh-aw/agent-sessions/logs/\"\necho \"Total log files: $LOG_COUNT\"\n\necho \"SESSIONS_AVAILABLE=true\" >> \"$GITHUB_OUTPUT\"\necho \"::endgroup::\"\n"
       - if: steps.download-sessions.outcome == 'failure'
         name: Create fallback session data
         run: "# Create empty session data to prevent downstream errors\nmkdir -p /tmp/gh-aw/agent-sessions/logs\necho '[]' > /tmp/gh-aw/agent-sessions/sessions-list.json\necho \"Created empty session data files for graceful degradation\"\n"
@@ -3168,22 +3168,57 @@ jobs:
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_ALLOWED_DOMAINS: "crl3.digicert.com,crl4.digicert.com,ocsp.digicert.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,crl.geotrust.com,ocsp.geotrust.com,crl.thawte.com,ocsp.thawte.com,crl.verisign.com,ocsp.verisign.com,crl.globalsign.com,ocsp.globalsign.com,crls.ssl.com,ocsp.ssl.com,crl.identrust.com,ocsp.identrust.com,crl.sectigo.com,ocsp.sectigo.com,crl.usertrust.com,ocsp.usertrust.com,s.symcb.com,s.symcd.com,json-schema.org,json.schemastore.org,archive.ubuntu.com,security.ubuntu.com,ppa.launchpad.net,keyserver.ubuntu.com,azure.archive.ubuntu.com,api.snapcraft.io,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,*.githubusercontent.com,raw.githubusercontent.com,objects.githubusercontent.com,lfs.github.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,codeload.github.com,pypi.python.org,pypi.org,pip.pypa.io,*.pythonhosted.org,files.pythonhosted.org,bootstrap.pypa.io,conda.binstar.org,conda.anaconda.org,binstar.org,anaconda.org,repo.continuum.io,repo.anaconda.com"
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_API_URL: ${{ github.api_url }}
         with:
           script: |
             async function main() {
               const fs = require("fs");
+            function extractDomainsFromUrl(url) {
+              if (!url || typeof url !== "string") {
+                return [];
+              }
+              try {
+                const urlObj = new URL(url);
+                const hostname = urlObj.hostname.toLowerCase();
+                const domains = [hostname];
+                if (hostname === "github.com") {
+                  domains.push("api.github.com");
+                  domains.push("raw.githubusercontent.com");
+                  domains.push("*.githubusercontent.com");
+                }
+                else if (!hostname.startsWith("api.")) {
+                  domains.push("api." + hostname);
+                  domains.push("raw." + hostname);
+                }
+                return domains;
+              } catch (e) {
+                return [];
+              }
+            }
             function sanitizeContent(content, maxLength) {
               if (!content || typeof content !== "string") {
                 return "";
               }
               const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
               const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-              const allowedDomains = allowedDomainsEnv
+              let allowedDomains = allowedDomainsEnv
                 ? allowedDomainsEnv
                     .split(",")
                     .map(d => d.trim())
                     .filter(d => d)
                 : defaultAllowedDomains;
+              const githubServerUrl = process.env.GITHUB_SERVER_URL;
+              const githubApiUrl = process.env.GITHUB_API_URL;
+              if (githubServerUrl) {
+                const serverDomains = extractDomainsFromUrl(githubServerUrl);
+                allowedDomains = allowedDomains.concat(serverDomains);
+              }
+              if (githubApiUrl) {
+                const apiDomains = extractDomainsFromUrl(githubApiUrl);
+                allowedDomains = allowedDomains.concat(apiDomains);
+              }
+              allowedDomains = [...new Set(allowedDomains)];
               let sanitized = content;
               sanitized = neutralizeCommands(sanitized);
               sanitized = neutralizeMentions(sanitized);

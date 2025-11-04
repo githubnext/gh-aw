@@ -42,9 +42,9 @@ steps:
     id: check_coverage_steps_file
     run: |
       if [ -f ".github/actions/daily-test-improver/coverage-steps/action.yml" ]; then
-        echo "exists=true" >> $GITHUB_OUTPUT
+        echo "exists=true" >> "$GITHUB_OUTPUT"
       else
-        echo "exists=false" >> $GITHUB_OUTPUT
+        echo "exists=false" >> "$GITHUB_OUTPUT"
       fi
     shell: bash
   - name: Build the project and produce coverage report, logging to coverage-steps.log

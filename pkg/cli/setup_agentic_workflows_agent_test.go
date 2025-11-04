@@ -134,7 +134,7 @@ func TestSetupAgenticWorkflowsAgentContainsRequiredSections(t *testing.T) {
 		"copilot",
 		"claude",
 		"codex",
-		"COPILOT_CLI_TOKEN",
+		"COPILOT_GITHUB_TOKEN",
 		"ANTHROPIC_API_KEY",
 		"OPENAI_API_KEY",
 		"/create-agentic-workflow",
