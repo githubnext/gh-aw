@@ -67,9 +67,6 @@ var parseCodexLogScript string
 //go:embed js/parse_copilot_log.cjs
 var parseCopilotLogScript string
 
-//go:embed js/parse_firewall_logs.cjs
-var parseFirewallLogsScript string
-
 //go:embed js/validate_errors.cjs
 var validateErrorsScript string
 
@@ -94,6 +91,9 @@ var notifyCommentErrorScript string
 //go:embed js/sanitize.cjs
 var sanitizeLibScript string
 
+//go:embed js/sanitize_workflow_name.cjs
+var sanitizeWorkflowNameScript string
+
 // Source scripts that may contain local requires
 //
 //go:embed js/collect_ndjson_output.cjs
@@ -105,6 +105,9 @@ var computeTextScriptSource string
 //go:embed js/sanitize_output.cjs
 var sanitizeOutputScriptSource string
 
+//go:embed js/parse_firewall_logs.cjs
+var parseFirewallLogsScriptSource string
+
 // Bundled scripts (lazily bundled on-demand and cached)
 var (
 	collectJSONLOutputScript     string
@@ -115,6 +118,9 @@ var (
 
 	sanitizeOutputScript     string
 	sanitizeOutputScriptOnce sync.Once
+
+	parseFirewallLogsScript     string
+	parseFirewallLogsScriptOnce sync.Once
 )
 
 // getCollectJSONLOutputScript returns the bundled collect_ndjson_output script
@@ -165,11 +171,28 @@ func getSanitizeOutputScript() string {
 	return sanitizeOutputScript
 }
 
+// getParseFirewallLogsScript returns the bundled parse_firewall_logs script
+// Bundling is performed on first access and cached for subsequent calls
+func getParseFirewallLogsScript() string {
+	parseFirewallLogsScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(parseFirewallLogsScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			parseFirewallLogsScript = parseFirewallLogsScriptSource
+		} else {
+			parseFirewallLogsScript = bundled
+		}
+	})
+	return parseFirewallLogsScript
+}
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
 	return map[string]string{
-		"sanitize.cjs": sanitizeLibScript,
+		"sanitize.cjs":              sanitizeLibScript,
+		"sanitize_workflow_name.cjs": sanitizeWorkflowNameScript,
 	}
 }
 
@@ -587,7 +610,7 @@ func GetLogParserScript(name string) string {
 	case "parse_copilot_log":
 		return parseCopilotLogScript
 	case "parse_firewall_logs":
-		return parseFirewallLogsScript
+		return getParseFirewallLogsScript()
 	case "validate_errors":
 		return validateErrorsScript
 	default:
