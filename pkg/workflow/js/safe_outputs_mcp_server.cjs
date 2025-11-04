@@ -468,12 +468,20 @@ function getCurrentBranch() {
 }
 
 /**
+ * Get the base branch name from environment variable
+ * @returns {string} The base branch name (defaults to "main")
+ */
+function getBaseBranch() {
+  return process.env.GH_AW_BASE_BRANCH || "main";
+}
+
+/**
  * Handler for create_pull_request tool
  * Resolves the current branch if branch is not provided or is the base branch
  */
 const createPullRequestHandler = args => {
   const entry = { ...args, type: "create_pull_request" };
-  const baseBranch = process.env.GH_AW_BASE_BRANCH || "main";
+  const baseBranch = getBaseBranch();
 
   // If branch is not provided, is empty, or equals the base branch, use the current branch from git
   // This handles cases where the agent incorrectly passes the base branch instead of the working branch
@@ -506,7 +514,7 @@ const createPullRequestHandler = args => {
  */
 const pushToPullRequestBranchHandler = args => {
   const entry = { ...args, type: "push_to_pull_request_branch" };
-  const baseBranch = process.env.GH_AW_BASE_BRANCH || "main";
+  const baseBranch = getBaseBranch();
 
   // If branch is not provided, is empty, or equals the base branch, use the current branch from git
   // This handles cases where the agent incorrectly passes the base branch instead of the working branch
