@@ -8,11 +8,11 @@ The documentation for this project is available in the `docs/` directory. It use
 
 ## Documentation Versioning
 
-The documentation supports versioning per minor release (0.27, 0.28, etc.) using the `starlight-versions` plugin. Versioning is configured lazily - versions are only created when a minor release is published.
+The documentation supports versioning per minor release (0.28, 0.29, etc.) using the `starlight-versions` plugin. Versioning is configured lazily - versions are only created when a minor release is published.
 
 **When creating a new minor release version:**
 
-1. **Check the current version** from the latest release tag (e.g., v0.27.x)
+1. **Check the current version** from the latest release tag (e.g., v0.28.x)
 2. **Uncomment and configure the starlight-versions plugin** in `docs/astro.config.mjs`:
    ```javascript
    import starlightVersions from 'starlight-versions';
@@ -24,7 +24,7 @@ The documentation supports versioning per minor release (0.27, 0.28, etc.) using
        redirect: 'same-page'
      },
      versions: [
-       { slug: '0.27', label: 'v0.27', redirect: 'same-page' }
+       { slug: '0.28', label: 'v0.28', redirect: 'same-page' }
      ]
    })
    ```
@@ -32,13 +32,13 @@ The documentation supports versioning per minor release (0.27, 0.28, etc.) using
    ```bash
    cd docs && npm run build
    ```
-4. **Commit the generated version directory** (e.g., `docs/src/content/docs/0.27/`)
+4. **Commit the generated version directory** (e.g., `docs/src/content/docs/0.28/`)
 5. **Make your changes** to the main documentation files (not the versioned copies)
 6. **Build and verify** that both the "Latest (Unreleased)" and versioned documentation render correctly
 
 **Version Structure:**
 - Main documentation in `docs/src/content/docs/` = "Latest (Unreleased)" version
-- Previous versions in `docs/src/content/docs/{version}/` (e.g., `0.27/`, `0.26/`)
+- Previous versions in `docs/src/content/docs/{version}/` (e.g., `0.28/`, `0.29/`)
 - The `starlight-versions` plugin automatically adds version slugs to frontmatter and generates version selectors
 
 **For subsequent releases:**
