@@ -6,8 +6,11 @@ import (
 	"sync"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
+
+var agenticEngineLog = logger.New("workflow:agentic_engine")
 
 // GitHubActionStep represents the YAML lines for a single step in a GitHub Actions workflow
 type GitHubActionStep []string
@@ -180,6 +183,8 @@ var (
 
 // NewEngineRegistry creates a new engine registry with built-in engines
 func NewEngineRegistry() *EngineRegistry {
+	agenticEngineLog.Print("Creating new engine registry")
+
 	registry := &EngineRegistry{
 		engines: make(map[string]CodingAgentEngine),
 	}
@@ -190,6 +195,7 @@ func NewEngineRegistry() *EngineRegistry {
 	registry.Register(NewCopilotEngine())
 	registry.Register(NewCustomEngine())
 
+	agenticEngineLog.Printf("Registered %d engines", len(registry.engines))
 	return registry
 }
 
@@ -203,15 +209,19 @@ func GetGlobalEngineRegistry() *EngineRegistry {
 
 // Register adds an engine to the registry
 func (r *EngineRegistry) Register(engine CodingAgentEngine) {
+	agenticEngineLog.Printf("Registering engine: id=%s, name=%s", engine.GetID(), engine.GetDisplayName())
 	r.engines[engine.GetID()] = engine
 }
 
 // GetEngine retrieves an engine by ID
 func (r *EngineRegistry) GetEngine(id string) (CodingAgentEngine, error) {
+	agenticEngineLog.Printf("Looking up engine: id=%s", id)
 	engine, exists := r.engines[id]
 	if !exists {
+		agenticEngineLog.Printf("Engine not found: id=%s", id)
 		return nil, fmt.Errorf("unknown engine: %s", id)
 	}
+	agenticEngineLog.Printf("Found engine: id=%s, name=%s", id, engine.GetDisplayName())
 	return engine, nil
 }
 
