@@ -27,7 +27,7 @@ func TestBundlerIntegration(t *testing.T) {
 		}
 
 		// Should not contain the require statement
-		if strings.Contains(script, `require("./sanitize.cjs")`) {
+		if strings.Contains(script, `require("./sanitize_content.cjs")`) {
 			t.Error("bundled script still contains require statement")
 		}
 
@@ -56,7 +56,7 @@ func TestBundlerIntegration(t *testing.T) {
 		}
 
 		// Should not contain the require statement
-		if strings.Contains(script, `require("./sanitize.cjs")`) {
+		if strings.Contains(script, `require("./sanitize_content.cjs")`) {
 			t.Error("bundled script still contains require statement")
 		}
 
@@ -85,7 +85,7 @@ func TestBundlerIntegration(t *testing.T) {
 		}
 
 		// Should not contain the require statement
-		if strings.Contains(script, `require("./sanitize.cjs")`) {
+		if strings.Contains(script, `require("./sanitize_content.cjs")`) {
 			t.Error("bundled script still contains require statement")
 		}
 
@@ -316,7 +316,7 @@ func TestSourceFilesAreSmaller(t *testing.T) {
 			}
 
 			// Source should contain require
-			if !strings.Contains(tt.source, `require("./sanitize.cjs")`) {
+			if !strings.Contains(tt.source, `require("./sanitize_content.cjs")`) {
 				t.Errorf("%s: source should contain require statement", tt.name)
 			}
 		})
@@ -327,20 +327,20 @@ func TestSourceFilesAreSmaller(t *testing.T) {
 func TestGetJavaScriptSources(t *testing.T) {
 	sources := GetJavaScriptSources()
 
-	// Should contain sanitize.cjs
-	sanitize, ok := sources["sanitize.cjs"]
+	// Should contain sanitize_content.cjs
+	sanitize, ok := sources["sanitize_content.cjs"]
 	if !ok {
-		t.Fatal("GetJavaScriptSources does not contain sanitize.cjs")
+		t.Fatal("GetJavaScriptSources does not contain sanitize_content.cjs")
 	}
 
 	// Should not be empty
 	if sanitize == "" {
-		t.Error("sanitize.cjs source is empty")
+		t.Error("sanitize_content.cjs source is empty")
 	}
 
 	// Should contain sanitizeContent function
 	if !strings.Contains(sanitize, "function sanitizeContent") {
-		t.Error("sanitize.cjs does not contain sanitizeContent function")
+		t.Error("sanitize_content.cjs does not contain sanitizeContent function")
 	}
 
 	// Should contain helper functions
@@ -354,7 +354,7 @@ func TestGetJavaScriptSources(t *testing.T) {
 
 	for _, helper := range helpers {
 		if !strings.Contains(sanitize, helper) {
-			t.Errorf("sanitize.cjs does not contain %s", helper)
+			t.Errorf("sanitize_content.cjs does not contain %s", helper)
 		}
 	}
 }

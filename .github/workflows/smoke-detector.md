@@ -1,18 +1,32 @@
 ---
-if: ${{ github.event.workflow_run.conclusion == 'failure' }}
 network: defaults
 on:
-  workflow_run:
-    types:
-    - completed
-    workflows:
-    - Smoke Claude
-    - Smoke Codex
-    - Smoke Copilot
-    - Smoke Copilot Firewall
-    - Smoke Opencode
-    branches:
-    - 'copilot/*'
+  workflow_call:
+    inputs:
+      workflow_name:
+        description: 'Name of the workflow that failed'
+        required: true
+        type: string
+      run_id:
+        description: 'ID of the workflow run that failed'
+        required: true
+        type: string
+      run_number:
+        description: 'Run number of the workflow run'
+        required: true
+        type: string
+      conclusion:
+        description: 'Conclusion of the workflow run (failure, success, etc.)'
+        required: true
+        type: string
+      html_url:
+        description: 'URL to the workflow run'
+        required: true
+        type: string
+      head_sha:
+        description: 'Commit SHA that triggered the workflow run'
+        required: true
+        type: string
   reaction: "eyes"
 permissions:
   contents: read
@@ -45,15 +59,17 @@ You are the Smoke Detector, an expert investigative agent that analyzes failed s
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Workflow Run**: ${{ github.event.workflow_run.id }}
-- **Conclusion**: ${{ github.event.workflow_run.conclusion }}
-- **Run URL**: ${{ github.event.workflow_run.html_url }}
-- **Head SHA**: ${{ github.event.workflow_run.head_sha }}
+- **Workflow Name**: ${{ inputs.workflow_name }}
+- **Workflow Run**: ${{ inputs.run_id }}
+- **Run Number**: ${{ inputs.run_number }}
+- **Conclusion**: ${{ inputs.conclusion }}
+- **Run URL**: ${{ inputs.html_url }}
+- **Head SHA**: ${{ inputs.head_sha }}
 
 ## Investigation Protocol
 
 ### Phase 1: Initial Triage
-1. **Use gh-aw_audit Tool**: Run `gh-aw_audit` with the workflow run ID `${{ github.event.workflow_run.id }}` to get comprehensive diagnostic information
+1. **Use gh-aw_audit Tool**: Run `gh-aw_audit` with the workflow run ID `${{ inputs.run_id }}` to get comprehensive diagnostic information
 2. **Analyze Audit Report**: Review the audit report for:
    - Failed jobs and their errors
    - Error patterns and classifications
@@ -153,7 +169,7 @@ You are the Smoke Detector, an expert investigative agent that analyzes failed s
    - Include up to 3 workflow run URLs as references at the end
    
 3. **Determine Output Location**:
-   - **First, check for associated pull request**: Use the GitHub API to search for pull requests associated with the branch from the failed workflow run (commit SHA: ${{ github.event.workflow_run.head_sha }})
+   - **First, check for associated pull request**: Use the GitHub API to search for pull requests associated with the branch from the failed workflow run (commit SHA: ${{ inputs.head_sha }})
    - **If a pull request is found**: Post the investigation report as a comment on that pull request using the `add_comment` tool
    - **If no pull request is found**: Create a new issue with the investigation results using the `create_issue` tool
    
@@ -166,8 +182,8 @@ You are the Smoke Detector, an expert investigative agent that analyzes failed s
 ### Finding Associated Pull Request
 
 To find a pull request associated with the failed workflow run:
-1. Use the GitHub search API to search for pull requests with the commit SHA: `${{ github.event.workflow_run.head_sha }}`
-2. Query: `repo:${{ github.repository }} is:pr ${{ github.event.workflow_run.head_sha }}`
+1. Use the GitHub search API to search for pull requests with the commit SHA: `${{ inputs.head_sha }}`
+2. Query: `repo:${{ github.repository }} is:pr ${{ inputs.head_sha }}`
 3. If a pull request is found, use its number for the `add_comment` tool
 4. If no pull request is found, proceed with creating an issue
 
@@ -183,12 +199,12 @@ Brief overview of the smoke test failure and key findings. This investigation an
 **Then wrap detailed content in `<details>` tags:**
 ```markdown
 <details>
-<summary><b>Full Investigation Report - Run #${{ github.event.workflow_run.run_number }}</b></summary>
+<summary><b>Full Investigation Report - Run #${{ inputs.run_number }}</b></summary>
 
 ## Failure Details
-- **Run**: [§${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
-- **Commit**: ${{ github.event.workflow_run.head_sha }}
-- **Trigger**: ${{ github.event.workflow_run.event }}
+- **Run**: [§${{ inputs.run_id }}](${{ inputs.html_url }})
+- **Commit**: ${{ inputs.head_sha }}
+- **Workflow**: ${{ inputs.workflow_name }}
 
 ## Root Cause Analysis
 [Detailed analysis of what went wrong]
@@ -213,7 +229,7 @@ Brief overview of the smoke test failure and key findings. This investigation an
 ---
 
 **References:**
-- [§${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
+- [§${{ inputs.run_id }}](${{ inputs.html_url }})
 ```
 
 ### Investigation Issue Template (for Issues)
@@ -228,12 +244,12 @@ Brief overview of the smoke test failure and key findings. This investigation an
 **Then wrap detailed content in `<details>` tags:**
 ```markdown
 <details>
-<summary><b>Full Investigation Report - Run #${{ github.event.workflow_run.run_number }}</b></summary>
+<summary><b>Full Investigation Report - Run #${{ inputs.run_number }}</b></summary>
 
 ## Failure Details
-- **Run**: [§${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
-- **Commit**: ${{ github.event.workflow_run.head_sha }}
-- **Trigger**: ${{ github.event.workflow_run.event }}
+- **Run**: [§${{ inputs.run_id }}](${{ inputs.html_url }})
+- **Commit**: ${{ inputs.head_sha }}
+- **Workflow**: ${{ inputs.workflow_name }}
 
 ## Root Cause Analysis
 [Detailed analysis of what went wrong]
@@ -258,7 +274,7 @@ Brief overview of the smoke test failure and key findings. This investigation an
 ---
 
 **References:**
-- [§${{ github.event.workflow_run.id }}](${{ github.event.workflow_run.html_url }})
+- [§${{ inputs.run_id }}](${{ inputs.html_url }})
 ```
 
 ## Important Guidelines

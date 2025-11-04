@@ -8,6 +8,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/goccy/go-yaml"
 )
 
 // This file contains job building functions extracted from compiler.go
@@ -751,19 +752,65 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 				}
 			}
 
-			// Add basic steps if specified
-			if steps, hasSteps := configMap["steps"]; hasSteps {
-				if stepsList, ok := steps.([]any); ok {
-					for _, step := range stepsList {
-						if stepMap, ok := step.(map[string]any); ok {
-							// Apply action pinning before converting to YAML
-							stepMap = ApplyActionPinToStep(stepMap, data)
+			// Extract permissions
+			if permissions, hasPermissions := configMap["permissions"]; hasPermissions {
+				if permsMap, ok := permissions.(map[string]any); ok {
+					// Use gopkg.in/yaml.v3 to marshal permissions
+					yamlBytes, err := yaml.Marshal(permsMap)
+					if err != nil {
+						return fmt.Errorf("failed to convert permissions to YAML for job '%s': %w", jobName, err)
+					}
+					// Indent the YAML properly for job-level permissions
+					permsYAML := string(yamlBytes)
+					lines := strings.Split(strings.TrimSpace(permsYAML), "\n")
+					var formattedPerms strings.Builder
+					formattedPerms.WriteString("permissions:\n")
+					for _, line := range lines {
+						formattedPerms.WriteString("      " + line + "\n")
+					}
+					job.Permissions = formattedPerms.String()
+				}
+			}
 
-							stepYAML, err := c.convertStepToYAML(stepMap)
-							if err != nil {
-								return fmt.Errorf("failed to convert step to YAML for job '%s': %w", jobName, err)
+			// Check if this is a reusable workflow call
+			if uses, hasUses := configMap["uses"]; hasUses {
+				if usesStr, ok := uses.(string); ok {
+					job.Uses = usesStr
+
+					// Extract with parameters for reusable workflow
+					if with, hasWith := configMap["with"]; hasWith {
+						if withMap, ok := with.(map[string]any); ok {
+							job.With = withMap
+						}
+					}
+
+					// Extract secrets for reusable workflow
+					if secrets, hasSecrets := configMap["secrets"]; hasSecrets {
+						if secretsMap, ok := secrets.(map[string]any); ok {
+							job.Secrets = make(map[string]string)
+							for key, val := range secretsMap {
+								if valStr, ok := val.(string); ok {
+									job.Secrets[key] = valStr
+								}
 							}
-							job.Steps = append(job.Steps, stepYAML)
+						}
+					}
+				}
+			} else {
+				// Add basic steps if specified (only for non-reusable workflow jobs)
+				if steps, hasSteps := configMap["steps"]; hasSteps {
+					if stepsList, ok := steps.([]any); ok {
+						for _, step := range stepsList {
+							if stepMap, ok := step.(map[string]any); ok {
+								// Apply action pinning before converting to YAML
+								stepMap = ApplyActionPinToStep(stepMap, data)
+
+								stepYAML, err := c.convertStepToYAML(stepMap)
+								if err != nil {
+									return fmt.Errorf("failed to convert step to YAML for job '%s': %w", jobName, err)
+								}
+								job.Steps = append(job.Steps, stepYAML)
+							}
 						}
 					}
 				}

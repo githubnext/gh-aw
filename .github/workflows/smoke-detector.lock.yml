@@ -17,7 +17,9 @@
 #   create_issue["create_issue"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
+#   pre_activation["pre_activation"]
 #   update_reaction["update_reaction"]
+#   pre_activation --> activation
 #   agent --> add_comment
 #   create_issue --> add_comment
 #   detection --> add_comment
@@ -52,17 +54,32 @@
 
 name: "Smoke Detector - Smoke Test Failure Investigator"
 "on":
-  workflow_run:
-    branches:
-    - copilot/*
-    types:
-    - completed
-    workflows:
-    - Smoke Claude
-    - Smoke Codex
-    - Smoke Copilot
-    - Smoke Copilot Firewall
-    - Smoke Opencode
+  workflow_call:
+    inputs:
+      conclusion:
+        description: Conclusion of the workflow run (failure, success, etc.)
+        required: true
+        type: string
+      head_sha:
+        description: Commit SHA that triggered the workflow run
+        required: true
+        type: string
+      html_url:
+        description: URL to the workflow run
+        required: true
+        type: string
+      run_id:
+        description: ID of the workflow run that failed
+        required: true
+        type: string
+      run_number:
+        description: Run number of the workflow run
+        required: true
+        type: string
+      workflow_name:
+        description: Name of the workflow that failed
+        required: true
+        type: string
 
 permissions:
   actions: read
@@ -77,8 +94,8 @@ run-name: "Smoke Detector - Smoke Test Failure Investigator"
 
 jobs:
   activation:
-    if: >
-      (github.event.workflow_run.conclusion == 'failure') && ((github.event_name != 'workflow_run') || (github.event.workflow_run.repository.id == github.repository_id))
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       discussions: write
@@ -1968,13 +1985,13 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_EXPR_FD224667: ${{ github.event.workflow_run.conclusion }}
-          GH_AW_EXPR_948C4FD8: ${{ github.event.workflow_run.event }}
-          GH_AW_EXPR_9A971DC4: ${{ github.event.workflow_run.head_sha }}
-          GH_AW_EXPR_D611C113: ${{ github.event.workflow_run.html_url }}
-          GH_AW_EXPR_3906A565: ${{ github.event.workflow_run.id }}
-          GH_AW_EXPR_20984929: ${{ github.event.workflow_run.run_number }}
           GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_2CBA5CE1: ${{ inputs.conclusion }}
+          GH_AW_EXPR_B4F8C8D5: ${{ inputs.head_sha }}
+          GH_AW_EXPR_475F31C3: ${{ inputs.html_url }}
+          GH_AW_EXPR_7172678D: ${{ inputs.run_id }}
+          GH_AW_EXPR_1CDB85B1: ${{ inputs.run_number }}
+          GH_AW_EXPR_5830D129: ${{ inputs.workflow_name }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
@@ -2059,15 +2076,17 @@ jobs:
           ## Current Context
           
           - **Repository**: ${GH_AW_EXPR_D892F163}
-          - **Workflow Run**: ${GH_AW_EXPR_3906A565}
-          - **Conclusion**: ${GH_AW_EXPR_FD224667}
-          - **Run URL**: ${GH_AW_EXPR_D611C113}
-          - **Head SHA**: ${GH_AW_EXPR_9A971DC4}
+          - **Workflow Name**: ${GH_AW_EXPR_5830D129}
+          - **Workflow Run**: ${GH_AW_EXPR_7172678D}
+          - **Run Number**: ${GH_AW_EXPR_1CDB85B1}
+          - **Conclusion**: ${GH_AW_EXPR_2CBA5CE1}
+          - **Run URL**: ${GH_AW_EXPR_475F31C3}
+          - **Head SHA**: ${GH_AW_EXPR_B4F8C8D5}
           
           ## Investigation Protocol
           
           ### Phase 1: Initial Triage
-          1. **Use gh-aw_audit Tool**: Run `gh-aw_audit` with the workflow run ID `${GH_AW_EXPR_3906A565}` to get comprehensive diagnostic information
+          1. **Use gh-aw_audit Tool**: Run `gh-aw_audit` with the workflow run ID `${GH_AW_EXPR_7172678D}` to get comprehensive diagnostic information
           2. **Analyze Audit Report**: Review the audit report for:
              - Failed jobs and their errors
              - Error patterns and classifications
@@ -2167,7 +2186,7 @@ jobs:
              - Include up to 3 workflow run URLs as references at the end
              
           3. **Determine Output Location**:
-             - **First, check for associated pull request**: Use the GitHub API to search for pull requests associated with the branch from the failed workflow run (commit SHA: ${GH_AW_EXPR_9A971DC4})
+             - **First, check for associated pull request**: Use the GitHub API to search for pull requests associated with the branch from the failed workflow run (commit SHA: ${GH_AW_EXPR_B4F8C8D5})
              - **If a pull request is found**: Post the investigation report as a comment on that pull request using the `add_comment` tool
              - **If no pull request is found**: Create a new issue with the investigation results using the `create_issue` tool
              
@@ -2180,8 +2199,8 @@ jobs:
           ### Finding Associated Pull Request
           
           To find a pull request associated with the failed workflow run:
-          1. Use the GitHub search API to search for pull requests with the commit SHA: `${GH_AW_EXPR_9A971DC4}`
-          2. Query: `repo:${GH_AW_EXPR_D892F163} is:pr ${GH_AW_EXPR_9A971DC4}`
+          1. Use the GitHub search API to search for pull requests with the commit SHA: `${GH_AW_EXPR_B4F8C8D5}`
+          2. Query: `repo:${GH_AW_EXPR_D892F163} is:pr ${GH_AW_EXPR_B4F8C8D5}`
           3. If a pull request is found, use its number for the `add_comment` tool
           4. If no pull request is found, proceed with creating an issue
           
@@ -2197,12 +2216,12 @@ jobs:
           **Then wrap detailed content in `<details>` tags:**
           ```markdown
           <details>
-          <summary><b>Full Investigation Report - Run #${GH_AW_EXPR_20984929}</b></summary>
+          <summary><b>Full Investigation Report - Run #${GH_AW_EXPR_1CDB85B1}</b></summary>
           
           ## Failure Details
-          - **Run**: [§${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
-          - **Commit**: ${GH_AW_EXPR_9A971DC4}
-          - **Trigger**: ${GH_AW_EXPR_948C4FD8}
+          - **Run**: [§${GH_AW_EXPR_7172678D}](${GH_AW_EXPR_475F31C3})
+          - **Commit**: ${GH_AW_EXPR_B4F8C8D5}
+          - **Workflow**: ${GH_AW_EXPR_5830D129}
           
           ## Root Cause Analysis
           [Detailed analysis of what went wrong]
@@ -2227,7 +2246,7 @@ jobs:
           ---
           
           **References:**
-          - [§${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
+          - [§${GH_AW_EXPR_7172678D}](${GH_AW_EXPR_475F31C3})
           ```
           
           ### Investigation Issue Template (for Issues)
@@ -2242,12 +2261,12 @@ jobs:
           **Then wrap detailed content in `<details>` tags:**
           ```markdown
           <details>
-          <summary><b>Full Investigation Report - Run #${GH_AW_EXPR_20984929}</b></summary>
+          <summary><b>Full Investigation Report - Run #${GH_AW_EXPR_1CDB85B1}</b></summary>
           
           ## Failure Details
-          - **Run**: [§${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
-          - **Commit**: ${GH_AW_EXPR_9A971DC4}
-          - **Trigger**: ${GH_AW_EXPR_948C4FD8}
+          - **Run**: [§${GH_AW_EXPR_7172678D}](${GH_AW_EXPR_475F31C3})
+          - **Commit**: ${GH_AW_EXPR_B4F8C8D5}
+          - **Workflow**: ${GH_AW_EXPR_5830D129}
           
           ## Root Cause Analysis
           [Detailed analysis of what went wrong]
@@ -2272,7 +2291,7 @@ jobs:
           ---
           
           **References:**
-          - [§${GH_AW_EXPR_3906A565}](${GH_AW_EXPR_D611C113})
+          - [§${GH_AW_EXPR_7172678D}](${GH_AW_EXPR_475F31C3})
           ```
           
           ## Important Guidelines
@@ -4991,6 +5010,86 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
+
+  pre_activation:
+    runs-on: ubuntu-slim
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          script: |
+            async function main() {
+              const { eventName } = context;
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
+              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+              if (eventName === "workflow_dispatch") {
+                const hasWriteRole = requiredPermissions.includes("write");
+                if (hasWriteRole) {
+                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
+                  core.setOutput("is_team_member", "true");
+                  core.setOutput("result", "safe_event");
+                  return;
+                }
+                core.info(`Event ${eventName} requires validation (write role not allowed)`);
+              }
+              const safeEvents = ["workflow_run", "schedule"];
+              if (safeEvents.includes(eventName)) {
+                core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
+                return;
+              }
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
+                return;
+              }
+              try {
+                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.info(`Repository permission level: ${permission}`);
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    core.setOutput("is_team_member", "true");
+                    core.setOutput("result", "authorized");
+                    core.setOutput("user_permission", permission);
+                    return;
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", permission);
+                core.setOutput(
+                  "error_message",
+                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+                );
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
+                return;
+              }
+            }
+            await main();
 
   update_reaction:
     needs:

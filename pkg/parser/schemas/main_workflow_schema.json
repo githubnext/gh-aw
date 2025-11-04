@@ -857,7 +857,51 @@
                 },
                 {
                   "type": "object",
-                  "additionalProperties": false
+                  "additionalProperties": false,
+                  "properties": {
+                    "inputs": {
+                      "type": "object",
+                      "description": "Input parameters that can be passed to the workflow when it is called",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "description": {
+                            "type": "string",
+                            "description": "Description of the input parameter"
+                          },
+                          "required": {
+                            "type": "boolean",
+                            "description": "Whether the input is required"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": ["string", "number", "boolean"],
+                            "description": "Type of the input parameter"
+                          },
+                          "default": {
+                            "description": "Default value for the input parameter"
+                          }
+                        }
+                      }
+                    },
+                    "secrets": {
+                      "type": "object",
+                      "description": "Secrets that can be passed to the workflow when it is called",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "description": {
+                            "type": "string",
+                            "description": "Description of the secret"
+                          },
+                          "required": {
+                            "type": "boolean",
+                            "description": "Whether the secret is required"
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               ]
             },
@@ -1128,6 +1172,34 @@
           },
           "concurrency": {
             "$ref": "#/properties/concurrency"
+          },
+          "uses": {
+            "type": "string",
+            "description": "Path to a reusable workflow file to call (e.g., ./.github/workflows/reusable-workflow.yml)"
+          },
+          "with": {
+            "type": "object",
+            "description": "Input parameters to pass to the reusable workflow",
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "secrets": {
+            "type": "object",
+            "description": "Secrets to pass to the reusable workflow",
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         }
       }
