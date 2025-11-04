@@ -274,7 +274,7 @@ First, verify if session data was successfully downloaded:
 ```bash
 # Check if sessions are available
 if [ -f "/tmp/gh-aw/agent-sessions/sessions-list.json" ]; then
-  SESSION_COUNT=$(jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json)
+  SESSION_COUNT="$(jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json)"
   echo "Found $SESSION_COUNT sessions"
 else
   echo "No session data available"

@@ -1104,7 +1104,7 @@ jobs:
           GH_AW_EXPR_D892F163: ${{ github.repository }}
           GH_AW_EXPR_2D1CC6E7: ${{ github.workspace }}
         run: |
-          PROMPT_DIR=$(dirname "$GH_AW_PROMPT")
+          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           ## Serena configuration
@@ -1537,7 +1537,7 @@ jobs:
       - name: Run Codex
         run: |
           set -o pipefail
-          INSTRUCTION=$(cat "$GH_AW_PROMPT")
+          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
           mkdir -p $CODEX_HOME/logs
           codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
@@ -3572,7 +3572,7 @@ jobs:
       - name: Run Codex
         run: |
           set -o pipefail
-          INSTRUCTION=$(cat "$GH_AW_PROMPT")
+          INSTRUCTION="$(cat "$GH_AW_PROMPT")"
           mkdir -p $CODEX_HOME/logs
           codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:

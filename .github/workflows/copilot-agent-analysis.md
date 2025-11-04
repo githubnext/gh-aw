@@ -101,7 +101,7 @@ Daily analysis of pull requests created by copilot-swe-agent in the last 24 hour
 You can use `jq` to process this data directly. For example:
 ```bash
 # Get PRs from the last 24 hours
-TODAY=$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')
+TODAY="$(date -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-24H '+%Y-%m-%dT%H:%M:%SZ')"
 jq --arg today "$TODAY" '[.[] | select(.createdAt >= $today)]' /tmp/gh-aw/pr-data/copilot-prs.json
 
 # Count total PRs
@@ -124,7 +124,7 @@ Use the GitHub tools with one of these strategies:
 1. **Use `gh search prs --author` (Recommended - used by this workflow)**:
    ```bash
    # Server-side filtering for both date and author (current workflow approach)
-   DATE=$(date -d '24 hours ago' '+%Y-%m-%d')
+   DATE="$(date -d '24 hours ago' '+%Y-%m-%d')"
    gh search prs --repo ${{ github.repository }} \
      --author "copilot" \
      --created ">=$DATE" \

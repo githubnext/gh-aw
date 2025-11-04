@@ -267,7 +267,7 @@ jobs:
           GH_AW_EXPR_E80C082D: ${{ github.actor }}
           GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
-          PROMPT_DIR=$(dirname "$GH_AW_PROMPT")
+          PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Firewall Test Agent
@@ -487,7 +487,7 @@ jobs:
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved Copilot logs to expected location
-          COPILOT_LOGS_DIR=$(ls -td /tmp/copilot-logs-* 2>/dev/null | head -1)
+          COPILOT_LOGS_DIR="$(ls -td /tmp/copilot-logs-* 2>/dev/null | head -1)"
           if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
             echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/.copilot/logs/"
             sudo mkdir -p /tmp/gh-aw/.copilot/logs/
@@ -1516,7 +1516,7 @@ jobs:
         if: always()
         run: |
           # Squid logs are preserved in timestamped directories
-          SQUID_LOGS_DIR=$(ls -td /tmp/squid-logs-* 2>/dev/null | head -1)
+          SQUID_LOGS_DIR="$(ls -td /tmp/squid-logs-* 2>/dev/null | head -1)"
           if [ -n "$SQUID_LOGS_DIR" ] && [ -d "$SQUID_LOGS_DIR" ]; then
             echo "Found Squid logs at: $SQUID_LOGS_DIR"
             mkdir -p /tmp/gh-aw/squid-logs-firewall-test-agent/

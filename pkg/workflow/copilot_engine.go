@@ -216,7 +216,7 @@ sudo -E awf --env-all \
   2>&1 | tee %s
 
 # Move preserved Copilot logs to expected location
-COPILOT_LOGS_DIR=$(ls -td /tmp/copilot-logs-* 2>/dev/null | head -1)
+COPILOT_LOGS_DIR="$(ls -td /tmp/copilot-logs-* 2>/dev/null | head -1)"
 if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   echo "Moving Copilot logs from $COPILOT_LOGS_DIR to %s"
   sudo mkdir -p %s
@@ -226,7 +226,7 @@ fi`, shellEscapeArg(allowedDomains), shellEscapeArg(awfLogLevel), shellEscapeCom
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail
-COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 %s%s 2>&1 | tee %s`, mkdirCommands.String(), copilotCommand, logFile)
 	}
 
@@ -900,7 +900,7 @@ func generateSquidLogsCollectionStep(workflowName string) GitHubActionStep {
 		"        if: always()",
 		"        run: |",
 		"          # Squid logs are preserved in timestamped directories",
-		"          SQUID_LOGS_DIR=$(ls -td /tmp/squid-logs-* 2>/dev/null | head -1)",
+		"          SQUID_LOGS_DIR=\"$(ls -td /tmp/squid-logs-* 2>/dev/null | head -1)\"",
 		"          if [ -n \"$SQUID_LOGS_DIR\" ] && [ -d \"$SQUID_LOGS_DIR\" ]; then",
 		"            echo \"Found Squid logs at: $SQUID_LOGS_DIR\"",
 		fmt.Sprintf("            mkdir -p %s", squidLogsDir),
