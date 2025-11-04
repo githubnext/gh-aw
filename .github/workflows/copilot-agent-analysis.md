@@ -61,7 +61,7 @@ steps:
       echo "Fetching Copilot PRs from the last 30 days..."
       gh search prs --repo ${{ github.repository }} \
         --author "copilot" \
-        --created ">=$DATE_30_DAYS_AGO" \
+        --created ">=${DATE_30_DAYS_AGO}" \
         --json number,title,state,createdAt,closedAt,author,body,labels,url,assignees,repository \
         --limit 1000 \
         > /tmp/gh-aw/pr-data/copilot-prs.json
@@ -127,7 +127,7 @@ Use the GitHub tools with one of these strategies:
    DATE="$(date -d '24 hours ago' '+%Y-%m-%d')"
    gh search prs --repo ${{ github.repository }} \
      --author "copilot" \
-     --created ">=$DATE" \
+     --created ">=${DATE}" \
      --limit 1000 \
      --json number,title,state,createdAt,closedAt,author
    ```
