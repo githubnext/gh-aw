@@ -4,6 +4,7 @@ import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
+import starlightVersions from 'starlight-versions';
 // import starlightChangelogs, { makeChangelogsSidebarLinks } from 'starlight-changelogs';
 
 // NOTE: A previous attempt defined a custom Shiki grammar for `aw` (agentic workflow) but
@@ -55,6 +56,19 @@ export default defineConfig({
 							label: 'GitHub CLI Documentation',
 							url: 'https://cli.github.com/manual/',
 							description: 'Documentation for the GitHub CLI tool'
+						}
+					]
+				}),
+				starlightVersions({
+					current: {
+						label: 'Latest (Unreleased)',
+						redirect: 'same-page'
+					},
+					versions: [
+						{
+							slug: '0.27',
+							label: 'v0.27',
+							redirect: 'same-page'
 						}
 					]
 				})

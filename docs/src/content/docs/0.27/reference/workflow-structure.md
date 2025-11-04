@@ -1,0 +1,72 @@
+---
+title: Workflow Structure
+description: Learn how agentic workflows are organized and structured within
+  your repository, including directory layout and file organization.
+sidebar:
+  order: 100
+slug: 0.27/reference/workflow-structure
+---
+
+This guide explains how agentic workflows are organized and structured within your repository.
+
+## Overview
+
+Each workflow consists of:
+
+1. **YAML Frontmatter**: Configuration options wrapped in `---`. See [Frontmatter](/gh-aw/0.27/reference/frontmatter/) for details.
+2. **Markdown**: Natural language instructions for the AI. See [Markdown](/gh-aw/0.27/reference/markdown/).
+
+For example:
+
+```aw wrap
+---
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+tools:
+  github:
+    toolset: [issues]
+---
+
+# Workflow Description
+
+Read the issue #${{ github.event.issue.number }}. Add a comment to the issue listing useful resources and links.
+```
+
+## File Organization
+
+Agentic workflows are stored in the `.github/workflows` folder as Markdown files (`*.md`)
+and they are compiled to GitHub Actions Workflows files (`*.lock.yml`)
+
+```
+.github/
+└── workflows/
+  ├── ci-doctor.md # Agentic Workflow
+  └── ci-doctor.lock.yml # Compiled GitHub Actions Workflow
+```
+
+When you run the `compile` command you generate the lock file.
+
+```sh
+gh aw compile
+```
+
+## Best Practices
+
+* Use descriptive names: `issue-responder.md`, `pr-reviewer.md`
+* Follow kebab-case convention: `weekly-summary.md`
+* Avoid spaces and special characters
+* **Commit source files**: Always commit `.md` files
+* **Commit generated files**: Also commit `.lock.yml` files for transparency
+
+## Related Documentation
+
+* [Frontmatter](/gh-aw/0.27/reference/frontmatter/) - Configuration options for workflows
+* [Markdown](/gh-aw/0.27/reference/markdown/) - The main markdown content of workflows
+* [Imports](/gh-aw/0.27/reference/imports/) - Modularizing workflows with includes
+* [CLI Commands](/gh-aw/0.27/tools/cli/) - CLI commands for workflow management
+* [MCPs](/gh-aw/0.27/guides/mcps/) - Model Context Protocol configuration
