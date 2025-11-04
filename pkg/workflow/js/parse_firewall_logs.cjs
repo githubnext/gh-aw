@@ -6,6 +6,8 @@
  * Firewall log format: timestamp client_ip:port domain dest_ip:port proto method status decision url user_agent
  */
 
+const { sanitizeWorkflowName } = require("./sanitize_workflow_name.cjs");
+
 function main() {
   const fs = require("fs");
   const path = require("path");
@@ -234,25 +236,12 @@ function generateFirewallSummary(analysis) {
   return summary;
 }
 
-/**
- * Sanitizes a workflow name for use in file paths
- * @param {string} name - Workflow name to sanitize
- * @returns {string} Sanitized name
- */
-function sanitizeWorkflowName(name) {
-  return name
-    .toLowerCase()
-    .replace(/[:\\/\s]/g, "-")
-    .replace(/[^a-z0-9._-]/g, "-");
-}
-
 // Export for testing
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     parseFirewallLogLine,
     isRequestAllowed,
     generateFirewallSummary,
-    sanitizeWorkflowName,
     main,
   };
 }
