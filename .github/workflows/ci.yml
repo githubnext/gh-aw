@@ -8,7 +8,7 @@ jobs:
     permissions:
       contents: read
     concurrency:
-      group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-test
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
       cancel-in-progress: true
     steps:
       - name: Checkout code
@@ -41,7 +41,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     concurrency:
-      group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-build-${{ matrix.os }}
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}-${{ matrix.os }}
       cancel-in-progress: true
     steps:
       - name: Checkout code
@@ -71,7 +71,7 @@ jobs:
     permissions:
       contents: read
     concurrency:
-      group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-js
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
       cancel-in-progress: true
     steps:
       - name: Checkout code
@@ -92,7 +92,7 @@ jobs:
     permissions:
       contents: read
     concurrency:
-      group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-lint
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
       cancel-in-progress: true
     steps:
       - name: Checkout code
