@@ -4275,8 +4275,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Output Discussion
         id: create_discussion
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -4753,8 +4753,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -4912,8 +4912,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Upload Assets to Orphaned Branch
         id: upload_assets
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd

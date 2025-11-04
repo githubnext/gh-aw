@@ -757,8 +757,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Add Issue Comment
         id: add_comment
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -1143,8 +1143,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Add Labels
         id: add_labels
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -4883,10 +4883,10 @@ jobs:
           if [ -n "$BRANCH_NAME" ]; then
             echo "Looking for branch: $BRANCH_NAME"
             # Check if the branch exists
-            if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
+            if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
               echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
               # Check if origin/$BRANCH_NAME exists to use as base
-              if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
+              if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
                 echo "Using origin/$BRANCH_NAME as base for patch generation"
                 BASE_REF="origin/$BRANCH_NAME"
               else
@@ -4894,9 +4894,9 @@ jobs:
                 # Use the default branch name from environment variable
                 echo "Default branch: $DEFAULT_BRANCH"
                 # Fetch the default branch to ensure it's available locally
-                git fetch origin $DEFAULT_BRANCH
+                git fetch origin "$DEFAULT_BRANCH"
                 # Find merge base between default branch and current branch
-                BASE_REF="$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)"
+                BASE_REF="$(git merge-base "origin/$DEFAULT_BRANCH" "$BRANCH_NAME")"
                 echo "Using merge-base as base: $BASE_REF"
               fi
               # Diagnostic logging: Show diff stats before generating patch
@@ -4985,8 +4985,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Output Issue
         id: create_issue
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -5303,8 +5303,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create PR Review Comment
         id: create_pr_review_comment
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -5636,8 +5636,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Create Pull Request
         id: create_pull_request
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -6351,8 +6351,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -6648,8 +6648,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Push to Branch
         id: push_to_pull_request_branch
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -6990,8 +6990,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Update Issue
         id: update_issue
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -7224,8 +7224,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Update reaction comment with completion status
         id: update_reaction
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -7372,8 +7372,8 @@ jobs:
       - name: Setup agent output environment variable
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs/
-          find /tmp/gh-aw/safeoutputs/ -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> $GITHUB_ENV
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Upload Assets to Orphaned Branch
         id: upload_assets
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
