@@ -1690,7 +1690,7 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
-        timeout-minutes: 15
+        timeout-minutes: 45
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file

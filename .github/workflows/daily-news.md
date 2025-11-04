@@ -14,6 +14,8 @@ permissions:
 
 engine: copilot
 
+timeout_minutes: 45
+
 network:
   firewall: true
 

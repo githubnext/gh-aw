@@ -9,6 +9,9 @@ permissions:
   pull-requests: read
   discussions: read
 engine: copilot
+
+timeout_minutes: 45
+
 network:
   firewall: true
 tools:
