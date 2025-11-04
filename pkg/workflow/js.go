@@ -82,8 +82,8 @@ var redactSecretsScript string
 //go:embed js/notify_comment_error.cjs
 var notifyCommentErrorScript string
 
-//go:embed js/sanitize.cjs
-var sanitizeLibScript string
+//go:embed js/sanitize_content.cjs
+var sanitizeContentScript string
 
 //go:embed js/sanitize_label_content.cjs
 var sanitizeLabelContentScript string
@@ -232,7 +232,7 @@ func getParseFirewallLogsScript() string {
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
 	return map[string]string{
-		"sanitize.cjs":               sanitizeLibScript,
+		"sanitize_content.cjs":       sanitizeContentScript,
 		"sanitize_label_content.cjs": sanitizeLabelContentScript,
 		"sanitize_workflow_name.cjs": sanitizeWorkflowNameScript,
 	}

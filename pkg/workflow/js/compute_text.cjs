@@ -6,7 +6,7 @@
  * @param {string} content - The content to sanitize
  * @returns {string} The sanitized content
  */
-const { sanitizeContent } = require("./sanitize.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 async function main() {
   let text = "";
