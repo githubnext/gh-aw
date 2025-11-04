@@ -78,7 +78,7 @@ name: "Smoke Detector - Smoke Test Failure Investigator"
 permissions:
   actions: read
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 
 concurrency:
@@ -563,7 +563,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-      issues: write
+      issues: read
       pull-requests: read
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"

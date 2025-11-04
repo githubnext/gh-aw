@@ -26,7 +26,6 @@ jobs:
     uses: ./.github/workflows/smoke-detector.lock.yml
     permissions:
       contents: read
-      issues: write
       pull-requests: read
       actions: read
     with:
