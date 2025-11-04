@@ -99,11 +99,13 @@ gh aw init --mcp  # Configure GitHub Copilot Agent MCP integration
 - Creates `.vscode/mcp.json` with gh-aw MCP server configuration
 - Enables the gh-aw MCP server in GitHub Copilot Agent, providing tools like `status`, `compile`, `logs`, and `audit`
 
-After initialization, start a chat with an AI agent and reference the custom agent to create a new workflow:
+After initialization, start a chat with an AI agent and use the custom agent to create a new workflow:
 
 ```
-@.github/agents/create-agentic-workflow.md
+/agent
 ```
+
+Then select `create-agentic-workflow` from the list of available custom agents.
 
 Alternatively, add pre-built workflows from the catalog using `gh aw add <workflow-name>`.
 
