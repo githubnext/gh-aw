@@ -106,3 +106,4 @@ This means:
 - `pkg/parser/schema_test.go` - General schema validation tests
 - `pkg/parser/schema_additional_properties_test.go` - Tests for additionalProperties validation
 - `pkg/parser/frontmatter.go` - Frontmatter parsing logic
+
