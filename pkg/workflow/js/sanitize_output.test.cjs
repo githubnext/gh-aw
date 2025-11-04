@@ -198,7 +198,7 @@ describe("sanitize_output.cjs", () => {
       const originalApiUrl = process.env.GITHUB_API_URL;
       delete process.env.GITHUB_SERVER_URL;
       delete process.env.GITHUB_API_URL;
-      
+
       process.env.GH_AW_ALLOWED_DOMAINS = "example.com,trusted.org";
 
       // Re-run the script setup to pick up env variable
@@ -212,7 +212,7 @@ describe("sanitize_output.cjs", () => {
       expect(result).toContain("https://trusted.org/file");
       expect(result).toContain("(redacted)"); // github.com now blocked
       expect(result).not.toContain("https://github.com/repo");
-      
+
       // Restore GitHub environment variables
       if (originalServerUrl) process.env.GITHUB_SERVER_URL = originalServerUrl;
       if (originalApiUrl) process.env.GITHUB_API_URL = originalApiUrl;
@@ -229,20 +229,21 @@ describe("sanitize_output.cjs", () => {
       eval(scriptWithExport);
       const customSanitize = global.testSanitizeContent;
 
-      const input = "Links: https://custom.com/page https://github.example.com/repo https://api.github.example.com/v1 https://blocked.com/page";
+      const input =
+        "Links: https://custom.com/page https://github.example.com/repo https://api.github.example.com/v1 https://blocked.com/page";
       const result = customSanitize(input);
-      
+
       // Should allow custom domain
       expect(result).toContain("https://custom.com/page");
-      
+
       // Should allow GitHub domains from environment
       expect(result).toContain("https://github.example.com/repo");
       expect(result).toContain("https://api.github.example.com/v1");
-      
+
       // Should block unknown domain
       expect(result).toContain("(redacted)");
       expect(result).not.toContain("https://blocked.com/page");
-      
+
       // Clean up
       delete process.env.GITHUB_SERVER_URL;
       delete process.env.GITHUB_API_URL;
@@ -330,7 +331,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const originalApiUrl = process.env.GITHUB_API_URL;
       delete process.env.GITHUB_SERVER_URL;
       delete process.env.GITHUB_API_URL;
-      
+
       process.env.GH_AW_ALLOWED_DOMAINS = "  ,  ,  ";
 
       const scriptWithExport = sanitizeScript.replace("await main();", "global.testSanitizeContent = sanitizeContent;");
@@ -342,7 +343,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       // With empty allowedDomains array, all HTTPS URLs get blocked
       expect(result).toContain("(redacted)");
       expect(result).not.toContain("https://github.com/repo");
-      
+
       // Restore GitHub environment variables
       if (originalServerUrl) process.env.GITHUB_SERVER_URL = originalServerUrl;
       if (originalApiUrl) process.env.GITHUB_API_URL = originalApiUrl;

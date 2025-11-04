@@ -1935,7 +1935,7 @@ Line 3"}
       const originalApiUrl = process.env.GITHUB_API_URL;
       delete process.env.GITHUB_SERVER_URL;
       delete process.env.GITHUB_API_URL;
-      
+
       // Set custom allowed domains
       process.env.GH_AW_ALLOWED_DOMAINS = "example.com,test.org";
 
@@ -1960,7 +1960,7 @@ Line 3"}
 
       // Clean up
       delete process.env.GH_AW_ALLOWED_DOMAINS;
-      
+
       // Restore GitHub environment variables
       if (originalServerUrl) process.env.GITHUB_SERVER_URL = originalServerUrl;
       if (originalApiUrl) process.env.GITHUB_API_URL = originalApiUrl;
