@@ -137,6 +137,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	hasSafeOutputs := false
 	hasPlaywright := false
 	var playwrightAllowedDomainsSecrets map[string]string
+	var customMCPToolSecrets map[string]string
 	// Note: hasAgenticWorkflows is already declared earlier in this function
 
 	for _, toolName := range mcpTools {
@@ -165,6 +166,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 	}
 
+	// Extract expressions from all custom MCP tool args
+	customMCPToolSecrets = extractExpressionsFromMCPToolArgs(tools, mcpTools)
+	if len(customMCPToolSecrets) > 0 {
+		needsEnvBlock = true
+	}
+
 	if needsEnvBlock {
 		yaml.WriteString("        env:\n")
 
@@ -183,11 +190,14 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			yaml.WriteString("          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}\n")
 			yaml.WriteString("          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}\n")
 			yaml.WriteString("          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}\n")
+			// Add additional context variables for safe-outputs
+			yaml.WriteString("          GITHUB_REPOSITORY: ${{ github.repository }}\n")
+			yaml.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
 		}
 
 		// Add GITHUB_TOKEN for agentic-workflows if present
 		if hasAgenticWorkflows {
-			yaml.WriteString("          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
+			yaml.WriteString("          GH_AW_GITHUB_TOKEN_FOR_AGENTIC_WORKFLOWS: ${{ secrets.GITHUB_TOKEN }}\n")
 		}
 
 		// Add Playwright expression environment variables if present
@@ -201,6 +211,21 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 			for _, envVarName := range envVarNames {
 				originalExpr := playwrightAllowedDomainsSecrets[envVarName]
+				yaml.WriteString(fmt.Sprintf("          %s: %s\n", envVarName, originalExpr))
+			}
+		}
+
+		// Add custom MCP tool expression environment variables if present
+		if len(customMCPToolSecrets) > 0 {
+			// Sort env var names for consistent output
+			envVarNames := make([]string, 0, len(customMCPToolSecrets))
+			for envVarName := range customMCPToolSecrets {
+				envVarNames = append(envVarNames, envVarName)
+			}
+			sort.Strings(envVarNames)
+
+			for _, envVarName := range envVarNames {
+				originalExpr := customMCPToolSecrets[envVarName]
 				yaml.WriteString(fmt.Sprintf("          %s: %s\n", envVarName, originalExpr))
 			}
 		}
@@ -433,4 +458,59 @@ func replaceExpressionsInPlaywrightArgs(args []string, expressions map[string]st
 
 	// Split back into individual arguments
 	return strings.Split(replaced, "\n")
+}
+
+// extractExpressionsFromMCPToolArgs extracts all GitHub Actions expressions from MCP tool args
+// Returns a map of environment variable names to their original expressions
+func extractExpressionsFromMCPToolArgs(tools map[string]any, mcpTools []string) map[string]string {
+	result := make(map[string]string)
+
+	for _, toolName := range mcpTools {
+		// Skip standard tools that are handled separately
+		if toolName == "github" || toolName == "playwright" || toolName == "safe-outputs" || toolName == "agentic-workflows" || toolName == "cache-memory" {
+			continue
+		}
+
+		// Get tool config
+		toolValue, ok := tools[toolName]
+		if !ok {
+			continue
+		}
+
+		toolConfig, ok := toolValue.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		// Check if it's an MCP tool
+		hasMcp, _ := hasMCPConfig(toolConfig)
+		if !hasMcp {
+			continue
+		}
+
+		// Extract args from the tool config
+		mcpConfig, err := getMCPConfig(toolConfig, toolName)
+		if err != nil {
+			continue
+		}
+
+		if len(mcpConfig.Args) == 0 {
+			continue
+		}
+
+		// Use ExpressionExtractor to find all expressions in args
+		combined := strings.Join(mcpConfig.Args, "\n")
+		extractor := NewExpressionExtractor()
+		mappings, err := extractor.ExtractExpressions(combined)
+		if err != nil {
+			continue
+		}
+
+		// Add to result map
+		for _, mapping := range mappings {
+			result[mapping.EnvVar] = mapping.Original
+		}
+	}
+
+	return result
 }

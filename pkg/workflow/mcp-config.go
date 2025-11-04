@@ -222,7 +222,7 @@ func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          args = [\n")
 	yaml.WriteString("            \"/tmp/gh-aw/safeoutputs/mcp-server.cjs\",\n")
 	yaml.WriteString("          ]\n")
-	yaml.WriteString("          env = { \"GH_AW_SAFE_OUTPUTS\" = \"${{ env.GH_AW_SAFE_OUTPUTS }}\", \"GH_AW_ASSETS_BRANCH\" = \"${{ env.GH_AW_ASSETS_BRANCH }}\", \"GH_AW_ASSETS_MAX_SIZE_KB\" = \"${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}\", \"GH_AW_ASSETS_ALLOWED_EXTS\" = \"${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}\", \"GITHUB_REPOSITORY\" = \"${{ github.repository }}\", \"GITHUB_SERVER_URL\" = \"${{ github.server_url }}\" }\n")
+	yaml.WriteString("          env = { \"GH_AW_SAFE_OUTPUTS\" = \"${GH_AW_SAFE_OUTPUTS}\", \"GH_AW_ASSETS_BRANCH\" = \"${GH_AW_ASSETS_BRANCH}\", \"GH_AW_ASSETS_MAX_SIZE_KB\" = \"${GH_AW_ASSETS_MAX_SIZE_KB}\", \"GH_AW_ASSETS_ALLOWED_EXTS\" = \"${GH_AW_ASSETS_ALLOWED_EXTS}\", \"GITHUB_REPOSITORY\" = \"${GITHUB_REPOSITORY}\", \"GITHUB_SERVER_URL\" = \"${GITHUB_SERVER_URL}\" }\n")
 }
 
 // renderAgenticWorkflowsMCPConfigTOML generates the Agentic Workflows MCP server configuration in TOML format for Codex
@@ -234,7 +234,7 @@ func renderAgenticWorkflowsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("            \"aw\",\n")
 	yaml.WriteString("            \"mcp-server\",\n")
 	yaml.WriteString("          ]\n")
-	yaml.WriteString("          env = { \"GITHUB_TOKEN\" = \"${{ secrets.GITHUB_TOKEN }}\" }\n")
+	yaml.WriteString("          env = { \"GITHUB_TOKEN\" = \"${GH_AW_GITHUB_TOKEN_FOR_AGENTIC_WORKFLOWS}\" }\n")
 }
 
 // renderCustomMCPConfigWrapper generates custom MCP server configuration wrapper
@@ -428,9 +428,25 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				fmt.Fprintf(yaml, "%s\"command\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Command, comma)
 			}
 		case "args":
+			// Extract and replace any GitHub Actions expressions in args
+			processedArgs := mcpConfig.Args
+			if len(processedArgs) > 0 {
+				// Check if any args contain GitHub Actions expressions
+				combined := strings.Join(processedArgs, "\n")
+				if strings.Contains(combined, "${{") {
+					// Extract expressions and replace with environment variable references
+					extractor := NewExpressionExtractor()
+					_, err := extractor.ExtractExpressions(combined)
+					if err == nil {
+						replaced := extractor.ReplaceExpressionsWithEnvVars(combined)
+						processedArgs = strings.Split(replaced, "\n")
+					}
+				}
+			}
+
 			if renderer.Format == "toml" {
 				fmt.Fprintf(yaml, "%sargs = [\n", renderer.IndentLevel)
-				for _, arg := range mcpConfig.Args {
+				for _, arg := range processedArgs {
 					fmt.Fprintf(yaml, "%s  \"%s\",\n", renderer.IndentLevel, arg)
 				}
 				fmt.Fprintf(yaml, "%s]\n", renderer.IndentLevel)
@@ -440,9 +456,9 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 					comma = ""
 				}
 				fmt.Fprintf(yaml, "%s\"args\": [\n", renderer.IndentLevel)
-				for argIndex, arg := range mcpConfig.Args {
+				for argIndex, arg := range processedArgs {
 					argComma := ","
-					if argIndex == len(mcpConfig.Args)-1 {
+					if argIndex == len(processedArgs)-1 {
 						argComma = ""
 					}
 					fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, arg, argComma)
