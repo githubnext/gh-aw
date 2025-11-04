@@ -6,11 +6,11 @@ import (
 
 func TestParseTrigger_SimpleString(t *testing.T) {
 	tests := []struct {
-		name        string
-		onValue     any
-		wantSimple  string
-		wantEvents  map[string]bool
-		wantErr     bool
+		name       string
+		onValue    any
+		wantSimple string
+		wantEvents map[string]bool
+		wantErr    bool
 	}{
 		{
 			name:       "push trigger",
@@ -181,12 +181,12 @@ func TestParseTrigger_ComplexEvents(t *testing.T) {
 
 func TestParseTrigger_CommandTrigger(t *testing.T) {
 	tests := []struct {
-		name           string
-		onValue        any
-		wantCommand    bool
+		name            string
+		onValue         any
+		wantCommand     bool
 		wantCommandName string
-		wantEvents     []string
-		wantErr        bool
+		wantEvents      []string
+		wantErr         bool
 	}{
 		{
 			name: "simple command trigger",
@@ -195,10 +195,10 @@ func TestParseTrigger_CommandTrigger(t *testing.T) {
 					"name": "bot",
 				},
 			},
-			wantCommand:    true,
+			wantCommand:     true,
 			wantCommandName: "bot",
-			wantEvents:     nil,
-			wantErr:        false,
+			wantEvents:      nil,
+			wantErr:         false,
 		},
 		{
 			name: "command with events",
@@ -208,20 +208,20 @@ func TestParseTrigger_CommandTrigger(t *testing.T) {
 					"events": []any{"issues", "issue_comment"},
 				},
 			},
-			wantCommand:    true,
+			wantCommand:     true,
 			wantCommandName: "helper",
-			wantEvents:     []string{"issues", "issue_comment"},
-			wantErr:        false,
+			wantEvents:      []string{"issues", "issue_comment"},
+			wantErr:         false,
 		},
 		{
 			name: "command as string",
 			onValue: map[string]any{
 				"command": "mybot",
 			},
-			wantCommand:    true,
+			wantCommand:     true,
 			wantCommandName: "mybot",
-			wantEvents:     nil,
-			wantErr:        false,
+			wantEvents:      nil,
+			wantErr:         false,
 		},
 		{
 			name: "command with other events",
@@ -231,10 +231,10 @@ func TestParseTrigger_CommandTrigger(t *testing.T) {
 				},
 				"workflow_dispatch": nil,
 			},
-			wantCommand:    true,
+			wantCommand:     true,
 			wantCommandName: "review",
-			wantEvents:     nil,
-			wantErr:        false,
+			wantEvents:      nil,
+			wantErr:         false,
 		},
 	}
 
@@ -273,11 +273,11 @@ func TestParseTrigger_CommandTrigger(t *testing.T) {
 
 func TestParseTrigger_ReactionAndStopAfter(t *testing.T) {
 	tests := []struct {
-		name         string
-		onValue      any
-		wantReaction string
+		name          string
+		onValue       any
+		wantReaction  string
 		wantStopAfter string
-		wantErr      bool
+		wantErr       bool
 	}{
 		{
 			name: "with reaction",
