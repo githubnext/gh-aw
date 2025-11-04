@@ -1420,6 +1420,17 @@ jobs:
               };
             };
             function getCurrentBranch() {
+              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
+              try {
+                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+                  encoding: "utf8",
+                  cwd: cwd,
+                }).trim();
+                debug(`Resolved current branch from git in ${cwd}: ${branch}`);
+                return branch;
+              } catch (error) {
+                debug(`Failed to get branch from git: ${error instanceof Error ? error.message : String(error)}`);
+              }
               const ghHeadRef = process.env.GITHUB_HEAD_REF;
               const ghRefName = process.env.GITHUB_REF_NAME;
               if (ghHeadRef) {
@@ -1430,23 +1441,19 @@ jobs:
                 debug(`Resolved current branch from GITHUB_REF_NAME: ${ghRefName}`);
                 return ghRefName;
               }
-              const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
-              try {
-                const branch = execSync("git rev-parse --abbrev-ref HEAD", {
-                  encoding: "utf8",
-                  cwd: cwd,
-                }).trim();
-                debug(`Resolved current branch from git in ${cwd}: ${branch}`);
-                return branch;
-              } catch (error) {
-                throw new Error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`);
-              }
+              throw new Error("Failed to determine current branch: git command failed and no GitHub environment variables available");
             }
             const createPullRequestHandler = args => {
               const entry = { ...args, type: "create_pull_request" };
-              if (!entry.branch || entry.branch.trim() === "") {
-                entry.branch = getCurrentBranch();
-                debug(`Using current branch for create_pull_request: ${entry.branch}`);
+              const baseBranch = process.env.GH_AW_BASE_BRANCH || "main";
+              if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
+                const detectedBranch = getCurrentBranch();
+                if (entry.branch === baseBranch) {
+                  debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
+                } else {
+                  debug(`Using current branch for create_pull_request: ${detectedBranch}`);
+                }
+                entry.branch = detectedBranch;
               }
               appendSafeOutput(entry);
               return {
@@ -1460,9 +1467,15 @@ jobs:
             };
             const pushToPullRequestBranchHandler = args => {
               const entry = { ...args, type: "push_to_pull_request_branch" };
-              if (!entry.branch || entry.branch.trim() === "") {
-                entry.branch = getCurrentBranch();
-                debug(`Using current branch for push_to_pull_request_branch: ${entry.branch}`);
+              const baseBranch = process.env.GH_AW_BASE_BRANCH || "main";
+              if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
+                const detectedBranch = getCurrentBranch();
+                if (entry.branch === baseBranch) {
+                  debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
+                } else {
+                  debug(`Using current branch for push_to_pull_request_branch: ${detectedBranch}`);
+                }
+                entry.branch = detectedBranch;
               }
               appendSafeOutput(entry);
               return {
@@ -2084,7 +2097,18 @@ jobs:
           - Critical warnings or notes
           - Frontmatter metadata
           
-          ### 7. Update Cache Memory
+          ### 7. Create a Branch for Your Changes
+          
+          Before making changes, create a new branch with a descriptive name:
+          ```bash
+          git checkout -b docs/unbloat-<filename-without-extension>
+          ```
+          
+          For example, if you're cleaning `validation-timing.md`, create branch `docs/unbloat-validation-timing`.
+          
+          **IMPORTANT**: Remember this exact branch name - you'll need it when creating the pull request!
+          
+          ### 8. Update Cache Memory
           
           After improving the file, update the cache memory to track the cleanup:
           ```bash
@@ -2093,7 +2117,7 @@ jobs:
           
           This helps future runs avoid re-cleaning the same files.
           
-          ### 8. Take Screenshots of Modified Documentation
+          ### 9. Take Screenshots of Modified Documentation
           
           After making changes to a documentation file, take screenshots of the rendered page in the Astro Starlight website:
           
@@ -2132,7 +2156,7 @@ jobs:
           2. Include this information in the PR description under a "Blocked Domains" section
           3. Example format: "Blocked: fonts.googleapis.com (fonts), cdn.example.com (CSS)"
           
-          ### 9. Create Pull Request
+          ### 10. Create Pull Request
           
           After improving ONE file:
           1. Verify your changes preserve all essential information
@@ -2140,6 +2164,8 @@ jobs:
           3. Take HD screenshots (1920x1080 viewport) of the modified documentation page(s)
           4. Upload the screenshots and collect the URLs
           5. Create a pull request with your improvements
+             - **IMPORTANT**: When calling the create_pull_request tool, do NOT pass a "branch" parameter - let it auto-detect the current branch you created
+             - Or if you must specify the branch, use the exact branch name you created earlier (NOT "main")
           6. Include in the PR description:
              - Which file you improved
              - What types of bloat you removed

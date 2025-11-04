@@ -207,7 +207,18 @@ Make targeted edits to improve clarity:
 - Critical warnings or notes
 - Frontmatter metadata
 
-### 7. Update Cache Memory
+### 7. Create a Branch for Your Changes
+
+Before making changes, create a new branch with a descriptive name:
+```bash
+git checkout -b docs/unbloat-<filename-without-extension>
+```
+
+For example, if you're cleaning `validation-timing.md`, create branch `docs/unbloat-validation-timing`.
+
+**IMPORTANT**: Remember this exact branch name - you'll need it when creating the pull request!
+
+### 8. Update Cache Memory
 
 After improving the file, update the cache memory to track the cleanup:
 ```bash
@@ -216,7 +227,7 @@ echo "$(date -u +%Y-%m-%d) - Cleaned: <filename>" >> /tmp/gh-aw/cache-memory/cle
 
 This helps future runs avoid re-cleaning the same files.
 
-### 8. Take Screenshots of Modified Documentation
+### 9. Take Screenshots of Modified Documentation
 
 After making changes to a documentation file, take screenshots of the rendered page in the Astro Starlight website:
 
@@ -255,7 +266,7 @@ If you encounter any blocked domains:
 2. Include this information in the PR description under a "Blocked Domains" section
 3. Example format: "Blocked: fonts.googleapis.com (fonts), cdn.example.com (CSS)"
 
-### 9. Create Pull Request
+### 10. Create Pull Request
 
 After improving ONE file:
 1. Verify your changes preserve all essential information
@@ -263,6 +274,8 @@ After improving ONE file:
 3. Take HD screenshots (1920x1080 viewport) of the modified documentation page(s)
 4. Upload the screenshots and collect the URLs
 5. Create a pull request with your improvements
+   - **IMPORTANT**: When calling the create_pull_request tool, do NOT pass a "branch" parameter - let it auto-detect the current branch you created
+   - Or if you must specify the branch, use the exact branch name you created earlier (NOT "main")
 6. Include in the PR description:
    - Which file you improved
    - What types of bloat you removed

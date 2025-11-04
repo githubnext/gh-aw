@@ -433,7 +433,22 @@ const uploadAssetHandler = args => {
  * @returns {string} The current branch name
  */
 function getCurrentBranch() {
-  // Priority 1: Use GitHub Actions environment variables (most reliable in GitHub Actions context)
+  // Priority 1: Try git command first to get the actual checked-out branch
+  // This is more reliable than environment variables which may not reflect
+  // branch changes made during the workflow execution
+  const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
+  try {
+    const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+      encoding: "utf8",
+      cwd: cwd,
+    }).trim();
+    debug(`Resolved current branch from git in ${cwd}: ${branch}`);
+    return branch;
+  } catch (error) {
+    debug(`Failed to get branch from git: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  // Priority 2: Fallback to GitHub Actions environment variables
   // GITHUB_HEAD_REF is set for pull_request events and contains the source branch name
   // GITHUB_REF_NAME is set for all events and contains the branch/tag name
   const ghHeadRef = process.env.GITHUB_HEAD_REF;
@@ -449,31 +464,37 @@ function getCurrentBranch() {
     return ghRefName;
   }
 
-  // Priority 2: Fallback to git command with explicit working directory
-  const cwd = process.env.GITHUB_WORKSPACE || process.cwd();
-  try {
-    const branch = execSync("git rev-parse --abbrev-ref HEAD", {
-      encoding: "utf8",
-      cwd: cwd,
-    }).trim();
-    debug(`Resolved current branch from git in ${cwd}: ${branch}`);
-    return branch;
-  } catch (error) {
-    throw new Error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  throw new Error("Failed to determine current branch: git command failed and no GitHub environment variables available");
+}
+
+/**
+ * Get the base branch name from environment variable
+ * @returns {string} The base branch name (defaults to "main")
+ */
+function getBaseBranch() {
+  return process.env.GH_AW_BASE_BRANCH || "main";
 }
 
 /**
  * Handler for create_pull_request tool
- * Resolves the current branch if branch is not provided
+ * Resolves the current branch if branch is not provided or is the base branch
  */
 const createPullRequestHandler = args => {
   const entry = { ...args, type: "create_pull_request" };
+  const baseBranch = getBaseBranch();
 
-  // If branch is not provided or is empty, use the current branch
-  if (!entry.branch || entry.branch.trim() === "") {
-    entry.branch = getCurrentBranch();
-    debug(`Using current branch for create_pull_request: ${entry.branch}`);
+  // If branch is not provided, is empty, or equals the base branch, use the current branch from git
+  // This handles cases where the agent incorrectly passes the base branch instead of the working branch
+  if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
+    const detectedBranch = getCurrentBranch();
+
+    if (entry.branch === baseBranch) {
+      debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
+    } else {
+      debug(`Using current branch for create_pull_request: ${detectedBranch}`);
+    }
+
+    entry.branch = detectedBranch;
   }
 
   appendSafeOutput(entry);
@@ -489,15 +510,24 @@ const createPullRequestHandler = args => {
 
 /**
  * Handler for push_to_pull_request_branch tool
- * Resolves the current branch if branch is not provided
+ * Resolves the current branch if branch is not provided or is the base branch
  */
 const pushToPullRequestBranchHandler = args => {
   const entry = { ...args, type: "push_to_pull_request_branch" };
+  const baseBranch = getBaseBranch();
 
-  // If branch is not provided or is empty, use the current branch
-  if (!entry.branch || entry.branch.trim() === "") {
-    entry.branch = getCurrentBranch();
-    debug(`Using current branch for push_to_pull_request_branch: ${entry.branch}`);
+  // If branch is not provided, is empty, or equals the base branch, use the current branch from git
+  // This handles cases where the agent incorrectly passes the base branch instead of the working branch
+  if (!entry.branch || entry.branch.trim() === "" || entry.branch === baseBranch) {
+    const detectedBranch = getCurrentBranch();
+
+    if (entry.branch === baseBranch) {
+      debug(`Branch equals base branch (${baseBranch}), detecting actual working branch: ${detectedBranch}`);
+    } else {
+      debug(`Using current branch for push_to_pull_request_branch: ${detectedBranch}`);
+    }
+
+    entry.branch = detectedBranch;
   }
 
   appendSafeOutput(entry);
