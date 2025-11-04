@@ -1397,27 +1397,29 @@ func TestFilterIgnoredFields(t *testing.T) {
 			expected:    map[string]any{},
 		},
 		{
-			name: "frontmatter with description only",
+			name: "frontmatter with description - no longer filtered",
 			frontmatter: map[string]any{
 				"description": "This is a test workflow",
 				"on":          "push",
 			},
 			expected: map[string]any{
-				"on": "push",
+				"description": "This is a test workflow",
+				"on":          "push",
 			},
 		},
 		{
-			name: "frontmatter with applyTo only",
+			name: "frontmatter with applyTo - no longer filtered",
 			frontmatter: map[string]any{
 				"applyTo": "some-value",
 				"on":      "push",
 			},
 			expected: map[string]any{
-				"on": "push",
+				"applyTo": "some-value",
+				"on":      "push",
 			},
 		},
 		{
-			name: "frontmatter with both description and applyTo",
+			name: "frontmatter with both description and applyTo - no longer filtered",
 			frontmatter: map[string]any{
 				"description": "This is a test workflow",
 				"applyTo":     "some-value",
@@ -1425,8 +1427,10 @@ func TestFilterIgnoredFields(t *testing.T) {
 				"engine":      "claude",
 			},
 			expected: map[string]any{
-				"on":     "push",
-				"engine": "claude",
+				"description": "This is a test workflow",
+				"applyTo":     "some-value",
+				"on":          "push",
+				"engine":      "claude",
 			},
 		},
 		{
@@ -1496,7 +1500,7 @@ func TestValidateMainWorkflowWithIgnoredFields(t *testing.T) {
 		errContains string
 	}{
 		{
-			name: "valid frontmatter with description field - should be silently ignored",
+			name: "valid frontmatter with description field - now properly validated",
 			frontmatter: map[string]any{
 				"on":          "push",
 				"description": "This is a test workflow description",
@@ -1505,20 +1509,20 @@ func TestValidateMainWorkflowWithIgnoredFields(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "valid frontmatter with applyTo field - should be silently ignored",
+			name: "invalid frontmatter with applyTo field - not allowed in main workflow",
 			frontmatter: map[string]any{
 				"on":      "push",
 				"applyTo": "some-target",
 				"engine":  "claude",
 			},
-			wantErr: false,
+			wantErr:     true,
+			errContains: "applyTo",
 		},
 		{
-			name: "valid frontmatter with both description and applyTo - should be silently ignored",
+			name: "valid frontmatter with description - now properly validated",
 			frontmatter: map[string]any{
 				"on":          "push",
 				"description": "Test workflow",
-				"applyTo":     "some-target",
 				"engine":      "claude",
 			},
 			wantErr: false,
@@ -1562,7 +1566,7 @@ func TestValidateIncludedFileWithIgnoredFields(t *testing.T) {
 		errContains string
 	}{
 		{
-			name: "valid included file with description field - should be silently ignored",
+			name: "valid included file with description field - now properly validated",
 			frontmatter: map[string]any{
 				"description": "This is a shared config",
 				"tools": map[string]any{
@@ -1574,7 +1578,7 @@ func TestValidateIncludedFileWithIgnoredFields(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "valid included file with applyTo field - should be silently ignored",
+			name: "valid included file with applyTo field - now properly validated",
 			frontmatter: map[string]any{
 				"applyTo": "some-target",
 				"tools": map[string]any{
@@ -1586,7 +1590,19 @@ func TestValidateIncludedFileWithIgnoredFields(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "valid included file with both description and applyTo - should be silently ignored",
+			name: "valid included file with applyTo array - now properly validated",
+			frontmatter: map[string]any{
+				"applyTo": []string{"**/*.py", "**/*.pyw"},
+				"tools": map[string]any{
+					"github": map[string]any{
+						"allowed": []string{"get_repository"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid included file with both description and applyTo - now properly validated",
 			frontmatter: map[string]any{
 				"description": "Shared config",
 				"applyTo":     "some-target",
@@ -1597,6 +1613,32 @@ func TestValidateIncludedFileWithIgnoredFields(t *testing.T) {
 				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "invalid included file with wrong type for applyTo - should fail",
+			frontmatter: map[string]any{
+				"applyTo": 123, // number instead of string or array
+				"tools": map[string]any{
+					"github": map[string]any{
+						"allowed": []string{"get_repository"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "applyTo",
+		},
+		{
+			name: "invalid included file with wrong type for description - should fail",
+			frontmatter: map[string]any{
+				"description": 123, // number instead of string
+				"tools": map[string]any{
+					"github": map[string]any{
+						"allowed": []string{"get_repository"},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "description",
 		},
 	}
 

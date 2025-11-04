@@ -2,6 +2,32 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
+    "description": {
+      "type": "string",
+      "description": "Optional description for the included file or custom agent configuration. Used for documentation and clarity.",
+      "examples": ["Agent instructions", "Shared tool configuration", "Common workflow steps"]
+    },
+    "applyTo": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Single glob pattern for files/directories where these instructions apply (for custom agent instruction files)",
+          "examples": ["**/*.py", "src/**/*.js", "pkg/workflow/*.go"]
+        },
+        {
+          "type": "array",
+          "description": "Multiple glob patterns for files/directories where these instructions apply (for custom agent instruction files)",
+          "items": {
+            "type": "string",
+            "description": "Glob pattern for file/directory matching"
+          },
+          "examples": [
+            ["**/*.py", "**/*.pyw"],
+            ["src/**/*.ts", "src/**/*.tsx"]
+          ]
+        }
+      ]
+    },
     "services": {
       "type": "object",
       "description": "Service containers to be merged with main workflow services",
