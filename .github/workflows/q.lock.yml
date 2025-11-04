@@ -5581,7 +5581,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}
         run: |
-          gh api --method POST /repos/${{ github.repository }}/pulls/"$PR_NUMBER"/requested_reviewers \
+          # shellcheck disable=SC2086
+          gh api --method POST /repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers \
             -f 'reviewers[]=copilot-pull-request-reviewer[bot]'
 
   detection:
