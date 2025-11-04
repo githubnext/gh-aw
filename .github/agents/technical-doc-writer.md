@@ -5,6 +5,10 @@ tools:
   - read
   - edit
   - search
+  - shell
+  - github/*
+  - playwright/*
+  - github-agentic-workflows/*
 ---
 
 # Technical Documentation Writer for GitHub Actions

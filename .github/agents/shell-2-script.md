@@ -5,6 +5,9 @@ tools:
   - read
   - edit
   - search
+  - shell
+  - github/*
+  - playwright/*
   - github-agentic-workflows/*
 ---
 
