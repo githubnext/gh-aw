@@ -375,14 +375,16 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          echo "<details>" >> "$GITHUB_STEP_SUMMARY"
-          echo "<summary>Generated Prompt</summary>" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo '```markdown' >> "$GITHUB_STEP_SUMMARY"
-          cat "$GH_AW_PROMPT" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "<details>"
+            echo "<summary>Generated Prompt</summary>"
+            echo ""
+            echo '```markdown'
+            cat "$GH_AW_PROMPT"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -1719,6 +1721,6 @@ jobs:
           path: /tmp/gh-aw/
           retention-days: 1
       - name: Final Summary
-        run: "echo \"## Post-Steps Test Summary\" >> $GITHUB_STEP_SUMMARY\necho \"✅ All post-steps executed successfully\" >> $GITHUB_STEP_SUMMARY\necho \"This validates the post-steps indentation fix\" >> $GITHUB_STEP_SUMMARY\n"
+        run: "{\n  echo \"## Post-Steps Test Summary\"\n  echo \"✅ All post-steps executed successfully\"\n  echo \"This validates the post-steps indentation fix\"\n} >> $GITHUB_STEP_SUMMARY\n"
 
 

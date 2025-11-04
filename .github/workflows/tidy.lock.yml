@@ -1724,14 +1724,16 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          echo "<details>" >> "$GITHUB_STEP_SUMMARY"
-          echo "<summary>Generated Prompt</summary>" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo '```markdown' >> "$GITHUB_STEP_SUMMARY"
-          cat "$GH_AW_PROMPT" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "<details>"
+            echo "<summary>Generated Prompt</summary>"
+            echo ""
+            echo '```markdown'
+            cat "$GH_AW_PROMPT"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -4036,13 +4038,15 @@ jobs:
               grep "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch | sed 's/^From \([0-9a-f]\{40\}\).*/  \1/' || echo "Failed to extract commit SHAs"
             fi
             # Show the first 50 lines of the patch for review
-            echo '## Git Patch' >> "$GITHUB_STEP_SUMMARY"
-            echo '' >> "$GITHUB_STEP_SUMMARY"
-            echo '```diff' >> "$GITHUB_STEP_SUMMARY"
-            head -500 /tmp/gh-aw/aw.patch >> "$GITHUB_STEP_SUMMARY" || echo "Could not display patch contents" >> "$GITHUB_STEP_SUMMARY"
-            echo '...' >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            echo '' >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo '## Git Patch'
+              echo ''
+              echo '```diff'
+              head -500 /tmp/gh-aw/aw.patch || echo "Could not display patch contents"
+              echo '...'
+              echo '```'
+              echo ''
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload git patch
         if: always()
