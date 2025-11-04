@@ -27,6 +27,7 @@ on:
         description: 'Commit SHA that triggered the workflow run'
         required: true
         type: string
+  reaction: "eyes"
 permissions:
   contents: read
   issues: read
