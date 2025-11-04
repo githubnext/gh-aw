@@ -1263,7 +1263,7 @@ jobs:
         run: |
           set -o pipefail
           INSTRUCTION="$(cat "$GH_AW_PROMPT")"
-          mkdir -p $CODEX_HOME/logs
+          mkdir -p "$CODEX_HOME/logs"
           codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
@@ -3242,7 +3242,7 @@ jobs:
         run: |
           set -o pipefail
           INSTRUCTION="$(cat "$GH_AW_PROMPT")"
-          mkdir -p $CODEX_HOME/logs
+          mkdir -p "$CODEX_HOME/logs"
           codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
