@@ -126,7 +126,7 @@ func TestEnsureAgenticWorkflowAgent_WithSkipInstructionsTrue(t *testing.T) {
 	}
 }
 
-func TestEnsureAgenticWorkflowPrompt_RemovesOldFile(t *testing.T) {
+func TestEnsureAgenticWorkflowAgent_RemovesLegacyPromptFile(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := t.TempDir()
 
@@ -145,7 +145,7 @@ func TestEnsureAgenticWorkflowPrompt_RemovesOldFile(t *testing.T) {
 		t.Fatalf("Failed to init git repo: %v", err)
 	}
 
-	// Create the old prompt file
+	// Create the old prompt file (legacy format that should be cleaned up)
 	promptsDir := filepath.Join(tempDir, ".github", "prompts")
 	oldPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
 
@@ -161,7 +161,7 @@ func TestEnsureAgenticWorkflowPrompt_RemovesOldFile(t *testing.T) {
 		t.Fatalf("Old prompt file should exist before test")
 	}
 
-	// Call the function to remove old prompt
+	// Call the function to remove old prompt (now handled by agent cleanup)
 	err = ensureAgenticWorkflowPrompt(false, false)
 	if err != nil {
 		t.Fatalf("ensureAgenticWorkflowPrompt() returned error: %v", err)
