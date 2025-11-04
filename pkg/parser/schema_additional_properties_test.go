@@ -14,12 +14,12 @@ func TestAdditionalPropertiesFalse_CommonTypos(t *testing.T) {
 		typoField   string // The typo field name that should be rejected
 	}{
 		{
-			name: "typo: permisions instead of permissions",
+			name: "typo: permisions instead of permissions", //nolint:misspell
 			frontmatter: map[string]any{
-				"on":          "push",
-				"permisions":  "write-all", // typo: should be "permissions"
+				"on":         "push",
+				"permisions": "write-all", //nolint:misspell // typo: should be "permissions"
 			},
-			typoField: "permisions",
+			typoField: "permisions", //nolint:misspell
 		},
 		{
 			name: "typo: engnie instead of engine",
@@ -78,16 +78,16 @@ func TestAdditionalPropertiesFalse_CommonTypos(t *testing.T) {
 			typoField: "mcp_servers",
 		},
 		{
-			name: "multiple typos: permisions, engnie, toolz",
+			name: "multiple typos: permisions, engnie, toolz", //nolint:misspell
 			frontmatter: map[string]any{
-				"on":          "push",
-				"permisions":  "write-all", // typo
-				"engnie":      "claude",    // typo
-				"toolz": map[string]any{    // typo
+				"on":         "push",
+				"permisions": "write-all", //nolint:misspell // typo
+				"engnie":     "claude",    // typo
+				"toolz": map[string]any{ // typo
 					"github": nil,
 				},
 			},
-			typoField: "permisions", // error should mention at least one typo
+			typoField: "permisions", //nolint:misspell // error should mention at least one typo
 		},
 	}
 
@@ -102,9 +102,9 @@ func TestAdditionalPropertiesFalse_CommonTypos(t *testing.T) {
 			errorMsg := err.Error()
 
 			// The error should mention unknown/additional properties
-			if !strings.Contains(strings.ToLower(errorMsg), "unknown") && 
-			   !strings.Contains(strings.ToLower(errorMsg), "additional") &&
-			   !strings.Contains(strings.ToLower(errorMsg), "not allowed") {
+			if !strings.Contains(strings.ToLower(errorMsg), "unknown") &&
+				!strings.Contains(strings.ToLower(errorMsg), "additional") &&
+				!strings.Contains(strings.ToLower(errorMsg), "not allowed") {
 				t.Errorf("Error message should mention unknown/additional properties, got: %s", errorMsg)
 			}
 
@@ -243,9 +243,9 @@ func TestValidProperties_NotRejected(t *testing.T) {
 		{
 			name: "valid main workflow with all common fields",
 			frontmatter: map[string]any{
-				"on":              "push",
-				"permissions":     "read-all",
-				"engine":          "claude",
+				"on":          "push",
+				"permissions": "read-all",
+				"engine":      "claude",
 				"tools": map[string]any{
 					"github": nil,
 				},
