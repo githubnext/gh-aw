@@ -20,22 +20,6 @@ safe-outputs:
     create-issue:
 timeout_minutes: 10
 strict: true
-jobs:
-  investigate-on-failure:
-    if: failure()
-    needs: agent
-    uses: ./.github/workflows/smoke-detector.lock.yml
-    permissions:
-      contents: read
-      pull-requests: read
-      actions: read
-    with:
-      workflow_name: Smoke Claude
-      run_id: ${{ github.run_id }}
-      run_number: ${{ github.run_number }}
-      conclusion: failure
-      html_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      head_sha: ${{ github.sha }}
 ---
 
-Review the last 5 merged pull requests in this repository and post summary in an issue.
+Review the last 2 merged pull requests in this repository and post summary in an issue.
