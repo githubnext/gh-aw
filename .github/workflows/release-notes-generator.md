@@ -39,8 +39,8 @@ steps:
       go-version-file: go.mod
       cache: true
   
-  - name: Create docs/releases directory
-    run: mkdir -p docs/releases
+  - name: Create docs/src/content/docs/releases directory
+    run: mkdir -p docs/src/content/docs/releases
 ---
 
 # Release Notes Generator
@@ -148,7 +148,7 @@ Based on identified breaking changes, create migration guidance.
    - Note deprecated features
 
 2. **Generate codemod prompt**:
-   - Create a file `docs/releases/codemod-${{ github.event.release.tag_name }}.md`
+   - Create a file `docs/src/content/docs/releases/codemod-${{ github.event.release.tag_name }}.md`
    - Include:
      - Migration overview
      - Specific transformation patterns
@@ -182,7 +182,7 @@ Based on identified breaking changes, create migration guidance.
 
 Create the comprehensive release notes document.
 
-1. **Create file**: `docs/releases/release-${{ github.event.release.tag_name }}.md`
+1. **Create file**: `docs/src/content/docs/releases/release-${{ github.event.release.tag_name }}.md`
 
 2. **Structure**:
    ```markdown
@@ -239,8 +239,8 @@ Create a pull request with the generated documentation.
 
 1. **Prepare changes**:
    - Ensure both files are created:
-     - `docs/releases/release-${{ github.event.release.tag_name }}.md`
-     - `docs/releases/codemod-${{ github.event.release.tag_name }}.md`
+     - `docs/src/content/docs/releases/release-${{ github.event.release.tag_name }}.md`
+     - `docs/src/content/docs/releases/codemod-${{ github.event.release.tag_name }}.md`
    - Stage the files
 
 2. **Commit message format**:
