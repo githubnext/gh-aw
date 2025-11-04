@@ -127,7 +127,7 @@ Use the GitHub tools with one of these strategies:
    DATE="$(date -d '24 hours ago' '+%Y-%m-%d')"
    gh search prs --repo ${{ github.repository }} \
      --author "copilot" \
-     --created ">=\"$DATE\"" \
+     --created ">=${DATE}" \
      --limit 1000 \
      --json number,title,state,createdAt,closedAt,author
    ```
