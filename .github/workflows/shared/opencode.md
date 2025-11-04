@@ -7,7 +7,7 @@ engine:
   steps:
     - name: Install OpenCode and jq
       run: |
-        npm install -g opencode-ai@${GH_AW_AGENT_VERSION}
+        npm install -g "opencode-ai@${GH_AW_AGENT_VERSION}"
         sudo apt-get update && sudo apt-get install -y jq
       env:
         GH_AW_AGENT_VERSION: ${{ env.GH_AW_AGENT_VERSION }}
@@ -24,7 +24,7 @@ engine:
           echo "Found MCP configuration at: $GH_AW_MCP_CONFIG"
           
           # Create base OpenCode config with proper schema
-          echo '{"$schema": "https://opencode.sh/schema.json", "mcp": {}}' > ~/.config/opencode/opencode.json
+          echo "{\"\\$schema\": \"https://opencode.sh/schema.json\", \"mcp\": {}}" > ~/.config/opencode/opencode.json
           
           # Transform Copilot-style MCP config to OpenCode format
           jq -r '.mcpServers | to_entries[] | 

@@ -40,7 +40,7 @@ engine:
     
     - name: Run GenAIScript
       id: genaiscript
-      run: genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md --mcp-config $GH_AW_MCP_CONFIG --out /tmp/gh-aw/genaiscript-output.md
+      run: genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md --mcp-config "$GH_AW_MCP_CONFIG" --out /tmp/gh-aw/genaiscript-output.md
       env:
         DEBUG: genaiscript:*
         GH_AW_PROMPT: ${{ env.GH_AW_PROMPT }}
