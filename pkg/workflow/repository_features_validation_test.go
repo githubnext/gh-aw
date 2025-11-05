@@ -135,7 +135,7 @@ func TestCheckRepositoryHasDiscussions(t *testing.T) {
 	// This test will only pass when GitHub CLI is authenticated
 	repo := "githubnext/gh-aw"
 
-	hasDiscussions, err := checkRepositoryHasDiscussions(repo)
+	hasDiscussions, err := checkRepositoryHasDiscussions(repo, false)
 	if err != nil {
 		t.Logf("checkRepositoryHasDiscussions failed (may be auth issue): %v", err)
 		// Don't fail - this could be due to auth or network issues
@@ -150,7 +150,7 @@ func TestCheckRepositoryHasIssues(t *testing.T) {
 	// This test will only pass when GitHub CLI is authenticated
 	repo := "githubnext/gh-aw"
 
-	hasIssues, err := checkRepositoryHasIssues(repo)
+	hasIssues, err := checkRepositoryHasIssues(repo, false)
 	if err != nil {
 		t.Logf("checkRepositoryHasIssues failed (may be auth issue): %v", err)
 		// Don't fail - this could be due to auth or network issues
@@ -167,12 +167,12 @@ func TestCheckRepositoryHasIssues(t *testing.T) {
 
 func TestCheckRepositoryInvalidFormat(t *testing.T) {
 	// Test with invalid repository format
-	_, err := checkRepositoryHasDiscussions("invalid-format")
+	_, err := checkRepositoryHasDiscussions("invalid-format", false)
 	if err == nil {
 		t.Error("expected error for invalid repository format")
 	}
 
-	_, err = checkRepositoryHasIssues("invalid/format/too/many/slashes")
+	_, err = checkRepositoryHasIssues("invalid/format/too/many/slashes", false)
 	if err != nil {
 		// This might actually succeed if the API is lenient
 		t.Logf("Got error for invalid format (expected): %v", err)
