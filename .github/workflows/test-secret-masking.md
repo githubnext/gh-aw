@@ -2,6 +2,8 @@
 on: workflow_dispatch
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 engine: copilot
 imports:
   - shared/secret-redaction-test.md
