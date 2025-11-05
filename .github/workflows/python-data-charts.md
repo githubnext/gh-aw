@@ -4,6 +4,8 @@ on:
 permissions:
   contents: read
   actions: read
+  issues: read
+  pull-requests: read
 engine: copilot
 tools:
   edit:
