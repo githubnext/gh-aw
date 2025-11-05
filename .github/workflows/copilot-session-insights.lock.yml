@@ -5450,7 +5450,6 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
-            
             function loadAgentOutput() {
               const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
