@@ -48,3 +48,7 @@ The agent instructions are merged with the workflow prompt, customizing the AI e
 - **Format**: Markdown with YAML frontmatter
 - **Frontmatter**: Can include `name`, `description`, `tools`, and `mcp-servers`
 - **One per workflow**: Only one agent file can be imported per workflow
+
+## References
+
+- [GitHub Copilot Custom Agents Configuration](https://docs.github.com/en/copilot/reference/custom-agents-configuration) - Official reference for custom agent configuration including tool aliases and schema documentation
