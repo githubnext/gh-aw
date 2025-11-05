@@ -536,13 +536,8 @@ func getRepositoryFeatures(repo string, verbose bool) (*RepositoryFeatures, erro
 	// and we haven't logged them before (checking loaded flag and logged cache)
 	if !loaded {
 		// Mark as logged atomically
-		alreadyLogged := false
-		if _, exists := repositoryFeaturesLoggedCache.LoadOrStore(repo, true); exists {
-			alreadyLogged = true
-		}
-
 		// Log success messages only if we haven't logged them before
-		if !alreadyLogged && verbose {
+		if _, alreadyLogged := repositoryFeaturesLoggedCache.LoadOrStore(repo, true); !alreadyLogged && verbose {
 			if actualFeatures.HasDiscussions {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 					fmt.Sprintf("✓ Repository %s has discussions enabled", repo)))
