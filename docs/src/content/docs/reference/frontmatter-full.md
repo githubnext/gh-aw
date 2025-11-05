@@ -13,7 +13,7 @@ This documentation is automatically generated from the JSON Schema. For a more u
 
 ## Complete Frontmatter Reference
 
-```yaml wrap
+```yaml
 ---
 # Workflow name that appears in the GitHub Actions interface. If not specified,
 # defaults to the filename without extension.

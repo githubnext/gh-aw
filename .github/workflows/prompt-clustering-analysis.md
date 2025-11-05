@@ -90,10 +90,10 @@ steps:
       jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read -r pr_number; do
         echo "Downloading full data for PR #$pr_number..."
         
-        # Download full PR data with all available fields
+        # Download full PR data with essential fields only
         gh pr view "$pr_number" \
           --repo "${{ github.repository }}" \
-          --json additions,assignees,author,autoMergeRequest,baseRefName,baseRefOid,body,changedFiles,closed,closedAt,closingIssuesReferences,comments,commits,createdAt,deletions,files,fullDatabaseId,headRefName,headRefOid,headRepository,headRepositoryOwner,id,isCrossRepository,isDraft,labels,latestReviews,maintainerCanModify,mergeCommit,mergeStateStatus,mergeable,mergedAt,mergedBy,milestone,number,potentialMergeCommit,projectCards,projectItems,reactionGroups,reviewDecision,reviewRequests,reviews,state,statusCheckRollup,title,updatedAt,url \
+          --json number,title,body,state,createdAt,closedAt,mergedAt,url,comments,reviews,commits,changedFiles,additions,deletions,reviewDecision \
           > "/tmp/gh-aw/prompt-cache/pr-full-data/pr-${pr_number}.json"
         
         echo "Downloaded PR #$pr_number"
