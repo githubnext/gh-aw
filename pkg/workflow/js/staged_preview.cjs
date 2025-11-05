@@ -24,6 +24,7 @@ async function generateStagedPreview(options) {
   }
 
   await core.summary.addRaw(summaryContent).write();
+  core.info(summaryContent);
   core.info(`📝 ${title} preview written to step summary`);
 }
 

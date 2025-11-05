@@ -755,7 +755,16 @@ describe("create_issue.cjs", () => {
     expect(mockCore.summary.addRaw).toHaveBeenCalled();
     expect(mockCore.summary.write).toHaveBeenCalled();
 
-    // Should log the completion message
+    // Should log the summary content to core.info
+    const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("🎭 Staged Mode: Create Issues Preview"));
+    expect(infoCall).toBeDefined();
+    expect(infoCall[0]).toContain("### Issue 1");
+    expect(infoCall[0]).toContain("**Title:** Staged Issue Title");
+    expect(infoCall[0]).toContain("**Body:**");
+    expect(infoCall[0]).toContain("Staged issue body content");
+    expect(infoCall[0]).toContain("**Labels:** bug, enhancement");
+
+    // Should also log the completion message
     expect(mockCore.info).toHaveBeenCalledWith("📝 Create Issues preview written to step summary");
 
     // Clean up

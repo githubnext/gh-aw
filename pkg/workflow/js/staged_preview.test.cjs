@@ -48,7 +48,6 @@ describe("staged_preview.cjs", () => {
 
       expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
       expect(mockCore.summary.write).toHaveBeenCalledTimes(1);
-      expect(mockCore.info).toHaveBeenCalledWith("📝 Create Issues preview written to step summary");
 
       const summaryContent = mockCore.summary.addRaw.mock.calls[0][0];
       expect(summaryContent).toContain("## 🎭 Staged Mode: Create Issues Preview");
@@ -58,6 +57,10 @@ describe("staged_preview.cjs", () => {
       expect(summaryContent).toContain("**Body:**\nTest body");
       expect(summaryContent).toContain("**Labels:** bug, enhancement");
       expect(summaryContent).toContain("---");
+
+      // Verify that summary content is logged to core.info
+      expect(mockCore.info).toHaveBeenCalledWith(summaryContent);
+      expect(mockCore.info).toHaveBeenCalledWith("📝 Create Issues preview written to step summary");
     });
 
     it("should generate preview with multiple items", async () => {
