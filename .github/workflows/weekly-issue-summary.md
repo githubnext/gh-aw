@@ -15,9 +15,6 @@ tools:
   github:
     toolsets: 
       - issues
-    allowed:
-      - search_issues
-      - issue_read
 safe-outputs:
   upload-assets:
   create-discussion:
