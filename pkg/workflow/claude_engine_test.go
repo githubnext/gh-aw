@@ -490,7 +490,7 @@ func TestClaudeEngineNoDoubleEscapePrompt(t *testing.T) {
 			EngineConfig: &EngineConfig{
 				ID: "claude",
 			},
-			AgentFile: "/path/to/agent.md",
+			AgentFile: ".github/agents/test-agent.md",
 		}
 
 		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")

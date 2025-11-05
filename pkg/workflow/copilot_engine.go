@@ -130,7 +130,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Add --agent flag if custom agent file is specified (via imports)
 	if workflowData.AgentFile != "" {
-		copilotArgs = append(copilotArgs, "--agent", workflowData.AgentFile)
+		// Agent file path is relative to repository root, so prefix with $GITHUB_WORKSPACE
+		agentPath := fmt.Sprintf("${GITHUB_WORKSPACE}/%s", workflowData.AgentFile)
+		copilotArgs = append(copilotArgs, "--agent", agentPath)
 	}
 
 	// Add tool permission arguments based on configuration

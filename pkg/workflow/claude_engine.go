@@ -171,9 +171,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Build the prompt command - prepend custom agent file content if specified (via imports)
 	var promptCommand string
 	if workflowData.AgentFile != "" {
+		// Agent file path is relative to repository root, so prefix with $GITHUB_WORKSPACE
+		agentPath := fmt.Sprintf("${GITHUB_WORKSPACE}/%s", workflowData.AgentFile)
 		// Extract markdown body from custom agent file and prepend to prompt
 		stepLines = append(stepLines, "          # Extract markdown body from custom agent file (skip frontmatter)")
-		stepLines = append(stepLines, fmt.Sprintf("          AGENT_CONTENT=\"$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)\"", workflowData.AgentFile))
+		stepLines = append(stepLines, fmt.Sprintf("          AGENT_CONTENT=\"$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)\"", agentPath))
 		stepLines = append(stepLines, "          # Combine agent content with prompt")
 		stepLines = append(stepLines, "          PROMPT_TEXT=\"$(printf '%s\\n\\n%s' \"$AGENT_CONTENT\" \"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\")\"")
 		promptCommand = "\"$PROMPT_TEXT\""

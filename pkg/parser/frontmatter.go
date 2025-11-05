@@ -475,8 +475,14 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 				// Multiple agent files found - error
 				return nil, fmt.Errorf("multiple agent files found in imports: '%s' and '%s'. Only one agent file is allowed per workflow", agentFile, item.importPath)
 			}
-			agentFile = item.fullPath
-			log.Printf("Found agent file: %s", item.fullPath)
+			// Extract relative path from repository root (from .github/ onwards)
+			// This ensures the path works at runtime with $GITHUB_WORKSPACE
+			if idx := strings.Index(item.fullPath, "/.github/"); idx >= 0 {
+				agentFile = item.fullPath[idx+1:] // +1 to skip the leading slash
+			} else {
+				agentFile = item.fullPath
+			}
+			log.Printf("Found agent file: %s (resolved to: %s)", item.fullPath, agentFile)
 
 			// For agent files, only extract markdown content
 			markdownContent, err := processIncludedFileWithVisited(item.fullPath, item.sectionName, false, visited)

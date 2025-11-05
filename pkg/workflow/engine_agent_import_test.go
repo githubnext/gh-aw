@@ -15,7 +15,7 @@ func TestCopilotEngineWithAgentFromImports(t *testing.T) {
 		EngineConfig: &EngineConfig{
 			ID: "copilot",
 		},
-		AgentFile: "/path/to/agent.md",
+		AgentFile: ".github/agents/test-agent.md",
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
@@ -26,8 +26,8 @@ func TestCopilotEngineWithAgentFromImports(t *testing.T) {
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
-	if !strings.Contains(stepContent, "--agent /path/to/agent.md") {
-		t.Errorf("Expected '--agent /path/to/agent.md' in copilot command, got:\n%s", stepContent)
+	if !strings.Contains(stepContent, "--agent '${GITHUB_WORKSPACE}/.github/agents/test-agent.md'") {
+		t.Errorf("Expected '--agent' with GITHUB_WORKSPACE prefix in copilot command, got:\n%s", stepContent)
 	}
 }
 
@@ -62,7 +62,7 @@ func TestClaudeEngineWithAgentFromImports(t *testing.T) {
 		EngineConfig: &EngineConfig{
 			ID: "claude",
 		},
-		AgentFile: "/path/to/agent.md",
+		AgentFile: ".github/agents/test-agent.md",
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
@@ -78,9 +78,9 @@ func TestClaudeEngineWithAgentFromImports(t *testing.T) {
 		t.Errorf("Expected agent content extraction in claude command, got:\n%s", stepContent)
 	}
 
-	// Check that agent file path is referenced
-	if !strings.Contains(stepContent, "/path/to/agent.md") {
-		t.Errorf("Expected agent file path in claude command, got:\n%s", stepContent)
+	// Check that agent file path is referenced with GITHUB_WORKSPACE prefix
+	if !strings.Contains(stepContent, "${GITHUB_WORKSPACE}/.github/agents/test-agent.md") {
+		t.Errorf("Expected agent file path with GITHUB_WORKSPACE prefix in claude command, got:\n%s", stepContent)
 	}
 
 	// Check that agent content is prepended to prompt
@@ -126,7 +126,7 @@ func TestCodexEngineWithAgentFromImports(t *testing.T) {
 		EngineConfig: &EngineConfig{
 			ID: "codex",
 		},
-		AgentFile: "/path/to/agent.md",
+		AgentFile: ".github/agents/test-agent.md",
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
@@ -142,9 +142,9 @@ func TestCodexEngineWithAgentFromImports(t *testing.T) {
 		t.Errorf("Expected agent content extraction in codex command, got:\n%s", stepContent)
 	}
 
-	// Check that agent file path is referenced
-	if !strings.Contains(stepContent, "/path/to/agent.md") {
-		t.Errorf("Expected agent file path in codex command, got:\n%s", stepContent)
+	// Check that agent file path is referenced with GITHUB_WORKSPACE prefix
+	if !strings.Contains(stepContent, "${GITHUB_WORKSPACE}/.github/agents/test-agent.md") {
+		t.Errorf("Expected agent file path with GITHUB_WORKSPACE prefix in codex command, got:\n%s", stepContent)
 	}
 
 	// Check that agent content is prepended to prompt using printf
