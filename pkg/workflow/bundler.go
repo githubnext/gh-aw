@@ -191,31 +191,18 @@ func deduplicateRequires(content string) string {
 func validateNoLocalRequires(bundledContent string) error {
 	// Regular expression to match local require statements
 	// Matches: require('./...') or require("../...")
-	// This should match the same pattern as used in bundleFromSources
 	localRequireRegex := regexp.MustCompile(`require\(['"](\.\.?/[^'"]+)['"]\)`)
 
 	lines := strings.Split(bundledContent, "\n")
 	var foundRequires []string
 
 	for lineNum, line := range lines {
-		// Skip lines that are comments
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "//") {
-			continue
-		}
-
-		// Skip lines that are inside block comments
-		if strings.HasPrefix(trimmed, "/*") || strings.HasPrefix(trimmed, "*") {
-			continue
-		}
-
-		// Check for local requires in non-comment lines
+		// Check for local requires
 		matches := localRequireRegex.FindAllStringSubmatch(line, -1)
 		for _, match := range matches {
 			if len(match) > 1 {
 				requirePath := match[1]
 				// Check if this require is inside a string literal
-				// by checking if the match position is inside quotes
 				matchIdx := strings.Index(line, match[0])
 				if matchIdx >= 0 && !isInsideStringLiteralAt(line, matchIdx) {
 					foundRequires = append(foundRequires, fmt.Sprintf("line %d: require('%s')", lineNum+1, requirePath))
@@ -240,8 +227,14 @@ func isInsideStringLiteralAt(line string, pos int) bool {
 	backtickCount := 0
 
 	for i := 0; i < pos && i < len(line); i++ {
-		// Skip escaped characters
-		if i > 0 && line[i-1] == '\\' {
+		// Count consecutive backslashes before the current character
+		backslashCount := 0
+		for j := i - 1; j >= 0 && line[j] == '\\'; j-- {
+			backslashCount++
+		}
+
+		// If odd number of backslashes, the current character is escaped
+		if backslashCount%2 == 1 {
 			continue
 		}
 

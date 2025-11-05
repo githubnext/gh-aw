@@ -311,14 +311,6 @@ function test() {
 			expectError: true,
 		},
 		{
-			name: "commented local require is ok",
-			content: `// const { helper } = require("./helper.cjs");
-function test() {
-  console.log("hello");
-}`,
-			expectError: false,
-		},
-		{
 			name: "multiple local requires should error",
 			content: `const { helper } = require("./helper.cjs");
 const utils = require("../utils.cjs");
@@ -333,6 +325,19 @@ function test() {
 function test() {
   console.log(code);
 }`,
+			expectError: false,
+		},
+		{
+			name: "require in double-quoted string should not error",
+			content: `const code = "const x = require('./helper.cjs');";
+function test() {
+  console.log(code);
+}`,
+			expectError: false,
+		},
+		{
+			name:        "require in backtick string should not error",
+			content:     "const code = `const x = require('./helper.cjs');`;\nfunction test() {\n  console.log(code);\n}",
 			expectError: false,
 		},
 		{
