@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/goccy/go-yaml"
 )
+
+var frontmatterLog = logger.New("workflow:frontmatter_extraction")
 
 // extractStringValue extracts a string value from the frontmatter map
 func extractStringValue(frontmatter map[string]any, key string) string {
@@ -146,8 +149,10 @@ func (c *Compiler) indentYAMLLines(yamlContent, indent string) string {
 
 // extractTopLevelYAMLSection extracts a top-level YAML section from frontmatter
 func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key string) string {
+	frontmatterLog.Printf("Extracting top-level YAML section: %s", key)
 	value, exists := frontmatter[key]
 	if !exists {
+		frontmatterLog.Printf("Section %s not found in frontmatter", key)
 		return ""
 	}
 

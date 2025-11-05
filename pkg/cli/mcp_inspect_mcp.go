@@ -11,9 +11,12 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+var mcpInspectServerLog = logger.New("cli:mcp_inspect_server")
 
 var (
 	headerStyle = lipgloss.NewStyle().
@@ -37,23 +40,30 @@ var (
 
 // inspectMCPServer connects to an MCP server and queries its capabilities
 func inspectMCPServer(config parser.MCPServerConfig, toolFilter string, verbose bool, useActionsSecrets bool) error {
+	mcpInspectServerLog.Printf("Inspecting MCP server: name=%s, type=%s", config.Name, config.Type)
 	fmt.Printf("%s %s (%s)\n",
 		serverNameStyle.Render("📡 "+config.Name),
 		typeStyle.Render(config.Type),
 		typeStyle.Render(buildConnectionString(config)))
 
 	// Validate secrets/environment variables
+	mcpInspectServerLog.Print("Validating server secrets")
 	if err := validateServerSecrets(config, verbose, useActionsSecrets); err != nil {
+		mcpInspectServerLog.Printf("Secret validation failed: %v", err)
 		fmt.Print(errorBoxStyle.Render(fmt.Sprintf("❌ Secret validation failed: %s", err)))
 		return nil // Don't return error, just show validation failure
 	}
 
 	// Connect to the server
+	mcpInspectServerLog.Printf("Connecting to MCP server: %s", config.Name)
 	info, err := connectToMCPServer(config, verbose)
 	if err != nil {
+		mcpInspectServerLog.Printf("Connection failed: %v", err)
 		fmt.Print(errorBoxStyle.Render(fmt.Sprintf("❌ Connection failed: %s", err)))
 		return nil // Don't return error, just show connection failure
 	}
+
+	mcpInspectServerLog.Printf("Successfully connected to MCP server: %s", config.Name)
 
 	if verbose {
 		fmt.Println(console.FormatSuccessMessage("✅ Successfully connected to MCP server"))

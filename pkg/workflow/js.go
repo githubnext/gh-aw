@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var jsLog = logger.New("workflow:js")
 
 //go:embed js/create_pull_request.cjs
 var createPullRequestScript string
@@ -157,12 +161,15 @@ var (
 // Bundling is performed on first access and cached for subsequent calls
 func getCollectJSONLOutputScript() string {
 	collectJSONLOutputScriptOnce.Do(func() {
+		jsLog.Print("Bundling collect_ndjson_output script")
 		sources := GetJavaScriptSources()
 		bundled, err := BundleJavaScriptFromSources(collectJSONLOutputScriptSource, sources, "")
 		if err != nil {
+			jsLog.Printf("Bundling failed for collect_ndjson_output, using source as-is: %v", err)
 			// If bundling fails, use the source as-is
 			collectJSONLOutputScript = collectJSONLOutputScriptSource
 		} else {
+			jsLog.Printf("Successfully bundled collect_ndjson_output script: %d bytes", len(bundled))
 			collectJSONLOutputScript = bundled
 		}
 	})

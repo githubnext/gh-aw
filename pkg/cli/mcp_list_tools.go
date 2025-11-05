@@ -7,9 +7,12 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/spf13/cobra"
 )
+
+var mcpListToolsLog = logger.New("cli:mcp_list_tools")
 
 const (
 	// maxDescriptionLength is the maximum length for tool descriptions before truncation
@@ -20,10 +23,12 @@ const (
 
 // ListToolsForMCP lists available tools for a specific MCP server
 func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) error {
+	mcpListToolsLog.Printf("Listing tools for MCP server: %s, workflow: %s", mcpServerName, workflowFile)
 	workflowsDir := getWorkflowsDir()
 
 	// If no workflow file specified, search for workflows containing the MCP server
 	if workflowFile == "" {
+		mcpListToolsLog.Printf("No workflow file specified, searching in: %s", workflowsDir)
 		return findWorkflowsWithMCPServer(workflowsDir, mcpServerName, verbose)
 	}
 
