@@ -72,11 +72,11 @@ steps:
       PR_COUNT=$(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)
       echo "Fetching comments for $PR_COUNT PRs..."
 
-      jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read PR_NUM; do
-        echo "Fetching comments for PR #$PR_NUM"
-        gh pr view "$PR_NUM" \
+      jq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read -r PR_NUM; do
+        echo "Fetching comments for PR #${PR_NUM}"
+        gh pr view "${PR_NUM}" \
           --json comments,reviews,reviewComments \
-          > /tmp/gh-aw/pr-comments/pr-${PR_NUM}.json 2>/dev/null || echo "{}" > /tmp/gh-aw/pr-comments/pr-${PR_NUM}.json
+          > "/tmp/gh-aw/pr-comments/pr-${PR_NUM}.json" 2>/dev/null || echo "{}" > "/tmp/gh-aw/pr-comments/pr-${PR_NUM}.json"
         sleep 0.5  # Rate limiting
       done
 
