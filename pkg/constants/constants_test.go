@@ -204,6 +204,7 @@ func TestConstantValues(t *testing.T) {
 		{"StopTimeOkOutput", StopTimeOkOutput, "stop_time_ok"},
 		{"CommandPositionOkOutput", CommandPositionOkOutput, "command_position_ok"},
 		{"ActivatedOutput", ActivatedOutput, "activated"},
+		{"DefaultActivationJobRunnerImage", DefaultActivationJobRunnerImage, "ubuntu-slim"},
 	}
 
 	for _, tt := range tests {

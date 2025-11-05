@@ -59,6 +59,10 @@ const DefaultToolTimeoutSeconds = 60
 // DefaultMCPStartupTimeoutSeconds is the default timeout for MCP server startup in seconds
 const DefaultMCPStartupTimeoutSeconds = 120
 
+// DefaultActivationJobRunnerImage is the default runner image for activation and pre-activation jobs
+// See https://github.blog/changelog/2025-10-28-1-vcpu-linux-runner-now-available-in-github-actions-in-public-preview/
+const DefaultActivationJobRunnerImage = "ubuntu-slim"
+
 // DefaultAllowedDomains defines the default localhost domains with port variations
 // that are always allowed for Playwright browser automation
 var DefaultAllowedDomains = []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"}
