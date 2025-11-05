@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.28.2 - 2025-11-05
+
+### Bug Fixes
+
+#### Add Daily Ops Pattern Documentation
+
+#### Finalize env_var support for Codex MCP - all tests passing
+
+#### Fix agent file validation to handle relative paths correctly
+
+#### Update CLI versions
+
+#### Use fallback tokens for resolution
+
+
 ## v0.28.1 - 2025-11-05
 
 ### Bug Fixes
