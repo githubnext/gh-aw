@@ -426,6 +426,15 @@ function updateChangelog(version, changesets, dryRun = false) {
     newEntry += '\n';
   }
   
+  // Add consolidated codemods as a markdown code region if any exist
+  const codemodPrompt = extractCodemods(changesets);
+  if (codemodPrompt) {
+    newEntry += '### Migration Guide\n\n';
+    newEntry += '```markdown\n';
+    newEntry += codemodPrompt + '\n';
+    newEntry += '```\n\n';
+  }
+  
   // Insert new entry after header
   const headerEnd = existingContent.indexOf('\n## ');
   let updatedContent;

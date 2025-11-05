@@ -132,9 +132,11 @@ function runTests() {
     allPassed &= assertContains(output, 'engine:\n  id: copilot', 'Should include codemod content');
     allPassed &= assertContains(output, '### Changed the workflow frontmatter field', 'Should include description as heading in codemod');
     
-    // Verify codemod is NOT in the changelog section
+    // Verify codemod is NOT in raw form in the changelog section, but IS in the Migration Guide
     const changelogSection = output.substring(output.indexOf('Would add to CHANGELOG.md'), output.indexOf('Consolidated Codemod'));
     allPassed &= assertNotContains(changelogSection, '## Codemod', 'Changelog should not contain "## Codemod" heading');
+    allPassed &= assertContains(changelogSection, '### Migration Guide', 'Changelog should contain Migration Guide section');
+    allPassed &= assertContains(changelogSection, '```markdown', 'Changelog should contain markdown code block for codemods');
 
     // Clean up for next test
     fs.unlinkSync(path.join(CHANGESET_DIR, 'minor-breaking.md'));
