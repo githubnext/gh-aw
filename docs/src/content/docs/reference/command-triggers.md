@@ -65,7 +65,7 @@ permissions:
   issues: write
 tools:
   github:
-    toolset: [issues]
+    toolsets: [issues]
 ---
 
 # Issue Summarizer

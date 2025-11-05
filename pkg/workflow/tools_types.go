@@ -31,7 +31,7 @@ type GitHubToolConfig struct {
 	Args        []string `yaml:"args,omitempty"`
 	ReadOnly    bool     `yaml:"read-only,omitempty"`
 	GitHubToken string   `yaml:"github-token,omitempty"`
-	Toolset     []string `yaml:"toolset,omitempty"`
+	Toolset     []string `yaml:"toolsets,omitempty"`
 }
 
 // PlaywrightToolConfig represents the configuration for the Playwright tool

@@ -96,13 +96,13 @@ tools:
     args: ["--verbose", "--debug"]             # Additional arguments (local only)
     read-only: true                            # Read-only operations
     github-token: "${{ secrets.CUSTOM_PAT }}"  # Custom token
-    toolset: [repos, issues, pull_requests]    # Toolset groups
+    toolsets: [repos, issues, pull_requests]   # Toolset groups
 ```
 
 ### GitHub Toolsets
 
 :::tip[Prefer Toolsets Over Individual Tools]
-Use `toolset:` to enable groups of related tools instead of listing individual tools with `allowed:`. Toolsets provide better organization, reduce configuration verbosity, and ensure you get all related functionality.
+Use `toolsets:` to enable groups of related tools instead of listing individual tools with `allowed:`. Toolsets provide better organization, reduce configuration verbosity, and ensure you get all related functionality.
 :::
 
 Enables or disables specific GitHub API groups to improve tool selection and reduce context size.
@@ -110,23 +110,23 @@ Enables or disables specific GitHub API groups to improve tool selection and red
 ```yaml
 tools:
   github:
-    toolset: [repos, issues, pull_requests, actions]
+    toolsets: [repos, issues, pull_requests, actions]
 ```
 
 **Available Toolsets**: `context` (recommended), `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `issues`, `labels`, `notifications`, `orgs`, `projects`, `pull_requests`, `repos`, `secret_protection`, `security_advisories`, `stargazers`, `users`, `search`
 
-**Default Toolsets** (when `toolset:` is not specified): `context`, `repos`, `issues`, `pull_requests`, `users`
+**Default Toolsets** (when `toolsets:` is not specified): `context`, `repos`, `issues`, `pull_requests`, `users`
 
 **Recommended Combinations**:
-- **Read-only workflows**: `toolset: [default]` or `toolset: [context, repos]`
-- **Issue/PR/Discussion management**: `toolset: [default, discussions]` 
-- **CI/CD workflows**: `toolset: [default, actions]`
-- **Security workflows**: `toolset: [default, code_security, secret_protection]`
-- **Full access**: `toolset: [all]`
+- **Read-only workflows**: `toolsets: [default]` or `toolsets: [context, repos]`
+- **Issue/PR/Discussion management**: `toolsets: [default, discussions]` 
+- **CI/CD workflows**: `toolsets: [default, actions]`
+- **Security workflows**: `toolsets: [default, code_security, secret_protection]`
+- **Full access**: `toolsets: [all]`
 
 #### Tool-to-Toolset Mapping
 
-When migrating from `allowed:` to `toolset:`, use this mapping to identify the correct toolset for your tools:
+When migrating from `allowed:` to `toolsets:`, use this mapping to identify the correct toolset for your tools:
 
 | Tool Name | Toolset | Description |
 |-----------|---------|-------------|
@@ -160,22 +160,22 @@ tools:
       - get_file_contents
 ```
 
-After (using `toolset:`):
+After (using `toolsets:`):
 ```yaml
 tools:
   github:
-    toolset: [default]  # Includes repos and pull_requests
+    toolsets: [default]  # Includes repos and pull_requests
 ```
 
 Or for more specific control:
 ```yaml
 tools:
   github:
-    toolset: [repos, pull_requests]
+    toolsets: [repos, pull_requests]
 ```
 
 :::note
-Both `toolset:` and `allowed:` can be used together. When specified, `allowed:` further restricts which tools are available within the enabled toolsets.
+Both `toolsets:` and `allowed:` can be used together. When specified, `allowed:` further restricts which tools are available within the enabled toolsets.
 :::
 
 **Supported Modes**: Toolsets are supported in both local (Docker) and remote (hosted) modes.
