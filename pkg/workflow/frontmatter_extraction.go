@@ -74,7 +74,7 @@ func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *Work
 }
 
 // addSafeOutputCopilotGitHubTokenForConfig adds github-token to the with section for Copilot-related operations
-// Uses precedence: config token > safe-outputs global github-token > top-level github-token > GH_AW_COPILOT_TOKEN > GH_AW_GITHUB_TOKEN > GITHUB_TOKEN
+// Uses precedence: config token > safe-outputs global github-token > top-level github-token > COPILOT_GITHUB_TOKEN > COPILOT_CLI_TOKEN
 func (c *Compiler) addSafeOutputCopilotGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
 	var safeOutputsToken string
 	if data.SafeOutputs != nil {
