@@ -133,6 +133,14 @@ Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowl
    - Identify new vulnerabilities vs. recurring issues
    - Track improvement or regression over time
 
+4. **Calculate Trend Metrics**:
+   - Compare current scan with most recent previous scan
+   - Calculate percentage changes in total findings
+   - Calculate changes by tool (zizmor, poutine, actionlint)
+   - Determine if trend is improvement (↓), regression (↑), or stable (→)
+   - Identify number of new issues vs. resolved issues
+   - Update weekly and monthly aggregates in `/tmp/gh-aw/cache-memory/security-scans/trends/`
+
 ### Phase 4: Generate Fix Suggestions
 
 **Select one issue type** (preferably the most common or highest severity) and generate detailed fix suggestions:
@@ -282,18 +290,48 @@ Create a discussion with:
 
 ## Historical Trends
 
-[Compare with previous scans if available from cache memory]
+**IMPORTANT**: Include a comprehensive trend analysis section comparing current scan with previous scans.
 
-- **Previous Scan**: [DATE]
-- **Total Findings Then**: [NUMBER]
-- **Total Findings Now**: [NUMBER]
-- **Change**: [+/-NUMBER] ([+/-PERCENTAGE]%)
+1. **Load Historical Data**:
+   - Read scan index from `/tmp/gh-aw/cache-memory/security-scans/index.json`
+   - Find most recent previous scan (not today's date)
+   - Load previous scan data from `/tmp/gh-aw/cache-memory/security-scans/[previous-date].json`
 
-### New Issues
-[List any new issue types that weren't present before]
+2. **Calculate Trend Metrics**:
+   - **Total change**: Current total - Previous total
+   - **Percentage change**: ((Current - Previous) / Previous) × 100
+   - **Trend direction**: 
+     - ↓ improvement if total decreased
+     - ↑ regression if total increased
+     - → stable if no change
+   - **Per-tool changes**: Calculate same metrics for zizmor, poutine, and actionlint individually
 
-### Resolved Issues
-[List any issue types that are no longer present]
+3. **Format Trend Section**:
+```markdown
+## 📈 Trend Analysis
+
+**Week-over-Week Change**: [TREND_ICON] [PERCENTAGE]% [improvement/regression/stable]
+
+| Metric | Current | Previous | Change |
+|--------|---------|----------|--------|
+| Total Findings | [CURRENT] | [PREVIOUS] | [ICON] [CHANGE] ([PERCENT]%) |
+| Zizmor | [CURRENT] | [PREVIOUS] | [ICON] [CHANGE] ([PERCENT]%) |
+| Poutine | [CURRENT] | [PREVIOUS] | [ICON] [CHANGE] ([PERCENT]%) |
+| Actionlint | [CURRENT] | [PREVIOUS] | [ICON] [CHANGE] ([PERCENT]%) |
+
+**[Improvements/New Issues]**:
+- [Description of what changed]
+```
+
+4. **If No Historical Data**:
+   If this is the first scan (no previous data), include:
+```markdown
+## 📈 Trend Analysis
+
+No historical data available for comparison. This is the first scan.
+
+Future scans will include week-over-week trend analysis to track security posture improvements and regressions.
+```
 
 ## Recommendations
 
@@ -339,15 +377,40 @@ Organize your persistent data in `/tmp/gh-aw/cache-memory/`:
 ```
 /tmp/gh-aw/cache-memory/
 ├── security-scans/
-│   ├── index.json              # Master index of all scans
-│   ├── 2024-01-15.json         # Daily scan summaries (all tools)
-│   └── 2024-01-16.json
+│   ├── index.json              # Master index of all scans (90-day rolling history)
+│   ├── 2025-11-05.json         # Daily scan summaries (all tools)
+│   ├── 2025-11-06.json
+│   └── trends/
+│       ├── weekly.json         # Weekly aggregates (last 12 weeks)
+│       └── monthly.json        # Monthly aggregates (last 12 months)
 ├── vulnerabilities/
 │   ├── by-tool.json            # Vulnerabilities grouped by tool
 │   ├── by-workflow.json        # Vulnerabilities grouped by workflow
 │   └── trends.json             # Historical trend data
 └── fix-templates/
     └── [tool]-[issue-type].md  # Fix templates for each issue type
+```
+
+**Scan Data Structure** (`security-scans/<date>.json`):
+```json
+{
+  "date": "2025-11-05",
+  "timestamp": "2025-11-05T09:00:00Z",
+  "total": 116,
+  "byTool": {
+    "zizmor": { "total": 50, "bySeverity": { "critical": 0, "high": 0, "medium": 5, "low": 45 } },
+    "poutine": { "total": 30, "bySeverity": { "critical": 0, "high": 0, "medium": 0, "low": 30 } },
+    "actionlint": { "total": 36 }
+  },
+  "comparison": {
+    "totalChange": -20,
+    "totalChangePercent": -14.7,
+    "trend": "improvement",
+    "newIssues": 0,
+    "resolvedIssues": 20,
+    "byTool": { ... }
+  }
+}
 ```
 
 ## Output Requirements
