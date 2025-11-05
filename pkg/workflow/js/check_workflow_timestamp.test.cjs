@@ -259,8 +259,8 @@ describe("check_workflow_timestamp.cjs", () => {
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringMatching(/my-workflow\.lock\.yml.*outdated/));
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringMatching(/my-workflow\.md.*modified more recently/));
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringMatching(/WARNING.*my-workflow\.lock\.yml.*outdated/));
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringMatching(/my-workflow\.md/));
     });
 
     it("should add step summary with warning", async () => {
@@ -284,6 +284,53 @@ describe("check_workflow_timestamp.cjs", () => {
       expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Workflow Lock File Warning"));
       expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("WARNING"));
       expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("gh aw compile"));
+      expect(mockCore.summary.write).toHaveBeenCalled();
+    });
+
+    it("should include git SHA in summary when GITHUB_SHA is available", async () => {
+      process.env.GITHUB_WORKSPACE = tmpDir;
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
+      process.env.GITHUB_SHA = "abc123def456";
+
+      const workflowFile = path.join(workflowsDir, "test.md");
+      const lockFile = path.join(workflowsDir, "test.lock.yml");
+
+      // Create lock file first
+      fs.writeFileSync(lockFile, "# Lock file content");
+
+      // Wait a bit to ensure different timestamps
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Create source file (newer)
+      fs.writeFileSync(workflowFile, "# Workflow content");
+
+      await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
+
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Git Commit"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("abc123def456"));
+      expect(mockCore.summary.write).toHaveBeenCalled();
+    });
+
+    it("should include file timestamps in summary", async () => {
+      process.env.GITHUB_WORKSPACE = tmpDir;
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
+
+      const workflowFile = path.join(workflowsDir, "test.md");
+      const lockFile = path.join(workflowsDir, "test.lock.yml");
+
+      // Create lock file first
+      fs.writeFileSync(lockFile, "# Lock file content");
+
+      // Wait a bit to ensure different timestamps
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Create source file (newer)
+      fs.writeFileSync(workflowFile, "# Workflow content");
+
+      await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
+
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("modified:"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringMatching(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/));
       expect(mockCore.summary.write).toHaveBeenCalled();
     });
   });
