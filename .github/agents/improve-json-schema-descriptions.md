@@ -1,10 +1,6 @@
 ---
 name: improve-json-schema-descriptions
 description: Systematic approach for reviewing and improving descriptions in the frontmatter JSON schema for GitHub Agentic Workflows
-tools:
-  - read
-  - edit
-  - search
 ---
 
 # Improve JSON Schema Descriptions
