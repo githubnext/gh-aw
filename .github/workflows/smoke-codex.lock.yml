@@ -1037,6 +1037,10 @@ jobs:
           [history]
           persistence = "none"
           
+          [shell_environment_policy]
+          inherit = "core"
+          include_only = ["CODEX_API_KEY", "GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_SAFE_OUTPUTS", "GITHUB_PERSONAL_ACCESS_TOKEN", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "HOME", "OPENAI_API_KEY", "PATH"]
+          
           [mcp_servers.github]
           user_agent = "smoke-codex"
           startup_timeout_sec = 120
@@ -1054,16 +1058,14 @@ jobs:
             "GITHUB_TOOLSETS=default",
             "ghcr.io/github/github-mcp-server:v0.20.1"
           ]
-          
-          [mcp_servers.github.env]
-          GITHUB_PERSONAL_ACCESS_TOKEN = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+          env_vars = ["GITHUB_PERSONAL_ACCESS_TOKEN"]
           
           [mcp_servers.safeoutputs]
           command = "node"
           args = [
             "/tmp/gh-aw/safeoutputs/mcp-server.cjs",
           ]
-          env = { "GH_AW_SAFE_OUTPUTS" = "${{ env.GH_AW_SAFE_OUTPUTS }}", "GH_AW_ASSETS_BRANCH" = "${{ env.GH_AW_ASSETS_BRANCH }}", "GH_AW_ASSETS_MAX_SIZE_KB" = "${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}", "GH_AW_ASSETS_ALLOWED_EXTS" = "${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}", "GITHUB_REPOSITORY" = "${{ github.repository }}", "GITHUB_SERVER_URL" = "${{ github.server_url }}" }
+          env_vars = ["GH_AW_SAFE_OUTPUTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL"]
           EOF
       - name: Create prompt
         env:
@@ -1289,7 +1291,9 @@ jobs:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_STAGED: true
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
           RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
       - name: Redact secrets in logs
         if: always()
@@ -3311,7 +3315,9 @@ jobs:
           GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          OPENAI_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
           RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
       - name: Parse threat detection results
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd

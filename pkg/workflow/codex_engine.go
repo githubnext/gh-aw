@@ -124,13 +124,15 @@ codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, ful
 	effectiveGitHubToken := getEffectiveGitHubToken("", workflowData.GitHubToken)
 
 	env := map[string]string{
-		"CODEX_API_KEY":       "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
-		"GITHUB_STEP_SUMMARY": "${{ env.GITHUB_STEP_SUMMARY }}",
-		"GH_AW_PROMPT":        "/tmp/gh-aw/aw-prompts/prompt.txt",
-		"GH_AW_MCP_CONFIG":    "/tmp/gh-aw/mcp-config/config.toml",
-		"CODEX_HOME":          "/tmp/gh-aw/mcp-config",
-		"RUST_LOG":            "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
-		"GH_AW_GITHUB_TOKEN":  effectiveGitHubToken,
+		"CODEX_API_KEY":                   "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
+		"GITHUB_STEP_SUMMARY":             "${{ env.GITHUB_STEP_SUMMARY }}",
+		"GH_AW_PROMPT":                    "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GH_AW_MCP_CONFIG":                "/tmp/gh-aw/mcp-config/config.toml",
+		"CODEX_HOME":                      "/tmp/gh-aw/mcp-config",
+		"RUST_LOG":                        "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
+		"GH_AW_GITHUB_TOKEN":              effectiveGitHubToken,
+		"GITHUB_PERSONAL_ACCESS_TOKEN":    effectiveGitHubToken, // Used by GitHub MCP server via env_vars
+		"OPENAI_API_KEY":                  "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}", // Fallback for CODEX_API_KEY
 	}
 
 	// Add GH_AW_SAFE_OUTPUTS if output is needed
@@ -198,12 +200,83 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(tools map[string]any) map[s
 	return result
 }
 
+// renderShellEnvironmentPolicy generates the [shell_environment_policy] section for config.toml
+// This controls which environment variables are passed through to MCP servers for security
+func (e *CodexEngine) renderShellEnvironmentPolicy(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+	// Collect all environment variables needed by MCP servers
+	envVars := make(map[string]bool)
+
+	// Always include core environment variables
+	envVars["PATH"] = true
+	envVars["HOME"] = true
+
+	// Add CODEX_API_KEY for authentication
+	envVars["CODEX_API_KEY"] = true
+	envVars["OPENAI_API_KEY"] = true // Fallback for CODEX_API_KEY
+
+	// Check each MCP tool for required environment variables
+	for _, toolName := range mcpTools {
+		switch toolName {
+		case "github":
+			// GitHub MCP server needs GITHUB_PERSONAL_ACCESS_TOKEN
+			envVars["GITHUB_PERSONAL_ACCESS_TOKEN"] = true
+		case "agentic-workflows":
+			// Agentic workflows MCP server needs GITHUB_TOKEN
+			envVars["GITHUB_TOKEN"] = true
+		case "safe-outputs":
+			// Safe outputs MCP server needs several environment variables
+			envVars["GH_AW_SAFE_OUTPUTS"] = true
+			envVars["GH_AW_ASSETS_BRANCH"] = true
+			envVars["GH_AW_ASSETS_MAX_SIZE_KB"] = true
+			envVars["GH_AW_ASSETS_ALLOWED_EXTS"] = true
+			envVars["GITHUB_REPOSITORY"] = true
+			envVars["GITHUB_SERVER_URL"] = true
+		default:
+			// For custom MCP tools, check if they have env configuration
+			if toolValue, ok := tools[toolName]; ok {
+				if toolConfig, ok := toolValue.(map[string]any); ok {
+					// Extract environment variable names from env configuration
+					if env, hasEnv := toolConfig["env"].(map[string]any); hasEnv {
+						for envKey := range env {
+							envVars[envKey] = true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Sort environment variable names for consistent output
+	var sortedEnvVars []string
+	for envVar := range envVars {
+		sortedEnvVars = append(sortedEnvVars, envVar)
+	}
+	sort.Strings(sortedEnvVars)
+
+	// Render [shell_environment_policy] section
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [shell_environment_policy]\n")
+	yaml.WriteString("          inherit = \"core\"\n")
+	yaml.WriteString("          include_only = [")
+	for i, envVar := range sortedEnvVars {
+		if i > 0 {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("\"" + envVar + "\"")
+	}
+	yaml.WriteString("]\n")
+}
+
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/config.toml << EOF\n")
 
 	// Add history configuration to disable persistence
 	yaml.WriteString("          [history]\n")
 	yaml.WriteString("          persistence = \"none\"\n")
+
+	// Add shell environment policy to control which environment variables are passed through
+	// This is a security feature to prevent accidental exposure of secrets
+	e.renderShellEnvironmentPolicy(yaml, tools, mcpTools, workflowData)
 
 	// Expand neutral tools (like playwright: null) to include the copilot agent tools
 	expandedTools := e.expandNeutralToolsToCodexTools(tools)
@@ -459,7 +532,6 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 // Supports both local (Docker) and remote (hosted) modes
 func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
 	githubType := getGitHubType(githubTool)
-	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
 	toolsets := getGitHubToolsets(githubTool)
 
@@ -535,13 +607,9 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		yaml.WriteString("\n")
 		yaml.WriteString("          ]\n")
 
-		// Use TOML section syntax for environment variables
-		yaml.WriteString("          \n")
-		yaml.WriteString("          [mcp_servers.github.env]\n")
-
-		// Use effective token with precedence: custom > top-level > default
-		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
-		yaml.WriteString("          GITHUB_PERSONAL_ACCESS_TOKEN = \"" + effectiveToken + "\"\n")
+		// Use env_vars array to reference environment variables instead of embedding secrets
+		// The actual secret values are set in the execution step's env block
+		yaml.WriteString("          env_vars = [\"GITHUB_PERSONAL_ACCESS_TOKEN\"]\n")
 	}
 }
 

@@ -319,13 +319,13 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 		`command = "node"`,
 		`args = [`,
 		`"/tmp/gh-aw/safeoutputs/mcp-server.cjs"`,
-		`env = {`,
-		`"GH_AW_SAFE_OUTPUTS" = "${{ env.GH_AW_SAFE_OUTPUTS }}"`,
+		`env_vars = ["GH_AW_SAFE_OUTPUTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS", "GITHUB_REPOSITORY", "GITHUB_SERVER_URL"]`,
 	}
 
 	unexpectedContent := []string{
 		`GH_AW_SAFE_OUTPUTS_CONFIG`, // Config is now in file, not env var
 		`${{ toJSON(`,
+		`env = {`, // Should use env_vars instead
 	}
 
 	for _, expected := range expectedContent {
@@ -355,12 +355,22 @@ func TestRenderAgenticWorkflowsMCPConfigTOML(t *testing.T) {
 		`args = [`,
 		`"aw"`,
 		`"mcp-server"`,
-		`env = { "GITHUB_TOKEN" = "${{ secrets.GITHUB_TOKEN }}" }`,
+		`env_vars = ["GITHUB_TOKEN"]`,
+	}
+
+	unexpectedContent := []string{
+		`env = {`, // Should use env_vars instead
 	}
 
 	for _, expected := range expectedContent {
 		if !strings.Contains(result, expected) {
 			t.Errorf("Expected content not found: %q\nActual output:\n%s", expected, result)
+		}
+	}
+
+	for _, unexpected := range unexpectedContent {
+		if strings.Contains(result, unexpected) {
+			t.Errorf("Unexpected content found: %q\nActual output:\n%s", unexpected, result)
 		}
 	}
 }
