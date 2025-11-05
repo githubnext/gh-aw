@@ -121,11 +121,16 @@ gh aw add githubnext/agentics/ci-doctor
 gh aw add githubnext/agentics/ci-doctor --name my-custom-doctor --pr --engine copilot
 gh aw add githubnext/agentics/ci-doctor --number 3  # Create 3 copies
 gh aw add githubnext/agentics/ci-doctor --append "Extra content"  # Append custom content
+gh aw add githubnext/agentics/ci-doctor --no-gitattributes  # Skip .gitattributes update
 
 # Remove workflows
 gh aw remove WorkflowName
 gh aw remove WorkflowName --keep-orphans  # Keep shared includes
 ```
+
+**Automatic .gitattributes Configuration:**
+
+The `add` command automatically updates `.gitattributes` to mark `.lock.yml` files as generated, matching the behavior of the `init` command. Use the `--no-gitattributes` flag to disable this automatic update if needed.
 
 **Workflow Updates:**
 
