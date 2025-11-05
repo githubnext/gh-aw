@@ -1,0 +1,83 @@
+name: 'Trigger Release'
+description: 'Triggers a release with permission checks, builds, tests, and automatic version bumping'
+runs:
+  using: "composite"
+  steps:
+    - name: Check user permissions
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            username: context.actor
+          });
+          
+          if (!['admin', 'maintain'].includes(permission.permission)) {
+            core.setFailed(`User ${context.actor} does not have admin or maintainer permissions. Current permission: ${permission.permission}`);
+          }
+          
+          core.info(`✓ User ${context.actor} has ${permission.permission} permissions`);
+
+    - name: Check repository is not a fork
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: repo } = await github.rest.repos.get({
+            owner: context.repo.owner,
+            repo: context.repo.repo
+          });
+          
+          if (repo.fork) {
+            core.setFailed('Cannot trigger release on a forked repository');
+          }
+          
+          core.info('✓ Repository is not a fork');
+
+    - name: Check ref is main
+      shell: bash
+      run: |
+        # Get the ref name (branch or tag)
+        if [ "${{ github.ref_type }}" == "branch" ]; then
+          BRANCH_NAME="${{ github.ref_name }}"
+        else
+          # For tags or other ref types, check the default branch
+          BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+        fi
+        
+        if [ "$BRANCH_NAME" != "main" ]; then
+          echo "::error::Release can only be triggered from main branch (current: $BRANCH_NAME)"
+          exit 1
+        fi
+        
+        echo "✓ Running on main branch"
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: "24"
+        cache: npm
+        cache-dependency-path: pkg/workflow/js/package-lock.json
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Install npm dependencies
+      shell: bash
+      run: npm ci
+      working-directory: ./pkg/workflow/js
+
+    - name: Build
+      shell: bash
+      run: make build
+
+    - name: Run tests
+      shell: bash
+      run: make test
+
+    - name: Run release
+      shell: bash
+      run: YES=1 make release

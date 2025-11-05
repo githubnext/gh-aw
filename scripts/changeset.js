@@ -521,8 +521,9 @@ function runVersion() {
 /**
  * Run the release command
  * @param {string} releaseType - Optional release type (patch, minor, major)
+ * @param {boolean} skipConfirmation - Skip confirmation prompt if true
  */
-async function runRelease(releaseType) {
+async function runRelease(releaseType, skipConfirmation = false) {
   // Check git prerequisites (clean tree, main branch)
   checkGitPrerequisites();
   
@@ -561,13 +562,18 @@ async function runRelease(releaseType) {
     console.log(`  [${cs.bumpType}] ${extractFirstLine(cs.description)}`);
   }
   
-  // Ask for confirmation before making any changes
-  console.log('');
-  const confirmed = await promptConfirmation(formatInfoMessage('Proceed with creating the release (update files, commit, tag, and push)?'));
-  
-  if (!confirmed) {
-    console.log(formatInfoMessage('Release cancelled. No changes have been made.'));
-    return;
+  // Ask for confirmation before making any changes (unless skipped)
+  if (!skipConfirmation) {
+    console.log('');
+    const confirmed = await promptConfirmation(formatInfoMessage('Proceed with creating the release (update files, commit, tag, and push)?'));
+    
+    if (!confirmed) {
+      console.log(formatInfoMessage('Release cancelled. No changes have been made.'));
+      return;
+    }
+  } else {
+    console.log('');
+    console.log(formatInfoMessage('Skipping confirmation (--yes flag provided)'));
   }
   
   // Update changelog
@@ -639,15 +645,20 @@ function showHelp() {
   console.log('Changeset CLI - Manage version releases');
   console.log('');
   console.log('Usage:');
-  console.log('  node scripts/changeset.js version      - Preview next version from changesets');
-  console.log('  node scripts/changeset.js release [type] - Create release and update CHANGELOG');
+  console.log('  node scripts/changeset.js version           - Preview next version from changesets');
+  console.log('  node scripts/changeset.js release [type]    - Create release and update CHANGELOG');
+  console.log('  node scripts/changeset.js release --yes     - Create release without confirmation');
   console.log('');
   console.log('Release types: patch, minor, major');
+  console.log('');
+  console.log('Options:');
+  console.log('  --yes    Skip confirmation prompt');
   console.log('');
   console.log('Examples:');
   console.log('  node scripts/changeset.js version');
   console.log('  node scripts/changeset.js release');
   console.log('  node scripts/changeset.js release patch');
+  console.log('  node scripts/changeset.js release --yes');
   console.log('  node scripts/changeset.js release minor');
   console.log('  node scripts/changeset.js release major');
 }
@@ -668,9 +679,22 @@ async function main() {
       case 'version':
         runVersion();
         break;
-      case 'release':
-        await runRelease(args[1]);
+      case 'release': {
+        // Parse release arguments
+        let releaseType = null;
+        let skipConfirmation = false;
+        
+        for (let i = 1; i < args.length; i++) {
+          if (args[i] === '--yes' || args[i] === '-y') {
+            skipConfirmation = true;
+          } else if (['patch', 'minor', 'major'].includes(args[i])) {
+            releaseType = args[i];
+          }
+        }
+        
+        await runRelease(releaseType, skipConfirmation);
         break;
+      }
       default:
         console.error(formatErrorMessage(`Unknown command: ${command}`));
         console.log('');

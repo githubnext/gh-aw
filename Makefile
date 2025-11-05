@@ -247,7 +247,11 @@ version:
 
 .PHONY: release
 release: test
-	@node scripts/changeset.js release
+	@if [ "$(YES)" = "1" ]; then \
+		node scripts/changeset.js release --yes; \
+	else \
+		node scripts/changeset.js release; \
+	fi
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
