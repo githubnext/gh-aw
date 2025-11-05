@@ -19,6 +19,8 @@ steps:
     run: |
       gh extension remove gh-aw || true
       gh extension install .
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 timeout_minutes: 15
 safe-outputs:
   add-comment:

@@ -1137,7 +1137,9 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           persist-credentials: false
-      - name: Install gh-aw extension
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Install gh-aw extension
         run: |-
           gh extension remove gh-aw || true
           gh extension install .

@@ -979,6 +979,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		// Parse imported steps from YAML array
 		var importedSteps []any
 		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &importedSteps); err == nil {
+			// Validate imported steps for GH_TOKEN requirement
+			if err := ValidateStepsGHToken(importedSteps); err != nil {
+				return nil, fmt.Errorf("imported steps validation failed: %w", err)
+			}
+
 			// Apply action pinning to imported steps
 			importedSteps = ApplyActionPinsToSteps(importedSteps, workflowData)
 
@@ -989,6 +994,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 				if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err == nil {
 					if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
 						if mainSteps, ok := mainStepsVal.([]any); ok {
+							// Validate main steps for GH_TOKEN requirement
+							if err := ValidateStepsGHToken(mainSteps); err != nil {
+								return nil, fmt.Errorf("main steps validation failed: %w", err)
+							}
+
 							// Apply action pinning to main steps
 							mainSteps = ApplyActionPinsToSteps(mainSteps, workflowData)
 
@@ -1018,6 +1028,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err == nil {
 			if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
 				if mainSteps, ok := mainStepsVal.([]any); ok {
+					// Validate main steps for GH_TOKEN requirement
+					if err := ValidateStepsGHToken(mainSteps); err != nil {
+						return nil, fmt.Errorf("main steps validation failed: %w", err)
+					}
+
 					// Apply action pinning to main steps
 					mainSteps = ApplyActionPinsToSteps(mainSteps, workflowData)
 
