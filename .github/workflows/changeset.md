@@ -381,6 +381,11 @@ Your task is to:
    - Create file in `.changeset/` directory (already created by pre-step)
    - Use format from the changeset format reference above
    - Filename: `<type>-<short-description>.md` (e.g., `patch-fix-bug.md`)
+   - **For breaking changes (minor or major)**: Include an optional "Codemod" section that explains how to update existing code
+     - Provide clear before/after examples
+     - Explain what code patterns are affected
+     - Specify which files or use cases need updates
+     - See the changeset format reference for examples
 
 5. **Commit and Push Changes**:
    - Git is already configured by pre-step
@@ -406,4 +411,5 @@ Your task is to:
 - **Follow Conventions**: Use the exact changeset format specified above
 - **Single Package Default**: If unsure about package structure, default to "gh-aw"
 - **Smart Naming**: Use descriptive filenames that indicate the change (e.g., `patch-fix-rendering-bug.md`)
+- **Include Codemod for Breaking Changes**: When creating a **minor** or **major** changeset, add a "Codemod" section that helps users update their code with clear before/after examples
 

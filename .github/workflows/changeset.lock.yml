@@ -1718,6 +1718,41 @@ jobs:
           - Use quotes around package names in YAML frontmatter
           - Brief summary should be from PR title or first line of description
           
+          ### Optional Codemod Section
+          
+          For **minor** or **major** changes that introduce breaking changes, include an optional "Codemod" section to help users update their code:
+          
+          ```markdown
+          ---
+          "gh-aw": minor
+          ---
+          
+          Changed the workflow frontmatter field `engine` to require an object instead of a string.
+          
+          ## Codemod
+          
+          If you have workflows using the old string format for the `engine` field:
+          
+          ```yaml
+          engine: copilot
+          ```
+          
+          Update them to use the new object format:
+          
+          ```yaml
+          engine:
+            id: copilot
+          ```
+          
+          This change applies to all workflows using the `engine` field in their frontmatter.
+          ```
+          
+          The codemod section should:
+          - Explain what code patterns are affected by the breaking change
+          - Provide clear before/after examples showing how to update existing code
+          - Specify which files or use cases need to be updated
+          - Include any automation suggestions if applicable
+          
           ## jqschema - JSON Schema Discovery
           
           A utility script is available at `/tmp/gh-aw/jqschema.sh` to help you discover the structure of complex JSON responses.
@@ -1839,6 +1874,11 @@ jobs:
              - Create file in `.changeset/` directory (already created by pre-step)
              - Use format from the changeset format reference above
              - Filename: `<type>-<short-description>.md` (e.g., `patch-fix-bug.md`)
+             - **For breaking changes (minor or major)**: Include an optional "Codemod" section that explains how to update existing code
+               - Provide clear before/after examples
+               - Explain what code patterns are affected
+               - Specify which files or use cases need updates
+               - See the changeset format reference for examples
           
           5. **Commit and Push Changes**:
              - Git is already configured by pre-step
@@ -1864,6 +1904,7 @@ jobs:
           - **Follow Conventions**: Use the exact changeset format specified above
           - **Single Package Default**: If unsure about package structure, default to "gh-aw"
           - **Smart Naming**: Use descriptive filenames that indicate the change (e.g., `patch-fix-rendering-bug.md`)
+          - **Include Codemod for Breaking Changes**: When creating a **minor** or **major** changeset, add a "Codemod" section that helps users update their code with clear before/after examples
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
