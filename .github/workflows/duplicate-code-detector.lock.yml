@@ -3114,54 +3114,9 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            function sanitizeLabelContent(content) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              let sanitized = content.trim();
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitized.replace(
-                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                (_m, p1, p2) => `${p1}\`@${p2}\``
-              );
-              sanitized = sanitized.replace(/[<>&'"]/g, "");
-              return sanitized.trim();
-            }
-            const fs = require("fs");
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.setFailed(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.setFailed(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
+            const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
+            const { loadAgentOutput } = require("./load_agent_output.cjs");
+            const { generateStagedPreview } = require("./staged_preview.cjs");
             function generateFooter(
               workflowName,
               runUrl,
@@ -3200,23 +3155,22 @@ jobs:
               }
               core.info(`Found ${createIssueItems.length} create-issue item(s)`);
               if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
-                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < createIssueItems.length; i++) {
-                  const item = createIssueItems[i];
-                  summaryContent += `### Issue ${i + 1}\n`;
-                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-                  if (item.body) {
-                    summaryContent += `**Body:**\n${item.body}\n\n`;
-                  }
-                  if (item.labels && item.labels.length > 0) {
-                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
-                  }
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info(summaryContent);
-                core.info("📝 Issue creation preview written to step summary");
+                await generateStagedPreview({
+                  title: "Create Issues",
+                  description: "The following issues would be created if staged mode was disabled:",
+                  items: createIssueItems,
+                  renderItem: (item, index) => {
+                    let content = `### Issue ${index + 1}\n`;
+                    content += `**Title:** ${item.title || "No title provided"}\n\n`;
+                    if (item.body) {
+                      content += `**Body:**\n${item.body}\n\n`;
+                    }
+                    if (item.labels && item.labels.length > 0) {
+                      content += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                    }
+                    return content;
+                  },
+                });
                 return;
               }
               const parentIssueNumber = context.payload?.issue?.number;
