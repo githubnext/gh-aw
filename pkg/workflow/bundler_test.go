@@ -270,3 +270,204 @@ main();
 		t.Error("Bundled output still contains require statement")
 	}
 }
+
+// TestValidateNoLocalRequires tests the validateNoLocalRequires function
+func TestValidateNoLocalRequires(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		expectError bool
+	}{
+		{
+			name: "no local requires",
+			content: `function test() {
+  console.log("hello");
+}`,
+			expectError: false,
+		},
+		{
+			name: "npm package require is ok",
+			content: `const fs = require("fs");
+const path = require("path");
+function test() {
+  console.log("hello");
+}`,
+			expectError: false,
+		},
+		{
+			name: "local require with ./ should error",
+			content: `const { helper } = require("./helper.cjs");
+function test() {
+  console.log("hello");
+}`,
+			expectError: true,
+		},
+		{
+			name: "local require with ../ should error",
+			content: `const utils = require("../utils.cjs");
+function test() {
+  console.log("hello");
+}`,
+			expectError: true,
+		},
+		{
+			name: "commented local require is ok",
+			content: `// const { helper } = require("./helper.cjs");
+function test() {
+  console.log("hello");
+}`,
+			expectError: false,
+		},
+		{
+			name: "multiple local requires should error",
+			content: `const { helper } = require("./helper.cjs");
+const utils = require("../utils.cjs");
+function test() {
+  console.log("hello");
+}`,
+			expectError: true,
+		},
+		{
+			name: "require in string should not error",
+			content: `const code = 'const x = require("./helper.cjs");';
+function test() {
+  console.log(code);
+}`,
+			expectError: false,
+		},
+		{
+			name: "inlined content markers with npm requires is ok",
+			content: `// === Inlined from ./helper.cjs ===
+const fs = require("fs");
+function helper() {
+  return "test";
+}
+// === End of ./helper.cjs ===`,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateNoLocalRequires(tt.content)
+			if tt.expectError && err == nil {
+				t.Error("Expected error but got nil")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Expected no error but got: %v", err)
+			}
+		})
+	}
+}
+
+// TestBundleJavaScriptValidationSuccess tests that validation passes for properly bundled code
+func TestBundleJavaScriptValidationSuccess(t *testing.T) {
+	// Create helper content
+	helperContent := `function helperFunc() {
+  return "helper";
+}
+
+module.exports = { helperFunc };
+`
+
+	// Create main content with local require
+	mainContent := `const { helperFunc } = require('./helper.cjs');
+
+function main() {
+  console.log(helperFunc());
+}
+
+main();
+`
+
+	sources := map[string]string{
+		"helper.cjs": helperContent,
+	}
+
+	// This should succeed - the require will be inlined and validation should pass
+	bundled, err := BundleJavaScriptFromSources(mainContent, sources, "")
+	if err != nil {
+		t.Fatalf("Expected bundling to succeed, but got error: %v", err)
+	}
+
+	// Verify the bundled output doesn't contain the local require
+	if strings.Contains(bundled, `require('./helper.cjs')`) {
+		t.Error("Bundled output still contains local require - validation should have caught this")
+	}
+}
+
+// TestBundleJavaScriptValidationFailure tests that validation fails when a local require cannot be inlined
+func TestBundleJavaScriptValidationFailure(t *testing.T) {
+	// Create main content with a local require to a non-existent file
+	mainContent := `const { helper } = require('./missing.cjs');
+
+function main() {
+  console.log(helper());
+}
+
+main();
+`
+
+	sources := map[string]string{
+		// No "missing.cjs" in sources
+	}
+
+	// This should fail because missing.cjs is not in sources
+	_, err := BundleJavaScriptFromSources(mainContent, sources, "")
+	if err == nil {
+		t.Fatal("Expected bundling to fail due to missing file, but got no error")
+	}
+
+	// Check that the error mentions the missing file
+	if !strings.Contains(err.Error(), "missing.cjs") {
+		t.Errorf("Error should mention missing file, got: %v", err)
+	}
+}
+
+// TestBundleJavaScriptWithNpmPackages tests that npm package requires are preserved
+func TestBundleJavaScriptWithNpmPackages(t *testing.T) {
+	// Create helper content
+	helperContent := `const path = require("path");
+
+function helperFunc(filepath) {
+  return path.basename(filepath);
+}
+
+module.exports = { helperFunc };
+`
+
+	// Create main content with both local and npm requires
+	mainContent := `const fs = require("fs");
+const { helperFunc } = require('./helper.cjs');
+
+function main() {
+  const files = fs.readdirSync(".");
+  files.forEach(f => console.log(helperFunc(f)));
+}
+
+main();
+`
+
+	sources := map[string]string{
+		"helper.cjs": helperContent,
+	}
+
+	// This should succeed - npm requires should be kept, local require should be inlined
+	bundled, err := BundleJavaScriptFromSources(mainContent, sources, "")
+	if err != nil {
+		t.Fatalf("Expected bundling to succeed, but got error: %v", err)
+	}
+
+	// Verify npm requires are still present
+	if !strings.Contains(bundled, `require("fs")`) {
+		t.Error("Bundled output should still contain npm require for 'fs'")
+	}
+	if !strings.Contains(bundled, `require("path")`) {
+		t.Error("Bundled output should still contain npm require for 'path'")
+	}
+
+	// Verify local require is gone
+	if strings.Contains(bundled, `require('./helper.cjs')`) {
+		t.Error("Bundled output should not contain local require")
+	}
+}

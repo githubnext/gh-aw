@@ -31,6 +31,12 @@ func BundleJavaScriptFromSources(mainContent string, sources map[string]string, 
 	// Deduplicate require statements (keep only the first occurrence)
 	bundled = deduplicateRequires(bundled)
 
+	// Validate that all local requires have been inlined
+	if err := validateNoLocalRequires(bundled); err != nil {
+		bundlerLog.Printf("Validation failed: %v", err)
+		return "", err
+	}
+
 	bundlerLog.Printf("Bundling completed: processed_files=%d, output_size=%d bytes", len(processed), len(bundled))
 	return bundled, nil
 }
@@ -177,4 +183,78 @@ func deduplicateRequires(content string) string {
 	}
 
 	return result.String()
+}
+
+// validateNoLocalRequires checks that the bundled JavaScript contains no local require() statements
+// Local requires are those that start with ./ or ../
+// Returns an error if any local requires are found, otherwise returns nil
+func validateNoLocalRequires(bundledContent string) error {
+	// Regular expression to match local require statements
+	// Matches: require('./...') or require("../...")
+	// This should match the same pattern as used in bundleFromSources
+	localRequireRegex := regexp.MustCompile(`require\(['"](\.\.?/[^'"]+)['"]\)`)
+
+	lines := strings.Split(bundledContent, "\n")
+	var foundRequires []string
+
+	for lineNum, line := range lines {
+		// Skip lines that are comments
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "//") {
+			continue
+		}
+
+		// Skip lines that are inside block comments
+		if strings.HasPrefix(trimmed, "/*") || strings.HasPrefix(trimmed, "*") {
+			continue
+		}
+
+		// Check for local requires in non-comment lines
+		matches := localRequireRegex.FindAllStringSubmatch(line, -1)
+		for _, match := range matches {
+			if len(match) > 1 {
+				requirePath := match[1]
+				// Check if this require is inside a string literal
+				// by checking if the match position is inside quotes
+				matchIdx := strings.Index(line, match[0])
+				if matchIdx >= 0 && !isInsideStringLiteralAt(line, matchIdx) {
+					foundRequires = append(foundRequires, fmt.Sprintf("line %d: require('%s')", lineNum+1, requirePath))
+				}
+			}
+		}
+	}
+
+	if len(foundRequires) > 0 {
+		return fmt.Errorf("bundled JavaScript contains %d local require(s) that were not inlined:\n  %s",
+			len(foundRequires), strings.Join(foundRequires, "\n  "))
+	}
+
+	return nil
+}
+
+// isInsideStringLiteralAt checks if a position in a line is inside a string literal
+func isInsideStringLiteralAt(line string, pos int) bool {
+	// Count unescaped quotes before the position
+	singleQuoteCount := 0
+	doubleQuoteCount := 0
+	backtickCount := 0
+
+	for i := 0; i < pos && i < len(line); i++ {
+		// Skip escaped characters
+		if i > 0 && line[i-1] == '\\' {
+			continue
+		}
+
+		switch line[i] {
+		case '\'':
+			singleQuoteCount++
+		case '"':
+			doubleQuoteCount++
+		case '`':
+			backtickCount++
+		}
+	}
+
+	// If any quote count is odd, we're inside that type of string literal
+	return singleQuoteCount%2 == 1 || doubleQuoteCount%2 == 1 || backtickCount%2 == 1
 }
