@@ -89,6 +89,11 @@ Test command workflow with reaction explicitly disabled.
 		t.Error("Activation job should not have 'discussions: write' permission when reaction is 'none'")
 	}
 
+	// Verify that activation job DOES have contents: read permission for checkout
+	if !strings.Contains(activationJobSection, "contents: read") {
+		t.Error("Activation job should have 'contents: read' permission for checkout step")
+	}
+
 	// Verify that update_reaction job is NOT created
 	if strings.Contains(compiled, "update_reaction:") {
 		t.Error("update_reaction job should not be created when reaction is 'none'")
@@ -173,6 +178,11 @@ Test command workflow with default (eyes) reaction.
 	}
 	if !strings.Contains(activationJobSection, "discussions: write") {
 		t.Error("Activation job should have 'discussions: write' permission when reaction is enabled")
+	}
+
+	// Verify that activation job also has contents: read permission for checkout
+	if !strings.Contains(activationJobSection, "contents: read") {
+		t.Error("Activation job should have 'contents: read' permission for checkout step")
 	}
 
 	// Verify that update_reaction job IS created

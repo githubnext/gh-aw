@@ -79,6 +79,7 @@ jobs:
       ((contains(github.event.comment.body, '/tidy')) && (github.event.issue.pull_request != null)))) || (!(github.event_name == 'issue_comment')))
     runs-on: ubuntu-slim
     permissions:
+      contents: read
       discussions: write
       issues: write
       pull-requests: write

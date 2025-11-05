@@ -68,6 +68,7 @@ jobs:
       (github.event.issue.pull_request == null)) || (github.event_name == 'discussion_comment') && (contains(github.event.comment.body, '/plan')))
     runs-on: ubuntu-slim
     permissions:
+      contents: read
       discussions: write
       issues: write
       pull-requests: write

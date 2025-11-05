@@ -102,6 +102,7 @@ jobs:
       (contains(github.event.issue.body, '/poem-bot')))) || (!(github.event_name == 'issues')))
     runs-on: ubuntu-slim
     permissions:
+      contents: read
       discussions: write
       issues: write
       pull-requests: write

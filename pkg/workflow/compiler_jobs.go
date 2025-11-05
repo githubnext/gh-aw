@@ -597,16 +597,20 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		activationCondition = c.combineJobIfConditions(activationCondition, workflowRunRepoSafety)
 	}
 
-	// Set permissions - add reaction permissions if reaction is configured and not "none"
-	var permissions string
-	if data.AIReaction != "" && data.AIReaction != "none" {
-		perms := NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-			PermissionDiscussions:  PermissionWrite,
-			PermissionIssues:       PermissionWrite,
-			PermissionPullRequests: PermissionWrite,
-		})
-		permissions = perms.RenderToYAML()
+	// Set permissions - activation job always needs contents:read for checkout step
+	// Also add reaction permissions if reaction is configured and not "none"
+	permsMap := map[PermissionScope]PermissionLevel{
+		PermissionContents: PermissionRead, // Always needed for checkout step
 	}
+
+	if data.AIReaction != "" && data.AIReaction != "none" {
+		permsMap[PermissionDiscussions] = PermissionWrite
+		permsMap[PermissionIssues] = PermissionWrite
+		permsMap[PermissionPullRequests] = PermissionWrite
+	}
+
+	perms := NewPermissionsFromMap(permsMap)
+	permissions := perms.RenderToYAML()
 
 	// Set environment if manual-approval is configured
 	var environment string

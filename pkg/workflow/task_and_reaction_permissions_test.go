@@ -79,10 +79,9 @@ The activation job references text output: "${{ needs.activation.outputs.text }}
 		t.Error("Activation job checkout should checkout .github/workflows directory")
 	}
 
-	// Test 3: Verify activation job has no contents permission explicitly set
-	// (sparse checkout works with read-all default permissions)
-	if strings.Contains(activationJobSection, "contents:") {
-		t.Error("Activation job should not explicitly set contents permission")
+	// Test 3: Verify activation job has contents: read permission for checkout step
+	if !strings.Contains(activationJobSection, "contents: read") {
+		t.Error("Activation job should have contents: read permission for checkout step")
 	}
 
 	// Test 4: Verify no separate add_reaction job exists
