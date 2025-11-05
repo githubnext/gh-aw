@@ -50,6 +50,7 @@ The --force flag overwrites existing workflow files.`,
 			forceFlag, _ := cmd.Flags().GetBool("force")
 			appendText, _ := cmd.Flags().GetString("append")
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			noGitattributes, _ := cmd.Flags().GetBool("no-gitattributes")
 
 			// If no arguments provided and not in CI, automatically use interactive mode
 			if len(args) == 0 && !IsRunningInCI() {
@@ -70,12 +71,12 @@ The --force flag overwrites existing workflow files.`,
 
 			// Handle normal mode
 			if prFlag {
-				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, true); err != nil {
+				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, true, noGitattributes); err != nil {
 					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 					os.Exit(1)
 				}
 			} else {
-				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, false); err != nil {
+				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, false, noGitattributes); err != nil {
 					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 					os.Exit(1)
 				}
@@ -104,13 +105,16 @@ The --force flag overwrites existing workflow files.`,
 	// Add append flag to add command
 	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
 
+	// Add no-gitattributes flag to add command
+	cmd.Flags().Bool("no-gitattributes", false, "Skip updating .gitattributes file")
+
 	return cmd
 }
 
 // AddWorkflows adds one or more workflows from components to .github/workflows
 // with optional repository installation and PR creation
-func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, appendText string, createPR bool) error {
-	addLog.Printf("Adding workflows: count=%d, engineOverride=%s, createPR=%v", len(workflows), engineOverride, createPR)
+func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, appendText string, createPR bool, noGitattributes bool) error {
+	addLog.Printf("Adding workflows: count=%d, engineOverride=%s, createPR=%v, noGitattributes=%v", len(workflows), engineOverride, createPR, noGitattributes)
 
 	if len(workflows) == 0 {
 		return fmt.Errorf("at least one workflow name is required")
@@ -183,16 +187,16 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 	// Handle PR creation workflow
 	if createPR {
 		addLog.Print("Creating workflow with PR")
-		return addWorkflowsWithPR(processedWorkflows, number, verbose, engineOverride, name, force, appendText)
+		return addWorkflowsWithPR(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes)
 	}
 
 	// Handle normal workflow addition
 	addLog.Print("Adding workflows normally without PR")
-	return addWorkflowsNormal(processedWorkflows, number, verbose, engineOverride, name, force, appendText)
+	return addWorkflowsNormal(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes)
 }
 
 // addWorkflowsNormal handles normal workflow addition without PR creation
-func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string) error {
+func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool) error {
 	// Create file tracker for all operations
 	tracker, err := NewFileTracker()
 	if err != nil {
@@ -201,6 +205,20 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not create file tracker: %v", err)))
 		}
 		tracker = nil
+	}
+
+	// Ensure .gitattributes is configured unless flag is set
+	if !noGitattributes {
+		addLog.Print("Configuring .gitattributes")
+		if err := ensureGitAttributes(); err != nil {
+			addLog.Printf("Failed to configure .gitattributes: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
+			}
+			// Don't fail the entire operation if gitattributes update fails
+		} else if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
+		}
 	}
 
 	if len(workflows) > 1 {
@@ -232,7 +250,7 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 }
 
 // addWorkflowsWithPR handles workflow addition with PR creation
-func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string) error {
+func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool) error {
 	// Get current branch for restoration later
 	currentBranch, err := getCurrentBranch()
 	if err != nil {
@@ -261,7 +279,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 	}()
 
 	// Add workflows using the normal function logic
-	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force, appendText); err != nil {
+	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force, appendText, noGitattributes); err != nil {
 		// Rollback on error
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
