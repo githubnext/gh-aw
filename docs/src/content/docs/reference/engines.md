@@ -54,7 +54,7 @@ gh secret set COPILOT_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 ```
 
 :::note[Backward Compatibility]
-The legacy secret name `COPILOT_CLI_TOKEN` is still supported for backward compatibility, but `COPILOT_GITHUB_TOKEN` is now the recommended name.
+The legacy secret names `COPILOT_CLI_TOKEN`, `GH_AW_COPILOT_TOKEN`, and `GH_AW_GITHUB_TOKEN` are still supported for backward compatibility, but `COPILOT_GITHUB_TOKEN` is now the recommended name for Copilot operations.
 :::
 
 For GitHub Tools Remote Mode, also configure:

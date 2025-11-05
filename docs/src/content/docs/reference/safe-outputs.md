@@ -84,7 +84,7 @@ safe-outputs:
 ```
 
 :::caution
-Bot assignments (including `copilot`) require a PAT. Store as `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN` in secrets. The default `GITHUB_TOKEN` lacks bot assignment permissions.
+Bot assignments (including `copilot`) require a PAT. Store as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN` in secrets. The default `GITHUB_TOKEN` lacks bot assignment permissions.
 :::
 
 ### Comment Creation (`add-comment:`)
@@ -146,7 +146,7 @@ safe-outputs:
 ```
 
 :::caution
-Bot reviewers (including `copilot`) require a PAT. Store as `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN` in secrets.
+Bot reviewers (including `copilot`) require a PAT. Store as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN` in secrets.
 :::
 
 > [!NOTE]
@@ -217,7 +217,7 @@ safe-outputs:
 
 ### Agent Task Creation (`create-agent-task:`)
 
-Creates GitHub Copilot agent tasks to delegate coding tasks. Requires a PAT stored as `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN`.
+Creates GitHub Copilot agent tasks to delegate coding tasks. Requires a PAT stored as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN`.
 
 ```yaml wrap
 safe-outputs:
@@ -286,7 +286,7 @@ safe-outputs:
 
 ## Assigning to Copilot
 
-Use `assignees: copilot` in `create-issue` or `reviewers: copilot` in `create-pull-request` to assign to the Copilot bot. Requires a PAT stored as `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN`. The default `GITHUB_TOKEN` lacks bot assignment permissions.
+Use `assignees: copilot` in `create-issue` or `reviewers: copilot` in `create-pull-request` to assign to the Copilot bot. Requires a PAT stored as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN`. The default `GITHUB_TOKEN` lacks bot assignment permissions.
 
 ```yaml wrap
 safe-outputs:

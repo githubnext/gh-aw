@@ -529,7 +529,7 @@ type GitHubScriptStepConfig struct {
 	Token string
 
 	// UseCopilotToken indicates whether to use the Copilot token preference chain
-	// (COPILOT_GITHUB_TOKEN > COPILOT_CLI_TOKEN)
+	// (COPILOT_GITHUB_TOKEN > COPILOT_CLI_TOKEN > GH_AW_COPILOT_TOKEN (legacy) > GH_AW_GITHUB_TOKEN (legacy))
 	// This should be true for Copilot-related operations like creating agent tasks,
 	// assigning copilot to issues, or adding copilot as PR reviewer
 	UseCopilotToken bool

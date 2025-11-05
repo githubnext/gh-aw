@@ -5678,7 +5678,7 @@ jobs:
       - name: Add copilot as reviewer
         if: steps.create_pull_request.outputs.pull_request_number != ''
         env:
-          GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN }}
+          GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}
         run: |
           # shellcheck disable=SC2086

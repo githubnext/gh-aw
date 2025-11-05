@@ -185,9 +185,11 @@ Agent task creation requires elevated permissions beyond the default `GITHUB_TOK
 - `pull-requests: write` - To create pull requests
 
 **Token Precedence:**
-1. `GH_AW_COPILOT_TOKEN` - Dedicated Copilot operations token (recommended)
-2. `GH_AW_GITHUB_TOKEN` - General override token
-3. Custom token via `github-token` configuration field
+1. `COPILOT_GITHUB_TOKEN` - Dedicated Copilot operations token (recommended)
+2. `COPILOT_CLI_TOKEN` - Alternative Copilot token
+3. `GH_AW_COPILOT_TOKEN` - Legacy Copilot token (for backward compatibility)
+4. `GH_AW_GITHUB_TOKEN` - General override token (legacy)
+5. Custom token via `github-token` configuration field
 
 **Note**: The default `GITHUB_TOKEN` is **not** supported as it lacks required permissions.
 
@@ -197,9 +199,13 @@ Store your Personal Access Token in repository secrets:
 
 ```bash
 # In your repository settings, add secret:
-# Name: GH_AW_COPILOT_TOKEN
+# Name: COPILOT_GITHUB_TOKEN (recommended)
 # Value: ghp_YourPersonalAccessToken
 ```
+
+:::note[Backward Compatibility]
+Legacy token names `GH_AW_COPILOT_TOKEN` and `GH_AW_GITHUB_TOKEN` are still supported for backward compatibility.
+:::
 
 ## Error Handling
 
@@ -210,7 +216,7 @@ Error: failed to create agent task
 authentication required
 ```
 
-**Solution**: Configure `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN` with a PAT.
+**Solution**: Configure `COPILOT_GITHUB_TOKEN`, `COPILOT_CLI_TOKEN`, or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN` with a PAT.
 
 ### Permission Errors
 
@@ -334,7 +340,7 @@ Create agent task in backend repository to implement the API changes described i
 **Symptom**: No error but no task created
 
 **Check**:
-1. Verify `GH_AW_COPILOT_TOKEN` is set in repository secrets
+1. Verify `COPILOT_GITHUB_TOKEN` (or legacy `GH_AW_COPILOT_TOKEN`) is set in repository secrets
 2. Confirm token has required permissions
 3. Check job logs for error messages
 4. Verify target repository exists and is accessible
