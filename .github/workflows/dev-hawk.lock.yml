@@ -57,6 +57,8 @@ jobs:
       (github.event.workflow_run.event == 'workflow_dispatch') && ((github.event_name != 'workflow_run') ||
       (github.event.workflow_run.repository.id == github.repository_id))
     runs-on: ubuntu-slim
+    permissions:
+      contents: read
     steps:
       - name: Checkout workflows
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8

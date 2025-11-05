@@ -63,6 +63,7 @@ jobs:
       (github.event.issue.pull_request != null)))
     runs-on: ubuntu-slim
     permissions:
+      contents: read
       discussions: write
       issues: write
       pull-requests: write

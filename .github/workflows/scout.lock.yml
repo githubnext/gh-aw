@@ -115,6 +115,7 @@ jobs:
       github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment')))
     runs-on: ubuntu-slim
     permissions:
+      contents: read
       discussions: write
       issues: write
       pull-requests: write

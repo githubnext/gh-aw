@@ -86,6 +86,7 @@ jobs:
       (github.event_name == 'pull_request') && (contains(github.event.pull_request.body, '/archie')))
     runs-on: ubuntu-slim
     permissions:
+      contents: read
       discussions: write
       issues: write
       pull-requests: write
