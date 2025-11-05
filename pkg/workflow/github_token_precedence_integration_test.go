@@ -223,9 +223,9 @@ Test that top-level github-token is used in Codex engine.
 			t.Logf("Generated YAML:\n%s", yamlContent)
 		}
 
-		// Also check in the TOML config
-		if !strings.Contains(yamlContent, "GITHUB_PERSONAL_ACCESS_TOKEN = \"${{ secrets.TOPLEVEL_PAT }}\"") {
-			t.Error("Expected top-level github-token to be used in TOML config for Codex")
+		// Also check that the env var is referenced in the TOML config (not the template expression directly)
+		if !strings.Contains(yamlContent, "GITHUB_PERSONAL_ACCESS_TOKEN = \"${GITHUB_MCP_SERVER_TOKEN}\"") {
+			t.Error("Expected GITHUB_MCP_SERVER_TOKEN env var reference to be used in TOML config for Codex")
 		}
 	})
 
