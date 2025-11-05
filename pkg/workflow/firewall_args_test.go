@@ -154,9 +154,9 @@ func TestCleanupScriptWorkspacePath(t *testing.T) {
 
 		stepContent := strings.Join(cleanupStep, "\n")
 
-		// Check that the path uses $GITHUB_WORKSPACE environment variable
-		if !strings.Contains(stepContent, "$GITHUB_WORKSPACE") && !strings.Contains(stepContent, "${GITHUB_WORKSPACE}") {
-			t.Errorf("Expected cleanup script path to use $GITHUB_WORKSPACE, got:\n%s", stepContent)
+		// Check that the path uses quoted $GITHUB_WORKSPACE environment variable (SC2086 compliant)
+		if !strings.Contains(stepContent, "\"$GITHUB_WORKSPACE\"") && !strings.Contains(stepContent, "\"${GITHUB_WORKSPACE}\"") {
+			t.Errorf("Expected cleanup script path to use quoted $GITHUB_WORKSPACE (SC2086 compliant), got:\n%s", stepContent)
 		}
 
 		// Should not contain relative path at compile time
@@ -227,9 +227,9 @@ func TestCleanupScriptWorkspacePath(t *testing.T) {
 
 		stepContent := strings.Join(cleanupStep, "\n")
 
-		// Check that the path uses $GITHUB_WORKSPACE environment variable
-		if !strings.Contains(stepContent, "$GITHUB_WORKSPACE") && !strings.Contains(stepContent, "${GITHUB_WORKSPACE}") {
-			t.Errorf("Expected post-execution cleanup script path to use $GITHUB_WORKSPACE, got:\n%s", stepContent)
+		// Check that the path uses quoted $GITHUB_WORKSPACE environment variable (SC2086 compliant)
+		if !strings.Contains(stepContent, "\"$GITHUB_WORKSPACE\"") && !strings.Contains(stepContent, "\"${GITHUB_WORKSPACE}\"") {
+			t.Errorf("Expected post-execution cleanup script path to use quoted $GITHUB_WORKSPACE (SC2086 compliant), got:\n%s", stepContent)
 		}
 
 		// Should not contain relative path at compile time

@@ -198,10 +198,10 @@ Test workflow with firewall enabled.
 
 		lockYAML := string(lockContent)
 
-		// Verify cleanup script uses $GITHUB_WORKSPACE
-		if !strings.Contains(lockYAML, "${GITHUB_WORKSPACE}/scripts/ci/cleanup.sh") &&
-			!strings.Contains(lockYAML, "$GITHUB_WORKSPACE/scripts/ci/cleanup.sh") {
-			t.Error("Compiled workflow should use $GITHUB_WORKSPACE or ${GITHUB_WORKSPACE} for cleanup script path")
+		// Verify cleanup script uses quoted $GITHUB_WORKSPACE (SC2086 compliant)
+		if !strings.Contains(lockYAML, "\"${GITHUB_WORKSPACE}\"/scripts/ci/cleanup.sh") &&
+			!strings.Contains(lockYAML, "\"$GITHUB_WORKSPACE\"/scripts/ci/cleanup.sh") {
+			t.Error("Compiled workflow should use quoted $GITHUB_WORKSPACE for cleanup script path (SC2086 compliant)")
 		}
 
 		// Verify it does NOT use compile-time relative path
