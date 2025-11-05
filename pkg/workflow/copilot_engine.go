@@ -206,12 +206,21 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Get allowed domains (copilot defaults + network permissions) with specific ordering
 		allowedDomains := GetCopilotAllowedDomains(workflowData.NetworkPermissions)
 
+		// Build AWF arguments: standard flags + custom args from config
+		var awfArgs []string
+		awfArgs = append(awfArgs, "--env-all")
+		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
+		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
+
+		// Add custom args if specified in firewall config
+		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
+			awfArgs = append(awfArgs, firewallConfig.Args...)
+		}
+
 		// Properly escape shell arguments using shell helper functions
 		// The copilot command is wrapped as a single string argument to AWF using shellEscapeCommandString
 		command = fmt.Sprintf(`set -o pipefail
-sudo -E awf --env-all \
-  --allow-domains %s \
-  --log-level %s \
+sudo -E awf %s \
   %s \
   2>&1 | tee %s
 
@@ -222,7 +231,7 @@ if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   sudo mkdir -p %s
   sudo mv "$COPILOT_LOGS_DIR"/* %s || true
   sudo rmdir "$COPILOT_LOGS_DIR" || true
-fi`, shellEscapeArg(allowedDomains), shellEscapeArg(awfLogLevel), shellEscapeCommandString(copilotCommand), shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder))
+fi`, shellJoinArgs(awfArgs), shellEscapeCommandString(copilotCommand), shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder))
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail
@@ -882,7 +891,7 @@ func generateAWFInstallationStep(version string) GitHubActionStep {
 // generateAWFCleanupStep creates a GitHub Actions step to cleanup AWF resources
 func generateAWFCleanupStep(scriptPath string) GitHubActionStep {
 	if scriptPath == "" {
-		scriptPath = "./scripts/ci/cleanup.sh"
+		scriptPath = "${GITHUB_WORKSPACE}/scripts/ci/cleanup.sh"
 	}
 
 	stepLines := []string{
@@ -961,7 +970,7 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 // generateAWFPostExecutionCleanupStep creates a GitHub Actions step to cleanup AWF resources after execution
 func generateAWFPostExecutionCleanupStep(scriptPath string) GitHubActionStep {
 	if scriptPath == "" {
-		scriptPath = "./scripts/ci/cleanup.sh"
+		scriptPath = "${GITHUB_WORKSPACE}/scripts/ci/cleanup.sh"
 	}
 
 	stepLines := []string{
