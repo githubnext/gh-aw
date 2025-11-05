@@ -144,9 +144,8 @@ func AddMCPTool(workflowFile string, mcpServerID string, registryURL string, tra
 	mcpAddLog.Print("Compiling workflow after adding MCP tool")
 	compiler := workflow.NewCompiler(verbose, "", "")
 	if err := compiler.CompileWorkflow(workflowPath); err != nil {
-		// Log generic error message to avoid exposing sensitive information
-		mcpAddLog.Print("Workflow compilation failed")
-		fmt.Println(console.FormatWarningMessage("Workflow compilation failed. Please check your workflow configuration."))
+		mcpAddLog.Printf("Workflow compilation failed: %v", err)
+		fmt.Fprintln(os.Stderr, err)
 		fmt.Println(console.FormatInfoMessage("You can fix the issues and run 'gh aw compile' manually"))
 	} else {
 		mcpAddLog.Print("Workflow compiled successfully")
