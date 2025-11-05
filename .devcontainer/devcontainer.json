@@ -24,7 +24,12 @@
 				},
 				"githubnext/gh-aw": {
 					"permissions": {
-						"actions": "write"
+						"actions": "write",
+						"contents": "write",
+						"workflows": "write",
+						"issues": "write",
+						"pull-requests": "write",
+						"discussions": "write"
 					}
 				},
 				"githubnext/gh-aw-test": {
