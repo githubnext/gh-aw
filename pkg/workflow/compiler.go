@@ -1055,6 +1055,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		if err := yaml.Unmarshal([]byte(workflowData.PostSteps), &postStepsWrapper); err == nil {
 			if postStepsVal, hasPostSteps := postStepsWrapper["post-steps"]; hasPostSteps {
 				if postSteps, ok := postStepsVal.([]any); ok {
+					// Validate post-steps for GH_TOKEN requirement
+					if err := ValidateStepsGHToken(postSteps); err != nil {
+						return nil, fmt.Errorf("post-steps validation failed: %w", err)
+					}
+
 					// Apply action pinning to post steps
 					postSteps = ApplyActionPinsToSteps(postSteps, workflowData)
 

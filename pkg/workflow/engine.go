@@ -39,14 +39,14 @@ type EngineNetworkConfig struct {
 }
 
 // ExtractEngineConfig extracts engine configuration from frontmatter, supporting both string and object formats
-func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *EngineConfig) {
+func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *EngineConfig, error) {
 	if engine, exists := frontmatter["engine"]; exists {
 		engineLog.Print("Extracting engine configuration from frontmatter")
 
 		// Handle string format (backwards compatibility)
 		if engineStr, ok := engine.(string); ok {
 			engineLog.Printf("Found engine in string format: %s", engineStr)
-			return engineStr, &EngineConfig{ID: engineStr}
+			return engineStr, &EngineConfig{ID: engineStr}, nil
 		}
 
 		// Handle object format
@@ -134,6 +134,12 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			// Extract optional 'steps' field (array of step objects)
 			if steps, hasSteps := engineObj["steps"]; hasSteps {
 				if stepsArray, ok := steps.([]any); ok {
+					// Validate steps for GH_TOKEN requirement
+					if err := ValidateStepsGHToken(stepsArray); err != nil {
+						engineLog.Printf("Custom engine steps validation failed: %v", err)
+						return "", nil, fmt.Errorf("custom engine steps validation failed: %w", err)
+					}
+					
 					config.Steps = make([]map[string]any, 0, len(stepsArray))
 					for _, step := range stepsArray {
 						if stepMap, ok := step.(map[string]any); ok {

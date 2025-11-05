@@ -40,15 +40,15 @@ func HasSafeJobsEnabled(safeJobs map[string]*SafeJobConfig) bool {
 }
 
 // parseSafeJobsConfig parses the safe-jobs configuration from top-level frontmatter
-func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*SafeJobConfig {
+func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) (map[string]*SafeJobConfig, error) {
 	safeJobsSection, exists := frontmatter["safe-jobs"]
 	if !exists {
-		return nil
+		return nil, nil
 	}
 
 	safeJobsMap, ok := safeJobsSection.(map[string]any)
 	if !ok {
-		return nil
+		return nil, nil
 	}
 
 	result := make(map[string]*SafeJobConfig)
@@ -103,6 +103,10 @@ func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*S
 		// Parse steps
 		if steps, exists := jobConfig["steps"]; exists {
 			if stepsList, ok := steps.([]any); ok {
+				// Validate steps for GH_TOKEN requirement
+				if err := ValidateStepsGHToken(stepsList); err != nil {
+					return nil, fmt.Errorf("safe job '%s' steps validation failed: %w", jobName, err)
+				}
 				safeJob.Steps = stepsList
 			}
 		}
@@ -196,7 +200,7 @@ func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*S
 		result[jobName] = safeJob
 	}
 
-	return result
+	return result, nil
 }
 
 // buildSafeJobs creates custom safe-output jobs defined in SafeOutputs.Jobs
@@ -330,7 +334,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 
 // extractSafeJobsFromFrontmatter extracts safe-jobs section from frontmatter map
 // Only checks the location under safe-outputs.jobs
-func extractSafeJobsFromFrontmatter(frontmatter map[string]any) map[string]*SafeJobConfig {
+func extractSafeJobsFromFrontmatter(frontmatter map[string]any) (map[string]*SafeJobConfig, error) {
 	// Check location: safe-outputs.jobs
 	if safeOutputs, exists := frontmatter["safe-outputs"]; exists {
 		if safeOutputsMap, ok := safeOutputs.(map[string]any); ok {
@@ -343,6 +347,9 @@ func extractSafeJobsFromFrontmatter(frontmatter map[string]any) map[string]*Safe
 			}
 		}
 	}
+
+	return nil, nil
+}
 
 	return make(map[string]*SafeJobConfig)
 }

@@ -477,7 +477,11 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				if jobsMap, ok := jobs.(map[string]any); ok {
 					c := &Compiler{} // Create a temporary compiler instance for parsing
 					jobsFrontmatter := map[string]any{"safe-jobs": jobsMap}
-					config.Jobs = c.parseSafeJobsConfig(jobsFrontmatter)
+					jobs, err := c.parseSafeJobsConfig(jobsFrontmatter)
+					if err != nil {
+						return nil, err
+					}
+					config.Jobs = jobs
 				}
 			}
 		}
