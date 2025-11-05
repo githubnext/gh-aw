@@ -15,6 +15,8 @@ engine: copilot
 safe-outputs:
   push-to-pull-request-branch:
     commit-title-suffix: " [skip-ci]"
+  threat-detection:
+    engine: false
 timeout_minutes: 20
 network:
   firewall: true
