@@ -121,7 +121,7 @@ When importing shared workflows that define cache-memory configurations, the cac
 **Example Merge Scenario**:
 
 Import file (`shared/memory-setup.md`):
-```aw
+```aw wrap
 ---
 tools:
   cache-memory:

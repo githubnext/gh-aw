@@ -29,7 +29,7 @@ This reference documents frequently encountered issues when working with GitHub 
    - Verify enum values are correct (e.g., `engine: copilot`)
 
 **Solution:**
-```bash
+```bash wrap
 # Compile with verbose output to see detailed errors
 gh aw compile --verbose
 
@@ -51,7 +51,7 @@ cat .github/workflows/my-workflow.md | head -20 | grep -A 20 "^---"
    - Ensure write permissions on `.github/workflows/` directory
 
 **Solution:**
-```bash
+```bash wrap
 # Check for compilation errors
 gh aw compile 2>&1 | grep -i error
 
@@ -64,7 +64,7 @@ ls -la .github/workflows/
 **Symptoms:** Old `.lock.yml` files remain after deleting `.md` files.
 
 **Solution:**
-```bash
+```bash wrap
 # Remove orphaned lock files
 gh aw compile --purge
 ```
@@ -86,7 +86,7 @@ gh aw compile --purge
    - Check `git status` for untracked files
 
 **Solution:**
-```yaml
+```yaml wrap
 # Use correct import paths
 imports:
   - .github/workflows/shared/tools.md  # From repo root
@@ -101,7 +101,7 @@ imports:
 
 **Solution:** Import only one agent file per workflow:
 
-```yaml
+```yaml wrap
 # Incorrect
 imports:
   - .github/agents/agent1.md
@@ -122,7 +122,7 @@ imports:
 
 **Solution:** Review import chains and remove circular references:
 
-```yaml
+```yaml wrap
 # File A imports File B
 # File B imports File A  ← Remove this circular dependency
 ```
@@ -144,7 +144,7 @@ imports:
    - See [tools reference](/gh-aw/reference/tools/)
 
 **Solution:**
-```yaml
+```yaml wrap
 tools:
   github:
     allowed:
@@ -168,7 +168,7 @@ tools:
    - Ensure required environment variables are set
 
 **Solution:**
-```yaml
+```yaml wrap
 mcp-servers:
   my-server:
     command: "npx"
@@ -185,7 +185,7 @@ mcp-servers:
 
 **Solution:** Add domains to `allowed_domains`:
 
-```yaml
+```yaml wrap
 tools:
   playwright:
     allowed_domains:
@@ -210,7 +210,7 @@ tools:
    - Check token configuration
 
 **Solution:**
-```yaml
+```yaml wrap
 # For direct write operations
 permissions:
   contents: read
@@ -240,7 +240,7 @@ safe-outputs:
    - Set `staged: false` for actual creation
 
 **Solution:**
-```yaml
+```yaml wrap
 safe-outputs:
   staged: false  # Ensure not in preview mode
   create-issue:
@@ -256,7 +256,7 @@ safe-outputs:
 
 **Solution:** Add permissions to the workflow or use a Personal Access Token:
 
-```yaml
+```yaml wrap
 # Increase GITHUB_TOKEN permissions
 permissions:
   contents: write
@@ -286,7 +286,7 @@ safe-outputs:
 
 **Solution:** Reduce scope or adjust timeout:
 
-```yaml
+```yaml wrap
 timeout_minutes: 30
 engine:
   id: claude
@@ -301,7 +301,7 @@ engine:
 
 **Solution:** Use default model or verify model availability:
 
-```yaml
+```yaml wrap
 # Let engine use default model
 engine: copilot
 
@@ -321,7 +321,7 @@ engine:
 
 **Solution:** Use only [allowed expressions](/gh-aw/reference/templating/):
 
-```yaml
+```yaml wrap
 # Allowed
 ${{ github.event.issue.number }}
 ${{ github.repository }}
@@ -340,7 +340,7 @@ ${{ env.MY_VAR }}
 
 **Solution:** The sanitized context is only populated for specific events:
 
-```yaml
+```yaml wrap
 on:
   issues:
     types: [opened]  # Populates sanitized context
@@ -369,7 +369,7 @@ on:
    - Ensure referenced files exist
 
 **Solution:**
-```bash
+```bash wrap
 # Clean install
 cd docs
 rm -rf node_modules package-lock.json
@@ -392,7 +392,7 @@ npm run build
    - Ensure changes maintain backward compatibility
 
 **Solution:**
-```bash
+```bash wrap
 # Format and lint
 make fmt
 make lint
@@ -410,7 +410,7 @@ make test-unit
 **Cause:** Network connectivity or authentication issues.
 
 **Solution:**
-```bash
+```bash wrap
 # Verify network access
 curl -I https://raw.githubusercontent.com/githubnext/gh-aw/main/README.md
 
@@ -425,7 +425,7 @@ gh auth status
 **Cause:** Server is not responding or network is blocked.
 
 **Solution:**
-```yaml
+```yaml wrap
 # Use local MCP server instead of HTTP
 mcp-servers:
   my-server:
@@ -451,7 +451,7 @@ mcp-servers:
    - Rebuild cache if expired
 
 **Solution:**
-```yaml
+```yaml wrap
 cache:
   key: deps-${{ hashFiles('package-lock.json') }}
   restore-keys: |
@@ -465,7 +465,7 @@ cache:
 **Cause:** Cache configuration is incorrect or cache is not being saved.
 
 **Solution:**
-```yaml
+```yaml wrap
 tools:
   cache-memory:
     key: memory-${{ github.workflow }}-${{ github.run_id }}
@@ -475,7 +475,7 @@ tools:
 
 ### Enable Verbose Logging
 
-```bash
+```bash wrap
 # Compile with verbose output
 gh aw compile --verbose
 
@@ -485,7 +485,7 @@ gh aw compile --verbose
 
 ### Inspect Generated Workflow
 
-```bash
+```bash wrap
 # View the generated lock file
 cat .github/workflows/my-workflow.lock.yml
 
@@ -496,7 +496,7 @@ diff <(cat .github/workflows/my-workflow.md) \
 
 ### Check MCP Configuration
 
-```bash
+```bash wrap
 # Inspect MCP servers in workflow
 gh aw mcp inspect my-workflow
 
@@ -506,7 +506,7 @@ gh aw mcp list-tools github my-workflow
 
 ### Review Workflow Logs
 
-```bash
+```bash wrap
 # Download logs for analysis
 gh aw logs my-workflow
 

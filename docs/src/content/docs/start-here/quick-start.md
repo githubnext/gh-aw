@@ -48,7 +48,7 @@ For GitHub Copilot CLI, create a fine-grained Personal Access Token (PAT) with t
 3. Generate your token
 4. Add the token to your repository secrets as `COPILOT_GITHUB_TOKEN`:
 
-```bash
+```bash wrap
 gh secret set COPILOT_GITHUB_TOKEN -a actions --body "<your-personal-access-token>"
 ```
 

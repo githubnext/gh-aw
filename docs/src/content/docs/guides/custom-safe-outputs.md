@@ -17,7 +17,7 @@ The pattern separates read and write operations for security: a read-only MCP se
 
 Create a shared configuration file with the MCP server for read operations:
 
-```yaml
+```yaml wrap
 ---
 mcp-servers:
   notion:
@@ -38,7 +38,7 @@ Use `container:` for Docker-based servers or `command:`/`args:` for npx commands
 
 In the same shared configuration file, add a custom job under `safe-outputs.jobs` for write operations:
 
-```yaml
+```yaml wrap
 ---
 mcp-servers:
   notion:
@@ -156,7 +156,7 @@ Define custom post-processing jobs under `safe-outputs.jobs` in your workflow fr
 
 Safe-jobs support all standard GitHub Actions job properties:
 
-```yaml
+```yaml wrap
 safe-outputs:
   jobs:
     deploy:
@@ -183,7 +183,7 @@ safe-outputs:
 
 Every safe-job must define inputs using workflow_dispatch syntax. The inputs become the MCP tool arguments:
 
-```yaml
+```yaml wrap
 safe-outputs:
   jobs:
     deploy:
@@ -212,7 +212,7 @@ safe-outputs:
 
 Safe-jobs can return custom response messages via the MCP server:
 
-```yaml
+```yaml wrap
 safe-outputs:
   jobs:
     notify:
@@ -232,7 +232,7 @@ safe-outputs:
 
 Safe-jobs automatically receive access to the agent output artifact:
 
-```yaml
+```yaml wrap
 safe-outputs:
   jobs:
     analyze:
@@ -307,7 +307,7 @@ failed to merge safe-jobs: safe-job name conflict: 'deploy' is defined in both m
 
 Custom jobs are automatically registered as tools in the safe-outputs MCP server, allowing the agentic workflow to call them:
 
-```yaml
+```yaml wrap
 safe-outputs:
   jobs:
     database-backup:

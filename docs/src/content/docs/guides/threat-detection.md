@@ -43,7 +43,7 @@ Threat detection provides an additional security layer that:
 
 Threat detection is **automatically enabled** when safe outputs are configured:
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-issue:     # Threat detection enabled automatically
   create-pull-request:
@@ -61,7 +61,7 @@ The default configuration uses AI-powered analysis with the workflow's Claude or
 
 Control threat detection with a boolean flag:
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-issue:
   threat-detection: true   # Explicitly enable (default when safe-outputs exist)
@@ -76,7 +76,7 @@ safe-outputs:
 
 Use object syntax for fine-grained control:
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-issue:
   threat-detection:
@@ -106,7 +106,7 @@ By default, threat detection uses the same AI engine as your main workflow to an
 
 **Example with Default AI Detection:**
 
-```yaml
+```yaml wrap
 ---
 on: push
 engine: claude
@@ -129,7 +129,7 @@ The AI engine receives the workflow source context and analyzes:
 
 AI detection produces a structured JSON response:
 
-```json
+```json wrap
 {
   "prompt_injection": false,
   "secret_leak": false,
@@ -144,7 +144,7 @@ If any threat is detected (`true`), the workflow fails and safe outputs are bloc
 
 Enhance AI analysis with domain-specific guidance:
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-pull-request:
   threat-detection:
@@ -164,7 +164,7 @@ Override the main workflow engine for threat detection:
 
 **String Format:**
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-pull-request:
   threat-detection:
@@ -173,7 +173,7 @@ safe-outputs:
 
 **Object Format:**
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-pull-request:
   threat-detection:
@@ -185,7 +185,7 @@ safe-outputs:
 
 **Disable AI Engine:**
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-pull-request:
   threat-detection:
@@ -201,7 +201,7 @@ safe-outputs:
 
 Add specialized security scanning tools alongside or instead of AI detection:
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-pull-request:
   threat-detection:
@@ -236,7 +236,7 @@ Custom steps have access to these downloaded artifacts:
 
 Use Ollama with LlamaGuard 3 for specialized threat detection:
 
-```yaml
+```yaml wrap
 ---
 on: push
 engine: copilot
@@ -322,7 +322,7 @@ For a complete LlamaGuard implementation, see `.github/workflows/shared/ollama-t
 
 Use both AI analysis and custom tools for defense-in-depth:
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-pull-request:
   threat-detection:

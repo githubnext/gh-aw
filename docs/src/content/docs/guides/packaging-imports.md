@@ -9,7 +9,7 @@ sidebar:
 
 Install workflows from external repositories with optional versioning:
 
-```bash
+```bash wrap
 gh aw add githubnext/agentics/ci-doctor              # short form
 gh aw add githubnext/agentics/ci-doctor@v1.0.0       # with version
 gh aw add githubnext/agentics/workflows/ci-doctor.md # explicit path
@@ -21,7 +21,7 @@ Use `--name`, `--pr`, `--force`, `--number`, `--engine`, or `--verbose` flags to
 
 Keep workflows synchronized with their source repositories:
 
-```bash
+```bash wrap
 gh aw update                           # update all workflows
 gh aw update ci-doctor                 # update specific workflow
 gh aw update ci-doctor issue-triage    # update multiple
@@ -33,7 +33,7 @@ Use `--major`, `--force`, `--engine`, or `--verbose` flags to control update beh
 
 Import reusable components using the `imports:` field in frontmatter. File paths are relative to the workflow location:
 
-```yaml
+```yaml wrap
 ---
 on: issues
 engine: copilot
@@ -50,7 +50,7 @@ During `gh aw add`, imports are expanded to track source repository (e.g., `shar
 
 Create a shared MCP server configuration in `.github/workflows/shared/mcp/tavily.md`:
 
-```yaml
+```yaml wrap
 ---
 mcp-servers:
   tavily:
@@ -61,7 +61,7 @@ mcp-servers:
 
 Reference it in your workflow to include the Tavily MCP server alongside other tools:
 
-```yaml
+```yaml wrap
 ---
 on:
   issues:

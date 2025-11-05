@@ -47,7 +47,7 @@ Schema validation occurs when running `gh aw compile` and validates the workflow
 
 ### When Schema Validation Runs
 
-```bash
+```bash wrap
 # Explicit compilation
 gh aw compile
 
@@ -63,7 +63,7 @@ gh aw compile --verbose
 ### Example Schema Errors
 
 **Invalid YAML Syntax:**
-```aw
+```aw wrap
 ---
 on:
 issues:  # Missing indentation
@@ -74,7 +74,7 @@ issues:  # Missing indentation
 **Error:** `failed to parse frontmatter: yaml: line X: mapping values are not allowed in this context`
 
 **Wrong Field Type:**
-```aw
+```aw wrap
 ---
 on: push
 timeout_minutes: "10"  # String instead of number
@@ -84,7 +84,7 @@ timeout_minutes: "10"  # String instead of number
 **Error:** `timeout_minutes must be an integer`
 
 **Invalid Enum Value:**
-```aw
+```aw wrap
 ---
 on: push
 engine: gpt4  # Not a valid engine ID
@@ -127,7 +127,7 @@ Compilation validation occurs during the transformation of the `.md` file into a
 
 Compilation validation runs after schema validation passes:
 
-```bash
+```bash wrap
 gh aw compile
 ```
 
@@ -136,7 +136,7 @@ gh aw compile
 ### Example Compilation Errors
 
 **Import Not Found:**
-```aw
+```aw wrap
 ---
 on: push
 imports:
@@ -147,7 +147,7 @@ imports:
 **Error:** `failed to resolve import 'shared/missing-file.md': file not found`
 
 **Multiple Agent Files:**
-```aw
+```aw wrap
 ---
 on: push
 imports:
@@ -159,7 +159,7 @@ imports:
 **Error:** `multiple agent files found in imports: 'agent1.md' and 'agent2.md'. Only one agent file is allowed per workflow`
 
 **Unauthorized Expression:**
-```aw
+```aw wrap
 ---
 on: push
 ---
@@ -219,7 +219,7 @@ Runtime validation happens in GitHub Actions during workflow execution:
 ### Example Runtime Errors
 
 **Missing Tool:**
-```bash
+```bash wrap
 jq not found in PATH
 ```
 

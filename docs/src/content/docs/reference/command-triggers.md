@@ -100,7 +100,7 @@ Body: "${{ github.event.issue.body }}"
 
 Command workflows automatically add the "eyes" (👀) emoji reaction to triggering comments and edit them with workflow run links, providing immediate feedback. Customize the reaction:
 
-```yaml
+```yaml wrap
 on:
   command:
     name: my-bot

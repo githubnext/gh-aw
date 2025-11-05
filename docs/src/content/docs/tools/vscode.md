@@ -11,7 +11,7 @@ The `gh aw` CLI provides tools to improve your developer experience in VS Code a
 
 Run `gh aw init` once in your repository to configure Copilot integration:
 
-```sh
+```sh wrap
 gh aw init
 ```
 
@@ -27,7 +27,7 @@ Use the `/agent` command in Copilot Chat and select `create-agentic-workflow` fr
 
 Configure VS Code to automatically compile workflows when files change. Create or update `.vscode/tasks.json` with:
 
-```json
+```json wrap
 {
   "version": "2.0.0",
   "tasks": [

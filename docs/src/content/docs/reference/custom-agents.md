@@ -29,7 +29,7 @@ You are a specialized code review agent. Focus on:
 
 Import the agent file in your workflow using the `imports` field:
 
-```yaml
+```yaml wrap
 ---
 on: pull_request
 engine: copilot

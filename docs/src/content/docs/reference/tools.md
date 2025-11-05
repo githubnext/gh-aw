@@ -11,7 +11,7 @@ This guide covers the available tools that can be configured in agentic workflow
 
 Tools are defined in the frontmatter to specify which GitHub API calls, browser automation, and AI capabilities are available to your workflow:
 
-```yaml
+```yaml wrap
 tools:
   edit:
   bash: true
@@ -23,7 +23,7 @@ Some tools are available by default. All tools declared in imported components a
 
 Allows file editing in the GitHub Actions workspace.
 
-```yaml
+```yaml wrap
 tools:
   edit:
 ```
@@ -32,7 +32,7 @@ tools:
 
 Allows shell command execution in the GitHub Actions workspace.
 
-```yaml
+```yaml wrap
 tools:
   bash:                              # Default safe commands
   bash: []                           # No commands allowed
@@ -49,7 +49,7 @@ tools:
 
 **Wildcards:**
 
-```yaml
+```yaml wrap
 bash: [":*"]                      # All bash commands
 bash: ["git:*"]                   # All git commands
 bash: ["npm:*", "echo", "ls"]     # Mix of wildcards and specific commands
@@ -62,7 +62,7 @@ bash: ["npm:*", "echo", "ls"]     # Mix of wildcards and specific commands
 
 Enables web content fetching.
 
-```yaml
+```yaml wrap
 tools:
   web-fetch:
 ```
@@ -71,7 +71,7 @@ tools:
 
 Enables web search (if supported by the AI engine).
 
-```yaml
+```yaml wrap
 tools:
   web-search:
 ```
@@ -84,7 +84,7 @@ Some engines (like Copilot) require third-party MCP servers for web search. See 
 
 Configure GitHub API operations.
 
-```yaml
+```yaml wrap
 tools:
   github:                                      # Default read-only access
 
@@ -107,7 +107,7 @@ Use `toolsets:` to enable groups of related tools instead of listing individual 
 
 Enables or disables specific GitHub API groups to improve tool selection and reduce context size.
 
-```yaml
+```yaml wrap
 tools:
   github:
     toolsets: [repos, issues, pull_requests, actions]
@@ -148,7 +148,7 @@ When migrating from `allowed:` to `toolsets:`, use this mapping to identify the 
 **Example Migration**:
 
 Before (using `allowed:`):
-```yaml
+```yaml wrap
 tools:
   github:
     allowed:
@@ -161,14 +161,14 @@ tools:
 ```
 
 After (using `toolsets:`):
-```yaml
+```yaml wrap
 tools:
   github:
     toolsets: [default]  # Includes repos and pull_requests
 ```
 
 Or for more specific control:
-```yaml
+```yaml wrap
 tools:
   github:
     toolsets: [repos, pull_requests]
@@ -184,7 +184,7 @@ Both `toolsets:` and `allowed:` can be used together. When specified, `allowed:`
 
 Uses the hosted GitHub MCP server at `https://api.githubcopilot.com/mcp/` for faster startup without Docker.
 
-```yaml
+```yaml wrap
 tools:
   github:
     mode: remote
@@ -193,7 +193,7 @@ tools:
 
 **Setup**: Create a Personal Access Token and set the `GH_AW_GITHUB_TOKEN` secret:
 
-```bash
+```bash wrap
 gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 ```
 
@@ -203,7 +203,7 @@ gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 
 Restricts GitHub API to read-only operations.
 
-```yaml
+```yaml wrap
 tools:
   github:
     read-only: true
@@ -215,7 +215,7 @@ Default: `github:` provides read-only access.
 
 Enables browser automation using containerized Playwright.
 
-```yaml
+```yaml wrap
 tools:
   playwright:
     version: "latest"                      # Playwright version
@@ -225,7 +225,7 @@ tools:
 
 **Domain Access**: Uses same ecosystem bundles as `network:` configuration (`defaults`, `github`, `node`, `python`, etc.). Default: `["localhost", "127.0.0.1"]` for security.
 
-```yaml
+```yaml wrap
 playwright:
   allowed_domains:
     - "defaults"         # Basic infrastructure
@@ -240,7 +240,7 @@ Use `mcp-servers:` to integrate custom Model Context Protocol servers for third-
 ### Basic Configuration
 
 **npx-based MCP server:**
-```yaml
+```yaml wrap
 mcp-servers:
   custom-api:
     command: "npx"
@@ -250,7 +250,7 @@ mcp-servers:
 ```
 
 **Node.js script:**
-```yaml
+```yaml wrap
 mcp-servers:
   analytics:
     command: "node"
@@ -260,7 +260,7 @@ mcp-servers:
 ```
 
 **Python MCP server:**
-```yaml
+```yaml wrap
 mcp-servers:
   data-processor:
     command: "python"
@@ -271,7 +271,7 @@ mcp-servers:
 ```
 
 **Docker container:**
-```yaml
+```yaml wrap
 mcp-servers:
   notion:
     container: "mcp/notion"
@@ -284,7 +284,7 @@ mcp-servers:
 ```
 
 **HTTP MCP server:**
-```yaml
+```yaml wrap
 mcp-servers:
   datadog:
     url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
@@ -310,7 +310,7 @@ mcp-servers:
 
 Combining GitHub tools with custom MCP servers:
 
-```yaml
+```yaml wrap
 tools:
   github:
     allowed: [create_issue, update_issue]

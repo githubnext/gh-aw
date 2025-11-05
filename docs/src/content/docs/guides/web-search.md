@@ -11,7 +11,7 @@ This guide shows how to add web search to workflows using the Tavily MCP server,
 
 [Tavily](https://tavily.com/) provides AI-optimized search with structured JSON responses, news search capability, and fast response times through the [@tavily/mcp-server](https://github.com/tavily-ai/tavily-mcp-server) MCP server.
 
-```aw
+```aw wrap
 ---
 on: issues
 engine: copilot
@@ -42,7 +42,7 @@ Use the tavily search tool to find recent information.
 
 Configure the Tavily MCP server with the `allowed` list to restrict tools, store API keys in GitHub Secrets (never commit them), and use the `-y` flag with npx for automatic installation:
 
-```yaml
+```yaml wrap
 mcp-servers:
   tavily:
     command: npx
@@ -58,7 +58,7 @@ Test your configuration with `gh aw mcp inspect <workflow-name>`.
 
 To see available tools from the Tavily MCP server:
 
-```bash
+```bash wrap
 # Inspect the MCP server in your workflow
 gh aw mcp inspect my-workflow --server tavily
 
@@ -70,7 +70,7 @@ gh aw mcp list-tools tavily my-workflow --verbose
 
 Engines like Claude require explicit network permissions for MCP servers:
 
-```yaml
+```yaml wrap
 engine: claude
 network:
   allowed:

@@ -49,7 +49,7 @@ and they are compiled to GitHub Actions Workflows files (`*.lock.yml`)
 
 When you run the `compile` command you generate the lock file.
 
-```sh
+```sh wrap
 gh aw compile
 ```
 

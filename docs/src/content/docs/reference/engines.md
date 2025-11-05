@@ -11,13 +11,13 @@ GitHub Agentic Workflows support multiple AI engines (coding agents) to interpre
 
 GitHub Copilot is the default and recommended AI engine for most workflows. The [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) provides MCP server support and is designed for conversational AI workflows.
 
-```yaml
+```yaml wrap
 engine: copilot
 ```
 
 #### Extended Configuration
 
-```yaml
+```yaml wrap
 engine:
   id: copilot
   version: latest                       # Optional: defaults to latest
@@ -49,7 +49,7 @@ To use the Copilot engine, you need a fine-grained Personal Access Token with th
 3. Generate your token
 4. Add the token to your repository secrets as `COPILOT_GITHUB_TOKEN`:
 
-```bash
+```bash wrap
 gh secret set COPILOT_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 ```
 
@@ -58,7 +58,7 @@ The legacy secret name `COPILOT_CLI_TOKEN` is still supported for backward compa
 :::
 
 For GitHub Tools Remote Mode, also configure:
-```bash
+```bash wrap
 gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 ```
 
@@ -74,7 +74,7 @@ The Copilot engine supports network access control through the `network:` config
 
 Enable network permissions and firewall in your workflow:
 
-```yaml
+```yaml wrap
 engine: copilot
 
 network:
@@ -91,7 +91,7 @@ When enabled, AWF wraps the Copilot CLI execution and enforces the configured do
 
 Additional AWF settings can be configured through the network configuration:
 
-```yaml
+```yaml wrap
 network:
   allowed:
     - defaults
@@ -106,7 +106,7 @@ network:
 
 The `firewall` field supports multiple formats:
 
-```yaml
+```yaml wrap
 # Enable with defaults
 network:
   firewall: true
@@ -143,13 +143,13 @@ See the [Network Permissions](/gh-aw/reference/network/) documentation for detai
 
 Claude Code excels at reasoning, code analysis, and understanding complex contexts.
 
-```yaml
+```yaml wrap
 engine: claude
 ```
 
 #### Extended Configuration
 
-```yaml
+```yaml wrap
 engine:
   id: claude
   version: beta
@@ -167,7 +167,7 @@ engine:
 - **`GH_AW_GITHUB_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#github-remote-mode)
 
 Set secrets using (choose one):
-```bash
+```bash wrap
 # Option 1: Using CLAUDE_CODE_OAUTH_TOKEN
 gh secret set CLAUDE_CODE_OAUTH_TOKEN -a actions --body "<your-claude-oauth-token>"
 
@@ -192,13 +192,13 @@ The `--tools` flag is too simplistic for gh-aw's fine-grained security and flexi
 
 OpenAI Codex CLI with MCP server support. Designed for code-focused tasks.
 
-```yaml
+```yaml wrap
 engine: codex
 ```
 
 #### Extended Configuration
 
-```yaml
+```yaml wrap
 engine:
   id: codex
   model: gpt-4
@@ -224,7 +224,7 @@ engine:
 - **`OPENAI_API_KEY`**: OpenAI API key
 
 Set secrets using:
-```bash
+```bash wrap
 gh secret set OPENAI_API_KEY -a actions --body "<your-openai-api-key>"
 ```
 
@@ -232,13 +232,13 @@ gh secret set OPENAI_API_KEY -a actions --body "<your-openai-api-key>"
 
 Define custom GitHub Actions steps without AI interpretation for deterministic workflows.
 
-```yaml
+```yaml wrap
 engine: custom
 ```
 
 #### Extended Configuration
 
-```yaml
+```yaml wrap
 engine:
   id: custom
   steps:
@@ -254,7 +254,7 @@ All AI engines support custom agent files that provide specialized instructions 
 
 All engines support custom environment variables through the `env` field:
 
-```yaml
+```yaml wrap
 engine:
   id: claude
   env:
@@ -267,7 +267,7 @@ engine:
 
 All engines support custom command-line arguments through the `args` field, injected before the prompt:
 
-```yaml
+```yaml wrap
 engine:
   id: copilot
   args: ["--add-dir", "/workspace", "--verbose"]
@@ -279,7 +279,7 @@ Arguments are added in order and placed before the `--prompt` flag. Common uses 
 
 All engines support custom error pattern recognition for enhanced log validation:
 
-```yaml
+```yaml wrap
 engine:
   id: codex
   error_patterns:
@@ -293,7 +293,7 @@ engine:
 
 Switch engines by changing the `engine` field in your frontmatter:
 
-```yaml
+```yaml wrap
 # Simple switch
 engine: copilot
 
