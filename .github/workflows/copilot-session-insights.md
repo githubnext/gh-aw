@@ -111,6 +111,8 @@ steps:
       # Check if gh agent-task extension is installed
       if ! gh agent-task --help &> /dev/null; then
         echo "::warning::gh agent-task extension is not installed"
+        # SECURITY: Safe template expression - references internal step output set by workflow logic
+        # See .github/docs/SECURITY-TEMPLATE-EXPRESSIONS.md for security review
         echo "::warning::Extension installation status from previous step: ${{ steps.install-extension.outputs.EXTENSION_INSTALLED }}"
         echo "::warning::This workflow requires GitHub Enterprise Copilot access"
         echo "SESSIONS_AVAILABLE=false" >> "$GITHUB_OUTPUT"

@@ -20,6 +20,9 @@ mcp-servers:
       - get_doc
     env:
       SENTRY_ACCESS_TOKEN: ${{ secrets.SENTRY_ACCESS_TOKEN }}
+      # SECURITY: Safe template expression - references workflow environment variable
+      # Requires repository/org admin access to modify. Not user-controllable.
+      # See .github/docs/SECURITY-TEMPLATE-EXPRESSIONS.md for security review
       SENTRY_HOST: ${{ env.SENTRY_HOST }} # Optional
       OPENAI_API_KEY: ${{ secrets.SENTRY_OPENAI_API_KEY }} # Optional
 ---
