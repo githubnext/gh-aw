@@ -1,0 +1,46 @@
+name: Manual Release Trigger
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "release" to confirm'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+  attestations: write
+
+jobs:
+  validate-input:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+    steps:
+      - name: Check confirmation
+        id: check
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" = "release" ]; then
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "✓ Confirmation received"
+          else
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "✗ Invalid confirmation. Please type 'release' to confirm."
+            exit 1
+          fi
+
+  release:
+    needs: validate-input
+    if: needs.validate-input.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Trigger Release
+        uses: ./.github/actions/trigger-release
