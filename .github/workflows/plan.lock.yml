@@ -724,7 +724,7 @@ jobs:
 
   agent:
     needs: activation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       discussions: read
@@ -4502,7 +4502,7 @@ jobs:
 
   detection:
     needs: agent
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions: {}
     timeout-minutes: 10
     steps:

@@ -734,7 +734,7 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			expectedRunsOn: "runs-on: ubuntu-latest",
+			expectedRunsOn: "runs-on: ubuntu-slim",
 		},
 		{
 			name: "custom runs-on",
@@ -1817,7 +1817,7 @@ This is a test workflow with nested env.
 		"  models: read",
 		"jobs:",
 		"  agent:",
-		"    runs-on: ubuntu-latest",
+		"    runs-on: ubuntu-slim",
 	}
 
 	for _, section := range expectedSections {

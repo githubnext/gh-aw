@@ -103,7 +103,7 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	job := &Job{
 		Name:           constants.DetectionJobName,
 		If:             "",
-		RunsOn:         "runs-on: ubuntu-latest",
+		RunsOn:         "runs-on: ubuntu-slim",
 		Permissions:    NewPermissionsEmpty().RenderToYAML(),
 		Concurrency:    c.indentYAMLLines(agentConcurrency, "    "),
 		TimeoutMinutes: 10,

@@ -136,7 +136,7 @@ jobs:
 
   agent:
     needs: activation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       issues: read
     concurrency:
@@ -4770,7 +4770,7 @@ jobs:
 
   detection:
     needs: agent
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions: {}
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"

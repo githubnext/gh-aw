@@ -113,7 +113,7 @@ jobs:
 
   agent:
     needs: activation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     concurrency:

@@ -141,7 +141,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	}
 
 	if data.RunsOn == "" {
-		data.RunsOn = "runs-on: ubuntu-latest"
+		data.RunsOn = "runs-on: ubuntu-slim"
 	}
 	// Apply default tools
 	data.Tools = c.applyDefaultTools(data.Tools, data.SafeOutputs)

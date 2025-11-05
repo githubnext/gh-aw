@@ -127,7 +127,7 @@ jobs:
 
   agent:
     needs: activation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       pull-requests: read
@@ -4011,7 +4011,7 @@ jobs:
 
   detection:
     needs: agent
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions: {}
     concurrency:
       group: "gh-aw-claude-${{ github.workflow }}"
