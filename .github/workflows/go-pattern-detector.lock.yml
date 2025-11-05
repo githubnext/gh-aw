@@ -227,7 +227,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.32
+        run: npm install -g @anthropic-ai/claude-code@2.0.33
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -1505,7 +1505,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: "2.0.32",
+              agent_version: "2.0.33",
               workflow_name: "Go Pattern Detector",
               experimental: false,
               supports_tools_allowlist: true,
@@ -3799,7 +3799,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.32
+        run: npm install -g @anthropic-ai/claude-code@2.0.33
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
