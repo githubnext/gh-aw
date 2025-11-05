@@ -48,7 +48,6 @@ name: "Copilot PR Conversation NLP Analysis"
 permissions:
   actions: read
   contents: read
-  discussions: write
   issues: read
   pull-requests: read
 
@@ -141,7 +140,6 @@ jobs:
     permissions:
       actions: read
       contents: read
-      discussions: write
       issues: read
       pull-requests: read
     concurrency:
