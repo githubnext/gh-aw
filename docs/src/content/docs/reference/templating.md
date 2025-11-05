@@ -66,7 +66,7 @@ The compiler wraps expressions with `${{ }}` if needed, detects `{{#if` patterns
 
 ### Example
 
-```aw
+```aw wrap
 ---
 on:
   issues:

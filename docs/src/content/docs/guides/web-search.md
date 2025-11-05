@@ -11,7 +11,7 @@ This guide shows how to add web search to workflows using the Tavily MCP server,
 
 [Tavily](https://tavily.com/) provides AI-optimized search with structured JSON responses, news search capability, and fast response times through the [@tavily/mcp-server](https://github.com/tavily-ai/tavily-mcp-server) MCP server.
 
-```aw
+```aw wrap
 ---
 on: issues
 engine: copilot

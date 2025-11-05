@@ -22,7 +22,7 @@ frontmatter not properly closed
 
 **Solution:** Ensure the frontmatter is enclosed between two `---` lines:
 
-```aw
+```aw wrap
 ---
 on: push
 permissions:
@@ -520,7 +520,7 @@ network: {}
 
 **Example:** Complete workflow with network configuration:
 
-```aw
+```aw wrap
 ---
 on: issues
 permissions:
@@ -566,7 +566,7 @@ safe-outputs:
 
 **Example:** Complete workflow with safe outputs:
 
-```aw
+```aw wrap
 ---
 on: push
 permissions:
@@ -642,7 +642,7 @@ mcp-servers:
 
 **Example:** Complete HTTP MCP configuration:
 
-```aw
+```aw wrap
 ---
 on: workflow_dispatch
 mcp-servers:
@@ -716,7 +716,7 @@ stop-after: "+1d12h"  # 1 day and 12 hours
 
 **Example:** Multiple time delta formats:
 
-```aw
+```aw wrap
 ---
 on:
   workflow_dispatch:
@@ -927,7 +927,7 @@ tools:
 
 **Example:** Complete workflow with specific bash commands:
 
-```aw
+```aw wrap
 ---
 on: push
 permissions:

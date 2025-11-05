@@ -13,7 +13,7 @@ LabelOps transforms GitHub labels into workflow triggers, metadata, and state ma
 
 GitHub Agentic Workflows allows you to filter `labeled` and `unlabeled` events to trigger only for specific label names using the `names` field:
 
-```aw
+```aw wrap
 ---
 on:
   issues:
