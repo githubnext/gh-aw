@@ -14,7 +14,7 @@ permissions:
 
 engine: copilot
 
-timeout_minutes: 45
+timeout_minutes: 30  # Reduced from 45 since pre-fetching data is faster
 
 network:
   firewall: true
@@ -31,10 +31,146 @@ tools:
   bash:
     - "*"
   web-fetch:
-  github:
-    toolsets:
-      - default
-      - discussions
+
+# Pre-download GitHub data in steps to avoid excessive MCP calls
+steps:
+  - name: Download repository activity data
+    id: download-data
+    run: |
+      set -e
+      
+      # Create data directory
+      mkdir -p /tmp/gh-aw/daily-news-data
+      
+      # Calculate date range (last 30 days)
+      END_DATE=$(date -u +%Y-%m-%d)
+      START_DATE=$(date -u -d '30 days ago' +%Y-%m-%d 2>/dev/null || date -u -v-30d +%Y-%m-%d)
+      
+      echo "Fetching data from $START_DATE to $END_DATE"
+      
+      # Fetch issues (open and recently closed)
+      echo "Fetching issues..."
+      gh api graphql -f query='
+        query($owner: String!, $repo: String!) {
+          repository(owner: $owner, name: $repo) {
+            openIssues: issues(first: 100, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {
+              nodes {
+                number
+                title
+                state
+                createdAt
+                updatedAt
+                author { login }
+                labels(first: 10) { nodes { name } }
+                comments { totalCount }
+              }
+            }
+            closedIssues: issues(first: 100, states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}) {
+              nodes {
+                number
+                title
+                state
+                createdAt
+                updatedAt
+                closedAt
+                author { login }
+                labels(first: 10) { nodes { name } }
+              }
+            }
+          }
+        }
+      ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/issues.json
+      
+      # Fetch pull requests (open and recently merged/closed)
+      echo "Fetching pull requests..."
+      gh api graphql -f query='
+        query($owner: String!, $repo: String!) {
+          repository(owner: $owner, name: $repo) {
+            openPRs: pullRequests(first: 50, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {
+              nodes {
+                number
+                title
+                state
+                createdAt
+                updatedAt
+                author { login }
+                additions
+                deletions
+                changedFiles
+                reviews(first: 10) { totalCount }
+              }
+            }
+            mergedPRs: pullRequests(first: 50, states: MERGED, orderBy: {field: UPDATED_AT, direction: DESC}) {
+              nodes {
+                number
+                title
+                state
+                createdAt
+                updatedAt
+                mergedAt
+                author { login }
+                additions
+                deletions
+              }
+            }
+            closedPRs: pullRequests(first: 30, states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}) {
+              nodes {
+                number
+                title
+                state
+                createdAt
+                closedAt
+                author { login }
+              }
+            }
+          }
+        }
+      ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/pull_requests.json
+      
+      # Fetch recent commits (last 100)
+      echo "Fetching commits..."
+      gh api repos/${GITHUB_REPOSITORY}/commits \
+        --paginate \
+        --jq '[.[] | {sha, author: .commit.author, message: .commit.message, date: .commit.author.date, html_url}]' \
+        > /tmp/gh-aw/daily-news-data/commits.json
+      
+      # Fetch releases
+      echo "Fetching releases..."
+      gh api repos/${GITHUB_REPOSITORY}/releases \
+        --jq '[.[] | {tag_name, name, created_at, published_at, html_url, body}]' \
+        > /tmp/gh-aw/daily-news-data/releases.json
+      
+      # Fetch discussions
+      echo "Fetching discussions..."
+      gh api graphql -f query='
+        query($owner: String!, $repo: String!) {
+          repository(owner: $owner, name: $repo) {
+            discussions(first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
+              nodes {
+                number
+                title
+                createdAt
+                updatedAt
+                author { login }
+                category { name }
+                comments { totalCount }
+                url
+              }
+            }
+          }
+        }
+      ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/discussions.json
+      
+      # Check for changesets
+      echo "Checking for changesets..."
+      if [ -d ".changeset" ]; then
+        find .changeset -name "*.md" -type f ! -name "README.md" > /tmp/gh-aw/daily-news-data/changesets.txt
+      else
+        echo "No changeset directory" > /tmp/gh-aw/daily-news-data/changesets.txt
+      fi
+      
+      echo "✅ Data download complete"
+      ls -lh /tmp/gh-aw/daily-news-data/
 
 imports:
   - shared/mcp/tavily.md
@@ -47,42 +183,70 @@ imports:
 
 Write an upbeat, friendly, motivating summary of recent activity in the repo.
 
+## 📁 Pre-Downloaded Data Available
+
+**IMPORTANT**: All GitHub data has been pre-downloaded to `/tmp/gh-aw/daily-news-data/` to avoid excessive MCP calls. Use these files instead of making GitHub API calls:
+
+- **`issues.json`** - Open and recently closed issues (last 100 of each)
+- **`pull_requests.json`** - Open, merged, and closed pull requests
+- **`commits.json`** - Recent commits (up to last 100)
+- **`releases.json`** - All releases
+- **`discussions.json`** - Recent discussions (last 50)
+- **`changesets.txt`** - List of changeset files (if directory exists)
+
+**Load and analyze these files** instead of making repeated GitHub MCP calls. All data is in JSON format (except changesets.txt which lists file paths).
+
 ## 📊 Trend Charts Requirement
 
 **IMPORTANT**: Generate exactly 2 trend charts that showcase key metrics of the project. These charts should visualize trends over time to give the team insights into project health and activity patterns.
+
+Use the pre-downloaded data from `/tmp/gh-aw/daily-news-data/` to generate all statistics and charts.
 
 ### Chart Generation Process
 
 **Phase 1: Data Collection**
 
-Collect data for the past 30 days (or available data) using GitHub API:
+**Use the pre-downloaded data files** from `/tmp/gh-aw/daily-news-data/`:
 
-1. **Issues Activity Data**: 
-   - Count of issues opened per day
-   - Count of issues closed per day
-   - Running count of open issues
+1. **Issues Activity Data**: Load from `issues.json`
+   - Parse `openIssues.nodes` and `closedIssues.nodes`
+   - Extract `createdAt`, `updatedAt`, `closedAt` timestamps
+   - Aggregate by day to count opens/closes
+   - Calculate running count of open issues
 
-2. **Pull Requests Activity Data**:
-   - Count of PRs opened per day
-   - Count of PRs merged per day
-   - Count of PRs closed per day
+2. **Pull Requests Activity Data**: Load from `pull_requests.json`
+   - Parse `openPRs.nodes`, `mergedPRs.nodes`, `closedPRs.nodes`
+   - Extract `createdAt`, `updatedAt`, `mergedAt`, `closedAt` timestamps
+   - Aggregate by day to count opens/merges/closes
 
-3. **Commit Activity Data**:
-   - Count of commits per day on main branches
-   - Number of contributors per day
+3. **Commit Activity Data**: Load from `commits.json`
+   - Parse commit array
+   - Extract `date` (commit.author.date) timestamps
+   - Aggregate by day to count commits
+   - Count unique authors per day
 
-4. **Additional Metrics** (optional for enrichment):
-   - Discussion activity
-   - Code review comments
-   - CI/CD run statistics
+4. **Additional Context** (optional):
+   - Load discussions from `discussions.json`
+   - Load releases from `releases.json`
+   - Read changeset files listed in `changesets.txt`
 
 **Phase 2: Data Preparation**
 
-1. Create CSV files in `/tmp/gh-aw/python/data/` with the collected data:
-   - `issues_prs_activity.csv` - Daily counts of issues and PRs
-   - `commit_activity.csv` - Daily commit counts and contributors
+1. Create a Python script at `/tmp/gh-aw/python/process_data.py` that:
+   - Reads the JSON files from `/tmp/gh-aw/daily-news-data/`
+   - Processes timestamps and aggregates by date
+   - Generates CSV files in `/tmp/gh-aw/python/data/`:
+     - `issues_prs_activity.csv` - Daily counts of issues and PRs
+     - `commit_activity.csv` - Daily commit counts and contributors
 
-2. Each CSV should have a date column and metric columns with appropriate headers
+2. Execute the Python script to generate the CSVs
+
+**Guardrails**:
+- **Maximum issues to process**: 200 (100 open + 100 closed from pre-downloaded data)
+- **Maximum PRs to process**: 130 (50 open + 50 merged + 30 closed from pre-downloaded data)
+- **Maximum commits to process**: 100 (from pre-downloaded data)
+- **Date range**: Last 30 days from the data available
+- If data is sparse, use what's available and note it in the analysis
 
 **Phase 3: Chart Generation**
 
@@ -157,16 +321,14 @@ If insufficient data is available (less than 7 days):
 
 ---
 
-- Include some or all of the following:
-  * Recent issues activity
-  * Recent pull requests
-  * Recent discussions
-  * Recent releases
-  * Recent comments
-  * Recent code reviews
-  * Recent code changes
-  * Recent failed CI runs
-  * Look at the changesets in ./changeset folder
+**Data Sources** - Use the pre-downloaded files in `/tmp/gh-aw/daily-news-data/`:
+- Include some or all of the following from the JSON files:
+  * Recent issues activity (from `issues.json`)
+  * Recent pull requests (from `pull_requests.json`)
+  * Recent discussions (from `discussions.json`)
+  * Recent releases (from `releases.json`)
+  * Recent code changes (from `commits.json`)
+  * Changesets (from `changesets.txt` file list)
 
 - If little has happened, don't write too much.
 
@@ -182,11 +344,12 @@ If insufficient data is available (less than 7 days):
 
 - Include a short haiku at the end of the report to help orient the team to the season of their work.
 
-- In a note at the end of the report, include a log of
-  * all search queries (web, issues, pulls, content) you used to generate the data for the report
-  * all commands you used to generate the data for the report
-  * all files you read to generate the data for the report
-  * places you didn't have time to read or search, but would have liked to
+- In a note at the end of the report, include a log of:
+  * All web search queries you used (if any)
+  * All files you read from `/tmp/gh-aw/daily-news-data/`
+  * Summary statistics: number of issues/PRs/commits/discussions analyzed
+  * Date range of data analyzed
+  * Any data limitations encountered
 
 Create a new GitHub discussion with a title containing today's date (e.g., "Daily Status - 2024-10-10") containing a markdown report with your findings. Use links where appropriate.
 
