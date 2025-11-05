@@ -136,7 +136,7 @@ function runTests() {
     const changelogSection = output.substring(output.indexOf('Would add to CHANGELOG.md'), output.indexOf('Consolidated Codemod'));
     allPassed &= assertNotContains(changelogSection, '## Codemod', 'Changelog should not contain "## Codemod" heading');
     allPassed &= assertContains(changelogSection, '### Migration Guide', 'Changelog should contain Migration Guide section');
-    allPassed &= assertContains(changelogSection, '```markdown', 'Changelog should contain markdown code block for codemods');
+    allPassed &= assertContains(changelogSection, '`````markdown', 'Changelog should contain markdown code block with 5 backticks for codemods');
 
     // Clean up for next test
     fs.unlinkSync(path.join(CHANGESET_DIR, 'minor-breaking.md'));

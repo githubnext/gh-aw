@@ -430,9 +430,9 @@ function updateChangelog(version, changesets, dryRun = false) {
   const codemodPrompt = extractCodemods(changesets);
   if (codemodPrompt) {
     newEntry += '### Migration Guide\n\n';
-    newEntry += '```markdown\n';
+    newEntry += '`````markdown\n';
     newEntry += codemodPrompt + '\n';
-    newEntry += '```\n\n';
+    newEntry += '`````\n\n';
   }
   
   // Insert new entry after header
