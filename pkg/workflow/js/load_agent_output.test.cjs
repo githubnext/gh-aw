@@ -1,0 +1,190 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import fs from "fs";
+import path from "path";
+import os from "os";
+
+// Mock the global core object that GitHub Actions provides
+const mockCore = {
+  info: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+  setFailed: vi.fn(),
+  setOutput: vi.fn(),
+};
+
+// Set up global variables
+global.core = mockCore;
+
+describe("load_agent_output.cjs", () => {
+  let loadAgentOutputModule;
+  let tempDir;
+  let originalEnv;
+
+  beforeEach(async () => {
+    // Save original environment
+    originalEnv = process.env.GH_AW_AGENT_OUTPUT;
+
+    // Create temp directory for test files
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "load-agent-output-test-"));
+
+    // Clear all mocks
+    vi.clearAllMocks();
+
+    // Dynamically import the module (fresh for each test)
+    loadAgentOutputModule = await import("./load_agent_output.cjs");
+  });
+
+  afterEach(() => {
+    // Restore original environment
+    if (originalEnv !== undefined) {
+      process.env.GH_AW_AGENT_OUTPUT = originalEnv;
+    } else {
+      delete process.env.GH_AW_AGENT_OUTPUT;
+    }
+
+    // Clean up temp directory
+    if (tempDir && fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  describe("loadAgentOutput", () => {
+    it("should return success: false when GH_AW_AGENT_OUTPUT is not set", () => {
+      delete process.env.GH_AW_AGENT_OUTPUT;
+
+      const result = loadAgentOutputModule.loadAgentOutput();
+
+      expect(result.success).toBe(false);
+      expect(result.items).toBeUndefined();
+      expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
+    });
+
+    it("should return success: false and set failure when file cannot be read", () => {
+      process.env.GH_AW_AGENT_OUTPUT = "/nonexistent/file.json";
+
+      const result = loadAgentOutputModule.loadAgentOutput();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/Error reading agent output file/);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Error reading agent output file"));
+    });
+
+    it("should return success: false when file content is empty", () => {
+      const emptyFile = path.join(tempDir, "empty.json");
+      fs.writeFileSync(emptyFile, "");
+      process.env.GH_AW_AGENT_OUTPUT = emptyFile;
+
+      const result = loadAgentOutputModule.loadAgentOutput();
+
+      expect(result.success).toBe(false);
+      expect(result.items).toBeUndefined();
+      expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
+    });
+
+    it("should return success: false when file content is only whitespace", () => {
+      const whitespaceFile = path.join(tempDir, "whitespace.json");
+      fs.writeFileSync(whitespaceFile, "   \n\t   ");
+      process.env.GH_AW_AGENT_OUTPUT = whitespaceFile;
+
+      const result = loadAgentOutputModule.loadAgentOutput();
+
+      expect(result.success).toBe(false);
+      expect(result.items).toBeUndefined();
+      expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
+    });
+
+    it("should return success: false and set failure when JSON is invalid", () => {
+      const invalidJsonFile = path.join(tempDir, "invalid.json");
+      fs.writeFileSync(invalidJsonFile, "{ invalid json }");
+      process.env.GH_AW_AGENT_OUTPUT = invalidJsonFile;
+
+      const result = loadAgentOutputModule.loadAgentOutput();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/Error parsing agent output JSON/);
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Error parsing agent output JSON"));
+    });
+
+    it("should return success: false when items field is missing", () => {
+      const noItemsFile = path.join(tempDir, "no-items.json");
+      fs.writeFileSync(noItemsFile, JSON.stringify({ other: "data" }));
+      process.env.GH_AW_AGENT_OUTPUT = noItemsFile;
+
+      const result = loadAgentOutputModule.loadAgentOutput();
+
+      expect(result.success).toBe(false);
+      expect(result.items).toBeUndefined();
+      expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output");
+    });
+
+    it("should return success: false when items field is not an array", () => {
+      const invalidItemsFile = path.join(tempDir, "invalid-items.json");
+      fs.writeFileSync(invalidItemsFile, JSON.stringify({ items: "not-an-array" }));
+      process.env.GH_AW_AGENT_OUTPUT = invalidItemsFile;
+
+      const result = loadAgentOutputModule.loadAgentOutput();
+
+      expect(result.success).toBe(false);
+      expect(result.items).toBeUndefined();
+      expect(mockCore.info).toHaveBeenCalledWith("No valid items found in agent output");
+    });
+
+    it("should return success: true with empty items array", () => {
+      const emptyItemsFile = path.join(tempDir, "empty-items.json");
+      fs.writeFileSync(emptyItemsFile, JSON.stringify({ items: [] }));
+      process.env.GH_AW_AGENT_OUTPUT = emptyItemsFile;
+
+      const result = loadAgentOutputModule.loadAgentOutput();
+
+      expect(result.success).toBe(true);
+      expect(result.items).toEqual([]);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent output content length:"));
+    });
+
+    it("should return success: true with valid items", () => {
+      const validFile = path.join(tempDir, "valid.json");
+      const items = [
+        { type: "create_issue", title: "Test Issue" },
+        { type: "add_comment", body: "Test Comment" },
+      ];
+      fs.writeFileSync(validFile, JSON.stringify({ items }));
+      process.env.GH_AW_AGENT_OUTPUT = validFile;
+
+      const result = loadAgentOutputModule.loadAgentOutput();
+
+      expect(result.success).toBe(true);
+      expect(result.items).toEqual(items);
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Agent output content length:"));
+    });
+
+    it("should log file content length on successful parse", () => {
+      const validFile = path.join(tempDir, "valid.json");
+      const content = JSON.stringify({ items: [{ type: "test" }] });
+      fs.writeFileSync(validFile, content);
+      process.env.GH_AW_AGENT_OUTPUT = validFile;
+
+      loadAgentOutputModule.loadAgentOutput();
+
+      expect(mockCore.info).toHaveBeenCalledWith(`Agent output content length: ${content.length}`);
+    });
+
+    it("should handle complex nested items structure", () => {
+      const complexFile = path.join(tempDir, "complex.json");
+      const items = [
+        {
+          type: "create_issue",
+          title: "Complex Issue",
+          labels: ["bug", "high-priority"],
+          metadata: { nested: { data: "value" } },
+        },
+      ];
+      fs.writeFileSync(complexFile, JSON.stringify({ items }));
+      process.env.GH_AW_AGENT_OUTPUT = complexFile;
+
+      const result = loadAgentOutputModule.loadAgentOutput();
+
+      expect(result.success).toBe(true);
+      expect(result.items).toEqual(items);
+    });
+  });
+});

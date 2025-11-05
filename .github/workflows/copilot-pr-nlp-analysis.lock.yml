@@ -36,8 +36,8 @@
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
 #   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
 #     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
-#   - actions/upload-artifact@v4 (ea165f8d65b6e75b540449e92b4886f43607fa02)
-#     https://github.com/actions/upload-artifact/commit/ea165f8d65b6e75b540449e92b4886f43607fa02
+#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
+#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Copilot PR Conversation NLP Analysis"
 "on":
@@ -48,7 +48,6 @@ name: "Copilot PR Conversation NLP Analysis"
 permissions:
   actions: read
   contents: read
-  discussions: write
   issues: read
   pull-requests: read
 
@@ -141,7 +140,6 @@ jobs:
     permissions:
       actions: read
       contents: read
-      discussions: write
       issues: read
       pull-requests: read
     concurrency:
@@ -164,7 +162,7 @@ jobs:
         run: "pip install --user numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
       - if: always()
         name: Upload generated charts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           if-no-files-found: warn
           name: data-charts
@@ -172,7 +170,7 @@ jobs:
           retention-days: 30
       - if: always()
         name: Upload source files and data
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           if-no-files-found: warn
           name: python-source-and-data
@@ -184,7 +182,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         name: Fetch Copilot PR data from last 24 hours
-        run: "# Create output directory\nmkdir -p /tmp/gh-aw/pr-data\nmkdir -p /tmp/gh-aw/pr-comments\n\n# Calculate date 24 hours ago\nDATE_24H_AGO=$(date -d '1 day ago' '+%Y-%m-%d' 2>/dev/null || date -v-1d '+%Y-%m-%d')\n\necho \"Fetching Copilot PRs merged in the last 24 hours...\"\n\n# Search for PRs authored by Copilot merged in the last 24 hours\ngh search prs --repo ${{ github.repository }} \\\n  --author \"copilot\" \\\n  --merged \">=${DATE_24H_AGO}\" \\\n  --json number,title,state,createdAt,closedAt,mergedAt,author,body,labels,url,repository \\\n  --limit 100 \\\n  > /tmp/gh-aw/pr-data/copilot-prs.json\n\n# Generate schema for reference\ncat /tmp/gh-aw/pr-data/copilot-prs.json | /tmp/gh-aw/jqschema.sh > /tmp/gh-aw/pr-data/copilot-prs-schema.json\n\necho \"PR data saved to /tmp/gh-aw/pr-data/copilot-prs.json\"\necho \"Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)\"\n\n# Fetch detailed comments for each PR\nPR_COUNT=$(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)\necho \"Fetching comments for $PR_COUNT PRs...\"\n\njq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read PR_NUM; do\n  echo \"Fetching comments for PR #$PR_NUM\"\n  gh pr view \"$PR_NUM\" \\\n    --json comments,reviews,reviewComments \\\n    > /tmp/gh-aw/pr-comments/pr-${PR_NUM}.json 2>/dev/null || echo \"{}\" > /tmp/gh-aw/pr-comments/pr-${PR_NUM}.json\n  sleep 0.5  # Rate limiting\ndone\n\necho \"Comment data saved to /tmp/gh-aw/pr-comments/\"\n"
+        run: "# Create output directory\nmkdir -p /tmp/gh-aw/pr-data\nmkdir -p /tmp/gh-aw/pr-comments\n\n# Calculate date 24 hours ago\nDATE_24H_AGO=$(date -d '1 day ago' '+%Y-%m-%d' 2>/dev/null || date -v-1d '+%Y-%m-%d')\n\necho \"Fetching Copilot PRs merged in the last 24 hours...\"\n\n# Search for PRs authored by Copilot merged in the last 24 hours\ngh search prs --repo ${{ github.repository }} \\\n  --author \"copilot\" \\\n  --merged \">=${DATE_24H_AGO}\" \\\n  --json number,title,state,createdAt,closedAt,mergedAt,author,body,labels,url,repository \\\n  --limit 100 \\\n  > /tmp/gh-aw/pr-data/copilot-prs.json\n\n# Generate schema for reference\ncat /tmp/gh-aw/pr-data/copilot-prs.json | /tmp/gh-aw/jqschema.sh > /tmp/gh-aw/pr-data/copilot-prs-schema.json\n\necho \"PR data saved to /tmp/gh-aw/pr-data/copilot-prs.json\"\necho \"Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)\"\n\n# Fetch detailed comments for each PR\nPR_COUNT=$(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)\necho \"Fetching comments for $PR_COUNT PRs...\"\n\njq -r '.[].number' /tmp/gh-aw/pr-data/copilot-prs.json | while read -r PR_NUM; do\n  echo \"Fetching comments for PR #${PR_NUM}\"\n  gh pr view \"${PR_NUM}\" \\\n    --json comments,reviews,reviewComments \\\n    > \"/tmp/gh-aw/pr-comments/pr-${PR_NUM}.json\" 2>/dev/null || echo \"{}\" > \"/tmp/gh-aw/pr-comments/pr-${PR_NUM}.json\"\n  sleep 0.5  # Rate limiting\ndone\n\necho \"Comment data saved to /tmp/gh-aw/pr-comments/\"\n"
       - name: Install NLP libraries
         run: "pip install --user nltk scikit-learn textblob wordcloud\n\n# Download required NLTK data\npython3 -c \"import nltk; nltk.download('punkt', quiet=True); nltk.download('stopwords', quiet=True); nltk.download('vader_lexicon', quiet=True); nltk.download('averaged_perceptron_tagger', quiet=True)\"\n\n# Verify installations\npython3 -c \"import nltk; print(f'NLTK {nltk.__version__} installed')\"\npython3 -c \"import sklearn; print(f'scikit-learn {sklearn.__version__} installed')\"\npython3 -c \"import textblob; print(f'TextBlob {textblob.__version__} installed')\"\npython3 -c \"import wordcloud; print(f'WordCloud {wordcloud.__version__} installed')\"\n\necho \"All NLP libraries installed successfully\"\n"
 
@@ -208,7 +206,7 @@ jobs:
             memory-${{ github.workflow }}-
             memory-
       - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: cache-memory
           path: /tmp/gh-aw/cache-memory
@@ -2157,7 +2155,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2200,7 +2198,7 @@ jobs:
             console.log(JSON.stringify(awInfo, null, 2));
       - name: Upload agentic run info
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
@@ -2355,7 +2353,7 @@ jobs:
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: safe_output.jsonl
           path: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -3230,13 +3228,13 @@ jobs:
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: agent_output.json
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Upload engine output files
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: agent_outputs
           path: |
@@ -3244,7 +3242,7 @@ jobs:
           if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: mcp-logs
           path: /tmp/gh-aw/mcp-logs/
@@ -4140,7 +4138,7 @@ jobs:
           fi
       - name: Upload Firewall Logs
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: squid-logs-copilot-pr-conversation-nlp-analysis
           path: /tmp/gh-aw/squid-logs-copilot-pr-conversation-nlp-analysis/
@@ -4496,7 +4494,7 @@ jobs:
 
       - name: Upload Agent Stdio
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
@@ -4777,38 +4775,48 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            async function main() {
-              core.setOutput("discussion_number", "");
-              core.setOutput("discussion_url", "");
+            const fs = require("fs");
+            function loadAgentOutput() {
               const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
                 core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return;
+                return { success: false };
               }
               let outputContent;
               try {
-                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
               } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
               }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
-                return;
+                return { success: false };
               }
               core.info(`Agent output content length: ${outputContent.length}`);
               let validatedOutput;
               try {
                 validatedOutput = JSON.parse(outputContent);
               } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
+                core.info("No valid items found in agent output");
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function main() {
+              core.setOutput("discussion_number", "");
+              core.setOutput("discussion_url", "");
+              const result = loadAgentOutput();
+              if (!result.success) {
                 return;
               }
-              const createDiscussionItems = validatedOutput.items.filter(item => item.type === "create_discussion");
+              const createDiscussionItems = result.items.filter(item => item.type === "create_discussion");
               if (createDiscussionItems.length === 0) {
                 core.warning("No create-discussion items found in agent output");
                 return;
@@ -5220,7 +5228,7 @@ jobs:
             }
       - name: Upload threat detection log
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log

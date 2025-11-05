@@ -2,39 +2,15 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
+const { loadAgentOutput } = require("./load_agent_output.cjs");
+
 async function main() {
-  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  if (!agentOutputFile) {
-    core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+  const result = loadAgentOutput();
+  if (!result.success) {
     return;
   }
 
-  // Read agent output from file
-  let outputContent;
-  try {
-    outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
-  } catch (error) {
-    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
-
-  if (outputContent.trim() === "") {
-    core.info("Agent output content is empty");
-    return;
-  }
-  core.info(`Agent output content length: ${outputContent.length}`);
-  let validatedOutput;
-  try {
-    validatedOutput = JSON.parse(outputContent);
-  } catch (error) {
-    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
-  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    core.warning("No valid items found in agent output");
-    return;
-  }
-  const labelsItem = validatedOutput.items.find(item => item.type === "add_labels");
+  const labelsItem = result.items.find(item => item.type === "add_labels");
   if (!labelsItem) {
     core.warning("No add-labels item found in agent output");
     return;

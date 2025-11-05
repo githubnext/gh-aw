@@ -128,7 +128,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 		StepID:        "upload_assets",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
-		Script:        uploadAssetsScript,
+		Script:        getUploadAssetsScript(),
 		Token:         token,
 	})
 	steps = append(steps, scriptSteps...)

@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { loadAgentOutput } = require("./load_agent_output.cjs");
+
 /**
  * Generate footer with AI attribution and workflow installation instructions
  * @param {string} workflowName - Name of the workflow
@@ -63,47 +65,13 @@ async function main() {
     }
   }
 
-  // Read the validated output content from environment variable
-  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  if (!agentOutputFile) {
-    core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+  const result = loadAgentOutput();
+  if (!result.success) {
     return;
   }
 
-  // Read agent output from file
-  let outputContent;
-  try {
-    outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
-  } catch (error) {
-    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
-
-  if (outputContent.trim() === "") {
-    core.info("Agent output content is empty");
-    return;
-  }
-
-  core.info(`Agent output content length: ${outputContent.length}`);
-
-  // Parse the validated output JSON
-  let validatedOutput;
-  try {
-    validatedOutput = JSON.parse(outputContent);
-  } catch (error) {
-    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
-
-  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    core.info("No valid items found in agent output");
-    return;
-  }
-
-  // Find all create-pull-request-review-comment items
-  const reviewCommentItems = validatedOutput.items.filter(
-    /** @param {any} item */ item => item.type === "create_pull_request_review_comment"
-  );
+  // Find all create-pr-review-comment items
+  const reviewCommentItems = result.items.filter(/** @param {any} item */ item => item.type === "create_pull_request_review_comment");
   if (reviewCommentItems.length === 0) {
     core.info("No create-pull-request-review-comment items found in agent output");
     return;

@@ -132,7 +132,10 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.Steps)...)
 	}
 
-	// Step 5: Upload detection log artifact
+	// Step 5: Parse threat detection results (after custom steps)
+	steps = append(steps, c.buildParsingStep()...)
+
+	// Step 6: Upload detection log artifact
 	steps = append(steps, c.buildUploadDetectionLogStep()...)
 
 	return steps
@@ -221,9 +224,6 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 
 	// Add engine execution steps
 	steps = append(steps, c.buildEngineSteps(data)...)
-
-	// Add results parsing step
-	steps = append(steps, c.buildParsingStep()...)
 
 	return steps
 }

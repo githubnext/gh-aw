@@ -89,8 +89,8 @@ Please do the following tasks:
 		t.Error("Expected 'Upload git patch' step to be in generated workflow")
 	}
 
-	// Verify the upload step uses actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-	if !strings.Contains(lockContent, "uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02") {
+	// Verify the upload step uses actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+	if !strings.Contains(lockContent, "uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4") {
 		t.Error("Expected upload-artifact action to be used for git patch upload step")
 	}
 

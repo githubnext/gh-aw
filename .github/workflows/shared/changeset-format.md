@@ -22,3 +22,38 @@ Fixed a bug in the component rendering logic
 - Format: `<type>-<short-description>.md` (e.g., `minor-add-new-feature.md`)
 - Use quotes around package names in YAML frontmatter
 - Brief summary should be from PR title or first line of description
+
+### Optional Codemod Section
+
+For **minor** or **major** changes that introduce breaking changes, include an optional "Codemod" section to help users update their code:
+
+```markdown
+---
+"gh-aw": minor
+---
+
+Changed the workflow frontmatter field `engine` to require an object instead of a string.
+
+## Codemod
+
+If you have workflows using the old string format for the `engine` field:
+
+```yaml
+engine: copilot
+```
+
+Update them to use the new object format:
+
+```yaml
+engine:
+  id: copilot
+```
+
+This change applies to all workflows using the `engine` field in their frontmatter.
+```
+
+The codemod section should:
+- Explain what code patterns are affected by the breaking change
+- Provide clear before/after examples showing how to update existing code
+- Specify which files or use cases need to be updated
+- Include any automation suggestions if applicable

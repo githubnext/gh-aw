@@ -4009,7 +4009,7 @@ post-steps:
   - name: Post AI Step
     run: echo "This runs after AI"
   - name: Another Post Step
-    uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+    uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
     with:
       name: test-artifact
       path: test-file.txt
@@ -5878,7 +5878,7 @@ post-steps:
   - name: First Post Step
     run: echo "first"
   - name: Second Post Step
-    uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+    uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
     with:
       name: test-artifact
       path: test-file.txt
@@ -6017,8 +6017,8 @@ This workflow should generate a step to upload the prompt as an artifact.
 	}
 
 	// Verify the upload step uses the correct action
-	if !strings.Contains(lockYAML, "uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02") {
-		t.Error("Expected 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' action to be used")
+	if !strings.Contains(lockYAML, "uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4") {
+		t.Error("Expected 'actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4' action to be used")
 	}
 
 	// Verify the upload step has the correct artifact name
