@@ -3675,38 +3675,48 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            async function main() {
-              core.setOutput("discussion_number", "");
-              core.setOutput("discussion_url", "");
+            const fs = require("fs");
+            function loadAgentOutput() {
               const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
                 core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return;
+                return { success: false };
               }
               let outputContent;
               try {
-                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
               } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
               }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
-                return;
+                return { success: false };
               }
               core.info(`Agent output content length: ${outputContent.length}`);
               let validatedOutput;
               try {
                 validatedOutput = JSON.parse(outputContent);
               } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
+                core.info("No valid items found in agent output");
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function main() {
+              core.setOutput("discussion_number", "");
+              core.setOutput("discussion_url", "");
+              const result = loadAgentOutput();
+              if (!result.success) {
                 return;
               }
-              const createDiscussionItems = validatedOutput.items.filter(item => item.type === "create_discussion");
+              const createDiscussionItems = result.items.filter(item => item.type === "create_discussion");
               if (createDiscussionItems.length === 0) {
                 core.warning("No create-discussion items found in agent output");
                 return;

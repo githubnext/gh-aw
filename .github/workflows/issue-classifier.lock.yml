@@ -763,36 +763,46 @@ jobs:
               sanitized = sanitized.replace(/[<>&'"]/g, "");
               return sanitized.trim();
             }
-            async function main() {
+            const fs = require("fs");
+            function loadAgentOutput() {
               const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
                 core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return;
+                return { success: false };
               }
               let outputContent;
               try {
-                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
               } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
               }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
-                return;
+                return { success: false };
               }
               core.info(`Agent output content length: ${outputContent.length}`);
               let validatedOutput;
               try {
                 validatedOutput = JSON.parse(outputContent);
               } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
+                core.info("No valid items found in agent output");
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function main() {
+              const result = loadAgentOutput();
+              if (!result.success) {
                 return;
               }
-              const labelsItem = validatedOutput.items.find(item => item.type === "add_labels");
+              const labelsItem = result.items.find(item => item.type === "add_labels");
               if (!labelsItem) {
                 core.warning("No add-labels item found in agent output");
                 return;

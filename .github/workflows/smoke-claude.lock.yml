@@ -3213,6 +3213,40 @@ jobs:
               sanitized = sanitized.replace(/[<>&'"]/g, "");
               return sanitized.trim();
             }
+            const fs = require("fs");
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
             function generateFooter(
               workflowName,
               runUrl,
@@ -3240,35 +3274,11 @@ jobs:
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+              const result = loadAgentOutput();
+              if (!result.success) {
                 return;
               }
-              let outputContent;
-              try {
-                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const createIssueItems = validatedOutput.items.filter(item => item.type === "create_issue");
+              const createIssueItems = result.items.filter(item => item.type === "create_issue");
               if (createIssueItems.length === 0) {
                 core.info("No create-issue items found in agent output");
                 return;
