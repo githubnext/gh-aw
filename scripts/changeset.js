@@ -77,13 +77,26 @@ function parseChangesetFile(filePath) {
     throw new Error(`Invalid changeset format in ${filePath}: missing or invalid 'gh-aw' field`);
   }
   
-  // Get description (everything after frontmatter)
-  const description = lines.slice(frontmatterEnd + 1).join('\n').trim();
+  // Get body content (everything after frontmatter)
+  const bodyContent = lines.slice(frontmatterEnd + 1).join('\n').trim();
+  
+  // Check for codemod section (## Codemod)
+  const codemodMatch = bodyContent.match(/^([\s\S]*?)(?:^|\n)## Codemod\s*\n([\s\S]*)$/m);
+  
+  let description = bodyContent;
+  let codemod = null;
+  
+  if (codemodMatch) {
+    // Split into description (before codemod) and codemod section
+    description = codemodMatch[1].trim();
+    codemod = codemodMatch[2].trim();
+  }
   
   return {
     package: 'gh-aw',
     bumpType: bumpType,
     description: description,
+    codemod: codemod,
     filePath: filePath
   };
 }
@@ -234,6 +247,30 @@ function extractFirstLine(text) {
     }
   }
   return text;
+}
+
+/**
+ * Extract and consolidate all codemod entries from changesets
+ * @param {Array} changesets - Array of changeset entries
+ * @returns {string|null} Consolidated codemod prompt or null if no codemods
+ */
+function extractCodemods(changesets) {
+  const codemodEntries = changesets.filter(cs => cs.codemod);
+  
+  if (codemodEntries.length === 0) {
+    return null;
+  }
+  
+  let prompt = 'The following breaking changes require code updates:\n\n';
+  
+  for (const cs of codemodEntries) {
+    // Add the description as context
+    const firstLine = extractFirstLine(cs.description);
+    prompt += `### ${firstLine}\n\n`;
+    prompt += cs.codemod + '\n\n';
+  }
+  
+  return prompt.trim();
 }
 
 /**
@@ -389,6 +426,15 @@ function updateChangelog(version, changesets, dryRun = false) {
     newEntry += '\n';
   }
   
+  // Add consolidated codemods as a markdown code region if any exist
+  const codemodPrompt = extractCodemods(changesets);
+  if (codemodPrompt) {
+    newEntry += '### Migration Guide\n\n';
+    newEntry += '`````markdown\n';
+    newEntry += codemodPrompt + '\n';
+    newEntry += '`````\n\n';
+  }
+  
   // Insert new entry after header
   const headerEnd = existingContent.indexOf('\n## ');
   let updatedContent;
@@ -460,6 +506,16 @@ function runVersion() {
   console.log('---');
   console.log(changelogEntry);
   console.log('---');
+  
+  // Extract and display consolidated codemods
+  const codemodPrompt = extractCodemods(changesets);
+  if (codemodPrompt) {
+    console.log('');
+    console.log(formatInfoMessage('Consolidated Codemod Instructions (copy for Copilot agent task):'));
+    console.log('---');
+    console.log(codemodPrompt);
+    console.log('---');
+  }
 }
 
 /**
@@ -523,6 +579,16 @@ async function runRelease(releaseType) {
   console.log('');
   console.log(formatSuccessMessage('Updated CHANGELOG.md'));
   console.log(formatSuccessMessage(`Removed ${changesets.length} changeset file(s)`));
+  
+  // Extract and display consolidated codemods if any
+  const codemodPrompt = extractCodemods(changesets);
+  if (codemodPrompt) {
+    console.log('');
+    console.log(formatInfoMessage('Consolidated Codemod Instructions (copy for Copilot agent task):'));
+    console.log('---');
+    console.log(codemodPrompt);
+    console.log('---');
+  }
   
   // Execute git operations
   console.log('');
