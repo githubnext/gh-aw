@@ -130,7 +130,20 @@ if (engineDefHasOneOf) {
   allPassed = false;
 }
 
-// Test 7: Verify that all $refs in schema can be resolved
+// Test 7: Verify yaml code block has wrap attribute
+allPassed &= assertContains(
+  output,
+  '```yaml wrap',
+  'YAML code block should have wrap attribute for line wrapping'
+);
+
+allPassed &= assertNotContains(
+  output,
+  '```yaml\n---\n# Workflow name',
+  'YAML code block should NOT be plain ```yaml without wrap'
+);
+
+// Test 8: Verify that all $refs in schema can be resolved
 const allRefs = [
   '#/$defs/engine_config',
   '#/$defs/stdio_mcp_tool',

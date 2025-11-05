@@ -319,7 +319,7 @@ function generateMarkdown() {
   // Full YAML example
   lines.push('## Complete Frontmatter Reference');
   lines.push('');
-  lines.push('```yaml');
+  lines.push('```yaml wrap');
   lines.push('---');
   
   const yamlContent = generateProperties(schema.properties, schema.required || [], 0);
