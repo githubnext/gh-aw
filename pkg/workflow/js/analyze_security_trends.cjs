@@ -72,7 +72,10 @@ function parseFindingsByTool(body, tool) {
   for (const line of lines) {
     if (line.toLowerCase().includes(tool)) {
       // Parse table cells: | tool | total | critical | high | medium | low |
-      const cells = line.split("|").map(cell => cell.trim()).filter(cell => cell);
+      const cells = line
+        .split("|")
+        .map(cell => cell.trim())
+        .filter(cell => cell);
       if (cells.length >= 6) {
         result.total = parseInt(cells[1]) || 0;
         result.bySeverity.critical = parseInt(cells[2]) || 0;
@@ -100,7 +103,10 @@ function parseActionlintFindings(body) {
   const lines = body.split("\n");
   for (const line of lines) {
     if (line.toLowerCase().includes("actionlint")) {
-      const cells = line.split("|").map(cell => cell.trim()).filter(cell => cell);
+      const cells = line
+        .split("|")
+        .map(cell => cell.trim())
+        .filter(cell => cell);
       if (cells.length >= 2) {
         result.total = parseInt(cells[1]) || 0;
         break;
@@ -375,8 +381,8 @@ function formatTrendAnalysis(scanData, comparison) {
     comparison.trend === "improvement"
       ? `${trendIcon} ${Math.abs(comparison.totalChangePercent).toFixed(1)}% improvement`
       : comparison.trend === "regression"
-      ? `${trendIcon} ${Math.abs(comparison.totalChangePercent).toFixed(1)}% regression`
-      : `${trendIcon} No change`;
+        ? `${trendIcon} ${Math.abs(comparison.totalChangePercent).toFixed(1)}% regression`
+        : `${trendIcon} No change`;
 
   let output = `## 📈 Trend Analysis\n\n`;
   output += `**Week-over-Week Change**: ${trendText}\n\n`;
@@ -456,9 +462,7 @@ async function main() {
             `Trend: ${comparison.trend} (${comparison.totalChange >= 0 ? "+" : ""}${comparison.totalChange} findings, ${comparison.totalChangePercent >= 0 ? "+" : ""}${comparison.totalChangePercent.toFixed(1)}%)`
           );
         } catch (error) {
-          core.warning(
-            `Failed to load previous scan: ${error instanceof Error ? error.message : String(error)}`
-          );
+          core.warning(`Failed to load previous scan: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
     }

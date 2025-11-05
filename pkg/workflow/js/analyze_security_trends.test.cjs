@@ -79,8 +79,14 @@ describe("analyze_security_trends.cjs", () => {
       timestamp: new Date(date).toISOString(),
       total: totalFindings,
       byTool: {
-        zizmor: { total: Math.floor(totalFindings * 0.4), bySeverity: { critical: 0, high: 0, medium: 0, low: Math.floor(totalFindings * 0.4) } },
-        poutine: { total: Math.floor(totalFindings * 0.3), bySeverity: { critical: 0, high: 0, medium: 0, low: Math.floor(totalFindings * 0.3) } },
+        zizmor: {
+          total: Math.floor(totalFindings * 0.4),
+          bySeverity: { critical: 0, high: 0, medium: 0, low: Math.floor(totalFindings * 0.4) },
+        },
+        poutine: {
+          total: Math.floor(totalFindings * 0.3),
+          bySeverity: { critical: 0, high: 0, medium: 0, low: Math.floor(totalFindings * 0.3) },
+        },
         actionlint: { total: Math.floor(totalFindings * 0.3) },
       },
     };
