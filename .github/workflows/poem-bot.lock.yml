@@ -1265,9 +1265,13 @@ jobs:
                 summaryContent += renderItem(item, i);
                 summaryContent += "---\n\n";
               }
-              await core.summary.addRaw(summaryContent).write();
-              core.info(summaryContent);
-              core.info(`📝 ${title} preview written to step summary`);
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
             }
             async function main() {
               const result = loadAgentOutput();
@@ -5189,9 +5193,13 @@ jobs:
                 summaryContent += renderItem(item, i);
                 summaryContent += "---\n\n";
               }
-              await core.summary.addRaw(summaryContent).write();
-              core.info(summaryContent);
-              core.info(`📝 ${title} preview written to step summary`);
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
             }
             function generateFooter(
               workflowName,
@@ -5514,9 +5522,13 @@ jobs:
                 summaryContent += renderItem(item, i);
                 summaryContent += "---\n\n";
               }
-              await core.summary.addRaw(summaryContent).write();
-              core.info(summaryContent);
-              core.info(`📝 ${title} preview written to step summary`);
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
             }
             function generateFooter(
               workflowName,
@@ -7236,9 +7248,13 @@ jobs:
                 summaryContent += renderItem(item, i);
                 summaryContent += "---\n\n";
               }
-              await core.summary.addRaw(summaryContent).write();
-              core.info(summaryContent);
-              core.info(`📝 ${title} preview written to step summary`);
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
             }
             async function main() {
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
