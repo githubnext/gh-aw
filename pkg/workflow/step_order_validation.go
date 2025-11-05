@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var stepOrderLog = logger.New("workflow:step_order_validation")
 
 // StepType represents the type of step being generated
 type StepType int
@@ -82,8 +86,10 @@ func (t *StepOrderTracker) RecordArtifactUpload(stepName string, uploadPaths []s
 // ValidateStepOrdering validates that secret redaction happens before artifact uploads
 // and that all uploaded paths are covered by secret redaction
 func (t *StepOrderTracker) ValidateStepOrdering() error {
+	stepOrderLog.Printf("Validating step ordering: %d total steps recorded", len(t.steps))
 	// If we haven't reached agent execution yet, no validation needed
 	if !t.afterAgentExecution {
+		stepOrderLog.Print("Validation skipped: not yet after agent execution")
 		return nil
 	}
 
@@ -95,15 +101,21 @@ func (t *StepOrderTracker) ValidateStepOrdering() error {
 		}
 	}
 
+	stepOrderLog.Printf("Found %d artifact upload steps", len(artifactUploads))
+
 	// If no artifact uploads, no validation needed
 	if len(artifactUploads) == 0 {
+		stepOrderLog.Print("Validation passed: no artifact uploads to validate")
 		return nil
 	}
 
 	// If there are artifact uploads but no secret redaction, that's a bug
 	if !t.secretRedactionAdded {
+		stepOrderLog.Print("Validation failed: artifact uploads found but no secret redaction step")
 		return fmt.Errorf("compiler bug: artifact uploads found but no secret redaction step was added (this is a critical security issue)")
 	}
+
+	stepOrderLog.Printf("Secret redaction step found at order %d", t.secretRedactionOrder)
 
 	// Check that secret redaction comes before all artifact uploads
 	var uploadsBeforeRedaction []string
