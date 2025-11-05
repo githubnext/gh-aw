@@ -1135,4 +1135,3 @@ func replaceExpressionsInString(value string) string {
 	}
 	return extractor.ReplaceExpressionsWithEnvVars(value)
 }
-
