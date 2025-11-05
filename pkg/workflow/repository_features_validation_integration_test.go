@@ -34,7 +34,7 @@ func TestRepositoryFeaturesValidationIntegration(t *testing.T) {
 
 	// Test checking discussions
 	t.Run("check_discussions", func(t *testing.T) {
-		hasDiscussions, err := checkRepositoryHasDiscussions(repo)
+		hasDiscussions, err := checkRepositoryHasDiscussions(repo, false)
 		if err != nil {
 			t.Errorf("Failed to check discussions: %v", err)
 		}
@@ -43,7 +43,7 @@ func TestRepositoryFeaturesValidationIntegration(t *testing.T) {
 
 	// Test checking issues
 	t.Run("check_issues", func(t *testing.T) {
-		hasIssues, err := checkRepositoryHasIssues(repo)
+		hasIssues, err := checkRepositoryHasIssues(repo, false)
 		if err != nil {
 			t.Errorf("Failed to check issues: %v", err)
 		}
@@ -66,7 +66,7 @@ func TestRepositoryFeaturesValidationIntegration(t *testing.T) {
 		compiler := NewCompiler(true, "", "test")
 		err := compiler.validateRepositoryFeatures(workflowData)
 
-		hasDiscussions, checkErr := checkRepositoryHasDiscussions(repo)
+		hasDiscussions, checkErr := checkRepositoryHasDiscussions(repo, false)
 		if checkErr != nil {
 			t.Logf("Could not verify discussions status: %v", checkErr)
 			return
@@ -90,7 +90,7 @@ func TestRepositoryFeaturesValidationIntegration(t *testing.T) {
 		compiler := NewCompiler(true, "", "test")
 		err := compiler.validateRepositoryFeatures(workflowData)
 
-		hasIssues, checkErr := checkRepositoryHasIssues(repo)
+		hasIssues, checkErr := checkRepositoryHasIssues(repo, false)
 		if checkErr != nil {
 			t.Logf("Could not verify issues status: %v", checkErr)
 			return
@@ -155,7 +155,7 @@ Test workflow for discussions validation.
 	err = compiler.CompileWorkflow(workflowPath)
 
 	// Check if discussions are enabled
-	hasDiscussions, checkErr := checkRepositoryHasDiscussions(repo)
+	hasDiscussions, checkErr := checkRepositoryHasDiscussions(repo, false)
 	if checkErr != nil {
 		t.Logf("Could not verify discussions status: %v", checkErr)
 		t.Logf("Compilation result: %v", err)

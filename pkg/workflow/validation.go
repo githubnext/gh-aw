@@ -65,10 +65,11 @@ type RepositoryFeatures struct {
 
 // Global cache for repository features and current repository info
 var (
-	repositoryFeaturesCache  = sync.Map{} // sync.Map is thread-safe and efficient for read-heavy workloads
-	getCurrentRepositoryOnce sync.Once
-	currentRepositoryResult  string
-	currentRepositoryError   error
+	repositoryFeaturesCache       = sync.Map{} // sync.Map is thread-safe and efficient for read-heavy workloads
+	repositoryFeaturesLoggedCache = sync.Map{} // Tracks which repositories have had their success messages logged
+	getCurrentRepositoryOnce      sync.Once
+	currentRepositoryResult       string
+	currentRepositoryError        error
 )
 
 // ClearRepositoryFeaturesCache clears the repository features cache
@@ -77,6 +78,12 @@ func ClearRepositoryFeaturesCache() {
 	// Clear the features cache
 	repositoryFeaturesCache.Range(func(key, value any) bool {
 		repositoryFeaturesCache.Delete(key)
+		return true
+	})
+
+	// Clear the logged cache
+	repositoryFeaturesLoggedCache.Range(func(key, value any) bool {
+		repositoryFeaturesLoggedCache.Delete(key)
 		return true
 	})
 
@@ -412,7 +419,7 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 			*workflowData.SafeOutputs.AddComments.Discussion)
 
 	if needsDiscussions {
-		hasDiscussions, err := checkRepositoryHasDiscussions(repo)
+		hasDiscussions, err := checkRepositoryHasDiscussions(repo, c.verbose)
 
 		if err != nil {
 			// If we can't check, log but don't fail
@@ -432,16 +439,11 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 			// For add-comment with discussion: true
 			return fmt.Errorf("workflow uses safe-outputs.add-comment with discussion: true but repository %s does not have discussions enabled. Enable discussions in repository settings or change add-comment configuration", repo)
 		}
-
-		if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-				fmt.Sprintf("✓ Repository %s has discussions enabled", repo)))
-		}
 	}
 
 	// Check if issues are enabled when create-issue is configured
 	if workflowData.SafeOutputs.CreateIssues != nil {
-		hasIssues, err := checkRepositoryHasIssues(repo)
+		hasIssues, err := checkRepositoryHasIssues(repo, c.verbose)
 
 		if err != nil {
 			// If we can't check, log but don't fail
@@ -455,11 +457,6 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 
 		if !hasIssues {
 			return fmt.Errorf("workflow uses safe-outputs.create-issue but repository %s does not have issues enabled. Enable issues in repository settings or remove create-issue from safe-outputs", repo)
-		}
-
-		if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-				fmt.Sprintf("✓ Repository %s has issues enabled", repo)))
 		}
 	}
 
@@ -501,7 +498,7 @@ func getCurrentRepositoryUncached() (string, error) {
 }
 
 // getRepositoryFeatures gets repository features with caching to amortize API calls
-func getRepositoryFeatures(repo string) (*RepositoryFeatures, error) {
+func getRepositoryFeatures(repo string, verbose bool) (*RepositoryFeatures, error) {
 	// Check cache first using sync.Map
 	if cached, exists := repositoryFeaturesCache.Load(repo); exists {
 		features := cached.(*RepositoryFeatures)
@@ -530,17 +527,34 @@ func getRepositoryFeatures(repo string) (*RepositoryFeatures, error) {
 
 	// Cache the result using sync.Map's LoadOrStore for atomic caching
 	// This handles the race condition where multiple goroutines might fetch the same repo
-	actual, _ := repositoryFeaturesCache.LoadOrStore(repo, features)
+	actual, loaded := repositoryFeaturesCache.LoadOrStore(repo, features)
 	actualFeatures := actual.(*RepositoryFeatures)
 
 	validationLog.Printf("Cached repository features for: %s (discussions: %v, issues: %v)", repo, actualFeatures.HasDiscussions, actualFeatures.HasIssues)
+
+	// Only log the success messages if this is the first time we're caching these features
+	// and we haven't logged them before (checking loaded flag and logged cache)
+	if !loaded {
+		// Mark as logged atomically
+		// Log success messages only if we haven't logged them before
+		if _, alreadyLogged := repositoryFeaturesLoggedCache.LoadOrStore(repo, true); !alreadyLogged && verbose {
+			if actualFeatures.HasDiscussions {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+					fmt.Sprintf("✓ Repository %s has discussions enabled", repo)))
+			}
+			if actualFeatures.HasIssues {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+					fmt.Sprintf("✓ Repository %s has issues enabled", repo)))
+			}
+		}
+	}
 
 	return actualFeatures, nil
 }
 
 // checkRepositoryHasDiscussions checks if a repository has discussions enabled (with caching)
-func checkRepositoryHasDiscussions(repo string) (bool, error) {
-	features, err := getRepositoryFeatures(repo)
+func checkRepositoryHasDiscussions(repo string, verbose bool) (bool, error) {
+	features, err := getRepositoryFeatures(repo, verbose)
 	if err != nil {
 		return false, err
 	}
@@ -588,8 +602,8 @@ func checkRepositoryHasDiscussionsUncached(repo string) (bool, error) {
 }
 
 // checkRepositoryHasIssues checks if a repository has issues enabled (with caching)
-func checkRepositoryHasIssues(repo string) (bool, error) {
-	features, err := getRepositoryFeatures(repo)
+func checkRepositoryHasIssues(repo string, verbose bool) (bool, error) {
+	features, err := getRepositoryFeatures(repo, verbose)
 	if err != nil {
 		return false, err
 	}
