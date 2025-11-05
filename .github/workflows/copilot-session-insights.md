@@ -114,7 +114,7 @@ steps:
       # Download logs for each session (limit to first 50)
       echo "Downloading session logs..."
       jq -r '.[] | .sessionId // .number' /tmp/gh-aw/agent-sessions/sessions-list.json | head -50 | while read -r session_id; do
-        if [ ! -z "$session_id" ]; then
+        if [ -n "$session_id" ]; then
           echo "Downloading session: $session_id"
           gh agent-task view "$session_id" --log > "/tmp/gh-aw/agent-sessions/logs/${session_id}.log" 2>&1 || true
         fi
