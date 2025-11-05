@@ -37,6 +37,9 @@ tools:
 steps:
   - name: Download repository activity data
     id: download-data
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       set -e
       
