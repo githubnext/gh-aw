@@ -267,9 +267,9 @@ func TestCreateIssueJobWithCopilotAssignee(t *testing.T) {
 		assigneeStepContent = assigneeStepContent[:len("Assign issue to copilot")+nextStepIndex]
 	}
 
-	// Verify that GH_TOKEN uses Copilot token precedence without GITHUB_TOKEN fallback in assignee step
-	if !strings.Contains(assigneeStepContent, "GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
-		t.Error("Expected GH_TOKEN in assignee step to use Copilot token precedence without GITHUB_TOKEN fallback")
+	// Verify that GH_TOKEN uses Copilot token precedence with legacy fallback in assignee step
+	if !strings.Contains(assigneeStepContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
+		t.Error("Expected GH_TOKEN in assignee step to use Copilot token precedence with legacy fallback")
 	}
 
 	// Verify GITHUB_TOKEN is NOT in the fallback chain for copilot assignees in assignee step
