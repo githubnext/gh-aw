@@ -28,6 +28,9 @@ func BundleJavaScriptFromSources(mainContent string, sources map[string]string, 
 		return "", err
 	}
 
+	// Deduplicate require statements (keep only the first occurrence)
+	bundled = deduplicateRequires(bundled)
+
 	bundlerLog.Printf("Bundling completed: processed_files=%d, output_size=%d bytes", len(processed), len(bundled))
 	return bundled, nil
 }
@@ -127,6 +130,46 @@ func removeExports(content string) string {
 			continue
 		}
 
+		result.WriteString(line)
+		if i < len(lines)-1 {
+			result.WriteString("\n")
+		}
+	}
+
+	return result.String()
+}
+
+// deduplicateRequires removes duplicate require() statements from bundled JavaScript
+// keeping only the first occurrence of each unique require
+func deduplicateRequires(content string) string {
+	lines := strings.Split(content, "\n")
+	var result strings.Builder
+	seenRequires := make(map[string]bool)
+
+	// Regular expression to match require statements
+	// Matches: const/let/var name = require('module');
+	requireRegex := regexp.MustCompile(`^\s*(?:const|let|var)\s+(?:\{[^}]*\}|\w+)\s*=\s*require\(['"']([^'"']+)['"']\);?\s*$`)
+
+	for i, line := range lines {
+		// Check if this line is a require statement
+		matches := requireRegex.FindStringSubmatch(line)
+
+		if len(matches) > 1 {
+			// This is a require statement
+			moduleName := matches[1]
+
+			// Check if we've seen this require before
+			if seenRequires[moduleName] {
+				// Skip this duplicate require
+				bundlerLog.Printf("Removing duplicate require: %s", moduleName)
+				continue
+			}
+
+			// Mark this require as seen
+			seenRequires[moduleName] = true
+		}
+
+		// Keep the line
 		result.WriteString(line)
 		if i < len(lines)-1 {
 			result.WriteString("\n")

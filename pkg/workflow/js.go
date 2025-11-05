@@ -13,29 +13,11 @@ var createPullRequestScript string
 //go:embed js/create_agent_task.cjs
 var createAgentTaskScript string
 
-//go:embed js/create_discussion.cjs
-var createDiscussionScript string
-
-//go:embed js/add_comment.cjs
-var createCommentScript string
-
-//go:embed js/create_pr_review_comment.cjs
-var createPRReviewCommentScript string
-
-//go:embed js/create_code_scanning_alert.cjs
-var createCodeScanningAlertScript string
-
 //go:embed js/assign_issue.cjs
 var assignIssueScript string
 
-//go:embed js/update_issue.cjs
-var updateIssueScript string
-
 //go:embed js/push_to_pull_request_branch.cjs
 var pushToBranchScript string
-
-//go:embed js/upload_assets.cjs
-var uploadAssetsScript string
 
 //go:embed js/add_reaction_and_edit_comment.cjs
 var addReactionAndEditCommentScript string
@@ -91,6 +73,9 @@ var sanitizeLabelContentScript string
 //go:embed js/sanitize_workflow_name.cjs
 var sanitizeWorkflowNameScript string
 
+//go:embed js/load_agent_output.cjs
+var loadAgentOutputScript string
+
 // Source scripts that may contain local requires
 //
 //go:embed js/collect_ndjson_output.cjs
@@ -107,6 +92,24 @@ var createIssueScriptSource string
 
 //go:embed js/add_labels.cjs
 var addLabelsScriptSource string
+
+//go:embed js/create_discussion.cjs
+var createDiscussionScriptSource string
+
+//go:embed js/update_issue.cjs
+var updateIssueScriptSource string
+
+//go:embed js/create_code_scanning_alert.cjs
+var createCodeScanningAlertScriptSource string
+
+//go:embed js/create_pr_review_comment.cjs
+var createPRReviewCommentScriptSource string
+
+//go:embed js/add_comment.cjs
+var addCommentScriptSource string
+
+//go:embed js/upload_assets.cjs
+var uploadAssetsScriptSource string
 
 //go:embed js/parse_firewall_logs.cjs
 var parseFirewallLogsScriptSource string
@@ -127,6 +130,24 @@ var (
 
 	addLabelsScript     string
 	addLabelsScriptOnce sync.Once
+
+	createDiscussionScript     string
+	createDiscussionScriptOnce sync.Once
+
+	updateIssueScript     string
+	updateIssueScriptOnce sync.Once
+
+	createCodeScanningAlertScript     string
+	createCodeScanningAlertScriptOnce sync.Once
+
+	createPRReviewCommentScript     string
+	createPRReviewCommentScriptOnce sync.Once
+
+	addCommentScript     string
+	addCommentScriptOnce sync.Once
+
+	uploadAssetsScript     string
+	uploadAssetsScriptOnce sync.Once
 
 	parseFirewallLogsScript     string
 	parseFirewallLogsScriptOnce sync.Once
@@ -228,6 +249,102 @@ func getParseFirewallLogsScript() string {
 	return parseFirewallLogsScript
 }
 
+// getCreateDiscussionScript returns the bundled create_discussion script
+// Bundling is performed on first access and cached for subsequent calls
+func getCreateDiscussionScript() string {
+	createDiscussionScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(createDiscussionScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			createDiscussionScript = createDiscussionScriptSource
+		} else {
+			createDiscussionScript = bundled
+		}
+	})
+	return createDiscussionScript
+}
+
+// getUpdateIssueScript returns the bundled update_issue script
+// Bundling is performed on first access and cached for subsequent calls
+func getUpdateIssueScript() string {
+	updateIssueScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(updateIssueScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			updateIssueScript = updateIssueScriptSource
+		} else {
+			updateIssueScript = bundled
+		}
+	})
+	return updateIssueScript
+}
+
+// getCreateCodeScanningAlertScript returns the bundled create_code_scanning_alert script
+// Bundling is performed on first access and cached for subsequent calls
+func getCreateCodeScanningAlertScript() string {
+	createCodeScanningAlertScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(createCodeScanningAlertScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			createCodeScanningAlertScript = createCodeScanningAlertScriptSource
+		} else {
+			createCodeScanningAlertScript = bundled
+		}
+	})
+	return createCodeScanningAlertScript
+}
+
+// getCreatePRReviewCommentScript returns the bundled create_pr_review_comment script
+// Bundling is performed on first access and cached for subsequent calls
+func getCreatePRReviewCommentScript() string {
+	createPRReviewCommentScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(createPRReviewCommentScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			createPRReviewCommentScript = createPRReviewCommentScriptSource
+		} else {
+			createPRReviewCommentScript = bundled
+		}
+	})
+	return createPRReviewCommentScript
+}
+
+// getAddCommentScript returns the bundled add_comment script
+// Bundling is performed on first access and cached for subsequent calls
+func getAddCommentScript() string {
+	addCommentScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(addCommentScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			addCommentScript = addCommentScriptSource
+		} else {
+			addCommentScript = bundled
+		}
+	})
+	return addCommentScript
+}
+
+// getUploadAssetsScript returns the bundled upload_assets script
+// Bundling is performed on first access and cached for subsequent calls
+func getUploadAssetsScript() string {
+	uploadAssetsScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(uploadAssetsScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			uploadAssetsScript = uploadAssetsScriptSource
+		} else {
+			uploadAssetsScript = bundled
+		}
+	})
+	return uploadAssetsScript
+}
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
@@ -235,6 +352,7 @@ func GetJavaScriptSources() map[string]string {
 		"sanitize_content.cjs":       sanitizeContentScript,
 		"sanitize_label_content.cjs": sanitizeLabelContentScript,
 		"sanitize_workflow_name.cjs": sanitizeWorkflowNameScript,
+		"load_agent_output.cjs":      loadAgentOutputScript,
 	}
 }
 

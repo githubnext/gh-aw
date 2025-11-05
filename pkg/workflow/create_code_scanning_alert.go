@@ -47,7 +47,7 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 		StepID:        "create_code_scanning_alert",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
-		Script:        createCodeScanningAlertScript,
+		Script:        getCreateCodeScanningAlertScript(),
 		Token:         token,
 	})
 

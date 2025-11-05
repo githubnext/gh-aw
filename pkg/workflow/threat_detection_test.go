@@ -439,6 +439,63 @@ func TestThreatDetectionWithCustomEngine(t *testing.T) {
 	}
 }
 
+func TestThreatDetectionStepsOrdering(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				Steps: []any{
+					map[string]any{
+						"name": "Custom Threat Scan",
+						"run":  "echo 'Custom scanning...'",
+					},
+				},
+			},
+		},
+	}
+
+	steps := compiler.buildThreatDetectionSteps(data, "agent")
+
+	if len(steps) == 0 {
+		t.Fatal("Expected non-empty steps")
+	}
+
+	// Join all steps into a single string for easier verification
+	stepsString := strings.Join(steps, "")
+
+	// Find the positions of key steps
+	customStepPos := strings.Index(stepsString, "Custom Threat Scan")
+	parseStepPos := strings.Index(stepsString, "Parse threat detection results")
+	uploadStepPos := strings.Index(stepsString, "Upload threat detection log")
+
+	// Verify all steps exist
+	if customStepPos == -1 {
+		t.Error("Expected to find 'Custom Threat Scan' step")
+	}
+	if parseStepPos == -1 {
+		t.Error("Expected to find 'Parse threat detection results' step")
+	}
+	if uploadStepPos == -1 {
+		t.Error("Expected to find 'Upload threat detection log' step")
+	}
+
+	// Verify ordering: custom steps should come before parsing step
+	if customStepPos > parseStepPos {
+		t.Errorf("Custom threat detection steps should come before 'Parse threat detection results' step. Got custom at position %d, parse at position %d", customStepPos, parseStepPos)
+	}
+
+	// Verify ordering: parsing step should come before upload step
+	if parseStepPos > uploadStepPos {
+		t.Errorf("'Parse threat detection results' step should come before 'Upload threat detection log' step. Got parse at position %d, upload at position %d", parseStepPos, uploadStepPos)
+	}
+
+	// Verify the expected order: custom -> parse -> upload
+	if !(customStepPos < parseStepPos && parseStepPos < uploadStepPos) {
+		t.Errorf("Expected step order: custom steps < parse results < upload log. Got positions: custom=%d, parse=%d, upload=%d", customStepPos, parseStepPos, uploadStepPos)
+	}
+}
+
 func TestBuildEngineStepsWithThreatDetectionEngine(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
@@ -530,7 +587,7 @@ func TestBuildUploadDetectionLogStep(t *testing.T) {
 	expectedComponents := []string{
 		"name: Upload threat detection log",
 		"if: always()",
-		"uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+		"uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4",
 		"name: threat-detection.log",
 		"path: /tmp/gh-aw/threat-detection/detection.log",
 		"if-no-files-found: ignore",

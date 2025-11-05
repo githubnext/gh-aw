@@ -24,7 +24,7 @@ post-steps:
   
   - name: Upload Test Results
     if: always()
-    uses: actions/upload-artifact@v4
+    uses: actions/upload-artifact@v5
     with:
       name: post-steps-test-results
       path: /tmp/gh-aw/

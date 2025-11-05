@@ -54,7 +54,7 @@ steps:
 
   - name: Upload generated charts
     if: always()
-    uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+    uses: actions/upload-artifact@v5
     with:
       name: data-charts
       path: /tmp/gh-aw/python/charts/*.png
@@ -63,7 +63,7 @@ steps:
 
   - name: Upload source files and data
     if: always()
-    uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+    uses: actions/upload-artifact@v5
     with:
       name: python-source-and-data
       path: |

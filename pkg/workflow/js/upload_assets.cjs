@@ -4,6 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { loadAgentOutput } = require("./load_agent_output.cjs");
 
 /**
  * Normalizes a branch name to be a valid git branch name.
@@ -68,59 +69,29 @@ async function main() {
   const normalizedBranchName = normalizeBranchName(branchName);
   core.info(`Using assets branch: ${normalizedBranchName}`);
 
-  // Read the validated output content from environment variable
-  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-  if (!agentOutputFile) {
-    core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+  const result = loadAgentOutput();
+  if (!result.success) {
     core.setOutput("upload_count", "0");
     core.setOutput("branch_name", normalizedBranchName);
     return;
   }
 
-  // Read agent output from file
-  let outputContent;
-  try {
-    outputContent = fs.readFileSync(agentOutputFile, "utf8");
-  } catch (error) {
-    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
+  // Find all upload-assets items
+  const uploadItems = result.items.filter(/** @param {any} item */ item => item.type === "upload_assets");
 
-  if (outputContent.trim() === "") {
-    core.info("Agent output content is empty");
-    core.setOutput("upload_count", "0");
-    core.setOutput("branch_name", normalizedBranchName);
-    return;
-  }
+  // Also check for legacy upload-asset items
+  const uploadAssetItems = result.items.filter(/** @param {any} item */ item => item.type === "upload_asset");
 
-  core.info(`Agent output content length: ${outputContent.length}`);
+  const allUploadItems = [...uploadItems, ...uploadAssetItems];
 
-  // Parse the validated output JSON
-  let validatedOutput;
-  try {
-    validatedOutput = JSON.parse(outputContent);
-  } catch (error) {
-    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
-
-  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    core.info("No valid items found in agent output");
-    core.setOutput("upload_count", "0");
-    core.setOutput("branch_name", normalizedBranchName);
-    return;
-  }
-
-  // Find all upload-asset items
-  const uploadAssetItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "upload_asset");
-  if (uploadAssetItems.length === 0) {
+  if (allUploadItems.length === 0) {
     core.info("No upload-asset items found in agent output");
     core.setOutput("upload_count", "0");
     core.setOutput("branch_name", normalizedBranchName);
     return;
   }
 
-  core.info(`Found ${uploadAssetItems.length} upload-asset item(s)`);
+  core.info(`Found ${allUploadItems.length} upload-asset item(s)`);
 
   let uploadCount = 0;
   let hasChanges = false;
