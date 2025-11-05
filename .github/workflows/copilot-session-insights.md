@@ -50,7 +50,7 @@ steps:
     id: download-sessions
     continue-on-error: true
     env:
-      GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
     run: |
       # Create output directory
       mkdir -p /tmp/gh-aw/agent-sessions
