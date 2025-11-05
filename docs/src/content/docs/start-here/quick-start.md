@@ -27,20 +27,7 @@ gh extension install githubnext/gh-aw
 
 If this step fails, you may need to use a personal access token or run the [install-gh-aw.sh script](https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh).
 
-**Step 2 — Initialize your repository**
-
-Initialize your repository for agentic workflows. From your repository root run:
-
-```bash wrap
-gh aw init
-```
-
-This command configures your repository by:
-- Setting up `.gitattributes` to mark `.lock.yml` files as generated code
-- Creating GitHub Copilot custom instructions at `.github/instructions/github-agentic-workflows.instructions.md`
-- Creating custom agents for workflow creation and setup
-
-**Step 3 — Add a sample workflow, review and merge**
+**Step 2 — Add a sample workflow, review and merge**
 
 The easiest way to get started is to add a sample from [The Agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
 
@@ -50,7 +37,7 @@ gh aw add githubnext/agentics/weekly-research --pr
 
 This creates a pull request that adds `.github/workflows/weekly-research.md` and the compiled `.lock.yml`. Review and merge the PR into your repo.
 
-**Step 4 — Add an AI secret**
+**Step 3 — Add an AI secret**
 
 Agentic workflows use a coding agent: GitHub Copilot CLI (default), Claude or Codex.
 
@@ -69,7 +56,7 @@ For more information, see the [official documentation](https://github.com/github
 
 For Claude and Codex, see the instructions in [AI Engines](/gh-aw/reference/engines/).
 
-**Step 5 — Trigger a run of the workflow in GitHub Actions**
+**Step 4 — Trigger a run of the workflow in GitHub Actions**
 
 Trigger the workflow immediately in GitHub Actions:
 
