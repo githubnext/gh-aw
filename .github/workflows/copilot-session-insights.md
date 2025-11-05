@@ -31,6 +31,8 @@ tools:
   github:
     toolsets: [default]
   bash:
+    - "gh extension list"
+    - "gh extension install *"
     - "gh agent-task list *"
     - "gh agent-task view *"
     - "jq *"
@@ -46,6 +48,45 @@ imports:
   - shared/trends.md
 
 steps:
+  - name: Install gh agent-task extension
+    id: install-extension
+    continue-on-error: true
+    env:
+      GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
+    run: |
+      echo "::group::Install gh agent-task Extension"
+      
+      # Check if gh CLI is available
+      if ! command -v gh &> /dev/null; then
+        echo "::error::GitHub CLI (gh) is not installed or not in PATH"
+        echo "EXTENSION_INSTALLED=false" >> "$GITHUB_OUTPUT"
+        exit 1
+      fi
+      echo "✓ GitHub CLI found: $(gh --version | head -1)"
+      
+      # Check if gh agent-task extension is already installed
+      if gh extension list | grep -q "github/agent-task"; then
+        echo "✓ gh agent-task extension is already installed"
+        echo "EXTENSION_INSTALLED=true" >> "$GITHUB_OUTPUT"
+        echo "::endgroup::"
+        exit 0
+      fi
+      
+      # Attempt to install the extension
+      echo "Installing gh agent-task extension..."
+      if gh extension install github/agent-task; then
+        echo "✓ gh agent-task extension installed successfully"
+        echo "EXTENSION_INSTALLED=true" >> "$GITHUB_OUTPUT"
+      else
+        echo "::warning::Failed to install gh agent-task extension"
+        echo "::warning::This workflow requires GitHub Enterprise Copilot access"
+        echo "::warning::The extension may not be available for this account"
+        echo "EXTENSION_INSTALLED=false" >> "$GITHUB_OUTPUT"
+        exit 1
+      fi
+      
+      echo "::endgroup::"
+  
   - name: List and download Copilot agent sessions
     id: download-sessions
     continue-on-error: true
@@ -70,7 +111,7 @@ steps:
       # Check if gh agent-task extension is installed
       if ! gh agent-task --help &> /dev/null; then
         echo "::warning::gh agent-task extension is not installed"
-        echo "::warning::To install: gh extension install github/agent-task"
+        echo "::warning::Extension installation status from previous step: ${{ steps.install-extension.outputs.EXTENSION_INSTALLED }}"
         echo "::warning::This workflow requires GitHub Enterprise Copilot access"
         echo "SESSIONS_AVAILABLE=false" >> "$GITHUB_OUTPUT"
         exit 1
