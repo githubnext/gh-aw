@@ -73,7 +73,8 @@ jobs:
           fetch-depth: 0
           
       - name: Release with gh-extension-precompile
-        uses: cli/gh-extension-precompile@v2
+        # cli/gh-extension-precompile@v2.0.1
+        uses: cli/gh-extension-precompile@561b19deda1228a0edf856c3325df87416f8c9bd
         with:
           go_version_file: go.mod
           build_script_override: scripts/build-release.sh

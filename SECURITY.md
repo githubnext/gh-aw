@@ -26,6 +26,22 @@ Please include as much of the information listed below as you can to help us bet
 
 This information will help us triage your report more quickly.
 
+## Supply Chain Security
+
+We take supply chain security seriously and carefully evaluate all third-party dependencies, including GitHub Actions.
+
+### Third-Party GitHub Actions
+
+For information about our security assessment of third-party GitHub Actions used in this repository, see:
+
+- [Third-Party Actions Security Assessment](.github/docs/SECURITY-THIRD-PARTY-ACTIONS.md)
+
+This document includes:
+- Security evaluations of each third-party action
+- Risk assessments and mitigation strategies
+- Guidelines for evaluating new actions
+- Commit SHA pinning requirements
+
 ## Policy
 
 See [GitHub's Safe Harbor Policy](https://docs.github.com/en/github/site-policy/github-bug-bounty-program-legal-safe-harbor#1-safe-harbor-terms)
