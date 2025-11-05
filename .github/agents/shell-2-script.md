@@ -1,10 +1,6 @@
 ---
 name: shell-2-script
 description: Extract inline bash scripts from Go compiler code into separate .sh files with embedded resources for improved maintainability, organization, and reusability
-tools:
-  - read
-  - edit
-  - search
 ---
 
 # Extract Shell Script to Embedded Resource
