@@ -39,8 +39,8 @@
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
 #   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
 #     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
-#   - actions/upload-artifact@v4 (ea165f8d65b6e75b540449e92b4886f43607fa02)
-#     https://github.com/actions/upload-artifact/commit/ea165f8d65b6e75b540449e92b4886f43607fa02
+#   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
+#     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
 name: "Weekly Issue Summary"
 "on":
@@ -156,7 +156,7 @@ jobs:
         run: "pip install --user numpy pandas matplotlib seaborn scipy\n\n# Verify installations\npython3 -c \"import numpy; print(f'NumPy {numpy.__version__} installed')\"\npython3 -c \"import pandas; print(f'Pandas {pandas.__version__} installed')\"\npython3 -c \"import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')\"\npython3 -c \"import seaborn; print(f'Seaborn {seaborn.__version__} installed')\"\npython3 -c \"import scipy; print(f'SciPy {scipy.__version__} installed')\"\n\necho \"All scientific libraries installed successfully\"\n"
       - if: always()
         name: Upload generated charts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           if-no-files-found: warn
           name: data-charts
@@ -164,7 +164,7 @@ jobs:
           retention-days: 30
       - if: always()
         name: Upload source files and data
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           if-no-files-found: warn
           name: python-source-and-data
@@ -193,7 +193,7 @@ jobs:
             memory-${{ github.workflow }}-
             memory-
       - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: cache-memory
           path: /tmp/gh-aw/cache-memory
@@ -1914,7 +1914,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload prompt
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: prompt.txt
           path: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1957,7 +1957,7 @@ jobs:
             console.log(JSON.stringify(awInfo, null, 2));
       - name: Upload agentic run info
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
@@ -2115,7 +2115,7 @@ jobs:
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: safe_output.jsonl
           path: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -2990,13 +2990,13 @@ jobs:
             await main();
       - name: Upload sanitized agent output
         if: always() && env.GH_AW_AGENT_OUTPUT
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: agent_output.json
           path: ${{ env.GH_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
       - name: Upload engine output files
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: agent_outputs
           path: |
@@ -3004,7 +3004,7 @@ jobs:
           if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: mcp-logs
           path: /tmp/gh-aw/mcp-logs/
@@ -3900,7 +3900,7 @@ jobs:
           fi
       - name: Upload Firewall Logs
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: squid-logs-weekly-issue-summary
           path: /tmp/gh-aw/squid-logs-weekly-issue-summary/
@@ -4256,7 +4256,7 @@ jobs:
 
       - name: Upload Agent Stdio
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
@@ -4266,7 +4266,7 @@ jobs:
         run: ./scripts/ci/cleanup.sh || true
       - name: Upload safe outputs assets
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: safe-outputs-assets
           path: /tmp/gh-aw/safeoutputs/assets/
@@ -4987,7 +4987,7 @@ jobs:
             }
       - name: Upload threat detection log
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: threat-detection.log
           path: /tmp/gh-aw/threat-detection/detection.log
