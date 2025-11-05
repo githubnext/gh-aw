@@ -22,6 +22,16 @@
 						"workflows": "write"
 					}
 				},
+				"githubnext/gh-aw": {
+					"permissions": {
+						"actions": "write",
+						"contents": "write",
+						"workflows": "write",
+						"issues": "write",
+						"pull-requests": "write",
+						"discussions": "write"
+					}
+				},
 				"githubnext/gh-aw-test": {
 					"permissions": {
 						"contents": "write",
