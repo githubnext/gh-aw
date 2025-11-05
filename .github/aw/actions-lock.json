@@ -29,6 +29,11 @@
       "repo": "actions/upload-artifact",
       "version": "v4",
       "sha": "ea165f8d65b6e75b540449e92b4886f43607fa02"
+    },
+    "actions/upload-artifact@v5": {
+      "repo": "actions/upload-artifact",
+      "version": "v5",
+      "sha": "330a01c490aca151604b8cf639adc76d48f6c5d4"
     }
   }
 }
