@@ -316,5 +316,6 @@ Each workflow follows the phased approach, uses discussions for tracking, and cr
 - **IssueOps** - Trigger workflows from issue creation or comments
 - **ChatOps** - Trigger workflows from slash commands in comments
 - **LabelOps** - Trigger workflows when labels change on issues or pull requests
+- **Planning Workflow** - Use `/plan` command to split large discussions into actionable work items, then assign sub-tasks to Copilot for execution
 
 DailyOps complements these patterns by providing scheduled automation that doesn't require manual triggers.
