@@ -23,9 +23,13 @@ async function generateStagedPreview(options) {
     summaryContent += "---\n\n";
   }
 
-  await core.summary.addRaw(summaryContent).write();
-  core.info(summaryContent);
-  core.info(`📝 ${title} preview written to step summary`);
+  try {
+    await core.summary.addRaw(summaryContent).write();
+    core.info(summaryContent);
+    core.info(`📝 ${title} preview written to step summary`);
+  } catch (error) {
+    core.setFailed(error instanceof Error ? error : String(error));
+  }
 }
 
 module.exports = { generateStagedPreview };
