@@ -152,7 +152,7 @@ permissions:
 engine: claude
 tools:
   github:
-    toolset: [pull_requests]
+    toolsets: [pull_requests]
 safe-outputs:
   add-comment:
     max: 5

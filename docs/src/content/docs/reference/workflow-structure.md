@@ -27,7 +27,7 @@ permissions:
 
 tools:
   github:
-    toolset: [issues]
+    toolsets: [issues]
 ---
 
 # Workflow Description
