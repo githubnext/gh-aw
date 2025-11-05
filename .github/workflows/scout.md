@@ -15,6 +15,7 @@ permissions:
 roles: [admin, maintainer, write]
 engine: claude
 imports:
+  - shared/reporting.md
   - shared/mcp/arxiv.md
   - shared/mcp/tavily.md
   - shared/mcp/microsoft-docs.md
