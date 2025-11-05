@@ -3,6 +3,7 @@
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { generateStagedPreview } = require("./staged_preview.cjs");
 
 /**
  * Generate footer with AI attribution and workflow installation instructions
@@ -62,23 +63,22 @@ async function main() {
   }
   core.info(`Found ${createIssueItems.length} create-issue item(s)`);
   if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
-    summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
-    for (let i = 0; i < createIssueItems.length; i++) {
-      const item = createIssueItems[i];
-      summaryContent += `### Issue ${i + 1}\n`;
-      summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-      if (item.body) {
-        summaryContent += `**Body:**\n${item.body}\n\n`;
-      }
-      if (item.labels && item.labels.length > 0) {
-        summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
-      }
-      summaryContent += "---\n\n";
-    }
-    await core.summary.addRaw(summaryContent).write();
-    core.info(summaryContent);
-    core.info("📝 Issue creation preview written to step summary");
+    await generateStagedPreview({
+      title: "Create Issues",
+      description: "The following issues would be created if staged mode was disabled:",
+      items: createIssueItems,
+      renderItem: (item, index) => {
+        let content = `### Issue ${index + 1}\n`;
+        content += `**Title:** ${item.title || "No title provided"}\n\n`;
+        if (item.body) {
+          content += `**Body:**\n${item.body}\n\n`;
+        }
+        if (item.labels && item.labels.length > 0) {
+          content += `**Labels:** ${item.labels.join(", ")}\n\n`;
+        }
+        return content;
+      },
+    });
     return;
   }
   const parentIssueNumber = context.payload?.issue?.number;

@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { generateStagedPreview } = require("./staged_preview.cjs");
 
 async function main() {
   // Check if we're in staged mode
@@ -23,33 +24,30 @@ async function main() {
 
   // If in staged mode, emit step summary instead of updating issues
   if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Update Issues Preview\n\n";
-    summaryContent += "The following issue updates would be applied if staged mode was disabled:\n\n";
+    await generateStagedPreview({
+      title: "Update Issues",
+      description: "The following issue updates would be applied if staged mode was disabled:",
+      items: updateItems,
+      renderItem: (item, index) => {
+        let content = `### Issue Update ${index + 1}\n`;
+        if (item.issue_number) {
+          content += `**Target Issue:** #${item.issue_number}\n\n`;
+        } else {
+          content += `**Target:** Current issue\n\n`;
+        }
 
-    for (let i = 0; i < updateItems.length; i++) {
-      const item = updateItems[i];
-      summaryContent += `### Issue Update ${i + 1}\n`;
-      if (item.issue_number) {
-        summaryContent += `**Target Issue:** #${item.issue_number}\n\n`;
-      } else {
-        summaryContent += `**Target:** Current issue\n\n`;
-      }
-
-      if (item.title !== undefined) {
-        summaryContent += `**New Title:** ${item.title}\n\n`;
-      }
-      if (item.body !== undefined) {
-        summaryContent += `**New Body:**\n${item.body}\n\n`;
-      }
-      if (item.status !== undefined) {
-        summaryContent += `**New Status:** ${item.status}\n\n`;
-      }
-      summaryContent += "---\n\n";
-    }
-
-    // Write to step summary
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 Issue update preview written to step summary");
+        if (item.title !== undefined) {
+          content += `**New Title:** ${item.title}\n\n`;
+        }
+        if (item.body !== undefined) {
+          content += `**New Body:**\n${item.body}\n\n`;
+        }
+        if (item.status !== undefined) {
+          content += `**New Status:** ${item.status}\n\n`;
+        }
+        return content;
+      },
+    });
     return;
   }
 
