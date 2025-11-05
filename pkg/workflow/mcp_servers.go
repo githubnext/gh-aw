@@ -137,6 +137,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	hasSafeOutputs := false
 	hasPlaywright := false
 	var playwrightAllowedDomainsSecrets map[string]string
+	var customMCPExpressions map[string]string
 	// Note: hasAgenticWorkflows is already declared earlier in this function
 
 	for _, toolName := range mcpTools {
@@ -162,6 +163,24 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 					needsEnvBlock = true
 				}
 			}
+		} else if toolName != "cache-memory" {
+			// Check if this is a custom MCP server
+			if toolConfig, ok := tools[toolName].(map[string]any); ok {
+				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
+					// Extract expressions from custom MCP server
+					expressions := extractExpressionsFromCustomMCP(toolConfig)
+					if len(expressions) > 0 {
+						if customMCPExpressions == nil {
+							customMCPExpressions = make(map[string]string)
+						}
+						// Merge expressions from this custom MCP server
+						for envVar, expr := range expressions {
+							customMCPExpressions[envVar] = expr
+						}
+						needsEnvBlock = true
+					}
+				}
+			}
 		}
 	}
 
@@ -183,6 +202,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 			yaml.WriteString("          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}\n")
 			yaml.WriteString("          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}\n")
 			yaml.WriteString("          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}\n")
+			// Add GitHub context variables for safe-outputs
+			yaml.WriteString("          GITHUB_REPOSITORY: ${{ github.repository }}\n")
+			yaml.WriteString("          GITHUB_SERVER_URL: ${{ github.server_url }}\n")
 		}
 
 		// Add GITHUB_TOKEN for agentic-workflows if present
@@ -201,6 +223,21 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 			for _, envVarName := range envVarNames {
 				originalExpr := playwrightAllowedDomainsSecrets[envVarName]
+				yaml.WriteString(fmt.Sprintf("          %s: %s\n", envVarName, originalExpr))
+			}
+		}
+
+		// Add custom MCP expression environment variables if present
+		if len(customMCPExpressions) > 0 {
+			// Sort env var names for consistent output
+			envVarNames := make([]string, 0, len(customMCPExpressions))
+			for envVarName := range customMCPExpressions {
+				envVarNames = append(envVarNames, envVarName)
+			}
+			sort.Strings(envVarNames)
+
+			for _, envVarName := range envVarNames {
+				originalExpr := customMCPExpressions[envVarName]
 				yaml.WriteString(fmt.Sprintf("          %s: %s\n", envVarName, originalExpr))
 			}
 		}
@@ -433,4 +470,55 @@ func replaceExpressionsInPlaywrightArgs(args []string, expressions map[string]st
 
 	// Split back into individual arguments
 	return strings.Split(replaced, "\n")
+}
+
+// extractExpressionsFromCustomMCP extracts all GitHub Actions expressions from custom MCP server args and env
+// Returns a map of environment variable names to their original expressions
+func extractExpressionsFromCustomMCP(toolConfig map[string]any) map[string]string {
+	// Collect all values that might contain expressions
+	var values []string
+
+	// Extract args if present
+	if args, ok := toolConfig["args"]; ok {
+		if argsList, ok := args.([]any); ok {
+			for _, arg := range argsList {
+				if str, ok := arg.(string); ok {
+					values = append(values, str)
+				}
+			}
+		}
+	}
+
+	// Extract env values if present
+	if env, ok := toolConfig["env"]; ok {
+		if envMap, ok := env.(map[string]any); ok {
+			for _, val := range envMap {
+				if str, ok := val.(string); ok {
+					values = append(values, str)
+				}
+			}
+		}
+	}
+
+	if len(values) == 0 {
+		return make(map[string]string)
+	}
+
+	// Join all values with a separator that won't appear in expressions
+	combined := strings.Join(values, "\n")
+
+	// Use ExpressionExtractor to find all expressions
+	extractor := NewExpressionExtractor()
+	mappings, err := extractor.ExtractExpressions(combined)
+	if err != nil {
+		return make(map[string]string)
+	}
+
+	// Convert to map of env var name -> original expression
+	result := make(map[string]string)
+	for _, mapping := range mappings {
+		result[mapping.EnvVar] = mapping.Original
+	}
+
+	return result
 }

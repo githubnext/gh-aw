@@ -1125,6 +1125,18 @@ jobs:
           GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
           GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GH_AW_EXPR_18D7D724: ${{ secrets.AZURE_CLIENT_ID }}
+          GH_AW_EXPR_1AE49750: ${{ secrets.SENTRY_OPENAI_API_KEY }}
+          GH_AW_EXPR_2D1CC6E7: ${{ github.workspace }}
+          GH_AW_EXPR_4772D809: ${{ secrets.SENTRY_ACCESS_TOKEN }}
+          GH_AW_EXPR_4E0A25B6: ${{ secrets.NOTION_API_TOKEN }}
+          GH_AW_EXPR_58A8D7DC: ${{ env.SENTRY_HOST }}
+          GH_AW_EXPR_6BFDF834: ${{ secrets.AZURE_CLIENT_SECRET }}
+          GH_AW_EXPR_C64D2A71: ${{ secrets.CONTEXT7_API_KEY }}
+          GH_AW_EXPR_DEC2A167: ${{ secrets.BRAVE_API_KEY }}
+          GH_AW_EXPR_F496930C: ${{ secrets.AZURE_TENANT_ID }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot

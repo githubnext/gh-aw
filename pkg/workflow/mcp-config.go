@@ -222,7 +222,8 @@ func renderSafeOutputsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("          args = [\n")
 	yaml.WriteString("            \"/tmp/gh-aw/safeoutputs/mcp-server.cjs\",\n")
 	yaml.WriteString("          ]\n")
-	yaml.WriteString("          env = { \"GH_AW_SAFE_OUTPUTS\" = \"${{ env.GH_AW_SAFE_OUTPUTS }}\", \"GH_AW_ASSETS_BRANCH\" = \"${{ env.GH_AW_ASSETS_BRANCH }}\", \"GH_AW_ASSETS_MAX_SIZE_KB\" = \"${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}\", \"GH_AW_ASSETS_ALLOWED_EXTS\" = \"${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}\", \"GITHUB_REPOSITORY\" = \"${{ github.repository }}\", \"GITHUB_SERVER_URL\" = \"${{ github.server_url }}\" }\n")
+	// Use environment variable references instead of template expressions to prevent template injection
+	yaml.WriteString("          env = { \"GH_AW_SAFE_OUTPUTS\" = \"${GH_AW_SAFE_OUTPUTS}\", \"GH_AW_ASSETS_BRANCH\" = \"${GH_AW_ASSETS_BRANCH}\", \"GH_AW_ASSETS_MAX_SIZE_KB\" = \"${GH_AW_ASSETS_MAX_SIZE_KB}\", \"GH_AW_ASSETS_ALLOWED_EXTS\" = \"${GH_AW_ASSETS_ALLOWED_EXTS}\", \"GITHUB_REPOSITORY\" = \"${GITHUB_REPOSITORY}\", \"GITHUB_SERVER_URL\" = \"${GITHUB_SERVER_URL}\" }\n")
 }
 
 // renderAgenticWorkflowsMCPConfigTOML generates the Agentic Workflows MCP server configuration in TOML format for Codex
@@ -431,7 +432,9 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			if renderer.Format == "toml" {
 				fmt.Fprintf(yaml, "%sargs = [\n", renderer.IndentLevel)
 				for _, arg := range mcpConfig.Args {
-					fmt.Fprintf(yaml, "%s  \"%s\",\n", renderer.IndentLevel, arg)
+					// Replace expressions with env var references to prevent template injection
+					replacedArg := replaceExpressionsInString(arg)
+					fmt.Fprintf(yaml, "%s  \"%s\",\n", renderer.IndentLevel, replacedArg)
 				}
 				fmt.Fprintf(yaml, "%s]\n", renderer.IndentLevel)
 			} else {
@@ -461,7 +464,9 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 					if i > 0 {
 						yaml.WriteString(", ")
 					}
-					fmt.Fprintf(yaml, "\"%s\" = \"%s\"", envKey, mcpConfig.Env[envKey])
+					// Replace expressions with env var references to prevent template injection
+					replacedValue := replaceExpressionsInString(mcpConfig.Env[envKey])
+					fmt.Fprintf(yaml, "\"%s\" = \"%s\"", envKey, replacedValue)
 				}
 				yaml.WriteString(" }\n")
 			} else {
@@ -1118,3 +1123,16 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 
 	return nil
 }
+
+// replaceExpressionsInString replaces GitHub Actions expressions with environment variable references
+// This prevents template injection by moving expressions to the env block
+func replaceExpressionsInString(value string) string {
+	// Use ExpressionExtractor to replace expressions
+	extractor := NewExpressionExtractor()
+	_, err := extractor.ExtractExpressions(value)
+	if err != nil {
+		return value
+	}
+	return extractor.ReplaceExpressionsWithEnvVars(value)
+}
+

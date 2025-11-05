@@ -320,7 +320,9 @@ func TestRenderSafeOutputsMCPConfigTOML(t *testing.T) {
 		`args = [`,
 		`"/tmp/gh-aw/safeoutputs/mcp-server.cjs"`,
 		`env = {`,
-		`"GH_AW_SAFE_OUTPUTS" = "${{ env.GH_AW_SAFE_OUTPUTS }}"`,
+		`"GH_AW_SAFE_OUTPUTS" = "${GH_AW_SAFE_OUTPUTS}"`,
+		`"GITHUB_REPOSITORY" = "${GITHUB_REPOSITORY}"`,
+		`"GITHUB_SERVER_URL" = "${GITHUB_SERVER_URL}"`,
 	}
 
 	unexpectedContent := []string{

@@ -459,7 +459,6 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 // Supports both local (Docker) and remote (hosted) modes
 func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
 	githubType := getGitHubType(githubTool)
-	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
 	toolsets := getGitHubToolsets(githubTool)
 
@@ -539,9 +538,8 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		yaml.WriteString("          \n")
 		yaml.WriteString("          [mcp_servers.github.env]\n")
 
-		// Use effective token with precedence: custom > top-level > default
-		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
-		yaml.WriteString("          GITHUB_PERSONAL_ACCESS_TOKEN = \"" + effectiveToken + "\"\n")
+		// Use environment variable reference instead of template expression to prevent template injection
+		yaml.WriteString("          GITHUB_PERSONAL_ACCESS_TOKEN = \"${GITHUB_MCP_SERVER_TOKEN}\"\n")
 	}
 }
 
