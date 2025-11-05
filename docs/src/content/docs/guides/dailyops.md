@@ -68,6 +68,23 @@ safe-outputs:
 
 The workflow checks for an existing discussion titled with the workflow name. If none exists, it creates one with the research and plan. Subsequent runs add brief comments documenting progress.
 
+### Persistent Memory
+
+DailyOps workflows benefit from `cache-memory` to store state between runs:
+
+```aw wrap
+tools:
+  cache-memory: true
+```
+
+This enables workflows to maintain persistent files at `/tmp/gh-aw/cache-memory/` across runs, useful for:
+- Tracking which areas have been worked on
+- Storing progress metrics and trends
+- Maintaining incremental state between daily runs
+- Building knowledge bases over time
+
+The cache persists across workflow runs and automatically creates restore keys for intelligent fallback.
+
 ## Common DailyOps Workflows
 
 ### Test Coverage Improvement
@@ -81,6 +98,8 @@ on:
     - cron: "0 2 * * 1-5"
 permissions:
   all: read
+tools:
+  cache-memory: true
 safe-outputs:
   create-discussion:
     title-prefix: "${{ github.workflow }}"
@@ -117,6 +136,8 @@ on:
   schedule:
     - cron: "0 2 * * 1-5"
 timeout_minutes: 60
+tools:
+  cache-memory: true
 safe-outputs:
   create-discussion:
     title-prefix: "${{ github.workflow }}"
@@ -148,6 +169,8 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+tools:
+  cache-memory: true
 safe-outputs:
   create-pull-request:
     title-prefix: "[docs] "
@@ -177,6 +200,8 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+tools:
+  cache-memory: true
 safe-outputs:
   create-discussion:
     category: "daily-news"
