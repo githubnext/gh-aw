@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.28.1 - 2025-11-05
+
+### Bug Fixes
+
+#### Add changeset generator agent workflow for automatic changeset creation
+
+#### Add --no-gitattributes flag to add command and update gitattributes by default
+
+#### Improve error handling in CLI
+
+
 ## v0.28.0 - 2025-11-04
 
 ### Features
