@@ -43,6 +43,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -701,8 +702,23 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 	agentPath := workflowData.AgentFile
 	validationLog.Printf("Validating agent file exists: %s", agentPath)
 
-	// Check if the file exists (it should already be resolved by imports processor)
-	if _, err := os.Stat(agentPath); err != nil {
+	var fullAgentPath string
+
+	// Check if agentPath is already absolute
+	if filepath.IsAbs(agentPath) {
+		// Use the path as-is (for backward compatibility with tests)
+		fullAgentPath = agentPath
+	} else {
+		// Agent file path is relative to repository root (e.g., ".github/agents/file.md")
+		// Need to resolve it relative to the markdown file's directory
+		markdownDir := filepath.Dir(markdownPath)
+		// Navigate up from .github/workflows to repository root
+		repoRoot := filepath.Join(markdownDir, "..", "..")
+		fullAgentPath = filepath.Join(repoRoot, agentPath)
+	}
+
+	// Check if the file exists
+	if _, err := os.Stat(fullAgentPath); err != nil {
 		if os.IsNotExist(err) {
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
