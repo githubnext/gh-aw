@@ -90,7 +90,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		StepID:        "create_discussion",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
-		Script:        createDiscussionScript,
+		Script:        getCreateDiscussionScript(),
 		Token:         token,
 	})
 

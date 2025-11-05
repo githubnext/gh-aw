@@ -50,7 +50,7 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 		StepID:        "update_issue",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
-		Script:        updateIssueScript,
+		Script:        getUpdateIssueScript(),
 		Token:         token,
 	})
 

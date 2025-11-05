@@ -239,13 +239,16 @@ func TestEmbeddedScriptsNotEmpty(t *testing.T) {
 	}{
 		{"createPullRequestScript", createPullRequestScript},
 		{"createIssueScript", getCreateIssueScript()},
-		{"createDiscussionScript", createDiscussionScript},
-		{"createCommentScript", createCommentScript},
+		{"createDiscussionScript", getCreateDiscussionScript()},
+		{"createCommentScript", getAddCommentScript()},
 		{"collectJSONLOutputScript", getCollectJSONLOutputScript()},
 		{"addLabelsScript", getAddLabelsScript()},
-		{"updateIssueScript", updateIssueScript},
+		{"updateIssueScript", getUpdateIssueScript()},
 		{"addReactionAndEditCommentScript", addReactionAndEditCommentScript},
 		{"missingToolScript", missingToolScript},
+		{"createCodeScanningAlertScript", getCreateCodeScanningAlertScript()},
+		{"createPRReviewCommentScript", getCreatePRReviewCommentScript()},
+		{"uploadAssetsScript", getUploadAssetsScript()},
 	}
 
 	for _, tt := range tests {
