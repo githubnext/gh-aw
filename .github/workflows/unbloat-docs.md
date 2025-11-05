@@ -24,6 +24,10 @@ engine:
   id: claude
   max-turns: 90  # Reduce from avg 115 turns
 
+# Shared instructions
+imports:
+  - shared/reporting.md
+
 # Network access for documentation best practices research
 network:
   allowed:
