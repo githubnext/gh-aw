@@ -46,7 +46,7 @@ Conditional markdown includes or excludes prompt sections based on boolean expre
 
 Template conditionals use a simple mustache-style syntax:
 
-```markdown
+```markdown wrap
 {{#if expression}}
 Content to include if expression is truthy
 {{/if}}

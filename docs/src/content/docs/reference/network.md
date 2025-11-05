@@ -13,7 +13,7 @@ If no `network:` permission is specified, it defaults to `network: defaults` whi
 
 ## Configuration
 
-```yaml
+```yaml wrap
 # Default: basic infrastructure only
 engine:
   id: claude
@@ -76,7 +76,7 @@ The Copilot engine supports network permissions through AWF (Agent Workflow Fire
 
 Enable network permissions in your workflow:
 
-```yaml
+```yaml wrap
 engine: copilot
 
 network:
@@ -97,7 +97,7 @@ When enabled, AWF:
 
 Control the verbosity of AWF firewall logs using the `log-level` field:
 
-```yaml
+```yaml wrap
 network:
   firewall:
     log-level: info      # Options: debug, info, warn, error

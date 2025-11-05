@@ -7,7 +7,7 @@ sidebar:
 
 The `on:` section uses standard GitHub Actions syntax to define workflow triggers. For example:
 
-```yaml
+```yaml wrap
 on:
   issues:
     types: [opened]
@@ -21,7 +21,7 @@ GitHub Agentic Workflows supports all standard GitHub Actions triggers plus addi
 
 Run workflows manually from the GitHub UI, API, or via `gh aw run`/`gh aw trial`. [Full syntax reference](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#on).
 
-```yaml
+```yaml wrap
 on:
     workflow_dispatch:
 ```
@@ -30,7 +30,7 @@ on:
 
 Run workflows on a recurring schedule using [cron syntax](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule).
 
-```yaml
+```yaml wrap
 on:
   schedule:
     - cron: "0 9 * * 1"  # Every Monday at 9 AM
@@ -41,7 +41,7 @@ on:
 
 Trigger on issue events. [Full event reference](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#issues).
 
-```yaml
+```yaml wrap
 on:
   issues:
     types: [opened, edited, labeled]
@@ -51,7 +51,7 @@ on:
 
 Trigger on pull request events. [Full event reference](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request).
 
-```yaml
+```yaml wrap
 on:
   pull_request:
     types: [opened, synchronize, labeled]
@@ -63,7 +63,7 @@ on:
 
 Pull request workflows block forks by default for security. Use the `forks:` field to allow specific fork patterns:
 
-```yaml
+```yaml wrap
 on:
   pull_request:
     types: [opened, synchronize]
@@ -79,7 +79,7 @@ on:
 The compiler uses repository ID comparison for reliable fork detection that is not affected by repository renames. See the [Security Guide](/gh-aw/guides/security/#fork-protection-for-pull-request-triggers) for detailed security implications.
 
 ### Comment Triggers
-```yaml
+```yaml wrap
 on:
   issue_comment:
     types: [created]
@@ -94,7 +94,7 @@ on:
 
 Trigger workflows after another workflow completes. [Full event reference](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#workflow_run).
 
-```yaml
+```yaml wrap
 on:
   workflow_run:
     workflows: ["CI"]
@@ -119,20 +119,20 @@ See the [Security Guide](/gh-aw/guides/security/#workflow_run-trigger-security) 
 The `command:` trigger creates workflows that respond to `/command-name` mentions in issues, pull requests, and comments. See [Command Triggers](/gh-aw/reference/command-triggers/) for complete documentation.
 
 **Basic Configuration:**
-```yaml
+```yaml wrap
 on:
   command:
     name: my-bot
 ```
 
 **Shorthand Format:**
-```yaml
+```yaml wrap
 on:
   command: "my-bot"
 ```
 
 **With Event Filtering:**
-```yaml
+```yaml wrap
 on:
   command:
     name: summarize
@@ -176,7 +176,7 @@ The command must appear as the **first word** in the comment or body text. Comma
 
 An additional kind of issue and pull request trigger is available in GitHub Agentic Workflows to specific label names using the `names:` field:
 
-```yaml
+```yaml wrap
 on:
   issues:
     types: [labeled, unlabeled]
@@ -189,7 +189,7 @@ This filtering is especially useful for [LabelOps workflows](/gh-aw/guides/label
 
 An additional option  `reaction:` is available within the `on:` section to enable emoji reactions on the triggering GitHub item (issue, PR, comment, discussion) to provide visual feedback about the workflow status:
 
-```yaml
+```yaml wrap
 on:
   issues:
     types: [opened]
@@ -206,7 +206,7 @@ The reaction is added to the triggering item. For issues/PRs, a comment with the
 
 Automatically disable workflow triggering after a deadline to control costs.
 
-```yaml
+```yaml wrap
 on:
   schedule:
     - cron: "0 9 * * 1"
@@ -219,7 +219,7 @@ Accepts absolute dates (`YYYY-MM-DD`, `MM/DD/YYYY`, `DD/MM/YYYY`, `January 2 200
 
 Require manual approval before workflow execution using GitHub environment protection rules:
 
-```yaml
+```yaml wrap
 on:
   workflow_dispatch:
   manual-approval: production

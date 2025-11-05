@@ -47,7 +47,7 @@ Schema validation occurs when running `gh aw compile` and validates the workflow
 
 ### When Schema Validation Runs
 
-```bash
+```bash wrap
 # Explicit compilation
 gh aw compile
 
@@ -127,7 +127,7 @@ Compilation validation occurs during the transformation of the `.md` file into a
 
 Compilation validation runs after schema validation passes:
 
-```bash
+```bash wrap
 gh aw compile
 ```
 
@@ -219,7 +219,7 @@ Runtime validation happens in GitHub Actions during workflow execution:
 ### Example Runtime Errors
 
 **Missing Tool:**
-```bash
+```bash wrap
 jq not found in PATH
 ```
 

@@ -47,7 +47,7 @@ This workflow activates only when the `bug`, `critical`, or `security` labels ar
 The `names` field supports both string and array formats:
 
 **Single label:**
-```yaml
+```yaml wrap
 on:
   issues:
     types: [labeled]
@@ -55,7 +55,7 @@ on:
 ```
 
 **Multiple labels:**
-```yaml
+```yaml wrap
 on:
   issues:
     types: [labeled, unlabeled]
@@ -63,7 +63,7 @@ on:
 ```
 
 **Pull Request labels:**
-```yaml
+```yaml wrap
 on:
   pull_request:
     types: [labeled]

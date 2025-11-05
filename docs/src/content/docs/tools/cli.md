@@ -9,13 +9,13 @@ This page lists available commands for managing agentic workflows with the GitHu
 
 ## Installation
 
-```bash
+```bash wrap
 gh extension install githubnext/gh-aw
 ```
 
 ## Quick Start
 
-```bash
+```bash wrap
 # Show version and help
 gh aw version
 gh aw --help
@@ -45,7 +45,7 @@ gh aw pr transfer https://github.com/owner/repo/pull/123  # Transfer PR between 
 
 Enable detailed debug logs using the `DEBUG` environment variable with pattern matching:
 
-```bash
+```bash wrap
 # Enable all debug logs
 DEBUG=* gh aw compile
 
@@ -84,7 +84,7 @@ The `add` and `new` commands help you create and manage agentic workflows, from 
 
 The `init` command prepares your repository for agentic workflows by configuring `.gitattributes` and creating GitHub Copilot custom instructions:
 
-```bash
+```bash wrap
 gh aw init
 gh aw init --mcp  # Configure GitHub Copilot Agent MCP integration
 ```
@@ -111,7 +111,7 @@ Alternatively, add pre-built workflows from the catalog using `gh aw add <workfl
 
 ### Workflow Management
 
-```bash
+```bash wrap
 # Create new workflows
 gh aw new my-custom-workflow
 gh aw new issue-handler --force
@@ -136,7 +136,7 @@ The `add` command automatically updates `.gitattributes` to mark `.lock.yml` fil
 
 Update workflows from external repositories using the `source` field in frontmatter:
 
-```bash
+```bash wrap
 gh aw update                              # Update all workflows with source field
 gh aw update ci-doctor issue-triage      # Update specific workflows
 gh aw update ci-doctor --major --force   # Allow major version updates
@@ -157,7 +157,7 @@ The update performs a 3-way merge using `git merge-file`, preserving local modif
 
 Transforms markdown workflow files into executable GitHub Actions YAML files:
 
-```bash
+```bash wrap
 # Core compilation
 gh aw compile                              # Compile all workflows
 gh aw compile ci-doctor daily-plan         # Compile specific workflows
@@ -213,7 +213,7 @@ The `--dependabot` flag scans workflows for package dependencies and generates m
 
 The command creates or updates `.github/dependabot.yml` to enable Dependabot monitoring for all detected ecosystems. Existing manifests are merged intelligently to preserve manual entries. Use `--force` to overwrite the Dependabot configuration file if needed.
 
-```bash
+```bash wrap
 # Scan workflows and generate manifests for detected dependencies
 gh aw compile --dependabot
 
@@ -247,7 +247,7 @@ Each finding includes a direct link to the zizmor documentation explaining the s
 
 When using `--verbose` with `--zizmor`, the Docker command used to run zizmor is displayed before execution, enabling manual reproduction:
 
-```bash
+```bash wrap
 gh aw compile --zizmor --verbose
 ```
 
@@ -260,7 +260,7 @@ Example verbose output:
 
 When combined with `--strict`, security findings block compilation, ensuring workflows meet security standards before deployment:
 
-```bash
+```bash wrap
 # Security scanning with enforcement
 gh aw compile --strict --zizmor  # Fails if security issues found
 ```
@@ -279,7 +279,7 @@ These commands control the execution and state of your compiled agentic workflow
 
 ### Workflow Execution
 
-```bash
+```bash wrap
 gh aw run WorkflowName                      # Run single workflow
 gh aw run WorkflowName1 WorkflowName2       # Run multiple workflows
 gh aw run WorkflowName --repeat 3           # Run 3 times total
@@ -291,7 +291,7 @@ gh aw run weekly-research --enable-if-needed --input priority=high
 
 Test workflows safely in a temporary private repository without affecting your target repository:
 
-```bash
+```bash wrap
 gh aw trial githubnext/agentics/ci-doctor  # Test from source repo
 gh aw trial ./my-local-workflow.md         # Test local file
 gh aw trial workflow1 workflow2            # Compare multiple workflows
@@ -324,7 +324,7 @@ When using `gh aw trial --clone-repo`, the agentic workflow uses the codebase fr
 
 Both `run` and `trial` commands support the `--use-local-secrets` flag to automatically push required API key secrets from your local environment to the repository before execution:
 
-```bash
+```bash wrap
 gh aw run my-workflow --use-local-secrets       # Use local API keys for run
 gh aw trial ./workflow.md --use-local-secrets   # Use local API keys for trial
 ```
@@ -347,7 +347,7 @@ gh aw trial ./workflow.md --use-local-secrets   # Use local API keys for trial
 
 ### Workflow State Management
 
-```bash
+```bash wrap
 gh aw status [WorkflowPrefix]               # Show workflow status
 gh aw enable [WorkflowPrefix]               # Enable workflows
 gh aw disable [WorkflowPrefix]              # Disable and cancel workflows
@@ -359,7 +359,7 @@ Status shows workflow names, enabled/disabled state, execution status, and compi
 
 Download and analyze workflow execution history with performance metrics, cost tracking, and error analysis:
 
-```bash
+```bash wrap
 gh aw logs [workflow-name] -o ./analysis  # Download logs
 gh aw logs -c 10 --start-date -1w --end-date -1d
 gh aw logs --engine claude --branch main
@@ -388,7 +388,7 @@ Metrics include execution duration, token consumption, costs, success/failure ra
 
 Generate concise markdown reports for individual workflow runs with smart permission handling:
 
-```bash
+```bash wrap
 gh aw audit 12345678                                            # By run ID
 gh aw audit https://github.com/owner/repo/actions/runs/123      # By URL from any repo
 gh aw audit https://github.example.com/org/repo/runs/456        # GitHub Enterprise URL
@@ -414,7 +414,7 @@ The audit command checks local cache first (`logs/run-{id}`), then attempts down
 
 Discover, list, inspect, and add Model Context Protocol (MCP) servers. See [MCPs Guide](/gh-aw/guides/mcps/) and [MCP Server Guide](/gh-aw/tools/mcp-server/).
 
-```bash
+```bash wrap
 # Discovery and listing
 gh aw mcp list [workflow-name] [--verbose]
 gh aw mcp list-tools github [ci-doctor] [--verbose]
@@ -437,7 +437,7 @@ Features include server connection testing, tool capability analysis, multi-prot
 
 Transfer pull requests between repositories, preserving code changes, title, and description:
 
-```bash
+```bash wrap
 # Transfer PR to current repository
 gh aw pr transfer https://github.com/source-owner/source-repo/pull/234
 
@@ -467,7 +467,7 @@ The transferred PR includes attribution showing the original PR URL and author i
 
 Run gh-aw as an MCP server exposing CLI commands (`status`, `compile`, `logs`, `audit`) as tools for AI agents:
 
-```bash
+```bash wrap
 gh aw mcp-server                    # stdio transport (local CLI)
 gh aw mcp-server --port 3000        # HTTP/SSE transport (workflows)
 gh aw mcp-server --cmd ./gh-aw --port 3000
@@ -479,7 +479,7 @@ Uses subprocess architecture for token isolation. Import with `shared/mcp/gh-aw.
 
 Auto-recompile workflows on file changes. See [Authoring in VS Code](/gh-aw/tools/vscode/).
 
-```bash
+```bash wrap
 gh aw compile --watch [--verbose]
 ```
 

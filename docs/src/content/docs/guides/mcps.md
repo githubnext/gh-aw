@@ -54,7 +54,7 @@ mcp-servers:
 
 The easiest way to add MCP servers is using the GitHub MCP registry with the `gh aw mcp add` command:
 
-```bash
+```bash wrap
 # List available MCP servers from the registry
 gh aw mcp add
 
@@ -87,7 +87,7 @@ All AI engines support the full range of MCP features:
 
 Direct command execution with stdin/stdout communication for Python modules, Node.js scripts, and local executables:
 
-```yaml
+```yaml wrap
 mcp-servers:
   serena:
     command: "uvx"
@@ -107,7 +107,7 @@ mcp-servers:
 
 Containerized MCP servers for third-party tools, complex dependencies, and security isolation:
 
-```yaml
+```yaml wrap
 mcp-servers:
   ast-grep:
     container: "mcp/ast-grep"
@@ -123,7 +123,7 @@ Specify arguments before (`args`) or after (`entrypointArgs`) the container imag
 
 **Example with volume mounts and application arguments**:
 
-```yaml
+```yaml wrap
 mcp-servers:
   custom-tool:
     container: "mcp/custom-tool"
@@ -146,7 +146,7 @@ docker run --rm -i -v /host/data:/app/data mcp/custom-tool:v1.0 serve --port 808
 
 **Example with read-only mode** (like the Azure MCP Server):
 
-```yaml
+```yaml wrap
 mcp-servers:
   azure:
     container: "mcr.microsoft.com/azure-sdk/azure-mcp"
@@ -172,7 +172,7 @@ docker run --rm -i -e AZURE_TENANT_ID -e AZURE_CLIENT_ID -e AZURE_CLIENT_SECRET 
 
 For advanced use cases, you can configure Docker containers with environment variables and network restrictions:
 
-```yaml
+```yaml wrap
 mcp-servers:
   context7:
     container: "mcp/context7"
@@ -197,7 +197,7 @@ Configure environment variables (`env:`), Docker arguments (`args:`), applicatio
 
 Remote MCP servers accessible via HTTP for cloud services, remote APIs, and shared infrastructure:
 
-```yaml
+```yaml wrap
 mcp-servers:
   microsoftdocs:
     url: "https://learn.microsoft.com/api/mcp"
@@ -215,7 +215,7 @@ mcp-servers:
 
 Reference MCP servers from the GitHub MCP registry (the `registry` field provides metadata for tooling):
 
-```yaml
+```yaml wrap
 mcp-servers:
   markitdown:
     registry: https://api.mcp.github.com/v0/servers/microsoft/markitdown
@@ -233,7 +233,7 @@ Prefer using `toolsets:` instead of `allowed:` for GitHub tools. Toolsets provid
 
 Configure the Docker image version (default: `"sha-09deac4"`):
 
-```yaml
+```yaml wrap
 tools:
   github:
     version: "sha-09deac4"
@@ -249,7 +249,7 @@ Token precedence: `GH_AW_GITHUB_TOKEN` (highest priority) or `GITHUB_TOKEN` (fal
 Control which MCP tools are available with `allowed:` (Claude engine support):
 
 **Specific tools**:
-```yaml
+```yaml wrap
 mcp-servers:
   deepwiki:
     url: "https://mcp.deepwiki.com/sse"
@@ -260,7 +260,7 @@ mcp-servers:
 Generates: `mcp__deepwiki__read_wiki_structure`, `mcp__deepwiki__read_wiki_contents`
 
 **Wildcard access**:
-```yaml
+```yaml wrap
 mcp-servers:
   ast-grep:
     container: "mcp/ast-grep"
@@ -276,7 +276,7 @@ Configure authentication in URL parameters (e.g., `?apiKey=${{ secrets.API_KEY }
 
 Restrict outbound access for containerized stdio MCP servers with `network.allowed`:
 
-```yaml
+```yaml wrap
 mcp-servers:
   context7:
     container: "mcp/context7"
@@ -299,7 +299,7 @@ The gh-aw repository includes pre-configured shared MCP server workflows in `.gi
 
 Execute code in Jupyter notebooks and visualize data:
 
-```yaml
+```yaml wrap
 imports:
   - shared/mcp/jupyter.md
 ```
@@ -310,7 +310,7 @@ Provides tools for executing cells, managing notebooks, and retrieving outputs. 
 
 Mine log patterns and extract structured templates from unstructured log files:
 
-```yaml
+```yaml wrap
 imports:
   - shared/mcp/drain3.md
 ```
@@ -325,7 +325,7 @@ Additional shared MCP configurations include: AST-Grep, Azure, Brave Search, Con
 
 Use CLI commands to inspect and debug MCP configurations:
 
-```bash
+```bash wrap
 # Inspect MCP servers in workflow
 gh aw mcp inspect my-workflow
 gh aw mcp inspect my-workflow --server trello-server --verbose
@@ -339,7 +339,7 @@ gh aw mcp inspect my-workflow --inspector
 
 For MCP server troubleshooting, import the mcp-debug shared workflow:
 
-```yaml
+```yaml wrap
 imports:
   - shared/mcp-debug.md
 ```

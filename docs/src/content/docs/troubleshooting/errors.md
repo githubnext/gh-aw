@@ -50,7 +50,7 @@ failed to parse frontmatter: [yaml error details]
 - Quote strings containing special characters
 - Verify array and object syntax
 
-```yaml
+```yaml wrap
 # Incorrect
 on:
 issues:
@@ -73,7 +73,7 @@ timeout_minutes must be an integer
 
 **Solution:** Provide the correct type as specified in the [frontmatter reference](/gh-aw/reference/frontmatter/):
 
-```yaml
+```yaml wrap
 # Incorrect
 timeout_minutes: "10"
 
@@ -92,7 +92,7 @@ imports field must be an array of strings
 
 **Solution:** Provide an array of import paths:
 
-```yaml
+```yaml wrap
 # Incorrect
 imports: shared/tools.md
 
@@ -113,7 +113,7 @@ multiple agent files found in imports: 'file1.md' and 'file2.md'. Only one agent
 
 **Solution:** Import only one agent file per workflow:
 
-```yaml
+```yaml wrap
 # Incorrect
 imports:
   - .github/agents/agent1.md
@@ -154,7 +154,7 @@ failed to resolve import 'path': [details]
 - Ensure the path is relative to the repository root
 - Verify file permissions allow reading
 
-```yaml
+```yaml wrap
 # Imports are relative to repository root
 imports:
   - .github/workflows/shared/tools.md
@@ -171,7 +171,7 @@ invalid workflowspec: must be owner/repo/path[@ref]
 
 **Solution:** Use the correct format: `owner/repo/path[@ref]`
 
-```yaml
+```yaml wrap
 imports:
   - githubnext/gh-aw/.github/workflows/shared/example.md@main
 ```
@@ -202,7 +202,7 @@ invalid time delta format: +[value]. Expected format like +25h, +3d, +1w, +1mo, 
 
 **Solution:** Use the correct time delta syntax:
 
-```yaml
+```yaml wrap
 on:
   issues:
     types: [opened]
@@ -224,7 +224,7 @@ minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +[
 
 **Solution:** Convert to hours:
 
-```yaml
+```yaml wrap
 # Incorrect
 stop-after: +90m
 
@@ -245,7 +245,7 @@ time delta too large: [value] [unit] exceeds maximum of [max]
 
 - Maximum: 12 months, 52 weeks, 365 days, 8760 hours
 
-```yaml
+```yaml wrap
 # Incorrect
 stop-after: +400d
 
@@ -264,7 +264,7 @@ duplicate unit '[unit]' in time delta: +[value]
 
 **Solution:** Combine values for the same unit:
 
-```yaml
+```yaml wrap
 # Incorrect
 stop-after: +1d2d
 
@@ -283,7 +283,7 @@ unable to parse date-time: [value]. Supported formats include: YYYY-MM-DD HH:MM:
 
 **Solution:** Use one of the supported date formats:
 
-```yaml
+```yaml wrap
 stop-after: "2025-12-31 23:59:59"
 # or
 stop-after: "December 31, 2025"
@@ -302,7 +302,7 @@ jq not found in PATH
 
 **Solution:** Install `jq` on the system:
 
-```bash
+```bash wrap
 # Ubuntu/Debian
 sudo apt-get install jq
 
@@ -321,13 +321,13 @@ authentication required
 
 **Solution:** Authenticate with GitHub CLI:
 
-```bash
+```bash wrap
 gh auth login
 ```
 
 For GitHub Actions, ensure `GITHUB_TOKEN` or the appropriate token is available:
 
-```yaml
+```yaml wrap
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -345,7 +345,7 @@ manual-approval value must be a string
 
 **Solution:** Provide a string value:
 
-```yaml
+```yaml wrap
 # Incorrect
 on:
   manual-approval: true
@@ -366,7 +366,7 @@ invalid on: section format
 
 **Solution:** Verify the trigger configuration follows [GitHub Actions syntax](/gh-aw/reference/triggers/):
 
-```yaml
+```yaml wrap
 # Valid formats
 on: push
 
@@ -419,7 +419,7 @@ workflow file '[path]' already exists. Use --force to overwrite
 
 **Solution:** Use the `--force` flag to overwrite:
 
-```bash
+```bash wrap
 gh aw init my-workflow --force
 ```
 
@@ -436,7 +436,7 @@ failed to parse existing mcp.json: [details]
 
 **Solution:** Fix the JSON syntax or delete the file to regenerate:
 
-```bash
+```bash wrap
 # Validate JSON
 cat .vscode/mcp.json | jq .
 
@@ -470,7 +470,7 @@ cannot use 'command' with 'issues' in the same workflow
 
 **Solution:** Remove the conflicting event trigger. The `command:` configuration already includes support for these events:
 
-```yaml
+```yaml wrap
 # Incorrect - command conflicts with issues
 on:
   command:
@@ -486,7 +486,7 @@ on:
 
 **Note:** Command triggers can be restricted to specific events using the `events:` field:
 
-```yaml
+```yaml wrap
 on:
   command:
     name: bot-helper
@@ -504,7 +504,7 @@ strict mode: 'network' configuration is required
 
 **Solution:** Add network configuration to the workflow:
 
-```yaml
+```yaml wrap
 # Option 1: Use defaults (recommended for most workflows)
 network: defaults
 
@@ -547,7 +547,7 @@ strict mode: write permission 'contents: write' is not allowed
 
 **Solution:** Use `safe-outputs` instead of write permissions:
 
-```yaml
+```yaml wrap
 # Incorrect - write permissions in strict mode
 permissions:
   contents: write
@@ -595,7 +595,7 @@ strict mode: wildcard '*' is not allowed in network.allowed domains
 
 **Solution:** Replace wildcard with specific domains or patterns:
 
-```yaml
+```yaml wrap
 # Incorrect
 network:
   allowed:
@@ -623,7 +623,7 @@ http MCP tool 'my-tool' missing required 'url' field
 
 **Solution:** Add the `url:` field to the HTTP MCP server configuration:
 
-```yaml
+```yaml wrap
 # Incorrect
 mcp-servers:
   my-api:
@@ -674,7 +674,7 @@ job name cannot be empty
 
 **Workaround:** If using custom jobs in `steps:` configuration, ensure they have valid names:
 
-```yaml
+```yaml wrap
 # Incorrect - empty job name would be generated internally
 steps:
   "":
@@ -694,7 +694,7 @@ invalid time delta format: +[value]. Expected format like +25h, +3d, +1w, +1mo, 
 
 **Solution:** Use the correct time delta syntax with supported units:
 
-```yaml
+```yaml wrap
 # Incorrect formats
 stop-after: "24h"     # Missing + prefix
 stop-after: "+24"     # Missing unit
@@ -739,7 +739,7 @@ minute unit 'm' is not allowed for stop-after. Minimum unit is hours 'h'. Use +2
 
 **Solution:** Convert minutes to hours:
 
-```yaml
+```yaml wrap
 # Incorrect
 stop-after: "+90m"
 
@@ -769,7 +769,7 @@ time delta too large: 400 days exceeds maximum of 365 days
 - Weeks: 52 (1 year)
 - Months: 12
 
-```yaml
+```yaml wrap
 # Incorrect - exceeds maximum
 stop-after: "+400d"
 stop-after: "+60w"
@@ -792,7 +792,7 @@ duplicate unit 'd' in time delta: +1d2d
 
 **Solution:** Combine values for the same unit:
 
-```yaml
+```yaml wrap
 # Incorrect
 stop-after: "+1d2d"
 stop-after: "+3h5h"
@@ -813,7 +813,7 @@ unable to determine MCP type for tool 'my-tool': missing type, url, command, or 
 
 **Solution:** Specify at least one of: `type`, `url`, `command`, or `container`:
 
-```yaml
+```yaml wrap
 # Incorrect - missing required fields
 mcp-servers:
   my-tool:
@@ -850,7 +850,7 @@ tool 'my-tool' mcp configuration cannot specify both 'container' and 'command'
 
 **Solution:** Use either `container:` OR `command:`, not both:
 
-```yaml
+```yaml wrap
 # Incorrect - both container and command
 mcp-servers:
   my-tool:
@@ -882,7 +882,7 @@ tool 'my-tool' mcp configuration with type 'http' cannot use 'container' field
 
 **Solution:** Remove the `container:` field from HTTP configurations:
 
-```yaml
+```yaml wrap
 # Incorrect - container with HTTP
 mcp-servers:
   my-api:
@@ -910,7 +910,7 @@ strict mode: bash wildcard '*' is not allowed - use specific commands instead
 
 **Solution:** Replace wildcards with specific command allowlists:
 
-```yaml
+```yaml wrap
 # Incorrect
 tools:
   bash:
@@ -956,7 +956,7 @@ strict mode: custom MCP server 'my-server' with container must have network conf
 
 **Solution:** Add network configuration to the MCP server:
 
-```yaml
+```yaml wrap
 # Incorrect - container without network in strict mode
 mcp-servers:
   my-server:
@@ -983,7 +983,7 @@ tool 'my-tool' uses HTTP transport which is not supported by engine 'codex' (onl
 
 **Solution:** Either switch to a stdio-based MCP server or use a different engine that supports HTTP transport:
 
-```yaml
+```yaml wrap
 # Option 1: Switch to stdio transport
 mcp-servers:
   my-tool:
@@ -1015,7 +1015,7 @@ workflow uses safe-outputs.create-issue but repository owner/repo does not have 
 
 **Solution:** Enable the required repository feature or remove the safe-outputs configuration:
 
-```yaml
+```yaml wrap
 # Option 1: Enable issues in repository settings
 # Go to Settings → General → Features → Issues (check the box)
 
@@ -1043,7 +1043,7 @@ strict mode: engine 'claude' does not support firewall
 
 **Solution:** Either use an engine with firewall support or remove network restrictions:
 
-```yaml
+```yaml wrap
 # Option 1: Use engine with firewall support
 engine: copilot  # Supports firewall
 network:

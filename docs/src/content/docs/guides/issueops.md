@@ -41,7 +41,7 @@ This workflow creates an intelligent issue triage system that automatically resp
 
 IssueOps workflows use the `add-comment` safe output to ensure secure comment creation with minimal permissions. The main job runs with `contents: read` while comment creation happens in a separate job with `issues: write` permissions, automatically sanitizing AI content and preventing spam:
 
-```yaml
+```yaml wrap
 safe-outputs:
   add-comment:
     max: 3                    # Optional: allow multiple comments (default: 1)
@@ -52,7 +52,7 @@ safe-outputs:
 
 IssueOps workflows access sanitized issue content through the `needs.activation.outputs.text` variable, which combines the issue title and description while removing security risks (@mention neutralization, URI filtering, injection protection):
 
-```yaml
+```yaml wrap
 # In your workflow instructions:
 Analyze this issue: "${{ needs.activation.outputs.text }}"
 ```

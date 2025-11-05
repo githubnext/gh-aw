@@ -18,7 +18,7 @@ The `safe-outputs:` element of your workflow's frontmatter declares that your ag
 
 For example:
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-issue:
 ```
@@ -47,7 +47,7 @@ Custom safe output types: [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-ou
 
 The `jobs:` field creates custom post-processing jobs that execute after the main workflow. Custom jobs are registered as MCP tools for the agent to call.
 
-```yaml
+```yaml wrap
 safe-outputs:
   jobs:
     deploy-app:
@@ -73,7 +73,7 @@ Jobs support standard GitHub Actions properties (`runs-on`, `permissions`, `env`
 
 Creates GitHub issues based on workflow output.
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-issue:
     title-prefix: "[ai] "            # Optional: prefix for titles
@@ -91,7 +91,7 @@ Bot assignments (including `copilot`) require a PAT. Store as `GH_AW_COPILOT_TOK
 
 Posts comments on issues, PRs, or discussions. Defaults to triggering item; configure with `target` for specific items or `"*"` for any.
 
-```yaml
+```yaml wrap
 safe-outputs:
   add-comment:
     max: 3                    # Optional: max comments (default: 1)
@@ -106,7 +106,7 @@ When combined with `create-issue`, `create-discussion`, or `create-pull-request`
 
 Adds labels to issues or PRs. If `allowed` is specified, only those labels are permitted.
 
-```yaml
+```yaml wrap
 safe-outputs:
   add-labels:
     allowed: [bug, enhancement]  # Optional: restrict to specific labels
@@ -119,7 +119,7 @@ safe-outputs:
 
 Updates issue status, title, or body. Only explicitly enabled fields can be updated. Status must be "open" or "closed".
 
-```yaml
+```yaml wrap
 safe-outputs:
   update-issue:
     status:                   # Optional: enable status updates
@@ -134,7 +134,7 @@ safe-outputs:
 
 Creates pull requests with code changes. Falls back to creating an issue if PR creation fails (e.g., organization settings block it).
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-pull-request:
     title-prefix: "[ai] "         # Optional: prefix for titles
@@ -156,7 +156,7 @@ Bot reviewers (including `copilot`) require a PAT. Store as `GH_AW_COPILOT_TOKEN
 
 Creates review comments on specific code lines in PRs. Supports single-line and multi-line comments.
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-pull-request-review-comment:
     max: 3                    # Optional: max comments (default: 1)
@@ -169,7 +169,7 @@ safe-outputs:
 
 Creates security advisories in SARIF format and submits to GitHub Code Scanning. Supports severity levels: error, warning, info, note.
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-code-scanning-alert:
     max: 50  # Optional: max findings (default: unlimited)
@@ -179,7 +179,7 @@ safe-outputs:
 
 Pushes additional changes to a PR's branch. Supports validation via `title-prefix` and `labels` to ensure only approved PRs receive changes.
 
-```yaml
+```yaml wrap
 safe-outputs:
   push-to-pull-request-branch:
     target: "*"                 # Optional: "triggering" (default), "*", or number
@@ -194,7 +194,7 @@ When `create-pull-request` or `push-to-pull-request-branch` are enabled, file ed
 
 Enabled by default with any safe-outputs configuration. Automatically detects and reports tools lacking permissions or unavailable functionality.
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-issue:           # missing-tool enabled automatically
   missing-tool: false     # Or explicitly disable
@@ -206,7 +206,7 @@ safe-outputs:
 
 Creates GitHub discussions. The `category` accepts a slug, name, or ID. If omitted, uses the first available category.
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-discussion:
     title-prefix: "[ai] "     # Optional: prefix for titles
@@ -219,7 +219,7 @@ safe-outputs:
 
 Creates GitHub Copilot agent tasks to delegate coding tasks. Requires a PAT stored as `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN`.
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-agent-task:
     base: main                # Optional: base branch (defaults to current)
@@ -234,7 +234,7 @@ Requires a PAT. The default `GITHUB_TOKEN` lacks agent task permissions.
 
 Many safe outputs support `target-repo` for cross-repository operations. Requires a PAT (via `github-token` field or `GH_AW_GITHUB_TOKEN`) with access to target repositories. The default `GITHUB_TOKEN` only has permissions for the current repository.
 
-```yaml
+```yaml wrap
 safe-outputs:
   github-token: ${{ secrets.CROSS_REPO_PAT }}
   create-issue:
@@ -254,7 +254,7 @@ When `create-pull-request` or `push-to-pull-request-branch` are configured, file
 
 Agent output is automatically sanitized: XML characters escaped, only HTTPS URIs allowed, domains checked against allowlist (defaults to GitHub domains), content truncated if exceeding 0.5MB or 65k lines, control characters stripped.
 
-```yaml
+```yaml wrap
 safe-outputs:
   allowed-domains:        # Optional: additional trusted domains
     - api.github.com      # GitHub domains always included
@@ -266,7 +266,7 @@ safe-outputs:
 
 Token precedence: `GH_AW_GITHUB_TOKEN` (override) → `GITHUB_TOKEN` (default). Override globally or per safe output:
 
-```yaml
+```yaml wrap
 safe-outputs:
   github-token: ${{ secrets.CUSTOM_PAT }}  # Global override
   create-issue:
@@ -278,7 +278,7 @@ safe-outputs:
 
 Limits git patch size for PR operations (range: 1-10,240 KB, default: 1024 KB):
 
-```yaml
+```yaml wrap
 safe-outputs:
   max-patch-size: 512  # Optional: max patch size in KB
   create-pull-request:
@@ -288,7 +288,7 @@ safe-outputs:
 
 Use `assignees: copilot` in `create-issue` or `reviewers: copilot` in `create-pull-request` to assign to the Copilot bot. Requires a PAT stored as `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN`. The default `GITHUB_TOKEN` lacks bot assignment permissions.
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-issue:
     assignees: copilot
@@ -300,7 +300,7 @@ safe-outputs:
 
 Use `runs-on` to specify a custom runner image for safe output jobs (default: `ubuntu-slim`):
 
-```yaml
+```yaml wrap
 safe-outputs:
   runs-on: ubuntu-22.04
   create-issue:
@@ -310,7 +310,7 @@ safe-outputs:
 
 Automatically enabled with safe outputs. Analyzes agent output for prompt injection, secret leaks, and malicious patches before applying safe outputs.
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-pull-request:
   threat-detection: true              # Explicit enable (default)

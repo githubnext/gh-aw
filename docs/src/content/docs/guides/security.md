@@ -53,7 +53,7 @@ Configure GitHub Actions with defense in depth:
 
 Set minimal read-only permissions for the agentic processing. Use `safe-outputs` for write operations:
 
-```yaml
+```yaml wrap
 # Applies to the agentic processing (read-only)
 permissions:
   contents: read
@@ -70,7 +70,7 @@ safe-outputs:
 Pull request workflows block forks by default for security. Workflows triggered by `pull_request` events only execute for pull requests from the same repository unless explicitly configured to allow forks.
 
 **Default behavior (blocks all forks):**
-```yaml
+```yaml wrap
 on:
   pull_request:
     types: [opened, synchronize]
@@ -78,7 +78,7 @@ on:
 ```
 
 **Allow specific fork patterns:**
-```yaml
+```yaml wrap
 on:
   pull_request:
     types: [opened, synchronize]
@@ -86,7 +86,7 @@ on:
 ```
 
 **Allow all forks (use with caution):**
-```yaml
+```yaml wrap
 on:
   pull_request:
     types: [opened, synchronize]
@@ -103,7 +103,7 @@ Workflows triggered by `workflow_run` events include automatic protections again
 
 The compiler automatically injects a repository ID check into the activation job for all workflows using `workflow_run` triggers:
 
-```yaml
+```yaml wrap
 on:
   workflow_run:
     workflows: ["CI"]
@@ -112,7 +112,7 @@ on:
 
 This generates a safety condition that prevents execution if the triggering workflow_run is from a different repository:
 
-```yaml
+```yaml wrap
 if: >
   (user_condition) &&
   ((github.event_name != 'workflow_run') ||
@@ -125,7 +125,7 @@ The safety check combines with user-specified conditions using AND logic and pro
 
 Workflows with `workflow_run` triggers should include branch restrictions to prevent execution for workflow runs on all branches:
 
-```yaml
+```yaml wrap
 on:
   workflow_run:
     workflows: ["CI"]
@@ -139,7 +139,7 @@ Without branch restrictions, workflows emit warnings during compilation (or erro
 
 **Production workflows**: Consider using strict mode to enforce additional security constraints:
 
-```yaml
+```yaml wrap
 # Enable strict mode for production workflows
 strict: true
 permissions:
@@ -162,7 +162,7 @@ Critical operations require human review. Use `manual-approval` to require appro
 
 Enable strict mode for production workflows to enforce enhanced security constraints:
 
-```yaml
+```yaml wrap
 strict: true  # In frontmatter
 permissions:
   contents: read
@@ -181,7 +181,7 @@ Or via CLI: `gh aw compile --strict`
 
 Use `stop-after:` in the `on:` section to limit the time of operation of an agentic workflow. For example, using
 
-```yaml
+```yaml wrap
 on:
   schedule:
     - cron: "0 9 * * 1"
@@ -196,7 +196,7 @@ For complete documentation on `stop-after:` configuration and supported formats,
 
 Use `max-turns:` in the engine configuration to limit the number of chat iterations per run. This prevents runaway loops and excessive resource consumption. For example:
 
-```yaml
+```yaml wrap
 engine:
   id: claude
   max-turns: 5
@@ -214,7 +214,7 @@ By default, workflows restrict execution to users with `admin`, `maintainer`, or
 
 Customize via `roles:` frontmatter:
 
-```yaml
+```yaml wrap
 roles: [admin, maintainer, write]  # Default
 roles: [admin, maintainer]         # Restrictive (recommended for sensitive ops)
 roles: [write]                     # Write access only
@@ -233,7 +233,7 @@ Token precedence (highest to lowest): individual safe-output `github-token` → 
 
 #### Token Configuration Examples
 
-```yaml
+```yaml wrap
 # Top-level token
 github-token: ${{ secrets.CUSTOM_PAT }}
 
@@ -250,7 +250,7 @@ safe-outputs:
 
 Run MCP servers in sandboxes: container isolation (no shared state), non-root UIDs, drop capabilities, apply seccomp/AppArmor, disable privilege escalation. Pin images (digest/SHAs), scan vulnerabilities, track SBOMs.
 
-```yaml
+```yaml wrap
 tools:
   web:
     mcp:
@@ -262,7 +262,7 @@ tools:
 
 Configure explicit allow-lists. See `docs/tools.md` for full options.
 
-```yaml
+```yaml wrap
 # Minimal GitHub tools (recommended)
 tools:
   github:
@@ -281,7 +281,7 @@ tools:
 
 Declarative network allowlists for containerized MCP servers:
 
-```yaml
+```yaml wrap
 mcp-servers:
   fetch:
     container: mcp/fetch
@@ -324,7 +324,7 @@ See the [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for complete co
 
 Automatic threat detection analyzes agent output and code changes for prompt injection, secret leaks, and malicious patches. Auto-enabled with safe outputs; uses AI-powered analysis with workflow context to reduce false positives.
 
-```yaml
+```yaml wrap
 safe-outputs:
   create-pull-request:
   threat-detection:
@@ -343,7 +343,7 @@ Add specialized scanners (Ollama/LlamaGuard, Semgrep, TruffleHog) for defense-in
 
 [zizmor](https://github.com/zizmorcore/zizmor) scans compiled workflows during compilation:
 
-```bash
+```bash wrap
 gh aw compile --zizmor              # Scan with warnings
 gh aw compile --strict --zizmor     # Block on findings
 ```
@@ -371,7 +371,7 @@ Fine-grained control over AI engine network access, separate from MCP tool permi
 
 ### Permission Modes
 
-```yaml
+```yaml wrap
 # No network (defaults to basic infrastructure)
 engine:
   id: claude

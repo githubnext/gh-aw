@@ -49,7 +49,7 @@ Paths are resolved relative to the importing file, with support for nested impor
 
 Import custom agent files from `.github/agents/` to customize AI engine behavior. Agent files are markdown documents with specialized instructions that modify how the AI interprets and executes workflows.
 
-```yaml
+```yaml wrap
 ---
 on: pull_request
 engine: copilot
