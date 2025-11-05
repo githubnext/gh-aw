@@ -287,6 +287,12 @@ gh aw run workflow --use-local-secrets      # Use local API keys for execution
 gh aw run weekly-research --enable-if-needed --input priority=high
 ```
 
+:::note[Running from GitHub Codespaces]
+When using `gh aw run` from a GitHub Codespace, you need to update the codespace's repository permissions to include `actions: write` and `workflows: write`. This allows the codespace to trigger workflow runs.
+
+To update permissions, go to your codespace settings and manage repository access. See [Managing repository access for your codespaces](https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces) for detailed instructions.
+:::
+
 ### Trial Mode
 
 Test workflows safely in a temporary private repository without affecting your target repository:
