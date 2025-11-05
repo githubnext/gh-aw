@@ -137,6 +137,9 @@ const DetectionJobName = "detection"
 const SafeOutputArtifactName = "safe_output.jsonl"
 const AgentOutputArtifactName = "agent_output.json"
 
+// DefaultRunsOn is the default runner image for agent and detection jobs
+const DefaultRunsOn = "runs-on: ubuntu-slim"
+
 // SafeOutputsMCPServerID is the identifier for the safe-outputs MCP server
 const SafeOutputsMCPServerID = "safeoutputs"
 

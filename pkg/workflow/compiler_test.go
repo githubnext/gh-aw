@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/goccy/go-yaml"
 )
 
@@ -734,7 +735,7 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			expectedRunsOn: "runs-on: ubuntu-slim",
+			expectedRunsOn: constants.DefaultRunsOn,
 		},
 		{
 			name: "custom runs-on",
@@ -1817,7 +1818,7 @@ This is a test workflow with nested env.
 		"  models: read",
 		"jobs:",
 		"  agent:",
-		"    runs-on: ubuntu-slim",
+		"    " + constants.DefaultRunsOn,
 	}
 
 	for _, section := range expectedSections {
