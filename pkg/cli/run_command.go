@@ -276,13 +276,23 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 	stdout, err := cmd.Output()
 	if err != nil {
 		// If there's an error, try to get stderr for better error reporting
+		var stderrOutput string
 		if exitError, ok := err.(*exec.ExitError); ok {
+			stderrOutput = string(exitError.Stderr)
 			fmt.Fprintf(os.Stderr, "%s", exitError.Stderr)
 		}
 
 		// Restore workflow state if it was disabled and we enabled it (even on error)
 		if enable && wasDisabled && workflowID != 0 {
 			restoreWorkflowState(workflowIdOrName, workflowID, repoOverride, verbose)
+		}
+
+		// Check if this is a permission error in a codespace
+		errorMsg := err.Error() + " " + stderrOutput
+		if isRunningInCodespace() && is403PermissionError(errorMsg) {
+			// Show specialized error message for codespace users
+			fmt.Fprint(os.Stderr, getCodespacePermissionErrorMessage())
+			return fmt.Errorf("failed to run workflow on GitHub Actions: permission denied (403)")
 		}
 
 		return fmt.Errorf("failed to run workflow on GitHub Actions: %w", err)
