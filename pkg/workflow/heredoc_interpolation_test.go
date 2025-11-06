@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// TestHeredocInterpolation verifies that PROMPT_EOF heredoc delimiter is unquoted
-// to allow bash variable interpolation of GH_AW_EXPR_* environment variables
+// TestHeredocInterpolation verifies that PROMPT_EOF heredoc delimiter is quoted
+// to prevent bash variable interpolation. Variables are interpolated using github-script instead.
 func TestHeredocInterpolation(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "heredoc-interpolation-test")
@@ -54,42 +54,48 @@ Actor: ${{ github.actor }}
 
 	compiledStr := string(compiledYAML)
 
-	// Verify that heredoc delimiters are NOT quoted (should be PROMPT_EOF not 'PROMPT_EOF')
-	if strings.Contains(compiledStr, "<< 'PROMPT_EOF'") {
-		t.Error("PROMPT_EOF delimiter should NOT be quoted - this prevents variable interpolation")
+	// Verify that heredoc delimiters ARE quoted (should be 'PROMPT_EOF' not PROMPT_EOF)
+	// This prevents shell variable interpolation
+	if !strings.Contains(compiledStr, "<< 'PROMPT_EOF'") {
+		t.Error("PROMPT_EOF delimiter should be quoted to prevent shell variable interpolation")
 
 		// Show the problematic lines
 		lines := strings.Split(compiledStr, "\n")
 		for i, line := range lines {
-			if strings.Contains(line, "<< 'PROMPT_EOF'") {
-				t.Logf("Line %d with quoted delimiter: %s", i, line)
+			if strings.Contains(line, "<< PROMPT_EOF") && !strings.Contains(line, "'PROMPT_EOF'") {
+				t.Logf("Line %d with unquoted delimiter: %s", i, line)
 			}
 		}
 	}
 
-	// Verify that heredoc delimiters are unquoted (should be PROMPT_EOF)
-	if !strings.Contains(compiledStr, "<< PROMPT_EOF") {
-		t.Error("PROMPT_EOF delimiter should be unquoted to allow variable interpolation")
-	}
-
-	// Verify environment variables are defined for GitHub expressions
-	if !strings.Contains(compiledStr, "GH_AW_EXPR_") {
-		t.Error("Compiled workflow should contain GH_AW_EXPR_ environment variables")
-	}
-
 	// Verify that the prompt content contains ${GH_AW_EXPR_...} references
-	// This proves that the unquoted delimiter will allow bash to interpolate them
+	// These will be interpolated by the github-script step, not by bash
 	if !strings.Contains(compiledStr, "${GH_AW_EXPR_") {
-		t.Error("Prompt content should contain ${GH_AW_EXPR_...} references that bash can interpolate")
+		t.Error("Prompt content should contain ${GH_AW_EXPR_...} references for JavaScript interpolation")
 	}
 
 	// Verify the original expressions are NOT in the prompt content (they've been replaced)
 	if strings.Contains(compiledStr, "Repository: ${{ github.repository }}") {
 		t.Error("Original GitHub expressions should be replaced with ${GH_AW_EXPR_...} references in prompt")
 	}
+
+	// Verify that the interpolation step exists
+	if !strings.Contains(compiledStr, "- name: Interpolate variables in prompt") {
+		t.Error("Compiled workflow should contain interpolation step")
+	}
+
+	// Verify that the interpolation step uses github-script
+	if !strings.Contains(compiledStr, "uses: actions/github-script@") {
+		t.Error("Interpolation step should use actions/github-script")
+	}
+
+	// Verify environment variables are defined in the interpolation step
+	if !strings.Contains(compiledStr, "GH_AW_EXPR_") {
+		t.Error("Interpolation step should contain GH_AW_EXPR_ environment variables")
+	}
 }
 
-// TestHeredocInterpolationMainPrompt tests that the main prompt content also uses unquoted delimiter
+// TestHeredocInterpolationMainPrompt tests that the main prompt content uses quoted delimiter
 func TestHeredocInterpolationMainPrompt(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "heredoc-main-test")
 	if err != nil {
@@ -129,15 +135,14 @@ Actor: ${{ github.actor }}
 
 	compiledStr := string(compiledYAML)
 
-	// All heredoc delimiters should be unquoted
+	// All heredoc delimiters should be quoted to prevent shell expansion
 	quotedCount := strings.Count(compiledStr, "<< 'PROMPT_EOF'")
-	if quotedCount > 0 {
-		t.Errorf("Found %d quoted PROMPT_EOF delimiters, expected 0", quotedCount)
+	if quotedCount == 0 {
+		t.Error("Expected quoted PROMPT_EOF delimiters to prevent shell variable interpolation")
 	}
 
-	// Should have unquoted delimiters
-	unquotedCount := strings.Count(compiledStr, "<< PROMPT_EOF")
-	if unquotedCount == 0 {
-		t.Error("Expected unquoted PROMPT_EOF delimiters for variable interpolation")
+	// Verify interpolation step exists
+	if !strings.Contains(compiledStr, "- name: Interpolate variables in prompt") {
+		t.Error("Expected interpolation step for JavaScript-based variable interpolation")
 	}
 }

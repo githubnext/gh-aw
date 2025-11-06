@@ -257,7 +257,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat > "$GH_AW_PROMPT" << PROMPT_EOF
+          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Example: Under-provisioned Permissions Warning
           
           This workflow demonstrates the new warning behavior for under-provisioned permissions.
