@@ -1,4 +1,4 @@
-package pretty
+package console
 
 import "fmt"
 

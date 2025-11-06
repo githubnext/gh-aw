@@ -14,7 +14,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
-	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 	"github.com/goccy/go-yaml"
 )
 
@@ -527,8 +526,8 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		// Validate file size after writing
 		if lockFileInfo, err := os.Stat(lockFile); err == nil {
 			if lockFileInfo.Size() > MaxLockFileSize {
-				lockSize := pretty.FormatFileSize(lockFileInfo.Size())
-				maxSize := pretty.FormatFileSize(MaxLockFileSize)
+				lockSize := console.FormatFileSize(lockFileInfo.Size())
+				maxSize := console.FormatFileSize(MaxLockFileSize)
 				err := fmt.Errorf("generated lock file size (%s) exceeds maximum allowed size (%s)", lockSize, maxSize)
 				formattedErr := console.FormatError(console.CompilerError{
 					Position: console.ErrorPosition{
@@ -550,7 +549,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	} else {
 		// Get the size of the generated lock file for display
 		if lockFileInfo, err := os.Stat(lockFile); err == nil {
-			lockSize := pretty.FormatFileSize(lockFileInfo.Size())
+			lockSize := console.FormatFileSize(lockFileInfo.Size())
 			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("%s (%s)", console.ToRelativePath(markdownPath), lockSize)))
 		} else {
 			// Fallback to original display if we can't get file info
