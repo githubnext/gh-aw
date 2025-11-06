@@ -15,9 +15,6 @@ var createAgentTaskScript string
 //go:embed js/assign_issue.cjs
 var assignIssueScript string
 
-//go:embed js/push_to_pull_request_branch.cjs
-var pushToBranchScript string
-
 //go:embed js/add_reaction_and_edit_comment.cjs
 var addReactionAndEditCommentScript string
 

@@ -47,6 +47,9 @@ var uploadAssetsScriptSource string
 //go:embed js/parse_firewall_logs.cjs
 var parseFirewallLogsScriptSource string
 
+//go:embed js/push_to_pull_request_branch.cjs
+var pushToPullRequestBranchScriptSource string
+
 // Bundled scripts (lazily bundled on-demand and cached)
 var (
 	collectJSONLOutputScript     string
@@ -84,6 +87,9 @@ var (
 
 	parseFirewallLogsScript     string
 	parseFirewallLogsScriptOnce sync.Once
+
+	pushToPullRequestBranchScript     string
+	pushToPullRequestBranchScriptOnce sync.Once
 )
 
 // getCollectJSONLOutputScript returns the bundled collect_ndjson_output script
@@ -290,4 +296,21 @@ func getUploadAssetsScript() string {
 		}
 	})
 	return uploadAssetsScript
+}
+
+// getPushToPullRequestBranchScript returns the bundled push_to_pull_request_branch script
+// Bundling is performed on first access and cached for subsequent calls
+func getPushToPullRequestBranchScript() string {
+	pushToPullRequestBranchScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(pushToPullRequestBranchScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for push_to_pull_request_branch, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			pushToPullRequestBranchScript = pushToPullRequestBranchScriptSource
+		} else {
+			pushToPullRequestBranchScript = bundled
+		}
+	})
+	return pushToPullRequestBranchScript
 }
