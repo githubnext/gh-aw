@@ -22,21 +22,22 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		return nil, fmt.Errorf("safe-outputs.create-pull-request configuration is required")
 	}
 
-	var steps []string
+	// Build pre-steps for patch download, checkout, and git config
+	var preSteps []string
 
 	// Step 1: Download patch artifact
-	steps = append(steps, "      - name: Download patch artifact\n")
-	steps = append(steps, "        continue-on-error: true\n")
-	steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          name: aw.patch\n")
-	steps = append(steps, "          path: /tmp/gh-aw/\n")
+	preSteps = append(preSteps, "      - name: Download patch artifact\n")
+	preSteps = append(preSteps, "        continue-on-error: true\n")
+	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
+	preSteps = append(preSteps, "        with:\n")
+	preSteps = append(preSteps, "          name: aw.patch\n")
+	preSteps = append(preSteps, "          path: /tmp/gh-aw/\n")
 
 	// Step 2: Checkout repository
-	steps = buildCheckoutRepository(steps, c)
+	preSteps = buildCheckoutRepository(preSteps, c)
 
 	// Step 3: Configure Git credentials
-	steps = append(steps, c.generateGitConfigurationSteps()...)
+	preSteps = append(preSteps, c.generateGitConfigurationSteps()...)
 
 	// Build custom environment variables specific to create-pull-request
 	var customEnvVars []string
@@ -82,18 +83,8 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		data.SafeOutputs.CreatePullRequests.TargetRepoSlug,
 	)...)
 
-	// Step 4: Create pull request using the common helper
-	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Create Pull Request",
-		StepID:        "create_pull_request",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        createPullRequestScript,
-		Token:         data.SafeOutputs.CreatePullRequests.GitHubToken,
-	})
-	steps = append(steps, scriptSteps...)
-
-	// Add reviewer steps if reviewers are configured
+	// Build post-steps for reviewers if configured
+	var postSteps []string
 	if len(data.SafeOutputs.CreatePullRequests.Reviewers) > 0 {
 		// Get the effective GitHub token to use for gh CLI
 		var safeOutputsToken string
@@ -101,7 +92,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 			safeOutputsToken = data.SafeOutputs.GitHubToken
 		}
 
-		reviewerSteps := buildCopilotParticipantSteps(CopilotParticipantConfig{
+		postSteps = buildCopilotParticipantSteps(CopilotParticipantConfig{
 			Participants:       data.SafeOutputs.CreatePullRequests.Reviewers,
 			ParticipantType:    "reviewer",
 			CustomToken:        data.SafeOutputs.CreatePullRequests.GitHubToken,
@@ -110,7 +101,6 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 			ConditionStepID:    "create_pull_request",
 			ConditionOutputKey: "pull_request_url",
 		})
-		steps = append(steps, reviewerSteps...)
 	}
 
 	// Create outputs for the job
@@ -123,20 +113,21 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		"fallback_used":       "${{ steps.create_pull_request.outputs.fallback_used }}",
 	}
 
-	jobCondition := BuildSafeOutputType("create_pull_request")
-
-	job := &Job{
-		Name:           "create_pull_request",
-		If:             jobCondition.Render(),
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    NewPermissionsContentsWriteIssuesWritePRWrite().RenderToYAML(),
-		TimeoutMinutes: 10, // 10-minute timeout as required
-		Steps:          steps,
-		Outputs:        outputs,
-		Needs:          []string{mainJobName}, // Depend on the main workflow job
-	}
-
-	return job, nil
+	// Use the shared builder function to create the job
+	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+		JobName:     "create_pull_request",
+		StepName:    "Create Pull Request",
+		StepID:      "create_pull_request",
+		MainJobName: mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        createPullRequestScript,
+		Permissions:   NewPermissionsContentsWriteIssuesWritePRWrite(),
+		Outputs:       outputs,
+		PreSteps:      preSteps,
+		PostSteps:     postSteps,
+		Token:         data.SafeOutputs.CreatePullRequests.GitHubToken,
+		TargetRepoSlug: data.SafeOutputs.CreatePullRequests.TargetRepoSlug,
+	})
 }
 
 // parsePullRequestsConfig handles only create-pull-request (singular) configuration

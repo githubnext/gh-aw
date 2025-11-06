@@ -23,15 +23,15 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		return nil, fmt.Errorf("safe-outputs.add-comment configuration is required")
 	}
 
-	var steps []string
-	// Add debug step to echo the output values using environment variables to prevent shell injection
-	steps = append(steps, "      - name: Debug agent outputs\n")
-	steps = append(steps, "        env:\n")
-	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
-	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT_TYPES: ${{ needs.%s.outputs.output_types }}\n", mainJobName))
-	steps = append(steps, "        run: |\n")
-	steps = append(steps, "          echo \"Output: $AGENT_OUTPUT\"\n")
-	steps = append(steps, "          echo \"Output types: $AGENT_OUTPUT_TYPES\"\n")
+	// Build pre-steps for debugging output
+	var preSteps []string
+	preSteps = append(preSteps, "      - name: Debug agent outputs\n")
+	preSteps = append(preSteps, "        env:\n")
+	preSteps = append(preSteps, fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	preSteps = append(preSteps, fmt.Sprintf("          AGENT_OUTPUT_TYPES: ${{ needs.%s.outputs.output_types }}\n", mainJobName))
+	preSteps = append(preSteps, "        run: |\n")
+	preSteps = append(preSteps, "          echo \"Output: $AGENT_OUTPUT\"\n")
+	preSteps = append(preSteps, "          echo \"Output types: $AGENT_OUTPUT_TYPES\"\n")
 
 	// Build custom environment variables specific to add-comment
 	var customEnvVars []string
@@ -80,24 +80,14 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		token = data.SafeOutputs.AddComments.GitHubToken
 	}
 
-	// Build the GitHub Script step using the common helper and append to existing steps
-	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Add Issue Comment",
-		StepID:        "add_comment",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        getAddCommentScript(),
-		Token:         token,
-	})
-	steps = append(steps, scriptSteps...)
-
 	// Create outputs for the job
 	outputs := map[string]string{
 		"comment_id":  "${{ steps.add_comment.outputs.comment_id }}",
 		"comment_url": "${{ steps.add_comment.outputs.comment_url }}",
 	}
 
-	var jobCondition = BuildSafeOutputType("add_comment")
+	// Build job condition with event check if target is not specified
+	var jobCondition ConditionNode = BuildSafeOutputType("add_comment")
 	if data.SafeOutputs.AddComments != nil && data.SafeOutputs.AddComments.Target == "" {
 		eventCondition := buildOr(
 			buildOr(
@@ -121,18 +111,22 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		needs = append(needs, createPullRequestJobName)
 	}
 
-	job := &Job{
-		Name:           "add_comment",
-		If:             jobCondition.Render(),
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite().RenderToYAML(),
-		TimeoutMinutes: 10, // 10-minute timeout as required
-		Steps:          steps,
-		Outputs:        outputs,
-		Needs:          needs,
-	}
-
-	return job, nil
+	// Use the shared builder function to create the job
+	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+		JobName:     "add_comment",
+		StepName:    "Add Issue Comment",
+		StepID:      "add_comment",
+		MainJobName: mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        getAddCommentScript(),
+		Permissions:   NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite(),
+		Outputs:       outputs,
+		Condition:     jobCondition,
+		Needs:         needs,
+		PreSteps:      preSteps,
+		Token:         token,
+		TargetRepoSlug: data.SafeOutputs.AddComments.TargetRepoSlug,
+	})
 }
 
 // parseCommentsConfig handles add-comment configuration

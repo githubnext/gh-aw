@@ -84,33 +84,23 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		token = data.SafeOutputs.CreateDiscussions.GitHubToken
 	}
 
-	// Build the GitHub Script step using the common helper
-	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Create Output Discussion",
-		StepID:        "create_discussion",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        getCreateDiscussionScript(),
-		Token:         token,
-	})
-
+	// Create outputs for the job
 	outputs := map[string]string{
 		"discussion_number": "${{ steps.create_discussion.outputs.discussion_number }}",
 		"discussion_url":    "${{ steps.create_discussion.outputs.discussion_url }}",
 	}
 
-	jobCondition := BuildSafeOutputType("create_discussion")
-
-	job := &Job{
-		Name:           "create_discussion",
-		If:             jobCondition.Render(),
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    NewPermissionsContentsReadDiscussionsWrite().RenderToYAML(),
-		TimeoutMinutes: 10, // 10-minute timeout as required
-		Steps:          steps,
-		Outputs:        outputs,
-		Needs:          []string{mainJobName}, // Depend on the main workflow job
-	}
-
-	return job, nil
+	// Use the shared builder function to create the job
+	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+		JobName:     "create_discussion",
+		StepName:    "Create Output Discussion",
+		StepID:      "create_discussion",
+		MainJobName: mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        getCreateDiscussionScript(),
+		Permissions:   NewPermissionsContentsReadDiscussionsWrite(),
+		Outputs:       outputs,
+		Token:         token,
+		TargetRepoSlug: data.SafeOutputs.CreateDiscussions.TargetRepoSlug,
+	})
 }

@@ -68,11 +68,6 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		return nil, fmt.Errorf("safe-outputs.create-issue configuration is required")
 	}
 
-	var steps []string
-
-	// Permission checks are now handled by the separate check_membership job
-	// which is always created when needed (when activation job is created)
-
 	// Build custom environment variables specific to create-issue
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
@@ -106,18 +101,8 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		token = data.SafeOutputs.CreateIssues.GitHubToken
 	}
 
-	// Build the GitHub Script step using the common helper and append to existing steps
-	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Create Output Issue",
-		StepID:        "create_issue",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        getCreateIssueScript(),
-		Token:         token,
-	})
-	steps = append(steps, scriptSteps...)
-
-	// Add assignee steps if assignees are configured
+	// Build post-steps for assignees if configured
+	var postSteps []string
 	if len(data.SafeOutputs.CreateIssues.Assignees) > 0 {
 		// Get the effective GitHub token to use for gh CLI
 		var safeOutputsToken string
@@ -125,7 +110,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 			safeOutputsToken = data.SafeOutputs.GitHubToken
 		}
 
-		assigneeSteps := buildCopilotParticipantSteps(CopilotParticipantConfig{
+		postSteps = buildCopilotParticipantSteps(CopilotParticipantConfig{
 			Participants:       data.SafeOutputs.CreateIssues.Assignees,
 			ParticipantType:    "assignee",
 			CustomToken:        token,
@@ -134,7 +119,6 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 			ConditionStepID:    "create_issue",
 			ConditionOutputKey: "issue_number",
 		})
-		steps = append(steps, assigneeSteps...)
 	}
 
 	// Create outputs for the job
@@ -143,18 +127,18 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		"issue_url":    "${{ steps.create_issue.outputs.issue_url }}",
 	}
 
-	jobCondition := BuildSafeOutputType("create_issue")
-
-	job := &Job{
-		Name:           "create_issue",
-		If:             jobCondition.Render(),
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    NewPermissionsContentsReadIssuesWrite().RenderToYAML(),
-		TimeoutMinutes: 10, // 10-minute timeout as required
-		Steps:          steps,
-		Outputs:        outputs,
-		Needs:          []string{mainJobName}, // Depend on the main workflow job
-	}
-
-	return job, nil
+	// Use the shared builder function to create the job
+	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+		JobName:     "create_issue",
+		StepName:    "Create Output Issue",
+		StepID:      "create_issue",
+		MainJobName: mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        getCreateIssueScript(),
+		Permissions:   NewPermissionsContentsReadIssuesWrite(),
+		Outputs:       outputs,
+		PostSteps:     postSteps,
+		Token:         token,
+		TargetRepoSlug: data.SafeOutputs.CreateIssues.TargetRepoSlug,
+	})
 }
