@@ -12,6 +12,8 @@ tools:
   github:
     toolsets: [pull_requests, repos]
 safe-outputs:
+  add-comment:
+    max: 1
   create-pull-request-review-comment:
     max: 5
     side: "RIGHT"
