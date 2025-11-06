@@ -196,37 +196,10 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 	}
 
 	// Expand wildcards after installation
-	expandedWorkflows := []*WorkflowSpec{}
-	for _, spec := range processedWorkflows {
-		if spec.IsWildcard {
-			addLog.Printf("Expanding wildcard for repository: %s", spec.RepoSlug)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Discovering workflows in %s...", spec.RepoSlug)))
-			}
-
-			discovered, err := discoverWorkflowsInPackage(spec.RepoSlug, spec.Version, verbose)
-			if err != nil {
-				return fmt.Errorf("failed to discover workflows in %s: %w", spec.RepoSlug, err)
-			}
-
-			if len(discovered) == 0 {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No workflows found in %s", spec.RepoSlug)))
-			} else {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %d workflow(s) in %s", len(discovered), spec.RepoSlug)))
-				}
-				expandedWorkflows = append(expandedWorkflows, discovered...)
-			}
-		} else {
-			expandedWorkflows = append(expandedWorkflows, spec)
-		}
-	}
-
-	// Use expanded workflows for further processing
-	processedWorkflows = expandedWorkflows
-
-	if len(processedWorkflows) == 0 {
-		return fmt.Errorf("no workflows to add after expansion")
+	var err error
+	processedWorkflows, err = expandWildcardWorkflows(processedWorkflows, verbose)
+	if err != nil {
+		return err
 	}
 
 	// Handle PR creation workflow
@@ -929,4 +902,42 @@ func createPR(branchName, title, body string, verbose bool) error {
 func addSourceToWorkflow(content, source string) (string, error) {
 	// Use shared frontmatter logic that preserves formatting
 	return addFieldToFrontmatter(content, "source", source)
+}
+
+// expandWildcardWorkflows expands wildcard workflow specifications into individual workflow specs.
+// For each wildcard spec, it discovers all workflows in the installed package and replaces
+// the wildcard with the discovered workflows. Non-wildcard specs are passed through unchanged.
+func expandWildcardWorkflows(specs []*WorkflowSpec, verbose bool) ([]*WorkflowSpec, error) {
+	expandedWorkflows := []*WorkflowSpec{}
+
+	for _, spec := range specs {
+		if spec.IsWildcard {
+			addLog.Printf("Expanding wildcard for repository: %s", spec.RepoSlug)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Discovering workflows in %s...", spec.RepoSlug)))
+			}
+
+			discovered, err := discoverWorkflowsInPackage(spec.RepoSlug, spec.Version, verbose)
+			if err != nil {
+				return nil, fmt.Errorf("failed to discover workflows in %s: %w", spec.RepoSlug, err)
+			}
+
+			if len(discovered) == 0 {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No workflows found in %s", spec.RepoSlug)))
+			} else {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %d workflow(s) in %s", len(discovered), spec.RepoSlug)))
+				}
+				expandedWorkflows = append(expandedWorkflows, discovered...)
+			}
+		} else {
+			expandedWorkflows = append(expandedWorkflows, spec)
+		}
+	}
+
+	if len(expandedWorkflows) == 0 {
+		return nil, fmt.Errorf("no workflows to add after expansion")
+	}
+
+	return expandedWorkflows, nil
 }

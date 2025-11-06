@@ -212,3 +212,193 @@ func TestDiscoverWorkflowsInPackage_EmptyPackage(t *testing.T) {
 		t.Errorf("discoverWorkflowsInPackage() found %d workflows in empty package, expected 0", len(discovered))
 	}
 }
+
+// TestExpandWildcardWorkflows tests expanding wildcard workflow specifications
+func TestExpandWildcardWorkflows(t *testing.T) {
+	// Create a temporary packages directory structure
+	tempDir := t.TempDir()
+
+	// Override packages directory for testing
+	oldHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempDir)
+	defer os.Setenv("HOME", oldHome)
+
+	// Create a mock package with workflows
+	packagePath := filepath.Join(tempDir, ".aw", "packages", "test-org", "test-repo")
+	workflowsDir := filepath.Join(packagePath, "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create test directories: %v", err)
+	}
+
+	// Create mock workflow files
+	workflows := []string{
+		"workflows/workflow1.md",
+		"workflows/workflow2.md",
+	}
+
+	for _, wf := range workflows {
+		filePath := filepath.Join(packagePath, wf)
+		if err := os.WriteFile(filePath, []byte("# Test Workflow"), 0644); err != nil {
+			t.Fatalf("Failed to create test workflow %s: %v", wf, err)
+		}
+	}
+
+	tests := []struct {
+		name          string
+		specs         []*WorkflowSpec
+		expectedCount int
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name: "expand_single_wildcard",
+			specs: []*WorkflowSpec{
+				{
+					RepoSpec: RepoSpec{
+						RepoSlug: "test-org/test-repo",
+						Version:  "",
+					},
+					WorkflowPath: "*",
+					WorkflowName: "*",
+					IsWildcard:   true,
+				},
+			},
+			expectedCount: 2,
+			expectError:   false,
+		},
+		{
+			name: "mixed_wildcard_and_specific",
+			specs: []*WorkflowSpec{
+				{
+					RepoSpec: RepoSpec{
+						RepoSlug: "test-org/test-repo",
+						Version:  "",
+					},
+					WorkflowPath: "*",
+					WorkflowName: "*",
+					IsWildcard:   true,
+				},
+				{
+					RepoSpec: RepoSpec{
+						RepoSlug: "other-org/other-repo",
+						Version:  "",
+					},
+					WorkflowPath: "workflows/specific.md",
+					WorkflowName: "specific",
+					IsWildcard:   false,
+				},
+			},
+			expectedCount: 3, // 2 from wildcard + 1 specific
+			expectError:   false,
+		},
+		{
+			name: "no_wildcard_specs",
+			specs: []*WorkflowSpec{
+				{
+					RepoSpec: RepoSpec{
+						RepoSlug: "other-org/other-repo",
+						Version:  "",
+					},
+					WorkflowPath: "workflows/specific.md",
+					WorkflowName: "specific",
+					IsWildcard:   false,
+				},
+			},
+			expectedCount: 1,
+			expectError:   false,
+		},
+		{
+			name:          "empty_input",
+			specs:         []*WorkflowSpec{},
+			expectedCount: 0,
+			expectError:   true,
+			errorContains: "no workflows to add after expansion",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := expandWildcardWorkflows(tt.specs, false)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expandWildcardWorkflows() expected error, got nil")
+					return
+				}
+				if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
+					t.Errorf("expandWildcardWorkflows() error should contain '%s', got: %v", tt.errorContains, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("expandWildcardWorkflows() unexpected error: %v", err)
+				return
+			}
+
+			if len(result) != tt.expectedCount {
+				t.Errorf("expandWildcardWorkflows() returned %d workflows, expected %d", len(result), tt.expectedCount)
+			}
+
+			// Verify no wildcard specs remain in result
+			for _, spec := range result {
+				if spec.IsWildcard {
+					t.Errorf("expandWildcardWorkflows() result contains wildcard spec: %v", spec)
+				}
+			}
+		})
+	}
+}
+
+// TestExpandWildcardWorkflows_ErrorHandling tests error cases for wildcard expansion
+func TestExpandWildcardWorkflows_ErrorHandling(t *testing.T) {
+	// Create a temporary packages directory
+	tempDir := t.TempDir()
+
+	// Override packages directory for testing
+	oldHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempDir)
+	defer os.Setenv("HOME", oldHome)
+
+	tests := []struct {
+		name          string
+		specs         []*WorkflowSpec
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name: "nonexistent_package",
+			specs: []*WorkflowSpec{
+				{
+					RepoSpec: RepoSpec{
+						RepoSlug: "nonexistent/repo",
+						Version:  "",
+					},
+					WorkflowPath: "*",
+					WorkflowName: "*",
+					IsWildcard:   true,
+				},
+			},
+			expectError:   true,
+			errorContains: "failed to discover workflows",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := expandWildcardWorkflows(tt.specs, false)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expandWildcardWorkflows() expected error, got nil")
+					return
+				}
+				if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
+					t.Errorf("expandWildcardWorkflows() error should contain '%s', got: %v", tt.errorContains, err)
+				}
+			} else if err != nil {
+				t.Errorf("expandWildcardWorkflows() unexpected error: %v", err)
+			}
+		})
+	}
+}
