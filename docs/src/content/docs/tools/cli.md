@@ -76,7 +76,7 @@ Debug logs show:
 - Use `--verbose` for user-facing operational details
 - Debug logs are zero-overhead when disabled (no performance impact)
 
-## 📝 Workflow Creation and Management
+## Workflow Creation and Management
 
 The `add` and `new` commands help you create and manage agentic workflows, from templates and samples to completely custom workflows.
 
@@ -153,7 +153,7 @@ Updates based on the `source` field format: `owner/repo/path/to/workflow.md@ref`
 
 The update performs a 3-way merge using `git merge-file`, preserving local modifications while applying upstream changes. When conflicts occur, diff3-style markers are added for manual resolution, and recompilation is skipped until resolved.
 
-## 🔧 Workflow Recompilation
+## Workflow Recompilation
 
 Transforms markdown workflow files into executable GitHub Actions YAML files:
 
@@ -437,7 +437,7 @@ gh aw mcp add ci-doctor server-name --registry https://custom.registry.com/v1
 
 Features include server connection testing, tool capability analysis, multi-protocol support (stdio, Docker, HTTP), and automatic compilation.
 
-## 🔄 Repository Utilities
+## Repository Utilities
 
 ### Pull Request Transfer
 
@@ -481,7 +481,7 @@ gh aw mcp-server --cmd ./gh-aw --port 3000
 
 Uses subprocess architecture for token isolation. Import with `shared/mcp/gh-aw.md` in workflows. See [MCP Server Guide](/gh-aw/tools/mcp-server/).
 
-## 👀 Watch Mode for Development
+## Watch Mode for Development
 
 Auto-recompile workflows on file changes. See [Authoring in VS Code](/gh-aw/tools/vscode/).
 
