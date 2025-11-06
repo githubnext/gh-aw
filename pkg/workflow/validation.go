@@ -11,7 +11,7 @@
 //   - expression_safety.go: GitHub Actions expression security
 //   - engine.go: AI engine configuration validation
 //   - mcp-config.go: MCP server configuration validation
-//   - docker.go: Docker image validation
+//   - docker_validation.go: Docker image validation
 //   - template.go: Template structure validation
 //
 // # When to Add Validation Here
