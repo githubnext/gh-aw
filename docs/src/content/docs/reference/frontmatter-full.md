@@ -1513,6 +1513,40 @@ safe-outputs:
   # (optional)
   # This field supports multiple formats (oneOf):
 
+  # Option 1: Null configuration allows removing any labels
+  remove-labels: null
+
+  # Option 2: Configuration for removing labels from issues/PRs from agentic
+  # workflow output
+  remove-labels:
+    # Optional list of allowed labels that can be removed. If omitted, any labels can
+    # be removed.
+    # (optional)
+    allowed: []
+      # Array of strings
+
+    # Optional maximum number of labels to remove (default: 3)
+    # (optional)
+    max: 1
+
+    # Target for labels: 'triggering' (default), '*' (any issue/PR), or explicit
+    # issue/PR number
+    # (optional)
+    target: "example-value"
+
+    # Target repository in format 'owner/repo' for cross-repository label removal.
+    # Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
   # Option 1: Configuration for updating GitHub issues from agentic workflow output
   update-issue:
     # Allow updating issue status (open/closed) - presence of key indicates field can

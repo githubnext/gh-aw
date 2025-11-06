@@ -2560,6 +2560,8 @@ jobs:
                     return 1;
                   case "add_labels":
                     return 5;
+                  case "remove_labels":
+                    return 5;
                   case "update_issue":
                     return 1;
                   case "push_to_pull_request_branch":
@@ -2972,6 +2974,22 @@ jobs:
                       const labelsItemNumberValidation = validateIssueOrPRNumber(item.item_number, "add_labels 'item_number'", i + 1);
                       if (!labelsItemNumberValidation.isValid) {
                         if (labelsItemNumberValidation.error) errors.push(labelsItemNumberValidation.error);
+                        continue;
+                      }
+                      item.labels = item.labels.map(label => sanitizeContent(label, 128));
+                      break;
+                    case "remove_labels":
+                      if (!item.labels || !Array.isArray(item.labels)) {
+                        errors.push(`Line ${i + 1}: remove_labels requires a 'labels' array field`);
+                        continue;
+                      }
+                      if (item.labels.some(label => typeof label !== "string")) {
+                        errors.push(`Line ${i + 1}: remove_labels labels array must contain only strings`);
+                        continue;
+                      }
+                      const removeLabelsItemNumberValidation = validateIssueOrPRNumber(item.item_number, "remove_labels 'item_number'", i + 1);
+                      if (!removeLabelsItemNumberValidation.isValid) {
+                        if (removeLabelsItemNumberValidation.error) errors.push(removeLabelsItemNumberValidation.error);
                         continue;
                       }
                       item.labels = item.labels.map(label => sanitizeContent(label, 128));
