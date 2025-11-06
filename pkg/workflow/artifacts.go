@@ -1,6 +1,12 @@
 package workflow
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
+)
+
+var artifactsLog = logger.New("workflow:artifacts")
 
 // ArtifactDownloadConfig holds configuration for building artifact download steps
 type ArtifactDownloadConfig struct {
@@ -14,12 +20,16 @@ type ArtifactDownloadConfig struct {
 // buildArtifactDownloadSteps creates steps to download a GitHub Actions artifact
 // This is a generalized helper that can be used across different contexts (safe-outputs, safe-jobs, threat-detection)
 func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
+	artifactsLog.Printf("Building artifact download steps: artifact=%s, path=%s, setupEnv=%v",
+		config.ArtifactName, config.DownloadPath, config.SetupEnvStep)
+
 	var steps []string
 
 	// Use provided step name or generate default
 	stepName := config.StepName
 	if stepName == "" {
 		stepName = fmt.Sprintf("Download %s artifact", config.ArtifactName)
+		artifactsLog.Printf("Using default step name: %s", stepName)
 	}
 
 	// Add step to download artifact
@@ -32,6 +42,8 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 
 	// Add environment variable setup if requested
 	if config.SetupEnvStep {
+		artifactsLog.Printf("Adding environment variable setup step: %s=%s%s",
+			config.EnvVarName, config.DownloadPath, config.ArtifactName)
 		steps = append(steps, "      - name: Setup agent output environment variable\n")
 		steps = append(steps, "        run: |\n")
 		steps = append(steps, fmt.Sprintf("          mkdir -p %s\n", config.DownloadPath))
@@ -41,5 +53,6 @@ func buildArtifactDownloadSteps(config ArtifactDownloadConfig) []string {
 		steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> \"$GITHUB_ENV\"\n", config.EnvVarName, artifactPath))
 	}
 
+	artifactsLog.Printf("Generated %d artifact download steps", len(steps))
 	return steps
 }
