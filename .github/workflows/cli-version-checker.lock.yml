@@ -1294,8 +1294,13 @@ jobs:
           - **Release Timeline**: dates and intervals
           - **Changes**: Categorized as Breaking/Features/Fixes/Security/Performance
           - **Impact Assessment**: Risk level, affected features, migration notes
-          - **Changelog Links**: NPM/GitHub release notes
+          - **Changelog Links**: Use plain URLs without backticks
           - **CLI Changes**: New commands, flags, or removed features discovered via help
+          
+          **URL Formatting Rules**:
+          - Use plain URLs: `https://www.npmjs.com/package/@package-name`
+          - Do NOT use backticks in URLs
+          - Package names in URLs should not be wrapped in backticks
           
           Template structure:
           ```
