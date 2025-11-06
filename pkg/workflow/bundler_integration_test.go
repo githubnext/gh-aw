@@ -362,10 +362,11 @@ func TestGetJavaScriptSources(t *testing.T) {
 // TestScriptsUsingStagedPreviewBundleCorrectly tests that scripts using staged_preview.cjs bundle correctly
 func TestScriptsUsingStagedPreviewBundleCorrectly(t *testing.T) {
 	scriptsUsingStagedPreview := map[string]func() string{
-		"createIssue":           getCreateIssueScript,
-		"addLabels":             getAddLabelsScript,
-		"updateIssue":           getUpdateIssueScript,
-		"createPRReviewComment": getCreatePRReviewCommentScript,
+		"createIssue":             getCreateIssueScript,
+		"addLabels":               getAddLabelsScript,
+		"updateIssue":             getUpdateIssueScript,
+		"createPRReviewComment":   getCreatePRReviewCommentScript,
+		"pushToPullRequestBranch": getPushToPullRequestBranchScript,
 	}
 
 	for scriptName, getScript := range scriptsUsingStagedPreview {
@@ -385,6 +386,11 @@ func TestScriptsUsingStagedPreviewBundleCorrectly(t *testing.T) {
 			// Should contain the generateStagedPreview function (inlined or original)
 			if !strings.Contains(script, "generateStagedPreview") {
 				t.Errorf("bundled script %s does not contain generateStagedPreview function", scriptName)
+			}
+
+			// Should contain inlining comments for staged_preview
+			if !strings.Contains(script, "Inlined from") {
+				t.Errorf("bundled script %s does not contain inlining comments", scriptName)
 			}
 		})
 	}

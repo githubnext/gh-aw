@@ -507,3 +507,31 @@ main();
 		t.Errorf("Error should mention staged_preview.cjs, got: %v", err)
 	}
 }
+
+// TestValidationInFallbackPath tests that validation is performed even when bundling fails
+func TestValidationInFallbackPath(t *testing.T) {
+	// Create a script with local requires but without the required source file
+	scriptWithLocalRequire := `const fs = require("fs");
+const { nonExistentFunction } = require("./nonexistent.cjs");
+
+async function main() {
+  console.log("test");
+}
+main();
+`
+
+	// Empty sources - this will cause bundling to fail
+	sources := map[string]string{}
+
+	// Bundling should fail and validation should catch the local require
+	_, err := BundleJavaScriptFromSources(scriptWithLocalRequire, sources, "")
+	if err == nil {
+		t.Fatal("Expected error from bundling/validation, but got none")
+	}
+
+	// The error should mention the missing file (bundling error)
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "nonexistent.cjs") {
+		t.Errorf("Error should mention nonexistent.cjs, got: %v", err)
+	}
+}
