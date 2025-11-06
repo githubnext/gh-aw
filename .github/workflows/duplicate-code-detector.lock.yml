@@ -1149,7 +1149,7 @@ jobs:
           ### 1. Project Activation
           
           Activate the project in Serena:
-          - Use `activate_project` tool with workspace path `/workspace` (mounted repository directory)
+          - Use `activate_project` tool with workspace path `${GH_AW_EXPR_2D1CC6E7}` (mounted repository directory)
           - This sets up the semantic code analysis environment
           
           ### 2. Changed Files Analysis

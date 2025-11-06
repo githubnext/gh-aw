@@ -391,7 +391,7 @@ Create a comprehensive issue with findings:
 ### Project Activation
 ```
 Tool: activate_project
-Args: { "path": "/workspace" }
+Args: { "path": "${{ github.workspace }}" }
 ```
 
 ### Symbol Overview
@@ -403,13 +403,13 @@ Args: { "file_path": "pkg/workflow/compiler.go" }
 ### Find Similar Symbols
 ```
 Tool: find_symbol
-Args: { "symbol_name": "parseConfig", "workspace": "/workspace" }
+Args: { "symbol_name": "parseConfig", "workspace": "${{ github.workspace }}" }
 ```
 
 ### Search for Patterns
 ```
 Tool: search_for_pattern
-Args: { "pattern": "func.*Config.*error", "workspace": "/workspace" }
+Args: { "pattern": "func.*Config.*error", "workspace": "${{ github.workspace }}" }
 ```
 
 ### Find References
