@@ -20,6 +20,8 @@ tools:
     toolsets:
       - default
       - actions
+  edit:
+  bash:
   cache-memory: true
 safe-outputs:
   add-comment:
