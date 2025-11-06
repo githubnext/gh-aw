@@ -243,7 +243,15 @@ type WorkflowSourceInfo struct {
 	CommitSHA   string // The actual commit SHA used when the package was installed
 }
 
-// isValidWorkflowFile checks if a markdown file is a valid workflow by attempting to parse its frontmatter
+// isValidWorkflowFile checks if a markdown file is a valid workflow by attempting to parse its frontmatter.
+// It validates that the file has proper YAML frontmatter delimited by "---" and contains the required "on" field.
+//
+// Parameters:
+//   - filePath: Absolute or relative path to the markdown file to validate
+//
+// Returns:
+//   - true if the file is a valid workflow (has parseable frontmatter with an "on" field)
+//   - false if the file cannot be read, has invalid YAML, or lacks the required "on" field
 func isValidWorkflowFile(filePath string) bool {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
