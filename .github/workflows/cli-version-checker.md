@@ -109,6 +109,11 @@ Template structure:
 - CLI Discovery: [New commands/flags or "None detected"]
 - Impact: Risk [Low/Medium/High], affects [features]
 - Migration: [Yes/No - details if yes]
+
+## Changelog Links
+- **NPM Package**: https://www.npmjs.com/package/@package-name
+- **Repository**: [GitHub URL if available]
+- **Changelog**: [URL to changelog if available]
 ```
 
 ## Guidelines
