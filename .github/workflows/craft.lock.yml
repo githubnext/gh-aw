@@ -5441,6 +5441,7 @@ jobs:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
+            const { generateStagedPreview } = require("./staged_preview.cjs");
             async function main() {
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
               const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
@@ -5537,23 +5538,28 @@ jobs:
               }
               core.info("Found push-to-pull-request-branch item");
               if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
-                summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
-                summaryContent += `**Target:** ${target}\n\n`;
-                if (pushItem.commit_message) {
-                  summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
-                }
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  if (patchStats.trim()) {
-                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-                  } else {
-                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
-                  }
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Push to PR branch preview written to step summary");
+                await generateStagedPreview({
+                  title: "Push to PR Branch",
+                  description: "The following changes would be pushed if staged mode was disabled:",
+                  items: [{ target, commit_message: pushItem.commit_message }],
+                  renderItem: item => {
+                    let content = "";
+                    content += `**Target:** ${item.target}\n\n`;
+                    if (item.commit_message) {
+                      content += `**Commit Message:** ${item.commit_message}\n\n`;
+                    }
+                    if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                      const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                      if (patchStats.trim()) {
+                        content += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+                        content += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+                      } else {
+                        content += `**Changes:** No changes (empty patch)\n\n`;
+                      }
+                    }
+                    return content;
+                  },
+                });
                 return;
               }
               if (target !== "*" && target !== "triggering") {

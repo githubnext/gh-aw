@@ -3,6 +3,7 @@
 
 /** @type {typeof import("fs")} */
 const fs = require("fs");
+const { generateStagedPreview } = require("./staged_preview.cjs");
 
 async function main() {
   // Check if we're in staged mode
@@ -138,28 +139,30 @@ async function main() {
 
   // If in staged mode, emit step summary instead of pushing changes
   if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
-    summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
+    await generateStagedPreview({
+      title: "Push to PR Branch",
+      description: "The following changes would be pushed if staged mode was disabled:",
+      items: [{ target, commit_message: pushItem.commit_message }],
+      renderItem: item => {
+        let content = "";
+        content += `**Target:** ${item.target}\n\n`;
 
-    summaryContent += `**Target:** ${target}\n\n`;
+        if (item.commit_message) {
+          content += `**Commit Message:** ${item.commit_message}\n\n`;
+        }
 
-    if (pushItem.commit_message) {
-      summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
-    }
-
-    if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-      const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-      if (patchStats.trim()) {
-        summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-        summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-      } else {
-        summaryContent += `**Changes:** No changes (empty patch)\n\n`;
-      }
-    }
-
-    // Write to step summary
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 Push to PR branch preview written to step summary");
+        if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+          const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+          if (patchStats.trim()) {
+            content += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+            content += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+          } else {
+            content += `**Changes:** No changes (empty patch)\n\n`;
+          }
+        }
+        return content;
+      },
+    });
     return;
   }
 

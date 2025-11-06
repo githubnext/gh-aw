@@ -765,7 +765,7 @@ describe("create_issue.cjs", () => {
     expect(infoCall[0]).toContain("**Labels:** bug, enhancement");
 
     // Should also log the completion message
-    expect(mockCore.info).toHaveBeenCalledWith("📝 Issue creation preview written to step summary");
+    expect(mockCore.info).toHaveBeenCalledWith("📝 Create Issues preview written to step summary");
 
     // Clean up
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;

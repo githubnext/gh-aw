@@ -1256,6 +1256,23 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
             async function main() {
               const result = loadAgentOutput();
               if (!result.success) {
@@ -1268,18 +1285,23 @@ jobs:
               }
               core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
               if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-                let summaryContent = "## 🎭 Staged Mode: Add Labels Preview\n\n";
-                summaryContent += "The following labels would be added if staged mode was disabled:\n\n";
-                if (labelsItem.item_number) {
-                  summaryContent += `**Target Issue:** #${labelsItem.item_number}\n\n`;
-                } else {
-                  summaryContent += `**Target:** Current issue/PR\n\n`;
-                }
-                if (labelsItem.labels && labelsItem.labels.length > 0) {
-                  summaryContent += `**Labels to add:** ${labelsItem.labels.join(", ")}\n\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Label addition preview written to step summary");
+                await generateStagedPreview({
+                  title: "Add Labels",
+                  description: "The following labels would be added if staged mode was disabled:",
+                  items: [labelsItem],
+                  renderItem: item => {
+                    let content = "";
+                    if (item.item_number) {
+                      content += `**Target Issue:** #${item.item_number}\n\n`;
+                    } else {
+                      content += `**Target:** Current issue/PR\n\n`;
+                    }
+                    if (item.labels && item.labels.length > 0) {
+                      content += `**Labels to add:** ${item.labels.join(", ")}\n\n`;
+                    }
+                    return content;
+                  },
+                });
                 return;
               }
               const allowedLabelsEnv = process.env.GH_AW_LABELS_ALLOWED?.trim();
@@ -5162,6 +5184,23 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
             function generateFooter(
               workflowName,
               runUrl,
@@ -5200,23 +5239,22 @@ jobs:
               }
               core.info(`Found ${createIssueItems.length} create-issue item(s)`);
               if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
-                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < createIssueItems.length; i++) {
-                  const item = createIssueItems[i];
-                  summaryContent += `### Issue ${i + 1}\n`;
-                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-                  if (item.body) {
-                    summaryContent += `**Body:**\n${item.body}\n\n`;
-                  }
-                  if (item.labels && item.labels.length > 0) {
-                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
-                  }
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info(summaryContent);
-                core.info("📝 Issue creation preview written to step summary");
+                await generateStagedPreview({
+                  title: "Create Issues",
+                  description: "The following issues would be created if staged mode was disabled:",
+                  items: createIssueItems,
+                  renderItem: (item, index) => {
+                    let content = `### Issue ${index + 1}\n`;
+                    content += `**Title:** ${item.title || "No title provided"}\n\n`;
+                    if (item.body) {
+                      content += `**Body:**\n${item.body}\n\n`;
+                    }
+                    if (item.labels && item.labels.length > 0) {
+                      content += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                    }
+                    return content;
+                  },
+                });
                 return;
               }
               const parentIssueNumber = context.payload?.issue?.number;
@@ -5475,6 +5513,23 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
             function generateFooter(
               workflowName,
               runUrl,
@@ -5523,29 +5578,29 @@ jobs:
               }
               core.info(`Found ${reviewCommentItems.length} create-pull-request-review-comment item(s)`);
               if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create PR Review Comments Preview\n\n";
-                summaryContent += "The following review comments would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < reviewCommentItems.length; i++) {
-                  const item = reviewCommentItems[i];
-                  summaryContent += `### Review Comment ${i + 1}\n`;
-                  if (item.pull_request_number) {
-                    const repoUrl = getRepositoryUrl();
-                    const pullUrl = `${repoUrl}/pull/${item.pull_request_number}`;
-                    summaryContent += `**Target PR:** [#${item.pull_request_number}](${pullUrl})\n\n`;
-                  } else {
-                    summaryContent += `**Target:** Current PR\n\n`;
-                  }
-                  summaryContent += `**File:** ${item.path || "No path provided"}\n\n`;
-                  summaryContent += `**Line:** ${item.line || "No line provided"}\n\n`;
-                  if (item.start_line) {
-                    summaryContent += `**Start Line:** ${item.start_line}\n\n`;
-                  }
-                  summaryContent += `**Side:** ${item.side || "RIGHT"}\n\n`;
-                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 PR review comment creation preview written to step summary");
+                await generateStagedPreview({
+                  title: "Create PR Review Comments",
+                  description: "The following review comments would be created if staged mode was disabled:",
+                  items: reviewCommentItems,
+                  renderItem: (item, index) => {
+                    let content = `### Review Comment ${index + 1}\n`;
+                    if (item.pull_request_number) {
+                      const repoUrl = getRepositoryUrl();
+                      const pullUrl = `${repoUrl}/pull/${item.pull_request_number}`;
+                      content += `**Target PR:** [#${item.pull_request_number}](${pullUrl})\n\n`;
+                    } else {
+                      content += `**Target:** Current PR\n\n`;
+                    }
+                    content += `**File:** ${item.path || "No path provided"}\n\n`;
+                    content += `**Line:** ${item.line || "No line provided"}\n\n`;
+                    if (item.start_line) {
+                      content += `**Start Line:** ${item.start_line}\n\n`;
+                    }
+                    content += `**Side:** ${item.side || "RIGHT"}\n\n`;
+                    content += `**Body:**\n${item.body || "No content provided"}\n\n`;
+                    return content;
+                  },
+                });
                 return;
               }
               const defaultSide = process.env.GH_AW_PR_REVIEW_COMMENT_SIDE || "RIGHT";
@@ -6801,6 +6856,7 @@ jobs:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
+            const { generateStagedPreview } = require("./staged_preview.cjs");
             async function main() {
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
               const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
@@ -6897,23 +6953,28 @@ jobs:
               }
               core.info("Found push-to-pull-request-branch item");
               if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
-                summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
-                summaryContent += `**Target:** ${target}\n\n`;
-                if (pushItem.commit_message) {
-                  summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
-                }
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  if (patchStats.trim()) {
-                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-                  } else {
-                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
-                  }
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Push to PR branch preview written to step summary");
+                await generateStagedPreview({
+                  title: "Push to PR Branch",
+                  description: "The following changes would be pushed if staged mode was disabled:",
+                  items: [{ target, commit_message: pushItem.commit_message }],
+                  renderItem: item => {
+                    let content = "";
+                    content += `**Target:** ${item.target}\n\n`;
+                    if (item.commit_message) {
+                      content += `**Commit Message:** ${item.commit_message}\n\n`;
+                    }
+                    if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                      const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                      if (patchStats.trim()) {
+                        content += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+                        content += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+                      } else {
+                        content += `**Changes:** No changes (empty patch)\n\n`;
+                      }
+                    }
+                    return content;
+                  },
+                });
                 return;
               }
               if (target !== "*" && target !== "triggering") {
@@ -7178,6 +7239,23 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
             async function main() {
               const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
               const result = loadAgentOutput();
@@ -7191,29 +7269,29 @@ jobs:
               }
               core.info(`Found ${updateItems.length} update-issue item(s)`);
               if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Update Issues Preview\n\n";
-                summaryContent += "The following issue updates would be applied if staged mode was disabled:\n\n";
-                for (let i = 0; i < updateItems.length; i++) {
-                  const item = updateItems[i];
-                  summaryContent += `### Issue Update ${i + 1}\n`;
-                  if (item.issue_number) {
-                    summaryContent += `**Target Issue:** #${item.issue_number}\n\n`;
-                  } else {
-                    summaryContent += `**Target:** Current issue\n\n`;
-                  }
-                  if (item.title !== undefined) {
-                    summaryContent += `**New Title:** ${item.title}\n\n`;
-                  }
-                  if (item.body !== undefined) {
-                    summaryContent += `**New Body:**\n${item.body}\n\n`;
-                  }
-                  if (item.status !== undefined) {
-                    summaryContent += `**New Status:** ${item.status}\n\n`;
-                  }
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Issue update preview written to step summary");
+                await generateStagedPreview({
+                  title: "Update Issues",
+                  description: "The following issue updates would be applied if staged mode was disabled:",
+                  items: updateItems,
+                  renderItem: (item, index) => {
+                    let content = `### Issue Update ${index + 1}\n`;
+                    if (item.issue_number) {
+                      content += `**Target Issue:** #${item.issue_number}\n\n`;
+                    } else {
+                      content += `**Target:** Current issue\n\n`;
+                    }
+                    if (item.title !== undefined) {
+                      content += `**New Title:** ${item.title}\n\n`;
+                    }
+                    if (item.body !== undefined) {
+                      content += `**New Body:**\n${item.body}\n\n`;
+                    }
+                    if (item.status !== undefined) {
+                      content += `**New Status:** ${item.status}\n\n`;
+                    }
+                    return content;
+                  },
+                });
                 return;
               }
               const updateTarget = process.env.GH_AW_UPDATE_TARGET || "triggering";

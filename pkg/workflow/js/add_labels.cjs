@@ -3,6 +3,7 @@
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { generateStagedPreview } = require("./staged_preview.cjs");
 
 async function main() {
   const result = loadAgentOutput();
@@ -17,18 +18,23 @@ async function main() {
   }
   core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
   if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    let summaryContent = "## 🎭 Staged Mode: Add Labels Preview\n\n";
-    summaryContent += "The following labels would be added if staged mode was disabled:\n\n";
-    if (labelsItem.item_number) {
-      summaryContent += `**Target Issue:** #${labelsItem.item_number}\n\n`;
-    } else {
-      summaryContent += `**Target:** Current issue/PR\n\n`;
-    }
-    if (labelsItem.labels && labelsItem.labels.length > 0) {
-      summaryContent += `**Labels to add:** ${labelsItem.labels.join(", ")}\n\n`;
-    }
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 Label addition preview written to step summary");
+    await generateStagedPreview({
+      title: "Add Labels",
+      description: "The following labels would be added if staged mode was disabled:",
+      items: [labelsItem],
+      renderItem: item => {
+        let content = "";
+        if (item.item_number) {
+          content += `**Target Issue:** #${item.item_number}\n\n`;
+        } else {
+          content += `**Target:** Current issue/PR\n\n`;
+        }
+        if (item.labels && item.labels.length > 0) {
+          content += `**Labels to add:** ${item.labels.join(", ")}\n\n`;
+        }
+        return content;
+      },
+    });
     return;
   }
   const allowedLabelsEnv = process.env.GH_AW_LABELS_ALLOWED?.trim();

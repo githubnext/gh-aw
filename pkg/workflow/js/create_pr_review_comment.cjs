@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { generateStagedPreview } = require("./staged_preview.cjs");
 
 /**
  * Generate footer with AI attribution and workflow installation instructions
@@ -81,32 +82,29 @@ async function main() {
 
   // If in staged mode, emit step summary instead of creating review comments
   if (isStaged) {
-    let summaryContent = "## 🎭 Staged Mode: Create PR Review Comments Preview\n\n";
-    summaryContent += "The following review comments would be created if staged mode was disabled:\n\n";
-
-    for (let i = 0; i < reviewCommentItems.length; i++) {
-      const item = reviewCommentItems[i];
-      summaryContent += `### Review Comment ${i + 1}\n`;
-      if (item.pull_request_number) {
-        const repoUrl = getRepositoryUrl();
-        const pullUrl = `${repoUrl}/pull/${item.pull_request_number}`;
-        summaryContent += `**Target PR:** [#${item.pull_request_number}](${pullUrl})\n\n`;
-      } else {
-        summaryContent += `**Target:** Current PR\n\n`;
-      }
-      summaryContent += `**File:** ${item.path || "No path provided"}\n\n`;
-      summaryContent += `**Line:** ${item.line || "No line provided"}\n\n`;
-      if (item.start_line) {
-        summaryContent += `**Start Line:** ${item.start_line}\n\n`;
-      }
-      summaryContent += `**Side:** ${item.side || "RIGHT"}\n\n`;
-      summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
-      summaryContent += "---\n\n";
-    }
-
-    // Write to step summary
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 PR review comment creation preview written to step summary");
+    await generateStagedPreview({
+      title: "Create PR Review Comments",
+      description: "The following review comments would be created if staged mode was disabled:",
+      items: reviewCommentItems,
+      renderItem: (item, index) => {
+        let content = `### Review Comment ${index + 1}\n`;
+        if (item.pull_request_number) {
+          const repoUrl = getRepositoryUrl();
+          const pullUrl = `${repoUrl}/pull/${item.pull_request_number}`;
+          content += `**Target PR:** [#${item.pull_request_number}](${pullUrl})\n\n`;
+        } else {
+          content += `**Target:** Current PR\n\n`;
+        }
+        content += `**File:** ${item.path || "No path provided"}\n\n`;
+        content += `**Line:** ${item.line || "No line provided"}\n\n`;
+        if (item.start_line) {
+          content += `**Start Line:** ${item.start_line}\n\n`;
+        }
+        content += `**Side:** ${item.side || "RIGHT"}\n\n`;
+        content += `**Body:**\n${item.body || "No content provided"}\n\n`;
+        return content;
+      },
+    });
     return;
   }
 

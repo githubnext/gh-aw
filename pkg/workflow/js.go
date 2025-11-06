@@ -80,6 +80,9 @@ var sanitizeWorkflowNameScript string
 //go:embed js/load_agent_output.cjs
 var loadAgentOutputScript string
 
+//go:embed js/staged_preview.cjs
+var stagedPreviewScript string
+
 // Source scripts that may contain local requires
 //
 //go:embed js/collect_ndjson_output.cjs
@@ -360,6 +363,7 @@ func GetJavaScriptSources() map[string]string {
 		"sanitize_label_content.cjs": sanitizeLabelContentScript,
 		"sanitize_workflow_name.cjs": sanitizeWorkflowNameScript,
 		"load_agent_output.cjs":      loadAgentOutputScript,
+		"staged_preview.cjs":         stagedPreviewScript,
 	}
 }
 
