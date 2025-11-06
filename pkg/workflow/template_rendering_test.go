@@ -103,8 +103,9 @@ Normal content here.
 		t.Error("Template rendering step should contain renderMarkdownTemplate function")
 	}
 
-	if !strings.Contains(compiledStr, "function isTruthy") {
-		t.Error("Template rendering step should contain isTruthy function")
+	// Verify that isTruthy is imported from the separate module
+	if !strings.Contains(compiledStr, `require("./is_truthy.cjs")`) {
+		t.Error("Template rendering step should import isTruthy from is_truthy.cjs")
 	}
 }
 

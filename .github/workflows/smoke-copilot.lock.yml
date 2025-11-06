@@ -1229,13 +1229,21 @@ jobs:
           Use this context information to understand the scope of your work.
           
           PROMPT_EOF
-      - name: Render template conditionals
+      - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         with:
           script: |
             const fs = require("fs");
+            function interpolateVariables(content, variables) {
+              let result = content;
+              for (const [varName, value] of Object.entries(variables)) {
+                const pattern = new RegExp(`\\$\\{${varName}\\}`, "g");
+                result = result.replace(pattern, value);
+              }
+              return result;
+            }
             function isTruthy(expr) {
               const v = expr.trim().toLowerCase();
               return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
@@ -1243,22 +1251,37 @@ jobs:
             function renderMarkdownTemplate(markdown) {
               return markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
             }
-            function main() {
+            async function main() {
               try {
                 const promptPath = process.env.GH_AW_PROMPT;
                 if (!promptPath) {
                   core.setFailed("GH_AW_PROMPT environment variable is not set");
-                  process.exit(1);
+                  return;
                 }
-                const markdown = fs.readFileSync(promptPath, "utf8");
-                const hasConditionals = /{{#if\s+[^}]+}}/.test(markdown);
-                if (!hasConditionals) {
+                let content = fs.readFileSync(promptPath, "utf8");
+                const variables = {};
+                for (const [key, value] of Object.entries(process.env)) {
+                  if (key.startsWith("GH_AW_EXPR_")) {
+                    variables[key] = value || "";
+                  }
+                }
+                const varCount = Object.keys(variables).length;
+                if (varCount > 0) {
+                  core.info(`Found ${varCount} expression variable(s) to interpolate`);
+                  content = interpolateVariables(content, variables);
+                  core.info(`Successfully interpolated ${varCount} variable(s) in prompt`);
+                } else {
+                  core.info("No expression variables found, skipping interpolation");
+                }
+                const hasConditionals = /{{#if\s+[^}]+}}/.test(content);
+                if (hasConditionals) {
+                  core.info("Processing conditional template blocks");
+                  content = renderMarkdownTemplate(content);
+                  core.info("Template rendered successfully");
+                } else {
                   core.info("No conditional blocks found in prompt, skipping template rendering");
-                  process.exit(0);
                 }
-                const rendered = renderMarkdownTemplate(markdown);
-                fs.writeFileSync(promptPath, rendered, "utf8");
-                core.info("Template rendered successfully");
+                fs.writeFileSync(promptPath, content, "utf8");
               } catch (error) {
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }

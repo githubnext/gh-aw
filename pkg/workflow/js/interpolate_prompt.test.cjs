@@ -18,12 +18,13 @@ global.core = core;
 // Import the interpolation script
 const interpolatePromptScript = fs.readFileSync(path.join(__dirname, "interpolate_prompt.cjs"), "utf8");
 
+// Import isTruthy from its own module for testing renderMarkdownTemplate
+const { isTruthy } = require("./is_truthy.cjs");
+
 // Extract the functions
 const interpolateVariablesMatch = interpolatePromptScript.match(
   /function interpolateVariables\(content, variables\)\s*{[\s\S]*?return result;[\s\S]*?}/
 );
-
-const isTruthyMatch = interpolatePromptScript.match(/function isTruthy\(expr\)\s*{[\s\S]*?return[\s\S]*?;[\s\S]*?}/);
 
 const renderMarkdownTemplateMatch = interpolatePromptScript.match(
   /function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return[\s\S]*?;[\s\S]*?}/
@@ -33,18 +34,12 @@ if (!interpolateVariablesMatch) {
   throw new Error("Could not extract interpolateVariables function from interpolate_prompt.cjs");
 }
 
-if (!isTruthyMatch) {
-  throw new Error("Could not extract isTruthy function from interpolate_prompt.cjs");
-}
-
 if (!renderMarkdownTemplateMatch) {
   throw new Error("Could not extract renderMarkdownTemplate function from interpolate_prompt.cjs");
 }
 
 // eslint-disable-next-line no-eval
 const interpolateVariables = eval(`(${interpolateVariablesMatch[0]})`);
-// eslint-disable-next-line no-eval
-const isTruthy = eval(`(${isTruthyMatch[0]})`);
 // eslint-disable-next-line no-eval
 const renderMarkdownTemplate = eval(`(${renderMarkdownTemplateMatch[0]})`);
 
@@ -110,48 +105,6 @@ Some other content here.`;
       const variables = { GH_AW_EXPR_REPO: "github/test-repo" };
       const result = interpolateVariables(content, variables);
       expect(result).toBe("Price: $100, Repo: github/test-repo");
-    });
-  });
-
-  describe("isTruthy", () => {
-    it("should return false for empty string", () => {
-      expect(isTruthy("")).toBe(false);
-    });
-
-    it('should return false for "false"', () => {
-      expect(isTruthy("false")).toBe(false);
-      expect(isTruthy("FALSE")).toBe(false);
-      expect(isTruthy("False")).toBe(false);
-    });
-
-    it('should return false for "0"', () => {
-      expect(isTruthy("0")).toBe(false);
-    });
-
-    it('should return false for "null"', () => {
-      expect(isTruthy("null")).toBe(false);
-      expect(isTruthy("NULL")).toBe(false);
-    });
-
-    it('should return false for "undefined"', () => {
-      expect(isTruthy("undefined")).toBe(false);
-      expect(isTruthy("UNDEFINED")).toBe(false);
-    });
-
-    it('should return true for "true"', () => {
-      expect(isTruthy("true")).toBe(true);
-      expect(isTruthy("TRUE")).toBe(true);
-    });
-
-    it("should return true for any non-falsy string", () => {
-      expect(isTruthy("yes")).toBe(true);
-      expect(isTruthy("1")).toBe(true);
-      expect(isTruthy("hello")).toBe(true);
-    });
-
-    it("should trim whitespace", () => {
-      expect(isTruthy("  false  ")).toBe(false);
-      expect(isTruthy("  true  ")).toBe(true);
     });
   });
 

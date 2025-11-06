@@ -6,6 +6,7 @@
 // This combines variable interpolation and template filtering into a single step.
 
 const fs = require("fs");
+const { isTruthy } = require("./is_truthy.cjs");
 
 /**
  * Interpolates variables in the prompt content
@@ -23,16 +24,6 @@ function interpolateVariables(content, variables) {
   }
 
   return result;
-}
-
-/**
- * Determines if a value is truthy according to template logic
- * @param {string} expr - The expression to evaluate
- * @returns {boolean} - Whether the expression is truthy
- */
-function isTruthy(expr) {
-  const v = expr.trim().toLowerCase();
-  return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
 }
 
 /**
