@@ -55,11 +55,7 @@ func validateNoLocalRequires(bundledContent string) error {
 		for _, match := range matches {
 			if len(match) > 1 {
 				requirePath := match[1]
-				// Check if this require is inside a string literal
-				matchIdx := strings.Index(line, match[0])
-				if matchIdx >= 0 && !isInsideStringLiteralAt(line, matchIdx) {
-					foundRequires = append(foundRequires, fmt.Sprintf("line %d: require('%s')", lineNum+1, requirePath))
-				}
+				foundRequires = append(foundRequires, fmt.Sprintf("line %d: require('%s')", lineNum+1, requirePath))
 			}
 		}
 	}
@@ -70,37 +66,4 @@ func validateNoLocalRequires(bundledContent string) error {
 	}
 
 	return nil
-}
-
-// isInsideStringLiteralAt checks if a position in a line is inside a string literal
-func isInsideStringLiteralAt(line string, pos int) bool {
-	// Count unescaped quotes before the position
-	singleQuoteCount := 0
-	doubleQuoteCount := 0
-	backtickCount := 0
-
-	for i := 0; i < pos && i < len(line); i++ {
-		// Count consecutive backslashes before the current character
-		backslashCount := 0
-		for j := i - 1; j >= 0 && line[j] == '\\'; j-- {
-			backslashCount++
-		}
-
-		// If odd number of backslashes, the current character is escaped
-		if backslashCount%2 == 1 {
-			continue
-		}
-
-		switch line[i] {
-		case '\'':
-			singleQuoteCount++
-		case '"':
-			doubleQuoteCount++
-		case '`':
-			backtickCount++
-		}
-	}
-
-	// If any quote count is odd, we're inside that type of string literal
-	return singleQuoteCount%2 == 1 || doubleQuoteCount%2 == 1 || backtickCount%2 == 1
 }
