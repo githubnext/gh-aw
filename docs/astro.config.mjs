@@ -23,6 +23,9 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'GitHub Agentic Workflows',
+			customCss: [
+				'./src/styles/custom.css',
+			],
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/githubnext/gh-aw' },
 				{ icon: 'rocket', label: 'Instructions', href: 'https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/github-agentic-workflows.instructions.md' }

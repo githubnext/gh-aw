@@ -1,0 +1,52 @@
+/* Follows GitHub brand guidelines:
+    80% neutrals, 10% neutrals, 5% green, 5% purple
+    https://brand.github.com/foundations/color
+*/
+
+:root {
+  /* Override Starlight's default blue with GitHub AI purple */
+  --sl-color-accent-low: #501daf;
+  --sl-color-accent: #c06eff;
+  --sl-color-accent-high: #d0b0ff;
+  
+  /* Primary action color */
+  --sl-color-text-accent: #c06eff;
+  
+  /* Link colors */
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #e6edf3;
+  --sl-color-gray-2: #8d96a0;
+  --sl-color-gray-3: #6e7681;
+  --sl-color-gray-4: #484f58;
+  --sl-color-gray-5: #2d333b;
+  --sl-color-gray-6: #1c2128;
+  --sl-color-black: #0d1117;
+}
+
+/* Hero buttons with purple accent */
+.hero .action.primary {
+  background: linear-gradient(180deg, #c06eff 0%, #501daf 100%);
+  border-color: #c06eff;
+  font: #ffffff;
+}
+
+.hero .action.primary:hover {
+  background: linear-gradient(180deg, #d0b0ff 0%, #c06eff 100%);
+  border-color: #d0b0ff;
+  font: #ffffff;
+}
+
+/* Links */
+a {
+  color: #c06eff;
+}
+
+a:hover {
+  color: #d0b0ff;
+}
+
+/* Keep some GitHub green for secondary elements (5% usage per brand guide) */
+.sl-badge {
+  background-color: #2ea043;
+  color: #ffffff;
+}

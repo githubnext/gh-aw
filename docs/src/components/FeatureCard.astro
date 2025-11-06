@@ -1,0 +1,124 @@
+---
+import octicons, { type IconName } from '@primer/octicons';
+
+interface Props {
+  icon: IconName;
+  title: string;
+  href?: string;
+}
+
+const { icon, title, href } = Astro.props;
+const iconData = octicons[icon];
+
+if (!iconData) {
+  throw new Error(`Octicon "${icon}" not found. Check https://primer.style/octicons/`);
+}
+
+const svg = iconData.toSVG({ width: 32, height: 32 });
+const Tag = href ? 'a' : 'div';
+---
+
+<Tag class="feature-card" href={href}>
+  <div class="feature-icon" set:html={svg} />
+  <div class="feature-content">
+    <h3 class="feature-title">{title}</h3>
+    <div class="feature-description">
+      <slot />
+    </div>
+  </div>
+</Tag>
+
+<style>
+  .feature-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding: 2rem;
+    border: 1px solid rgba(110, 118, 129, 0.4);
+    border-radius: 0.75rem;
+    background: linear-gradient(135deg, rgba(39, 45, 52, 0.95) 0%, rgba(27, 31, 36, 0.95) 100%);
+    transition: all 0.2s ease;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(192, 110, 255, 0.08) 0%, rgba(192, 110, 255, 0) 100%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .feature-card:hover::before {
+    opacity: 1;
+  }
+
+  .feature-card:hover {
+    border-color: rgba(110, 118, 129, 0.6);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  .feature-icon {
+    flex-shrink: 0;
+    color: #c06eff;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    position: relative;
+    z-index: 1;
+  }
+
+  .feature-icon :global(svg) {
+    display: block;
+    fill: currentColor;
+    width: 32px;
+    height: 32px;
+  }
+
+  .feature-content {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .feature-title {
+    margin: 0 0 0.75rem 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #e6edf3;
+  }
+
+  .feature-description {
+    font-size: 0.9375rem;
+    line-height: 1.65;
+    color: #8d96a0;
+  }
+
+  .feature-description :global(p) {
+    margin: 0;
+  }
+
+  .feature-description :global(a) {
+    color: #c06eff;
+    text-decoration: none;
+  }
+
+  .feature-description :global(a:hover) {
+    text-decoration: underline;
+    color: #d0b0ff;
+  }
+
+  a.feature-card:hover .feature-title {
+    color: #d0b0ff;
+  }
+</style>
