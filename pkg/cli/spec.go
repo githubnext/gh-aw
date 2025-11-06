@@ -27,6 +27,7 @@ type WorkflowSpec struct {
 	RepoSpec            // embedded RepoSpec for Repo and Version fields
 	WorkflowPath string // e.g., "workflows/workflow-name.md"
 	WorkflowName string // e.g., "workflow-name"
+	IsWildcard   bool   // true if this is a wildcard spec (e.g., "owner/repo/*")
 }
 
 // String returns the canonical string representation of the workflow spec
@@ -222,6 +223,19 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 	// Basic validation that owner and repo look like GitHub identifiers
 	if !isValidGitHubIdentifier(owner) || !isValidGitHubIdentifier(repo) {
 		return nil, fmt.Errorf("invalid workflow specification: '%s/%s' does not look like a valid GitHub repository", owner, repo)
+	}
+
+	// Check if this is a wildcard specification (owner/repo/*)
+	if workflowPath == "*" {
+		return &WorkflowSpec{
+			RepoSpec: RepoSpec{
+				RepoSlug: fmt.Sprintf("%s/%s", owner, repo),
+				Version:  version,
+			},
+			WorkflowPath: "*",
+			WorkflowName: "*",
+			IsWildcard:   true,
+		}, nil
 	}
 
 	// Handle different cases based on the number of path parts
