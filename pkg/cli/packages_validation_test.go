@@ -78,8 +78,8 @@ permissions:
 			expected: false,
 		},
 		{
-			name: "empty file",
-			content: ``,
+			name:     "empty file",
+			content:  ``,
 			expected: false, // Empty content has no "on" field
 		},
 		{
@@ -139,8 +139,8 @@ func TestIsValidWorkflowFileFilteringBehavior(t *testing.T) {
 
 	// Create test files that should be filtered out
 	testCases := []struct {
-		filename string
-		content  string
+		filename      string
+		content       string
 		shouldBeValid bool
 	}{
 		{

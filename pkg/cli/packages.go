@@ -258,7 +258,7 @@ func isValidWorkflowFile(filePath string) bool {
 
 	// A valid workflow must have frontmatter with at least an "on" field
 	// Files without frontmatter or with empty frontmatter are not workflows
-	if result.Frontmatter == nil || len(result.Frontmatter) == 0 {
+	if len(result.Frontmatter) == 0 {
 		return false
 	}
 
