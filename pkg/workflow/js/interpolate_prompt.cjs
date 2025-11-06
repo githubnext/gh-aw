@@ -2,8 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 // interpolate_prompt.cjs
-// Interpolates GitHub Actions expressions in the prompt file using github-script.
-// This replaces the previous approach of using shell variable expansion.
+// Interpolates GitHub Actions expressions and renders template conditionals in the prompt file.
+// This combines variable interpolation and template filtering into a single step.
 
 const fs = require("fs");
 
@@ -26,7 +26,26 @@ function interpolateVariables(content, variables) {
 }
 
 /**
- * Main function for prompt variable interpolation
+ * Determines if a value is truthy according to template logic
+ * @param {string} expr - The expression to evaluate
+ * @returns {boolean} - Whether the expression is truthy
+ */
+function isTruthy(expr) {
+  const v = expr.trim().toLowerCase();
+  return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
+}
+
+/**
+ * Renders a Markdown template by processing {{#if}} conditional blocks
+ * @param {string} markdown - The markdown content to process
+ * @returns {string} - The processed markdown content
+ */
+function renderMarkdownTemplate(markdown) {
+  return markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
+}
+
+/**
+ * Main function for prompt variable interpolation and template rendering
  */
 async function main() {
   try {
@@ -39,7 +58,7 @@ async function main() {
     // Read the prompt file
     let content = fs.readFileSync(promptPath, "utf8");
 
-    // Collect all GH_AW_EXPR_* environment variables
+    // Step 1: Interpolate variables
     const variables = {};
     for (const [key, value] of Object.entries(process.env)) {
       if (key.startsWith("GH_AW_EXPR_")) {
@@ -47,22 +66,27 @@ async function main() {
       }
     }
 
-    // Log the number of variables found
     const varCount = Object.keys(variables).length;
-    core.info(`Found ${varCount} expression variable(s) to interpolate`);
-
-    if (varCount === 0) {
+    if (varCount > 0) {
+      core.info(`Found ${varCount} expression variable(s) to interpolate`);
+      content = interpolateVariables(content, variables);
+      core.info(`Successfully interpolated ${varCount} variable(s) in prompt`);
+    } else {
       core.info("No expression variables found, skipping interpolation");
-      return;
     }
 
-    // Interpolate variables
-    const interpolated = interpolateVariables(content, variables);
+    // Step 2: Render template conditionals
+    const hasConditionals = /{{#if\s+[^}]+}}/.test(content);
+    if (hasConditionals) {
+      core.info("Processing conditional template blocks");
+      content = renderMarkdownTemplate(content);
+      core.info("Template rendered successfully");
+    } else {
+      core.info("No conditional blocks found in prompt, skipping template rendering");
+    }
 
     // Write back to the same file
-    fs.writeFileSync(promptPath, interpolated, "utf8");
-
-    core.info(`Successfully interpolated ${varCount} variable(s) in prompt`);
+    fs.writeFileSync(promptPath, content, "utf8");
   } catch (error) {
     core.setFailed(error instanceof Error ? error.message : String(error));
   }

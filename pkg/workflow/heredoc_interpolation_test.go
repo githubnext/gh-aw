@@ -79,19 +79,19 @@ Actor: ${{ github.actor }}
 		t.Error("Original GitHub expressions should be replaced with ${GH_AW_EXPR_...} references in prompt")
 	}
 
-	// Verify that the interpolation step exists
-	if !strings.Contains(compiledStr, "- name: Interpolate variables in prompt") {
-		t.Error("Compiled workflow should contain interpolation step")
+	// Verify that the interpolation and template rendering step exists
+	if !strings.Contains(compiledStr, "- name: Interpolate variables and render templates") {
+		t.Error("Compiled workflow should contain interpolation and template rendering step")
 	}
 
-	// Verify that the interpolation step uses github-script
+	// Verify that the step uses github-script
 	if !strings.Contains(compiledStr, "uses: actions/github-script@") {
-		t.Error("Interpolation step should use actions/github-script")
+		t.Error("Interpolation and template rendering step should use actions/github-script")
 	}
 
-	// Verify environment variables are defined in the interpolation step
+	// Verify environment variables are defined in the step
 	if !strings.Contains(compiledStr, "GH_AW_EXPR_") {
-		t.Error("Interpolation step should contain GH_AW_EXPR_ environment variables")
+		t.Error("Interpolation and template rendering step should contain GH_AW_EXPR_ environment variables")
 	}
 }
 
@@ -141,8 +141,8 @@ Actor: ${{ github.actor }}
 		t.Error("Expected quoted PROMPT_EOF delimiters to prevent shell variable interpolation")
 	}
 
-	// Verify interpolation step exists
-	if !strings.Contains(compiledStr, "- name: Interpolate variables in prompt") {
-		t.Error("Expected interpolation step for JavaScript-based variable interpolation")
+	// Verify interpolation and template rendering step exists
+	if !strings.Contains(compiledStr, "- name: Interpolate variables and render templates") {
+		t.Error("Expected interpolation and template rendering step for JavaScript-based variable interpolation")
 	}
 }
