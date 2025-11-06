@@ -52,9 +52,17 @@ node scripts/changeset.js release minor
 This command:
 - Checks prerequisites (clean tree, main branch)
 - Updates `CHANGELOG.md` with the new version and changes
-- Deletes processed changeset files
+- Deletes processed changeset files (if any exist)
 - Automatically commits the changes
 - Creates and pushes a git tag for the release
+
+**Note**: If no changeset files exist, you must specify the release type explicitly:
+```bash
+# Required when no changeset files exist
+node scripts/changeset.js release patch
+```
+
+When no changesets exist, the script adds a generic maintenance entry to the CHANGELOG.
 
 ## Changeset File Format
 
@@ -88,6 +96,8 @@ $ node scripts/changeset.js release
 
 ## Release Workflow
 
+### Standard Workflow (with changesets)
+
 1. **Add changeset files** to `.changeset/` directory for each change:
    ```bash
    # Create a changeset file
@@ -117,6 +127,23 @@ $ node scripts/changeset.js release
    - Create a git tag
    - Push the tag to remote
 
+### Releasing Without Changesets
+
+For maintenance releases with dependency updates or minor improvements that don't require individual changeset files:
+
+1. **Specify the release type explicitly:**
+   ```bash
+   node scripts/changeset.js release patch
+   # or
+   node scripts/changeset.js release minor
+   ```
+
+2. The script will:
+   - Add a generic "Maintenance release" entry to CHANGELOG.md
+   - Commit the changes
+   - Create a git tag
+   - Push the tag to remote
+
 ## Features
 
 - ✅ **Automatic Version Determination**: Analyzes all changesets and picks the highest priority bump type
@@ -124,6 +151,7 @@ $ node scripts/changeset.js release
 - ✅ **Git Integration**: Reads current version from git tags
 - ✅ **Automated Git Operations**: Automatically commits, tags, and pushes releases
 - ✅ **Safety First**: Requires explicit specification for major releases
+- ✅ **Flexible Releases**: Supports releases with or without changeset files
 - ✅ **Clean Workflow**: Deletes processed changesets after release
 - ✅ **Zero Dependencies**: Pure Node.js implementation
 
