@@ -35,32 +35,5 @@ func getCodespacePermissionErrorMessage() string {
 	msg.WriteString("The default GitHub token in Codespaces does not have 'actions:write'\n")
 	msg.WriteString("permission, which is required to trigger GitHub Actions workflows.\n\n")
 
-	msg.WriteString("To fix this, you need to configure repository permissions in your\n")
-	msg.WriteString("devcontainer.json file.\n\n")
-
-	msg.WriteString(console.FormatInfoMessage("Quick Fix:"))
-	msg.WriteString("\n")
-	msg.WriteString("   Add the following to .devcontainer/devcontainer.json:\n\n")
-
-	msg.WriteString("   {\n")
-	msg.WriteString("     \"customizations\": {\n")
-	msg.WriteString("       \"codespaces\": {\n")
-	msg.WriteString("         \"repositories\": {\n")
-	msg.WriteString("           \"owner/repo\": {\n")
-	msg.WriteString("             \"permissions\": {\n")
-	msg.WriteString("               \"actions\": \"write\"\n")
-	msg.WriteString("             }\n")
-	msg.WriteString("           }\n")
-	msg.WriteString("         }\n")
-	msg.WriteString("       }\n")
-	msg.WriteString("     }\n")
-	msg.WriteString("   }\n\n")
-
-	msg.WriteString("   Then rebuild your codespace to apply the changes.\n\n")
-
-	msg.WriteString(console.FormatInfoMessage("Documentation:"))
-	msg.WriteString("\n")
-	msg.WriteString("   https://docs.github.com/en/codespaces/setting-up-your-project-for-codespaces/adding-a-dev-container-configuration\n\n")
-
 	return msg.String()
 }

@@ -146,10 +146,7 @@ func TestGetCodespacePermissionErrorMessage(t *testing.T) {
 	requiredStrings := []string{
 		"Codespace",
 		"actions:write",
-		"devcontainer.json",
-		"permissions",
-		"repositories",
-		"docs.github.com",
+		"GitHub Actions workflows",
 	}
 
 	for _, required := range requiredStrings {
