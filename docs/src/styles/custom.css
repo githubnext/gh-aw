@@ -9,46 +9,287 @@
   --sl-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --sl-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   
-  /* Override Starlight's default blue with GitHub AI purple */
-  --sl-color-accent-low: #501daf;
-  --sl-color-accent: #c06eff;
-  --sl-color-accent-high: #d0b0ff;
+  /* GitHub AI purple */
+  --sl-color-accent-low: #6639ba;
+  --sl-color-accent: #d896ff;
+  --sl-color-accent-high: #e5c7ff;
   
   /* Primary action color */
-  --sl-color-text-accent: #c06eff;
+  --sl-color-text-accent: #d896ff;
   
   /* Link colors */
   --sl-color-white: #ffffff;
-  --sl-color-gray-1: #f0f6fc;
-  --sl-color-gray-2: #c9d1d9;
-  --sl-color-gray-3: #8b949e;
-  --sl-color-gray-4: #6e7681;
-  --sl-color-gray-5: #484f58;
-  --sl-color-gray-6: #30363d;
-  --sl-color-black: #0d1117;
+  --sl-color-gray-1: #f6f8fa;
+  --sl-color-gray-2: #d0d7de;
+  --sl-color-gray-3: #8d96a0;
+  --sl-color-gray-4: #656d76;
+  --sl-color-gray-5: #424a53;
+  --sl-color-gray-6: #2d333b;
+  --sl-color-black: #010409;
   
   /* GitHub borders */
   --sl-color-hairline: #21262d;
   --sl-color-hairline-light: rgba(240, 246, 252, 0.1);
   
-  /* Override Starlight defaults */
-  --sl-color-text: #e6edf3;
-  --sl-color-text-invert: #0d1117;
-  --sl-color-gray-7: #0d1117;
+  --sl-color-text: #f0f6fc;
+  --sl-color-text-invert: #010409;
+  --sl-color-gray-7: #010409;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #5b3da3;
+  --sl-color-accent: #6b46c1;
+  --sl-color-accent-high: #5b3da3;
+  
+  --sl-color-text-accent: #5b3da3;
+  
+  --sl-color-white: #010409;
+  --sl-color-gray-1: #010409;
+  --sl-color-gray-2: #424a53;
+  --sl-color-gray-3: #656d76;
+  --sl-color-gray-4: #8d96a0;
+  --sl-color-gray-5: #d0d7de;
+  --sl-color-gray-6: #eaeef2;
+  --sl-color-black: #ffffff;
+  
+  --sl-color-hairline: #d0d7de;
+  --sl-color-hairline-light: rgba(1, 4, 9, 0.1);
+  
+  --sl-color-text: #010409;
+  --sl-color-text-invert: #ffffff;
+  --sl-color-gray-7: #ffffff;
+}
+
+:root[data-theme='light'] body {
+  background: linear-gradient(180deg, #e9e5f5 0%, #f0ecf8 50%, #e9e5f5 100%) !important;
+  background-attachment: fixed !important;
+  position: relative;
+}
+
+:root[data-theme='light'] body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(ellipse 800px 600px at 20% 30%, rgba(91, 61, 163, 0.18), transparent),
+    radial-gradient(ellipse 600px 800px at 80% 70%, rgba(107, 70, 193, 0.15), transparent),
+    radial-gradient(ellipse 1000px 400px at 50% 100%, rgba(123, 85, 214, 0.12), transparent);
+  background-size: 100% 100%, 100% 100%, 100% 100%;
+  z-index: 0;
+  pointer-events: none;
+  animation: light-glow-move 20s ease-in-out infinite;
+}
+
+:root[data-theme='light'] .page {
+  background: transparent !important;
+}
+
+:root[data-theme='light'] .main-frame {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+}
+
+:root[data-theme='light'] main {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+}
+
+:root[data-theme='light'] .content-panel {
+  background: transparent !important;
+}
+
+@keyframes light-glow-move {
+  0%, 100% {
+    background-position: 0% 0%, 100% 100%, 50% 100%, 0% 0%;
+  }
+  25% {
+    background-position: 10% 20%, 90% 80%, 40% 90%, 0% 0%;
+  }
+  50% {
+    background-position: 20% 30%, 80% 70%, 60% 80%, 0% 0%;
+  }
+  75% {
+    background-position: 10% 40%, 90% 60%, 50% 90%, 0% 0%;
+  }
+}
+
+:root[data-theme='light'] .sidebar {
+  border-right: 1px solid #d0d7de;
+  background: transparent !important;
+}
+
+:root[data-theme='light'] .hero {
+  border-bottom: 1px solid #d0d7de;
+  background: transparent !important;
+}
+
+:root[data-theme='light'] .hero h1 {
+  color: #010409;
+}
+
+:root[data-theme='light'] .hero .tagline {
+  color: #424a53;
+}
+
+:root[data-theme='light'] .experimental-badge {
+  background: rgba(107, 70, 193, 0.12) !important;
+  border: 1px solid rgba(107, 70, 193, 0.3) !important;
+  color: #5b3da3 !important;
+}
+
+:root[data-theme='light'] .site-title span {
+  color: #010409;
+}
+
+:root[data-theme='light'] nav a {
+  color: #424a53;
+}
+
+:root[data-theme='light'] nav a:hover {
+  color: #5b3da3;
+}
+
+:root[data-theme='light'] nav a[aria-current="page"] {
+  color: #5b3da3;
+}
+
+:root[data-theme='light'] .sl-markdown-content {
+  color: #010409;
+}
+
+:root[data-theme='light'] .sl-markdown-content h1,
+:root[data-theme='light'] .sl-markdown-content h2,
+:root[data-theme='light'] .sl-markdown-content h3,
+:root[data-theme='light'] .sl-markdown-content h4,
+:root[data-theme='light'] .sl-markdown-content h5,
+:root[data-theme='light'] .sl-markdown-content h6 {
+  color: #010409;
+  border-bottom: 1px solid #d0d7de;
+}
+
+:root[data-theme='light'] .sl-markdown-content a {
+  color: #0969da;
+}
+
+:root[data-theme='light'] .sl-markdown-content pre {
+  background-color: #f6f8fa;
+  border: 1px solid #d0d7de;
+}
+
+:root[data-theme='light'] .sl-markdown-content code {
+  background-color: rgba(175, 184, 193, 0.2);
+}
+
+:root[data-theme='light'] .sl-markdown-content table {
+  border: 1px solid #d0d7de;
+}
+
+:root[data-theme='light'] .sl-markdown-content th {
+  background-color: #f6f8fa;
+  border-bottom: 1px solid #d0d7de;
+}
+
+:root[data-theme='light'] .sl-markdown-content td {
+  border-bottom: 1px solid #d0d7de;
+}
+
+:root[data-theme='light'] .sl-markdown-content blockquote {
+  border-left: 4px solid #d0d7de;
+  color: #424a53;
+}
+
+:root[data-theme='light'] a {
+  color: #5b3da3;
+}
+
+:root[data-theme='light'] a:hover {
+  color: #6b46c1;
+}
+
+:root[data-theme='light'] ::-webkit-scrollbar-track {
+  background: #ffffff;
+}
+
+:root[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background: #d0d7de;
+}
+
+:root[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+  background: #afb8c1;
 }
 
 body {
-  background: linear-gradient(180deg, #1c2128 0%, #22272e 50%, #0d1117 100%);
-  background-attachment: fixed;
+  background: linear-gradient(180deg, #1c2128 0%, #22272e 50%, #0d1117 100%) !important;
+  background-attachment: fixed !important;
+  position: relative;
+}
+
+/* Animated purple glowing background layer for dark theme */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(ellipse 800px 600px at 20% 30%, rgba(139, 92, 246, 0.15), transparent),
+    radial-gradient(ellipse 600px 800px at 80% 70%, rgba(192, 110, 255, 0.12), transparent),
+    radial-gradient(ellipse 1000px 400px at 50% 100%, rgba(236, 108, 185, 0.08), transparent);
+  background-size: 100% 100%, 100% 100%, 100% 100%;
+  z-index: 0;
+  pointer-events: none;
+  animation: glow-move 20s ease-in-out infinite;
+}
+
+.page {
+  background: transparent !important;
+}
+
+.main-frame {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
 }
 
 main {
-  background-color: transparent;
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+}
+
+.content-panel {
+  background: transparent !important;
+}
+
+@keyframes glow-move {
+  0%, 100% {
+    background-position: 0% 0%, 100% 100%, 50% 100%, 0% 0%;
+  }
+  25% {
+    background-position: 10% 20%, 90% 80%, 40% 90%, 0% 0%;
+  }
+  50% {
+    background-position: 20% 30%, 80% 70%, 60% 80%, 0% 0%;
+  }
+  75% {
+    background-position: 10% 40%, 90% 60%, 50% 90%, 0% 0%;
+  }
 }
 
 .sidebar {
-  background-color: transparent;
+  background-color: transparent !important;
   border-right: 1px solid #21262d;
+}
+
+:root[data-theme='light'] .sidebar {
+  border-right: 1px solid #d0d7de;
+  background: transparent !important;
 }
 
 header {
@@ -59,6 +300,11 @@ header {
   z-index: 10;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+}
+
+:root[data-theme='light'] header {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.8));
+  border-bottom: 1px solid #d0d7de;
 }
 
 header::after {
@@ -78,7 +324,7 @@ header::after {
 }
 
 .sl-markdown-content {
-  color: #e6edf3;
+  color: #f0f6fc;
 }
 
 .sl-markdown-content pre {
@@ -114,7 +360,7 @@ header::after {
 .sl-markdown-content h4,
 .sl-markdown-content h5,
 .sl-markdown-content h6 {
-  color: #f0f6fc;
+  color: #ffffff;
   font-weight: 600;
   border-bottom: 1px solid #21262d;
   padding-bottom: 0.3em;
@@ -134,26 +380,45 @@ header::after {
 .sl-markdown-content blockquote {
   border-left: 4px solid #30363d;
   padding-left: 1rem;
-  color: #8b949e;
+  color: #8d96a0;
 }
 
 .sl-markdown-content a {
-  color: #58a6ff;
+  color: #79c0ff;
   text-decoration: none;
 }
 
 nav a {
-  color: #c9d1d9;
+  color: #d0d7de;
   transition: color 0.2s ease;
 }
 
 nav a:hover {
-  color: #58a6ff;
+  color: #79c0ff;
 }
 
 nav a[aria-current="page"] {
-  color: #c06eff;
+  color: #d896ff;
   font-weight: 600;
+}
+
+/* Social icons - GitHub in white */
+.social-icons a[href*="github.com"] {
+  color: #ffffff !important;
+}
+
+:root[data-theme='light'] .social-icons a[href*="github.com"] {
+  color: #010409 !important;
+}
+
+/* Theme toggle icon visibility in light mode */
+:root[data-theme='light'] .icon-wrapper {
+  color: #424a53 !important;
+}
+
+:root[data-theme='light'] .icon-wrapper:hover {
+  background: rgba(110, 118, 129, 0.15) !important;
+  color: #010409 !important;
 }
 
 /* Buttons */
@@ -222,7 +487,7 @@ a.button:hover {
 }
 
 .site-title span {
-  color: #e6edf3;
+  color: #f0f6fc;
 }
 
 site-search {
@@ -234,23 +499,23 @@ site-search {
 
 /* Hero buttons with purple accent */
 .hero .action.primary {
-  background: linear-gradient(180deg, #c06eff 0%, #501daf 100%);
-  border-color: #c06eff;
+  background: linear-gradient(180deg, #d896ff 0%, #6639ba 100%);
+  border-color: #d896ff;
   font: #ffffff;
 }
 
 .hero .action.primary:hover {
-  background: linear-gradient(180deg, #d0b0ff 0%, #c06eff 100%);
-  border-color: #d0b0ff;
+  background: linear-gradient(180deg, #e5c7ff 0%, #8250df 100%);
+  border-color: #e5c7ff;
   font: #ffffff;
 }
 
 a {
-  color: #c06eff;
+  color: #d896ff;
 }
 
 a:hover {
-  color: #d0b0ff;
+  color: #e5c7ff;
 }
 
 .sl-badge {
@@ -280,9 +545,9 @@ starlight-menu-button + * {
 }
 
 .experimental-badge {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  color: rgba(255, 255, 255, 0.7) !important;
+  background: rgba(139, 92, 246, 0.12) !important;
+  border: 1px solid rgba(139, 92, 246, 0.4) !important;
+  color: #d896ff !important;
 }
 
 .hero h1 {
@@ -297,7 +562,7 @@ starlight-menu-button + * {
 .hero .tagline {
   font-size: clamp(0.9375rem, 1.5vw, 1.0625rem);
   line-height: 1.6;
-  color: #8d96a0;
+  color: #c9d1d9;
   max-width: 50rem;
   margin: 0 auto 1.5rem;
   font-weight: 400;

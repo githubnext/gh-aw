@@ -25,11 +25,13 @@ export default defineConfig({
 			title: 'GitHub Agentic Workflows',
 			logo: {
 				src: './src/assets/agentic-workflow.svg',
+				replacesTitle: false,
 			},
 			components: {
 				SocialIcons: './src/components/CustomHeader.astro',
 				ThemeSelect: './src/components/ThemeToggle.astro',
 				Footer: './src/components/CustomFooter.astro',
+				SiteTitle: './src/components/CustomLogo.astro',
 			},
 			customCss: [
 				'./src/styles/custom.css',
@@ -47,7 +49,6 @@ export default defineConfig({
 				},
 			},
 			plugins: [
-				// starlightChangelogs(),
 				starlightGitHubAlerts(),
 				starlightLinksValidator({
 					errorOnRelativeLinks: true,
@@ -94,9 +95,6 @@ export default defineConfig({
 					label: 'Troubleshooting',
 					autogenerate: { directory: 'troubleshooting' },
 				},
-				// ...makeChangelogsSidebarLinks([
-				// 	{ type: 'all', base: 'changelog', label: 'Changelog' }
-				// ]),
 				{
 					label: 'Status',
 					link: '/status/',

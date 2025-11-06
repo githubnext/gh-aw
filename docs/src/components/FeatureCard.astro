@@ -163,6 +163,58 @@ const Tag = href ? 'a' : 'div';
     text-decoration: underline;
   }
 
+  :global([data-theme='light']) .feature-card {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: #d0d7de;
+  }
+
+  :global([data-theme='light']) .feature-card::before {
+    background: linear-gradient(135deg, rgba(130, 80, 223, 0.05) 0%, transparent 100%);
+  }
+
+  :global([data-theme='light']) .feature-card:hover {
+    border-color: #6639ba;
+    box-shadow: 0 4px 12px rgba(102, 57, 186, 0.15);
+  }
+
+  :global([data-theme='light']) .feature-icon {
+    background: linear-gradient(135deg, rgba(130, 80, 223, 0.15), rgba(130, 80, 223, 0.08));
+    border-color: rgba(130, 80, 223, 0.3);
+    color: #6639ba;
+    box-shadow: 0 4px 12px rgba(130, 80, 223, 0.15);
+  }
+
+  :global([data-theme='light']) .feature-card:hover .feature-icon {
+    background: linear-gradient(135deg, rgba(130, 80, 223, 0.2), rgba(130, 80, 223, 0.12));
+    border-color: rgba(130, 80, 223, 0.4);
+    color: #8250df;
+    box-shadow: 0 6px 16px rgba(130, 80, 223, 0.25);
+  }
+
+  :global([data-theme='light']) .feature-title {
+    color: #010409;
+  }
+
+  :global([data-theme='light']) .feature-card:hover .feature-title {
+    color: #6639ba;
+  }
+
+  :global([data-theme='light']) .feature-description {
+    color: #424a53;
+  }
+
+  :global([data-theme='light']) .feature-card:hover .feature-description {
+    color: #010409;
+  }
+
+  :global([data-theme='light']) .feature-description :global(a) {
+    color: #0969da;
+  }
+
+  :global([data-theme='light']) .feature-description :global(a:hover) {
+    color: #0550ae;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .feature-card,
     .feature-card::before,

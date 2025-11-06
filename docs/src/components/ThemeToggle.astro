@@ -25,45 +25,61 @@ const autoIcon = octicons['device-desktop'].toSVG({ width: 16, height: 16 });
 <script>
   type Theme = 'auto' | 'dark' | 'light';
 
-  function updateIcon(theme: Theme) {
-    document.documentElement.setAttribute('data-theme-mode', theme);
-  }
-
-  document.addEventListener('click', (e) => {
-    const iconWrapper = (e.target as HTMLElement).closest('.icon-wrapper');
-    if (!iconWrapper) return;
-    
-    const select = iconWrapper.parentElement?.querySelector('select') as HTMLSelectElement;
-    if (!select) return;
-    
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const currentTheme = select.value as Theme;
-    let newTheme: Theme;
-    
-    if (currentTheme === 'auto') {
-      newTheme = 'light';
-    } else if (currentTheme === 'light') {
-      newTheme = 'dark';
-    } else {
-      newTheme = 'auto';
-    }
-    
-    select.value = newTheme;
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    updateIcon(newTheme);
-  });
-
-  document.querySelectorAll('starlight-theme-select select').forEach((select) => {
-    select.addEventListener('change', () => {
-      const theme = (select as HTMLSelectElement).value as Theme;
-      updateIcon(theme);
+  function setTheme(theme: Theme) {
+    document.querySelectorAll('starlight-theme-select select').forEach((select) => {
+      (select as HTMLSelectElement).value = theme;
     });
     
-    const theme = (select as HTMLSelectElement).value as Theme;
-    updateIcon(theme);
-  });
+    const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme-mode', theme);
+    
+    localStorage.setItem('starlight-theme', theme);
+  }
+
+  function init() {
+    const iconWrappers = document.querySelectorAll('.icon-wrapper');
+    
+    iconWrappers.forEach(iconWrapper => {
+      iconWrapper.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const select = iconWrapper.parentElement?.querySelector('select') as HTMLSelectElement;
+        if (!select) return;
+        
+        const currentTheme = select.value as Theme;
+        let newTheme: Theme;
+        
+        if (currentTheme === 'auto') {
+          newTheme = 'light';
+        } else if (currentTheme === 'light') {
+          newTheme = 'dark';
+        } else {
+          newTheme = 'auto';
+        }
+        
+        setTheme(newTheme);
+      });
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      const theme = localStorage.getItem('starlight-theme') as Theme;
+      if (theme === 'auto') {
+        setTheme('auto');
+      }
+    });
+    
+    const storedTheme = (localStorage.getItem('starlight-theme') as Theme) || 'auto';
+    setTheme(storedTheme);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 </script>
 
 <style>

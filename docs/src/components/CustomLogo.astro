@@ -1,0 +1,40 @@
+---
+import darkLogoSvg from '../assets/agentic-workflow.svg?raw';
+import lightLogoSvg from '../assets/agentic-workflow-light.svg?raw';
+
+const { siteTitleHref } = Astro.props;
+
+const darkLogoUrl = `data:image/svg+xml;base64,${Buffer.from(darkLogoSvg).toString('base64')}`;
+const lightLogoUrl = `data:image/svg+xml;base64,${Buffer.from(lightLogoSvg).toString('base64')}`;
+---
+
+<a href={siteTitleHref} class="site-title">
+	<img src={darkLogoUrl} alt="GitHub Agentic Workflows" class="theme-logo" data-dark-src={darkLogoUrl} data-light-src={lightLogoUrl} />
+	<span>GitHub Agentic Workflows</span>
+</a>
+
+<script>
+  const updateLogo = () => {
+    const theme = document.documentElement.getAttribute('data-theme');
+    const img = document.querySelector('.theme-logo') as HTMLImageElement;
+    
+    if (img) {
+      const darkSrc = img.getAttribute('data-dark-src');
+      const lightSrc = img.getAttribute('data-light-src');
+      
+      if (theme === 'light' && lightSrc) {
+        img.src = lightSrc;
+      } else if (darkSrc) {
+        img.src = darkSrc;
+      }
+    }
+  };
+  
+  const observer = new MutationObserver(updateLogo);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme']
+  });
+  
+  updateLogo();
+</script>
