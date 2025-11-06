@@ -112,6 +112,7 @@ func getComputeTextScript() string {
 		sources := GetJavaScriptSources()
 		bundled, err := BundleJavaScriptFromSources(computeTextScriptSource, sources, "")
 		if err != nil {
+			scriptsLog.Printf("Bundling failed for compute_text, using source as-is: %v", err)
 			// If bundling fails, use the source as-is
 			computeTextScript = computeTextScriptSource
 		} else {
@@ -128,6 +129,7 @@ func getSanitizeOutputScript() string {
 		sources := GetJavaScriptSources()
 		bundled, err := BundleJavaScriptFromSources(sanitizeOutputScriptSource, sources, "")
 		if err != nil {
+			scriptsLog.Printf("Bundling failed for sanitize_output, using source as-is: %v", err)
 			// If bundling fails, use the source as-is
 			sanitizeOutputScript = sanitizeOutputScriptSource
 		} else {
@@ -144,6 +146,7 @@ func getCreateIssueScript() string {
 		sources := GetJavaScriptSources()
 		bundled, err := BundleJavaScriptFromSources(createIssueScriptSource, sources, "")
 		if err != nil {
+			scriptsLog.Printf("Bundling failed for create_issue, using source as-is: %v", err)
 			// If bundling fails, use the source as-is
 			createIssueScript = createIssueScriptSource
 		} else {
@@ -160,6 +163,7 @@ func getAddLabelsScript() string {
 		sources := GetJavaScriptSources()
 		bundled, err := BundleJavaScriptFromSources(addLabelsScriptSource, sources, "")
 		if err != nil {
+			scriptsLog.Printf("Bundling failed for add_labels, using source as-is: %v", err)
 			// If bundling fails, use the source as-is
 			addLabelsScript = addLabelsScriptSource
 		} else {
@@ -176,6 +180,7 @@ func getParseFirewallLogsScript() string {
 		sources := GetJavaScriptSources()
 		bundled, err := BundleJavaScriptFromSources(parseFirewallLogsScriptSource, sources, "")
 		if err != nil {
+			scriptsLog.Printf("Bundling failed for parse_firewall_logs, using source as-is: %v", err)
 			// If bundling fails, use the source as-is
 			parseFirewallLogsScript = parseFirewallLogsScriptSource
 		} else {
@@ -192,6 +197,7 @@ func getCreateDiscussionScript() string {
 		sources := GetJavaScriptSources()
 		bundled, err := BundleJavaScriptFromSources(createDiscussionScriptSource, sources, "")
 		if err != nil {
+			scriptsLog.Printf("Bundling failed for create_discussion, using source as-is: %v", err)
 			// If bundling fails, use the source as-is
 			createDiscussionScript = createDiscussionScriptSource
 		} else {
@@ -208,6 +214,7 @@ func getUpdateIssueScript() string {
 		sources := GetJavaScriptSources()
 		bundled, err := BundleJavaScriptFromSources(updateIssueScriptSource, sources, "")
 		if err != nil {
+			scriptsLog.Printf("Bundling failed for update_issue, using source as-is: %v", err)
 			// If bundling fails, use the source as-is
 			updateIssueScript = updateIssueScriptSource
 		} else {
@@ -224,6 +231,7 @@ func getCreateCodeScanningAlertScript() string {
 		sources := GetJavaScriptSources()
 		bundled, err := BundleJavaScriptFromSources(createCodeScanningAlertScriptSource, sources, "")
 		if err != nil {
+			scriptsLog.Printf("Bundling failed for create_code_scanning_alert, using source as-is: %v", err)
 			// If bundling fails, use the source as-is
 			createCodeScanningAlertScript = createCodeScanningAlertScriptSource
 		} else {
@@ -240,6 +248,7 @@ func getCreatePRReviewCommentScript() string {
 		sources := GetJavaScriptSources()
 		bundled, err := BundleJavaScriptFromSources(createPRReviewCommentScriptSource, sources, "")
 		if err != nil {
+			scriptsLog.Printf("Bundling failed for create_pr_review_comment, using source as-is: %v", err)
 			// If bundling fails, use the source as-is
 			createPRReviewCommentScript = createPRReviewCommentScriptSource
 		} else {
@@ -256,6 +265,7 @@ func getAddCommentScript() string {
 		sources := GetJavaScriptSources()
 		bundled, err := BundleJavaScriptFromSources(addCommentScriptSource, sources, "")
 		if err != nil {
+			scriptsLog.Printf("Bundling failed for add_comment, using source as-is: %v", err)
 			// If bundling fails, use the source as-is
 			addCommentScript = addCommentScriptSource
 		} else {
@@ -272,6 +282,7 @@ func getUploadAssetsScript() string {
 		sources := GetJavaScriptSources()
 		bundled, err := BundleJavaScriptFromSources(uploadAssetsScriptSource, sources, "")
 		if err != nil {
+			scriptsLog.Printf("Bundling failed for upload_assets, using source as-is: %v", err)
 			// If bundling fails, use the source as-is
 			uploadAssetsScript = uploadAssetsScriptSource
 		} else {
