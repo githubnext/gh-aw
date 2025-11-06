@@ -67,19 +67,13 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		// Install AWF after Node.js setup but before Copilot CLI installation
 		firewallConfig := getFirewallConfig(workflowData)
 		var awfVersion string
-		var cleanupScript string
 		if firewallConfig != nil {
 			awfVersion = firewallConfig.Version
-			cleanupScript = firewallConfig.CleanupScript
 		}
 
 		// Install AWF binary
 		awfInstall := generateAWFInstallationStep(awfVersion)
 		steps = append(steps, awfInstall)
-
-		// Pre-execution cleanup
-		awfCleanup := generateAWFCleanupStep(cleanupScript)
-		steps = append(steps, awfCleanup)
 	}
 
 	// Add Copilot CLI installation step after AWF
@@ -354,16 +348,7 @@ func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubAc
 
 // GetCleanupStep returns the post-execution cleanup step
 func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionStep {
-	// Only add cleanup step if firewall is enabled
-	if isFirewallEnabled(workflowData) {
-		firewallConfig := getFirewallConfig(workflowData)
-		var postCleanupScript string
-		if firewallConfig != nil {
-			postCleanupScript = firewallConfig.CleanupScript
-		}
-		return generateAWFPostExecutionCleanupStep(postCleanupScript)
-	}
-	// Return empty step if firewall is disabled
+	// Return empty step - cleanup steps have been removed
 	return GitHubActionStep([]string{})
 }
 
@@ -890,20 +875,6 @@ func generateAWFInstallationStep(version string) GitHubActionStep {
 	return GitHubActionStep(stepLines)
 }
 
-// generateAWFCleanupStep creates a GitHub Actions step to cleanup AWF resources
-func generateAWFCleanupStep(scriptPath string) GitHubActionStep {
-	if scriptPath == "" {
-		scriptPath = "\"${GITHUB_WORKSPACE}\"/scripts/ci/cleanup.sh"
-	}
-
-	stepLines := []string{
-		"      - name: Cleanup any existing awf resources",
-		fmt.Sprintf("        run: '%s || true'", scriptPath),
-	}
-
-	return GitHubActionStep(stepLines)
-}
-
 // generateSquidLogsCollectionStep creates a GitHub Actions step to collect Squid logs from AWF
 func generateSquidLogsCollectionStep(workflowName string) GitHubActionStep {
 	sanitizedName := strings.ToLower(SanitizeWorkflowName(workflowName))
@@ -965,21 +936,6 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 	// Inline the JavaScript code with proper indentation
 	scriptLines := FormatJavaScriptForYAML(parserScript)
 	stepLines = append(stepLines, scriptLines...)
-
-	return GitHubActionStep(stepLines)
-}
-
-// generateAWFPostExecutionCleanupStep creates a GitHub Actions step to cleanup AWF resources after execution
-func generateAWFPostExecutionCleanupStep(scriptPath string) GitHubActionStep {
-	if scriptPath == "" {
-		scriptPath = "\"${GITHUB_WORKSPACE}\"/scripts/ci/cleanup.sh"
-	}
-
-	stepLines := []string{
-		"      - name: Cleanup awf resources",
-		"        if: always()",
-		fmt.Sprintf("        run: '%s || true'", scriptPath),
-	}
 
 	return GitHubActionStep(stepLines)
 }

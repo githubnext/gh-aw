@@ -837,8 +837,6 @@ jobs:
           sudo mv awf /usr/local/bin/
           which awf
           awf --version
-      - name: Cleanup any existing awf resources
-        run: '"${GITHUB_WORKSPACE}"/scripts/ci/cleanup.sh || true'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.354
       - name: Downloading container images
@@ -4427,9 +4425,6 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
-      - name: Cleanup awf resources
-        if: always()
-        run: '"${GITHUB_WORKSPACE}"/scripts/ci/cleanup.sh || true'
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
