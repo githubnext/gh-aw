@@ -6,6 +6,26 @@ import (
 	"strings"
 )
 
+// ResolveAgentFilePath returns the properly quoted agent file path with GITHUB_WORKSPACE prefix.
+// This helper extracts the common pattern shared by Copilot, Codex, and Claude engines.
+//
+// The agent file path is relative to the repository root, so we prefix it with ${GITHUB_WORKSPACE}
+// and wrap the entire expression in quotes to handle paths with spaces.
+//
+// Parameters:
+//   - agentFile: The relative path to the agent file (e.g., ".github/agents/test-agent.md")
+//
+// Returns:
+//   - string: The quoted path with GITHUB_WORKSPACE prefix (e.g., "${GITHUB_WORKSPACE}/.github/agents/test-agent.md")
+//
+// Example:
+//
+//	agentPath := ResolveAgentFilePath(".github/agents/my-agent.md")
+//	// Returns: "${GITHUB_WORKSPACE}/.github/agents/my-agent.md"
+func ResolveAgentFilePath(agentFile string) string {
+	return fmt.Sprintf("\"${GITHUB_WORKSPACE}\"/%s", agentFile)
+}
+
 // BuildStandardNpmEngineInstallSteps creates standard npm installation steps for engines
 // This helper extracts the common pattern shared by Copilot, Codex, and Claude engines.
 //

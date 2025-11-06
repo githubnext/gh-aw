@@ -138,3 +138,65 @@ func TestBuildStandardNpmEngineInstallSteps_AllEngines(t *testing.T) {
 		})
 	}
 }
+
+// TestResolveAgentFilePath tests the shared agent file path resolution helper
+func TestResolveAgentFilePath(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "basic agent file path",
+			input:    ".github/agents/test-agent.md",
+			expected: "\"${GITHUB_WORKSPACE}\"/.github/agents/test-agent.md",
+		},
+		{
+			name:     "path with spaces",
+			input:    ".github/agents/my agent file.md",
+			expected: "\"${GITHUB_WORKSPACE}\"/.github/agents/my agent file.md",
+		},
+		{
+			name:     "deeply nested path",
+			input:    ".github/copilot/instructions/deep/nested/agent.md",
+			expected: "\"${GITHUB_WORKSPACE}\"/.github/copilot/instructions/deep/nested/agent.md",
+		},
+		{
+			name:     "simple filename",
+			input:    "agent.md",
+			expected: "\"${GITHUB_WORKSPACE}\"/agent.md",
+		},
+		{
+			name:     "path with special characters",
+			input:    ".github/agents/test-agent_v2.0.md",
+			expected: "\"${GITHUB_WORKSPACE}\"/.github/agents/test-agent_v2.0.md",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ResolveAgentFilePath(tt.input)
+			if result != tt.expected {
+				t.Errorf("ResolveAgentFilePath(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestResolveAgentFilePathFormat tests that the output format is consistent
+func TestResolveAgentFilePathFormat(t *testing.T) {
+	input := ".github/agents/test.md"
+	result := ResolveAgentFilePath(input)
+
+	// Verify it starts with quoted GITHUB_WORKSPACE
+	if result[:22] != "\"${GITHUB_WORKSPACE}\"/" {
+		t.Errorf("Expected path to start with '\"${GITHUB_WORKSPACE}\"/', got: %s", result)
+	}
+
+	// Verify it ends with the input path
+	expectedSuffix := input
+	actualSuffix := result[22:]
+	if actualSuffix != expectedSuffix {
+		t.Errorf("Expected path to end with %q, got: %q", expectedSuffix, actualSuffix)
+	}
+}
