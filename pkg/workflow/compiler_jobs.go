@@ -266,6 +266,22 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, addLabelsJob.Name)
 	}
 
+	// Build remove_labels job if output.remove-labels is configured (including null/empty)
+	if data.SafeOutputs.RemoveLabels != nil {
+		removeLabelsJob, err := c.buildRemoveLabelsJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build remove_labels job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			removeLabelsJob.Needs = append(removeLabelsJob.Needs, constants.DetectionJobName)
+		}
+		if err := c.jobManager.AddJob(removeLabelsJob); err != nil {
+			return fmt.Errorf("failed to add remove_labels job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, removeLabelsJob.Name)
+	}
+
 	// Build update_issue job if output.update-issue is configured
 	if data.SafeOutputs.UpdateIssues != nil {
 		updateIssueJob, err := c.buildCreateOutputUpdateIssueJob(data, jobName)

@@ -111,6 +111,17 @@ interface AddLabelsItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for removing labels from an issue or PR
+ */
+interface RemoveLabelsItem extends BaseSafeOutputItem {
+  type: "remove_labels";
+  /** Array of label names to remove */
+  labels: string[];
+  /** Target issue; otherwize resolved from current context */
+  issue_number?: number;
+}
+
+/**
  * JSONL item for updating an issue
  */
 interface UpdateIssueItem extends BaseSafeOutputItem {
@@ -169,6 +180,7 @@ type SafeOutputItem =
   | CreatePullRequestReviewCommentItem
   | CreateCodeScanningAlertItem
   | AddLabelsItem
+  | RemoveLabelsItem
   | UpdateIssueItem
   | PushToPrBranchItem
   | MissingToolItem
@@ -192,6 +204,7 @@ export {
   CreatePullRequestReviewCommentItem,
   CreateCodeScanningAlertItem,
   AddLabelsItem,
+  RemoveLabelsItem,
   UpdateIssueItem,
   PushToPrBranchItem,
   MissingToolItem,

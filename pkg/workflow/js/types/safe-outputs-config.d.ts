@@ -64,6 +64,13 @@ interface AddLabelsConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for removing labels from issues or PRs
+ */
+interface RemoveLabelsConfig extends SafeOutputConfig {
+  allowed?: string[];
+}
+
+/**
  * Configuration for updating issues
  */
 interface UpdateIssueConfig extends SafeOutputConfig {
@@ -143,6 +150,7 @@ type SpecificSafeOutputConfig =
   | CreatePullRequestReviewCommentConfig
   | CreateCodeScanningAlertConfig
   | AddLabelsConfig
+  | RemoveLabelsConfig
   | UpdateIssueConfig
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
@@ -162,6 +170,7 @@ export {
   CreatePullRequestReviewCommentConfig,
   CreateCodeScanningAlertConfig,
   AddLabelsConfig,
+  RemoveLabelsConfig,
   UpdateIssueConfig,
   PushToPullRequestBranchConfig,
   UploadAssetConfig,

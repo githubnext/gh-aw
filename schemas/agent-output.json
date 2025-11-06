@@ -31,6 +31,7 @@
         {"$ref": "#/$defs/AddCommentOutput"},
         {"$ref": "#/$defs/CreatePullRequestOutput"},
         {"$ref": "#/$defs/AddLabelsOutput"},
+        {"$ref": "#/$defs/RemoveLabelsOutput"},
         {"$ref": "#/$defs/UpdateIssueOutput"},
         {"$ref": "#/$defs/PushToPullRequestBranchOutput"},
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
@@ -129,6 +130,26 @@
         "labels": {
           "type": "array",
           "description": "Array of label names to add",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      },
+      "required": ["type", "labels"],
+      "additionalProperties": false
+    },
+    "RemoveLabelsOutput": {
+      "title": "Remove Issue Label Output",
+      "description": "Output for removing labels from an issue or pull request",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "remove_labels"
+        },
+        "labels": {
+          "type": "array",
+          "description": "Array of label names to remove",
           "items": {
             "type": "string"
           },

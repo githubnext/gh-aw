@@ -100,6 +100,9 @@ var createIssueScriptSource string
 //go:embed js/add_labels.cjs
 var addLabelsScriptSource string
 
+//go:embed js/remove_labels.cjs
+var removeLabelsScriptSource string
+
 //go:embed js/create_discussion.cjs
 var createDiscussionScriptSource string
 
@@ -137,6 +140,9 @@ var (
 
 	addLabelsScript     string
 	addLabelsScriptOnce sync.Once
+
+	removeLabelsScript     string
+	removeLabelsScriptOnce sync.Once
 
 	createDiscussionScript     string
 	createDiscussionScriptOnce sync.Once
@@ -241,6 +247,22 @@ func getAddLabelsScript() string {
 		}
 	})
 	return addLabelsScript
+}
+
+// getRemoveLabelsScript returns the bundled remove_labels script
+// Bundling is performed on first access and cached for subsequent calls
+func getRemoveLabelsScript() string {
+	removeLabelsScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(removeLabelsScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			removeLabelsScript = removeLabelsScriptSource
+		} else {
+			removeLabelsScript = bundled
+		}
+	})
+	return removeLabelsScript
 }
 
 // getParseFirewallLogsScript returns the bundled parse_firewall_logs script
