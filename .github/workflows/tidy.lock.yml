@@ -146,7 +146,8 @@ jobs:
               const lockMtime = lockStat.mtime.getTime();
               core.info(`  Source modified: ${workflowStat.mtime.toISOString()}`);
               core.info(`  Lock modified: ${lockStat.mtime.toISOString()}`);
-              if (workflowMtime > lockMtime) {
+              const TOLERANCE_MS = 100;
+              if (workflowMtime > lockMtime + TOLERANCE_MS) {
                 const warningMessage = `WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
                 core.error(warningMessage);
                 const workflowTimestamp = workflowStat.mtime.toISOString();
