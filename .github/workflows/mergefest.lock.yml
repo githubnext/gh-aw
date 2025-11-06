@@ -1443,7 +1443,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat > "$GH_AW_PROMPT" << PROMPT_EOF
           # Mergefest - Merge Main into Pull Request Branch
           
           You are the Mergefest agent - responsible for merging the main branch into the current pull request branch when invoked with the `/mergefest` command.
@@ -1743,7 +1743,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1775,7 +1775,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1788,7 +1788,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           
           ---
@@ -1807,7 +1807,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1831,7 +1831,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1867,7 +1867,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           

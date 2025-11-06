@@ -1207,7 +1207,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat > "$GH_AW_PROMPT" << PROMPT_EOF
           # Instructions Janitor
           
           You are an AI agent specialized in maintaining instruction files for other AI agents. Your mission is to keep the `github-agentic-workflows.instructions.md` file synchronized with documentation changes.
@@ -1373,7 +1373,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1405,7 +1405,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1418,7 +1418,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           
           ---
@@ -1437,7 +1437,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1462,7 +1462,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1488,7 +1488,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           

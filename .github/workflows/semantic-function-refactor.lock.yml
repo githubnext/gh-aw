@@ -1230,7 +1230,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat > "$GH_AW_PROMPT" << PROMPT_EOF
           ## Serena configuration
           
           The active workspaces is ${GH_AW_EXPR_2D1CC6E7}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
@@ -1712,7 +1712,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1744,7 +1744,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1757,7 +1757,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           
           ---
@@ -1776,7 +1776,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1797,7 +1797,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           

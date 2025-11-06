@@ -2305,7 +2305,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat > "$GH_AW_PROMPT" << PROMPT_EOF
           ## Report Formatting
           
           Structure your report with an overview followed by detailed content:
@@ -2629,7 +2629,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2661,7 +2661,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2674,7 +2674,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           
           ---
@@ -2693,7 +2693,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2718,7 +2718,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2739,7 +2739,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2775,7 +2775,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           

@@ -57,7 +57,7 @@ Actor: ${{ github.actor }}
 	// Verify that heredoc delimiters are NOT quoted (should be PROMPT_EOF not 'PROMPT_EOF')
 	if strings.Contains(compiledStr, "<< 'PROMPT_EOF'") {
 		t.Error("PROMPT_EOF delimiter should NOT be quoted - this prevents variable interpolation")
-		
+
 		// Show the problematic lines
 		lines := strings.Split(compiledStr, "\n")
 		for i, line := range lines {
