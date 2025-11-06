@@ -13,6 +13,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/timeutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
@@ -101,7 +102,7 @@ func extractRunID(input string) (int64, error) {
 
 // parseRunURL parses a run ID or URL and extracts all relevant information
 func parseRunURL(input string) (RunURLInfo, error) {
-	runID, owner, repo, hostname, err := workflow.ParseRunURL(input)
+	runID, owner, repo, hostname, err := parser.ParseRunURL(input)
 	if err != nil {
 		return RunURLInfo{}, err
 	}

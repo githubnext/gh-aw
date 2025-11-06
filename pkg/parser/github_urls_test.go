@@ -1,4 +1,4 @@
-package workflow
+package parser
 
 import (
 	"strings"
@@ -752,6 +752,11 @@ func TestIsValidGitHubIdentifier(t *testing.T) {
 		{
 			name:  "Invalid - starts with hyphen",
 			input: "-repo",
+			want:  false,
+		},
+		{
+			name:  "Invalid - ends with hyphen",
+			input: "repo-",
 			want:  false,
 		},
 		{

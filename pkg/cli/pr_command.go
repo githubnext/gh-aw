@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
-	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/spf13/cobra"
 )
 
@@ -93,7 +93,7 @@ The command will:
 
 // parsePRURL extracts owner, repo, and PR number from a GitHub PR URL
 func parsePRURL(prURL string) (owner, repo string, prNumber int, err error) {
-	return workflow.ParsePRURL(prURL)
+	return parser.ParsePRURL(prURL)
 }
 
 // getCurrentRepo gets the current repository information using gh CLI

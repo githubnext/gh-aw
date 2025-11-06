@@ -1,4 +1,4 @@
-package workflow
+package parser
 
 import (
 	"fmt"
@@ -298,11 +298,11 @@ func ParseRepoFileURL(fileURL string) (owner, repo, ref, filePath string, err er
 // IsValidGitHubIdentifier checks if a string is a valid GitHub username or repository name
 func IsValidGitHubIdentifier(s string) bool {
 	// GitHub identifiers can contain alphanumeric characters, hyphens, and underscores
-	// They cannot start with a hyphen and must be 1-39 characters long
+	// They cannot start or end with a hyphen and must be 1-39 characters long
 	if len(s) == 0 || len(s) > 39 {
 		return false
 	}
-	if s[0] == '-' {
+	if s[0] == '-' || s[len(s)-1] == '-' {
 		return false
 	}
 	for _, ch := range s {

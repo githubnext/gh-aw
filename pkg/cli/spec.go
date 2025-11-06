@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 // RepoSpec represents a parsed repository specification
@@ -114,7 +114,7 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 		return nil, fmt.Errorf("URL must be from github.com or raw.githubusercontent.com")
 	}
 
-	owner, repo, ref, filePath, err := workflow.ParseRepoFileURL(spec)
+	owner, repo, ref, filePath, err := parser.ParseRepoFileURL(spec)
 	if err != nil {
 		return nil, err
 	}
