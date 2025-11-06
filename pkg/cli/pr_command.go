@@ -3,15 +3,14 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
 
@@ -94,31 +93,7 @@ The command will:
 
 // parsePRURL extracts owner, repo, and PR number from a GitHub PR URL
 func parsePRURL(prURL string) (owner, repo string, prNumber int, err error) {
-	// Parse the URL
-	u, err := url.Parse(prURL)
-	if err != nil {
-		return "", "", 0, fmt.Errorf("invalid URL: %w", err)
-	}
-
-	// Check if it's a GitHub URL
-	if u.Host != "github.com" {
-		return "", "", 0, fmt.Errorf("URL must be a GitHub URL")
-	}
-
-	// Extract owner, repo, and PR number from path
-	// Expected format: /owner/repo/pull/123
-	re := regexp.MustCompile(`^/([^/]+)/([^/]+)/pull/(\d+)`)
-	matches := re.FindStringSubmatch(u.Path)
-	if len(matches) != 4 {
-		return "", "", 0, fmt.Errorf("invalid GitHub PR URL format, expected: https://github.com/owner/repo/pull/123")
-	}
-
-	var prNum int
-	if _, err := fmt.Sscanf(matches[3], "%d", &prNum); err != nil {
-		return "", "", 0, fmt.Errorf("invalid PR number: %s", matches[3])
-	}
-
-	return matches[1], matches[2], prNum, nil
+	return workflow.ParsePRURL(prURL)
 }
 
 // getCurrentRepo gets the current repository information using gh CLI

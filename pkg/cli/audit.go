@@ -7,8 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -103,38 +101,16 @@ func extractRunID(input string) (int64, error) {
 
 // parseRunURL parses a run ID or URL and extracts all relevant information
 func parseRunURL(input string) (RunURLInfo, error) {
-	// First try to parse as a direct numeric ID
-	if runID, err := strconv.ParseInt(input, 10, 64); err == nil {
-		return RunURLInfo{RunID: runID}, nil
+	runID, owner, repo, hostname, err := workflow.ParseRunURL(input)
+	if err != nil {
+		return RunURLInfo{}, err
 	}
-
-	// Try to extract information from GitHub Actions URL
-	// Patterns:
-	// - https://github.com/owner/repo/actions/runs/12345678
-	// - https://github.com/owner/repo/actions/runs/12345678/job/98765432
-	// - https://github.com/owner/repo/actions/runs/12345678/attempts/2
-	// - https://github.com/owner/repo/runs/12345678 (action run URL)
-	// - https://github.example.com/owner/repo/actions/runs/12345678 (enterprise)
-
-	// Pattern to match GitHub URLs with run IDs
-	// Captures: hostname, owner, repo, runID
-	urlPattern := regexp.MustCompile(`^https?://([^/]+)/([^/]+)/([^/]+)/(?:actions/)?runs/(\d+)`)
-	matches := urlPattern.FindStringSubmatch(input)
-
-	if len(matches) >= 5 {
-		runID, err := strconv.ParseInt(matches[4], 10, 64)
-		if err != nil {
-			return RunURLInfo{}, fmt.Errorf("invalid run ID in URL '%s': %w", input, err)
-		}
-		return RunURLInfo{
-			RunID:    runID,
-			Hostname: matches[1],
-			Owner:    matches[2],
-			Repo:     matches[3],
-		}, nil
-	}
-
-	return RunURLInfo{}, fmt.Errorf("invalid run ID or URL '%s': must be a numeric run ID or a GitHub URL containing '/actions/runs/{run-id}' or '/runs/{run-id}'", input)
+	return RunURLInfo{
+		RunID:    runID,
+		Owner:    owner,
+		Repo:     repo,
+		Hostname: hostname,
+	}, nil
 }
 
 // isPermissionError checks if an error is related to permissions/authentication
