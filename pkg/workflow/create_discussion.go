@@ -56,51 +56,33 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 
 // buildCreateOutputDiscussionJob creates the create_discussion job
 func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.CreateDiscussions == nil {
-		return nil, fmt.Errorf("safe-outputs.create-discussion configuration is required")
+	// Start building the job with the fluent builder
+	builder := c.NewSafeOutputJobBuilder(data, "create_discussion").
+		WithConfig(data.SafeOutputs == nil || data.SafeOutputs.CreateDiscussions == nil).
+		WithStepMetadata("Create Output Discussion", "create_discussion").
+		WithMainJobName(mainJobName).
+		WithScript(getCreateDiscussionScript()).
+		WithPermissions(NewPermissionsContentsReadDiscussionsWrite()).
+		WithOutputs(map[string]string{
+			"discussion_number": "${{ steps.create_discussion.outputs.discussion_number }}",
+			"discussion_url":    "${{ steps.create_discussion.outputs.discussion_url }}",
+		})
+
+	// Add job-specific environment variables
+	builder.AddEnvVar(fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+
+	if data.SafeOutputs != nil && data.SafeOutputs.CreateDiscussions != nil {
+		if data.SafeOutputs.CreateDiscussions.TitlePrefix != "" {
+			builder.AddEnvVar(fmt.Sprintf("          GH_AW_DISCUSSION_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateDiscussions.TitlePrefix))
+		}
+		if data.SafeOutputs.CreateDiscussions.Category != "" {
+			builder.AddEnvVar(fmt.Sprintf("          GH_AW_DISCUSSION_CATEGORY: %q\n", data.SafeOutputs.CreateDiscussions.Category))
+		}
+
+		// Set token and target repo
+		builder.WithToken(data.SafeOutputs.CreateDiscussions.GitHubToken).
+			WithTargetRepoSlug(data.SafeOutputs.CreateDiscussions.TargetRepoSlug)
 	}
 
-	// Build custom environment variables specific to create-discussion
-	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
-	if data.SafeOutputs.CreateDiscussions.TitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISCUSSION_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateDiscussions.TitlePrefix))
-	}
-	if data.SafeOutputs.CreateDiscussions.Category != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISCUSSION_CATEGORY: %q\n", data.SafeOutputs.CreateDiscussions.Category))
-	}
-
-	// Add common safe output job environment variables (staged/target repo)
-	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
-		c.trialMode,
-		c.trialLogicalRepoSlug,
-		data.SafeOutputs.Staged,
-		data.SafeOutputs.CreateDiscussions.TargetRepoSlug,
-	)...)
-
-	// Get token from config
-	var token string
-	if data.SafeOutputs.CreateDiscussions != nil {
-		token = data.SafeOutputs.CreateDiscussions.GitHubToken
-	}
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"discussion_number": "${{ steps.create_discussion.outputs.discussion_number }}",
-		"discussion_url":    "${{ steps.create_discussion.outputs.discussion_url }}",
-	}
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:        "create_discussion",
-		StepName:       "Create Output Discussion",
-		StepID:         "create_discussion",
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
-		Script:         getCreateDiscussionScript(),
-		Permissions:    NewPermissionsContentsReadDiscussionsWrite(),
-		Outputs:        outputs,
-		Token:          token,
-		TargetRepoSlug: data.SafeOutputs.CreateDiscussions.TargetRepoSlug,
-	})
+	return builder.Build()
 }

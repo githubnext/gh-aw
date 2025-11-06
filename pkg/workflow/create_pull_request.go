@@ -18,116 +18,94 @@ type CreatePullRequestsConfig struct {
 
 // buildCreateOutputPullRequestJob creates the create_pull_request job
 func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil {
-		return nil, fmt.Errorf("safe-outputs.create-pull-request configuration is required")
-	}
+	// Start building the job with the fluent builder
+	builder := c.NewSafeOutputJobBuilder(data, "create_pull_request").
+		WithConfig(data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequests == nil).
+		WithStepMetadata("Create Pull Request", "create_pull_request").
+		WithMainJobName(mainJobName).
+		WithScript(createPullRequestScript).
+		WithPermissions(NewPermissionsContentsWriteIssuesWritePRWrite()).
+		WithOutputs(map[string]string{
+			"pull_request_number": "${{ steps.create_pull_request.outputs.pull_request_number }}",
+			"pull_request_url":    "${{ steps.create_pull_request.outputs.pull_request_url }}",
+			"issue_number":        "${{ steps.create_pull_request.outputs.issue_number }}",
+			"issue_url":           "${{ steps.create_pull_request.outputs.issue_url }}",
+			"branch_name":         "${{ steps.create_pull_request.outputs.branch_name }}",
+			"fallback_used":       "${{ steps.create_pull_request.outputs.fallback_used }}",
+		})
 
 	// Build pre-steps for patch download, checkout, and git config
 	var preSteps []string
-
-	// Step 1: Download patch artifact
 	preSteps = append(preSteps, "      - name: Download patch artifact\n")
 	preSteps = append(preSteps, "        continue-on-error: true\n")
 	preSteps = append(preSteps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/download-artifact")))
 	preSteps = append(preSteps, "        with:\n")
 	preSteps = append(preSteps, "          name: aw.patch\n")
 	preSteps = append(preSteps, "          path: /tmp/gh-aw/\n")
-
-	// Step 2: Checkout repository
 	preSteps = buildCheckoutRepository(preSteps, c)
-
-	// Step 3: Configure Git credentials
 	preSteps = append(preSteps, c.generateGitConfigurationSteps()...)
+	builder.WithPreSteps(preSteps)
 
-	// Build custom environment variables specific to create-pull-request
-	var customEnvVars []string
-	// Pass the workflow ID for branch naming
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", mainJobName))
-	// Pass the workflow name for footer generation
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
-	// Pass the base branch from GitHub context
-	customEnvVars = append(customEnvVars, "          GH_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
-	if data.SafeOutputs.CreatePullRequests.TitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_TITLE_PREFIX: %q\n", data.SafeOutputs.CreatePullRequests.TitlePrefix))
-	}
-	if len(data.SafeOutputs.CreatePullRequests.Labels) > 0 {
-		labelsStr := strings.Join(data.SafeOutputs.CreatePullRequests.Labels, ",")
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_LABELS: %q\n", labelsStr))
-	}
-	// Pass draft setting - default to true for backwards compatibility
-	draftValue := true // Default value
-	if data.SafeOutputs.CreatePullRequests.Draft != nil {
-		draftValue = *data.SafeOutputs.CreatePullRequests.Draft
-	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_DRAFT: %q\n", fmt.Sprintf("%t", draftValue)))
+	// Add job-specific environment variables
+	builder.AddEnvVar(fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", mainJobName))
+	builder.AddEnvVar(fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+	builder.AddEnvVar("          GH_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
 
-	// Pass the if-no-changes configuration
-	ifNoChanges := data.SafeOutputs.CreatePullRequests.IfNoChanges
-	if ifNoChanges == "" {
-		ifNoChanges = "warn" // Default value
-	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_IF_NO_CHANGES: %q\n", ifNoChanges))
-
-	// Pass the maximum patch size configuration
-	maxPatchSize := 1024 // Default value
-	if data.SafeOutputs != nil && data.SafeOutputs.MaximumPatchSize > 0 {
-		maxPatchSize = data.SafeOutputs.MaximumPatchSize
-	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
-
-	// Add common safe output job environment variables (staged/target repo)
-	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
-		c.trialMode,
-		c.trialLogicalRepoSlug,
-		data.SafeOutputs.Staged,
-		data.SafeOutputs.CreatePullRequests.TargetRepoSlug,
-	)...)
-
-	// Build post-steps for reviewers if configured
-	var postSteps []string
-	if len(data.SafeOutputs.CreatePullRequests.Reviewers) > 0 {
-		// Get the effective GitHub token to use for gh CLI
-		var safeOutputsToken string
-		if data.SafeOutputs != nil {
-			safeOutputsToken = data.SafeOutputs.GitHubToken
+	if data.SafeOutputs != nil && data.SafeOutputs.CreatePullRequests != nil {
+		if data.SafeOutputs.CreatePullRequests.TitlePrefix != "" {
+			builder.AddEnvVar(fmt.Sprintf("          GH_AW_PR_TITLE_PREFIX: %q\n", data.SafeOutputs.CreatePullRequests.TitlePrefix))
+		}
+		if len(data.SafeOutputs.CreatePullRequests.Labels) > 0 {
+			labelsStr := strings.Join(data.SafeOutputs.CreatePullRequests.Labels, ",")
+			builder.AddEnvVar(fmt.Sprintf("          GH_AW_PR_LABELS: %q\n", labelsStr))
 		}
 
-		postSteps = buildCopilotParticipantSteps(CopilotParticipantConfig{
-			Participants:       data.SafeOutputs.CreatePullRequests.Reviewers,
-			ParticipantType:    "reviewer",
-			CustomToken:        data.SafeOutputs.CreatePullRequests.GitHubToken,
-			SafeOutputsToken:   safeOutputsToken,
-			WorkflowToken:      data.GitHubToken,
-			ConditionStepID:    "create_pull_request",
-			ConditionOutputKey: "pull_request_url",
-		})
+		// Pass draft setting - default to true for backwards compatibility
+		draftValue := true
+		if data.SafeOutputs.CreatePullRequests.Draft != nil {
+			draftValue = *data.SafeOutputs.CreatePullRequests.Draft
+		}
+		builder.AddEnvVar(fmt.Sprintf("          GH_AW_PR_DRAFT: %q\n", fmt.Sprintf("%t", draftValue)))
+
+		// Pass the if-no-changes configuration
+		ifNoChanges := data.SafeOutputs.CreatePullRequests.IfNoChanges
+		if ifNoChanges == "" {
+			ifNoChanges = "warn"
+		}
+		builder.AddEnvVar(fmt.Sprintf("          GH_AW_PR_IF_NO_CHANGES: %q\n", ifNoChanges))
+
+		// Pass the maximum patch size configuration
+		maxPatchSize := 1024
+		if data.SafeOutputs != nil && data.SafeOutputs.MaximumPatchSize > 0 {
+			maxPatchSize = data.SafeOutputs.MaximumPatchSize
+		}
+		builder.AddEnvVar(fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
+
+		// Set token and target repo
+		builder.WithToken(data.SafeOutputs.CreatePullRequests.GitHubToken).
+			WithTargetRepoSlug(data.SafeOutputs.CreatePullRequests.TargetRepoSlug)
+
+		// Build post-steps for reviewers if configured
+		if len(data.SafeOutputs.CreatePullRequests.Reviewers) > 0 {
+			var safeOutputsToken string
+			if data.SafeOutputs != nil {
+				safeOutputsToken = data.SafeOutputs.GitHubToken
+			}
+
+			postSteps := buildCopilotParticipantSteps(CopilotParticipantConfig{
+				Participants:       data.SafeOutputs.CreatePullRequests.Reviewers,
+				ParticipantType:    "reviewer",
+				CustomToken:        data.SafeOutputs.CreatePullRequests.GitHubToken,
+				SafeOutputsToken:   safeOutputsToken,
+				WorkflowToken:      data.GitHubToken,
+				ConditionStepID:    "create_pull_request",
+				ConditionOutputKey: "pull_request_url",
+			})
+			builder.WithPostSteps(postSteps)
+		}
 	}
 
-	// Create outputs for the job
-	outputs := map[string]string{
-		"pull_request_number": "${{ steps.create_pull_request.outputs.pull_request_number }}",
-		"pull_request_url":    "${{ steps.create_pull_request.outputs.pull_request_url }}",
-		"issue_number":        "${{ steps.create_pull_request.outputs.issue_number }}",
-		"issue_url":           "${{ steps.create_pull_request.outputs.issue_url }}",
-		"branch_name":         "${{ steps.create_pull_request.outputs.branch_name }}",
-		"fallback_used":       "${{ steps.create_pull_request.outputs.fallback_used }}",
-	}
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:        "create_pull_request",
-		StepName:       "Create Pull Request",
-		StepID:         "create_pull_request",
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
-		Script:         createPullRequestScript,
-		Permissions:    NewPermissionsContentsWriteIssuesWritePRWrite(),
-		Outputs:        outputs,
-		PreSteps:       preSteps,
-		PostSteps:      postSteps,
-		Token:          data.SafeOutputs.CreatePullRequests.GitHubToken,
-		TargetRepoSlug: data.SafeOutputs.CreatePullRequests.TargetRepoSlug,
-	})
+	return builder.Build()
 }
 
 // parsePullRequestsConfig handles only create-pull-request (singular) configuration

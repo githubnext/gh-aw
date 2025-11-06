@@ -891,3 +891,144 @@ func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, stag
 
 	return customEnvVars
 }
+
+// SafeOutputJobBuilder provides a fluent interface for building safe output jobs
+// with reduced boilerplate. It centralizes the common pattern of:
+// 1. Validating configuration
+// 2. Building environment variables
+// 3. Extracting token
+// 4. Creating outputs
+// 5. Building the final job
+type SafeOutputJobBuilder struct {
+	compiler       *Compiler
+	data           *WorkflowData
+	config         SafeOutputJobConfig
+	customEnvVars  []string
+	configIsNil    bool
+	targetRepoSlug string
+	token          string
+}
+
+// NewSafeOutputJobBuilder creates a new builder for safe output jobs
+func (c *Compiler) NewSafeOutputJobBuilder(data *WorkflowData, jobName string) *SafeOutputJobBuilder {
+	return &SafeOutputJobBuilder{
+		compiler:      c,
+		data:          data,
+		customEnvVars: []string{},
+		config: SafeOutputJobConfig{
+			JobName: jobName,
+		},
+	}
+}
+
+// WithConfig validates that the configuration is not nil and marks it for error checking
+func (b *SafeOutputJobBuilder) WithConfig(configIsNil bool) *SafeOutputJobBuilder {
+	b.configIsNil = configIsNil
+	return b
+}
+
+// WithStepMetadata sets the step name and ID
+func (b *SafeOutputJobBuilder) WithStepMetadata(stepName, stepID string) *SafeOutputJobBuilder {
+	b.config.StepName = stepName
+	b.config.StepID = stepID
+	return b
+}
+
+// WithMainJobName sets the main job name for dependencies
+func (b *SafeOutputJobBuilder) WithMainJobName(mainJobName string) *SafeOutputJobBuilder {
+	b.config.MainJobName = mainJobName
+	return b
+}
+
+// WithScript sets the JavaScript script for the job
+func (b *SafeOutputJobBuilder) WithScript(script string) *SafeOutputJobBuilder {
+	b.config.Script = script
+	return b
+}
+
+// WithPermissions sets the job permissions
+func (b *SafeOutputJobBuilder) WithPermissions(permissions *Permissions) *SafeOutputJobBuilder {
+	b.config.Permissions = permissions
+	return b
+}
+
+// WithOutputs sets the job outputs
+func (b *SafeOutputJobBuilder) WithOutputs(outputs map[string]string) *SafeOutputJobBuilder {
+	b.config.Outputs = outputs
+	return b
+}
+
+// WithCondition sets a custom job condition
+func (b *SafeOutputJobBuilder) WithCondition(condition ConditionNode) *SafeOutputJobBuilder {
+	b.config.Condition = condition
+	return b
+}
+
+// WithNeeds sets custom job dependencies
+func (b *SafeOutputJobBuilder) WithNeeds(needs []string) *SafeOutputJobBuilder {
+	b.config.Needs = needs
+	return b
+}
+
+// WithPreSteps sets pre-execution steps (e.g., checkout, git config)
+func (b *SafeOutputJobBuilder) WithPreSteps(preSteps []string) *SafeOutputJobBuilder {
+	b.config.PreSteps = preSteps
+	return b
+}
+
+// WithPostSteps sets post-execution steps (e.g., assignees, reviewers)
+func (b *SafeOutputJobBuilder) WithPostSteps(postSteps []string) *SafeOutputJobBuilder {
+	b.config.PostSteps = postSteps
+	return b
+}
+
+// WithToken sets the GitHub token for this job
+func (b *SafeOutputJobBuilder) WithToken(token string) *SafeOutputJobBuilder {
+	b.token = token
+	b.config.Token = token
+	return b
+}
+
+// WithTargetRepoSlug sets the target repository for cross-repo operations
+func (b *SafeOutputJobBuilder) WithTargetRepoSlug(targetRepoSlug string) *SafeOutputJobBuilder {
+	b.targetRepoSlug = targetRepoSlug
+	b.config.TargetRepoSlug = targetRepoSlug
+	return b
+}
+
+// AddEnvVar adds a custom environment variable
+func (b *SafeOutputJobBuilder) AddEnvVar(envVar string) *SafeOutputJobBuilder {
+	b.customEnvVars = append(b.customEnvVars, envVar)
+	return b
+}
+
+// AddEnvVars adds multiple custom environment variables
+func (b *SafeOutputJobBuilder) AddEnvVars(envVars []string) *SafeOutputJobBuilder {
+	b.customEnvVars = append(b.customEnvVars, envVars...)
+	return b
+}
+
+// Build constructs the final Job, applying common safe output job environment variables
+func (b *SafeOutputJobBuilder) Build() (*Job, error) {
+	// Validate configuration
+	if b.configIsNil {
+		// Convert job name from underscore to hyphen format for error message
+		// (e.g., "create_issue" -> "create-issue")
+		jobNameForError := strings.ReplaceAll(b.config.JobName, "_", "-")
+		return nil, fmt.Errorf("safe-outputs.%s configuration is required", jobNameForError)
+	}
+
+	// Append common safe output job environment variables
+	b.customEnvVars = append(b.customEnvVars, buildSafeOutputJobEnvVars(
+		b.compiler.trialMode,
+		b.compiler.trialLogicalRepoSlug,
+		b.data.SafeOutputs.Staged,
+		b.targetRepoSlug,
+	)...)
+
+	// Set custom env vars in config
+	b.config.CustomEnvVars = b.customEnvVars
+
+	// Build and return the job
+	return b.compiler.buildSafeOutputJob(b.data, b.config)
+}

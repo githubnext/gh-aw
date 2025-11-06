@@ -64,81 +64,61 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 
 // buildCreateOutputIssueJob creates the create_issue job
 func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.CreateIssues == nil {
-		return nil, fmt.Errorf("safe-outputs.create-issue configuration is required")
-	}
+	// Start building the job with the fluent builder
+	builder := c.NewSafeOutputJobBuilder(data, "create_issue").
+		WithConfig(data.SafeOutputs == nil || data.SafeOutputs.CreateIssues == nil).
+		WithStepMetadata("Create Output Issue", "create_issue").
+		WithMainJobName(mainJobName).
+		WithScript(getCreateIssueScript()).
+		WithPermissions(NewPermissionsContentsReadIssuesWrite()).
+		WithOutputs(map[string]string{
+			"issue_number": "${{ steps.create_issue.outputs.issue_number }}",
+			"issue_url":    "${{ steps.create_issue.outputs.issue_url }}",
+		})
 
-	// Build custom environment variables specific to create-issue
-	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
-	// Pass the workflow source URL for installation instructions
+	// Add job-specific environment variables
+	builder.AddEnvVar(fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+
 	if data.Source != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE: %q\n", data.Source))
+		builder.AddEnvVar(fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE: %q\n", data.Source))
 		sourceURL := buildSourceURL(data.Source)
 		if sourceURL != "" {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
+			builder.AddEnvVar(fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
 		}
 	}
-	if data.SafeOutputs.CreateIssues.TitlePrefix != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ISSUE_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateIssues.TitlePrefix))
-	}
-	if len(data.SafeOutputs.CreateIssues.Labels) > 0 {
-		labelsStr := strings.Join(data.SafeOutputs.CreateIssues.Labels, ",")
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ISSUE_LABELS: %q\n", labelsStr))
-	}
 
-	// Add common safe output job environment variables (staged/target repo)
-	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
-		c.trialMode,
-		c.trialLogicalRepoSlug,
-		data.SafeOutputs.Staged,
-		data.SafeOutputs.CreateIssues.TargetRepoSlug,
-	)...)
-
-	// Get token from config
-	var token string
-	if data.SafeOutputs.CreateIssues != nil {
-		token = data.SafeOutputs.CreateIssues.GitHubToken
-	}
-
-	// Build post-steps for assignees if configured
-	var postSteps []string
-	if len(data.SafeOutputs.CreateIssues.Assignees) > 0 {
-		// Get the effective GitHub token to use for gh CLI
-		var safeOutputsToken string
-		if data.SafeOutputs != nil {
-			safeOutputsToken = data.SafeOutputs.GitHubToken
+	if data.SafeOutputs != nil && data.SafeOutputs.CreateIssues != nil {
+		if data.SafeOutputs.CreateIssues.TitlePrefix != "" {
+			builder.AddEnvVar(fmt.Sprintf("          GH_AW_ISSUE_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateIssues.TitlePrefix))
+		}
+		if len(data.SafeOutputs.CreateIssues.Labels) > 0 {
+			labelsStr := strings.Join(data.SafeOutputs.CreateIssues.Labels, ",")
+			builder.AddEnvVar(fmt.Sprintf("          GH_AW_ISSUE_LABELS: %q\n", labelsStr))
 		}
 
-		postSteps = buildCopilotParticipantSteps(CopilotParticipantConfig{
-			Participants:       data.SafeOutputs.CreateIssues.Assignees,
-			ParticipantType:    "assignee",
-			CustomToken:        token,
-			SafeOutputsToken:   safeOutputsToken,
-			WorkflowToken:      data.GitHubToken,
-			ConditionStepID:    "create_issue",
-			ConditionOutputKey: "issue_number",
-		})
+		// Set token and target repo
+		builder.WithToken(data.SafeOutputs.CreateIssues.GitHubToken).
+			WithTargetRepoSlug(data.SafeOutputs.CreateIssues.TargetRepoSlug)
+
+		// Build post-steps for assignees if configured
+		if len(data.SafeOutputs.CreateIssues.Assignees) > 0 {
+			var safeOutputsToken string
+			if data.SafeOutputs != nil {
+				safeOutputsToken = data.SafeOutputs.GitHubToken
+			}
+
+			postSteps := buildCopilotParticipantSteps(CopilotParticipantConfig{
+				Participants:       data.SafeOutputs.CreateIssues.Assignees,
+				ParticipantType:    "assignee",
+				CustomToken:        data.SafeOutputs.CreateIssues.GitHubToken,
+				SafeOutputsToken:   safeOutputsToken,
+				WorkflowToken:      data.GitHubToken,
+				ConditionStepID:    "create_issue",
+				ConditionOutputKey: "issue_number",
+			})
+			builder.WithPostSteps(postSteps)
+		}
 	}
 
-	// Create outputs for the job
-	outputs := map[string]string{
-		"issue_number": "${{ steps.create_issue.outputs.issue_number }}",
-		"issue_url":    "${{ steps.create_issue.outputs.issue_url }}",
-	}
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:        "create_issue",
-		StepName:       "Create Output Issue",
-		StepID:         "create_issue",
-		MainJobName:    mainJobName,
-		CustomEnvVars:  customEnvVars,
-		Script:         getCreateIssueScript(),
-		Permissions:    NewPermissionsContentsReadIssuesWrite(),
-		Outputs:        outputs,
-		PostSteps:      postSteps,
-		Token:          token,
-		TargetRepoSlug: data.SafeOutputs.CreateIssues.TargetRepoSlug,
-	})
+	return builder.Build()
 }
