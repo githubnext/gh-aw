@@ -139,16 +139,6 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 	}, nil
 }
 
-// parseRawGitHubURL parses raw.githubusercontent.com URLs
-// Supports URLs like:
-//   - https://raw.githubusercontent.com/owner/repo/refs/heads/branch/path/to/workflow.md
-//   - https://raw.githubusercontent.com/owner/repo/COMMIT_SHA/path/to/workflow.md
-//   - https://raw.githubusercontent.com/owner/repo/refs/tags/tag/path/to/workflow.md
-func parseRawGitHubURL(parsedURL *url.URL) (*WorkflowSpec, error) {
-	// Use the unified parser
-	return parseGitHubURL(parsedURL.String())
-}
-
 // parseWorkflowSpec parses a workflow specification in the new format
 // Format: owner/repo/workflows/workflow-name[@version] or owner/repo/workflow-name[@version]
 // Also supports full GitHub URLs like https://github.com/owner/repo/blob/branch/path/to/workflow.md
