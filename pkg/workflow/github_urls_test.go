@@ -365,6 +365,36 @@ func TestParseGitHubURL_Errors(t *testing.T) {
 			url:         "https://github.com/owner/repo/unknown/path",
 			errContains: "unrecognized GitHub URL format",
 		},
+		{
+			name:        "Actions path without runs",
+			url:         "https://github.com/owner/repo/actions/workflows",
+			errContains: "unrecognized GitHub URL format",
+		},
+		{
+			name:        "Actions/runs path without run ID",
+			url:         "https://github.com/owner/repo/actions/runs",
+			errContains: "unrecognized",
+		},
+		{
+			name:        "Raw.githubusercontent.com path too short",
+			url:         "https://raw.githubusercontent.com/owner/repo",
+			errContains: "path too short",
+		},
+		{
+			name:        "Raw.githubusercontent.com refs path too short",
+			url:         "https://raw.githubusercontent.com/owner/repo/refs/heads",
+			errContains: "refs path too short",
+		},
+		{
+			name:        "Blob path without ref",
+			url:         "https://github.com/owner/repo/blob",
+			errContains: "unrecognized GitHub URL format",
+		},
+		{
+			name:        "Tree path without ref",
+			url:         "https://github.com/owner/repo/tree",
+			errContains: "unrecognized GitHub URL format",
+		},
 	}
 
 	for _, tt := range tests {
@@ -534,6 +564,11 @@ func TestParsePRURL(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:    "Enterprise GitHub URL rejected",
+			url:     "https://github.example.com/owner/repo/pull/123",
+			wantErr: true,
+		},
+		{
 			name:    "Invalid GitHub URL path - missing pull",
 			url:     "https://github.com/owner/repo/123",
 			wantErr: true,
@@ -601,6 +636,24 @@ func TestParseRepoFileURL(t *testing.T) {
 			wantErr:   false,
 		},
 		{
+			name:      "Tree URL",
+			url:       "https://github.com/owner/repo/tree/develop/src",
+			wantOwner: "owner",
+			wantRepo:  "repo",
+			wantRef:   "develop",
+			wantPath:  "src",
+			wantErr:   false,
+		},
+		{
+			name:      "Raw URL",
+			url:       "https://github.com/owner/repo/raw/v1.0.0/README.md",
+			wantOwner: "owner",
+			wantRepo:  "repo",
+			wantRef:   "v1.0.0",
+			wantPath:  "README.md",
+			wantErr:   false,
+		},
+		{
 			name:      "Raw githubusercontent URL",
 			url:       "https://raw.githubusercontent.com/owner/repo/main/path/to/file.md",
 			wantOwner: "owner",
@@ -610,8 +663,27 @@ func TestParseRepoFileURL(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:    "Not a file URL",
+			name:      "Raw githubusercontent with refs/heads",
+			url:       "https://raw.githubusercontent.com/owner/repo/refs/heads/feature/path/file.md",
+			wantOwner: "owner",
+			wantRepo:  "repo",
+			wantRef:   "feature",
+			wantPath:  "path/file.md",
+			wantErr:   false,
+		},
+		{
+			name:    "Not a file URL - PR",
 			url:     "https://github.com/owner/repo/pull/123",
+			wantErr: true,
+		},
+		{
+			name:    "Not a file URL - Issue",
+			url:     "https://github.com/owner/repo/issues/456",
+			wantErr: true,
+		},
+		{
+			name:    "Not a file URL - Run",
+			url:     "https://github.com/owner/repo/actions/runs/789",
 			wantErr: true,
 		},
 	}
@@ -756,6 +828,98 @@ func TestGitHubURLComponents_GetWorkflowName(t *testing.T) {
 
 			if got != tt.want {
 				t.Errorf("GetWorkflowName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestParseGitHubURL_AdditionalEdgeCases tests additional edge cases for comprehensive coverage
+func TestParseGitHubURL_AdditionalEdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		url         string
+		wantType    GitHubURLType
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:     "Issue URL",
+			url:      "https://github.com/owner/repo/issues/100",
+			wantType: URLTypeIssue,
+			wantErr:  false,
+		},
+		{
+			name:        "Actions path without enough parts",
+			url:         "https://github.com/owner/repo/actions",
+			wantErr:     true,
+			errContains: "unrecognized",
+		},
+		{
+			name:        "Runs path without enough parts",
+			url:         "https://github.com/owner/repo/runs",
+			wantErr:     true,
+			errContains: "unrecognized",
+		},
+		{
+			name:        "Pull path without number",
+			url:         "https://github.com/owner/repo/pull",
+			wantErr:     true,
+			errContains: "unrecognized",
+		},
+		{
+			name:        "Issues path without number",
+			url:         "https://github.com/owner/repo/issues",
+			wantErr:     true,
+			errContains: "unrecognized",
+		},
+		{
+			name:     "Blob URL with single file",
+			url:      "https://github.com/owner/repo/blob/main/file.txt",
+			wantType: URLTypeBlob,
+			wantErr:  false,
+		},
+		{
+			name:     "Tree URL with single dir",
+			url:      "https://github.com/owner/repo/tree/dev/src",
+			wantType: URLTypeTree,
+			wantErr:  false,
+		},
+		{
+			name:     "Raw URL with single file",
+			url:      "https://github.com/owner/repo/raw/v1/README",
+			wantType: URLTypeRaw,
+			wantErr:  false,
+		},
+		{
+			name:     "Raw githubusercontent simple path",
+			url:      "https://raw.githubusercontent.com/org/name/sha/file.go",
+			wantType: URLTypeRawContent,
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ParseGitHubURL(tt.url)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("ParseGitHubURL() expected error but got none")
+					return
+				}
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("ParseGitHubURL() error = %v, want error containing %v", err, tt.errContains)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("ParseGitHubURL() unexpected error: %v", err)
+				return
+			}
+
+			if result.Type != tt.wantType {
+				t.Errorf("ParseGitHubURL() type = %v, want %v", result.Type, tt.wantType)
 			}
 		})
 	}
