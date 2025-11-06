@@ -212,6 +212,56 @@ describe("check_workflow_timestamp.cjs", () => {
       expect(mockCore.setFailed).not.toHaveBeenCalled();
       expect(mockCore.summary.addRaw).not.toHaveBeenCalled();
     });
+
+    it("should pass when source file is 50ms newer (within 100ms tolerance)", async () => {
+      process.env.GITHUB_WORKSPACE = tmpDir;
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
+
+      const workflowFile = path.join(workflowsDir, "test.md");
+      const lockFile = path.join(workflowsDir, "test.lock.yml");
+
+      // Create both files
+      fs.writeFileSync(workflowFile, "# Workflow content");
+      fs.writeFileSync(lockFile, "# Lock file content");
+
+      // Set source file to be 50ms newer than lock file (within tolerance)
+      const lockTime = new Date();
+      const workflowTime = new Date(lockTime.getTime() + 50);
+      fs.utimesSync(lockFile, lockTime, lockTime);
+      fs.utimesSync(workflowFile, workflowTime, workflowTime);
+
+      await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Lock file is up to date"));
+      expect(mockCore.error).not.toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.summary.addRaw).not.toHaveBeenCalled();
+    });
+
+    it("should pass when source file is exactly 100ms newer (at tolerance boundary)", async () => {
+      process.env.GITHUB_WORKSPACE = tmpDir;
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
+
+      const workflowFile = path.join(workflowsDir, "test.md");
+      const lockFile = path.join(workflowsDir, "test.lock.yml");
+
+      // Create both files
+      fs.writeFileSync(workflowFile, "# Workflow content");
+      fs.writeFileSync(lockFile, "# Lock file content");
+
+      // Set source file to be exactly 100ms newer than lock file (at tolerance boundary)
+      const lockTime = new Date();
+      const workflowTime = new Date(lockTime.getTime() + 100);
+      fs.utimesSync(lockFile, lockTime, lockTime);
+      fs.utimesSync(workflowFile, workflowTime, workflowTime);
+
+      await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
+
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Lock file is up to date"));
+      expect(mockCore.error).not.toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(mockCore.summary.addRaw).not.toHaveBeenCalled();
+    });
   });
 
   describe("when lock file is outdated", () => {
@@ -225,11 +275,38 @@ describe("check_workflow_timestamp.cjs", () => {
       // Create lock file first
       fs.writeFileSync(lockFile, "# Lock file content");
 
-      // Wait a bit to ensure different timestamps
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Wait longer than 100ms tolerance to ensure different timestamps
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       // Create source file (newer)
       fs.writeFileSync(workflowFile, "# Workflow content");
+
+      await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
+
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("WARNING: Lock file"));
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("is outdated"));
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("gh aw compile"));
+      expect(mockCore.summary.addRaw).toHaveBeenCalled();
+      expect(mockCore.summary.write).toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should warn when source file is 150ms newer (beyond 100ms tolerance)", async () => {
+      process.env.GITHUB_WORKSPACE = tmpDir;
+      process.env.GH_AW_WORKFLOW_FILE = "test.lock.yml";
+
+      const workflowFile = path.join(workflowsDir, "test.md");
+      const lockFile = path.join(workflowsDir, "test.lock.yml");
+
+      // Create both files
+      fs.writeFileSync(workflowFile, "# Workflow content");
+      fs.writeFileSync(lockFile, "# Lock file content");
+
+      // Set source file to be 150ms newer than lock file (beyond tolerance)
+      const lockTime = new Date();
+      const workflowTime = new Date(lockTime.getTime() + 150);
+      fs.utimesSync(lockFile, lockTime, lockTime);
+      fs.utimesSync(workflowFile, workflowTime, workflowTime);
 
       await eval(`(async () => { ${checkWorkflowTimestampScript} })()`);
 
@@ -251,8 +328,8 @@ describe("check_workflow_timestamp.cjs", () => {
       // Create lock file first
       fs.writeFileSync(lockFile, "# Lock file content");
 
-      // Wait a bit to ensure different timestamps
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Wait longer than 100ms tolerance to ensure different timestamps
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       // Create source file (newer)
       fs.writeFileSync(workflowFile, "# Workflow content");
@@ -273,8 +350,8 @@ describe("check_workflow_timestamp.cjs", () => {
       // Create lock file first
       fs.writeFileSync(lockFile, "# Lock file content");
 
-      // Wait a bit to ensure different timestamps
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Wait longer than 100ms tolerance to ensure different timestamps
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       // Create source file (newer)
       fs.writeFileSync(workflowFile, "# Workflow content");
@@ -298,8 +375,8 @@ describe("check_workflow_timestamp.cjs", () => {
       // Create lock file first
       fs.writeFileSync(lockFile, "# Lock file content");
 
-      // Wait a bit to ensure different timestamps
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Wait longer than 100ms tolerance to ensure different timestamps
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       // Create source file (newer)
       fs.writeFileSync(workflowFile, "# Workflow content");
@@ -321,8 +398,8 @@ describe("check_workflow_timestamp.cjs", () => {
       // Create lock file first
       fs.writeFileSync(lockFile, "# Lock file content");
 
-      // Wait a bit to ensure different timestamps
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Wait longer than 100ms tolerance to ensure different timestamps
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       // Create source file (newer)
       fs.writeFileSync(workflowFile, "# Workflow content");

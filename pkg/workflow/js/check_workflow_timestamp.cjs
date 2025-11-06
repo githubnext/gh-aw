@@ -67,7 +67,9 @@ async function main() {
   core.info(`  Lock modified: ${lockStat.mtime.toISOString()}`);
 
   // Check if workflow file is newer than lock file
-  if (workflowMtime > lockMtime) {
+  // Allow a slight desynchronization of timestamps (within 100ms)
+  const TOLERANCE_MS = 100;
+  if (workflowMtime > lockMtime + TOLERANCE_MS) {
     const warningMessage = `WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
 
     core.error(warningMessage);
