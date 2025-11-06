@@ -146,9 +146,9 @@ func TestGetCodespacePermissionErrorMessage(t *testing.T) {
 	requiredStrings := []string{
 		"Codespace",
 		"actions:write",
-		"Personal Access Token",
-		"PAT",
-		"GITHUB_TOKEN",
+		"devcontainer.json",
+		"permissions",
+		"repositories",
 		"docs.github.com",
 	}
 

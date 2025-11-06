@@ -32,18 +32,29 @@ func getCodespacePermissionErrorMessage() string {
 The default GitHub token in Codespaces does not have 'actions:write' 
 permission, which is required to trigger GitHub Actions workflows.
 
-To fix this, you need to update your devcontainer configuration to use
-a Personal Access Token (PAT) with the necessary permissions.
-
-📚 Documentation:
-   https://docs.github.com/en/codespaces/managing-your-codespaces/managing-secrets-for-your-codespaces
+To fix this, you need to configure repository permissions in your 
+devcontainer.json file.
 
 🔧 Quick Fix:
-   1. Create a Personal Access Token with 'actions:write' permission
-   2. Add it as a Codespace secret named GITHUB_TOKEN
-   3. Rebuild your codespace or restart the session
+   Add the following to .devcontainer/devcontainer.json:
 
-For more information about devcontainer configuration, see:
+   {
+     "customizations": {
+       "codespaces": {
+         "repositories": {
+           "owner/repo": {
+             "permissions": {
+               "actions": "write"
+             }
+           }
+         }
+       }
+     }
+   }
+
+   Then rebuild your codespace to apply the changes.
+
+📚 Documentation:
    https://docs.github.com/en/codespaces/setting-up-your-project-for-codespaces/adding-a-dev-container-configuration
 
 `

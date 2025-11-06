@@ -140,10 +140,10 @@ func TestCodespaceErrorMessageIntegration(t *testing.T) {
 	expectedPhrases := []string{
 		"Codespace",
 		"actions:write",
-		"Personal Access Token",
-		"GITHUB_TOKEN",
+		"devcontainer.json",
+		"permissions",
+		"repositories",
 		"docs.github.com",
-		"devcontainer",
 	}
 
 	for _, phrase := range expectedPhrases {
