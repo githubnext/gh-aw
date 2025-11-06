@@ -358,3 +358,34 @@ func TestGetJavaScriptSources(t *testing.T) {
 		}
 	}
 }
+
+// TestScriptsUsingStagedPreviewBundleCorrectly tests that scripts using staged_preview.cjs bundle correctly
+func TestScriptsUsingStagedPreviewBundleCorrectly(t *testing.T) {
+	scriptsUsingStagedPreview := map[string]func() string{
+		"createIssue":           getCreateIssueScript,
+		"addLabels":             getAddLabelsScript,
+		"updateIssue":           getUpdateIssueScript,
+		"createPRReviewComment": getCreatePRReviewCommentScript,
+	}
+
+	for scriptName, getScript := range scriptsUsingStagedPreview {
+		t.Run(scriptName, func(t *testing.T) {
+			script := getScript()
+
+			// Should not be empty
+			if script == "" {
+				t.Fatal("bundled script is empty")
+			}
+
+			// Should NOT contain local require for staged_preview.cjs
+			if strings.Contains(script, `require("./staged_preview.cjs")`) {
+				t.Errorf("bundled script %s still contains require for staged_preview.cjs - validator should have caught this!", scriptName)
+			}
+
+			// Should contain the generateStagedPreview function (inlined or original)
+			if !strings.Contains(script, "generateStagedPreview") {
+				t.Errorf("bundled script %s does not contain generateStagedPreview function", scriptName)
+			}
+		})
+	}
+}

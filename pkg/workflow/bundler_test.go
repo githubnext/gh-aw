@@ -476,3 +476,34 @@ main();
 		t.Error("Bundled output should not contain local require")
 	}
 }
+
+// TestBundleJavaScriptFallbackValidation tests that validation catches local requires
+// even when bundling fails and falls back to using source as-is
+func TestBundleJavaScriptFallbackValidation(t *testing.T) {
+	// Create main content with a local require to a non-existent file
+	mainContent := `const fs = require("fs");
+const { generateStagedPreview } = require("./staged_preview.cjs");
+
+async function main() {
+  console.log("test");
+}
+
+main();
+`
+
+	// Empty sources map - staged_preview.cjs is not available
+	sources := map[string]string{}
+
+	// This should fail because staged_preview.cjs is not in sources
+	// The bundler should fail, and then the fallback code should be validated
+	_, err := BundleJavaScriptFromSources(mainContent, sources, "")
+	if err == nil {
+		t.Fatal("Expected bundling to fail and validator to catch local require in fallback, but got no error")
+	}
+
+	// Check that the error mentions the missing file (bundling error) or local require (validation error)
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "staged_preview.cjs") {
+		t.Errorf("Error should mention staged_preview.cjs, got: %v", err)
+	}
+}
