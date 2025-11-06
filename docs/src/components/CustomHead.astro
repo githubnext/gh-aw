@@ -1,0 +1,13 @@
+<script is:inline>
+  (function() {
+    const isLandingPage = window.location.pathname === '/gh-aw/' || 
+                          window.location.pathname === '/gh-aw/index.html' ||
+                          window.location.pathname.endsWith('/gh-aw');
+    
+    if (isLandingPage) {
+      document.body.classList.add('landing-page');
+    } else {
+      document.body.classList.remove('landing-page');
+    }
+  })();
+</script>

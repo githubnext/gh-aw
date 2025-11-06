@@ -39,6 +39,8 @@ export default defineConfig({
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/githubnext/gh-aw' },
 			],
+			tableOfContents: false,
+			pagination: true,
 			expressiveCode: {
 				shiki: {
 						langs: /** @type {any[]} */ ([

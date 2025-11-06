@@ -81,6 +81,11 @@
   z-index: 0;
   pointer-events: none;
   animation: light-glow-move 20s ease-in-out infinite;
+  display: none;
+}
+
+:root[data-theme='light'] body:has(.hero)::before {
+  display: block;
 }
 
 :root[data-theme='light'] .page {
@@ -245,6 +250,12 @@ body::before {
   z-index: 0;
   pointer-events: none;
   animation: glow-move 20s ease-in-out infinite;
+  display: none; /* Hide by default */
+}
+
+/* Only show on landing page - check for .hero which only exists on homepage */
+body:has(.hero)::before {
+  display: block;
 }
 
 .page {
@@ -300,6 +311,29 @@ header {
   z-index: 10;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+}
+
+header .header {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  max-width: 100%;
+}
+
+header .site-title {
+  min-width: max-content;
+}
+
+header site-search {
+  justify-self: center;
+  min-width: 0;
+}
+
+header .social-icons,
+header starlight-theme-select {
+  min-width: max-content;
 }
 
 :root[data-theme='light'] header {
@@ -478,6 +512,11 @@ a.button:hover {
   font-size: 0.875rem;
   font-weight: 600;
   gap: 0.5rem;
+  text-decoration: none !important;
+}
+
+.site-title:hover {
+  text-decoration: none !important;
 }
 
 .site-title img {

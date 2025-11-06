@@ -3,12 +3,13 @@ import darkLogoSvg from '../assets/agentic-workflow.svg?raw';
 import lightLogoSvg from '../assets/agentic-workflow-light.svg?raw';
 
 const { siteTitleHref } = Astro.props;
+const homeUrl = siteTitleHref || import.meta.env.BASE_URL || '/';
 
 const darkLogoUrl = `data:image/svg+xml;base64,${Buffer.from(darkLogoSvg).toString('base64')}`;
 const lightLogoUrl = `data:image/svg+xml;base64,${Buffer.from(lightLogoSvg).toString('base64')}`;
 ---
 
-<a href={siteTitleHref} class="site-title">
+<a href={homeUrl} class="site-title">
 	<img src={darkLogoUrl} alt="GitHub Agentic Workflows" class="theme-logo" data-dark-src={darkLogoUrl} data-light-src={lightLogoUrl} />
 	<span>GitHub Agentic Workflows</span>
 </a>
