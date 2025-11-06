@@ -159,14 +159,14 @@ steps:
         
         # Fetch recent commits (last 100)
         echo "Fetching commits..."
-        gh api repos/${GITHUB_REPOSITORY}/commits \
+        gh api "repos/${GITHUB_REPOSITORY}/commits" \
           --paginate \
           --jq '[.[] | {sha, author: .commit.author, message: .commit.message, date: .commit.author.date, html_url}]' \
           > /tmp/gh-aw/daily-news-data/commits.json
         
         # Fetch releases
         echo "Fetching releases..."
-        gh api repos/${GITHUB_REPOSITORY}/releases \
+        gh api "repos/${GITHUB_REPOSITORY}/releases" \
           --jq '[.[] | {tag_name, name, created_at, published_at, html_url, body}]' \
           > /tmp/gh-aw/daily-news-data/releases.json
         
