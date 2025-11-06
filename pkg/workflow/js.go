@@ -4,11 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"strings"
-
-	"github.com/githubnext/gh-aw/pkg/logger"
 )
-
-var jsLog = logger.New("workflow:js")
 
 //go:embed js/create_pull_request.cjs
 var createPullRequestScript string
