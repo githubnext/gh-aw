@@ -19,6 +19,10 @@ make release
 node scripts/changeset.js release patch
 node scripts/changeset.js release minor
 node scripts/changeset.js release major
+
+# Skip confirmation prompt
+node scripts/changeset.js release --yes
+node scripts/changeset.js release patch -y
 ```
 
 **Note:** Using `make release` is recommended as it automatically runs tests before creating the release, ensuring code quality.
@@ -39,7 +43,7 @@ This command:
 - Shows a preview of the CHANGELOG entry that would be added
 - Never modifies any files
 
-### `release [type]`
+### `release [type] [--yes|-y]`
 
 The `release` command creates an actual release by updating files.
 
@@ -47,6 +51,9 @@ The `release` command creates an actual release by updating files.
 node scripts/changeset.js release
 # Or specify type explicitly
 node scripts/changeset.js release minor
+# Skip confirmation prompt
+node scripts/changeset.js release --yes
+node scripts/changeset.js release patch -y
 ```
 
 This command:
@@ -56,13 +63,12 @@ This command:
 - Automatically commits the changes
 - Creates and pushes a git tag for the release
 
-**Note**: If no changeset files exist, you must specify the release type explicitly:
-```bash
-# Required when no changeset files exist
-node scripts/changeset.js release patch
-```
+**Behavior when no changeset files exist:**
+- Defaults to `patch` release if no type is specified
+- Adds a generic maintenance entry to the CHANGELOG
 
-When no changesets exist, the script adds a generic maintenance entry to the CHANGELOG.
+**Flags:**
+- `--yes` or `-y`: Skip confirmation prompt and proceed automatically
 
 ## Changeset File Format
 
@@ -131,14 +137,18 @@ $ node scripts/changeset.js release
 
 For maintenance releases with dependency updates or minor improvements that don't require individual changeset files:
 
-1. **Specify the release type explicitly:**
+1. **Run release without changesets:**
    ```bash
-   node scripts/changeset.js release patch
-   # or
+   # Defaults to patch release
+   node scripts/changeset.js release
+   # Or specify release type explicitly
    node scripts/changeset.js release minor
+   # Skip confirmation with --yes flag
+   node scripts/changeset.js release --yes
    ```
 
 2. The script will:
+   - Default to patch release if no type is specified
    - Add a generic "Maintenance release" entry to CHANGELOG.md
    - Commit the changes
    - Create a git tag
