@@ -131,7 +131,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Add --agent flag if custom agent file is specified (via imports)
 	if workflowData.AgentFile != "" {
 		// Agent file path is relative to repository root, so prefix with $GITHUB_WORKSPACE
-		agentPath := fmt.Sprintf("${GITHUB_WORKSPACE}/%s", workflowData.AgentFile)
+		agentPath := fmt.Sprintf("\"${GITHUB_WORKSPACE}\"/%s", workflowData.AgentFile)
 		copilotArgs = append(copilotArgs, "--agent", agentPath)
 	}
 
@@ -893,12 +893,12 @@ func generateAWFInstallationStep(version string) GitHubActionStep {
 // generateAWFCleanupStep creates a GitHub Actions step to cleanup AWF resources
 func generateAWFCleanupStep(scriptPath string) GitHubActionStep {
 	if scriptPath == "" {
-		scriptPath = "${GITHUB_WORKSPACE}/scripts/ci/cleanup.sh"
+		scriptPath = "\"${GITHUB_WORKSPACE}\"/scripts/ci/cleanup.sh"
 	}
 
 	stepLines := []string{
 		"      - name: Cleanup any existing awf resources",
-		fmt.Sprintf("        run: %s || true", scriptPath),
+		fmt.Sprintf("        run: '%s || true'", scriptPath),
 	}
 
 	return GitHubActionStep(stepLines)
@@ -972,13 +972,13 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 // generateAWFPostExecutionCleanupStep creates a GitHub Actions step to cleanup AWF resources after execution
 func generateAWFPostExecutionCleanupStep(scriptPath string) GitHubActionStep {
 	if scriptPath == "" {
-		scriptPath = "${GITHUB_WORKSPACE}/scripts/ci/cleanup.sh"
+		scriptPath = "\"${GITHUB_WORKSPACE}\"/scripts/ci/cleanup.sh"
 	}
 
 	stepLines := []string{
 		"      - name: Cleanup awf resources",
 		"        if: always()",
-		fmt.Sprintf("        run: %s || true", scriptPath),
+		fmt.Sprintf("        run: '%s || true'", scriptPath),
 	}
 
 	return GitHubActionStep(stepLines)

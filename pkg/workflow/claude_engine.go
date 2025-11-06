@@ -172,7 +172,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	var promptCommand string
 	if workflowData.AgentFile != "" {
 		// Agent file path is relative to repository root, so prefix with $GITHUB_WORKSPACE
-		agentPath := fmt.Sprintf("${GITHUB_WORKSPACE}/%s", workflowData.AgentFile)
+		agentPath := fmt.Sprintf("\"${GITHUB_WORKSPACE}\"/%s", workflowData.AgentFile)
 		// Extract markdown body from custom agent file and prepend to prompt
 		stepLines = append(stepLines, "          # Extract markdown body from custom agent file (skip frontmatter)")
 		stepLines = append(stepLines, fmt.Sprintf("          AGENT_CONTENT=\"$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)\"", agentPath))
