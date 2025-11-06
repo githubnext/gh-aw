@@ -134,7 +134,7 @@ Follow these principles when organizing code:
 - Large files (500-800 lines): Complex features (consider splitting)
 - Very large files (800+ lines): Core infrastructure only (refactor if possible)
 
-For detailed guidance, see [Code Organization Patterns](docs/CODE_ORGANIZATION.md).
+For detailed guidance, see [Code Organization Patterns](specs/code-organization.md).
 
 #### Validation Patterns
 
