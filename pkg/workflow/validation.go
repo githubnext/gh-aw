@@ -3,23 +3,16 @@
 // # Validation Architecture
 //
 // This file contains general-purpose validation functions that apply across the entire
-// workflow system. For domain-specific validation (e.g., strict mode, expression safety),
-// see the corresponding domain files:
+// workflow system. For domain-specific validation (e.g., strict mode, package validation,
+// expression safety), see the corresponding domain files:
 //   - strict_mode.go: Security and strict mode validation
-//   - pip_validation.go: Python package validation
+//   - pip.go: Python package validation
+//   - npm.go: NPM package validation
 //   - expression_safety.go: GitHub Actions expression security
 //   - engine.go: AI engine configuration validation
 //   - mcp-config.go: MCP server configuration validation
 //   - docker.go: Docker image validation
 //   - template.go: Template structure validation
-//
-// # Package Validation Functions
-//
-// This file also contains package validation functions:
-//   - validateNpxPackages(): Validates npm packages used with npx launcher
-//   - validateNoLocalRequires(): Validates bundled JavaScript has no local requires
-//   - npm.go: NPM package extraction utilities
-//   - bundler.go: JavaScript bundling utilities
 //
 // # When to Add Validation Here
 //
@@ -29,7 +22,6 @@
 //   - It checks GitHub Actions compatibility
 //   - It validates general schema or configuration
 //   - It detects repository-level features
-//   - It validates package dependencies (npm, bundler, etc.)
 //
 // For domain-specific validation, add to or create a dedicated file.
 //
@@ -40,7 +32,6 @@
 //   - External resource validation: validateContainerImages()
 //   - Size limit validation: validateExpressionSizes()
 //   - Feature detection: validateRepositoryFeatures()
-//   - Package validation: validateNpxPackages(), validateNoLocalRequires()
 //   - Error collection: Collecting multiple validation errors before returning
 //
 // For detailed documentation on validation architecture, see:
@@ -52,7 +43,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -67,7 +57,6 @@ import (
 )
 
 var validationLog = logger.New("workflow:validation")
-var npmLog = logger.New("workflow:npm")
 
 // RepositoryFeatures holds cached information about repository capabilities
 type RepositoryFeatures struct {
@@ -857,117 +846,5 @@ func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markd
 	fmt.Fprintln(os.Stderr, formattedWarning)
 	c.IncrementWarningCount()
 
-	return nil
-}
-
-// validateNoLocalRequires checks that the bundled JavaScript contains no local require() statements
-// that weren't inlined during bundling. This prevents runtime errors from missing local modules.
-// Returns an error if any local requires are found, otherwise returns nil
-func validateNoLocalRequires(bundledContent string) error {
-	// Regular expression to match local require statements
-	// Matches: require('./...') or require("../...")
-	localRequireRegex := regexp.MustCompile(`require\(['"](\.\.?/[^'"]+)['"]\)`)
-
-	lines := strings.Split(bundledContent, "\n")
-	var foundRequires []string
-
-	for lineNum, line := range lines {
-		// Check for local requires
-		matches := localRequireRegex.FindAllStringSubmatch(line, -1)
-		for _, match := range matches {
-			if len(match) > 1 {
-				requirePath := match[1]
-				// Check if this require is inside a string literal
-				matchIdx := strings.Index(line, match[0])
-				if matchIdx >= 0 && !isInsideStringLiteralAt(line, matchIdx) {
-					foundRequires = append(foundRequires, fmt.Sprintf("line %d: require('%s')", lineNum+1, requirePath))
-				}
-			}
-		}
-	}
-
-	if len(foundRequires) > 0 {
-		return fmt.Errorf("bundled JavaScript contains %d local require(s) that were not inlined:\n  %s",
-			len(foundRequires), strings.Join(foundRequires, "\n  "))
-	}
-
-	return nil
-}
-
-// isInsideStringLiteralAt checks if a position in a line is inside a string literal
-func isInsideStringLiteralAt(line string, pos int) bool {
-	// Count unescaped quotes before the position
-	singleQuoteCount := 0
-	doubleQuoteCount := 0
-	backtickCount := 0
-
-	for i := 0; i < pos && i < len(line); i++ {
-		// Count consecutive backslashes before the current character
-		backslashCount := 0
-		for j := i - 1; j >= 0 && line[j] == '\\'; j-- {
-			backslashCount++
-		}
-
-		// If odd number of backslashes, the current character is escaped
-		if backslashCount%2 == 1 {
-			continue
-		}
-
-		switch line[i] {
-		case '\'':
-			singleQuoteCount++
-		case '"':
-			doubleQuoteCount++
-		case '`':
-			backtickCount++
-		}
-	}
-
-	// If any quote count is odd, we're inside that type of string literal
-	return singleQuoteCount%2 == 1 || doubleQuoteCount%2 == 1 || backtickCount%2 == 1
-}
-
-// validateNpxPackages validates that npx packages are available on npm registry
-func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
-	packages := extractNpxPackages(workflowData)
-	if len(packages) == 0 {
-		npmLog.Print("No npx packages to validate")
-		return nil
-	}
-
-	npmLog.Printf("Validating %d npx packages", len(packages))
-
-	// Check if npm is available
-	_, err := exec.LookPath("npm")
-	if err != nil {
-		npmLog.Print("npm command not found, cannot validate npx packages")
-		return fmt.Errorf("npm command not found - cannot validate npx packages. Install Node.js/npm or disable validation")
-	}
-
-	var errors []string
-	for _, pkg := range packages {
-		npmLog.Printf("Validating npm package: %s", pkg)
-
-		// Use npm view to check if package exists
-		cmd := exec.Command("npm", "view", pkg, "name")
-		output, err := cmd.CombinedOutput()
-
-		if err != nil {
-			npmLog.Printf("Package validation failed for %s: %v", pkg, err)
-			errors = append(errors, fmt.Sprintf("npx package '%s' not found on npm registry: %s", pkg, strings.TrimSpace(string(output))))
-		} else {
-			npmLog.Printf("Package validated successfully: %s", pkg)
-			if c.verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ npm package validated: %s", pkg)))
-			}
-		}
-	}
-
-	if len(errors) > 0 {
-		npmLog.Printf("npx package validation failed with %d errors", len(errors))
-		return fmt.Errorf("npx package validation failed:\n  - %s", strings.Join(errors, "\n  - "))
-	}
-
-	npmLog.Print("All npx packages validated successfully")
 	return nil
 }
