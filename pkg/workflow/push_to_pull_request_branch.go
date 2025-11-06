@@ -79,7 +79,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 		StepID:        "push_to_pull_request_branch",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
-		Script:        pushToBranchScript,
+		Script:        getPushToPullRequestBranchScript(),
 		Token:         token,
 	})
 	steps = append(steps, scriptSteps...)
