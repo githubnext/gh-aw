@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.28.3 - 2025-11-06
+
+### Bug Fixes
+
+#### Fix SC2086: Quote ${GITHUB_WORKSPACE} in generated workflow steps
+
+
 ## v0.28.2 - 2025-11-05
 
 ### Bug Fixes
