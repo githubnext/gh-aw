@@ -606,8 +606,9 @@ func discoverWorkflowsInPackage(repoSlug, version string, verbose bool) ([]*Work
 			return nil
 		}
 
-		// Skip metadata files
-		if info.Name() == ".commit-sha" {
+		// Skip common documentation markdown files
+		switch strings.ToLower(info.Name()) {
+		case "readme.md", "license.md", "contributing.md", "code_of_conduct.md", "security.md":
 			return nil
 		}
 
