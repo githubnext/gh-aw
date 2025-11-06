@@ -78,41 +78,6 @@ func runMCPServer(port int, cmdPath string) error {
 	return server.Run(context.Background(), &mcp.StdioTransport{})
 }
 
-// validateMCPServerConfiguration validates that the CLI is properly configured
-// by running the status command as a test
-func validateMCPServerConfiguration(cmdPath string) error {
-	// Try to run the status command to verify CLI is working
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	var cmd *exec.Cmd
-	if cmdPath != "" {
-		// Use custom command path
-		cmd = exec.CommandContext(ctx, cmdPath, "status")
-	} else {
-		// Use default gh aw command
-		cmd = exec.CommandContext(ctx, "gh", "aw", "status")
-	}
-	output, err := cmd.CombinedOutput()
-
-	if err != nil {
-		// Check for common error cases
-		if ctx.Err() == context.DeadlineExceeded {
-			return fmt.Errorf("status command timed out - this may indicate a configuration issue")
-		}
-
-		// If the command failed, provide helpful error message
-		if cmdPath != "" {
-			return fmt.Errorf("failed to run status command with custom command '%s': %w\nOutput: %s\n\nPlease ensure:\n  - The command path is correct and executable\n  - You are in a git repository with .github/workflows directory", cmdPath, err, string(output))
-		}
-		return fmt.Errorf("failed to run status command: %w\nOutput: %s\n\nPlease ensure:\n  - gh CLI is installed and in PATH\n  - gh aw extension is installed (run: gh extension install githubnext/gh-aw)\n  - You are in a git repository with .github/workflows directory", err, string(output))
-	}
-
-	// Status command succeeded - configuration is valid
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✅ Configuration validated successfully"))
-	return nil
-}
-
 // createMCPServer creates and configures the MCP server with all tools
 func createMCPServer(cmdPath string) *mcp.Server {
 	// Helper function to execute command with proper path
