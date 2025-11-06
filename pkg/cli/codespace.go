@@ -3,6 +3,8 @@ package cli
 import (
 	"os"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 // isRunningInCodespace checks if the current process is running in a GitHub Codespace
@@ -24,38 +26,41 @@ func is403PermissionError(errorMsg string) bool {
 // getCodespacePermissionErrorMessage returns a helpful error message for codespace users
 // experiencing 403 permission errors when running workflows
 func getCodespacePermissionErrorMessage() string {
-	return `
-╔══════════════════════════════════════════════════════════════════════════╗
-║ GitHub Codespace Permission Error                                       ║
-╚══════════════════════════════════════════════════════════════════════════╝
+	var msg strings.Builder
 
-The default GitHub token in Codespaces does not have 'actions:write' 
-permission, which is required to trigger GitHub Actions workflows.
+	msg.WriteString("\n")
+	msg.WriteString(console.FormatErrorMessage("GitHub Codespace Permission Error"))
+	msg.WriteString("\n\n")
 
-To fix this, you need to configure repository permissions in your 
-devcontainer.json file.
+	msg.WriteString("The default GitHub token in Codespaces does not have 'actions:write'\n")
+	msg.WriteString("permission, which is required to trigger GitHub Actions workflows.\n\n")
 
-🔧 Quick Fix:
-   Add the following to .devcontainer/devcontainer.json:
+	msg.WriteString("To fix this, you need to configure repository permissions in your\n")
+	msg.WriteString("devcontainer.json file.\n\n")
 
-   {
-     "customizations": {
-       "codespaces": {
-         "repositories": {
-           "owner/repo": {
-             "permissions": {
-               "actions": "write"
-             }
-           }
-         }
-       }
-     }
-   }
+	msg.WriteString(console.FormatInfoMessage("Quick Fix:"))
+	msg.WriteString("\n")
+	msg.WriteString("   Add the following to .devcontainer/devcontainer.json:\n\n")
 
-   Then rebuild your codespace to apply the changes.
+	msg.WriteString("   {\n")
+	msg.WriteString("     \"customizations\": {\n")
+	msg.WriteString("       \"codespaces\": {\n")
+	msg.WriteString("         \"repositories\": {\n")
+	msg.WriteString("           \"owner/repo\": {\n")
+	msg.WriteString("             \"permissions\": {\n")
+	msg.WriteString("               \"actions\": \"write\"\n")
+	msg.WriteString("             }\n")
+	msg.WriteString("           }\n")
+	msg.WriteString("         }\n")
+	msg.WriteString("       }\n")
+	msg.WriteString("     }\n")
+	msg.WriteString("   }\n\n")
 
-📚 Documentation:
-   https://docs.github.com/en/codespaces/setting-up-your-project-for-codespaces/adding-a-dev-container-configuration
+	msg.WriteString("   Then rebuild your codespace to apply the changes.\n\n")
 
-`
+	msg.WriteString(console.FormatInfoMessage("Documentation:"))
+	msg.WriteString("\n")
+	msg.WriteString("   https://docs.github.com/en/codespaces/setting-up-your-project-for-codespaces/adding-a-dev-container-configuration\n\n")
+
+	return msg.String()
 }
