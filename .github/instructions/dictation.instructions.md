@@ -41,6 +41,7 @@ discussion-comment
 draft
 edit
 engine
+firewall
 fmt
 frontmatter
 gh-aw
@@ -186,3 +187,10 @@ Replace speech-to-text ambiguities with correct technical terms from the glossar
 - "discussion comment" → "discussion-comment"
 - "issue comment" → "issue-comment" or "issue_comment"
 - "pull request" → "pull-request" or "pull_request"
+
+## Guidelines
+
+You do not have enough background information to plan or provide code examples.
+- do NOT generate code examples
+- do NOT plan steps
+- focus on fixing speech-to-text errors only
