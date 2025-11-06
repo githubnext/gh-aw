@@ -23,6 +23,13 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'GitHub Agentic Workflows',
+			logo: {
+				src: './src/assets/agentic-workflow.svg',
+			},
+			components: {
+				SocialIcons: './src/components/CustomHeader.astro',
+				ThemeSelect: './src/components/ThemeToggle.astro',
+			},
 			customCss: [
 				'./src/styles/custom.css',
 			],

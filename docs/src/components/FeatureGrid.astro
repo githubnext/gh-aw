@@ -1,6 +1,6 @@
 ---
 interface Props {
-  columns?: 2 | 3;
+  columns?: 2 | 3 | 4;
 }
 
 const { columns = 2 } = Astro.props;
@@ -13,8 +13,8 @@ const { columns = 2 } = Astro.props;
 <style>
   .feature-grid {
     display: grid;
-    gap: 2rem;
-    margin: 3rem 0;
+    gap: 1.25rem;
+    margin: 2rem 0;
   }
 
   .feature-grid.columns-2 {
@@ -25,6 +25,10 @@ const { columns = 2 } = Astro.props;
     grid-template-columns: 1fr;
   }
 
+  .feature-grid.columns-4 {
+    grid-template-columns: 1fr;
+  }
+
   @media (min-width: 50rem) {
     .feature-grid.columns-2 {
       grid-template-columns: repeat(2, 1fr);
@@ -32,6 +36,10 @@ const { columns = 2 } = Astro.props;
 
     .feature-grid.columns-3 {
       grid-template-columns: repeat(3, 1fr);
+    }
+
+    .feature-grid.columns-4 {
+      grid-template-columns: repeat(4, 1fr);
     }
   }
 </style>

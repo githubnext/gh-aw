@@ -1,0 +1,43 @@
+---
+import Default from '@astrojs/starlight/components/ThemeSelect.astro';
+import octicons from '@primer/octicons';
+
+const sunIcon = octicons.sun.toSVG({ width: 16, height: 16 });
+const moonIcon = octicons.moon.toSVG({ width: 16, height: 16 });
+---
+
+<Default {...Astro.props}>
+  <Fragment slot="light-icon" set:html={sunIcon} />
+  <Fragment slot="dark-icon" set:html={moonIcon} />
+</Default>
+
+<style>
+  :global([data-theme-select] button) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #8d96a0;
+    transition: all 0.2s ease;
+  }
+
+  :global([data-theme-select] button:hover) {
+    background: rgba(110, 118, 129, 0.1);
+    color: #f0f6fc;
+  }
+
+  :global([data-theme-select] svg) {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+  }
+
+  :global([data-theme-select] [aria-pressed="true"]) {
+    color: #f0f6fc;
+  }
+</style>

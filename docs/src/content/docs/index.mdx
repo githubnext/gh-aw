@@ -3,28 +3,50 @@ title: GitHub Agentic Workflows
 description: Exploring AI-powered repository automation running safely on GitHub Actions—combining AI agents with GitHub's collaboration platform to enable Continuous AI for software development.
 template: splash
 hero:
-  tagline: AI-powered repository automation from GitHub Next. Write natural language workflows that understand context, make decisions, and take meaningful actions across your repositories.
+  title: |
+    <div class="experimental-badge-container">
+      <span class="experimental-badge">EXPERIMENTAL</span>
+    </div>
+    GitHub Agentic Workflows
+  tagline: <strong>Explore AI-powered repository automation.</strong><br>Write natural language workflows that understand context, make decisions, and take meaningful actions across your repositories.
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 import FeatureCard from '../../components/FeatureCard.astro';
 import FeatureGrid from '../../components/FeatureGrid.astro';
 
+<style>{`
+  .experimental-badge-container {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 1.25rem;
+  }
+
+  .experimental-badge {
+    display: inline-block;
+    padding: 0.375rem 0.875rem;
+    border: 1px solid rgba(240, 246, 252, 0.15);
+    border-radius: 2rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: rgba(240, 246, 252, 0.65);
+    text-transform: uppercase;
+    background: rgba(240, 246, 252, 0.05);
+  }
+`}</style>
+
 <FeatureGrid>
-  <FeatureCard icon="rocket" title="Quick Start">
-    Get your first agentic workflow running in minutes.  
-    [Get Started →](/gh-aw/start-here/quick-start/)
+  <FeatureCard icon="rocket" title="Quick Start" href="/gh-aw/start-here/quick-start/">
+    Get your first agentic workflow running in minutes with simple markdown syntax.
   </FeatureCard>
-  <FeatureCard icon="book" title="How It Works">
-    Learn how natural language workflows become automated AI agents.  
-    [Learn More →](/gh-aw/start-here/how-it-works/)
+  <FeatureCard icon="book" title="How It Works" href="/gh-aw/start-here/how-it-works/">
+    Learn how natural language workflows become automated AI agents running on GitHub Actions.
   </FeatureCard>
-  <FeatureCard icon="terminal" title="Browse Commands">
-    Explore all available CLI commands.  
-    [View Commands →](/gh-aw/tools/cli/)
+  <FeatureCard icon="terminal" title="Browse Commands" href="/gh-aw/tools/cli/">
+    Explore all available CLI commands for compiling, deploying, and managing workflows.
   </FeatureCard>
-  <FeatureCard icon="shield-check" title="Security Guide">
-    Security considerations and best practices.  
-    [Security Guide →](/gh-aw/guides/security/)
+  <FeatureCard icon="shield-check" title="Security Guide" href="/gh-aw/guides/security/">
+    Security considerations, firewall protection, and best practices for safe AI automation.
   </FeatureCard>
 </FeatureGrid>

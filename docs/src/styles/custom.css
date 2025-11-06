@@ -5,7 +5,7 @@
 */
 
 :root {
-  /* GitHub Typography - Primer font stacks */
+  /* GitHub Typography with Primer font stacks */
   --sl-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --sl-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   
@@ -19,13 +19,197 @@
   
   /* Link colors */
   --sl-color-white: #ffffff;
-  --sl-color-gray-1: #e6edf3;
-  --sl-color-gray-2: #8d96a0;
-  --sl-color-gray-3: #6e7681;
-  --sl-color-gray-4: #484f58;
-  --sl-color-gray-5: #2d333b;
-  --sl-color-gray-6: #1c2128;
+  --sl-color-gray-1: #f0f6fc;
+  --sl-color-gray-2: #c9d1d9;
+  --sl-color-gray-3: #8b949e;
+  --sl-color-gray-4: #6e7681;
+  --sl-color-gray-5: #484f58;
+  --sl-color-gray-6: #30363d;
   --sl-color-black: #0d1117;
+  
+  /* GitHub borders */
+  --sl-color-hairline: #21262d;
+  --sl-color-hairline-light: rgba(240, 246, 252, 0.1);
+  
+  /* Override Starlight defaults */
+  --sl-color-text: #e6edf3;
+  --sl-color-text-invert: #0d1117;
+  --sl-color-gray-7: #0d1117;
+}
+
+body {
+  background: linear-gradient(180deg, #1c2128 0%, #22272e 50%, #0d1117 100%);
+  background-attachment: fixed;
+}
+
+main {
+  background-color: transparent;
+}
+
+.sidebar {
+  background-color: transparent;
+  border-right: 1px solid #21262d;
+}
+
+header {
+  background-color: transparent;
+  border-bottom: 1px solid #21262d;
+}
+
+.sl-markdown-content {
+  color: #e6edf3;
+}
+
+.sl-markdown-content pre {
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+}
+
+.sl-markdown-content code {
+  background-color: rgba(110, 118, 129, 0.4);
+  border-radius: 6px;
+  padding: 0.2em 0.4em;
+  font-size: 85%;
+}
+
+.sl-markdown-content table {
+  border: 1px solid #30363d;
+  border-radius: 6px;
+}
+
+.sl-markdown-content th {
+  background-color: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.sl-markdown-content td {
+  border-bottom: 1px solid #21262d;
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4,
+.sl-markdown-content h5,
+.sl-markdown-content h6 {
+  color: #f0f6fc;
+  font-weight: 600;
+  border-bottom: 1px solid #21262d;
+  padding-bottom: 0.3em;
+}
+
+.sl-markdown-content h1 {
+  font-size: 2em;
+  margin-bottom: 1rem;
+}
+
+.sl-markdown-content h2 {
+  font-size: 1.5em;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.sl-markdown-content blockquote {
+  border-left: 4px solid #30363d;
+  padding-left: 1rem;
+  color: #8b949e;
+}
+
+.sl-markdown-content a {
+  color: #58a6ff;
+  text-decoration: none;
+}
+
+nav a {
+  color: #c9d1d9;
+  transition: color 0.2s ease;
+}
+
+nav a:hover {
+  color: #58a6ff;
+}
+
+nav a[aria-current="page"] {
+  color: #c06eff;
+  font-weight: 600;
+}
+
+/* Buttons */
+.sl-markdown-content button,
+.sl-markdown-content .button,
+a.button {
+  background: linear-gradient(180deg, #2d333b, #22272e);
+  border: 1px solid #444c56;
+  color: #f0f6fc;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.sl-markdown-content button:hover,
+.sl-markdown-content .button:hover,
+a.button:hover {
+  background: linear-gradient(180deg, #373e47, #2d333b);
+  border-color: #768390;
+}
+
+/* Cards and containers */
+.card,
+.panel {
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
+/* Size and align the logo icon */
+.site-title {
+  display: flex;
+  align-items: center;
+  padding: 0.25rem 0;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  font-weight: 1000;
+  gap: 0.5rem;
+}
+
+.site-title img {
+  height: 1.5rem;
+  width: auto;
+  margin: 0;
+  filter: brightness(0) invert(1);
+}
+
+.site-title span {
+  color: #e6edf3;
+}
+
+site-search {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  flex-grow: 1;
 }
 
 /* Hero buttons with purple accent */
@@ -41,7 +225,6 @@
   font: #ffffff;
 }
 
-/* Links */
 a {
   color: #c06eff;
 }
@@ -50,8 +233,63 @@ a:hover {
   color: #d0b0ff;
 }
 
-/* Keep some GitHub green for secondary elements (5% usage per brand guide) */
 .sl-badge {
   background-color: #2ea043;
   color: #ffffff;
+}
+
+.hero {
+  background: transparent;
+  padding: 4rem 2rem 3rem;
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid #30363d;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse 100% 50% at 50% 0%, rgba(139, 92, 246, 0.08), transparent);
+  pointer-events: none;
+}
+
+.hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+starlight-menu-button + * {
+  margin-bottom: 1.5rem;
+}
+
+.experimental-badge-container {
+  margin-bottom: 1.5rem !important;
+}
+
+.experimental-badge {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.hero h1 {
+  font-size: clamp(2.25rem, 4vw, 3.5rem);
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 1.25rem;
+  color: #f0f6fc;
+  letter-spacing: -0.02em;
+}
+
+.hero .tagline {
+  font-size: clamp(1.0625rem, 1.5vw, 1.125rem);
+  line-height: 1.6;
+  color: #8d96a0;
+  max-width: 50rem;
+  margin: 0 auto 1.5rem;
+  font-weight: 400;
 }
