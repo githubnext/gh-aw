@@ -239,6 +239,10 @@ tools:
 # Store build artifacts in /tmp/gh-aw/cache-memory-artifacts/
 ```
 
+## Real-World Examples
+
+- **[Grumpy Code Reviewer](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/grumpy-reviewer.md)** - Uses cache memory to track previous PR reviews, storing review history per PR to avoid duplicate comments and maintain context across multiple review invocations.
+
 ## Related Documentation
 
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
