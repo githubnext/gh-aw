@@ -45,6 +45,29 @@ func (w *WorkflowSpec) String() string {
 	return spec
 }
 
+// isRepoOnlySpec checks if a specification is repo-only (owner/repo[@version]) without workflow path
+func isRepoOnlySpec(spec string) bool {
+	// URLs are not repo-only specs
+	if strings.HasPrefix(spec, "http://") || strings.HasPrefix(spec, "https://") {
+		return false
+	}
+
+	// Local paths are not repo-only specs
+	if strings.HasPrefix(spec, "./") {
+		return false
+	}
+
+	// Handle version first (anything after @)
+	parts := strings.SplitN(spec, "@", 2)
+	specWithoutVersion := parts[0]
+
+	// Split by slashes
+	slashParts := strings.Split(specWithoutVersion, "/")
+
+	// Exactly 2 parts means repo-only: owner/repo
+	return len(slashParts) == 2
+}
+
 // parseRepoSpec parses repository specification like "org/repo@version" or "org/repo@branch" or "org/repo@commit"
 // Also supports GitHub URLs like "https://github.com/owner/repo[@version]"
 func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
