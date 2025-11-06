@@ -606,15 +606,15 @@ type SafeOutputJobConfig struct {
 	Script string
 
 	// Job configuration
-	Permissions     *Permissions          // Job permissions
-	Outputs         map[string]string     // Job outputs
-	Condition       ConditionNode         // Job condition (if clause)
-	Needs           []string              // Job dependencies
-	PreSteps        []string              // Optional steps to run before the GitHub Script step
-	PostSteps       []string              // Optional steps to run after the GitHub Script step
-	Token           string                // GitHub token for this output type
-	UseCopilotToken bool                  // Whether to use Copilot token preference chain
-	TargetRepoSlug  string                // Target repository for cross-repo operations
+	Permissions     *Permissions      // Job permissions
+	Outputs         map[string]string // Job outputs
+	Condition       ConditionNode     // Job condition (if clause)
+	Needs           []string          // Job dependencies
+	PreSteps        []string          // Optional steps to run before the GitHub Script step
+	PostSteps       []string          // Optional steps to run after the GitHub Script step
+	Token           string            // GitHub token for this output type
+	UseCopilotToken bool              // Whether to use Copilot token preference chain
+	TargetRepoSlug  string            // Target repository for cross-repo operations
 }
 
 // buildSafeOutputJob creates a safe output job with common scaffolding

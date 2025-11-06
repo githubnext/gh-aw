@@ -92,15 +92,15 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:     "create_discussion",
-		StepName:    "Create Output Discussion",
-		StepID:      "create_discussion",
-		MainJobName: mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        getCreateDiscussionScript(),
-		Permissions:   NewPermissionsContentsReadDiscussionsWrite(),
-		Outputs:       outputs,
-		Token:         token,
+		JobName:        "create_discussion",
+		StepName:       "Create Output Discussion",
+		StepID:         "create_discussion",
+		MainJobName:    mainJobName,
+		CustomEnvVars:  customEnvVars,
+		Script:         getCreateDiscussionScript(),
+		Permissions:    NewPermissionsContentsReadDiscussionsWrite(),
+		Outputs:        outputs,
+		Token:          token,
 		TargetRepoSlug: data.SafeOutputs.CreateDiscussions.TargetRepoSlug,
 	})
 }

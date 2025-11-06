@@ -113,18 +113,18 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:     "add_comment",
-		StepName:    "Add Issue Comment",
-		StepID:      "add_comment",
-		MainJobName: mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        getAddCommentScript(),
-		Permissions:   NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite(),
-		Outputs:       outputs,
-		Condition:     jobCondition,
-		Needs:         needs,
-		PreSteps:      preSteps,
-		Token:         token,
+		JobName:        "add_comment",
+		StepName:       "Add Issue Comment",
+		StepID:         "add_comment",
+		MainJobName:    mainJobName,
+		CustomEnvVars:  customEnvVars,
+		Script:         getAddCommentScript(),
+		Permissions:    NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite(),
+		Outputs:        outputs,
+		Condition:      jobCondition,
+		Needs:          needs,
+		PreSteps:       preSteps,
+		Token:          token,
 		TargetRepoSlug: data.SafeOutputs.AddComments.TargetRepoSlug,
 	})
 }

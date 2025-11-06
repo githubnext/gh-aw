@@ -115,17 +115,17 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:     "create_pull_request",
-		StepName:    "Create Pull Request",
-		StepID:      "create_pull_request",
-		MainJobName: mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        createPullRequestScript,
-		Permissions:   NewPermissionsContentsWriteIssuesWritePRWrite(),
-		Outputs:       outputs,
-		PreSteps:      preSteps,
-		PostSteps:     postSteps,
-		Token:         data.SafeOutputs.CreatePullRequests.GitHubToken,
+		JobName:        "create_pull_request",
+		StepName:       "Create Pull Request",
+		StepID:         "create_pull_request",
+		MainJobName:    mainJobName,
+		CustomEnvVars:  customEnvVars,
+		Script:         createPullRequestScript,
+		Permissions:    NewPermissionsContentsWriteIssuesWritePRWrite(),
+		Outputs:        outputs,
+		PreSteps:       preSteps,
+		PostSteps:      postSteps,
+		Token:          data.SafeOutputs.CreatePullRequests.GitHubToken,
 		TargetRepoSlug: data.SafeOutputs.CreatePullRequests.TargetRepoSlug,
 	})
 }

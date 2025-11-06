@@ -353,10 +353,10 @@ safe-outputs:
 // are correctly handled by the shared builder
 func TestSafeOutputJobBuilderWithPreAndPostSteps(t *testing.T) {
 	tests := []struct {
-		name          string
-		frontmatter   string
-		expectedStep  string
-		stepType      string
+		name         string
+		frontmatter  string
+		expectedStep string
+		stepType     string
 	}{
 		{
 			name: "create-issue with assignees (post-steps)",

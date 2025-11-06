@@ -129,16 +129,16 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	// Use the shared builder function to create the job
 	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:     "create_issue",
-		StepName:    "Create Output Issue",
-		StepID:      "create_issue",
-		MainJobName: mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        getCreateIssueScript(),
-		Permissions:   NewPermissionsContentsReadIssuesWrite(),
-		Outputs:       outputs,
-		PostSteps:     postSteps,
-		Token:         token,
+		JobName:        "create_issue",
+		StepName:       "Create Output Issue",
+		StepID:         "create_issue",
+		MainJobName:    mainJobName,
+		CustomEnvVars:  customEnvVars,
+		Script:         getCreateIssueScript(),
+		Permissions:    NewPermissionsContentsReadIssuesWrite(),
+		Outputs:        outputs,
+		PostSteps:      postSteps,
+		Token:          token,
 		TargetRepoSlug: data.SafeOutputs.CreateIssues.TargetRepoSlug,
 	})
 }
