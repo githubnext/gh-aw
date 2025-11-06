@@ -1661,7 +1661,7 @@ jobs:
           ### Project Activation
           ```
           Tool: activate_project
-          Args: { "path": "/workspace" }
+          Args: { "path": "${GH_AW_EXPR_2D1CC6E7}" }
           ```
           
           ### Symbol Overview
@@ -1673,13 +1673,13 @@ jobs:
           ### Find Similar Symbols
           ```
           Tool: find_symbol
-          Args: { "symbol_name": "parseConfig", "workspace": "/workspace" }
+          Args: { "symbol_name": "parseConfig", "workspace": "${GH_AW_EXPR_2D1CC6E7}" }
           ```
           
           ### Search for Patterns
           ```
           Tool: search_for_pattern
-          Args: { "pattern": "func.*Config.*error", "workspace": "/workspace" }
+          Args: { "pattern": "func.*Config.*error", "workspace": "${GH_AW_EXPR_2D1CC6E7}" }
           ```
           
           ### Find References
