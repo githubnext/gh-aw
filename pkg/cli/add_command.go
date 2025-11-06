@@ -126,6 +126,12 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 		}
 	}
 
+	// Check if this is a repo-only specification (owner/repo instead of owner/repo/workflow)
+	// If so, list available workflows and exit
+	if len(workflows) == 1 && isRepoOnlySpec(workflows[0]) {
+		return handleRepoOnlySpec(workflows[0], verbose)
+	}
+
 	// If creating a PR, check prerequisites
 	if createPR {
 		// Check if GitHub CLI is available
@@ -193,6 +199,89 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 	// Handle normal workflow addition
 	addLog.Print("Adding workflows normally without PR")
 	return addWorkflowsNormal(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes)
+}
+
+// handleRepoOnlySpec handles the case when user provides only owner/repo without workflow name
+// It installs the package and lists available workflows
+func handleRepoOnlySpec(repoSpec string, verbose bool) error {
+	addLog.Printf("Handling repo-only specification: %s", repoSpec)
+
+	// Parse the repository specification to extract repo slug and version
+	spec, err := parseRepoSpec(repoSpec)
+	if err != nil {
+		return fmt.Errorf("invalid repository specification '%s': %w", repoSpec, err)
+	}
+
+	// Install the repository
+	repoWithVersion := spec.RepoSlug
+	if spec.Version != "" {
+		repoWithVersion = fmt.Sprintf("%s@%s", spec.RepoSlug, spec.Version)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing repository %s...", repoWithVersion)))
+	}
+
+	if err := InstallPackage(repoWithVersion, verbose); err != nil {
+		return fmt.Errorf("failed to install repository %s: %w", repoWithVersion, err)
+	}
+
+	// List workflows in the installed package
+	workflows, err := listWorkflowsInPackage(spec.RepoSlug, verbose)
+	if err != nil {
+		return fmt.Errorf("failed to list workflows in %s: %w", spec.RepoSlug, err)
+	}
+
+	// Display the list of available workflows
+	if len(workflows) == 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No workflows found in repository %s", spec.RepoSlug)))
+		return nil
+	}
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Please specify which workflow you want to add from %s:", spec.RepoSlug)))
+	fmt.Fprintln(os.Stderr, "")
+
+	for _, workflow := range workflows {
+		// Extract workflow name from path (remove .md extension and path)
+		workflowName := strings.TrimSuffix(filepath.Base(workflow), ".md")
+
+		// For workflows in workflows/ directory, show simplified name
+		if strings.HasPrefix(workflow, "workflows/") {
+			workflowName = strings.TrimSuffix(strings.TrimPrefix(workflow, "workflows/"), ".md")
+		}
+
+		// Build the full command
+		fullSpec := fmt.Sprintf("%s/%s", spec.RepoSlug, workflowName)
+		if spec.Version != "" {
+			fullSpec += "@" + spec.Version
+		}
+
+		fmt.Fprintf(os.Stderr, "  • %s\n", workflowName)
+		if verbose {
+			fmt.Fprintf(os.Stderr, "    Command: %s add %s\n", constants.CLIExtensionPrefix, fullSpec)
+		}
+	}
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintf(os.Stderr, "Example:\n")
+
+	// Show example with first workflow
+	exampleWorkflow := workflows[0]
+	exampleName := strings.TrimSuffix(filepath.Base(exampleWorkflow), ".md")
+	if strings.HasPrefix(exampleWorkflow, "workflows/") {
+		exampleName = strings.TrimSuffix(strings.TrimPrefix(exampleWorkflow, "workflows/"), ".md")
+	}
+
+	exampleSpec := fmt.Sprintf("%s/%s", spec.RepoSlug, exampleName)
+	if spec.Version != "" {
+		exampleSpec += "@" + spec.Version
+	}
+
+	fmt.Fprintf(os.Stderr, "  %s add %s\n", constants.CLIExtensionPrefix, exampleSpec)
+	fmt.Fprintln(os.Stderr, "")
+
+	return nil
 }
 
 // addWorkflowsNormal handles normal workflow addition without PR creation
