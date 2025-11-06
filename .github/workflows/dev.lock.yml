@@ -1087,7 +1087,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat > "$GH_AW_PROMPT" << PROMPT_EOF
+          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Generate a Poem
           
           Create or update a `poem.md` file with a creative poem about GitHub Agentic Workflows and push the changes to the pull request branch.

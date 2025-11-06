@@ -1206,11 +1206,10 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat > "$GH_AW_PROMPT" << PROMPT_EOF
+          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           ## Report Formatting
           
           Structure your report with an overview followed by detailed content:
@@ -1621,7 +1620,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
+          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           1. Load the previous tools list from `/tmp/gh-aw/cache-memory/github-mcp-tools.json` if it exists
           2. **Load the current JSON mapping from `pkg/workflow/data/github_toolsets_permissions.json`**
           3. Systematically explore EACH of the 19 toolsets individually to discover all current tools (including `search`)
@@ -1892,6 +1891,50 @@ jobs:
           Use this context information to understand the scope of your work.
           
           PROMPT_EOF
+      - name: Interpolate variables in prompt
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+        with:
+          script: |
+            const fs = require("fs");
+            function interpolateVariables(content, variables) {
+              let result = content;
+              for (const [varName, value] of Object.entries(variables)) {
+                const pattern = new RegExp(`\\$\\{${varName}\\}`, "g");
+                result = result.replace(pattern, value);
+              }
+              return result;
+            }
+            async function main() {
+              try {
+                const promptPath = process.env.GH_AW_PROMPT;
+                if (!promptPath) {
+                  core.setFailed("GH_AW_PROMPT environment variable is not set");
+                  return;
+                }
+                let content = fs.readFileSync(promptPath, "utf8");
+                const variables = {};
+                for (const [key, value] of Object.entries(process.env)) {
+                  if (key.startsWith("GH_AW_EXPR_")) {
+                    variables[key] = value || "";
+                  }
+                }
+                const varCount = Object.keys(variables).length;
+                core.info(`Found ${varCount} expression variable(s) to interpolate`);
+                if (varCount === 0) {
+                  core.info("No expression variables found, skipping interpolation");
+                  return;
+                }
+                const interpolated = interpolateVariables(content, variables);
+                fs.writeFileSync(promptPath, interpolated, "utf8");
+                core.info(`Successfully interpolated ${varCount} variable(s) in prompt`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error.message : String(error));
+              }
+            }
+            main();
       - name: Render template conditionals
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:

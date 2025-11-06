@@ -146,4 +146,3 @@ Actor: ${{ github.actor }}
 		t.Error("Expected interpolation step for JavaScript-based variable interpolation")
 	}
 }
-

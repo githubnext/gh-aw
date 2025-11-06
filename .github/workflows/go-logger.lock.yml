@@ -1224,7 +1224,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat > "$GH_AW_PROMPT" << PROMPT_EOF
+          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Go Logger Enhancement
           
           You are an AI agent that improves Go code by adding debug logging statements to help with troubleshooting and development.

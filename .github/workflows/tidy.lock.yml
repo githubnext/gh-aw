@@ -1467,7 +1467,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
-          cat > "$GH_AW_PROMPT" << PROMPT_EOF
+          cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Code Tidying Agent
           
           You are a code maintenance agent responsible for keeping the codebase clean, formatted, and properly linted. Your task is to format, lint, fix issues, recompile workflows, run tests, and create or update a pull request if changes are needed.

@@ -15,13 +15,13 @@ const fs = require("fs");
  */
 function interpolateVariables(content, variables) {
   let result = content;
-  
+
   // Replace each ${VAR_NAME} with its corresponding value
   for (const [varName, value] of Object.entries(variables)) {
-    const pattern = new RegExp(`\\$\\{${varName}\\}`, 'g');
+    const pattern = new RegExp(`\\$\\{${varName}\\}`, "g");
     result = result.replace(pattern, value);
   }
-  
+
   return result;
 }
 

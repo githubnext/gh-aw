@@ -119,15 +119,14 @@ func (c *Compiler) generateInterpolationStep(yaml *strings.Builder, expressionMa
 	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	
+
 	// Add environment variables for extracted expressions
 	for _, mapping := range expressionMappings {
 		// Write the environment variable with the original GitHub expression
 		fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
 	}
-	
+
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 	WriteJavaScriptToYAML(yaml, interpolatePromptScript)
 }
-
