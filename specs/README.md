@@ -17,6 +17,7 @@ This directory contains design specifications and implementation documentation f
 | [MCP Logs Guardrail](./MCP_LOGS_GUARDRAIL.md) | ✅ Implemented | `pkg/cli/mcp_logs_guardrail.go` |
 | [YAML Version Compatibility](./yaml-version-gotchas.md) | ✅ Documented | `pkg/workflow/compiler.go` |
 | [Schema Validation](./SCHEMA_VALIDATION.md) | ✅ Documented | `pkg/parser/schemas/` |
+| [GitHub Actions Security Best Practices](./github-actions-security-best-practices.md) | ✅ Documented | Workflow security guidelines and patterns |
 
 ## Related Documentation
 
