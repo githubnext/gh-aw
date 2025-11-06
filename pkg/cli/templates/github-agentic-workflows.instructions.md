@@ -439,6 +439,8 @@ on:
 - `pull_request_review_comment` - Pull request review comments
 - `*` - All comment-related events (default)
 
+**Note**: Both `issue_comment` and `pull_request_comment` map to GitHub Actions' `issue_comment` event with automatic filtering to distinguish between issue and PR comments.
+
 ### Semi-Active Agent Pattern
 ```yaml
 on:
