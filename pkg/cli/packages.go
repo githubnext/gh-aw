@@ -243,6 +243,33 @@ type WorkflowSourceInfo struct {
 	CommitSHA   string // The actual commit SHA used when the package was installed
 }
 
+// isValidWorkflowFile checks if a markdown file is a valid workflow by attempting to parse its frontmatter
+func isValidWorkflowFile(filePath string) bool {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return false
+	}
+
+	// Try to extract frontmatter - a valid workflow should have parseable frontmatter
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return false
+	}
+
+	// A valid workflow must have frontmatter with at least an "on" field
+	// Files without frontmatter or with empty frontmatter are not workflows
+	if result.Frontmatter == nil || len(result.Frontmatter) == 0 {
+		return false
+	}
+
+	// Check for the presence of the "on" field which is required for workflows
+	if _, hasOn := result.Frontmatter["on"]; !hasOn {
+		return false
+	}
+
+	return true
+}
+
 // listWorkflowsInPackage lists all available workflows in an installed package
 func listWorkflowsInPackage(repoSlug string, verbose bool) ([]string, error) {
 	packagesLog.Printf("Listing workflows in package: %s", repoSlug)
@@ -274,6 +301,14 @@ func listWorkflowsInPackage(repoSlug string, verbose bool) ([]string, error) {
 
 		// Skip metadata files
 		if info.Name() == ".commit-sha" {
+			return nil
+		}
+
+		// Check if this is a valid workflow file
+		if !isValidWorkflowFile(path) {
+			if verbose {
+				fmt.Printf("Skipping non-workflow file: %s\n", path)
+			}
 			return nil
 		}
 
@@ -606,9 +641,11 @@ func discoverWorkflowsInPackage(repoSlug, version string, verbose bool) ([]*Work
 			return nil
 		}
 
-		// Skip common documentation markdown files
-		switch strings.ToLower(info.Name()) {
-		case "readme.md", "license.md", "contributing.md", "code_of_conduct.md", "security.md":
+		// Check if this is a valid workflow file
+		if !isValidWorkflowFile(path) {
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Skipping non-workflow file: %s\n", path)
+			}
 			return nil
 		}
 
