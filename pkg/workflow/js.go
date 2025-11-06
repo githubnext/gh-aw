@@ -39,6 +39,9 @@ var parseCodexLogScript string
 //go:embed js/parse_copilot_log.cjs
 var parseCopilotLogScript string
 
+//go:embed js/log_parser_bootstrap.cjs
+var logParserBootstrapScript string
+
 //go:embed js/validate_errors.cjs
 var validateErrorsScript string
 
@@ -510,6 +513,11 @@ func GetLogParserScript(name string) string {
 	default:
 		return ""
 	}
+}
+
+// GetLogParserBootstrap returns the JavaScript content for the log parser bootstrap helper
+func GetLogParserBootstrap() string {
+	return logParserBootstrapScript
 }
 
 // GetSafeOutputsMCPServerScript returns the JavaScript content for the GitHub Agentic Workflows Safe Outputs MCP server
