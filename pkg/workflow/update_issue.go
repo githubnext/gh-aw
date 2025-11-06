@@ -51,7 +51,7 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 	}
 
 	// Build job condition with event check if target is not specified
-	var jobCondition ConditionNode = BuildSafeOutputType("update_issue")
+	jobCondition := BuildSafeOutputType("update_issue")
 	if data.SafeOutputs.UpdateIssues != nil && data.SafeOutputs.UpdateIssues.Target == "" {
 		eventCondition := BuildPropertyAccess("github.event.issue.number")
 		jobCondition = buildAnd(jobCondition, eventCondition)

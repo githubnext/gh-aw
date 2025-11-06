@@ -87,7 +87,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	}
 
 	// Build job condition with event check if target is not specified
-	var jobCondition ConditionNode = BuildSafeOutputType("add_comment")
+	jobCondition := BuildSafeOutputType("add_comment")
 	if data.SafeOutputs.AddComments != nil && data.SafeOutputs.AddComments.Target == "" {
 		eventCondition := buildOr(
 			buildOr(
