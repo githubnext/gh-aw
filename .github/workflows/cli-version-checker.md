@@ -125,6 +125,55 @@ Template structure:
 - Test with `make recompile` before creating PR
 - **DO NOT COMMIT** `*.lock.yml` or `pkg/workflow/js/*.js` files directly
 
+## Common JSON Parsing Issues
+
+When using npm commands or other CLI tools, their output may include informational messages with Unicode symbols that break JSON parsing:
+
+**Problem Patterns**:
+- `Unexpected token 'ℹ', "ℹ Timeout "... is not valid JSON`
+- `Unexpected token '⚠', "⚠ pip pack"... is not valid JSON`
+- `Unexpected token '✓', "✓ Success"... is not valid JSON`
+
+**Solutions**:
+
+### 1. Filter stderr (Recommended)
+Redirect stderr to suppress npm warnings/info:
+```bash
+npm view @github/copilot version 2>/dev/null
+npm view @anthropic-ai/claude-code --json 2>/dev/null
+```
+
+### 2. Use grep to filter output
+Remove lines with Unicode symbols before parsing:
+```bash
+npm view @github/copilot --json | grep -v "^[ℹ⚠✓]"
+```
+
+### 3. Use jq for reliable extraction
+Let jq handle malformed input:
+```bash
+# Extract version field only, ignoring non-JSON lines
+npm view @github/copilot --json 2>/dev/null | jq -r '.version'
+```
+
+### 4. Check tool output before parsing
+Always validate JSON before attempting to parse:
+```bash
+output=$(npm view package --json 2>/dev/null)
+if echo "$output" | jq empty 2>/dev/null; then
+  # Valid JSON, safe to parse
+  version=$(echo "$output" | jq -r '.version')
+else
+  # Invalid JSON, handle error
+  echo "Warning: npm output is not valid JSON"
+fi
+```
+
+**Best Practice**: Combine stderr filtering with jq extraction for most reliable results:
+```bash
+npm view @github/copilot --json 2>/dev/null | jq -r '.version'
+```
+
 ## Error Handling
 - **SAVE PROGRESS**: Before exiting on errors, save current state to cache-memory
 - **RESUME ON RESTART**: Check cache-memory on startup to resume from where you left off
