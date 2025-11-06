@@ -44,40 +44,33 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 		token = data.SafeOutputs.UpdateIssues.GitHubToken
 	}
 
-	// Build the GitHub Script step using the common helper
-	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Update Issue",
-		StepID:        "update_issue",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        getUpdateIssueScript(),
-		Token:         token,
-	})
-
 	// Create outputs for the job
 	outputs := map[string]string{
 		"issue_number": "${{ steps.update_issue.outputs.issue_number }}",
 		"issue_url":    "${{ steps.update_issue.outputs.issue_url }}",
 	}
 
-	var jobCondition = BuildSafeOutputType("update_issue")
+	// Build job condition with event check if target is not specified
+	jobCondition := BuildSafeOutputType("update_issue")
 	if data.SafeOutputs.UpdateIssues != nil && data.SafeOutputs.UpdateIssues.Target == "" {
 		eventCondition := BuildPropertyAccess("github.event.issue.number")
 		jobCondition = buildAnd(jobCondition, eventCondition)
 	}
 
-	job := &Job{
-		Name:           "update_issue",
-		If:             jobCondition.Render(),
-		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    "permissions:\n      contents: read\n      issues: write",
-		TimeoutMinutes: 10, // 10-minute timeout as required
-		Steps:          steps,
+	// Use the shared builder function to create the job
+	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+		JobName:        "update_issue",
+		StepName:       "Update Issue",
+		StepID:         "update_issue",
+		MainJobName:    mainJobName,
+		CustomEnvVars:  customEnvVars,
+		Script:         getUpdateIssueScript(),
+		Permissions:    NewPermissionsContentsReadIssuesWrite(),
 		Outputs:        outputs,
-		Needs:          []string{mainJobName}, // Depend on the main workflow job
-	}
-
-	return job, nil
+		Condition:      jobCondition,
+		Token:          token,
+		TargetRepoSlug: data.SafeOutputs.UpdateIssues.TargetRepoSlug,
+	})
 }
 
 // parseUpdateIssuesConfig handles update-issue configuration

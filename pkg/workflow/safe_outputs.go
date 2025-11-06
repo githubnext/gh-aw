@@ -590,6 +590,91 @@ func buildAgentOutputDownloadSteps() []string {
 	})
 }
 
+// SafeOutputJobConfig holds configuration for building a safe output job
+// This config struct extracts the common parameters across all safe output job builders
+type SafeOutputJobConfig struct {
+	// Job metadata
+	JobName     string // e.g., "create_issue"
+	StepName    string // e.g., "Create Output Issue"
+	StepID      string // e.g., "create_issue"
+	MainJobName string // Main workflow job name for dependencies
+
+	// Custom environment variables specific to this safe output type
+	CustomEnvVars []string
+
+	// JavaScript script constant to include in the GitHub Script step
+	Script string
+
+	// Job configuration
+	Permissions     *Permissions      // Job permissions
+	Outputs         map[string]string // Job outputs
+	Condition       ConditionNode     // Job condition (if clause)
+	Needs           []string          // Job dependencies
+	PreSteps        []string          // Optional steps to run before the GitHub Script step
+	PostSteps       []string          // Optional steps to run after the GitHub Script step
+	Token           string            // GitHub token for this output type
+	UseCopilotToken bool              // Whether to use Copilot token preference chain
+	TargetRepoSlug  string            // Target repository for cross-repo operations
+}
+
+// buildSafeOutputJob creates a safe output job with common scaffolding
+// This extracts the repeated pattern found across safe output job builders:
+// 1. Validate configuration
+// 2. Build custom environment variables
+// 3. Invoke buildGitHubScriptStep
+// 4. Create Job with standard metadata
+func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobConfig) (*Job, error) {
+	var steps []string
+
+	// Add pre-steps if provided (e.g., checkout, git config for create-pull-request)
+	if len(config.PreSteps) > 0 {
+		steps = append(steps, config.PreSteps...)
+	}
+
+	// Build the GitHub Script step using the common helper
+	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
+		StepName:        config.StepName,
+		StepID:          config.StepID,
+		MainJobName:     config.MainJobName,
+		CustomEnvVars:   config.CustomEnvVars,
+		Script:          config.Script,
+		Token:           config.Token,
+		UseCopilotToken: config.UseCopilotToken,
+	})
+	steps = append(steps, scriptSteps...)
+
+	// Add post-steps if provided (e.g., assignees, reviewers)
+	if len(config.PostSteps) > 0 {
+		steps = append(steps, config.PostSteps...)
+	}
+
+	// Determine job condition
+	jobCondition := config.Condition
+	if jobCondition == nil {
+		jobCondition = BuildSafeOutputType(config.JobName)
+	}
+
+	// Determine job needs
+	needs := config.Needs
+	if len(needs) == 0 {
+		needs = []string{config.MainJobName}
+	}
+
+	// Create the job with standard configuration
+	job := &Job{
+		Name:           config.JobName,
+		If:             jobCondition.Render(),
+		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		Permissions:    config.Permissions.RenderToYAML(),
+		TimeoutMinutes: 10, // 10-minute timeout as required for all safe output jobs
+		Steps:          steps,
+		Outputs:        config.Outputs,
+		Needs:          needs,
+	}
+
+	return job, nil
+}
+
 func generateSafeOutputsConfig(data *WorkflowData) string {
 	// Pass the safe-outputs configuration for validation
 	if data.SafeOutputs == nil {

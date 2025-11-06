@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -180,5 +182,264 @@ func TestTargetRepoOverridesTrialRepo(t *testing.T) {
 	// Verify that trial repo slug is NOT used
 	if strings.Contains(stepsContent, "          GH_AW_TARGET_REPO_SLUG: \"owner/trial-repo\"\n") {
 		t.Error("Expected trial repo slug to be overridden by explicit target-repo")
+	}
+}
+
+// TestSafeOutputJobBuilderRefactor validates that the refactored safe output job builders
+// produce the expected job structure and maintain consistency across different output types
+func TestSafeOutputJobBuilderRefactor(t *testing.T) {
+	tests := []struct {
+		name           string
+		frontmatter    string
+		expectedJob    string
+		expectedPerms  string
+		expectedOutput string
+	}{
+		{
+			name: "create-issue job builder",
+			frontmatter: `---
+on: issues
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  create-issue:
+    title-prefix: "[bot] "
+    labels: [automation]
+---
+
+# Test workflow`,
+			expectedJob:    "create_issue:",
+			expectedPerms:  "contents: read",
+			expectedOutput: "issue_number:",
+		},
+		{
+			name: "create-discussion job builder",
+			frontmatter: `---
+on: issues
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  create-discussion:
+    title-prefix: "[report] "
+    category: General
+---
+
+# Test workflow`,
+			expectedJob:    "create_discussion:",
+			expectedPerms:  "contents: read",
+			expectedOutput: "discussion_number:",
+		},
+		{
+			name: "update-issue job builder",
+			frontmatter: `---
+on: issues
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  update-issue:
+    status:
+    title:
+---
+
+# Test workflow`,
+			expectedJob:    "update_issue:",
+			expectedPerms:  "contents: read",
+			expectedOutput: "issue_number:",
+		},
+		{
+			name: "add-comment job builder",
+			frontmatter: `---
+on: issues
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  add-comment:
+    max: 3
+---
+
+# Test workflow`,
+			expectedJob:    "add_comment:",
+			expectedPerms:  "contents: read",
+			expectedOutput: "comment_id:",
+		},
+		{
+			name: "create-pull-request job builder",
+			frontmatter: `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  create-pull-request:
+    title-prefix: "[auto] "
+    labels: [automated]
+---
+
+# Test workflow`,
+			expectedJob:    "create_pull_request:",
+			expectedPerms:  "contents: write",
+			expectedOutput: "pull_request_number:",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary directory for test files
+			tmpDir, err := os.MkdirTemp("", "refactor-test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir)
+
+			testFile := filepath.Join(tmpDir, "test-workflow.md")
+			if err := os.WriteFile(testFile, []byte(tt.frontmatter), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// Compile the workflow
+			compiler := NewCompiler(false, "", "test")
+			err = compiler.CompileWorkflow(testFile)
+			if err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			// Read the compiled output
+			outputFile := filepath.Join(tmpDir, "test-workflow.lock.yml")
+			compiledContent, err := os.ReadFile(outputFile)
+			if err != nil {
+				t.Fatalf("Failed to read compiled output: %v", err)
+			}
+
+			yamlStr := string(compiledContent)
+
+			// Verify job is created
+			if !strings.Contains(yamlStr, tt.expectedJob) {
+				t.Errorf("Expected job %q not found in output", tt.expectedJob)
+			}
+
+			// Verify permissions are set
+			if !strings.Contains(yamlStr, tt.expectedPerms) {
+				t.Errorf("Expected permissions %q not found in output", tt.expectedPerms)
+			}
+
+			// Verify outputs are defined
+			if !strings.Contains(yamlStr, tt.expectedOutput) {
+				t.Errorf("Expected output %q not found in output", tt.expectedOutput)
+			}
+
+			// Verify timeout is set (all safe output jobs should have 10 minute timeout)
+			if !strings.Contains(yamlStr, "timeout-minutes: 10") {
+				t.Error("Expected timeout-minutes: 10 not found in output")
+			}
+
+			// Verify buildGitHubScriptStep is used (should have agent output download)
+			if !strings.Contains(yamlStr, "Download agent output artifact") {
+				t.Error("Expected 'Download agent output artifact' step not found - buildGitHubScriptStep may not be called")
+			}
+
+			// Verify safe output condition is set
+			if !strings.Contains(yamlStr, "!cancelled()") {
+				t.Error("Expected safe output condition '!cancelled()' not found")
+			}
+		})
+	}
+}
+
+// TestSafeOutputJobBuilderWithPreAndPostSteps validates that pre-steps and post-steps
+// are correctly handled by the shared builder
+func TestSafeOutputJobBuilderWithPreAndPostSteps(t *testing.T) {
+	tests := []struct {
+		name         string
+		frontmatter  string
+		expectedStep string
+		stepType     string
+	}{
+		{
+			name: "create-issue with assignees (post-steps)",
+			frontmatter: `---
+on: issues
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  create-issue:
+    assignees: [copilot]
+---
+
+# Test workflow`,
+			expectedStep: "Assign issue to copilot",
+			stepType:     "post-step",
+		},
+		{
+			name: "create-pull-request with checkout (pre-steps)",
+			frontmatter: `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  create-pull-request:
+---
+
+# Test workflow`,
+			expectedStep: "actions/checkout",
+			stepType:     "pre-step",
+		},
+		{
+			name: "add-comment with debug (pre-steps)",
+			frontmatter: `---
+on: issues
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  add-comment:
+---
+
+# Test workflow`,
+			expectedStep: "Debug agent outputs",
+			stepType:     "pre-step",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary directory for test files
+			tmpDir, err := os.MkdirTemp("", "presteps-test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir)
+
+			testFile := filepath.Join(tmpDir, "test-workflow.md")
+			if err := os.WriteFile(testFile, []byte(tt.frontmatter), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// Compile the workflow
+			compiler := NewCompiler(false, "", "test")
+			err = compiler.CompileWorkflow(testFile)
+			if err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			// Read the compiled output
+			outputFile := filepath.Join(tmpDir, "test-workflow.lock.yml")
+			compiledContent, err := os.ReadFile(outputFile)
+			if err != nil {
+				t.Fatalf("Failed to read compiled output: %v", err)
+			}
+
+			yamlStr := string(compiledContent)
+
+			// Verify the expected step is present
+			if !strings.Contains(yamlStr, tt.expectedStep) {
+				t.Errorf("Expected %s %q not found in output", tt.stepType, tt.expectedStep)
+			}
+		})
 	}
 }
