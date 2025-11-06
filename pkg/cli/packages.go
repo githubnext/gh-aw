@@ -516,3 +516,69 @@ type IncludeDependency struct {
 	TargetPath string // Relative path where it should be copied in .github/workflows
 	IsOptional bool   // Whether this is an optional include (@include?)
 }
+
+// discoverWorkflowsInPackage discovers all workflow files in an installed package
+// Returns a list of WorkflowSpec for each discovered workflow
+func discoverWorkflowsInPackage(repoSlug, version string, verbose bool) ([]*WorkflowSpec, error) {
+	packagesLog.Printf("Discovering workflows in package: %s (version: %s)", repoSlug, version)
+
+	packagesDir, err := getPackagesDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get packages directory: %w", err)
+	}
+
+	packagePath := filepath.Join(packagesDir, repoSlug)
+	if _, err := os.Stat(packagePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("package not found: %s (try installing it first)", repoSlug)
+	}
+
+	var workflows []*WorkflowSpec
+
+	// Walk through the package directory and find all .md files
+	err = filepath.Walk(packagePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip if not a markdown file
+		if info.IsDir() || !strings.HasSuffix(info.Name(), ".md") {
+			return nil
+		}
+
+		// Skip metadata files
+		if info.Name() == ".commit-sha" {
+			return nil
+		}
+
+		// Get relative path from package root
+		relPath, err := filepath.Rel(packagePath, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path: %w", err)
+		}
+
+		// Create workflow spec
+		spec := &WorkflowSpec{
+			RepoSpec: RepoSpec{
+				RepoSlug: repoSlug,
+				Version:  version,
+			},
+			WorkflowPath: relPath,
+			WorkflowName: strings.TrimSuffix(filepath.Base(relPath), ".md"),
+		}
+
+		workflows = append(workflows, spec)
+
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Discovered workflow: %s\n", spec.String())
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to walk package directory: %w", err)
+	}
+
+	packagesLog.Printf("Discovered %d workflows in package %s", len(workflows), repoSlug)
+	return workflows, nil
+}

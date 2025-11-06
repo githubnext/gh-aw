@@ -31,11 +31,14 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/workflows/ci-doctor.md@main
   ` + constants.CLIExtensionPrefix + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor --pr --force
+  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/*
+  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/*@v1.0.0
 
 Workflow specifications:
   - Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)
   - Four+ parts: "owner/repo/workflows/workflow-name.md[@version]" (requires explicit .md extension)
   - GitHub URL: "https://github.com/owner/repo/blob/branch/path/to/workflow.md"
+  - Wildcard: "owner/repo/*[@version]" (adds all workflows from the repository)
   - Version can be tag, branch, or SHA
 
 The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
@@ -182,6 +185,40 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 			addLog.Printf("Failed to install repository %s: %v", repoWithVersion, err)
 			return fmt.Errorf("failed to install repository %s: %w", repoWithVersion, err)
 		}
+	}
+
+	// Expand wildcards after installation
+	expandedWorkflows := []*WorkflowSpec{}
+	for _, spec := range processedWorkflows {
+		if spec.IsWildcard {
+			addLog.Printf("Expanding wildcard for repository: %s", spec.RepoSlug)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Discovering workflows in %s...", spec.RepoSlug)))
+			}
+
+			discovered, err := discoverWorkflowsInPackage(spec.RepoSlug, spec.Version, verbose)
+			if err != nil {
+				return fmt.Errorf("failed to discover workflows in %s: %w", spec.RepoSlug, err)
+			}
+
+			if len(discovered) == 0 {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No workflows found in %s", spec.RepoSlug)))
+			} else {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %d workflow(s) in %s", len(discovered), spec.RepoSlug)))
+				}
+				expandedWorkflows = append(expandedWorkflows, discovered...)
+			}
+		} else {
+			expandedWorkflows = append(expandedWorkflows, spec)
+		}
+	}
+
+	// Use expanded workflows for further processing
+	processedWorkflows = expandedWorkflows
+
+	if len(processedWorkflows) == 0 {
+		return fmt.Errorf("no workflows to add after expansion")
 	}
 
 	// Handle PR creation workflow
