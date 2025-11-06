@@ -80,9 +80,9 @@ steps:
         
         # Fetch issues (open and recently closed)
         echo "Fetching issues..."
-        gh api graphql -f query='
-          query($owner: String!, $repo: String!) {
-            repository(owner: $owner, name: $repo) {
+        gh api graphql -f query="
+          query(\$owner: String!, \$repo: String!) {
+            repository(owner: \$owner, name: \$repo) {
               openIssues: issues(first: 100, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {
                 nodes {
                   number
@@ -109,13 +109,13 @@ steps:
               }
             }
           }
-        ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/issues.json
+        " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/issues.json
         
         # Fetch pull requests (open and recently merged/closed)
         echo "Fetching pull requests..."
-        gh api graphql -f query='
-          query($owner: String!, $repo: String!) {
-            repository(owner: $owner, name: $repo) {
+        gh api graphql -f query="
+          query(\$owner: String!, \$repo: String!) {
+            repository(owner: \$owner, name: \$repo) {
               openPRs: pullRequests(first: 50, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {
                 nodes {
                   number
@@ -155,7 +155,7 @@ steps:
               }
             }
           }
-        ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/pull_requests.json
+        " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/pull_requests.json
         
         # Fetch recent commits (last 100)
         echo "Fetching commits..."
@@ -172,9 +172,9 @@ steps:
         
         # Fetch discussions
         echo "Fetching discussions..."
-        gh api graphql -f query='
-          query($owner: String!, $repo: String!) {
-            repository(owner: $owner, name: $repo) {
+        gh api graphql -f query="
+          query(\$owner: String!, \$repo: String!) {
+            repository(owner: \$owner, name: \$repo) {
               discussions(first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
                 nodes {
                   number
@@ -189,7 +189,7 @@ steps:
               }
             }
           }
-        ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/discussions.json
+        " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/discussions.json
         
         # Check for changesets
         echo "Checking for changesets..."
