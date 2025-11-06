@@ -256,7 +256,7 @@ When adding new features:
 4. **Write tests alongside** - Don't defer testing
 5. **Document patterns** - Update this guide when introducing new patterns
 
-For complete details, see [Code Organization Patterns](docs/CODE_ORGANIZATION.md).
+For complete details, see [Code Organization Patterns](specs/code-organization.md).
 
 
 
