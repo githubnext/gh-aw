@@ -105,8 +105,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	// Build the command with custom agent file prepending if specified (via imports)
 	var instructionCommand string
 	if workflowData.AgentFile != "" {
-		// Agent file path is relative to repository root, so prefix with $GITHUB_WORKSPACE
-		agentPath := fmt.Sprintf("\"${GITHUB_WORKSPACE}\"/%s", workflowData.AgentFile)
+		agentPath := ResolveAgentFilePath(workflowData.AgentFile)
 		// Extract markdown body from custom agent file (skip frontmatter) and prepend to prompt
 		instructionCommand = fmt.Sprintf(`set -o pipefail
 AGENT_CONTENT="$(awk 'BEGIN{skip=1} /^---$/{if(skip){skip=0;next}else{skip=1;next}} !skip' %s)"
