@@ -167,9 +167,7 @@ function generateMarkdown(workflows) {
   lines.push("");
 
   // Introduction
-  lines.push("This page shows the current status of all agentic workflows in the repository.");
-  lines.push("");
-  lines.push("Browse the [workflow source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows) on GitHub.");
+  lines.push("Status of all agentic workflows. [Browse source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows).");
   lines.push("");
 
   // Sort workflows alphabetically by name
@@ -200,9 +198,7 @@ function generateMarkdown(workflows) {
 
   lines.push("");
   lines.push(":::note");
-  lines.push(
-    "Status badges update automatically based on the latest workflow runs. Click on a badge to view the workflow details and run history. Click on a workflow name to view the source markdown file."
-  );
+  lines.push("Badges update automatically. Click badges for run details or workflow names for source files.");
   lines.push(":::");
   lines.push("");
 

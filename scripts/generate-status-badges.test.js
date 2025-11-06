@@ -109,24 +109,17 @@ allPassed &= assertContains(
   "Frontmatter description is present"
 );
 
-// Test 9: Introduction text is present
+// Test 9: Introduction text is present (streamlined)
 allPassed &= assertContains(
   output,
-  "This page shows the current status of all agentic workflows in the repository.",
-  "Introduction text is present"
+  "Status of all agentic workflows. [Browse source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows).",
+  "Introduction text is present (streamlined)"
 );
 
-// Test 9b: Source files link is present
-allPassed &= assertContains(
-  output,
-  "Browse the [workflow source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows) on GitHub.",
-  "Source files link is present"
-);
-
-// Test 10: Note section is present
+// Test 10: Note section is present (streamlined)
 allPassed &= assertContains(output, ":::note", "Note section is present");
 
-allPassed &= assertContains(output, "Click on a workflow name to view the source markdown file.", "Note mentions workflow name links");
+allPassed &= assertContains(output, "Badges update automatically. Click badges for run details or workflow names for source files.", "Note text is streamlined");
 
 // Test 11: Schedule column has cron expressions
 allPassed &= assertContains(output, "| `0", "Schedule column contains cron expressions with backticks");
@@ -165,11 +158,11 @@ allPassed &= assertNotContains(output, "<CardGrid>", "No CardGrid component (sho
 
 allPassed &= assertNotContains(output, "<Card>", "No Card component (should be table now)");
 
-// Test 20: Verify source link is present (moved to intro text)
+// Test 20: Verify source link is present (moved to intro text, streamlined)
 allPassed &= assertContains(
   output,
-  "[workflow source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)",
-  "Source files link is present"
+  "[Browse source files](https://github.com/githubnext/gh-aw/tree/main/.github/workflows)",
+  "Source files link is present (streamlined)"
 );
 
 // Test 21: Verify no separate "Workflow Link" column
