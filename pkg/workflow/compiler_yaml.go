@@ -680,8 +680,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add template rendering step if conditional patterns are detected
 	c.generateTemplateRenderingStep(yaml, data)
 
-	// Print prompt to step summary (merged into prompt generation)
-	yaml.WriteString("      - name: Print prompt to step summary\n")
+	// Print prompt (merged into prompt generation)
+	yaml.WriteString("      - name: Print prompt\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
