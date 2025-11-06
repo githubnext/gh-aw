@@ -51,6 +51,9 @@ var safeOutputsMCPServerScript string
 //go:embed js/render_template.cjs
 var renderTemplateScript string
 
+//go:embed js/interpolate_prompt.cjs
+var interpolatePromptScript string
+
 //go:embed js/checkout_pr_branch.cjs
 var checkoutPRBranchScript string
 

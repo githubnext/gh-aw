@@ -106,3 +106,28 @@ func (c *Compiler) generateTemplateRenderingStep(yaml *strings.Builder, data *Wo
 	yaml.WriteString("          script: |\n")
 	WriteJavaScriptToYAML(yaml, renderTemplateScript)
 }
+
+// generateInterpolationStep generates a step that interpolates GitHub expression variables in the prompt
+func (c *Compiler) generateInterpolationStep(yaml *strings.Builder, expressionMappings []*ExpressionMapping) {
+	if len(expressionMappings) == 0 {
+		return
+	}
+
+	templateLog.Printf("Generating interpolation step for %d expression(s)", len(expressionMappings))
+
+	yaml.WriteString("      - name: Interpolate variables in prompt\n")
+	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+	
+	// Add environment variables for extracted expressions
+	for _, mapping := range expressionMappings {
+		// Write the environment variable with the original GitHub expression
+		fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
+	}
+	
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	WriteJavaScriptToYAML(yaml, interpolatePromptScript)
+}
+
