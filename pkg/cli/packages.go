@@ -243,6 +243,67 @@ type WorkflowSourceInfo struct {
 	CommitSHA   string // The actual commit SHA used when the package was installed
 }
 
+// listWorkflowsInPackage lists all available workflows in an installed package
+func listWorkflowsInPackage(repoSlug string, verbose bool) ([]string, error) {
+	packagesLog.Printf("Listing workflows in package: %s", repoSlug)
+
+	packagesDir, err := getPackagesDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get packages directory: %w", err)
+	}
+
+	packagePath := filepath.Join(packagesDir, repoSlug)
+
+	// Check if package exists
+	if _, err := os.Stat(packagePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("package not found: %s", repoSlug)
+	}
+
+	var workflows []string
+
+	// Walk through the package directory to find all .md files
+	err = filepath.Walk(packagePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip directories and non-markdown files
+		if info.IsDir() || !strings.HasSuffix(info.Name(), ".md") {
+			return nil
+		}
+
+		// Skip metadata files
+		if info.Name() == ".commit-sha" {
+			return nil
+		}
+
+		// Get relative path from package directory
+		relPath, err := filepath.Rel(packagePath, path)
+		if err != nil {
+			return err
+		}
+
+		// Extract workflow name (remove .md extension)
+		workflowName := strings.TrimSuffix(filepath.Base(path), ".md")
+
+		// Add to list with relative path information
+		workflows = append(workflows, relPath)
+
+		if verbose {
+			fmt.Printf("Found workflow: %s (name: %s)\n", relPath, workflowName)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan package directory: %w", err)
+	}
+
+	packagesLog.Printf("Found %d workflows in package %s", len(workflows), repoSlug)
+	return workflows, nil
+}
+
 // findWorkflowInPackageForRepo searches for a workflow in installed packages
 func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte, *WorkflowSourceInfo, error) {
 
