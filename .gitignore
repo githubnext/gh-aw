@@ -1,27 +1,81 @@
-# Build artifacts
-gh-aw
-dist/
-bin/
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 
-# Dependencies
-node_modules/
-
-# Compiled workflows (generated from .md files)
-.github/workflows/*.lock.yml
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Test artifacts
-coverage.txt
+# Test binary, built with `go test -c`
 *.test
 
-# Temporary files
-*.tmp
-*.log
-/tmp/
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# Build output
+dist/
+build/
+run-*/
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Go binary for this project
+/gh-aw
+/gh-aw-darwin-amd64
+/gh-aw-darwin-arm64
+/gh-aw-linux-amd64
+/gh-aw-linux-arm64
+
+# credentials
+.credentials/
+
+coverage.html
+coverage/
+logs/
+
+node_modules/
+gh-aw-test/
+
+# Root package.json and package-lock.json are only for build tooling
+/package.json
+/package-lock.json
+
+pkg/cli/workflows/*.yml
+.github/workflows/test-update.md
+.github/workflows/test-update.lock.yml
+.github/workflows/test-timestamp-js.md
+.github/workflows/test-timestamp-js.lock.yml
+
+# Large test data files
+pkg/workflow/js/test-data/*.log
+sample-logs/
+*.invalid.yml
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Manual test scripts
+test_*.sh
+*.zip
+aw.patch
