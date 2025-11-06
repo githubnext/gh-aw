@@ -1,3 +1,7 @@
+---
+description: Dictation Instructions
+---
+
 # Dictation Instructions
 
 Fix text-to-speech errors in dictated text for creating agentic workflow prompts in the gh-aw repository.

@@ -1,3 +1,7 @@
+---
+description: GitHub MCP Server Documentation
+---
+
 # GitHub MCP Server Documentation
 
 This file contains comprehensive documentation about the GitHub MCP (Model Context Protocol) server, including available tools and configuration options.
