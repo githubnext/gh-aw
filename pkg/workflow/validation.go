@@ -51,7 +51,6 @@ import (
 	"github.com/cli/go-gh/v2"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
-	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 	"github.com/goccy/go-yaml"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
@@ -113,8 +112,8 @@ func (c *Compiler) validateExpressionSizes(yamlContent string) error {
 			}
 
 			// Format sizes for display
-			actualSize := pretty.FormatFileSize(int64(len(line)))
-			maxSizeFormatted := pretty.FormatFileSize(int64(maxSize))
+			actualSize := console.FormatFileSize(int64(len(line)))
+			maxSizeFormatted := console.FormatFileSize(int64(maxSize))
 
 			var errorMsg string
 			if key != "" {

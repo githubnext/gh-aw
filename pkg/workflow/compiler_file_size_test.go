@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
+	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 func TestCompileWorkflowFileSizeValidation(t *testing.T) {
@@ -134,8 +134,8 @@ This workflow tests the file size validation logic.
 		}
 
 		// Test our validation logic by checking what the error message would look like
-		lockSize := pretty.FormatFileSize(info.Size())
-		maxSize := pretty.FormatFileSize(MaxLockFileSize)
+		lockSize := console.FormatFileSize(info.Size())
+		maxSize := console.FormatFileSize(MaxLockFileSize)
 		expectedMessage := fmt.Sprintf("generated lock file size (%s) exceeds maximum allowed size (%s)", lockSize, maxSize)
 
 		t.Logf("Generated error message would be: %s", expectedMessage)
