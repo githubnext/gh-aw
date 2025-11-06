@@ -29,13 +29,13 @@ export default defineConfig({
 			components: {
 				SocialIcons: './src/components/CustomHeader.astro',
 				ThemeSelect: './src/components/ThemeToggle.astro',
+				Footer: './src/components/CustomFooter.astro',
 			},
 			customCss: [
 				'./src/styles/custom.css',
 			],
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/githubnext/gh-aw' },
-				{ icon: 'rocket', label: 'Instructions', href: 'https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/github-agentic-workflows.instructions.md' }
 			],
 			expressiveCode: {
 				shiki: {

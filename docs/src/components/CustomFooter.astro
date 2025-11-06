@@ -1,0 +1,55 @@
+---
+import octicons from '@primer/octicons';
+import Default from '@astrojs/starlight/components/Footer.astro';
+
+const heartIcon = octicons.heart.toSVG({ width: 14, height: 14 });
+---
+
+<Default {...Astro.props} />
+
+<div class="github-next-footer">
+  <p>
+    Made with <span class="heart-icon" set:html={heartIcon} /> by <a href="https://githubnext.com/" target="_blank" rel="noopener noreferrer">GitHub Next</a> & <a href="https://www.microsoft.com/en-us/research/" target="_blank" rel="noopener noreferrer">Microsoft Research</a>
+  </p>
+</div>
+
+<style>
+  .github-next-footer {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #21262d;
+    text-align: center;
+  }
+
+  .github-next-footer p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #8d96a0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+  }
+
+  .heart-icon {
+    display: inline-flex;
+    align-items: center;
+    color: #8b5cf6;
+  }
+
+  .heart-icon :global(svg) {
+    fill: currentColor;
+    display: block;
+  }
+
+  .github-next-footer a {
+    color: #8d96a0;
+    text-decoration: none;
+    transition: color 0.2s ease;
+    font-weight: 600;
+  }
+
+  .github-next-footer a:hover {
+    color: #c06eff;
+  }
+</style>

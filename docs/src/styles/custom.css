@@ -52,8 +52,29 @@ main {
 }
 
 header {
-  background-color: transparent;
+  background: linear-gradient(to bottom, rgba(28, 33, 40, 0.95), rgba(28, 33, 40, 0.8));
   border-bottom: 1px solid #21262d;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+header::after {
+  content: '';
+  position: absolute;
+  bottom: -30px;
+  left: 0;
+  right: 0;
+  height: 30px;
+  background: linear-gradient(to bottom, rgba(28, 33, 40, 0.95), transparent);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.sl-flex {
+  justify-content: center !important;
 }
 
 .sl-markdown-content {
@@ -189,16 +210,15 @@ a.button:hover {
   align-items: center;
   padding: 0.25rem 0;
   white-space: nowrap;
-  font-size: 0.9rem;
-  font-weight: 1000;
+  font-size: 0.875rem;
+  font-weight: 600;
   gap: 0.5rem;
 }
 
 .site-title img {
-  height: 1.5rem;
+  height: 1.25rem;
   width: auto;
   margin: 0;
-  filter: brightness(0) invert(1);
 }
 
 .site-title span {
@@ -208,7 +228,7 @@ a.button:hover {
 site-search {
   width: 100%;
   max-width: 800px;
-  margin: 0 auto;
+  margin: 0;
   flex-grow: 1;
 }
 
@@ -246,17 +266,6 @@ a:hover {
   border-bottom: 1px solid #30363d;
 }
 
-.hero::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(ellipse 100% 50% at 50% 0%, rgba(139, 92, 246, 0.08), transparent);
-  pointer-events: none;
-}
-
 .hero > * {
   position: relative;
   z-index: 1;
@@ -277,16 +286,16 @@ starlight-menu-button + * {
 }
 
 .hero h1 {
-  font-size: clamp(2.25rem, 4vw, 3.5rem);
+  font-size: clamp(2rem, 4vw, 2.75rem);
   font-weight: 600;
   line-height: 1.2;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
   color: #f0f6fc;
   letter-spacing: -0.02em;
 }
 
 .hero .tagline {
-  font-size: clamp(1.0625rem, 1.5vw, 1.125rem);
+  font-size: clamp(0.9375rem, 1.5vw, 1.0625rem);
   line-height: 1.6;
   color: #8d96a0;
   max-width: 50rem;
