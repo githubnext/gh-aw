@@ -1,9 +1,14 @@
 /* Follows GitHub brand guidelines:
+    Typography: https://brand.github.com/foundations/typography
+    Color: https://brand.github.com/foundations/color
     80% neutrals, 10% neutrals, 5% green, 5% purple
-    https://brand.github.com/foundations/color
 */
 
 :root {
+  /* GitHub Typography - Primer font stacks */
+  --sl-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --sl-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  
   /* Override Starlight's default blue with GitHub AI purple */
   --sl-color-accent-low: #501daf;
   --sl-color-accent: #c06eff;
