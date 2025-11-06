@@ -2560,6 +2560,46 @@
             }
           ]
         },
+        "remove-labels": {
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Null configuration allows removing any labels"
+            },
+            {
+              "type": "object",
+              "description": "Configuration for removing labels from issues/PRs from agentic workflow output",
+              "properties": {
+                "allowed": {
+                  "type": "array",
+                  "description": "Optional list of allowed labels that can be removed. If omitted, any labels can be removed.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Optional maximum number of labels to remove (default: 3)",
+                  "minimum": 1
+                },
+                "target": {
+                  "type": "string",
+                  "description": "Target for labels: 'triggering' (default), '*' (any issue/PR), or explicit issue/PR number"
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository label removal. Takes precedence over trial target repo settings."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "update-issue": {
           "oneOf": [
             {

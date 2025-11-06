@@ -229,6 +229,31 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.errors).toHaveLength(2);
   });
 
+  it("should validate required fields for remove-labels type", async () => {
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+    const ndjsonContent = `{"type": "remove_labels", "labels": ["bug", "enhancement"]}
+{"type": "remove_labels", "labels": "not-an-array"}
+{"type": "remove_labels", "labels": [1, 2, 3]}`;
+
+    fs.writeFileSync(testFile, ndjsonContent);
+    process.env.GH_AW_SAFE_OUTPUTS = testFile;
+    const __config = '{"remove_labels": true}';
+    const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+    fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+    fs.writeFileSync(configPath, __config);
+
+    await eval(`(async () => { ${collectScript} })()`);
+
+    const setOutputCalls = mockCore.setOutput.mock.calls;
+    const outputCall = setOutputCalls.find(call => call[0] === "output");
+    expect(outputCall).toBeDefined();
+
+    const parsedOutput = JSON.parse(outputCall[1]);
+    expect(parsedOutput.items).toHaveLength(1);
+    expect(parsedOutput.items[0].labels).toEqual(["bug", "enhancement"]);
+    expect(parsedOutput.errors).toHaveLength(2);
+  });
+
   it("should validate required fields for create-pull-request type", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create_pull_request", "title": "Test PR"}
