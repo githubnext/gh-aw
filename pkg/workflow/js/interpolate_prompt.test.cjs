@@ -19,6 +19,9 @@ global.core = core;
 const interpolatePromptScript = fs.readFileSync(path.join(__dirname, "interpolate_prompt.cjs"), "utf8");
 
 // Extract the interpolateVariables function
+// Note: We use regex extraction + eval pattern (matching render_template.test.cjs)
+// because the script is embedded via go:embed and designed to run in GitHub Actions,
+// not as a CommonJS module. This allows us to test the actual embedded code.
 const interpolateVariablesMatch = interpolatePromptScript.match(
   /function interpolateVariables\(content, variables\)\s*{[\s\S]*?return result;[\s\S]*?}/
 );
@@ -130,6 +133,7 @@ Some other content here.`;
       delete process.env.GH_AW_PROMPT;
 
       // Extract and execute main function
+      // Note: Same pattern as above - extracting from embedded script for testing
       const mainMatch = interpolatePromptScript.match(/async function main\(\)\s*{[\s\S]*?^}/m);
       if (!mainMatch) {
         throw new Error("Could not extract main function");

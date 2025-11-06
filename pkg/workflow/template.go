@@ -108,6 +108,18 @@ func (c *Compiler) generateTemplateRenderingStep(yaml *strings.Builder, data *Wo
 }
 
 // generateInterpolationStep generates a step that interpolates GitHub expression variables in the prompt
+// This step uses actions/github-script to replace ${GH_AW_EXPR_*} placeholders with their actual values
+// from GitHub Actions context expressions.
+//
+// Parameters:
+//   - yaml: The string builder to write the YAML to
+//   - expressionMappings: Array of ExpressionMapping containing the mappings between placeholders and GitHub expressions
+//
+// The generated step:
+//   - Uses actions/github-script action
+//   - Sets GH_AW_PROMPT environment variable to the prompt file path
+//   - Sets GH_AW_EXPR_* environment variables with the actual GitHub expressions (${{ ... }})
+//   - Runs interpolate_prompt.cjs script to replace placeholders with values
 func (c *Compiler) generateInterpolationStep(yaml *strings.Builder, expressionMappings []*ExpressionMapping) {
 	if len(expressionMappings) == 0 {
 		return
