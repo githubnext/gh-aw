@@ -3,34 +3,34 @@
     Color: https://brand.github.com/foundations/color
 */
 
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
+header,
+.sidebar,
+.right-sidebar,
+.content-panel,
+main,
+.main-frame {
+  transform: none !important;
+  will-change: auto !important;
 }
 
-header,
-.site-title,
-.theme-logo,
-starlight-theme-select,
-.icon-wrapper {
-  view-transition-name: none;
+.site-title {
+  flex-shrink: 0;
+}
+
+site-search {
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 :root {
-  /* GitHub Typography with Primer font stacks */
   --sl-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --sl-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   
-  /* GitHub AI purple */
   --sl-color-accent-low: #6639ba;
   --sl-color-accent: #d896ff;
   --sl-color-accent-high: #e5c7ff;
-  
-  /* Primary action color */
   --sl-color-text-accent: #d896ff;
   
-  /* Link colors */
   --sl-color-white: #ffffff;
   --sl-color-gray-1: #f6f8fa;
   --sl-color-gray-2: #d0d7de;
@@ -40,7 +40,6 @@ starlight-theme-select,
   --sl-color-gray-6: #2d333b;
   --sl-color-black: #010409;
   
-  /* GitHub borders */
   --sl-color-hairline: #21262d;
   --sl-color-hairline-light: rgba(240, 246, 252, 0.1);
   
@@ -249,7 +248,6 @@ body {
   font-family: var(--sl-font) !important;
 }
 
-/* Animated purple glowing background layer for dark theme */
 body::before {
   content: '';
   position: fixed;
@@ -265,10 +263,9 @@ body::before {
   z-index: 0;
   pointer-events: none;
   animation: glow-move 20s ease-in-out infinite;
-  display: none; /* Hide by default */
+  display: none;
 }
 
-/* Only show on landing page - check for .hero which only exists on homepage */
 body:has(.hero)::before {
   display: block;
 }
@@ -281,13 +278,21 @@ body:has(.hero)::before {
   position: relative;
   z-index: 1;
   background: transparent !important;
-  padding-top: 2rem;
+  padding-top: 0;
 }
 
 main {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   background: transparent !important;
+}
+
+sbody:has(.hero) main {
+  padding-bottom: 2rem;
+}
+
+body:has(.hero) .content-panel {
+  padding-bottom: 2rem !important;
 }
 
 .content-panel {
@@ -313,8 +318,10 @@ main {
   background-color: transparent !important;
   border-right: 1px solid rgba(48, 54, 61, 0.1);
   padding: 1.5rem 0 1.5rem 0 !important;
-  padding-top: 8rem !important;
+  padding-top: 5rem !important;
   margin-left: 3rem;
+  z-index: 5;
+  position: relative;
 }
 
 .sidebar-content {
@@ -353,7 +360,6 @@ main {
   background: none !important;
 }
 
-/* Sidebar links - cleaner VS Code style */
 .sidebar nav li li a {
   padding: 0.5rem 0 0.5rem 0.5rem;
   display: block;
@@ -452,7 +458,6 @@ a[aria-current="page"].link:hover {
   border-left-color: rgba(91, 61, 163, 0.4);
 }
 
-/* Override Starlight's default active link background for light theme */
 :root[data-theme='light'] .sidebar a[aria-current="page"],
 :root[data-theme='light'] .sidebar a[aria-current="page"]:hover,
 :root[data-theme='light'] .sidebar a[aria-current="page"]:focus,
@@ -471,34 +476,70 @@ a[aria-current="page"].link:hover {
 header {
   background: linear-gradient(to bottom, rgba(28, 33, 40, 0.98), rgba(34, 39, 46, 0.95));
   border-bottom: 1px solid rgba(33, 38, 45, 0.3);
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 10;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 4rem;
+  z-index: 100;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  will-change: auto;
 }
 
 header .header {
+  position: relative;
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: minmax(auto, max-content) 1fr minmax(auto, max-content) minmax(auto, max-content);
   gap: 1rem;
   align-items: center;
   padding: 0.5rem 1rem;
+  height: 100%;
   max-width: 100%;
+  width: 100%;
 }
 
+/* Lock navbar elements in absolute positions */
 header .site-title {
   min-width: max-content;
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 header site-search {
-  justify-self: center;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   min-width: 0;
+  width: 400px;
+  max-width: 40vw;
 }
 
-header .social-icons,
-header starlight-theme-select {
+header .social-icons {
+  position: absolute;
+  right: 4rem;
+  top: 50%;
+  transform: translateY(-50%);
   min-width: max-content;
+}
+
+header starlight-theme-select {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: max-content;
+}
+
+header .custom-header-links {
+  position: absolute;
+  right: 6rem;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 :root[data-theme='light'] header {
@@ -534,11 +575,9 @@ header::after {
   font-family: var(--sl-font) !important;
 }
 
-/* Better use of space with responsive max-width */
 .content-panel {
-  padding: 1.5rem 6rem 2.5rem 4rem !important;
-  padding-top: 2.5rem !important;
-  min-height: calc(100vh - 4rem);
+  padding: 0 2rem 2.5rem 4rem !important;
+  margin-top: 0 !important;
   border-left: 1px solid rgba(48, 54, 61, 0.2);
 }
 
@@ -550,7 +589,6 @@ main .content-panel > :first-child {
   margin-top: 0;
 }
 
-/* Improve readability with better line height and spacing */
 .sl-markdown-content p {
   line-height: 1.65;
   margin-bottom: 1.5rem;
@@ -569,7 +607,6 @@ main .content-panel > :first-child {
   color: #c9d1d9;
 }
 
-/* Better heading spacing */
 .sl-markdown-content h1 {
   font-size: 2.5rem;
   font-weight: 300;
@@ -643,7 +680,6 @@ main .content-panel > :first-child {
   line-height: 1.6;
 }
 
-/* Better table styling */
 .sl-markdown-content table {
   border: 1px solid #30363d;
   border-radius: 6px;
@@ -726,7 +762,6 @@ nav a[aria-current="page"] {
   font-weight: 600;
 }
 
-/* Social icons - GitHub in white */
 .social-icons a[href*="github.com"] {
   color: #ffffff !important;
 }
@@ -735,7 +770,6 @@ nav a[aria-current="page"] {
   color: #010409 !important;
 }
 
-/* Theme toggle icon visibility in light mode */
 :root[data-theme='light'] .icon-wrapper {
   color: #424a53 !important;
 }
@@ -765,7 +799,6 @@ a.button:hover {
   border-color: #768390;
 }
 
-/* Cards and containers */
 .card,
 .panel {
   background-color: #161b22;
@@ -774,7 +807,6 @@ a.button:hover {
   padding: 1rem;
 }
 
-/* Scrollbars - more subtle and professional */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -794,17 +826,22 @@ a.button:hover {
   background: rgba(72, 79, 88, 0.6);
 }
 
-/* Firefox scrollbar styling */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(48, 54, 61, 0.4) transparent;
 }
 
-/* Table of Contents styling - VS Code style */
 .right-sidebar {
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 16rem;
+  height: 100vh;
   padding: 1.5rem 1.5rem 2rem 1rem;
   padding-top: 6rem !important;
   border-left: 1px solid rgba(48, 54, 61, 0.2);
+  overflow-y: auto;
+  z-index: 10;
 }
 
 :root[data-theme='light'] .right-sidebar {
@@ -869,10 +906,9 @@ starlight-toc h2 {
   color: #656d76;
 }
 
-/* Pagination styling */
 .pagination-links {
-  margin-top: 4rem;
-  padding-top: 2rem;
+  margin-top: 0;
+  padding-top: 0;
   border-top: 1px solid #30363d;
   display: flex;
   gap: 1rem;
@@ -924,7 +960,6 @@ starlight-toc h2 {
   color: #010409;
 }
 
-/* Asides and alerts styling */
 .sl-markdown-content aside,
 .sl-markdown-content .starlight-aside {
   margin: 1.5rem 0;
@@ -957,7 +992,6 @@ starlight-toc h2 {
   border-left-color: #f85149;
 }
 
-/* Better hr styling */
 .sl-markdown-content hr {
   border: none;
   border-top: 1px solid #30363d;
@@ -968,7 +1002,6 @@ starlight-toc h2 {
   border-top-color: #d0d7de;
 }
 
-/* Improve kbd styling */
 .sl-markdown-content kbd {
   display: inline-block;
   padding: 0.2em 0.4em;
@@ -989,17 +1022,16 @@ starlight-toc h2 {
   box-shadow: inset 0 -1px 0 #d0d7de;
 }
 
-/* Responsive grid improvements - more spacious like VS Code */
 @media (min-width: 72rem) {
   .main-frame {
-    grid-template-columns: 16rem 1fr 14rem;
+    grid-template-columns: 16rem 1fr;
     gap: 0;
   }
 }
 
 @media (min-width: 90rem) {
   .main-frame {
-    grid-template-columns: 18rem 1fr 16rem;
+    grid-template-columns: 18rem 1fr;
     gap: 0;
   }
   
@@ -1008,7 +1040,6 @@ starlight-toc h2 {
   }
 }
 
-/* Focus styles for better accessibility */
 :focus-visible {
   outline: 2px solid #d896ff;
   outline-offset: 2px;
@@ -1019,7 +1050,6 @@ starlight-toc h2 {
   outline-color: #5b3da3;
 }
 
-/* Smooth scrolling for better UX */
 html {
   scroll-behavior: smooth;
 }
@@ -1030,14 +1060,13 @@ html {
   }
 }
 
-/* Size and align the logo icon */
 .site-title {
   display: flex;
   align-items: center;
   padding: 0.25rem 0;
   white-space: nowrap;
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 700;
   gap: 0.5rem;
   text-decoration: none !important;
 }
@@ -1063,7 +1092,6 @@ site-search {
   flex-grow: 1;
 }
 
-/* Hero buttons with purple accent */
 .hero .action.primary {
   background: linear-gradient(180deg, #d896ff 0%, #6639ba 100%);
   border-color: #d896ff;
@@ -1091,7 +1119,8 @@ a:hover {
 
 .hero {
   background: transparent;
-  padding: 4rem 2rem 3rem;
+  padding: 8rem 2rem 3rem;
+  margin-top: 2rem;
   position: relative;
   overflow: hidden;
   border-bottom: 1px solid #30363d;
@@ -1132,4 +1161,17 @@ starlight-menu-button + * {
   max-width: 50rem;
   margin: 0 auto 1.5rem;
   font-weight: 400;
+}
+
+footer,
+.footer,
+[role="contentinfo"] {
+  margin-top: 0 !important;
+  padding-top: 1rem;
+}
+
+footer *,
+.footer *,
+[role="contentinfo"] * {
+  margin-top: 0 !important;
 }

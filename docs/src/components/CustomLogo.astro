@@ -50,7 +50,6 @@ const initialLogoUrl = darkLogoUrl;
     }
   };
 
-  // Use View Transitions lifecycle if available
   document.addEventListener('astro:page-load', () => {
     updateLogo();
     
@@ -61,7 +60,6 @@ const initialLogoUrl = darkLogoUrl;
     });
   });
   
-  // Fallback for initial load
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', updateLogo);
   } else {
