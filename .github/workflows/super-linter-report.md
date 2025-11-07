@@ -81,8 +81,9 @@ steps:
         cat "$GITHUB_STEP_SUMMARY" >> /tmp/gh-aw/linter-output.txt 2>/dev/null || true
       fi
 tools:
+  edit:
   bash:
-    - 'cat /tmp/gh-aw/linter-output.txt'
+    - "*"
 ---
 
 # Super Linter Analysis Report
