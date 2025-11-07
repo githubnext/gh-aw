@@ -156,7 +156,7 @@ tools:
 safe-outputs:
   add-comment:
     max: 5
-timeout_minutes: 10
+timeout-minutes: 10
 ---
 
 # Code Review Assistant
