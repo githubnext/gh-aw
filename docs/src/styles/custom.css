@@ -265,12 +265,13 @@ body:has(.hero)::before {
   flex-direction: row;
   justify-content: center;
   align-items: flex-start;
-  gap: 2rem;
+  gap: 0;
   width: 100%;
   max-width: var(--layout-total-width);
   margin: 0 auto;
   padding-left: 2rem !important;
   padding-right: 2rem !important;
+  padding-top: 5rem !important;
 }
 
 .main-frame {
@@ -337,12 +338,17 @@ body:has(.hero) .content-panel {
 #starlight__sidebar, .sidebar {
   background-color: transparent !important;
   border-right: 1px solid rgba(48, 54, 61, 0.25);
-  padding: 1.25rem 0 0 0.5rem !important;
+  padding: 0 0 2rem 0.5rem !important;
   z-index: 5;
-  position: relative;
+  position: sticky;
+  top: 5rem;
   width: 16rem;
   max-width: 16rem;
   margin-right: 0 !important;
+  align-self: flex-start;
+  height: calc(100vh - 5rem);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar-content {
@@ -526,9 +532,9 @@ header .site-title {
 header site-search {
   flex-grow: 1;
   flex-shrink: 1;
-  width: 650px !important;
-  min-width: 650px !important;
-  max-width: 60vw !important;
+  width: 400px !important;
+  min-width: 400px !important;
+  max-width: 500px !important;
   margin: 0 auto;
 }
 
@@ -636,6 +642,21 @@ main .content-panel > :first-child {
   color: #f0f6fc;
   border-bottom: none;
   letter-spacing: -0.01em;
+}
+
+.sl-markdown-content h1 a.header-anchor,
+.sl-markdown-content h2 a.header-anchor,
+.sl-markdown-content h3 a.header-anchor,
+.sl-markdown-content h4 a.header-anchor,
+.sl-markdown-content h5 a.header-anchor,
+.sl-markdown-content h6 a.header-anchor,
+.sl-markdown-content :is(h1, h2, h3, h4, h5, h6) a[aria-label^="Permalink"] {
+  font-size: 0.7em;
+  opacity: 0.5;
+}
+
+.sl-markdown-content :is(h1, h2, h3, h4, h5, h6):hover a[aria-label^="Permalink"] {
+  opacity: 0.8;
 }
 
 .sl-markdown-content h2 {
@@ -857,7 +878,7 @@ a.button:hover {
   width: 14rem;
   max-width: 14rem;
   height: calc(100vh - 6rem);
-  padding: 1rem 0.5rem 2rem 0.75rem;
+  padding: 1rem 0.5rem 2rem 1rem;
   border-left: 1px solid rgba(48, 54, 61, 0.25);
   overflow-y: auto;
   z-index: 10;
@@ -865,6 +886,8 @@ a.button:hover {
   contain: layout paint;
   will-change: scroll-position;
   backface-visibility: hidden;
+  margin-left: -3rem;
+  margin-right: 1rem;
 }
 
 :root[data-theme='light'] .right-sidebar {
@@ -936,10 +959,10 @@ starlight-toc h2 {
 
 .pagination-links a {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 0.25rem;
+  gap: 0.5rem;
   padding: 1rem 1.25rem;
   border: 1px solid #444c56;
   border-radius: 6px;
@@ -953,28 +976,26 @@ starlight-toc h2 {
   min-height: 4rem;
 }
 
+.pagination-links a[rel="prev"] {
+  flex-direction: row;
+}
+
+.pagination-links a[rel="next"] {
+  flex-direction: row-reverse;
+}
+
 .pagination-links a:only-child {
   margin-left: auto;
 }
 
 .pagination-links a .meta {
-  position: absolute;
   font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: #8d96a0;
   transition: color 0.2s ease;
-}
-
-.pagination-links a[rel="prev"] .meta {
-  top: 0.75rem;
-  left: 0.875rem;
-}
-
-.pagination-links a[rel="next"] .meta {
-  top: 0.75rem;
-  right: 0.875rem;
+  position: static;
 }
 
 .pagination-links .link-title {

@@ -81,15 +81,15 @@ export default defineConfig({
 			sidebar: [
 				{
 					label: 'Get Started',
-					autogenerate: { directory: 'start-here' },
+					autogenerate: { directory: 'get-started' },
 				},
 				{
 					label: 'Guides',
 					autogenerate: { directory: 'guides' },
 				},
 				{
-					label: 'Tools',
-					autogenerate: { directory: 'tools' },
+					label: 'Setup',
+					autogenerate: { directory: 'setup' },
 				},
 				{
 					label: 'Workflows',
