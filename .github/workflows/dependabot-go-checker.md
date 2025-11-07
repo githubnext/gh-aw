@@ -5,7 +5,7 @@ on:
     - cron: "0 9 * * 1,3,5"
   workflow_dispatch:
 
-timeout_minutes: 20
+timeout-minutes: 20
 
 permissions:
   contents: read
@@ -64,6 +64,27 @@ For each dependency update, evaluate:
 - Updates where changelog indicates API changes
 - Updates with insufficient documentation
 
+### Phase 2.5: Repository Detection
+Before creating issues, determine the actual source repository for each Go module:
+
+**GitHub Packages** (`github.com/*`):
+- Remove version suffixes like `/v2`, `/v3`, `/v4` from the module path
+- Example: `github.com/spf13/cobra/v2` → repository is `github.com/spf13/cobra`
+- Repository URL: `https://github.com/{owner}/{repo}`
+- Release URL: `https://github.com/{owner}/{repo}/releases/tag/{version}`
+
+**golang.org/x Packages**:
+- These are NOT hosted on GitHub
+- Repository: `https://go.googlesource.com/{package-name}`
+- Example: `golang.org/x/sys` → `https://go.googlesource.com/sys`
+- Commit history: `https://go.googlesource.com/{package-name}/+log`
+- Do NOT link to GitHub release pages (they don't exist)
+
+**Other Packages**:
+- Use `pkg.go.dev/{module-path}` to find the repository URL
+- Look for the "Repository" or "Source" link on the package page
+- Use the discovered repository for links
+
 ### Phase 3: Create Task Issues
 For each safe update identified, create an issue with:
 
@@ -78,8 +99,10 @@ For each safe update identified, create an issue with:
 - **Changes**: Summary of changes from changelog or release notes
 - **Links**: 
   - Link to the Dependabot alert (if applicable)
-  - Link to the package repository
-  - Link to release notes or changelog
+  - Link to the actual source repository (detected per Repository Detection rules)
+  - Link to release notes or changelog (if available)
+  - For GitHub packages: link to release page
+  - For golang.org/x packages: link to commit history instead
 - **Recommended Action**: Command to update (e.g., `go get -u github.com/package@v1.2.4`)
 - **Testing Notes**: Any specific areas to test after applying the update
 
@@ -91,7 +114,16 @@ For each safe update identified, create an issue with:
 - For security-related updates, clearly indicate the vulnerability being fixed
 - Be conservative: when in doubt about breaking changes, skip the update
 
-## Example Issue Format
+**CRITICAL - Repository Detection**:
+- **Never assume all Go packages are on GitHub**
+- **golang.org/x packages** are hosted at `go.googlesource.com`, NOT GitHub
+- **Always remove version suffixes** (e.g., `/v2`, `/v3`) when constructing repository URLs for GitHub packages
+- **Use pkg.go.dev** to find the actual repository for packages not on GitHub or golang.org/x
+- **Do NOT create GitHub release links** for packages that don't use GitHub releases
+
+## Example Issue Formats
+
+### Example 1: GitHub Package Update
 
 ```markdown
 ## Summary
@@ -129,4 +161,47 @@ go mod tidy
 - Run all tests: `make test`
 - Verify CLI commands still work correctly
 - Check for any deprecation warnings
+```
+
+### Example 2: golang.org/x Package Update
+
+```markdown
+## Summary
+Update `golang.org/x/sys` dependency from v0.15.0 to v0.16.0
+
+## Current State
+- **Package**: golang.org/x/sys
+- **Current Version**: v0.15.0
+- **Proposed Version**: v0.16.0
+- **Update Type**: Minor
+
+## Safety Assessment
+✅ **Safe to update**
+- Minor version update (0.15.0 -> 0.16.0)
+- No breaking changes in commit history
+- Standard system call updates and bug fixes
+
+## Changes
+- Added support for new Linux syscalls
+- Fixed Windows file system handling
+- Performance improvements for Unix systems
+- Bug fixes in signal handling
+
+## Links
+- [Source Repository](https://go.googlesource.com/sys)
+- [Commit History](https://go.googlesource.com/sys/+log)
+- [Go Package](https://pkg.go.dev/golang.org/x/sys@v0.16.0)
+
+**Note**: This package is hosted on Google's Git (go.googlesource.com), not GitHub. There are no GitHub release pages.
+
+## Recommended Action
+```bash
+go get -u golang.org/x/sys@v0.16.0
+go mod tidy
+```
+
+## Testing Notes
+- Run all tests: `make test`
+- Test system-specific functionality
+- Verify cross-platform compatibility
 ```
