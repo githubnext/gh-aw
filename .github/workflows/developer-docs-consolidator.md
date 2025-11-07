@@ -55,7 +55,9 @@ You are an AI documentation consistency agent that daily reviews markdown files 
 
 ## Mission
 
-Analyze markdown files in the specs directory, standardize their tone and formatting, consolidate them into a single instructions file, and report on the changes made.
+Analyze markdown files in the specs directory, standardize their tone and formatting, consolidate them into a single instructions file, apply changes directly to the repository, and create a pull request with your improvements.
+
+**YOU CAN DIRECTLY EDIT FILES AND CREATE PULL REQUESTS** - This workflow is configured with safe-outputs for pull request creation. You should make changes to files directly using your edit tools, and a PR will be automatically created with your changes.
 
 ## Current Context
 
@@ -188,9 +190,11 @@ Identify concepts that would benefit from Mermaid diagrams:
 
 ## Phase 3: Content Adjustment
 
+**Apply changes directly to files** - Don't just identify issues, fix them using your edit tools.
+
 ### 1. Fix Tone Issues
 
-For each file with tone issues, use the edit tool to:
+For each file with tone issues, **use the edit tool to make the changes directly**:
 
 **Replace marketing language:**
 ```markdown
@@ -210,13 +214,17 @@ OLD: "Simply configure the workflow and you're done!"
 NEW: "Configure the workflow by specifying the following YAML fields:"
 ```
 
+**Action**: Use `edit` tool to make these changes in the spec files directly.
+
 ### 2. Standardize Formatting
 
-Apply consistent formatting:
+Apply consistent formatting **by editing the files**:
 - Convert bold headings to proper markdown headings
 - Add language tags to code blocks (```yaml, ```go, ```bash)
 - Break up long bullet lists into prose or tables
 - Ensure consistent heading levels
+
+**Action**: Use `edit` tool to apply formatting fixes directly.
 
 ### 3. Add Mermaid Diagrams
 
@@ -289,7 +297,7 @@ For each topic:
 
 ### 3. Create the Consolidated File
 
-Write the consolidated content to `.github/instructions/developer.instructions.md` using the edit tool.
+**You have direct file editing capabilities** - Write the consolidated content directly to `.github/instructions/developer.instructions.md` using Serena's edit tools.
 
 The file should:
 - Start with frontmatter (description and applyTo)
@@ -298,6 +306,11 @@ The file should:
 - Include Mermaid diagrams for complex concepts
 - Provide actionable guidance
 - Reference specific files/code where relevant
+
+**Use Serena's tools to make the changes:**
+- If the file exists: Use `serena-replace_symbol_body` or standard edit tools to update sections
+- If the file doesn't exist: Use `create` tool to create the new file
+- Make all necessary edits directly - don't just report what should change
 
 ## Phase 5: Validation and Reporting
 
@@ -461,13 +474,35 @@ The discussion should:
 
 ### 5. Create Pull Request (If Changes Made)
 
-If you made any changes to files:
+**Pull requests are created automatically via safe-outputs** - When you make file changes, the workflow will automatically create a PR with those changes.
 
-Use safe-outputs to create a pull request with:
+#### Step 1: Apply Changes Directly to Files
 
-**PR Title**: `[docs] Consolidate developer specifications into instructions file`
+Before the PR is created, you need to make the actual file changes:
 
-**PR Description**:
+1. **Update `.github/instructions/developer.instructions.md`**:
+   - Use Serena's editing tools (`replace_symbol_body`, `insert_after_symbol`, etc.)
+   - Or use the standard `edit` tool to modify sections
+   - Make all consolidation changes directly to the file
+
+2. **Optionally update spec files** (if tone fixes are needed):
+   - Fix marketing language in spec files
+   - Standardize formatting issues
+   - Add Mermaid diagrams to spec sources
+
+**Tools available for editing:**
+- `serena-replace_symbol_body` - Replace sections in structured files
+- `serena-insert_after_symbol` - Add new sections
+- Standard `edit` tool - Make targeted changes
+- Standard `create` tool - Create new files
+
+#### Step 2: PR Created Automatically
+
+After you've made file changes, a pull request will be created automatically with:
+
+**PR Title**: `[docs] Consolidate developer specifications into instructions file` (automatically prefixed)
+
+**PR Description** (you should output this for the safe-output processor):
 ```markdown
 ## Developer Documentation Consolidation
 
@@ -483,7 +518,7 @@ This PR consolidates markdown specifications from the `specs/` directory into a 
 
 ### Files Modified
 
-- Created: `.github/instructions/developer.instructions.md`
+- Created/Updated: `.github/instructions/developer.instructions.md`
 - [List any spec files that were modified]
 
 ### Validation
@@ -503,6 +538,11 @@ Please review:
 
 See the discussion [link to discussion] for detailed consolidation report.
 ```
+
+**Remember**: 
+- Make all file changes BEFORE outputting the PR description
+- The PR will be created automatically with your changes
+- You don't need to manually create the PR - safe-outputs handles it
 
 ## Guidelines
 
@@ -569,12 +609,12 @@ on: push
 A successful consolidation run:
 - ✅ Analyzes all markdown files in specs/
 - ✅ Uses Serena for static analysis
-- ✅ Fixes tone issues (marketing → technical)
-- ✅ Adds Mermaid diagrams where beneficial
-- ✅ Creates consolidated instructions file
+- ✅ Fixes tone issues (marketing → technical) **by directly editing files**
+- ✅ Adds Mermaid diagrams where beneficial **by directly editing files**
+- ✅ Creates/updates consolidated instructions file **using edit tools**
 - ✅ Stores metadata in cache-memory
 - ✅ Generates comprehensive report
 - ✅ Creates discussion with findings
-- ✅ Creates PR with changes
+- ✅ **Makes actual file changes that will be included in the automatic PR**
 
-Begin the consolidation process now. Use Serena for analysis, adjust tone and formatting, add helpful Mermaid diagrams, consolidate into the instructions file, and report your findings through both a discussion and pull request.
+Begin the consolidation process now. Use Serena for analysis, **directly apply changes** to adjust tone and formatting, add helpful Mermaid diagrams, consolidate into the instructions file, and report your findings through both a discussion and pull request.
