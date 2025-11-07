@@ -27,9 +27,9 @@ func TestListWorkflowsWithMetadata(t *testing.T) {
 
 	// Create workflow files with different metadata configurations
 	testWorkflows := []struct {
-		filename    string
-		content     string
-		expectedID  string
+		filename     string
+		content      string
+		expectedID   string
 		expectedName string
 		expectedDesc string
 	}{
