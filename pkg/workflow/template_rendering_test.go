@@ -103,9 +103,14 @@ Normal content here.
 		t.Error("Template rendering step should contain renderMarkdownTemplate function")
 	}
 
-	// Verify that isTruthy is imported from the separate module
-	if !strings.Contains(compiledStr, `require("./is_truthy.cjs")`) {
-		t.Error("Template rendering step should import isTruthy from is_truthy.cjs")
+	// Verify that isTruthy function is bundled inline (not via require)
+	if !strings.Contains(compiledStr, "function isTruthy(expr)") {
+		t.Error("Template rendering step should contain isTruthy function bundled inline")
+	}
+
+	// Verify that the require statement is NOT present (should be bundled)
+	if strings.Contains(compiledStr, `require("./is_truthy.cjs")`) {
+		t.Error("Template rendering step should not contain require for is_truthy.cjs (should be bundled inline)")
 	}
 }
 

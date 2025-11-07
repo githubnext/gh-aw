@@ -128,5 +128,5 @@ func (c *Compiler) generateInterpolationAndTemplateStep(yaml *strings.Builder, e
 
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
-	WriteJavaScriptToYAML(yaml, interpolatePromptScript)
+	WriteJavaScriptToYAML(yaml, getInterpolatePromptScript())
 }
