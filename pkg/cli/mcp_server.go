@@ -464,31 +464,8 @@ Returns formatted text output showing:
 	}
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name: "add",
-		Description: `Add one or more workflows from repositories to .github/workflows.
-
-This tool wraps the 'gh aw add' command and allows adding workflows from remote repositories.
-
-Workflow specifications:
-  - Two parts: "owner/repo[@version]" (lists available workflows in the repository)
-  - Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)
-  - Four+ parts: "owner/repo/workflows/workflow-name.md[@version]" (requires explicit .md extension)
-  - Wildcard: "owner/repo/*[@version]" (adds all workflows from the repository)
-  - Version can be tag, branch, or SHA
-
-Examples:
-  - ["githubnext/agentics"] - List available workflows
-  - ["githubnext/agentics/ci-doctor"] - Add specific workflow
-  - ["githubnext/agentics/ci-doctor@v1.0.0"] - Add with version
-  - ["githubnext/agentics/*"] - Add all workflows
-
-The tool will:
-  1. Install the required repository if not already installed
-  2. Copy the workflow file(s) to .github/workflows/
-  3. Update .gitattributes to exclude .lock.yml files from diffs
-  4. Compile the workflow to generate .lock.yml file
-
-Note: This tool does not support PR creation (--pr flag) or interactive mode.`,
+		Name:        "add",
+		Description: "Add workflows from remote repositories to .github/workflows",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args addArgs) (*mcp.CallToolResult, any, error) {
 		// Validate required arguments
 		if len(args.Workflows) == 0 {
