@@ -2404,7 +2404,7 @@ jobs:
           #### 4.5 Improve Workflow Configuration
           
           General optimizations:
-          - Add `timeout_minutes` to prevent runaway costs
+          - Add `timeout-minutes` to prevent runaway costs
           - Set appropriate `max-turns` in engine config
           - Add `stop-after` for time-limited workflows
           - Enable `strict: true` for better validation
