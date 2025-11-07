@@ -332,4 +332,4 @@ See [Threat Detection Guide](/gh-aw/guides/threat-detection/) for details.
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options for workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special /my-bot triggers and context text
-- [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
+- [CLI Commands](/gh-aw/setup/cli/) - CLI commands for workflow management

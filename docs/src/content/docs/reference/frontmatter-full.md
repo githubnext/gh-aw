@@ -1,5 +1,5 @@
 ---
-title: Frontmatter Full Reference
+title: Frontmatter Reference
 description: Complete JSON Schema-based reference for all GitHub Agentic Workflows frontmatter configuration options with YAML examples.
 sidebar:
   order: 201
@@ -669,11 +669,6 @@ runs-on:
 # omitted.
 # (optional)
 timeout-minutes: 1
-
-# Deprecated: Use 'timeout-minutes' instead. Workflow timeout in minutes. Defaults
-# to 15 minutes for agentic workflows.
-# (optional)
-timeout_minutes: 10
 
 # Concurrency control to limit concurrent workflow runs (GitHub Actions standard
 # field). Agentic workflows use enhanced concurrency management.

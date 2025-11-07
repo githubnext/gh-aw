@@ -1,100 +1,99 @@
 ---
 title: GitHub Agentic Workflows
-description: Exploring AI-powered repository automation, run safely on GitHub Actions. From GitHub Next
+description: Exploring AI-powered repository automation running safely on GitHub Actions—combining AI agents with GitHub's collaboration platform to enable Continuous AI for software development.
 template: splash
+tableOfContents: true
 hero:
-  tagline: Exploring AI-powered repository automation, run safely on GitHub Actions. From GitHub Next
-  actions:
-    - text: Quick Start Guide
-      link: /gh-aw/start-here/quick-start/
-      icon: right-arrow
-    - text: View on GitHub
-      link: https://github.com/githubnext/gh-aw
-      icon: external
-      variant: minimal
+  title: |
+    <div class="experimental-badge-container">
+      <span class="experimental-badge">RESEARCH PROTOTYPE</span>
+    </div>
+    GitHub Agentic Workflows
+  tagline: <strong>Explore AI-powered repository automation.</strong><br>Write natural language workflows that understand context, make decisions,and take meaningful actions across your repositories.
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
+import FeatureCard from '../../components/FeatureCard.astro';
+import FeatureGrid from '../../components/FeatureGrid.astro';
 
-## ✨ AI-Powered Repository Automation
+<style>{`
+  .experimental-badge-container {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 1.25rem;
+  }
 
-GitHub Agentic Workflows combines the power of AI agents with GitHub's collaboration platform to enable [Continuous AI](https://githubnext.com/projects/continuous-ai) — the systematic, automated application of AI to software collaboration.
+  .experimental-badge {
+    display: inline-block;
+    padding: 0.375rem 0.875rem;
+    border: 1px solid rgba(240, 246, 252, 0.15);
+    border-radius: 2rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: rgba(240, 246, 252, 0.65);
+    text-transform: uppercase;
+    background: rgba(240, 246, 252, 0.05);
+  }
+`}</style>
 
-Run natural language workflows that can understand context, make decisions, and take meaningful actions across your repositories.
 
-<CardGrid stagger>
-	<Card title="Quick Start" icon="rocket">
-		Get your first agentic workflow running in minutes.
-		[Get Started →](/gh-aw/start-here/quick-start/)
-	</Card>
-	<Card title="Learn Concepts" icon="open-book">
-		Understand how agentic workflows work.
-		[Learn More →](/gh-aw/start-here/concepts/)
-	</Card>
-	<Card title="Browse Commands" icon="setting">
-		Explore all available CLI commands.
-		[View Commands →](/gh-aw/tools/cli/)
-	</Card>
-	<Card title="Security Guide" icon="approve-check-circle">
-		Security considerations and best practices.
-		[Security Guide →](/gh-aw/guides/security/)
-	</Card>
-</CardGrid>
+## Key Features
 
-## 🔧 How It Works
+<FeatureGrid columns={3}>
+  <FeatureCard icon="pencil" title="Natural Language Workflows">
+    Write automation in markdown instead of complex YAML
 
-GitHub Agentic Workflows transforms natural language markdown files into GitHub Actions that are executed by AI agents. Here's a simple example:
+    [Learn more →](/gh-aw/get-started/about/#natural-language-to-github-actions)
+  </FeatureCard>
+  <FeatureCard icon="cpu" title="AI-Powered Decision Making">
+    Workflows that understand context and adapt to situations
 
-```markdown wrap
----
-on:
-  issues:
-    types: [opened]
-permissions: read-all 
-safe-outputs:
-  add-comment:
----
-# Issue Clarifier
+    [Learn more →](/gh-aw/get-started/concepts/#ai-engines)
+  </FeatureCard>
+  <FeatureCard icon="mark-github" title="GitHub Integration">
+    Deep integration with issues, PRs, discussions, and repository management
 
-Analyze the current issue and ask for additional details if the issue is unclear.
-```
+    [Learn more →](/gh-aw/reference/tools/#github-tools-github)
+  </FeatureCard>
+  <FeatureCard icon="shield-lock" title="Security First">
+    Sandboxed execution with minimal permissions and safe output processing
 
-The `gh aw` cli compiles this into a GitHub Actions Workflow (.yml) that runs an AI agent (Claude, Codex, ...) in a containerized environment whenever a new issue is opened in the repository.
+    [Learn more →](/gh-aw/guides/security)
+  </FeatureCard>
+  <FeatureCard icon="beaker" title="Multiple AI Engines">
+    Support for Claude, Codex, and custom AI processors
 
-The AI agent reads your repository context, understands the issue content, and takes appropriate actions - all defined in natural language rather than complex code.
+    [Learn more →](/gh-aw/reference/engines/)
+  </FeatureCard>
+  <FeatureCard icon="workflow" title="Continuous AI">
+    Systematic, automated application of AI to software collaboration
 
-**Security Benefits:** Workflows use read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. Access can be gated to team members only, ensuring AI agents operate within controlled boundaries.
+    [Learn more →](/gh-aw/get-started/concepts/)
+  </FeatureCard>
+</FeatureGrid>
 
-## 🔥 Key Features
+## Application Areas
 
-- **Natural Language Workflows**: Write automation in markdown instead of complex YAML
-- **AI-Powered Decision Making**: Workflows that understand context and adapt to situations
-- **GitHub Integration**: Deep integration with issues, PRs, discussions, and repository management
-- **Security First**: Sandboxed execution with minimal permissions and safe output processing
-- **Multiple AI Engines**: Support for Claude, Codex, and custom AI processors
+<FeatureGrid columns={3}>
+  <FeatureCard icon="graph" title="Research & Planning" badge="automated">
+    Research, team coordination, and project planning with automated intelligence gathering.
 
-## 🎯 Application Areas
-
-<CardGrid>
-	<Card title="Automated Research, Status & Planning" icon="information">
-		Research, team coordination, and project planning with automated intelligence gathering.
-		[Explore Research & Planning Workflows →](/gh-aw/samples/research-planning/)
-	</Card>
-	<Card title="Automated Triage & Analysis" icon="magnifier">
-		Issue management, accessibility reviews, and CI failure investigation.
-		[Explore Triage & Analysis Workflows →](/gh-aw/samples/triage-analysis/)
-	</Card>
-	<Card title="Semi-automatic Coding & Development" icon="setting">
-		Dependency management, documentation updates, and pull request assistance.
-		[Explore Coding & Development Workflows →](/gh-aw/samples/coding-development/)
-	</Card>
-	<Card title="Semi-automatic Quality & Testing" icon="star">
-		Test coverage improvement and performance optimization.
-		[Explore Semi-automatic Quality & Testing Workflows →](/gh-aw/samples/quality-testing/)
-	</Card>
-</CardGrid>
-
-Sample workflows are from the [Agentics collection](https://github.com/githubnext/agentics).
-
-> **GitHub Agentic Workflows is a research demonstrator from [GitHub Next](https://githubnext.com/) and [Microsoft Research](https://www.microsoft.com/en-us/research/group/research-software-engineering-rise/).** It is in early development and may change significantly. Using agentic workflows requires careful attention to security considerations and human supervision. Use with caution and at your own risk.
-> These are demonstrator workflows for experimental use. Review all outputs carefully and use time-limited trials to evaluate effectiveness for your team.
+    [Explore →](/gh-aw/samples/research-planning/)
+  </FeatureCard>
+  <FeatureCard icon="issue-opened" title="Triage & Analysis" badge="automated">
+    Issue management, accessibility reviews, and CI failure investigation.
+    
+    [Explore →](/gh-aw/samples/triage-analysis/)
+  </FeatureCard>
+  <FeatureCard icon="code" title="Coding & Development" badge="semi-automated">
+    Dependency management, documentation updates, and pull request assistance.
+    
+    [Explore →](/gh-aw/samples/coding-development/)
+  </FeatureCard>
+  <FeatureCard icon="check-circle" title="Quality & Testing" badge="semi-automated">
+    Test coverage improvement and performance optimization.
+    
+    [Explore →](/gh-aw/samples/quality-testing/)
+  </FeatureCard>
+</FeatureGrid>
