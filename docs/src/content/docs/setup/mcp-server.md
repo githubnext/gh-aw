@@ -5,56 +5,36 @@ sidebar:
   order: 400
 ---
 
-The `gh aw mcp-server` command exposes `gh aw` CLI tools (status, compile, logs, audit, mcp-inspect) to AI agents through the Model Context Protocol, enabling agents to check workflow status, compile workflows, download logs, investigate failures, and inspect MCP servers.
+The `gh aw mcp-server` command exposes CLI tools (status, compile, logs, audit, mcp-inspect) to AI agents through the Model Context Protocol.
 
-:::tip
-Enable this MCP server in agentic workflows by adding `agentic-workflows:` to the `tools:` section in your workflow frontmatter. See [Using as Agentic Workflows Tool](#using-as-agentic-workflows-tool) for details.
-:::
-
-Start the server for local CLI usage:
-
+Start the server:
 ```bash wrap
 gh aw mcp-server
 ```
 
-Or configure in for any host:
+Or configure for any MCP host:
 ```yaml wrap
 command: gh
 args: [aw, mcp-server]
 ```
 
+:::tip
+Use in agentic workflows by adding `agentic-workflows:` to your workflow's `tools:` section. See [Using as Agentic Workflows Tool](#using-as-agentic-workflows-tool).
+:::
+
 ## Configuration Options
 
-### Using a Custom Command Path
+### Custom Command Path
 
-Use the `--cmd` flag to specify a custom path to the gh-aw binary instead of using the default `gh aw` command:
+Use `--cmd` to specify a custom binary path for local development, CI/CD, or environments without the gh CLI extension:
 
 ```bash wrap
 gh aw mcp-server --cmd ./gh-aw
 ```
 
-Use this for local development builds, CI/CD workflows with specific versions, or environments without the gh CLI extension.
-
-Example in an agentic workflow:
-```yaml wrap
-steps:
-  - name: Build gh-aw
-    run: make build
-  - name: Start MCP server
-    run: |
-      set -e
-      ./gh-aw mcp-server --cmd ./gh-aw --port 8765 &
-      MCP_PID=$!
-      sleep 2
-      if ! kill -0 $MCP_PID 2>/dev/null; then
-        echo "MCP server failed to start"
-        exit 1
-      fi
-```
-
 ### HTTP Server Mode
 
-Use the `--port` flag to run the server with HTTP/SSE transport instead of stdio:
+Run with HTTP/SSE transport using `--port`:
 
 ```bash wrap
 gh aw mcp-server --port 8080
@@ -62,55 +42,33 @@ gh aw mcp-server --port 8080
 
 ## Configuring with GitHub Copilot Agent
 
-GitHub Copilot Agent can use the gh-aw MCP server in your workflows to manage agentic workflows directly.
-
-**Quick Setup:**
-
-Use the `init` command with the `--mcp` flag to automatically configure GitHub Copilot Agent:
+Configure GitHub Copilot Agent to use gh-aw MCP server:
 
 ```bash wrap
 gh aw init --mcp
 ```
 
-This creates `.github/workflows/copilot-setup-steps.yml` with:
-- Go environment setup
-- GitHub CLI installation
-- gh-aw extension installation and build from source
-- Verification steps
-
-The workflow runs before the Copilot Agent starts, ensuring gh-aw is available as an MCP server in all agent sessions. Once configured, the agent can use tools like `status`, `compile`, `logs`, and `audit` to manage workflows in your repository.
+This creates `.github/workflows/copilot-setup-steps.yml` that sets up Go, GitHub CLI, and gh-aw extension before agent sessions start, making workflow management tools available to the agent.
 
 ## Configuring with Copilot CLI
 
-The GitHub Copilot CLI can use the gh-aw MCP server to access workflow management tools.
-
-Use the `/mcp` command in Copilot CLI to add the MCP server:
+Add the MCP server to GitHub Copilot CLI:
 
 ```bash wrap
 /mcp add github-agentic-workflows gh aw mcp-server
 ```
 
-This registers the server with Copilot CLI, making workflow management tools available in your terminal sessions.
-
 ## Configuring with VS Code
 
-VS Code can use the gh-aw MCP server through the Copilot Chat extension.
-
-**Quick Setup:**
-
-Use the `init` command with the `--mcp` flag to automatically configure VS Code and GitHub Copilot Agent:
+Configure VS Code Copilot Chat to use gh-aw MCP server:
 
 ```bash wrap
 gh aw init --mcp
 ```
 
-This creates:
-- `.vscode/mcp.json` with gh-aw MCP server configuration
-- `.github/workflows/copilot-setup-steps.yml` with gh-aw installation steps for GitHub Copilot Agent
+This creates `.vscode/mcp.json` and `.github/workflows/copilot-setup-steps.yml`.
 
-**Manual Configuration:**
-
-Alternatively, create or update `.vscode/mcp.json` in your repository:
+Alternatively, create `.vscode/mcp.json` manually:
 
 ```json wrap
 {
@@ -124,89 +82,35 @@ Alternatively, create or update `.vscode/mcp.json` in your repository:
 }
 ```
 
-:::note
-The `${workspaceFolder}` variable automatically resolves to your current workspace directory in VS Code. Use this for development builds where the `gh-aw` binary is in your project root.
-:::
-
-After adding the configuration, reload VS Code or restart the Copilot Chat extension.
+Reload VS Code after making changes.
 
 ## Available Tools
 
-The MCP server provides **status** (list workflows with pattern filter), **compile** (generate GitHub Actions YAML), **logs** (download with timeout handling and continuation), **audit** (generate report to `/tmp/gh-aw/aw-mcp/logs`), and **mcp-inspect** (inspect servers and validate secrets).
+The MCP server provides:
+- **status**: List workflows with pattern filter
+- **compile**: Generate GitHub Actions YAML
+- **logs**: Download with timeout handling and continuation
+- **audit**: Generate report to `/tmp/gh-aw/aw-mcp/logs`
+- **mcp-inspect**: Inspect servers and validate secrets
 
 ### Logs Tool Features
 
-**Timeout and Continuation:**
+**Timeout and Continuation**: Uses 50-second timeout for large runs. Returns partial results with `continuation` field containing `before_run_id` to resume fetching.
 
-The logs tool uses a 50-second default timeout to prevent MCP server timeouts when downloading large workflow runs. When a timeout occurs, the tool returns partial results with a `continuation` field containing parameters to resume fetching:
+**Output Size Guardrail**: Default 12,000 tokens (~48KB) limit. Customize with `max_tokens` parameter. When triggered, provides jq queries for filtering (e.g., `'.runs | map(select(.conclusion == "failure"))'`).
 
-```json wrap
-{
-  "summary": { "total_runs": 5 },
-  "runs": [ ... ],
-  "continuation": {
-    "message": "Timeout reached. Use these parameters to continue fetching more logs.",
-    "workflow_name": "weekly-research",
-    "count": 100,
-    "before_run_id": 12341,
-    "timeout": 50
-  }
-}
-```
-
-Agents can detect incomplete data by checking for the `continuation` field and make follow-up calls with the provided `before_run_id` to fetch remaining logs.
-
-**Output Size Guardrail:**
-
-The logs tool includes a token-based output guardrail (default: 12,000 tokens, ~48KB) to prevent overwhelming responses. When output exceeds the limit, the tool returns a structured response with:
-
-- Warning message explaining the token limit
-- Complete JSON schema of the LogsData structure
-- Suggested jq queries for common filtering scenarios
-
-The limit can be customized using the `max_tokens` parameter:
-
-```json wrap
-{
-  "name": "logs",
-  "arguments": {
-    "count": 100,
-    "max_tokens": 20000
-  }
-}
-```
-
-When the guardrail triggers, use the provided jq queries to filter the data. For example, to get only failed runs, use `jq: '.runs | map(select(.conclusion == "failure"))'`.
-
-**Large Output Handling:**
-
-When tool outputs exceed 16,000 tokens (~64KB), the MCP server automatically writes content to `/tmp/gh-aw/safe-outputs/` and returns a JSON response with file location and schema description:
-
-```json wrap
-{
-  "filename": "bb28168fe5604623b804546db0e8c90eaf9e8dcd0f418761787d5159198b4fd8.json",
-  "description": "[{id, name, data}] (2000 items)"
-}
-```
-
-Schema descriptions format: JSON arrays as `[{key1, key2}] (N items)`, objects as `{key1, key2, ...} (N keys)`, and text as `text content`.
-
-## Example Prompt
-
-```markdown wrap
-Check all workflows: use `status` to list workflows, `logs` for recent runs, `audit` for failures, then generate a summary report.
-```
+**Large Output Handling**: Outputs exceeding 16,000 tokens (~64KB) are written to `/tmp/gh-aw/safe-outputs/` with file location and schema description returned.
 
 ## Using as Agentic Workflows Tool
 
-The MCP server is available as a builtin tool called `agentic-workflows` in agentic workflows:
+Enable in workflow frontmatter:
 
 ```yaml wrap
 ---
 tools:
-  agentic-workflows:  # Enables status, compile, logs, audit, and mcp-inspect tools
+  agentic-workflows:
 ---
 
-Check workflow status, inspect MCP servers, download recent logs, and audit any failures.
+Check workflow status, download logs, and audit failures.
 ```
 
