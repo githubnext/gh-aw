@@ -35,6 +35,7 @@ The server provides the following tools:
   - logs        - Download and analyze workflow logs
   - audit       - Investigate a workflow run and generate a report
   - mcp-inspect - Inspect MCP servers in workflows and list available tools
+  - add         - Add workflows from remote repositories to .github/workflows
 
 By default, the server uses stdio transport. Use the --port flag to run
 an HTTP server with SSE (Server-Sent Events) transport instead.
@@ -431,6 +432,59 @@ Returns formatted text output showing:
 
 		// Always enable secret checking (will be silently ignored if GitHub token is not available)
 		cmdArgs = append(cmdArgs, "--check-secrets")
+
+		// Execute the CLI command
+		cmd := execCmd(ctx, cmdArgs...)
+		output, err := cmd.CombinedOutput()
+
+		if err != nil {
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: fmt.Sprintf("Error: %v\nOutput: %s", err, string(output))},
+				},
+			}, nil, nil
+		}
+
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: string(output)},
+			},
+		}, nil, nil
+	})
+
+	// Add add tool
+	type addArgs struct {
+		Workflows []string `json:"workflows" jsonschema:"Workflows to add (e.g., 'owner/repo/workflow-name' or 'owner/repo/workflow-name@version')"`
+		Number    int      `json:"number,omitempty" jsonschema:"Create multiple numbered copies (corresponds to -c flag, default: 1)"`
+		Name      string   `json:"name,omitempty" jsonschema:"Specify name for the added workflow - without .md extension (corresponds to -n flag)"`
+	}
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "add",
+		Description: "Add workflows from remote repositories to .github/workflows",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args addArgs) (*mcp.CallToolResult, any, error) {
+		// Validate required arguments
+		if len(args.Workflows) == 0 {
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: "Error: at least one workflow specification is required"},
+				},
+			}, nil, nil
+		}
+
+		// Build command arguments
+		cmdArgs := []string{"add"}
+
+		// Add workflows
+		cmdArgs = append(cmdArgs, args.Workflows...)
+
+		// Add optional flags
+		if args.Number > 0 {
+			cmdArgs = append(cmdArgs, "-c", strconv.Itoa(args.Number))
+		}
+		if args.Name != "" {
+			cmdArgs = append(cmdArgs, "-n", args.Name)
+		}
 
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
