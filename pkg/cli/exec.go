@@ -131,7 +131,6 @@ func extractRepoSlug(repoURL string) string {
 
 	// Remove the GitHub host from the URL
 	slug := strings.TrimPrefix(repoURL, githubHost+"/")
-	slug = strings.TrimPrefix(slug, "https://github.com/")
 
 	// Remove .git suffix if present
 	slug = strings.TrimSuffix(slug, ".git")
