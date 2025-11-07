@@ -1,5 +1,33 @@
 ---
 import Default from '@astrojs/starlight/components/SocialIcons.astro';
+const base = import.meta.env.BASE_URL;
 ---
 
+<div class="sl-flex custom-header-links">
+	<a href={`${base}status/`} class="status-link">Status</a>
+</div>
 <Default {...Astro.props} />
+
+<style>
+	.custom-header-links {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		margin-right: 1rem;
+	}
+	
+	.status-link {
+		color: var(--sl-color-text);
+		text-decoration: none;
+		font-size: 0.875rem;
+		font-weight: 500;
+		padding: 0.25rem 0.75rem;
+		border-radius: 4px;
+		transition: color 0.15s ease, background-color 0.15s ease;
+	}
+	
+	.status-link:hover {
+		color: var(--sl-color-text-accent);
+		background-color: rgba(110, 118, 129, 0.1);
+	}
+</style>

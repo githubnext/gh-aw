@@ -1,5 +1,13 @@
 <script is:inline>
   (function() {
+    const storedTheme = localStorage.getItem('starlight-theme') || 'auto';
+    const isDark = storedTheme === 'dark' || (storedTheme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme-mode', storedTheme);
+  })();
+
+  (function() {
     const isLandingPage = window.location.pathname === '/gh-aw/' || 
                           window.location.pathname === '/gh-aw/index.html' ||
                           window.location.pathname.endsWith('/gh-aw');

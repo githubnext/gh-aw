@@ -4,7 +4,6 @@ import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
-// import starlightChangelogs, { makeChangelogsSidebarLinks } from 'starlight-changelogs';
 
 // NOTE: A previous attempt defined a custom Shiki grammar for `aw` (agentic workflow) but
 // Shiki did not register it and builds produced a warning: language "aw" not found.
@@ -28,6 +27,7 @@ export default defineConfig({
 				replacesTitle: false,
 			},
 			components: {
+				Head: './src/components/CustomHead.astro',
 				SocialIcons: './src/components/CustomHeader.astro',
 				ThemeSelect: './src/components/ThemeToggle.astro',
 				Footer: './src/components/CustomFooter.astro',
@@ -39,7 +39,10 @@ export default defineConfig({
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/githubnext/gh-aw' },
 			],
-			tableOfContents: false,
+			tableOfContents: { 
+				minHeadingLevel: 2, 
+				maxHeadingLevel: 3 
+			},
 			pagination: true,
 			expressiveCode: {
 				shiki: {

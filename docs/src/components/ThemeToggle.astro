@@ -25,6 +25,12 @@ const autoIcon = octicons['device-desktop'].toSVG({ width: 16, height: 16 });
 <script>
   type Theme = 'auto' | 'dark' | 'light';
 
+  declare global {
+    interface Window {
+      themeInitialized?: boolean;
+    }
+  }
+
   function setTheme(theme: Theme) {
     document.querySelectorAll('starlight-theme-select select').forEach((select) => {
       (select as HTMLSelectElement).value = theme;
@@ -39,6 +45,11 @@ const autoIcon = octicons['device-desktop'].toSVG({ width: 16, height: 16 });
   }
 
   function init() {
+    const currentMode = document.documentElement.getAttribute('data-theme-mode') as Theme || 'auto';
+    document.querySelectorAll('starlight-theme-select select').forEach((select) => {
+      (select as HTMLSelectElement).value = currentMode;
+    });
+    
     const iconWrappers = document.querySelectorAll('.icon-wrapper');
     
     iconWrappers.forEach(iconWrapper => {
@@ -70,15 +81,15 @@ const autoIcon = octicons['device-desktop'].toSVG({ width: 16, height: 16 });
         setTheme('auto');
       }
     });
-    
-    const storedTheme = (localStorage.getItem('starlight-theme') as Theme) || 'auto';
-    setTheme(storedTheme);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
+  if (!window.themeInitialized) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+    window.themeInitialized = true;
   }
 </script>
 

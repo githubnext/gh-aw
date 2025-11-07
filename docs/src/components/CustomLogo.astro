@@ -3,16 +3,35 @@ import darkLogoSvg from '../assets/agentic-workflow.svg?raw';
 import lightLogoSvg from '../assets/agentic-workflow-light.svg?raw';
 
 const { siteTitleHref } = Astro.props;
-const homeUrl = siteTitleHref || import.meta.env.BASE_URL || '/';
 
+const homeUrl = siteTitleHref || import.meta.env.BASE_URL || '/';
 const darkLogoUrl = `data:image/svg+xml;base64,${Buffer.from(darkLogoSvg).toString('base64')}`;
 const lightLogoUrl = `data:image/svg+xml;base64,${Buffer.from(lightLogoSvg).toString('base64')}`;
+const initialLogoUrl = darkLogoUrl;
 ---
 
 <a href={homeUrl} class="site-title">
-	<img src={darkLogoUrl} alt="GitHub Agentic Workflows" class="theme-logo" data-dark-src={darkLogoUrl} data-light-src={lightLogoUrl} />
+	<img src={initialLogoUrl} alt="GitHub Agentic Workflows" class="theme-logo" data-dark-src={darkLogoUrl} data-light-src={lightLogoUrl} />
 	<span>GitHub Agentic Workflows</span>
 </a>
+
+<script is:inline define:vars={{ darkLogoUrl, lightLogoUrl }}>
+  (function() {
+    const theme = document.documentElement.getAttribute('data-theme');
+    const img = document.querySelector('.theme-logo');
+    if (img && theme === 'light') {
+      img.src = lightLogoUrl;
+    } else if (img) {
+      img.src = darkLogoUrl;
+    }
+  })();
+</script>
+
+<style>
+  .theme-logo {
+    transition: none !important;
+  }
+</style>
 
 <script>
   const updateLogo = () => {
@@ -30,12 +49,22 @@ const lightLogoUrl = `data:image/svg+xml;base64,${Buffer.from(lightLogoSvg).toSt
       }
     }
   };
-  
-  const observer = new MutationObserver(updateLogo);
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['data-theme']
+
+  // Use View Transitions lifecycle if available
+  document.addEventListener('astro:page-load', () => {
+    updateLogo();
+    
+    const observer = new MutationObserver(updateLogo);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
   });
   
-  updateLogo();
+  // Fallback for initial load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', updateLogo);
+  } else {
+    updateLogo();
+  }
 </script>
