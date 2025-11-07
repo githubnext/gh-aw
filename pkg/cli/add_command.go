@@ -175,6 +175,24 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 		processedWorkflows = append(processedWorkflows, spec)
 	}
 
+	// Check if any workflow is from the current repository
+	// Skip this check if we can't determine the current repository (e.g., not in a git repo)
+	currentRepoSlug, repoErr := GetCurrentRepoSlug()
+	if repoErr == nil {
+		// We successfully determined the current repository, check all workflow specs
+		for _, spec := range processedWorkflows {
+			// Skip local workflow specs (starting with "./")
+			if strings.HasPrefix(spec.WorkflowPath, "./") {
+				continue
+			}
+
+			if spec.RepoSlug == currentRepoSlug {
+				return fmt.Errorf("cannot add workflows from the current repository (%s). The 'add' command is for installing workflows from other repositories", currentRepoSlug)
+			}
+		}
+	}
+	// If we can't determine the current repository, proceed without the check
+
 	// Install required repositories
 	for repo, version := range repoVersions {
 		repoWithVersion := repo
