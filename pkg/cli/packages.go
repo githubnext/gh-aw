@@ -122,7 +122,7 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 	// Prepare git clone arguments
 	isSHA := isCommitSHA(version)
 	repoURL := fmt.Sprintf("https://github.com/%s", repo)
-	
+
 	var gitArgs []string
 	if isSHA {
 		// For commit SHAs, we need full clone to reach the specific commit
