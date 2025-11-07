@@ -41,41 +41,6 @@ gh aw pr transfer https://github.com/owner/repo/pull/123  # Transfer PR between 
 - **`--verbose` / `-v`**: Enable verbose output with debugging details
 - **`--help` / `-h`**: Show help information
 
-## Debug Logging
-
-Enable detailed debug logs using the `DEBUG` environment variable with pattern matching:
-
-```bash wrap
-# Enable all debug logs
-DEBUG=* gh aw compile
-
-# Enable specific package logs (e.g., CLI operations)
-DEBUG=cli:* gh aw compile
-
-# Enable compiler logs
-DEBUG=workflow:* gh aw compile
-
-# Enable multiple packages
-DEBUG=cli:*,workflow:* gh aw compile
-
-# Exclude specific patterns
-DEBUG=*,-workflow:test gh aw compile
-
-# Disable colors (auto-disabled when piping)
-DEBUG_COLORS=0 DEBUG=* gh aw compile
-```
-
-Debug logs show:
-- **Namespace**: Category of the log (e.g., `cli:compile_command`, `workflow:compiler`)
-- **Message**: Debug information
-- **Time diff**: Elapsed time since last log (e.g., `+50ms`, `+2.5s`)
-- **Colors**: Automatic color coding for each namespace (when in terminal)
-
-**When to use:**
-- Use `DEBUG` for internal diagnostic information and performance insights
-- Use `--verbose` for user-facing operational details
-- Debug logs are zero-overhead when disabled (no performance impact)
-
 ## 📝 Workflow Creation and Management
 
 The `add` and `new` commands help you create and manage agentic workflows, from templates and samples to completely custom workflows.
@@ -125,7 +90,7 @@ gh aw update --verbose --engine copilot  # Override engine
 
 Updates use the `source` field format `owner/repo/path@ref`. Semantic version tags update within the same major version (use `--major` for major updates). Branch references fetch the latest commit. Performs 3-way merge with `git merge-file`, preserving local changes. Conflicts add diff3-style markers and skip recompilation until resolved.
 
-## 🔧 Workflow Recompilation
+## 🔧 Compilation
 
 Transforms markdown workflow files into executable GitHub Actions YAML files:
 
@@ -149,6 +114,8 @@ gh aw compile --strict --zizmor            # Strict mode with security scanning 
 gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --dependabot --force         # Force overwrite existing files
 ```
+
+**Watch Mode:** Auto-recompile workflows on file changes. See [Authoring in VS Code](/gh-aw/tools/vscode/).
 
 **Validation:** The `--validate` flag enables schema validation and container image checks. Disabled by default for faster compilation.
 
@@ -179,37 +146,6 @@ When using `gh aw run` from a GitHub Codespace, you need to update the codespace
 
 To update permissions, go to your codespace settings and manage repository access. See [Managing repository access for your codespaces](https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces) for detailed instructions.
 :::
-
-### Trial Mode
-
-Test workflows safely in a temporary private repository without affecting your target repository:
-
-```bash wrap
-gh aw trial githubnext/agentics/ci-doctor  # Test from source repo
-gh aw trial ./my-local-workflow.md         # Test local file
-gh aw trial workflow1 workflow2            # Compare multiple workflows
-gh aw trial ./workflow.md --use-local-secrets  # Use local API keys for trial
-gh aw trial ./workflow.md --logical-repo myorg/myrepo --host-repo myorg/host-repo # Act as if in a different logical repo. Uses PAT to see issues/PRs
-gh aw trial ./workflow.md --clone-repo myorg/myrepo --host-repo myorg/host-repo # Copy the code of the clone repo for into host repo. Agentic will see the codebase of clone repo but not the issues/PRs.
-gh aw trial ./workflow.md --append "Extra content"  # Append custom content to workflow
-
-# Test issue-triggered workflows with context
-gh aw trial ./issue-workflow.md --trigger-context https://github.com/owner/repo/issues/123
-gh aw trial githubnext/agentics/issue-triage --trigger-context "#456"
-
-Other flags:
- --engine ENGINE               # Override engine (default: from frontmatter)
- --auto-merge-prs            # Auto-merge PRs created during trial
- --use-local-secrets         # Use local environment API keys (pushes/cleans up secrets)
- --repeat N                  # Repeat N times
- --force-delete-host-repo-before  # Force delete existing host repo BEFORE start
- --delete-host-repo-after         # Delete host repo AFTER trial
- --append TEXT                # Append extra content to workflow files
-```
-
-Trial results are saved to `trials/` directory and the trial repository. Set `GH_AW_GITHUB_TOKEN` to override authentication. See the [Security Guide](/gh-aw/guides/security/#authorization-and-token-management).
-
-`--logical-repo` makes workflows operate as if running in the specified repository, accessing its issues and PRs. Use `gh aw compile --trial --logical-repo owner/repo` to recompile. `--clone-repo` uses the codebase from the clone repository while interacting with the host repository's issues and PRs.
 
 ### Using Local API Keys
 
@@ -287,6 +223,37 @@ Features include server connection testing, tool capability analysis, multi-prot
 
 ## 🔄 Repository Utilities
 
+### Trial Mode
+
+Test workflows safely in a temporary private repository without affecting your target repository:
+
+```bash wrap
+gh aw trial githubnext/agentics/ci-doctor  # Test from source repo
+gh aw trial ./my-local-workflow.md         # Test local file
+gh aw trial workflow1 workflow2            # Compare multiple workflows
+gh aw trial ./workflow.md --use-local-secrets  # Use local API keys for trial
+gh aw trial ./workflow.md --logical-repo myorg/myrepo --host-repo myorg/host-repo # Act as if in a different logical repo. Uses PAT to see issues/PRs
+gh aw trial ./workflow.md --clone-repo myorg/myrepo --host-repo myorg/host-repo # Copy the code of the clone repo for into host repo. Agentic will see the codebase of clone repo but not the issues/PRs.
+gh aw trial ./workflow.md --append "Extra content"  # Append custom content to workflow
+
+# Test issue-triggered workflows with context
+gh aw trial ./issue-workflow.md --trigger-context https://github.com/owner/repo/issues/123
+gh aw trial githubnext/agentics/issue-triage --trigger-context "#456"
+
+Other flags:
+ --engine ENGINE               # Override engine (default: from frontmatter)
+ --auto-merge-prs            # Auto-merge PRs created during trial
+ --use-local-secrets         # Use local environment API keys (pushes/cleans up secrets)
+ --repeat N                  # Repeat N times
+ --force-delete-host-repo-before  # Force delete existing host repo BEFORE start
+ --delete-host-repo-after         # Delete host repo AFTER trial
+ --append TEXT                # Append extra content to workflow files
+```
+
+Trial results are saved to `trials/` directory and the trial repository. Set `GH_AW_GITHUB_TOKEN` to override authentication. See the [Security Guide](/gh-aw/guides/security/#authorization-and-token-management).
+
+`--logical-repo` makes workflows operate as if running in the specified repository, accessing its issues and PRs. Use `gh aw compile --trial --logical-repo owner/repo` to recompile. `--clone-repo` uses the codebase from the clone repository while interacting with the host repository's issues and PRs.
+
 ### Pull Request Transfer
 
 Transfer pull requests between repositories, preserving code changes, title, and description:
@@ -316,13 +283,40 @@ gh aw mcp-server --cmd ./gh-aw --port 3000
 
 Uses subprocess architecture for token isolation. Import with `shared/mcp/gh-aw.md` in workflows. See [MCP Server Guide](/gh-aw/tools/mcp-server/).
 
-## 👀 Watch Mode for Development
+## Debug Logging
 
-Auto-recompile workflows on file changes. See [Authoring in VS Code](/gh-aw/tools/vscode/).
+Enable detailed debug logs using the `DEBUG` environment variable with pattern matching:
 
 ```bash wrap
-gh aw compile --watch [--verbose]
+# Enable all debug logs
+DEBUG=* gh aw compile
+
+# Enable specific package logs (e.g., CLI operations)
+DEBUG=cli:* gh aw compile
+
+# Enable compiler logs
+DEBUG=workflow:* gh aw compile
+
+# Enable multiple packages
+DEBUG=cli:*,workflow:* gh aw compile
+
+# Exclude specific patterns
+DEBUG=*,-workflow:test gh aw compile
+
+# Disable colors (auto-disabled when piping)
+DEBUG_COLORS=0 DEBUG=* gh aw compile
 ```
+
+Debug logs show:
+- **Namespace**: Category of the log (e.g., `cli:compile_command`, `workflow:compiler`)
+- **Message**: Debug information
+- **Time diff**: Elapsed time since last log (e.g., `+50ms`, `+2.5s`)
+- **Colors**: Automatic color coding for each namespace (when in terminal)
+
+**When to use:**
+- Use `DEBUG` for internal diagnostic information and performance insights
+- Use `--verbose` for user-facing operational details
+- Debug logs are zero-overhead when disabled (no performance impact)
 
 ## Related Documentation
 
