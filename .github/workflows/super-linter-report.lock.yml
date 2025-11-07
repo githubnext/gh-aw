@@ -11,13 +11,11 @@
 # ```mermaid
 # graph LR
 #   activation["activation"]
-#   super_linter["super_linter"]
 #   agent["agent"]
 #   create_issue["create_issue"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
-#   activation --> super_linter
-#   super_linter --> agent
+#   activation --> agent
 #   agent --> create_issue
 #   detection --> create_issue
 #   agent --> detection
@@ -146,13 +144,21 @@ jobs:
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
-  super_linter:
+  agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
+      issues: read
+      pull-requests: read
+    concurrency:
+      group: "gh-aw-copilot-${{ github.workflow }}"
+    env:
+      GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
     outputs:
-      needs-linting: ${{ steps.check-results.outputs.needs-linting }}
+      output: ${{ steps.collect_output.outputs.output }}
+      output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -201,34 +207,11 @@ jobs:
         run: "if [ -f \"/tmp/gh-aw/super-linter.log\" ] && [ -s \"/tmp/gh-aw/super-linter.log\" ]; then\n  # Check if there are actual errors (not just the header)\n  if grep -qE \"ERROR|WARN|FAIL\" /tmp/gh-aw/super-linter.log; then\n    echo \"needs-linting=true\" >> $GITHUB_OUTPUT\n  else\n    echo \"needs-linting=false\" >> $GITHUB_OUTPUT\n  fi\nelse\n  echo \"needs-linting=false\" >> $GITHUB_OUTPUT\nfi\n"
       - if: always()
         name: Upload linter log
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: super-linter-log
           path: /tmp/gh-aw/super-linter.log
           retention-days: 7
-
-  agent:
-    needs: super_linter
-    if: needs.super_linter.outputs.needs-linting == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      issues: read
-      pull-requests: read
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
-    env:
-      GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
-    outputs:
-      output: ${{ steps.collect_output.outputs.output }}
-      output_types: ${{ steps.collect_output.outputs.output_types }}
-    steps:
-      - name: Download linter log
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
-        with:
-          name: super-linter-log
-          path: /tmp/gh-aw
 
       - name: Create gh-aw temp directory
         run: |
