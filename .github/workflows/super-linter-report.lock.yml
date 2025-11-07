@@ -4510,7 +4510,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set up Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00
         with:
           cache: true
           go-version-file: go.mod
@@ -4526,7 +4526,7 @@ jobs:
           cd pkg/workflow/js && npm ci
       - name: Run Super Linter
         id: super-linter
-        uses: super-linter/super-linter/slim@v8
+        uses: super-linter/super-linter/slim@f6d06a003575dde14f917e642302cf1251f28f4a
         env:
           CREATE_LOG_FILE: "true"
           DEFAULT_BRANCH: main
