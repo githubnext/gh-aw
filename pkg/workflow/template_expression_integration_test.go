@@ -86,9 +86,9 @@ ${{ needs.activation.outputs.text }}
 
 	compiledStr := string(compiledYAML)
 
-	// Verify that template conditionals are present
-	if !strings.Contains(compiledStr, "- name: Render template conditionals") {
-		t.Error("Compiled workflow should contain template rendering step")
+	// Verify that interpolation and template rendering are present
+	if !strings.Contains(compiledStr, "- name: Interpolate variables and render templates") {
+		t.Error("Compiled workflow should contain interpolation and template rendering step")
 	}
 
 	// Verify GitHub expressions are properly wrapped in template conditionals

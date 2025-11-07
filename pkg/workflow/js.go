@@ -48,9 +48,6 @@ var missingToolScript string
 //go:embed js/safe_outputs_mcp_server.cjs
 var safeOutputsMCPServerScript string
 
-//go:embed js/render_template.cjs
-var renderTemplateScript string
-
 //go:embed js/interpolate_prompt.cjs
 var interpolatePromptScript string
 
@@ -78,6 +75,9 @@ var loadAgentOutputScript string
 //go:embed js/staged_preview.cjs
 var stagedPreviewScript string
 
+//go:embed js/is_truthy.cjs
+var isTruthyScript string
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
@@ -87,6 +87,7 @@ func GetJavaScriptSources() map[string]string {
 		"sanitize_workflow_name.cjs": sanitizeWorkflowNameScript,
 		"load_agent_output.cjs":      loadAgentOutputScript,
 		"staged_preview.cjs":         stagedPreviewScript,
+		"is_truthy.cjs":              isTruthyScript,
 	}
 }
 
