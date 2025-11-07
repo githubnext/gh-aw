@@ -65,6 +65,28 @@ steps:
       VALIDATE_BASH: true                # Keep bash validation
       LOG_FILE: /tmp/gh-aw/super-linter.log
       CREATE_LOG_FILE: true
+  
+  - name: Check for linting issues
+    id: check-results
+    run: |
+      if [ -f "/tmp/gh-aw/super-linter.log" ] && [ -s "/tmp/gh-aw/super-linter.log" ]; then
+        # Check if there are actual errors (not just the header)
+        if grep -qE "ERROR|WARN|FAIL" /tmp/gh-aw/super-linter.log; then
+          echo "needs-linting=true" >> $GITHUB_OUTPUT
+        else
+          echo "needs-linting=false" >> $GITHUB_OUTPUT
+        fi
+      else
+        echo "needs-linting=false" >> $GITHUB_OUTPUT
+      fi
+  
+  - name: Upload linter log
+    if: always()
+    uses: actions/upload-artifact@v4
+    with:
+      name: super-linter-log
+      path: /tmp/gh-aw/super-linter.log
+      retention-days: 7
 tools:
   cache-memory: true
   edit:

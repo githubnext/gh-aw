@@ -202,6 +202,16 @@ jobs:
         id: super-linter
         name: Run Super Linter
         uses: super-linter/super-linter/slim@v8
+      - id: check-results
+        name: Check for linting issues
+        run: "if [ -f \"/tmp/gh-aw/super-linter.log\" ] && [ -s \"/tmp/gh-aw/super-linter.log\" ]; then\n  # Check if there are actual errors (not just the header)\n  if grep -qE \"ERROR|WARN|FAIL\" /tmp/gh-aw/super-linter.log; then\n    echo \"needs-linting=true\" >> $GITHUB_OUTPUT\n  else\n    echo \"needs-linting=false\" >> $GITHUB_OUTPUT\n  fi\nelse\n  echo \"needs-linting=false\" >> $GITHUB_OUTPUT\nfi\n"
+      - if: always()
+        name: Upload linter log
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: super-linter-log
+          path: /tmp/gh-aw/super-linter.log
+          retention-days: 7
 
       - name: Create gh-aw temp directory
         run: |
