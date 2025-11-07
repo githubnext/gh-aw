@@ -1,3 +1,10 @@
+---
+import type { Props } from '@astrojs/starlight/props';
+import Default from '@astrojs/starlight/components/Head.astro';
+---
+
+<Default {...Astro.props}><slot /></Default>
+
 <script is:inline>
   (function() {
     const storedTheme = localStorage.getItem('starlight-theme') || 'auto';
@@ -14,8 +21,6 @@
     
     if (isLandingPage) {
       document.body.classList.add('landing-page');
-    } else {
-      document.body.classList.remove('landing-page');
     }
   })();
 </script>

@@ -293,7 +293,7 @@ function generateMarkdown() {
   
   // Frontmatter
   lines.push('---');
-  lines.push('title: Frontmatter Full Reference');
+  lines.push('title: Frontmatter Reference');
   lines.push('description: Complete JSON Schema-based reference for all GitHub Agentic Workflows frontmatter configuration options with YAML examples.');
   lines.push('sidebar:');
   lines.push('  order: 201');

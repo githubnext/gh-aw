@@ -25,12 +25,6 @@ const autoIcon = octicons['device-desktop'].toSVG({ width: 16, height: 16 });
 <script>
   type Theme = 'auto' | 'dark' | 'light';
 
-  declare global {
-    interface Window {
-      themeInitialized?: boolean;
-    }
-  }
-
   function setTheme(theme: Theme) {
     document.querySelectorAll('starlight-theme-select select').forEach((select) => {
       (select as HTMLSelectElement).value = theme;
@@ -44,53 +38,40 @@ const autoIcon = octicons['device-desktop'].toSVG({ width: 16, height: 16 });
     localStorage.setItem('starlight-theme', theme);
   }
 
-  function init() {
-    const currentMode = document.documentElement.getAttribute('data-theme-mode') as Theme || 'auto';
-    document.querySelectorAll('starlight-theme-select select').forEach((select) => {
-      (select as HTMLSelectElement).value = currentMode;
-    });
-    
-    const iconWrappers = document.querySelectorAll('.icon-wrapper');
-    
-    iconWrappers.forEach(iconWrapper => {
-      iconWrapper.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const select = iconWrapper.parentElement?.querySelector('select') as HTMLSelectElement;
-        if (!select) return;
-        
-        const currentTheme = select.value as Theme;
-        let newTheme: Theme;
-        
-        if (currentTheme === 'auto') {
-          newTheme = 'light';
-        } else if (currentTheme === 'light') {
-          newTheme = 'dark';
-        } else {
-          newTheme = 'auto';
-        }
-        
-        setTheme(newTheme);
-      });
-    });
-
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-      const theme = localStorage.getItem('starlight-theme') as Theme;
-      if (theme === 'auto') {
-        setTheme('auto');
+  const currentMode = document.documentElement.getAttribute('data-theme-mode') as Theme || 'auto';
+  document.querySelectorAll('starlight-theme-select select').forEach((select) => {
+    (select as HTMLSelectElement).value = currentMode;
+  });
+  
+  document.querySelectorAll('.icon-wrapper').forEach(iconWrapper => {
+    iconWrapper.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const select = iconWrapper.parentElement?.querySelector('select') as HTMLSelectElement;
+      if (!select) return;
+      
+      const currentTheme = select.value as Theme;
+      let newTheme: Theme;
+      
+      if (currentTheme === 'auto') {
+        newTheme = 'light';
+      } else if (currentTheme === 'light') {
+        newTheme = 'dark';
+      } else {
+        newTheme = 'auto';
       }
+      
+      setTheme(newTheme);
     });
-  }
+  });
 
-  if (!window.themeInitialized) {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', init);
-    } else {
-      init();
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    const theme = localStorage.getItem('starlight-theme') as Theme;
+    if (theme === 'auto') {
+      setTheme('auto');
     }
-    window.themeInitialized = true;
-  }
+  });
 </script>
 
 <style>
@@ -100,7 +81,6 @@ const autoIcon = octicons['device-desktop'].toSVG({ width: 16, height: 16 });
   }
 
   .theme-label {
-    position: relative;
     display: flex;
     align-items: center;
     cursor: pointer;

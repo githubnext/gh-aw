@@ -19,6 +19,9 @@ export default defineConfig({
 	devToolbar: {
 		enabled: false
 	},
+	experimental: {
+		clientPrerender: false
+	},
 	integrations: [
 		starlight({
 			title: 'GitHub Agentic Workflows',
@@ -26,7 +29,7 @@ export default defineConfig({
 				src: './src/assets/agentic-workflow.svg',
 				replacesTitle: false,
 			},
-			components: {
+		components: {
 				Head: './src/components/CustomHead.astro',
 				SocialIcons: './src/components/CustomHeader.astro',
 				ThemeSelect: './src/components/ThemeToggle.astro',

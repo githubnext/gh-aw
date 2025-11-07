@@ -50,19 +50,9 @@ const initialLogoUrl = darkLogoUrl;
     }
   };
 
-  document.addEventListener('astro:page-load', () => {
-    updateLogo();
-    
-    const observer = new MutationObserver(updateLogo);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme']
-    });
+  const observer = new MutationObserver(updateLogo);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme']
   });
-  
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', updateLogo);
-  } else {
-    updateLogo();
-  }
 </script>

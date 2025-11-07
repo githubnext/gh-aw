@@ -1,26 +1,7 @@
 /* Follows GitHub brand guidelines:
-    Typography: https://brand.github.com/foundations/typography
-    Color: https://brand.github.com/foundations/color
+   Typography: https://brand.github.com/foundations/typography
+   Color: https://brand.github.com/foundations/color
 */
-
-header,
-.sidebar,
-.right-sidebar,
-.content-panel,
-main,
-.main-frame {
-  transform: none !important;
-  will-change: auto !important;
-}
-
-.site-title {
-  flex-shrink: 0;
-}
-
-site-search {
-  flex-shrink: 1;
-  min-width: 0;
-}
 
 :root {
   --sl-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
@@ -46,6 +27,13 @@ site-search {
   --sl-color-text: #f0f6fc;
   --sl-color-text-invert: #010409;
   --sl-color-gray-7: #010409;
+  
+  --sl-content-width: 100%;
+  --sl-content-pad-x: 0rem;
+  --sl-nav-pad-x: 0rem;
+  --sl-sidebar-width: 16rem;
+  --layout-max-width: 1180px;
+  --layout-total-width: calc(var(--layout-max-width) + 14rem + 2rem);
 }
 
 :root[data-theme='light'] {
@@ -272,6 +260,17 @@ body:has(.hero)::before {
 
 .page {
   background: transparent !important;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 2rem;
+  width: 100%;
+  max-width: var(--layout-total-width);
+  margin: 0 auto;
+  padding-left: 2rem !important;
+  padding-right: 2rem !important;
 }
 
 .main-frame {
@@ -279,20 +278,41 @@ body:has(.hero)::before {
   z-index: 1;
   background: transparent !important;
   padding-top: 0;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  max-width: var(--layout-max-width);
+  width: 100%;
+  margin: 0;
+  gap: 0 !important;
+  column-gap: 0 !important;
+  grid-column-gap: 0 !important;
+  grid-gap: 0 !important;
+}
+
+.main-frame > * {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.sl-container {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 main {
   position: relative;
   z-index: 2;
   background: transparent !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 sbody:has(.hero) main {
-  padding-bottom: 2rem;
+  padding-bottom: 1rem;
 }
 
 body:has(.hero) .content-panel {
-  padding-bottom: 2rem !important;
+  padding-bottom: 1rem !important;
 }
 
 .content-panel {
@@ -314,24 +334,27 @@ body:has(.hero) .content-panel {
   }
 }
 
-.sidebar {
+#starlight__sidebar, .sidebar {
   background-color: transparent !important;
-  border-right: 1px solid rgba(48, 54, 61, 0.1);
-  padding: 1.5rem 0 1.5rem 0 !important;
-  padding-top: 5rem !important;
-  margin-left: 3rem;
+  border-right: 1px solid rgba(48, 54, 61, 0.25);
+  padding: 1.25rem 0 0 0.5rem !important;
   z-index: 5;
   position: relative;
+  width: 16rem;
+  max-width: 16rem;
+  margin-right: 0 !important;
 }
 
 .sidebar-content {
-  padding: 0 1rem 0 4rem !important;
   background: transparent !important;
 }
 
 .sidebar-pane {
   padding: 0 !important;
   background: transparent !important;
+  margin-left: 0 !important;
+  padding-right: 0 !important;
+  margin-right: 0 !important;
 }
 
 .sidebar .top-level > li > details > summary,
@@ -392,7 +415,6 @@ body:has(.hero) .content-panel {
   border-left-color: rgba(216, 150, 255, 0.5);
 }
 
-/* Override Starlight's default active link background */
 .sidebar a[aria-current="page"],
 .sidebar a[aria-current="page"]:hover,
 .sidebar a[aria-current="page"]:focus,
@@ -403,7 +425,6 @@ a[aria-current="page"].link:hover {
   background: transparent !important;
 }
 
-/* Spacing between groups */
 .sidebar .top-level > li {
   margin-bottom: 0;
 }
@@ -422,7 +443,6 @@ a[aria-current="page"].link:hover {
   margin-bottom: 0;
 }
 
-/* Light theme */
 :root[data-theme='light'] .sidebar {
   border-right-color: rgba(208, 215, 222, 0.2);
 }
@@ -481,65 +501,48 @@ header {
   left: 0;
   right: 0;
   width: 100%;
-  height: 4rem;
+  height: 64px;
   z-index: 100;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  will-change: auto;
 }
 
 header .header {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(auto, max-content) 1fr minmax(auto, max-content) minmax(auto, max-content);
-  gap: 1rem;
+  display: flex;
   align-items: center;
-  padding: 0.5rem 1rem;
-  height: 100%;
+  height: 64px;
+  padding: 0 1rem;
   max-width: 100%;
   width: 100%;
 }
 
-/* Lock navbar elements in absolute positions */
 header .site-title {
-  min-width: max-content;
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
+  flex-shrink: 0;
+  margin-right: 1rem;
 }
 
 header site-search {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  min-width: 0;
+  flex-grow: 1;
+  flex-shrink: 1;
   width: 400px;
   max-width: 40vw;
-}
-
-header .social-icons {
-  position: absolute;
-  right: 4rem;
-  top: 50%;
-  transform: translateY(-50%);
-  min-width: max-content;
-}
-
-header starlight-theme-select {
-  position: absolute;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  min-width: max-content;
+  margin: 0 auto;
 }
 
 header .custom-header-links {
-  position: absolute;
-  right: 6rem;
-  top: 50%;
-  transform: translateY(-50%);
+  flex-shrink: 0;
+  margin-left: 1rem;
+}
+
+header .social-icons {
+  flex-shrink: 0;
+  margin-left: 1rem;
+}
+
+header starlight-theme-select {
+  flex-shrink: 0;
+  margin-left: 1rem;
 }
 
 :root[data-theme='light'] header {
@@ -564,21 +567,22 @@ header::after {
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.8), transparent);
 }
 
-.sl-flex {
-  justify-content: center !important;
-}
-
 .sl-markdown-content {
   color: #f0f6fc;
-  max-width: 90ch;
-  margin: 0 auto;
+  max-width: 85ch;
+  margin: 0;
   font-family: var(--sl-font) !important;
+  padding: 0;
 }
 
 .content-panel {
-  padding: 0 2rem 2.5rem 4rem !important;
+  padding: 0 1rem 2.5rem 1rem !important;
   margin-top: 0 !important;
-  border-left: 1px solid rgba(48, 54, 61, 0.2);
+  border-left: none !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  transform: none !important;
 }
 
 :root[data-theme='light'] .content-panel {
@@ -832,24 +836,23 @@ a.button:hover {
 }
 
 .right-sidebar {
-  position: fixed;
-  right: 0;
-  top: 0;
-  width: 16rem;
-  height: 100vh;
-  padding: 1.5rem 1.5rem 2rem 1rem;
-  padding-top: 6rem !important;
-  border-left: 1px solid rgba(48, 54, 61, 0.2);
+  position: sticky;
+  top: 6rem;
+  width: 14rem;
+  max-width: 14rem;
+  height: calc(100vh - 6rem);
+  padding: 1rem 0.5rem 2rem 0.75rem;
+  border-left: 1px solid rgba(48, 54, 61, 0.25);
   overflow-y: auto;
   z-index: 10;
+  flex: 0 0 14rem;
+  contain: layout paint;
+  will-change: scroll-position;
+  backface-visibility: hidden;
 }
 
 :root[data-theme='light'] .right-sidebar {
   border-left-color: rgba(208, 215, 222, 0.4);
-}
-
-.right-sidebar-panel {
-  padding-left: 0;
 }
 
 starlight-toc nav {
@@ -862,7 +865,7 @@ starlight-toc a {
   color: #8d96a0;
   text-decoration: none;
   border-left: none;
-  transition: color 0.15s ease;
+  transition: none;
   line-height: 1.4;
   font-weight: 400;
 }
@@ -963,9 +966,21 @@ starlight-toc h2 {
 .sl-markdown-content aside,
 .sl-markdown-content .starlight-aside {
   margin: 1.5rem 0;
-  padding: 1rem 1.25rem;
+  padding: 1rem 0.75rem 1rem 0.5rem;
   border-radius: 6px;
-  border-left: 4px solid;
+  position: relative;
+  border-left: none;
+}
+
+.sl-markdown-content aside::before,
+.sl-markdown-content .starlight-aside::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 4px;
+  background: currentColor;
+  opacity: 0.5;
+  border-radius: 2px;
 }
 
 .sl-markdown-content aside.note,
@@ -1024,20 +1039,77 @@ starlight-toc h2 {
 
 @media (min-width: 72rem) {
   .main-frame {
-    grid-template-columns: 16rem 1fr;
-    gap: 0;
+    grid-template-columns: 16rem 1fr !important;
+    gap: 0 !important;
+    column-gap: 0 !important;
+    grid-column-gap: 0 !important;
+    grid-gap: 0 !important;
+  }
+  
+  .sidebar {
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+  }
+  
+  .content-panel {
+    margin-left: 0 !important;
+    padding-left: 1rem !important;
   }
 }
 
 @media (min-width: 90rem) {
   .main-frame {
-    grid-template-columns: 18rem 1fr;
-    gap: 0;
+    grid-template-columns: 18rem 1fr !important;
+    gap: 0 !important;
+    column-gap: 0 !important;
+    grid-column-gap: 0 !important;
+    grid-gap: 0 !important;
+  }
+  
+  .sidebar {
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+  }
+  
+  .content-panel {
+    margin-left: 0 !important;
+    padding-left: 1rem !important;
   }
   
   .sl-markdown-content {
     max-width: 90ch;
   }
+}
+
+body .page .main-frame {
+  display: flex !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  column-gap: 0 !important;
+  flex: 0 1 var(--layout-max-width);
+  max-width: var(--layout-max-width);
+}
+body .page .main-frame > #starlight__sidebar,
+body .page .main-frame > .sidebar {
+  flex: 0 0 16rem;
+  margin: 0 !important;
+}
+body .page .main-frame > main {
+  flex: 1 1 auto;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+body .page .main-frame > main .content-panel {
+  margin: 0 !important;
+  transform: none !important;
+  padding-left: 0.5rem !important;
+  border-left: none !important;
+}
+@media (min-width: 72rem) {
+  body .page .main-frame { display: flex !important; }
+}
+@media (min-width: 90rem) {
+  body .page .main-frame { display: flex !important; }
 }
 
 :focus-visible {
@@ -1085,13 +1157,6 @@ html {
   color: #f0f6fc;
 }
 
-site-search {
-  width: 100%;
-  max-width: 800px;
-  margin: 0;
-  flex-grow: 1;
-}
-
 .hero .action.primary {
   background: linear-gradient(180deg, #d896ff 0%, #6639ba 100%);
   border-color: #d896ff;
@@ -1119,7 +1184,7 @@ a:hover {
 
 .hero {
   background: transparent;
-  padding: 8rem 2rem 3rem;
+  padding: 8rem 2rem 1rem;
   margin-top: 2rem;
   position: relative;
   overflow: hidden;
@@ -1174,4 +1239,38 @@ footer *,
 .footer *,
 [role="contentinfo"] * {
   margin-top: 0 !important;
+}
+
+.sl-markdown-content {
+  max-width: 75ch !important;
+}
+@media (min-width: 90rem) {
+  .sl-markdown-content {
+    max-width: 80ch !important;
+  }
+}
+
+@media (min-width: 72rem) {
+  .sl-markdown-content > aside,
+  .sl-markdown-content > .starlight-aside {
+    float: right;
+    clear: right;
+    width: 16rem;
+    max-width: 16rem;
+    margin: 0 0 1.5rem 2rem;
+  }
+  .sl-markdown-content::after {
+    content: "";
+    display: block;
+    clear: both;
+  }
+}
+@media (max-width: 71.999rem) {
+  .sl-markdown-content > aside,
+  .sl-markdown-content > .starlight-aside {
+    float: none;
+    width: auto;
+    max-width: none;
+    margin: 1.5rem 0;
+  }
 }
