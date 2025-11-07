@@ -29,6 +29,15 @@ type WorkflowInfo struct {
 	Path        string // Relative path from package directory
 }
 
+// GetDisplayName returns the preferred display name for the workflow.
+// It prefers description over name for better user-facing information.
+func (w WorkflowInfo) GetDisplayName() string {
+	if w.Description != "" {
+		return w.Description
+	}
+	return w.Name
+}
+
 // InstallPackage installs agentic workflows from a GitHub repository
 func InstallPackage(repoSpec string, verbose bool) error {
 	packagesLog.Printf("Installing package: %s", repoSpec)
@@ -343,7 +352,12 @@ func listWorkflowsInPackage(repoSlug string, verbose bool) ([]WorkflowInfo, erro
 		content, err := os.ReadFile(path)
 		if err == nil {
 			result, err := parser.ExtractFrontmatterFromContent(string(content))
-			if err == nil {
+			if err != nil {
+				// Log parsing errors in verbose mode for debugging
+				if verbose {
+					fmt.Fprintf(os.Stderr, "Warning: Failed to parse frontmatter in %s: %v\n", path, err)
+				}
+			} else {
 				// Try to get 'name' field from frontmatter
 				if nameVal, ok := result.Frontmatter["name"]; ok {
 					if nameStr, ok := nameVal.(string); ok {
@@ -368,6 +382,16 @@ func listWorkflowsInPackage(repoSlug string, verbose bool) ([]WorkflowInfo, erro
 					}
 				}
 			}
+		} else if verbose {
+			fmt.Fprintf(os.Stderr, "Warning: Failed to read file %s: %v\n", path, err)
+		}
+
+		// Validate workflow ID is not empty (should never happen with valid paths)
+		if workflowID == "" {
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Warning: Empty workflow ID for path %s, skipping\n", path)
+			}
+			return nil
 		}
 
 		// If still no name, use the workflow ID

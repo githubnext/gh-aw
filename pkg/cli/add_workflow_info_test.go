@@ -30,12 +30,7 @@ func TestWorkflowInfoTableRendering(t *testing.T) {
 	// Build table configuration (mimicking handleRepoOnlySpec)
 	var rows [][]string
 	for _, workflow := range workflows {
-		id := workflow.ID
-		nameDesc := workflow.Name
-		if workflow.Description != "" {
-			nameDesc = workflow.Description
-		}
-		rows = append(rows, []string{id, nameDesc})
+		rows = append(rows, []string{workflow.ID, workflow.GetDisplayName()})
 	}
 
 	// Verify the rows were built correctly
@@ -112,20 +107,12 @@ func TestWorkflowInfoPreferDescription(t *testing.T) {
 	}
 
 	// Test first workflow - should use description
-	nameDesc1 := workflows[0].Name
-	if workflows[0].Description != "" {
-		nameDesc1 = workflows[0].Description
-	}
-	if nameDesc1 != "Description for workflow one" {
-		t.Errorf("Workflow 1: got %s, want 'Description for workflow one'", nameDesc1)
+	if workflows[0].GetDisplayName() != "Description for workflow one" {
+		t.Errorf("Workflow 1: got %s, want 'Description for workflow one'", workflows[0].GetDisplayName())
 	}
 
 	// Test second workflow - should use name (no description)
-	nameDesc2 := workflows[1].Name
-	if workflows[1].Description != "" {
-		nameDesc2 = workflows[1].Description
-	}
-	if nameDesc2 != "Workflow Two" {
-		t.Errorf("Workflow 2: got %s, want 'Workflow Two'", nameDesc2)
+	if workflows[1].GetDisplayName() != "Workflow Two" {
+		t.Errorf("Workflow 2: got %s, want 'Workflow Two'", workflows[1].GetDisplayName())
 	}
 }

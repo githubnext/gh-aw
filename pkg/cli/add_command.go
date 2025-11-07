@@ -261,12 +261,7 @@ func handleRepoOnlySpec(repoSpec string, verbose bool) error {
 
 	// Add each workflow as a row
 	for _, workflow := range workflows {
-		id := workflow.ID
-		nameDesc := workflow.Name
-		if workflow.Description != "" {
-			nameDesc = workflow.Description
-		}
-		tableConfig.Rows = append(tableConfig.Rows, []string{id, nameDesc})
+		tableConfig.Rows = append(tableConfig.Rows, []string{workflow.ID, workflow.GetDisplayName()})
 	}
 
 	// Render the table
