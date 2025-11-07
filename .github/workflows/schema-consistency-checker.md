@@ -22,7 +22,7 @@ safe-outputs:
     category: "audits"
     title-prefix: "[Schema Consistency] "
     max: 1
-timeout_minutes: 30
+timeout-minutes: 30
 imports:
   - shared/reporting.md
 ---

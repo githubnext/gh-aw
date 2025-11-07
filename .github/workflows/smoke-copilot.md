@@ -21,7 +21,7 @@ tools:
 safe-outputs:
     staged: true
     create-issue:
-timeout_minutes: 10
+timeout-minutes: 10
 strict: true
 ---
 

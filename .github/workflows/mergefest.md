@@ -37,7 +37,7 @@ tools:
     toolsets: [pull_requests, repos]
 safe-outputs:
   push-to-pull-request-branch:
-timeout_minutes: 10
+timeout-minutes: 10
 strict: true
 steps:
   - name: Setup git configuration

@@ -50,7 +50,7 @@ tools:
     - "./gh-aw compile *"
   cache-memory:
 
-timeout_minutes: 15
+timeout-minutes: 15
 ---
 
 # Go Logger Enhancement

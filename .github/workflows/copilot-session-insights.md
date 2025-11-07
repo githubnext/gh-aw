@@ -176,7 +176,7 @@ steps:
       echo '[]' > /tmp/gh-aw/agent-sessions/sessions-list.json
       echo "Created empty session data files for graceful degradation"
 
-timeout_minutes: 20
+timeout-minutes: 20
 
 ---
 

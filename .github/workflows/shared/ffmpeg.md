@@ -12,7 +12,7 @@
 # - Best practices for video/audio processing
 #
 # Note: FFmpeg operations can be time-intensive. Ensure your workflow has
-# adequate timeout_minutes (recommended: 15+ minutes for video processing).
+# adequate timeout-minutes (recommended: 15+ minutes for video processing).
 # Individual bash commands using ffmpeg have a 5-minute timeout by default.
 
 tools:
@@ -34,7 +34,7 @@ steps:
 
 FFmpeg and ffprobe have been installed and are available in your PATH. A temporary folder `/tmp/gh-aw/ffmpeg` is available for caching intermediate results.
 
-**Note**: FFmpeg operations can take several minutes for large video files. Bash commands have a 5-minute timeout. For longer operations, break them into smaller steps or increase workflow timeout_minutes.
+**Note**: FFmpeg operations can take several minutes for large video files. Bash commands have a 5-minute timeout. For longer operations, break them into smaller steps or increase workflow timeout-minutes.
 
 ## Common FFmpeg Operations
 

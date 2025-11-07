@@ -10,7 +10,7 @@ permissions:
   discussions: read
 engine: copilot
 
-timeout_minutes: 45
+timeout-minutes: 45
 
 network:
   firewall: true

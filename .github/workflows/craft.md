@@ -19,7 +19,7 @@ steps:
     run: |
       gh extension remove gh-aw || true
       gh extension install .
-timeout_minutes: 15
+timeout-minutes: 15
 safe-outputs:
   add-comment:
     max: 1
@@ -78,7 +78,7 @@ Create a workflow that includes:
 - `engine:` - Default to "copilot"
 - `tools:` - Only include tools that are actually needed
 - `safe-outputs:` - Configure if the workflow should create issues/PRs/comments/discussions
-- `timeout_minutes:` - Reasonable timeout (typically 10-15 minutes)
+- `timeout-minutes:` - Reasonable timeout (typically 10-15 minutes)
 
 **Markdown Content:**
 - Clear title describing the workflow's purpose
@@ -227,7 +227,7 @@ tools:
     toolsets: [default]
 safe-outputs:
   add-comment:
-timeout_minutes: 10
+timeout-minutes: 10
 ---
 
 # My Workflow Title

@@ -70,7 +70,7 @@ safe-outputs:
   upload-assets:
 
 # Timeout (based on avg 6.8min runtime + buffer)
-timeout_minutes: 12
+timeout-minutes: 12
 
 # Build steps for documentation
 steps:

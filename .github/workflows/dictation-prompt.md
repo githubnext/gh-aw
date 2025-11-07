@@ -30,7 +30,7 @@ safe-outputs:
     labels: [documentation, automation]
     draft: false
 
-timeout_minutes: 10
+timeout-minutes: 10
 ---
 
 # Dictation Prompt Generator
@@ -59,7 +59,7 @@ Scan documentation files in `docs/src/content/docs/` to extract approximately 10
 - Repository-specific: agentic workflows, gh-aw, activation, MCP servers
 - File formats: markdown, lockfile (.lock.yml), YAML
 - Tool types: edit, bash, github, playwright, web-fetch, web-search
-- Operations: fmt, lint, test-unit, timeout_minutes, runs-on
+- Operations: fmt, lint, test-unit, timeout-minutes, runs-on
 
 **Exclude**: makefile, Astro, starlight (tooling-specific, not user-facing)
 

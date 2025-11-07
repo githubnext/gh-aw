@@ -6,7 +6,7 @@
 # Ollama with the Llama Guard 3:1b model to scan safe outputs and patches.
 #
 # Note: Ollama operations can be resource-intensive. Ensure your workflow has
-# adequate timeout_minutes (recommended: 20+ minutes for model download and scanning).
+# adequate timeout-minutes (recommended: 20+ minutes for model download and scanning).
 ---
 
 # Ollama Llama Guard 3 Threat Scanning
@@ -372,7 +372,7 @@ Llama Guard 3 is a safeguard model designed to detect potentially harmful conten
 - **Model Download**: First run may take 5-10 minutes to download the model
 - **Scanning**: Each file scan typically takes 10-30 seconds
 - **Resource Usage**: Requires adequate CPU and memory on the runner
-- **Recommended Timeout**: Set workflow `timeout_minutes` to at least 20 minutes
+- **Recommended Timeout**: Set workflow `timeout-minutes` to at least 20 minutes
 - **Content Truncation**: Files larger than 8KB are automatically truncated for analysis
 
 ## Usage Example
@@ -399,7 +399,7 @@ safe-outputs:
     steps:
       # Copy all steps from the Quick Start section above
 
-timeout_minutes: 20
+timeout-minutes: 20
 ---
 
 # Your workflow prompt here

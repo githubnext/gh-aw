@@ -14,7 +14,7 @@ tools:
   github:
     allowed: [get_repository]
 
-timeout_minutes: 5
+timeout-minutes: 5
 ---
 
 # Test Claude with Cache Memory File Share

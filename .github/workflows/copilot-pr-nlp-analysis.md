@@ -96,7 +96,7 @@ steps:
       
       echo "All NLP libraries installed successfully"
 
-timeout_minutes: 20
+timeout-minutes: 20
 
 ---
 

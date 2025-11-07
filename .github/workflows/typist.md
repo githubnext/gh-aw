@@ -35,7 +35,7 @@ tools:
     - "grep -r '\bany\b' pkg --include='*.go'"
     - "cat pkg/**/*.go"
 
-timeout_minutes: 20
+timeout-minutes: 20
 strict: true
 ---
 

@@ -335,7 +335,7 @@ safe-outputs:
   your-new-type:
     max: 3
     custom-option: "test"
-timeout_minutes: 5
+timeout-minutes: 5
 ---
 
 # Test Your New Type

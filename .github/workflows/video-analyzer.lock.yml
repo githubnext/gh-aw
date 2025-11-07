@@ -1108,7 +1108,7 @@ jobs:
           
           FFmpeg and ffprobe have been installed and are available in your PATH. A temporary folder `/tmp/gh-aw/ffmpeg` is available for caching intermediate results.
           
-          **Note**: FFmpeg operations can take several minutes for large video files. Bash commands have a 5-minute timeout. For longer operations, break them into smaller steps or increase workflow timeout_minutes.
+          **Note**: FFmpeg operations can take several minutes for large video files. Bash commands have a 5-minute timeout. For longer operations, break them into smaller steps or increase workflow timeout-minutes.
           
           ## Common FFmpeg Operations
           

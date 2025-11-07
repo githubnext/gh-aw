@@ -66,7 +66,7 @@ on:
 
 **Error Message:**
 ```
-timeout_minutes must be an integer
+timeout-minutes must be an integer
 ```
 
 **Cause:** A field received a value of the wrong type according to the schema.
@@ -75,10 +75,10 @@ timeout_minutes must be an integer
 
 ```yaml wrap
 # Incorrect
-timeout_minutes: "10"
+timeout-minutes: "10"
 
 # Correct
-timeout_minutes: 10
+timeout-minutes: 10
 ```
 
 ### Imports Field Must Be Array

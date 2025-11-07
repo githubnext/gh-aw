@@ -27,7 +27,7 @@ safe-outputs:
     labels: [documentation, automation]
     reviewers: copilot
     draft: false
-timeout_minutes: 15
+timeout-minutes: 15
 imports:
   - shared/reporting.md
 ---
