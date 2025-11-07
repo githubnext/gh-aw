@@ -3204,51 +3204,13 @@ jobs:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
         with:
           script: |
+            const { runLogParser } = require("./log_parser_bootstrap.cjs");
             function main() {
-              const fs = require("fs");
-              const path = require("path");
-              try {
-                const logPath = process.env.GH_AW_AGENT_OUTPUT;
-                if (!logPath) {
-                  core.info("No agent log file specified");
-                  return;
-                }
-                if (!fs.existsSync(logPath)) {
-                  core.info(`Log path not found: ${logPath}`);
-                  return;
-                }
-                let content = "";
-                const stat = fs.statSync(logPath);
-                if (stat.isDirectory()) {
-                  const files = fs.readdirSync(logPath);
-                  const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
-                  if (logFiles.length === 0) {
-                    core.info(`No log files found in directory: ${logPath}`);
-                    return;
-                  }
-                  logFiles.sort();
-                  for (const file of logFiles) {
-                    const filePath = path.join(logPath, file);
-                    const fileContent = fs.readFileSync(filePath, "utf8");
-                    content += fileContent;
-                    if (content.length > 0 && !content.endsWith("\n")) {
-                      content += "\n";
-                    }
-                  }
-                } else {
-                  content = fs.readFileSync(logPath, "utf8");
-                }
-                const parsedLog = parseCopilotLog(content);
-                if (parsedLog) {
-                  core.info(parsedLog);
-                  core.summary.addRaw(parsedLog).write();
-                  core.info("Copilot log parsed successfully");
-                } else {
-                  core.error("Failed to parse Copilot log");
-                }
-              } catch (error) {
-                core.setFailed(error instanceof Error ? error : String(error));
-              }
+              runLogParser({
+                parseLog: parseCopilotLog,
+                parserName: "Copilot",
+                supportsDirectories: true,
+              });
             }
             function extractPremiumRequestCount(logContent) {
               const patterns = [
