@@ -5,9 +5,10 @@ interface Props {
   icon: IconName;
   title: string;
   href?: string;
+  badge?: string;
 }
 
-const { icon, title, href } = Astro.props;
+const { icon, title, href, badge } = Astro.props;
 const iconData = octicons[icon];
 
 if (!iconData) {
@@ -21,7 +22,10 @@ const Tag = href ? 'a' : 'div';
 <Tag class="feature-card" href={href}>
   <div class="feature-header">
     <div class="feature-icon" set:html={svg} />
-    <h3 class="feature-title">{title}</h3>
+    <div class="feature-title-wrap">
+      <h3 class="feature-title">{title}</h3>
+      {badge && <span class="feature-badge">{badge}</span>}
+    </div>
   </div>
   <div class="feature-description">
     <slot />
@@ -78,6 +82,13 @@ const Tag = href ? 'a' : 'div';
     margin-bottom: 0.5rem;
   }
 
+  .feature-title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
   .feature-icon {
     flex-shrink: 0;
     width: 56px;
@@ -127,6 +138,27 @@ const Tag = href ? 'a' : 'div';
     color: #f0f6fc;
     transition: all 0.2s ease;
     letter-spacing: -0.01em !important;
+  }
+
+  .feature-badge {
+    align-self: flex-start;
+    font-size: 0.65rem;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 0.30rem 0.55rem;
+    border: 1px solid rgba(139,92,246,0.35);
+    border-radius: 0.4rem;
+    background: rgba(139,92,246,0.15);
+    color: #c4b5fd;
+    position: relative;
+  }
+
+  .feature-card:hover .feature-badge {
+    border-color: rgba(139,92,246,0.55);
+    background: rgba(139,92,246,0.22);
+    color: #ddd6fe;
   }
 
   .feature-card:hover .feature-title {
@@ -215,6 +247,18 @@ const Tag = href ? 'a' : 'div';
 
   :global([data-theme='light']) .feature-description :global(a:hover) {
     color: #0550ae;
+  }
+
+  :global([data-theme='light']) .feature-badge {
+    border-color: rgba(130,80,223,0.35);
+    background: rgba(130,80,223,0.18);
+    color: #6639ba;
+  }
+
+  :global([data-theme='light']) .feature-card:hover .feature-badge {
+    border-color: rgba(130,80,223,0.55);
+    background: rgba(130,80,223,0.25);
+    color: #8250df;
   }
 
   @media (prefers-reduced-motion: reduce) {

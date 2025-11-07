@@ -17,29 +17,15 @@ const { columns = 2 } = Astro.props;
     margin: 2rem 0;
   }
 
-  .feature-grid.columns-2 {
-    grid-template-columns: 1fr;
-  }
-
-  .feature-grid.columns-3 {
-    grid-template-columns: 1fr;
-  }
-
+  .feature-grid.columns-2,
+  .feature-grid.columns-3,
   .feature-grid.columns-4 {
     grid-template-columns: 1fr;
   }
 
   @media (min-width: 50rem) {
-    .feature-grid.columns-2 {
-      grid-template-columns: repeat(2, 1fr);
-    }
-
-    .feature-grid.columns-3 {
-      grid-template-columns: repeat(3, 1fr);
-    }
-
-    .feature-grid.columns-4 {
-      grid-template-columns: repeat(4, 1fr);
-    }
+    .feature-grid.columns-2,
+    .feature-grid.columns-3 { grid-template-columns: repeat(3, minmax(18rem, 1fr)); }
+    .feature-grid.columns-4 { grid-template-columns: repeat(3, minmax(18rem, 1fr)); }
   }
 </style>

@@ -3,8 +3,7 @@ title: How It Works
 description: Understanding how GitHub Agentic Workflows transforms natural language into automated AI-powered workflows
 ---
 
-import FeatureCard from '../../../components/FeatureCard.astro';
-import FeatureGrid from '../../../components/FeatureGrid.astro';
+/* Feature sections moved to landing page (index.mdx) */
 
 ## Natural Language to GitHub Actions
 
@@ -29,52 +28,6 @@ The `gh aw` cli compiles this into a GitHub Actions Workflow (.yml) that runs an
 The AI agent reads your repository context, understands the issue content, and takes appropriate actions - all defined in natural language rather than complex code.
 
 **Security Benefits:** Workflows use read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. Access can be gated to team members only, ensuring AI agents operate within controlled boundaries.
-
-## Key Features
-
-<FeatureGrid columns={3}>
-  <FeatureCard icon="pencil" title="Natural Language Workflows">
-    Write automation in markdown instead of complex YAML
-  </FeatureCard>
-  <FeatureCard icon="cpu" title="AI-Powered Decision Making">
-    Workflows that understand context and adapt to situations
-  </FeatureCard>
-  <FeatureCard icon="mark-github" title="GitHub Integration">
-    Deep integration with issues, PRs, discussions, and repository management
-  </FeatureCard>
-  <FeatureCard icon="shield-lock" title="Security First">
-    Sandboxed execution with minimal permissions and safe output processing
-  </FeatureCard>
-  <FeatureCard icon="beaker" title="Multiple AI Engines">
-    Support for Claude, Codex, and custom AI processors
-  </FeatureCard>
-  <FeatureCard icon="workflow" title="Continuous AI">
-    Systematic, automated application of AI to software collaboration
-  </FeatureCard>
-</FeatureGrid>
-
-## Application Areas
-
-GitHub Agentic Workflows enables automation across various software development activities:
-
-<FeatureGrid>
-  <FeatureCard icon="graph" title="Automated Research, Status & Planning">
-    Research, team coordination, and project planning with automated intelligence gathering.  
-    [Explore Research & Planning Workflows →](/gh-aw/samples/research-planning/)
-  </FeatureCard>
-  <FeatureCard icon="issue-opened" title="Automated Triage & Analysis">
-    Issue management, accessibility reviews, and CI failure investigation.  
-    [Explore Triage & Analysis Workflows →](/gh-aw/samples/triage-analysis/)
-  </FeatureCard>
-  <FeatureCard icon="code" title="Semi-automatic Coding & Development">
-    Dependency management, documentation updates, and pull request assistance.  
-    [Explore Coding & Development Workflows →](/gh-aw/samples/coding-development/)
-  </FeatureCard>
-  <FeatureCard icon="check-circle" title="Semi-automatic Quality & Testing">
-    Test coverage improvement and performance optimization.  
-    [Explore Semi-automatic Quality & Testing Workflows →](/gh-aw/samples/quality-testing/)
-  </FeatureCard>
-</FeatureGrid>
 
 Sample workflows are from the [Agentics collection](https://github.com/githubnext/agentics).
 
