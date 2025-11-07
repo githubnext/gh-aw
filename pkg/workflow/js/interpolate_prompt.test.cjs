@@ -18,20 +18,30 @@ global.core = core;
 // Import the interpolation script
 const interpolatePromptScript = fs.readFileSync(path.join(__dirname, "interpolate_prompt.cjs"), "utf8");
 
-// Extract the interpolateVariables function
-// Note: We use regex extraction + eval pattern (matching render_template.test.cjs)
-// because the script is embedded via go:embed and designed to run in GitHub Actions,
-// not as a CommonJS module. This allows us to test the actual embedded code.
+// Import isTruthy from its own module for testing renderMarkdownTemplate
+const { isTruthy } = require("./is_truthy.cjs");
+
+// Extract the functions
 const interpolateVariablesMatch = interpolatePromptScript.match(
   /function interpolateVariables\(content, variables\)\s*{[\s\S]*?return result;[\s\S]*?}/
+);
+
+const renderMarkdownTemplateMatch = interpolatePromptScript.match(
+  /function renderMarkdownTemplate\(markdown\)\s*{[\s\S]*?return[\s\S]*?;[\s\S]*?}/
 );
 
 if (!interpolateVariablesMatch) {
   throw new Error("Could not extract interpolateVariables function from interpolate_prompt.cjs");
 }
 
+if (!renderMarkdownTemplateMatch) {
+  throw new Error("Could not extract renderMarkdownTemplate function from interpolate_prompt.cjs");
+}
+
 // eslint-disable-next-line no-eval
 const interpolateVariables = eval(`(${interpolateVariablesMatch[0]})`);
+// eslint-disable-next-line no-eval
+const renderMarkdownTemplate = eval(`(${renderMarkdownTemplateMatch[0]})`);
 
 describe("interpolate_prompt", () => {
   describe("interpolateVariables", () => {
@@ -98,6 +108,139 @@ Some other content here.`;
     });
   });
 
+  describe("renderMarkdownTemplate", () => {
+    it("should keep content in truthy blocks", () => {
+      const input = "{{#if true}}\nHello\n{{/if}}";
+      const output = renderMarkdownTemplate(input);
+      expect(output).toBe("\nHello\n");
+    });
+
+    it("should remove content in falsy blocks", () => {
+      const input = "{{#if false}}\nHello\n{{/if}}";
+      const output = renderMarkdownTemplate(input);
+      expect(output).toBe("");
+    });
+
+    it("should process multiple blocks", () => {
+      const input = "{{#if true}}\nKeep this\n{{/if}}\n{{#if false}}\nRemove this\n{{/if}}";
+      const output = renderMarkdownTemplate(input);
+      expect(output).toBe("\nKeep this\n\n");
+    });
+
+    it("should handle nested content", () => {
+      const input = `# Title
+
+{{#if true}}
+## Section 1
+This should be kept.
+{{/if}}
+
+{{#if false}}
+## Section 2
+This should be removed.
+{{/if}}
+
+## Section 3
+This is always visible.`;
+
+      const expected = `# Title
+
+
+## Section 1
+This should be kept.
+
+
+
+
+## Section 3
+This is always visible.`;
+
+      const output = renderMarkdownTemplate(input);
+      expect(output).toBe(expected);
+    });
+
+    it("should leave content without conditionals unchanged", () => {
+      const input = "# Normal Markdown\n\nNo conditionals here.";
+      const output = renderMarkdownTemplate(input);
+      expect(output).toBe(input);
+    });
+
+    it("should handle conditionals with various expressions", () => {
+      const input1 = "{{#if 1}}\nKeep\n{{/if}}";
+      expect(renderMarkdownTemplate(input1)).toBe("\nKeep\n");
+
+      const input2 = "{{#if 0}}\nRemove\n{{/if}}";
+      expect(renderMarkdownTemplate(input2)).toBe("");
+
+      const input3 = "{{#if null}}\nRemove\n{{/if}}";
+      expect(renderMarkdownTemplate(input3)).toBe("");
+
+      const input4 = "{{#if undefined}}\nRemove\n{{/if}}";
+      expect(renderMarkdownTemplate(input4)).toBe("");
+    });
+
+    it("should preserve markdown formatting inside blocks", () => {
+      const input = `{{#if true}}
+## Header
+- List item 1
+- List item 2
+
+\`\`\`javascript
+const x = 1;
+\`\`\`
+{{/if}}`;
+
+      const expected = `
+## Header
+- List item 1
+- List item 2
+
+\`\`\`javascript
+const x = 1;
+\`\`\`
+`;
+
+      const output = renderMarkdownTemplate(input);
+      expect(output).toBe(expected);
+    });
+
+    it("should handle whitespace in conditionals", () => {
+      const input1 = "{{#if   true  }}\nKeep\n{{/if}}";
+      expect(renderMarkdownTemplate(input1)).toBe("\nKeep\n");
+
+      const input2 = "{{#if\ttrue\t}}\nKeep\n{{/if}}";
+      expect(renderMarkdownTemplate(input2)).toBe("\nKeep\n");
+    });
+  });
+
+  describe("combined interpolation and template rendering", () => {
+    it("should interpolate variables and then render templates", () => {
+      const content = "Repo: ${GH_AW_EXPR_REPO}\n{{#if true}}\nShow this\n{{/if}}";
+      const variables = { GH_AW_EXPR_REPO: "github/test-repo" };
+
+      // First interpolate
+      let result = interpolateVariables(content, variables);
+      expect(result).toBe("Repo: github/test-repo\n{{#if true}}\nShow this\n{{/if}}");
+
+      // Then render template
+      result = renderMarkdownTemplate(result);
+      expect(result).toBe("Repo: github/test-repo\n\nShow this\n");
+    });
+
+    it("should handle template conditionals that depend on interpolated values", () => {
+      const content = "${GH_AW_EXPR_CONDITION}\n{{#if ${GH_AW_EXPR_CONDITION}}}\nShow this\n{{/if}}";
+      const variables = { GH_AW_EXPR_CONDITION: "true" };
+
+      // First interpolate
+      let result = interpolateVariables(content, variables);
+      expect(result).toBe("true\n{{#if true}}\nShow this\n{{/if}}");
+
+      // Then render template
+      result = renderMarkdownTemplate(result);
+      expect(result).toBe("true\n\nShow this\n");
+    });
+  });
+
   describe("main function integration", () => {
     let tmpDir;
     let promptPath;
@@ -133,7 +276,6 @@ Some other content here.`;
       delete process.env.GH_AW_PROMPT;
 
       // Extract and execute main function
-      // Note: Same pattern as above - extracting from embedded script for testing
       const mainMatch = interpolatePromptScript.match(/async function main\(\)\s*{[\s\S]*?^}/m);
       if (!mainMatch) {
         throw new Error("Could not extract main function");

@@ -92,9 +92,22 @@ func runJSLogParser(jsScript, logContent string) (string, error) {
 		return "", fmt.Errorf("failed to write log file: %v", err)
 	}
 
+	// Read the bootstrap helper script and write it to temp dir
+	bootstrapPath := filepath.Join("js", "log_parser_bootstrap.cjs")
+	bootstrapContent, err := os.ReadFile(bootstrapPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read bootstrap helper: %v", err)
+	}
+
+	bootstrapFile := filepath.Join(tempDir, "log_parser_bootstrap.cjs")
+	if err := os.WriteFile(bootstrapFile, bootstrapContent, 0644); err != nil {
+		return "", fmt.Errorf("failed to write bootstrap file: %v", err)
+	}
+
 	// Create a Node.js script that will run our parser
 	nodeScript := fmt.Sprintf(`
 const fs = require('fs');
+const path = require('path');
 
 // Mock @actions/core for testing
 const core = {
@@ -119,17 +132,11 @@ const core = {
 	}
 };
 
+// Set global core for the parser scripts
+global.core = core;
+
 // Set up environment
 process.env.GH_AW_AGENT_OUTPUT = '%s';
-
-// Override require to provide our mock
-const originalRequire = require;
-require = function(name) {
-	if (name === '@actions/core') {
-		return core;
-	}
-	return originalRequire.apply(this, arguments);
-};
 
 // Execute the parser script
 %s
@@ -144,7 +151,7 @@ require = function(name) {
 	// Execute the Node.js script
 	cmd := exec.Command("node", "test.js")
 	cmd.Dir = tempDir
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("failed to execute node script: %v\nOutput: %s", err, string(output))
 	}

@@ -2542,6 +2542,15 @@ func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose boo
 		return fmt.Errorf("failed to write log file: %w", err)
 	}
 
+	// Write the bootstrap helper to the temp directory
+	bootstrapScript := workflow.GetLogParserBootstrap()
+	if bootstrapScript != "" {
+		bootstrapFile := filepath.Join(tempDir, "log_parser_bootstrap.cjs")
+		if err := os.WriteFile(bootstrapFile, []byte(bootstrapScript), 0644); err != nil {
+			return fmt.Errorf("failed to write bootstrap file: %w", err)
+		}
+	}
+
 	// Create a Node.js script that mimics the GitHub Actions environment
 	nodeScript := fmt.Sprintf(`
 const fs = require('fs');
@@ -2567,17 +2576,11 @@ const core = {
 	}
 };
 
+// Set global core for the parser scripts
+global.core = core;
+
 // Set up environment
 process.env.GH_AW_AGENT_OUTPUT = '%s';
-
-// Override require to provide our mock
-const originalRequire = require;
-require = function(name) {
-	if (name === '@actions/core') {
-		return core;
-	}
-	return originalRequire.apply(this, arguments);
-};
 
 // Execute the parser script
 %s

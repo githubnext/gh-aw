@@ -71,13 +71,13 @@ Normal content here.
 
 	compiledStr := string(compiledYAML)
 
-	// Verify the template rendering step is present
-	if !strings.Contains(compiledStr, "- name: Render template conditionals") {
-		t.Error("Compiled workflow should contain template rendering step")
+	// Verify the interpolation and template rendering step is present
+	if !strings.Contains(compiledStr, "- name: Interpolate variables and render templates") {
+		t.Error("Compiled workflow should contain interpolation and template rendering step")
 	}
 
 	if !strings.Contains(compiledStr, "uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd") {
-		t.Error("Template rendering step should use github-script action")
+		t.Error("Interpolation and template rendering step should use github-script action")
 	}
 
 	// Verify that GitHub expressions are wrapped in ${{ }}
@@ -103,8 +103,9 @@ Normal content here.
 		t.Error("Template rendering step should contain renderMarkdownTemplate function")
 	}
 
-	if !strings.Contains(compiledStr, "function isTruthy") {
-		t.Error("Template rendering step should contain isTruthy function")
+	// Verify that isTruthy is imported from the separate module
+	if !strings.Contains(compiledStr, `require("./is_truthy.cjs")`) {
+		t.Error("Template rendering step should import isTruthy from is_truthy.cjs")
 	}
 }
 
@@ -162,9 +163,9 @@ Normal content without conditionals.
 
 	compiledStr := string(compiledYAML)
 
-	// Verify the template rendering step IS present (because GitHub tool is added by default)
-	if !strings.Contains(compiledStr, "- name: Render template conditionals") {
-		t.Error("Compiled workflow should contain template rendering step because GitHub tool is added by default")
+	// Verify the interpolation and template rendering step IS present (because GitHub tool is added by default)
+	if !strings.Contains(compiledStr, "- name: Interpolate variables and render templates") {
+		t.Error("Compiled workflow should contain interpolation and template rendering step because GitHub tool is added by default")
 	}
 
 	// Verify the GitHub context was added
@@ -221,9 +222,9 @@ Normal content without conditionals in markdown.
 
 	compiledStr := string(compiledYAML)
 
-	// Verify the template rendering step IS present (because GitHub tool adds conditionals)
-	if !strings.Contains(compiledStr, "- name: Render template conditionals") {
-		t.Error("Compiled workflow should contain template rendering step when GitHub tool is enabled")
+	// Verify the interpolation and template rendering step IS present (because GitHub tool adds conditionals)
+	if !strings.Contains(compiledStr, "- name: Interpolate variables and render templates") {
+		t.Error("Compiled workflow should contain interpolation and template rendering step when GitHub tool is enabled")
 	}
 
 	// Verify the GitHub context was added

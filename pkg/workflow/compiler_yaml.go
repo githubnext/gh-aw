@@ -673,11 +673,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add PR context prompt as separate step if enabled
 	c.generatePRContextPromptStep(yaml, data)
 
-	// Add interpolation step if there are expression mappings
-	c.generateInterpolationStep(yaml, expressionMappings)
-
-	// Add template rendering step if conditional patterns are detected
-	c.generateTemplateRenderingStep(yaml, data)
+	// Add combined interpolation and template rendering step
+	c.generateInterpolationAndTemplateStep(yaml, expressionMappings, data)
 
 	// Print prompt (merged into prompt generation)
 	yaml.WriteString("      - name: Print prompt\n")

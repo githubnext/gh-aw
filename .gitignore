@@ -66,6 +66,7 @@ pkg/cli/workflows/*.yml
 
 # Large test data files
 pkg/workflow/js/test-data/*.log
+pkg/workflow/js/test-*/
 sample-logs/
 *.invalid.yml
 
