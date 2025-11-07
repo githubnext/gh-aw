@@ -14,11 +14,11 @@ Write agentic workflows in natural language markdown, and run them safely in Git
 
 ## 🚀 Quick Start
 
-Ready to get your first agentic workflow running? Follow our step-by-step [Quick Start Guide](https://githubnext.github.io/gh-aw/start-here/quick-start/) to install the extension, add a sample workflow, and see it in action.
+Ready to get your first agentic workflow running? Follow our step-by-step [Quick Start Guide](https://githubnext.github.io/gh-aw/get-started/quick-start/) to install the extension, add a sample workflow, and see it in action.
 
 ## 📖 Overview
 
-Learn about the concepts behind agentic workflows, explore available workflow types, and understand how AI can automate your repository tasks. See [Concepts](https://githubnext.github.io/gh-aw/start-here/concepts/).
+Learn about the concepts behind agentic workflows, explore available workflow types, and understand how AI can automate your repository tasks. See [Concepts](https://githubnext.github.io/gh-aw/get-started/concepts/).
 
 ## 🔧 How It Works
 

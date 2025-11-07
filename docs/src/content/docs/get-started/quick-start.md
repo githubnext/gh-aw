@@ -1,8 +1,8 @@
 ---
-title: Quick Start Guide
+title: Quick Start
 description: Get your first agentic workflow running in minutes. Install the extension, add a sample workflow, set up secrets, and run your first AI-powered automation.
 sidebar:
-  order: 200
+  order: 3
 ---
 
 This guide will get you from zero to a running agentic workflow in minutes. You'll install the extension, add a sample workflow, set up the required secrets, and run it.
@@ -111,6 +111,6 @@ Now that you have your first workflow running:
 - **Write workflows with an agent** — Use [Authoring Agentic Workflows](/gh-aw/tools/agentic-authoring/) to create workflows with AI assistance in your editor
 - **Explore more samples** — Check out [The Agentics](https://github.com/githubnext/agentics) repository
 - **Learn about adding and updating workflows** — Read [Packaging and Updating](/gh-aw/guides/packaging-imports/) to understand workflow management
-- **Learn the concepts** — Read [Concepts](/gh-aw/start-here/concepts/) to understand how agentic workflows work
+- **Learn the concepts** — Read [Concepts](/gh-aw/get-started/concepts/) to understand how agentic workflows work
 
 You're ready to start automating with agentic workflows! ✨

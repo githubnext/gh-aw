@@ -80,28 +80,20 @@ export default defineConfig({
 			],
 			sidebar: [
 				{
-					label: 'Start Here',
+					label: 'Get Started',
 					autogenerate: { directory: 'start-here' },
-				},
-				{
-					label: 'Workflows',
-					autogenerate: { directory: 'reference' },
 				},
 				{
 					label: 'Guides',
 					autogenerate: { directory: 'guides' },
 				},
 				{
-					label: 'Application Areas',
-					autogenerate: { directory: 'samples' },
-				},
-				{
 					label: 'Tools',
 					autogenerate: { directory: 'tools' },
 				},
 				{
-					label: 'Troubleshooting',
-					autogenerate: { directory: 'troubleshooting' },
+					label: 'Workflows',
+					autogenerate: { directory: 'reference' },
 				},
 				{
 					label: 'Status',

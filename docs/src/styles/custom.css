@@ -512,22 +512,38 @@ header .header {
   display: flex;
   align-items: center;
   height: 64px;
-  padding: 0 1rem;
+  padding: 0 1rem 0 2rem;
   max-width: 100%;
   width: 100%;
+  gap: 1rem;
 }
 
 header .site-title {
   flex-shrink: 0;
-  margin-right: 1rem;
+  margin-right: 0;
 }
 
 header site-search {
   flex-grow: 1;
   flex-shrink: 1;
-  width: 400px;
-  max-width: 40vw;
+  width: 650px !important;
+  min-width: 650px !important;
+  max-width: 60vw !important;
   margin: 0 auto;
+}
+
+/* Additional specificity for search input */
+header site-search input,
+header site-search .pagefind-ui__search-input {
+  width: 100% !important;
+  min-width: 100% !important;
+}
+
+header site-search > *,
+header site-search form,
+header site-search .pagefind-ui {
+  width: 100% !important;
+  min-width: 100% !important;
 }
 
 header .custom-header-links {
@@ -542,7 +558,7 @@ header .social-icons {
 
 header starlight-theme-select {
   flex-shrink: 0;
-  margin-left: 1rem;
+  margin-left: 0;
 }
 
 :root[data-theme='light'] header {
@@ -910,8 +926,8 @@ starlight-toc h2 {
 }
 
 .pagination-links {
-  margin-top: 0;
-  padding-top: 0;
+  margin-top: 2.5rem;
+  padding-top: 2rem;
   border-top: 1px solid #30363d;
   display: flex;
   gap: 1rem;
@@ -921,27 +937,85 @@ starlight-toc h2 {
 .pagination-links a {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 0.25rem;
   padding: 1rem 1.25rem;
-  border: 1px solid #30363d;
+  border: 1px solid #444c56;
   border-radius: 6px;
-  background: rgba(22, 27, 34, 0.4);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.06), rgba(139, 92, 246, 0.03));
+  backdrop-filter: blur(8px);
   transition: all 0.2s ease;
   text-decoration: none;
-  flex: 1;
-  max-width: 50%;
+  flex: 0 1 48%;
+  position: relative;
+  overflow: hidden;
+  min-height: 4rem;
 }
 
-.pagination-links a:hover {
-  background: rgba(22, 27, 34, 0.6);
-  border-color: #d896ff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+.pagination-links a:only-child {
+  margin-left: auto;
+}
+
+.pagination-links a .meta {
+  position: absolute;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8d96a0;
+  transition: color 0.2s ease;
+}
+
+.pagination-links a[rel="prev"] .meta {
+  top: 0.75rem;
+  left: 0.875rem;
+}
+
+.pagination-links a[rel="next"] .meta {
+  top: 0.75rem;
+  right: 0.875rem;
 }
 
 .pagination-links .link-title {
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 0.9375rem;
   color: #f0f6fc;
+  position: relative;
+  z-index: 1;
+  transition: color 0.2s ease;
+  text-align: center;
+}
+
+.pagination-links a::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), transparent);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.pagination-links a:hover::before {
+  opacity: 1;
+}
+
+.pagination-links a:hover {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05));
+  border-color: #8b5cf6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.12), 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.pagination-links a:hover .link-title {
+  color: #d896ff;
+}
+
+.pagination-links a:hover .meta {
+  color: #c9d1d9;
 }
 
 :root[data-theme='light'] .pagination-links {
@@ -950,17 +1024,33 @@ starlight-toc h2 {
 
 :root[data-theme='light'] .pagination-links a {
   border-color: #d0d7de;
-  background: rgba(246, 248, 250, 0.6);
+  background: linear-gradient(135deg, rgba(91, 61, 163, 0.06), rgba(91, 61, 163, 0.03));
+}
+
+:root[data-theme='light'] .pagination-links a::before {
+  background: linear-gradient(135deg, rgba(91, 61, 163, 0.1), transparent);
 }
 
 :root[data-theme='light'] .pagination-links a:hover {
-  background: rgba(246, 248, 250, 1);
-  border-color: #5b3da3;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  background: linear-gradient(135deg, rgba(91, 61, 163, 0.1), rgba(91, 61, 163, 0.05));
+  border-color: #6639ba;
+  box-shadow: 0 4px 12px rgba(91, 61, 163, 0.1), 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 :root[data-theme='light'] .pagination-links .link-title {
   color: #010409;
+}
+
+:root[data-theme='light'] .pagination-links a:hover .link-title {
+  color: #5b3da3;
+}
+
+:root[data-theme='light'] .pagination-links a .meta {
+  color: #656d76;
+}
+
+:root[data-theme='light'] .pagination-links a:hover .meta {
+  color: #424a53;
 }
 
 .sl-markdown-content aside,

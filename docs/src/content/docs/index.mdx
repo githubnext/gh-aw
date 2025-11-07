@@ -8,7 +8,7 @@ hero:
       <span class="experimental-badge">RESEARCH PROTOTYPE</span>
     </div>
     GitHub Agentic Workflows
-  tagline: <strong>Explore AI-powered repository automation.</strong><br>Write natural language workflows that understand context, make decisions, and take meaningful actions across your repositories.
+  tagline: <strong>Explore AI-powered repository automation.</strong><br>Write natural language workflows that understand context, make decisions,and take meaningful actions across your repositories.
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
@@ -63,20 +63,24 @@ import FeatureGrid from '../../components/FeatureGrid.astro';
 ## Application Areas
 
 <FeatureGrid columns={3}>
-  <FeatureCard icon="graph" title="Automated Research, Status & Planning">
-    Research, team coordination, and project planning with automated intelligence gathering.  
-    [Explore Research & Planning Workflows →](/gh-aw/samples/research-planning/)
+  <FeatureCard icon="graph" title="Research & Planning" badge="automated">
+    Research, team coordination, and project planning with automated intelligence gathering.
+
+    [Explore →](/gh-aw/samples/research-planning/)
   </FeatureCard>
-  <FeatureCard icon="issue-opened" title="Automated Triage & Analysis">
-    Issue management, accessibility reviews, and CI failure investigation.  
-    [Explore Triage & Analysis Workflows →](/gh-aw/samples/triage-analysis/)
+  <FeatureCard icon="issue-opened" title="Triage & Analysis" badge="automated">
+    Issue management, accessibility reviews, and CI failure investigation.
+    
+    [Explore →](/gh-aw/samples/triage-analysis/)
   </FeatureCard>
-  <FeatureCard icon="code" title="Semi-automatic Coding & Development">
-    Dependency management, documentation updates, and pull request assistance.  
-    [Explore Coding & Development Workflows →](/gh-aw/samples/coding-development/)
+  <FeatureCard icon="code" title="Coding & Development" badge="semi-automated">
+    Dependency management, documentation updates, and pull request assistance.
+    
+    [Explore →](/gh-aw/samples/coding-development/)
   </FeatureCard>
-  <FeatureCard icon="check-circle" title="Semi-automatic Quality & Testing">
-    Test coverage improvement and performance optimization.  
-    [Explore Semi-automatic Quality & Testing Workflows →](/gh-aw/samples/quality-testing/)
+  <FeatureCard icon="check-circle" title="Quality & Testing" badge="semi-automated">
+    Test coverage improvement and performance optimization.
+    
+    [Explore →](/gh-aw/samples/quality-testing/)
   </FeatureCard>
 </FeatureGrid>
