@@ -17,6 +17,7 @@
 #   missing_tool["missing_tool"]
 #   super_linter["super_linter"]
 #   activation --> agent
+#   super_linter --> agent
 #   agent --> create_issue
 #   detection --> create_issue
 #   agent --> detection
@@ -146,7 +147,9 @@ jobs:
             });
 
   agent:
-    needs: activation
+    needs:
+      - activation
+      - super_linter
     runs-on: ubuntu-latest
     permissions:
       actions: read
