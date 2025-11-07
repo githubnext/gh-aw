@@ -1480,6 +1480,7 @@ jobs:
         with:
           script: |
             const fs = require("fs");
+            const { isTruthy } = require("./is_truthy.cjs");
             function interpolateVariables(content, variables) {
               let result = content;
               for (const [varName, value] of Object.entries(variables)) {
@@ -1487,10 +1488,6 @@ jobs:
                 result = result.replace(pattern, value);
               }
               return result;
-            }
-            function isTruthy(expr) {
-              const v = expr.trim().toLowerCase();
-              return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
             }
             function renderMarkdownTemplate(markdown) {
               return markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));

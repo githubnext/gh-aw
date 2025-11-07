@@ -48,9 +48,6 @@ var missingToolScript string
 //go:embed js/safe_outputs_mcp_server.cjs
 var safeOutputsMCPServerScript string
 
-//go:embed js/render_template.cjs
-var renderTemplateScript string
-
 //go:embed js/interpolate_prompt.cjs
 var interpolatePromptScript string
 
