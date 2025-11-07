@@ -23,6 +23,7 @@
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
+#   activation --> super_linter
 # ```
 #
 # Pinned GitHub Actions:
@@ -4503,6 +4504,7 @@ jobs:
             });
 
   super_linter:
+    needs: activation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code

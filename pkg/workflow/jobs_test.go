@@ -613,3 +613,140 @@ func TestJobManager_GenerateMermaidGraph(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildCustomJobsActivationDependency(t *testing.T) {
+	tests := []struct {
+		name                  string
+		jobs                  map[string]any
+		activationJobCreated  bool
+		expectedDependencies  map[string][]string
+		description           string
+	}{
+		{
+			name: "custom job without explicit needs should depend on activation",
+			jobs: map[string]any{
+				"super_linter": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"steps": []any{
+						map[string]any{
+							"name": "Run linter",
+							"run":  "echo 'linting'",
+						},
+					},
+				},
+			},
+			activationJobCreated: true,
+			expectedDependencies: map[string][]string{
+				"super_linter": {"activation"},
+			},
+			description: "Custom job without explicit needs should automatically depend on activation",
+		},
+		{
+			name: "custom job with explicit needs should not get activation dependency",
+			jobs: map[string]any{
+				"custom_job": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"needs":   []any{"other_job"},
+					"steps": []any{
+						map[string]any{
+							"name": "Run custom",
+							"run":  "echo 'custom'",
+						},
+					},
+				},
+			},
+			activationJobCreated: true,
+			expectedDependencies: map[string][]string{
+				"custom_job": {"other_job"},
+			},
+			description: "Custom job with explicit needs should keep its own dependencies",
+		},
+		{
+			name: "custom job without activation should have no automatic dependency",
+			jobs: map[string]any{
+				"custom_job": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"steps": []any{
+						map[string]any{
+							"name": "Run custom",
+							"run":  "echo 'custom'",
+						},
+					},
+				},
+			},
+			activationJobCreated: false,
+			expectedDependencies: map[string][]string{
+				"custom_job": nil,
+			},
+			description: "Custom job should not have activation dependency when activation job doesn't exist",
+		},
+		{
+			name: "multiple custom jobs without explicit needs",
+			jobs: map[string]any{
+				"linter": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"steps": []any{
+						map[string]any{"name": "Lint", "run": "lint"},
+					},
+				},
+				"formatter": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"steps": []any{
+						map[string]any{"name": "Format", "run": "fmt"},
+					},
+				},
+			},
+			activationJobCreated: true,
+			expectedDependencies: map[string][]string{
+				"linter":    {"activation"},
+				"formatter": {"activation"},
+			},
+			description: "Multiple custom jobs should all depend on activation",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Compiler{
+				jobManager: NewJobManager(),
+			}
+
+			data := &WorkflowData{
+				Jobs: tt.jobs,
+			}
+
+			err := c.buildCustomJobs(data, tt.activationJobCreated)
+			if err != nil {
+				t.Fatalf("%s: buildCustomJobs() error = %v", tt.description, err)
+			}
+
+			// Verify each job has expected dependencies
+			for jobName, expectedNeeds := range tt.expectedDependencies {
+				job, exists := c.jobManager.jobs[jobName]
+				if !exists {
+					t.Fatalf("%s: job '%s' not found in job manager", tt.description, jobName)
+				}
+
+				if len(job.Needs) != len(expectedNeeds) {
+					t.Errorf("%s: job '%s' has %d dependencies, expected %d. Got: %v, Expected: %v",
+						tt.description, jobName, len(job.Needs), len(expectedNeeds), job.Needs, expectedNeeds)
+					continue
+				}
+
+				if expectedNeeds == nil {
+					if job.Needs != nil && len(job.Needs) > 0 {
+						t.Errorf("%s: job '%s' should have no dependencies, got: %v", tt.description, jobName, job.Needs)
+					}
+					continue
+				}
+
+				for i, expected := range expectedNeeds {
+					if job.Needs[i] != expected {
+						t.Errorf("%s: job '%s' dependency[%d] = %s, expected %s",
+							tt.description, jobName, i, job.Needs[i], expected)
+					}
+				}
+			}
+		})
+	}
+}
