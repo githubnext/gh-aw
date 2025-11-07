@@ -247,8 +247,8 @@ func handleRepoOnlySpec(repoSpec string, verbose bool) error {
 		return fmt.Errorf("failed to install repository %s: %w", repoWithVersion, err)
 	}
 
-	// List workflows in the installed package
-	workflows, err := listWorkflowsInPackage(spec.RepoSlug, verbose)
+	// List workflows in the installed package with metadata
+	workflows, err := listWorkflowsWithMetadata(spec.RepoSlug, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to list workflows in %s: %w", spec.RepoSlug, err)
 	}
@@ -260,41 +260,17 @@ func handleRepoOnlySpec(repoSpec string, verbose bool) error {
 	}
 
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Please specify which workflow you want to add from %s:", spec.RepoSlug)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Available workflows in %s:", spec.RepoSlug)))
 	fmt.Fprintln(os.Stderr, "")
 
-	for _, workflow := range workflows {
-		// Extract workflow name from path (remove .md extension and path)
-		workflowName := strings.TrimSuffix(filepath.Base(workflow), ".md")
+	// Render workflows as a table using console helpers
+	fmt.Fprint(os.Stderr, console.RenderStruct(workflows))
 
-		// For workflows in workflows/ directory, show simplified name
-		if strings.HasPrefix(workflow, "workflows/") {
-			workflowName = strings.TrimSuffix(strings.TrimPrefix(workflow, "workflows/"), ".md")
-		}
-
-		// Build the full command
-		fullSpec := fmt.Sprintf("%s/%s", spec.RepoSlug, workflowName)
-		if spec.Version != "" {
-			fullSpec += "@" + spec.Version
-		}
-
-		fmt.Fprintf(os.Stderr, "  • %s\n", workflowName)
-		if verbose {
-			fmt.Fprintf(os.Stderr, "    Command: %s add %s\n", constants.CLIExtensionPrefix, fullSpec)
-		}
-	}
-
+	fmt.Fprintln(os.Stderr, "Example:")
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintf(os.Stderr, "Example:\n")
 
 	// Show example with first workflow
-	exampleWorkflow := workflows[0]
-	exampleName := strings.TrimSuffix(filepath.Base(exampleWorkflow), ".md")
-	if strings.HasPrefix(exampleWorkflow, "workflows/") {
-		exampleName = strings.TrimSuffix(strings.TrimPrefix(exampleWorkflow, "workflows/"), ".md")
-	}
-
-	exampleSpec := fmt.Sprintf("%s/%s", spec.RepoSlug, exampleName)
+	exampleSpec := fmt.Sprintf("%s/%s", spec.RepoSlug, workflows[0].ID)
 	if spec.Version != "" {
 		exampleSpec += "@" + spec.Version
 	}
@@ -309,8 +285,8 @@ func handleRepoOnlySpec(repoSpec string, verbose bool) error {
 func displayAvailableWorkflows(repoSlug, version string, verbose bool) error {
 	addLog.Printf("Displaying available workflows for repository: %s", repoSlug)
 
-	// List workflows in the installed package
-	workflows, err := listWorkflowsInPackage(repoSlug, verbose)
+	// List workflows in the installed package with metadata
+	workflows, err := listWorkflowsWithMetadata(repoSlug, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to list workflows in %s: %w", repoSlug, err)
 	}
@@ -325,38 +301,14 @@ func displayAvailableWorkflows(repoSlug, version string, verbose bool) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Available workflows in %s:", repoSlug)))
 	fmt.Fprintln(os.Stderr, "")
 
-	for _, workflow := range workflows {
-		// Extract workflow name from path (remove .md extension and path)
-		workflowName := strings.TrimSuffix(filepath.Base(workflow), ".md")
+	// Render workflows as a table using console helpers
+	fmt.Fprint(os.Stderr, console.RenderStruct(workflows))
 
-		// For workflows in workflows/ directory, show simplified name
-		if strings.HasPrefix(workflow, "workflows/") {
-			workflowName = strings.TrimSuffix(strings.TrimPrefix(workflow, "workflows/"), ".md")
-		}
-
-		// Build the full command
-		fullSpec := fmt.Sprintf("%s/%s", repoSlug, workflowName)
-		if version != "" {
-			fullSpec += "@" + version
-		}
-
-		fmt.Fprintf(os.Stderr, "  • %s\n", workflowName)
-		if verbose {
-			fmt.Fprintf(os.Stderr, "    Command: %s add %s\n", constants.CLIExtensionPrefix, fullSpec)
-		}
-	}
-
+	fmt.Fprintln(os.Stderr, "Example:")
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintf(os.Stderr, "Example:\n")
 
 	// Show example with first workflow
-	exampleWorkflow := workflows[0]
-	exampleName := strings.TrimSuffix(filepath.Base(exampleWorkflow), ".md")
-	if strings.HasPrefix(exampleWorkflow, "workflows/") {
-		exampleName = strings.TrimSuffix(strings.TrimPrefix(exampleWorkflow, "workflows/"), ".md")
-	}
-
-	exampleSpec := fmt.Sprintf("%s/%s", repoSlug, exampleName)
+	exampleSpec := fmt.Sprintf("%s/%s", repoSlug, workflows[0].ID)
 	if version != "" {
 		exampleSpec += "@" + version
 	}
