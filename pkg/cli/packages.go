@@ -120,21 +120,18 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 
 	isSHA := isCommitSHA(version)
 
-	// Prepare arguments for gh CLI
-	var ghArgs []string
-	if isSHA {
-		// For commit SHAs, we need full clone to reach the specific commit
-		ghArgs = []string{"repo", "clone", repo, tempDir}
-	} else {
-		// For branches/tags, use shallow clone for efficiency
-		ghArgs = []string{"repo", "clone", repo, tempDir, "--", "--depth", "1"}
-		if version != "" && version != "main" {
-			ghArgs = append(ghArgs, "--branch", version)
-		}
-	}
-
 	// Prepare fallback git clone arguments
-	repoURL := fmt.Sprintf("https://github.com/%s", repo)
+	// Support enterprise GitHub domains
+	githubHost := os.Getenv("GITHUB_SERVER_URL")
+	if githubHost == "" {
+		githubHost = os.Getenv("GH_HOST")
+	}
+	if githubHost == "" {
+		githubHost = "https://github.com"
+	}
+	githubHost = strings.TrimSuffix(githubHost, "/")
+
+	repoURL := fmt.Sprintf("%s/%s", githubHost, repo)
 	var gitArgs []string
 	if isSHA {
 		gitArgs = []string{"clone", repoURL, tempDir}
@@ -151,7 +148,6 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 
 	// Use helper to execute gh CLI with git fallback
 	_, stderr, err := ghExecOrFallback(
-		ghArgs,
 		"git",
 		gitArgs,
 		[]string{"GIT_TERMINAL_PROMPT=0"}, // Prevent credential prompts
@@ -163,7 +159,6 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 	// If a specific SHA was requested, checkout that commit
 	if isSHA {
 		stdout, stderr, err := ghExecOrFallback(
-			[]string{"exec", "--", "git", "-C", tempDir, "checkout", version},
 			"git",
 			[]string{"-C", tempDir, "checkout", version},
 			nil,
@@ -178,7 +173,6 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 
 	// Get the current commit SHA from the cloned repository
 	stdout, stderr, err := ghExecOrFallback(
-		[]string{"exec", "--", "git", "-C", tempDir, "rev-parse", "HEAD"},
 		"git",
 		[]string{"-C", tempDir, "rev-parse", "HEAD"},
 		nil,

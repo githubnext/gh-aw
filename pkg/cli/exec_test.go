@@ -10,7 +10,6 @@ func TestGhExecOrFallback(t *testing.T) {
 	tests := []struct {
 		name         string
 		ghToken      string
-		ghArgs       []string
 		fallbackCmd  string
 		fallbackArgs []string
 		fallbackEnv  []string
@@ -20,7 +19,6 @@ func TestGhExecOrFallback(t *testing.T) {
 		{
 			name:         "uses git when GH_TOKEN not set",
 			ghToken:      "",
-			ghArgs:       []string{"repo", "view", "nonexistent/repo"},
 			fallbackCmd:  "echo",
 			fallbackArgs: []string{"fallback executed"},
 			fallbackEnv:  nil,
@@ -30,7 +28,6 @@ func TestGhExecOrFallback(t *testing.T) {
 		{
 			name:         "uses fallback with custom env",
 			ghToken:      "",
-			ghArgs:       []string{"repo", "view", "nonexistent/repo"},
 			fallbackCmd:  "sh",
 			fallbackArgs: []string{"-c", "echo $TEST_VAR"},
 			fallbackEnv:  []string{"TEST_VAR=test_value"},
@@ -40,7 +37,6 @@ func TestGhExecOrFallback(t *testing.T) {
 		{
 			name:         "fallback command failure",
 			ghToken:      "",
-			ghArgs:       []string{"repo", "view", "nonexistent/repo"},
 			fallbackCmd:  "false", // command that always fails
 			fallbackArgs: []string{},
 			fallbackEnv:  nil,
@@ -67,7 +63,7 @@ func TestGhExecOrFallback(t *testing.T) {
 				os.Unsetenv("GH_TOKEN")
 			}
 
-			stdout, _, err := ghExecOrFallback(tt.ghArgs, tt.fallbackCmd, tt.fallbackArgs, tt.fallbackEnv)
+			stdout, _, err := ghExecOrFallback(tt.fallbackCmd, tt.fallbackArgs, tt.fallbackEnv)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error for test '%s', got nil", tt.description)
@@ -115,7 +111,6 @@ func TestGhExecOrFallbackWithGHToken(t *testing.T) {
 	// This will likely fail since we don't have a valid token,
 	// but we're testing that it attempts gh.Exec path
 	_, _, err := ghExecOrFallback(
-		[]string{"repo", "view", "nonexistent/repo"},
 		"echo",
 		[]string{"fallback"},
 		nil,
@@ -144,7 +139,6 @@ func TestGhExecOrFallbackIntegration(t *testing.T) {
 
 	// Use a simple command that we know will work
 	stdout, _, err := ghExecOrFallback(
-		[]string{"repo", "view", "nonexistent/repo"},
 		"echo",
 		[]string{"integration test output"},
 		nil,
@@ -156,5 +150,119 @@ func TestGhExecOrFallbackIntegration(t *testing.T) {
 
 	if !strings.Contains(stdout, "integration test output") {
 		t.Errorf("Expected output to contain 'integration test output', got: %s", stdout)
+	}
+}
+
+func TestExtractRepoSlug(t *testing.T) {
+	tests := []struct {
+		name         string
+		repoURL      string
+		githubHost   string
+		expectedSlug string
+	}{
+		{
+			name:         "standard GitHub URL",
+			repoURL:      "https://github.com/owner/repo",
+			githubHost:   "",
+			expectedSlug: "owner/repo",
+		},
+		{
+			name:         "GitHub URL with .git suffix",
+			repoURL:      "https://github.com/owner/repo.git",
+			githubHost:   "",
+			expectedSlug: "owner/repo",
+		},
+		{
+			name:         "enterprise GitHub URL",
+			repoURL:      "https://github.enterprise.com/owner/repo",
+			githubHost:   "https://github.enterprise.com",
+			expectedSlug: "owner/repo",
+		},
+		{
+			name:         "enterprise GitHub URL with .git",
+			repoURL:      "https://github.enterprise.com/owner/repo.git",
+			githubHost:   "https://github.enterprise.com",
+			expectedSlug: "owner/repo",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save and restore env
+			originalHost := os.Getenv("GITHUB_SERVER_URL")
+			defer func() {
+				if originalHost != "" {
+					os.Setenv("GITHUB_SERVER_URL", originalHost)
+				} else {
+					os.Unsetenv("GITHUB_SERVER_URL")
+				}
+			}()
+
+			if tt.githubHost != "" {
+				os.Setenv("GITHUB_SERVER_URL", tt.githubHost)
+			} else {
+				os.Unsetenv("GITHUB_SERVER_URL")
+			}
+
+			slug := extractRepoSlug(tt.repoURL)
+			if slug != tt.expectedSlug {
+				t.Errorf("Expected slug '%s', got '%s'", tt.expectedSlug, slug)
+			}
+		})
+	}
+}
+
+func TestInferGhArgs(t *testing.T) {
+	tests := []struct {
+		name           string
+		fallbackCmd    string
+		fallbackArgs   []string
+		expectedGhArgs []string
+	}{
+		{
+			name:           "git clone simple",
+			fallbackCmd:    "git",
+			fallbackArgs:   []string{"clone", "https://github.com/owner/repo", "/tmp/dir"},
+			expectedGhArgs: []string{"repo", "clone", "owner/repo", "/tmp/dir"},
+		},
+		{
+			name:           "git clone with depth",
+			fallbackCmd:    "git",
+			fallbackArgs:   []string{"clone", "--depth", "1", "https://github.com/owner/repo", "/tmp/dir"},
+			expectedGhArgs: []string{"repo", "clone", "owner/repo", "/tmp/dir", "--", "--depth", "1"},
+		},
+		{
+			name:           "git clone with branch",
+			fallbackCmd:    "git",
+			fallbackArgs:   []string{"clone", "--depth", "1", "https://github.com/owner/repo", "/tmp/dir", "--branch", "main"},
+			expectedGhArgs: []string{"repo", "clone", "owner/repo", "/tmp/dir", "--", "--depth", "1", "--branch", "main"},
+		},
+		{
+			name:           "git checkout",
+			fallbackCmd:    "git",
+			fallbackArgs:   []string{"-C", "/tmp/dir", "checkout", "abc123"},
+			expectedGhArgs: []string{"exec", "--", "git", "-C", "/tmp/dir", "checkout", "abc123"},
+		},
+		{
+			name:           "non-git command",
+			fallbackCmd:    "echo",
+			fallbackArgs:   []string{"hello"},
+			expectedGhArgs: []string{"exec", "--", "echo", "hello"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ghArgs := inferGhArgs(tt.fallbackCmd, tt.fallbackArgs)
+			if len(ghArgs) != len(tt.expectedGhArgs) {
+				t.Errorf("Expected %d args, got %d: %v", len(tt.expectedGhArgs), len(ghArgs), ghArgs)
+				return
+			}
+			for i, arg := range ghArgs {
+				if arg != tt.expectedGhArgs[i] {
+					t.Errorf("Arg %d: expected '%s', got '%s'", i, tt.expectedGhArgs[i], arg)
+				}
+			}
+		})
 	}
 }
