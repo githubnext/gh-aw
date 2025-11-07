@@ -1238,10 +1238,16 @@
         }
       ]
     },
+    "timeout-minutes": {
+      "type": "integer",
+      "description": "Workflow timeout in minutes (GitHub Actions standard field). Defaults to 15 minutes for agentic workflows. Has sensible defaults and can typically be omitted.",
+      "examples": [5, 10, 30]
+    },
     "timeout_minutes": {
       "type": "integer",
-      "description": "Workflow timeout in minutes. Defaults to 15 minutes for agentic workflows. Has sensible defaults and can typically be omitted.",
-      "examples": [5, 10, 30]
+      "description": "Deprecated: Use 'timeout-minutes' instead. Workflow timeout in minutes. Defaults to 15 minutes for agentic workflows.",
+      "examples": [5, 10, 30],
+      "deprecated": true
     },
     "concurrency": {
       "description": "Concurrency control to limit concurrent workflow runs (GitHub Actions standard field). Agentic workflows use enhanced concurrency management.",
