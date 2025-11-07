@@ -454,10 +454,10 @@ Returns formatted text output showing:
 
 	// Add add tool
 	type addArgs struct {
-		Workflows []string `json:"workflows" jsonschema:"required,Workflows to add (e.g., 'owner/repo/workflow-name' or 'owner/repo/workflow-name@version')"`
-		Number    int      `json:"number,omitempty" jsonschema:"Create multiple numbered copies (default: 1)"`
-		Name      string   `json:"name,omitempty" jsonschema:"Specify name for the added workflow (without .md extension)"`
-		Engine    string   `json:"engine,omitempty" jsonschema:"Override AI engine (claude, codex, copilot, custom)"`
+		Workflows []string `json:"workflows" jsonschema:"Workflows to add (e.g., 'owner/repo/workflow-name' or 'owner/repo/workflow-name@version')"`
+		Number    int      `json:"number,omitempty" jsonschema:"Create multiple numbered copies (corresponds to -c flag, default: 1)"`
+		Name      string   `json:"name,omitempty" jsonschema:"Specify name for the added workflow - without .md extension (corresponds to -n flag)"`
+		Engine    string   `json:"engine,omitempty" jsonschema:"Override AI engine (corresponds to -a flag): claude, codex, copilot, custom"`
 		Force     bool     `json:"force,omitempty" jsonschema:"Overwrite existing workflow files"`
 		Append    string   `json:"append,omitempty" jsonschema:"Append extra content to the end of agentic workflow on installation"`
 		Verbose   bool     `json:"verbose,omitempty" jsonschema:"Enable verbose output"`
