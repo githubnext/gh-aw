@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -68,6 +69,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 			mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": commandEventsMap})
 			if err == nil {
 				yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
+				// Post-process YAML to ensure cron expressions are quoted
+				yamlStr = quoteCronExpressionsInWorkflow(yamlStr)
 				// Keep "on" quoted as it's a YAML boolean keyword
 				data.On = yamlStr
 			} else {
@@ -277,4 +280,34 @@ func (c *Compiler) injectWorkflowDispatchForIssue(onSection string) string {
 func (c *Compiler) replaceIssueNumberReferences(yamlContent string) string {
 	// Replace all occurrences of github.event.issue.number with inputs.issue_number
 	return strings.ReplaceAll(yamlContent, "github.event.issue.number", "inputs.issue_number")
+}
+
+// quoteCronExpressionsInWorkflow ensures cron expressions in schedule sections are properly quoted.
+// The YAML library may drop quotes from cron expressions like "0 14 * * 1-5" which
+// causes validation errors since they start with numbers but contain spaces and special chars.
+func quoteCronExpressionsInWorkflow(yamlContent string) string {
+	// Pattern to match unquoted cron expressions after "cron:"
+	// Matches: cron: 0 14 * * 1-5
+	// Captures the cron value to be quoted
+	cronPattern := regexp.MustCompile(`(?m)^(\s*-?\s*cron:\s*)([0-9][^\n"']*)$`)
+
+	// Replace unquoted cron expressions with quoted versions
+	return cronPattern.ReplaceAllStringFunc(yamlContent, func(match string) string {
+		// Extract the cron prefix and value
+		submatches := cronPattern.FindStringSubmatch(match)
+		if len(submatches) < 3 {
+			return match
+		}
+		prefix := submatches[1]
+		cronValue := strings.TrimSpace(submatches[2])
+
+		// Remove any trailing comments
+		if idx := strings.Index(cronValue, "#"); idx != -1 {
+			comment := cronValue[idx:]
+			cronValue = strings.TrimSpace(cronValue[:idx])
+			return prefix + `"` + cronValue + `" ` + comment
+		}
+
+		return prefix + `"` + cronValue + `"`
+	})
 }
