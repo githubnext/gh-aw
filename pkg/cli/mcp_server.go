@@ -457,7 +457,6 @@ Returns formatted text output showing:
 		Workflows []string `json:"workflows" jsonschema:"Workflows to add (e.g., 'owner/repo/workflow-name' or 'owner/repo/workflow-name@version')"`
 		Number    int      `json:"number,omitempty" jsonschema:"Create multiple numbered copies (corresponds to -c flag, default: 1)"`
 		Name      string   `json:"name,omitempty" jsonschema:"Specify name for the added workflow - without .md extension (corresponds to -n flag)"`
-		Engine    string   `json:"engine,omitempty" jsonschema:"Override AI engine (corresponds to -a flag): claude, codex, copilot, custom"`
 	}
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -485,9 +484,6 @@ Returns formatted text output showing:
 		}
 		if args.Name != "" {
 			cmdArgs = append(cmdArgs, "-n", args.Name)
-		}
-		if args.Engine != "" {
-			cmdArgs = append(cmdArgs, "-a", args.Engine)
 		}
 
 		// Execute the CLI command
