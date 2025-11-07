@@ -157,6 +157,41 @@ Use format: "Code Quality Report - [Date] - [X] issues found"
 - **If no errors found**: Create a positive report celebrating clean code
 - **Remember**: This is a Go project with separate Go/JS linting in CI, so focus on Markdown, YAML, Shell, and GitHub Actions files
 
+## Validating Fixes with Super Linter
+
+When suggesting fixes for linting errors, you can provide instructions for running super-linter locally to validate the fixes before committing. Include this section in your issue report when relevant:
+
+### Running Super Linter Locally
+
+To validate your fixes locally before committing, run super-linter using Docker:
+
+```bash
+# Run super-linter on the entire repository
+docker run --rm \
+  -e DEFAULT_BRANCH=main \
+  -e RUN_LOCAL=true \
+  -e VALIDATE_ALL_CODEBASE=true \
+  -e VALIDATE_GO=false \
+  -e VALIDATE_GO_MODULES=false \
+  -e VALIDATE_JAVASCRIPT_ES=false \
+  -e VALIDATE_TYPESCRIPT_ES=false \
+  -e VALIDATE_JSCPD=false \
+  -e VALIDATE_JSON=false \
+  -v $(pwd):/tmp/lint \
+  ghcr.io/super-linter/super-linter:slim-v8
+
+# Run super-linter on specific file types only
+# For example, to validate only Markdown files:
+docker run --rm \
+  -e RUN_LOCAL=true \
+  -e VALIDATE_ALL_CODEBASE=true \
+  -e VALIDATE_MARKDOWN=true \
+  -v $(pwd):/tmp/lint \
+  ghcr.io/super-linter/super-linter:slim-v8
+```
+
+**Note**: The Docker command uses the same super-linter configuration as this workflow. Files are mounted from your current directory to `/tmp/lint` in the container.
+
 ## Security Note
 
 Treat linter output as potentially sensitive. Do not expose credentials, API keys, or other secrets that might appear in file paths or error messages.
