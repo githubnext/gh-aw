@@ -1295,17 +1295,15 @@ jobs:
           To validate your fixes locally before committing, run super-linter using Docker:
           
           ```bash
-          # Run super-linter on the entire repository
+          # Run super-linter with the same configuration as the workflow
           docker run --rm \
             -e DEFAULT_BRANCH=main \
             -e RUN_LOCAL=true \
-            -e VALIDATE_ALL_CODEBASE=true \
-            -e VALIDATE_GO=false \
-            -e VALIDATE_GO_MODULES=false \
-            -e VALIDATE_JAVASCRIPT_ES=false \
-            -e VALIDATE_TYPESCRIPT_ES=false \
-            -e VALIDATE_JSCPD=false \
-            -e VALIDATE_JSON=false \
+            -e VALIDATE_GITHUB_ACTIONS=true \
+            -e VALIDATE_MARKDOWN=true \
+            -e VALIDATE_YAML=true \
+            -e VALIDATE_SHELL_SHFMT=true \
+            -e VALIDATE_BASH=true \
             -v $(pwd):/tmp/lint \
             ghcr.io/super-linter/super-linter:slim-v8
           
@@ -1313,7 +1311,6 @@ jobs:
           # For example, to validate only Markdown files:
           docker run --rm \
             -e RUN_LOCAL=true \
-            -e VALIDATE_ALL_CODEBASE=true \
             -e VALIDATE_MARKDOWN=true \
             -v $(pwd):/tmp/lint \
             ghcr.io/super-linter/super-linter:slim-v8
@@ -4519,17 +4516,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LINTER_RULES_PATH: .
           LOG_FILE: super-linter.log
-          VALIDATE_ALL_CODEBASE: "true"
           VALIDATE_BASH: "true"
           VALIDATE_GITHUB_ACTIONS: "true"
-          VALIDATE_GO: "false"
-          VALIDATE_GO_MODULES: "false"
-          VALIDATE_JAVASCRIPT_ES: "false"
-          VALIDATE_JSCPD: "false"
-          VALIDATE_JSON: "false"
           VALIDATE_MARKDOWN: "true"
           VALIDATE_SHELL_SHFMT: "true"
-          VALIDATE_TYPESCRIPT_ES: "false"
           VALIDATE_YAML: "true"
         continue-on-error: true
       - name: Check for linting issues

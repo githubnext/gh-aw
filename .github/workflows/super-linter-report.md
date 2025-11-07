@@ -35,14 +35,8 @@ jobs:
           FILTER_REGEX_EXCLUDE: dist/**/*
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LINTER_RULES_PATH: .
-          VALIDATE_ALL_CODEBASE: "true"
-          # Disable linters that are covered by other workflows or not applicable
-          VALIDATE_GO: "false"                # golangci-lint is used instead in CI
-          VALIDATE_GO_MODULES: "false"        # Go mod verification in CI
-          VALIDATE_JAVASCRIPT_ES: "false"     # ESLint/npm test handles JS linting
-          VALIDATE_TYPESCRIPT_ES: "false"     # Not using TypeScript
-          VALIDATE_JSCPD: "false"              # Copy-paste detection not required
-          VALIDATE_JSON: "false"               # Not strictly enforced
+          # Only enable specific linters (implicitly disables all others)
+          # Note: Do not use VALIDATE_ALL_CODEBASE with VALIDATE_* flags
           VALIDATE_GITHUB_ACTIONS: "true"     # Keep GitHub Actions validation
           VALIDATE_MARKDOWN: "true"            # Keep Markdown validation
           VALIDATE_YAML: "true"                # Keep YAML validation
@@ -179,17 +173,15 @@ When suggesting fixes for linting errors, you can provide instructions for runni
 To validate your fixes locally before committing, run super-linter using Docker:
 
 ```bash
-# Run super-linter on the entire repository
+# Run super-linter with the same configuration as the workflow
 docker run --rm \
   -e DEFAULT_BRANCH=main \
   -e RUN_LOCAL=true \
-  -e VALIDATE_ALL_CODEBASE=true \
-  -e VALIDATE_GO=false \
-  -e VALIDATE_GO_MODULES=false \
-  -e VALIDATE_JAVASCRIPT_ES=false \
-  -e VALIDATE_TYPESCRIPT_ES=false \
-  -e VALIDATE_JSCPD=false \
-  -e VALIDATE_JSON=false \
+  -e VALIDATE_GITHUB_ACTIONS=true \
+  -e VALIDATE_MARKDOWN=true \
+  -e VALIDATE_YAML=true \
+  -e VALIDATE_SHELL_SHFMT=true \
+  -e VALIDATE_BASH=true \
   -v $(pwd):/tmp/lint \
   ghcr.io/super-linter/super-linter:slim-v8
 
@@ -197,7 +189,6 @@ docker run --rm \
 # For example, to validate only Markdown files:
 docker run --rm \
   -e RUN_LOCAL=true \
-  -e VALIDATE_ALL_CODEBASE=true \
   -e VALIDATE_MARKDOWN=true \
   -v $(pwd):/tmp/lint \
   ghcr.io/super-linter/super-linter:slim-v8
