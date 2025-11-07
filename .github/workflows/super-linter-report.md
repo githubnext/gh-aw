@@ -44,6 +44,9 @@ jobs:
           go mod download
           cd pkg/workflow/js && npm ci
       
+      - name: Create log directory
+        run: mkdir -p /tmp/gh-aw
+      
       - name: Run Super Linter
         id: super-linter
         continue-on-error: true

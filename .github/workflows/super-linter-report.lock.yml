@@ -4526,6 +4526,8 @@ jobs:
         run: |
           go mod download
           cd pkg/workflow/js && npm ci
+      - name: Create log directory
+        run: mkdir -p /tmp/gh-aw
       - name: Run Super Linter
         id: super-linter
         uses: super-linter/super-linter/slim@f6d06a003575dde14f917e642302cf1251f28f4a
