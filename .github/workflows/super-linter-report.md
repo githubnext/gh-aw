@@ -61,26 +61,10 @@ steps:
       VALIDATE_YAML: true                # Keep YAML validation
       VALIDATE_SHELL_SHFMT: true         # Keep shell script formatting
       VALIDATE_BASH: true                # Keep bash validation
-      LOG_FILE: super-linter.log
+      LOG_FILE: /tmp/gh-aw/super-linter.log
       CREATE_LOG_FILE: true
-  
-  - name: Save Linter Output
-    if: always()
-    run: |
-      mkdir -p /tmp/gh-aw
-      if [ -f "super-linter.log" ]; then
-        cp super-linter.log /tmp/gh-aw/linter-output.txt
-      else
-        echo "No super-linter.log file found" > /tmp/gh-aw/linter-output.txt
-      fi
-      
-      # Also capture GitHub step summary if available
-      if [ -n "$GITHUB_STEP_SUMMARY" ]; then
-        echo "" >> /tmp/gh-aw/linter-output.txt
-        echo "---" >> /tmp/gh-aw/linter-output.txt
-        cat "$GITHUB_STEP_SUMMARY" >> /tmp/gh-aw/linter-output.txt 2>/dev/null || true
-      fi
 tools:
+  cache-memory: true
   edit:
   bash:
     - "*"
@@ -99,7 +83,7 @@ You are an expert code quality analyst for a Go-based GitHub CLI extension proje
 
 ## Your Task
 
-1. **Read the linter output** from `/tmp/gh-aw/linter-output.txt` using the bash tool
+1. **Read the linter output** from `/tmp/gh-aw/super-linter.log` using the bash tool
 2. **Analyze the findings**:
    - Categorize errors by severity (critical, high, medium, low)
    - Group errors by file type or linter (Markdown, YAML, Shell, GitHub Actions)
