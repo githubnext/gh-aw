@@ -22,7 +22,7 @@ safe-outputs:
   add-comment:
     max: 1
     target: "*"
-timeout_minutes: 10
+timeout-minutes: 10
 strict: true
 ---
 
