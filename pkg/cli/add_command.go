@@ -296,6 +296,68 @@ func handleRepoOnlySpec(repoSpec string, verbose bool) error {
 	return nil
 }
 
+// displayAvailableWorkflows lists available workflows from an installed package
+func displayAvailableWorkflows(repoSlug, version string, verbose bool) error {
+	addLog.Printf("Displaying available workflows for repository: %s", repoSlug)
+
+	// List workflows in the installed package
+	workflows, err := listWorkflowsInPackage(repoSlug, verbose)
+	if err != nil {
+		return fmt.Errorf("failed to list workflows in %s: %w", repoSlug, err)
+	}
+
+	// Display the list of available workflows
+	if len(workflows) == 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No workflows found in repository %s", repoSlug)))
+		return nil
+	}
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Available workflows in %s:", repoSlug)))
+	fmt.Fprintln(os.Stderr, "")
+
+	for _, workflow := range workflows {
+		// Extract workflow name from path (remove .md extension and path)
+		workflowName := strings.TrimSuffix(filepath.Base(workflow), ".md")
+
+		// For workflows in workflows/ directory, show simplified name
+		if strings.HasPrefix(workflow, "workflows/") {
+			workflowName = strings.TrimSuffix(strings.TrimPrefix(workflow, "workflows/"), ".md")
+		}
+
+		// Build the full command
+		fullSpec := fmt.Sprintf("%s/%s", repoSlug, workflowName)
+		if version != "" {
+			fullSpec += "@" + version
+		}
+
+		fmt.Fprintf(os.Stderr, "  • %s\n", workflowName)
+		if verbose {
+			fmt.Fprintf(os.Stderr, "    Command: %s add %s\n", constants.CLIExtensionPrefix, fullSpec)
+		}
+	}
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintf(os.Stderr, "Example:\n")
+
+	// Show example with first workflow
+	exampleWorkflow := workflows[0]
+	exampleName := strings.TrimSuffix(filepath.Base(exampleWorkflow), ".md")
+	if strings.HasPrefix(exampleWorkflow, "workflows/") {
+		exampleName = strings.TrimSuffix(strings.TrimPrefix(exampleWorkflow, "workflows/"), ".md")
+	}
+
+	exampleSpec := fmt.Sprintf("%s/%s", repoSlug, exampleName)
+	if version != "" {
+		exampleSpec += "@" + version
+	}
+
+	fmt.Fprintf(os.Stderr, "  %s add %s\n", constants.CLIExtensionPrefix, exampleSpec)
+	fmt.Fprintln(os.Stderr, "")
+
+	return nil
+}
+
 // addWorkflowsNormal handles normal workflow addition without PR creation
 func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool) error {
 	// Create file tracker for all operations
@@ -488,15 +550,18 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 	if err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Workflow '%s' not found.", workflowPath)))
 
-		// Provide information about workflow repositories
-		fmt.Println("\nTo add workflows to your project:")
-		fmt.Println("=================================")
-		fmt.Println("Use the 'add' command with repository/workflow specifications:")
-		fmt.Println("  " + constants.CLIExtensionPrefix + " add owner/repo/workflow-name")
-		fmt.Println("  " + constants.CLIExtensionPrefix + " add owner/repo/workflow-name@version")
-		fmt.Println("\nExample:")
-		fmt.Println("  " + constants.CLIExtensionPrefix + " add githubnext/agentics/ci-doctor")
-		fmt.Println("  " + constants.CLIExtensionPrefix + " add githubnext/agentics/daily-plan@main")
+		// Try to list available workflows from the installed package
+		if err := displayAvailableWorkflows(workflow.RepoSlug, workflow.Version, verbose); err != nil {
+			// If we can't list workflows, provide generic help
+			fmt.Println("\nTo add workflows to your project:")
+			fmt.Println("=================================")
+			fmt.Println("Use the 'add' command with repository/workflow specifications:")
+			fmt.Println("  " + constants.CLIExtensionPrefix + " add owner/repo/workflow-name")
+			fmt.Println("  " + constants.CLIExtensionPrefix + " add owner/repo/workflow-name@version")
+			fmt.Println("\nExample:")
+			fmt.Println("  " + constants.CLIExtensionPrefix + " add githubnext/agentics/ci-doctor")
+			fmt.Println("  " + constants.CLIExtensionPrefix + " add githubnext/agentics/daily-plan@main")
+		}
 
 		return fmt.Errorf("workflow not found: %s", workflowPath)
 	}
