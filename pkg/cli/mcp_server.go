@@ -35,6 +35,7 @@ The server provides the following tools:
   - logs        - Download and analyze workflow logs
   - audit       - Investigate a workflow run and generate a report
   - mcp-inspect - Inspect MCP servers in workflows and list available tools
+  - add         - Add workflows from remote repositories to .github/workflows
 
 By default, the server uses stdio transport. Use the --port flag to run
 an HTTP server with SSE (Server-Sent Events) transport instead.
@@ -431,6 +432,98 @@ Returns formatted text output showing:
 
 		// Always enable secret checking (will be silently ignored if GitHub token is not available)
 		cmdArgs = append(cmdArgs, "--check-secrets")
+
+		// Execute the CLI command
+		cmd := execCmd(ctx, cmdArgs...)
+		output, err := cmd.CombinedOutput()
+
+		if err != nil {
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: fmt.Sprintf("Error: %v\nOutput: %s", err, string(output))},
+				},
+			}, nil, nil
+		}
+
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: string(output)},
+			},
+		}, nil, nil
+	})
+
+	// Add add tool
+	type addArgs struct {
+		Workflows []string `json:"workflows" jsonschema:"required,Workflows to add (e.g., 'owner/repo/workflow-name' or 'owner/repo/workflow-name@version')"`
+		Number    int      `json:"number,omitempty" jsonschema:"Create multiple numbered copies (default: 1)"`
+		Name      string   `json:"name,omitempty" jsonschema:"Specify name for the added workflow (without .md extension)"`
+		Engine    string   `json:"engine,omitempty" jsonschema:"Override AI engine (claude, codex, copilot, custom)"`
+		Force     bool     `json:"force,omitempty" jsonschema:"Overwrite existing workflow files"`
+		Append    string   `json:"append,omitempty" jsonschema:"Append extra content to the end of agentic workflow on installation"`
+		Verbose   bool     `json:"verbose,omitempty" jsonschema:"Enable verbose output"`
+	}
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "add",
+		Description: `Add one or more workflows from repositories to .github/workflows.
+
+This tool wraps the 'gh aw add' command and allows adding workflows from remote repositories.
+
+Workflow specifications:
+  - Two parts: "owner/repo[@version]" (lists available workflows in the repository)
+  - Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)
+  - Four+ parts: "owner/repo/workflows/workflow-name.md[@version]" (requires explicit .md extension)
+  - Wildcard: "owner/repo/*[@version]" (adds all workflows from the repository)
+  - Version can be tag, branch, or SHA
+
+Examples:
+  - ["githubnext/agentics"] - List available workflows
+  - ["githubnext/agentics/ci-doctor"] - Add specific workflow
+  - ["githubnext/agentics/ci-doctor@v1.0.0"] - Add with version
+  - ["githubnext/agentics/*"] - Add all workflows
+
+The tool will:
+  1. Install the required repository if not already installed
+  2. Copy the workflow file(s) to .github/workflows/
+  3. Update .gitattributes to exclude .lock.yml files from diffs
+  4. Compile the workflow to generate .lock.yml file
+
+Note: This tool does not support PR creation (--pr flag) or interactive mode.`,
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args addArgs) (*mcp.CallToolResult, any, error) {
+		// Validate required arguments
+		if len(args.Workflows) == 0 {
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: "Error: at least one workflow specification is required"},
+				},
+			}, nil, nil
+		}
+
+		// Build command arguments
+		cmdArgs := []string{"add"}
+
+		// Add workflows
+		cmdArgs = append(cmdArgs, args.Workflows...)
+
+		// Add optional flags
+		if args.Number > 0 {
+			cmdArgs = append(cmdArgs, "-c", strconv.Itoa(args.Number))
+		}
+		if args.Name != "" {
+			cmdArgs = append(cmdArgs, "-n", args.Name)
+		}
+		if args.Engine != "" {
+			cmdArgs = append(cmdArgs, "-a", args.Engine)
+		}
+		if args.Force {
+			cmdArgs = append(cmdArgs, "--force")
+		}
+		if args.Append != "" {
+			cmdArgs = append(cmdArgs, "--append", args.Append)
+		}
+		if args.Verbose {
+			cmdArgs = append(cmdArgs, "--verbose")
+		}
 
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
