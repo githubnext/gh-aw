@@ -21,7 +21,7 @@ safe-outputs:
     category: "dev"
     max: 1
 
-timeout_minutes: 5
+timeout-minutes: 5
 imports:
   - shared/reporting.md
 ---
