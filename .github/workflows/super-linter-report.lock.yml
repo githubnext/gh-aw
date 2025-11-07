@@ -15,7 +15,9 @@
 #   create_issue["create_issue"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
+#   super_linter["super_linter"]
 #   activation --> agent
+#   super_linter --> agent
 #   agent --> create_issue
 #   detection --> create_issue
 #   agent --> detection
@@ -145,7 +147,9 @@ jobs:
             });
 
   agent:
-    needs: activation
+    needs:
+      - activation
+      - super_linter
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -160,58 +164,16 @@ jobs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
+          persist-credentials: false
           fetch-depth: 0
-      - name: Set up Go
-        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00
-        with:
-          cache: true
-          go-version-file: go.mod
-      - name: Set up Node.js
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
-        with:
-          cache: npm
-          cache-dependency-path: pkg/workflow/js/package-lock.json
-          node-version: "24"
-      - name: Install Dependencies
-        run: |
-          go mod download
-          cd pkg/workflow/js && npm ci
-      - continue-on-error: true
-        env:
-          CREATE_LOG_FILE: true
-          DEFAULT_BRANCH: main
-          FILTER_REGEX_EXCLUDE: dist/**/*
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LINTER_RULES_PATH: .
-          LOG_FILE: /tmp/gh-aw/super-linter.log
-          VALIDATE_ALL_CODEBASE: true
-          VALIDATE_BASH: true
-          VALIDATE_GITHUB_ACTIONS: true
-          VALIDATE_GO: false
-          VALIDATE_GO_MODULES: false
-          VALIDATE_JAVASCRIPT_ES: false
-          VALIDATE_JSCPD: false
-          VALIDATE_JSON: false
-          VALIDATE_MARKDOWN: true
-          VALIDATE_SHELL_SHFMT: true
-          VALIDATE_TYPESCRIPT_ES: false
-          VALIDATE_YAML: true
-        id: super-linter
-        name: Run Super Linter
-        uses: super-linter/super-linter/slim@f6d06a003575dde14f917e642302cf1251f28f4a
-      - id: check-results
-        name: Check for linting issues
-        run: "if [ -f \"/tmp/gh-aw/super-linter.log\" ] && [ -s \"/tmp/gh-aw/super-linter.log\" ]; then\n  # Check if there are actual errors (not just the header)\n  if grep -qE \"ERROR|WARN|FAIL\" /tmp/gh-aw/super-linter.log; then\n    echo \"needs-linting=true\" >> $GITHUB_OUTPUT\n  else\n    echo \"needs-linting=false\" >> $GITHUB_OUTPUT\n  fi\nelse\n  echo \"needs-linting=false\" >> $GITHUB_OUTPUT\nfi\n"
-      - if: always()
-        name: Upload linter log
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - name: Download super-linter log
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           name: super-linter-log
-          path: /tmp/gh-aw/super-linter.log
-          retention-days: 7
+          path: /tmp/gh-aw/
 
       - name: Create gh-aw temp directory
         run: |
@@ -4540,4 +4502,70 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
+
+  super_linter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00
+        with:
+          cache: true
+          go-version-file: go.mod
+      - name: Set up Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        with:
+          cache: npm
+          cache-dependency-path: pkg/workflow/js/package-lock.json
+          node-version: "24"
+      - name: Install Dependencies
+        run: |
+          go mod download
+          cd pkg/workflow/js && npm ci
+      - name: Run Super Linter
+        id: super-linter
+        uses: super-linter/super-linter/slim@f6d06a003575dde14f917e642302cf1251f28f4a
+        env:
+          CREATE_LOG_FILE: "true"
+          DEFAULT_BRANCH: main
+          FILTER_REGEX_EXCLUDE: dist/**/*
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LINTER_RULES_PATH: .
+          LOG_FILE: /tmp/gh-aw/super-linter.log
+          VALIDATE_ALL_CODEBASE: "true"
+          VALIDATE_BASH: "true"
+          VALIDATE_GITHUB_ACTIONS: "true"
+          VALIDATE_GO: "false"
+          VALIDATE_GO_MODULES: "false"
+          VALIDATE_JAVASCRIPT_ES: "false"
+          VALIDATE_JSCPD: "false"
+          VALIDATE_JSON: "false"
+          VALIDATE_MARKDOWN: "true"
+          VALIDATE_SHELL_SHFMT: "true"
+          VALIDATE_TYPESCRIPT_ES: "false"
+          VALIDATE_YAML: "true"
+        continue-on-error: true
+      - name: Check for linting issues
+        id: check-results
+        run: |
+          if [ -f "/tmp/gh-aw/super-linter.log" ] && [ -s "/tmp/gh-aw/super-linter.log" ]; then
+            # Check if there are actual errors (not just the header)
+            if grep -qE "ERROR|WARN|FAIL" /tmp/gh-aw/super-linter.log; then
+              echo "needs-linting=true" >> $GITHUB_OUTPUT
+            else
+              echo "needs-linting=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "needs-linting=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Upload super-linter log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: super-linter-log
+          path: /tmp/gh-aw/super-linter.log
+          retention-days: 7
 

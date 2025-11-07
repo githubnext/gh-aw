@@ -17,76 +17,85 @@ name: Super Linter Report
 timeout-minutes: 15
 imports:
   - shared/reporting.md
+jobs:
+  super_linter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: pkg/workflow/js/package-lock.json
+      
+      - name: Install Dependencies
+        run: |
+          go mod download
+          cd pkg/workflow/js && npm ci
+      
+      - name: Run Super Linter
+        id: super-linter
+        continue-on-error: true
+        uses: super-linter/super-linter/slim@v8
+        env:
+          DEFAULT_BRANCH: main
+          FILTER_REGEX_EXCLUDE: dist/**/*
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LINTER_RULES_PATH: .
+          VALIDATE_ALL_CODEBASE: "true"
+          # Disable linters that are covered by other workflows or not applicable
+          VALIDATE_GO: "false"                # golangci-lint is used instead in CI
+          VALIDATE_GO_MODULES: "false"        # Go mod verification in CI
+          VALIDATE_JAVASCRIPT_ES: "false"     # ESLint/npm test handles JS linting
+          VALIDATE_TYPESCRIPT_ES: "false"     # Not using TypeScript
+          VALIDATE_JSCPD: "false"              # Copy-paste detection not required
+          VALIDATE_JSON: "false"               # Not strictly enforced
+          VALIDATE_GITHUB_ACTIONS: "true"     # Keep GitHub Actions validation
+          VALIDATE_MARKDOWN: "true"            # Keep Markdown validation
+          VALIDATE_YAML: "true"                # Keep YAML validation
+          VALIDATE_SHELL_SHFMT: "true"         # Keep shell script formatting
+          VALIDATE_BASH: "true"                # Keep bash validation
+          LOG_FILE: /tmp/gh-aw/super-linter.log
+          CREATE_LOG_FILE: "true"
+      
+      - name: Check for linting issues
+        id: check-results
+        run: |
+          if [ -f "/tmp/gh-aw/super-linter.log" ] && [ -s "/tmp/gh-aw/super-linter.log" ]; then
+            # Check if there are actual errors (not just the header)
+            if grep -qE "ERROR|WARN|FAIL" /tmp/gh-aw/super-linter.log; then
+              echo "needs-linting=true" >> $GITHUB_OUTPUT
+            else
+              echo "needs-linting=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "needs-linting=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Upload super-linter log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: super-linter-log
+          path: /tmp/gh-aw/super-linter.log
+          retention-days: 7
 steps:
-  - name: Checkout Code
-    uses: actions/checkout@v5
-    with:
-      fetch-depth: 0
-  
-  - name: Set up Go
-    uses: actions/setup-go@v6
-    with:
-      go-version-file: go.mod
-      cache: true
-  
-  - name: Set up Node.js
-    uses: actions/setup-node@v6
-    with:
-      node-version: "24"
-      cache: npm
-      cache-dependency-path: pkg/workflow/js/package-lock.json
-  
-  - name: Install Dependencies
-    run: |
-      go mod download
-      cd pkg/workflow/js && npm ci
-  
-  - name: Run Super Linter
-    id: super-linter
-    continue-on-error: true
-    uses: super-linter/super-linter/slim@v8
-    env:
-      DEFAULT_BRANCH: main
-      FILTER_REGEX_EXCLUDE: dist/**/*
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      LINTER_RULES_PATH: .
-      VALIDATE_ALL_CODEBASE: true
-      # Disable linters that are covered by other workflows or not applicable
-      VALIDATE_GO: false                # golangci-lint is used instead in CI
-      VALIDATE_GO_MODULES: false        # Go mod verification in CI
-      VALIDATE_JAVASCRIPT_ES: false     # ESLint/npm test handles JS linting
-      VALIDATE_TYPESCRIPT_ES: false     # Not using TypeScript
-      VALIDATE_JSCPD: false              # Copy-paste detection not required
-      VALIDATE_JSON: false               # Not strictly enforced
-      VALIDATE_GITHUB_ACTIONS: true     # Keep GitHub Actions validation
-      VALIDATE_MARKDOWN: true            # Keep Markdown validation
-      VALIDATE_YAML: true                # Keep YAML validation
-      VALIDATE_SHELL_SHFMT: true         # Keep shell script formatting
-      VALIDATE_BASH: true                # Keep bash validation
-      LOG_FILE: /tmp/gh-aw/super-linter.log
-      CREATE_LOG_FILE: true
-  
-  - name: Check for linting issues
-    id: check-results
-    run: |
-      if [ -f "/tmp/gh-aw/super-linter.log" ] && [ -s "/tmp/gh-aw/super-linter.log" ]; then
-        # Check if there are actual errors (not just the header)
-        if grep -qE "ERROR|WARN|FAIL" /tmp/gh-aw/super-linter.log; then
-          echo "needs-linting=true" >> $GITHUB_OUTPUT
-        else
-          echo "needs-linting=false" >> $GITHUB_OUTPUT
-        fi
-      else
-        echo "needs-linting=false" >> $GITHUB_OUTPUT
-      fi
-  
-  - name: Upload linter log
-    if: always()
-    uses: actions/upload-artifact@v4
+  - name: Download super-linter log
+    uses: actions/download-artifact@v4
     with:
       name: super-linter-log
-      path: /tmp/gh-aw/super-linter.log
-      retention-days: 7
+      path: /tmp/gh-aw/
 tools:
   cache-memory: true
   edit:

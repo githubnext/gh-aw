@@ -662,6 +662,14 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		depends = []string{constants.ActivationJobName} // Depend on the activation job only if it exists
 	}
 
+	// Add custom jobs as dependencies if they exist
+	// This allows the agent job to wait for custom jobs to complete before running
+	if data.Jobs != nil {
+		for jobName := range data.Jobs {
+			depends = append(depends, jobName)
+		}
+	}
+
 	// Build outputs for all engines (GH_AW_SAFE_OUTPUTS functionality)
 	// Only include output if the workflow actually uses the safe-outputs feature
 	var outputs map[string]string

@@ -1102,10 +1102,92 @@
           },
           "steps": {
             "type": "array",
-            "description": "Job steps",
+            "description": "A job contains a sequence of tasks called steps. Steps can run commands, run setup tasks, or run an action in your repository, a public repository, or an action published in a Docker registry.",
             "items": {
               "type": "object",
-              "additionalProperties": false
+              "additionalProperties": false,
+              "oneOf": [
+                {
+                  "required": ["uses"]
+                },
+                {
+                  "required": ["run"]
+                }
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "A unique identifier for the step. You can use the id to reference the step in contexts."
+                },
+                "if": {
+                  "description": "You can use the if conditional to prevent a step from running unless a condition is met. You can use any supported context and expression to create a conditional.",
+                  "oneOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "name": {
+                  "type": "string",
+                  "description": "A name for your step to display on GitHub."
+                },
+                "uses": {
+                  "type": "string",
+                  "description": "Selects an action to run as part of a step in your job. An action is a reusable unit of code."
+                },
+                "run": {
+                  "type": "string",
+                  "description": "Runs command-line programs using the operating system's shell."
+                },
+                "working-directory": {
+                  "type": "string",
+                  "description": "Working directory where to run the command."
+                },
+                "shell": {
+                  "type": "string",
+                  "description": "Shell to use for running the command."
+                },
+                "with": {
+                  "type": "object",
+                  "description": "A map of the input parameters defined by the action. Each input parameter is a key/value pair.",
+                  "additionalProperties": true
+                },
+                "env": {
+                  "type": "object",
+                  "description": "Sets environment variables for steps to use in the virtual environment.",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "continue-on-error": {
+                  "description": "Prevents a job from failing when a step fails. Set to true to allow a job to pass when this step fails.",
+                  "oneOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "timeout-minutes": {
+                  "description": "The maximum number of minutes to run the step before killing the process.",
+                  "oneOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                }
+              }
             }
           },
           "if": {
