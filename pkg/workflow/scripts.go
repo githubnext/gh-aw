@@ -90,6 +90,9 @@ var (
 
 	pushToPullRequestBranchScript     string
 	pushToPullRequestBranchScriptOnce sync.Once
+
+	interpolatePromptBundled     string
+	interpolatePromptBundledOnce sync.Once
 )
 
 // getCollectJSONLOutputScript returns the bundled collect_ndjson_output script
@@ -313,4 +316,24 @@ func getPushToPullRequestBranchScript() string {
 		}
 	})
 	return pushToPullRequestBranchScript
+}
+
+// getInterpolatePromptScript returns the bundled interpolate_prompt script
+// Bundling is performed on first access and cached for subsequent calls
+// This bundles is_truthy.cjs inline to avoid require() issues in GitHub Actions
+func getInterpolatePromptScript() string {
+	interpolatePromptBundledOnce.Do(func() {
+		scriptsLog.Print("Bundling interpolate_prompt script")
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(interpolatePromptScript, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for interpolate_prompt, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			interpolatePromptBundled = interpolatePromptScript
+		} else {
+			scriptsLog.Printf("Successfully bundled interpolate_prompt script: %d bytes", len(bundled))
+			interpolatePromptBundled = bundled
+		}
+	})
+	return interpolatePromptBundled
 }
