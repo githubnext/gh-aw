@@ -96,6 +96,10 @@ export default defineConfig({
 					autogenerate: { directory: 'reference' },
 				},
 				{
+					label: 'Applications',
+					autogenerate: { directory: 'samples' },
+				},
+				{
 					label: 'Status',
 					link: '/status/',
 				},

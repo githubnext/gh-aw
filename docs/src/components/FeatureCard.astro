@@ -175,6 +175,8 @@ const Tag = href ? 'a' : 'div';
     flex: 1;
     display: flex;
     flex-direction: column;
+    position: relative;
+    z-index: 2;
   }
 
   .feature-card:hover .feature-description {
@@ -199,6 +201,9 @@ const Tag = href ? 'a' : 'div';
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
+    position: relative;
+    z-index: 3;
+    cursor: pointer;
   }
 
   .feature-description :global(a:hover) {

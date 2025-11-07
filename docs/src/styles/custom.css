@@ -74,18 +74,17 @@
   right: 0;
   bottom: 0;
   background: 
-    radial-gradient(ellipse 800px 600px at 20% 30%, rgba(91, 61, 163, 0.06), transparent),
-    radial-gradient(ellipse 600px 800px at 80% 70%, rgba(107, 70, 193, 0.05), transparent),
-    radial-gradient(ellipse 1000px 400px at 50% 100%, rgba(123, 85, 214, 0.04), transparent);
+    radial-gradient(ellipse 800px 600px at 20% 30%, rgba(91, 61, 163, 0.22), transparent),
+    radial-gradient(ellipse 600px 800px at 80% 70%, rgba(107, 70, 193, 0.18), transparent),
+    radial-gradient(ellipse 1000px 400px at 50% 100%, rgba(123, 85, 214, 0.15), transparent);
   background-size: 100% 100%, 100% 100%, 100% 100%;
   z-index: 0;
   pointer-events: none;
   animation: light-glow-move 20s ease-in-out infinite;
-  display: none;
 }
 
-:root[data-theme='light'] body:has(.hero)::before {
-  display: block;
+:root[data-theme='light'] body:not(:has(.hero))::before {
+  display: none;
 }
 
 :root[data-theme='light'] .page {
@@ -269,7 +268,7 @@ body:has(.hero)::before {
   width: 100%;
   max-width: var(--layout-total-width);
   margin: 0 auto;
-  padding-left: 2rem !important;
+  padding-left: 6rem !important;
   padding-right: 2rem !important;
   padding-top: 5rem !important;
 }
@@ -576,17 +575,17 @@ header starlight-theme-select {
 header::after {
   content: '';
   position: absolute;
-  bottom: -15px;
+  bottom: -40px;
   left: 0;
   right: 0;
-  height: 15px;
-  background: linear-gradient(to bottom, rgba(28, 33, 40, 0.8), transparent);
+  height: 40px;
+  background: linear-gradient(to bottom, rgba(28, 33, 40, 0.95), rgba(28, 33, 40, 0.6), transparent);
   pointer-events: none;
   z-index: -1;
 }
 
 :root[data-theme='light'] header::after {
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.8), transparent);
+  background: linear-gradient(to bottom, rgba(246, 248, 250, 0.95), rgba(246, 248, 250, 0.6), transparent);
 }
 
 .sl-markdown-content {
@@ -651,12 +650,13 @@ main .content-panel > :first-child {
 .sl-markdown-content h5 a.header-anchor,
 .sl-markdown-content h6 a.header-anchor,
 .sl-markdown-content :is(h1, h2, h3, h4, h5, h6) a[aria-label^="Permalink"] {
-  font-size: 0.7em;
-  opacity: 0.5;
+  font-size: 0.2em;
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
 .sl-markdown-content :is(h1, h2, h3, h4, h5, h6):hover a[aria-label^="Permalink"] {
-  opacity: 0.8;
+  opacity: 0.2;
 }
 
 .sl-markdown-content h2 {
@@ -886,7 +886,7 @@ a.button:hover {
   contain: layout paint;
   will-change: scroll-position;
   backface-visibility: hidden;
-  margin-left: -3rem;
+  margin-left: -4rem;
   margin-right: 1rem;
 }
 
@@ -1188,7 +1188,7 @@ starlight-toc h2 {
   }
   
   .sl-markdown-content {
-    max-width: 90ch;
+    max-width: 70ch;
   }
 }
 
@@ -1295,8 +1295,8 @@ a:hover {
 
 .hero {
   background: transparent;
-  padding: 8rem 2rem 1rem;
-  margin-top: 2rem;
+  padding: 3rem 2rem 1rem;
+  margin-top: 1rem;
   position: relative;
   overflow: hidden;
   border-bottom: 1px solid #30363d;
@@ -1353,11 +1353,11 @@ footer *,
 }
 
 .sl-markdown-content {
-  max-width: 75ch !important;
+  max-width: 65ch !important;
 }
 @media (min-width: 90rem) {
   .sl-markdown-content {
-    max-width: 80ch !important;
+    max-width: 68ch !important;
   }
 }
 
