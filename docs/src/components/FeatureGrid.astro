@@ -15,6 +15,11 @@ const { columns = 2 } = Astro.props;
     display: grid;
     gap: 1.25rem;
     margin: 2rem 0;
+    align-items: start;
+  }
+
+  .feature-grid :global(.feature-card) {
+    height: 100%;
   }
 
   .feature-grid.columns-2,
@@ -24,8 +29,8 @@ const { columns = 2 } = Astro.props;
   }
 
   @media (min-width: 50rem) {
-    .feature-grid.columns-2,
+    .feature-grid.columns-2 { grid-template-columns: repeat(2, minmax(20rem, 1fr)); }
     .feature-grid.columns-3 { grid-template-columns: repeat(3, minmax(20rem, 1fr)); }
-    .feature-grid.columns-4 { grid-template-columns: repeat(3, minmax(20rem, 1fr)); }
+    .feature-grid.columns-4 { grid-template-columns: repeat(4, minmax(20rem, 1fr)); }
   }
 </style>

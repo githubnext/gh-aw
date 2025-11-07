@@ -4,12 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/cli/go-gh/v2"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
@@ -120,37 +118,46 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 	defer os.RemoveAll(tempDir)
 	packagesLog.Printf("Created temporary directory: %s", tempDir)
 
-	// Prepare clone arguments - handle SHA commits vs branches/tags differently
-	var cloneArgs []string
 	isSHA := isCommitSHA(version)
 
+	// Prepare fallback git clone arguments
+	// Support enterprise GitHub domains
+	githubHost := getGitHubHost()
+
+	repoURL := fmt.Sprintf("%s/%s", githubHost, repo)
+	var gitArgs []string
 	if isSHA {
-		// For commit SHAs, we need full clone to reach the specific commit
-		cloneArgs = []string{"repo", "clone", repo, tempDir}
+		gitArgs = []string{"clone", repoURL, tempDir}
 	} else {
-		// For branches/tags, use shallow clone for efficiency
-		cloneArgs = []string{"repo", "clone", repo, tempDir, "--", "--depth", "1"}
+		gitArgs = []string{"clone", "--depth", "1", repoURL, tempDir}
 		if version != "" && version != "main" {
-			cloneArgs = append(cloneArgs, "--branch", version)
+			gitArgs = append(gitArgs, "--branch", version)
 		}
 	}
 
 	if verbose {
-		fmt.Printf("Cloning repository: gh %s\n", strings.Join(cloneArgs, " "))
+		fmt.Printf("Cloning repository...\n")
 	}
 
-	// Clone the repository
-	_, stdErr, err := gh.Exec(cloneArgs...)
+	// Use helper to execute gh CLI with git fallback
+	_, stderr, err := ghExecOrFallback(
+		"git",
+		gitArgs,
+		[]string{"GIT_TERMINAL_PROMPT=0"}, // Prevent credential prompts
+	)
 	if err != nil {
-		return fmt.Errorf("failed to clone repository: %w (stderr: %s)", err, stdErr.String())
+		return fmt.Errorf("failed to clone repository: %w (output: %s)", err, stderr)
 	}
 
 	// If a specific SHA was requested, checkout that commit
 	if isSHA {
-		cmd := exec.Command("git", "checkout", version)
-		cmd.Dir = tempDir
-		if output, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("failed to checkout commit %s: %w (output: %s)", version, err, string(output))
+		stdout, stderr, err := ghExecOrFallback(
+			"git",
+			[]string{"-C", tempDir, "checkout", version},
+			nil,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to checkout commit %s: %w (output: %s)", version, err, stderr+stdout)
 		}
 		if verbose {
 			fmt.Printf("Checked out commit: %s\n", version)
@@ -158,13 +165,15 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 	}
 
 	// Get the current commit SHA from the cloned repository
-	cmd := exec.Command("git", "rev-parse", "HEAD")
-	cmd.Dir = tempDir
-	commitBytes, err := cmd.Output()
+	stdout, stderr, err := ghExecOrFallback(
+		"git",
+		[]string{"-C", tempDir, "rev-parse", "HEAD"},
+		nil,
+	)
 	if err != nil {
-		return fmt.Errorf("failed to get commit SHA: %w", err)
+		return fmt.Errorf("failed to get commit SHA: %w (output: %s)", err, stderr+stdout)
 	}
-	commitSHA := strings.TrimSpace(string(commitBytes))
+	commitSHA := strings.TrimSpace(stdout)
 
 	// Validate that we're at the expected commit if a specific SHA was requested
 	if isSHA && commitSHA != version {
