@@ -74,6 +74,9 @@ describe("parse_copilot_log.cjs", () => {
       if (module === "@actions/core") {
         return mockCore;
       }
+      if (module === "./log_parser_bootstrap.cjs") {
+        return require("./log_parser_bootstrap.cjs");
+      }
       throw new Error(`Module not found: ${module}`);
     });
 
