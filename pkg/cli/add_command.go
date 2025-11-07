@@ -34,6 +34,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor --pr --force
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/*
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/*@v1.0.0
+  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor --dir shared   # Add to .github/workflows/shared/
 
 Workflow specifications:
   - Two parts: "owner/repo[@version]" (lists available workflows in the repository)
@@ -44,6 +45,7 @@ Workflow specifications:
   - Version can be tag, branch, or SHA
 
 The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
+The --dir flag allows you to specify a subdirectory under .github/workflows/ where the workflow will be added.
 The --pr flag automatically creates a pull request with the workflow changes.
 The --force flag overwrites existing workflow files.`,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -56,6 +58,7 @@ The --force flag overwrites existing workflow files.`,
 			appendText, _ := cmd.Flags().GetString("append")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			noGitattributes, _ := cmd.Flags().GetBool("no-gitattributes")
+			workflowDir, _ := cmd.Flags().GetString("dir")
 
 			// If no arguments provided and not in CI, automatically use interactive mode
 			if len(args) == 0 && !IsRunningInCI() {
@@ -76,12 +79,12 @@ The --force flag overwrites existing workflow files.`,
 
 			// Handle normal mode
 			if prFlag {
-				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, true, noGitattributes); err != nil {
+				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, true, noGitattributes, workflowDir); err != nil {
 					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 					os.Exit(1)
 				}
 			} else {
-				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, false, noGitattributes); err != nil {
+				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, appendText, false, noGitattributes, workflowDir); err != nil {
 					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 					os.Exit(1)
 				}
@@ -113,13 +116,16 @@ The --force flag overwrites existing workflow files.`,
 	// Add no-gitattributes flag to add command
 	cmd.Flags().Bool("no-gitattributes", false, "Skip updating .gitattributes file")
 
+	// Add workflow directory flag to add command
+	cmd.Flags().StringP("dir", "d", "", "Specify subdirectory under .github/workflows/ (e.g., 'shared' for .github/workflows/shared/)")
+
 	return cmd
 }
 
 // AddWorkflows adds one or more workflows from components to .github/workflows
 // with optional repository installation and PR creation
-func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, appendText string, createPR bool, noGitattributes bool) error {
-	addLog.Printf("Adding workflows: count=%d, engineOverride=%s, createPR=%v, noGitattributes=%v", len(workflows), engineOverride, createPR, noGitattributes)
+func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, appendText string, createPR bool, noGitattributes bool, workflowDir string) error {
+	addLog.Printf("Adding workflows: count=%d, engineOverride=%s, createPR=%v, noGitattributes=%v, workflowDir=%s", len(workflows), engineOverride, createPR, noGitattributes, workflowDir)
 
 	if len(workflows) == 0 {
 		return fmt.Errorf("at least one workflow name is required")
@@ -232,12 +238,12 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 	// Handle PR creation workflow
 	if createPR {
 		addLog.Print("Creating workflow with PR")
-		return addWorkflowsWithPR(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, hasWildcard)
+		return addWorkflowsWithPR(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, hasWildcard, workflowDir)
 	}
 
 	// Handle normal workflow addition
 	addLog.Print("Adding workflows normally without PR")
-	return addWorkflowsNormal(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, hasWildcard)
+	return addWorkflowsNormal(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, hasWildcard, workflowDir)
 }
 
 // handleRepoOnlySpec handles the case when user provides only owner/repo without workflow name
@@ -338,7 +344,7 @@ func displayAvailableWorkflows(repoSlug, version string, verbose bool) error {
 }
 
 // addWorkflowsNormal handles normal workflow addition without PR creation
-func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool, fromWildcard bool) error {
+func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool, fromWildcard bool, workflowDir string) error {
 	// Create file tracker for all operations
 	tracker, err := NewFileTracker()
 	if err != nil {
@@ -379,7 +385,7 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 			currentName = name
 		}
 
-		if err := addWorkflowWithTracking(workflow, number, verbose, engineOverride, currentName, force, appendText, tracker, fromWildcard); err != nil {
+		if err := addWorkflowWithTracking(workflow, number, verbose, engineOverride, currentName, force, appendText, tracker, fromWildcard, workflowDir); err != nil {
 			return fmt.Errorf("failed to add workflow '%s': %w", workflow.String(), err)
 		}
 	}
@@ -392,7 +398,7 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 }
 
 // addWorkflowsWithPR handles workflow addition with PR creation
-func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool, fromWildcard bool) error {
+func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool, fromWildcard bool, workflowDir string) error {
 	// Get current branch for restoration later
 	currentBranch, err := getCurrentBranch()
 	if err != nil {
@@ -421,7 +427,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 	}()
 
 	// Add workflows using the normal function logic
-	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, fromWildcard); err != nil {
+	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, fromWildcard, workflowDir); err != nil {
 		// Rollback on error
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
@@ -500,7 +506,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 }
 
 // addWorkflowWithTracking adds a workflow from components to .github/workflows with file tracking
-func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, tracker *FileTracker, fromWildcard bool) error {
+func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, tracker *FileTracker, fromWildcard bool, workflowDir string) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflow.String())))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Number of copies: %d", number)))
@@ -555,10 +561,30 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 		return fmt.Errorf("add workflow requires being in a git repository: %w", err)
 	}
 
-	// Ensure .github/workflows directory exists relative to git root
-	githubWorkflowsDir := filepath.Join(gitRoot, ".github/workflows")
+	// Determine the target workflow directory
+	var githubWorkflowsDir string
+	if workflowDir != "" {
+		// Validate that the path is relative
+		if filepath.IsAbs(workflowDir) {
+			return fmt.Errorf("workflow directory must be a relative path, got: %s", workflowDir)
+		}
+		// Clean the path to avoid issues with ".." or other problematic elements
+		workflowDir = filepath.Clean(workflowDir)
+		// Ensure the path is under .github/workflows
+		if !strings.HasPrefix(workflowDir, ".github/workflows") {
+			// If user provided a subdirectory name, prepend .github/workflows/
+			githubWorkflowsDir = filepath.Join(gitRoot, ".github/workflows", workflowDir)
+		} else {
+			githubWorkflowsDir = filepath.Join(gitRoot, workflowDir)
+		}
+	} else {
+		// Use default .github/workflows directory
+		githubWorkflowsDir = filepath.Join(gitRoot, ".github/workflows")
+	}
+
+	// Ensure the target directory exists
 	if err := os.MkdirAll(githubWorkflowsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .github/workflows directory: %w", err)
+		return fmt.Errorf("failed to create workflow directory %s: %w", githubWorkflowsDir, err)
 	}
 
 	// Determine the workflowName to use
