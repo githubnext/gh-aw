@@ -35,8 +35,6 @@
 #     https://github.com/actions/download-artifact/commit/634f93cb2916e3fdff6788551b99b062d0335ce0
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
-#   - actions/setup-go@v5 (d35c59abb061a4a6fb18e82ac0862c26744d6ab5)
-#     https://github.com/actions/setup-go/commit/d35c59abb061a4a6fb18e82ac0862c26744d6ab5
 #   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
 #     https://github.com/actions/setup-node/commit/2028fbc5c25fe9cf00d9f06a71cc4710d4507903
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
@@ -4511,23 +4509,6 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           fetch-depth: 0
-      - name: Set up Go
-        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00
-        with:
-          cache: true
-          go-version-file: go.mod
-      - name: Set up Node.js
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
-        with:
-          cache: npm
-          cache-dependency-path: pkg/workflow/js/package-lock.json
-          node-version: "24"
-      - name: Install Dependencies
-        run: |
-          go mod download
-          cd pkg/workflow/js && npm ci
-      - name: Create log directory
-        run: mkdir -p /tmp/gh-aw
       - name: Run Super Linter
         id: super-linter
         uses: super-linter/super-linter/slim@f6d06a003575dde14f917e642302cf1251f28f4a
@@ -4537,7 +4518,7 @@ jobs:
           FILTER_REGEX_EXCLUDE: dist/**/*
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LINTER_RULES_PATH: .
-          LOG_FILE: /tmp/gh-aw/super-linter.log
+          LOG_FILE: super-linter.log
           VALIDATE_ALL_CODEBASE: "true"
           VALIDATE_BASH: "true"
           VALIDATE_GITHUB_ACTIONS: "true"
@@ -4554,9 +4535,9 @@ jobs:
       - name: Check for linting issues
         id: check-results
         run: |
-          if [ -f "/tmp/gh-aw/super-linter.log" ] && [ -s "/tmp/gh-aw/super-linter.log" ]; then
+          if [ -f "super-linter.log" ] && [ -s "super-linter.log" ]; then
             # Check if there are actual errors (not just the header)
-            if grep -qE "ERROR|WARN|FAIL" /tmp/gh-aw/super-linter.log; then
+            if grep -qE "ERROR|WARN|FAIL" super-linter.log; then
               echo "needs-linting=true" >> $GITHUB_OUTPUT
             else
               echo "needs-linting=false" >> $GITHUB_OUTPUT
@@ -4569,6 +4550,6 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: super-linter-log
-          path: /tmp/gh-aw/super-linter.log
+          path: super-linter.log
           retention-days: 7
 

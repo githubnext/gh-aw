@@ -26,27 +26,6 @@ jobs:
         with:
           fetch-depth: 0
       
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache: true
-      
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: pkg/workflow/js/package-lock.json
-      
-      - name: Install Dependencies
-        run: |
-          go mod download
-          cd pkg/workflow/js && npm ci
-      
-      - name: Create log directory
-        run: mkdir -p /tmp/gh-aw
-      
       - name: Run Super Linter
         id: super-linter
         continue-on-error: true
@@ -69,15 +48,15 @@ jobs:
           VALIDATE_YAML: "true"                # Keep YAML validation
           VALIDATE_SHELL_SHFMT: "true"         # Keep shell script formatting
           VALIDATE_BASH: "true"                # Keep bash validation
-          LOG_FILE: /tmp/gh-aw/super-linter.log
+          LOG_FILE: super-linter.log
           CREATE_LOG_FILE: "true"
       
       - name: Check for linting issues
         id: check-results
         run: |
-          if [ -f "/tmp/gh-aw/super-linter.log" ] && [ -s "/tmp/gh-aw/super-linter.log" ]; then
+          if [ -f "super-linter.log" ] && [ -s "super-linter.log" ]; then
             # Check if there are actual errors (not just the header)
-            if grep -qE "ERROR|WARN|FAIL" /tmp/gh-aw/super-linter.log; then
+            if grep -qE "ERROR|WARN|FAIL" super-linter.log; then
               echo "needs-linting=true" >> $GITHUB_OUTPUT
             else
               echo "needs-linting=false" >> $GITHUB_OUTPUT
@@ -91,7 +70,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: super-linter-log
-          path: /tmp/gh-aw/super-linter.log
+          path: super-linter.log
           retention-days: 7
 steps:
   - name: Download super-linter log
