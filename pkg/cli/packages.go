@@ -122,14 +122,7 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 
 	// Prepare fallback git clone arguments
 	// Support enterprise GitHub domains
-	githubHost := os.Getenv("GITHUB_SERVER_URL")
-	if githubHost == "" {
-		githubHost = os.Getenv("GH_HOST")
-	}
-	if githubHost == "" {
-		githubHost = "https://github.com"
-	}
-	githubHost = strings.TrimSuffix(githubHost, "/")
+	githubHost := getGitHubHost()
 
 	repoURL := fmt.Sprintf("%s/%s", githubHost, repo)
 	var gitArgs []string

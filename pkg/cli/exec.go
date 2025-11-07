@@ -127,17 +127,7 @@ func buildGhCloneArgs(gitArgs []string) []string {
 
 // extractRepoSlug extracts the owner/repo slug from a GitHub URL
 func extractRepoSlug(repoURL string) string {
-	// Handle enterprise GitHub domains
-	githubHost := os.Getenv("GITHUB_SERVER_URL")
-	if githubHost == "" {
-		githubHost = os.Getenv("GH_HOST")
-	}
-	if githubHost == "" {
-		githubHost = "https://github.com"
-	}
-
-	// Remove trailing slash from host
-	githubHost = strings.TrimSuffix(githubHost, "/")
+	githubHost := getGitHubHost()
 
 	// Remove the GitHub host from the URL
 	slug := strings.TrimPrefix(repoURL, githubHost+"/")
