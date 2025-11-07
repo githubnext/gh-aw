@@ -634,6 +634,50 @@ gh aw compile --strict --actionlint --zizmor --poutine
 
 Safe output functions handle GitHub API write operations (creating issues, discussions, comments, PRs) from AI-generated content with consistent messaging patterns.
 
+### Safe Output Message Flow
+
+The following diagram illustrates how AI-generated content flows through the safe output system to GitHub API operations:
+
+```mermaid
+graph TD
+    A[AI Agent Output] --> B{Staged Mode?}
+    B -->|Yes| C[Generate Preview Messages]
+    B -->|No| D[Process Safe Output]
+    C --> E[Show 🎭 Staged Mode Preview]
+    E --> F[Display in Step Summary]
+    D --> G{Safe Output Type}
+    G -->|create-issue| H[Create GitHub Issue]
+    G -->|create-discussion| I[Create GitHub Discussion]
+    G -->|add-comment| J[Add GitHub Comment]
+    G -->|create-pull-request| K[Create Pull Request]
+    G -->|create-pr-review-comment| L[Create PR Review Comment]
+    G -->|update-issue| M[Update GitHub Issue]
+    H --> N[Apply Message Patterns]
+    I --> N
+    J --> N
+    K --> N
+    L --> N
+    M --> N
+    N --> O[Add AI Attribution Footer]
+    N --> P[Add Installation Instructions]
+    N --> Q[Add Related Items Links]
+    N --> R[Add Patch Preview]
+    O --> S[Execute GitHub API Operation]
+    P --> S
+    Q --> S
+    R --> S
+    S --> T[Generate Success Summary]
+    T --> U[Display in Step Summary]
+```
+
+**Flow Stages:**
+1. **AI Agent Output** - AI generates content for GitHub operations
+2. **Staged Mode Check** - Determines if operation is in preview mode
+3. **Safe Output Processing** - Routes to appropriate GitHub operation type
+4. **Message Pattern Application** - Applies consistent formatting (footers, instructions, links)
+5. **GitHub API Execution** - Performs the actual GitHub operation
+6. **Success Summary** - Reports results in workflow step summary
+
 ### Message Categories
 
 #### AI Attribution Footer
