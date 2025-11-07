@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/cli/go-gh/v2"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
@@ -119,33 +120,66 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 	defer os.RemoveAll(tempDir)
 	packagesLog.Printf("Created temporary directory: %s", tempDir)
 
-	// Prepare git clone arguments
+	// Check if GH_TOKEN is available to determine which clone method to use
+	ghToken := os.Getenv("GH_TOKEN")
+	useGHCLI := ghToken != ""
+
 	isSHA := isCommitSHA(version)
-	repoURL := fmt.Sprintf("https://github.com/%s", repo)
 
-	var gitArgs []string
-	if isSHA {
-		// For commit SHAs, we need full clone to reach the specific commit
-		gitArgs = []string{"clone", repoURL, tempDir}
-	} else {
-		// For branches/tags, use shallow clone for efficiency
-		gitArgs = []string{"clone", "--depth", "1", repoURL, tempDir}
-		if version != "" && version != "main" {
-			gitArgs = append(gitArgs, "--branch", version)
+	if useGHCLI {
+		// Use gh CLI when GH_TOKEN is available
+		packagesLog.Printf("Using gh CLI for cloning (GH_TOKEN available)")
+		var cloneArgs []string
+
+		if isSHA {
+			// For commit SHAs, we need full clone to reach the specific commit
+			cloneArgs = []string{"repo", "clone", repo, tempDir}
+		} else {
+			// For branches/tags, use shallow clone for efficiency
+			cloneArgs = []string{"repo", "clone", repo, tempDir, "--", "--depth", "1"}
+			if version != "" && version != "main" {
+				cloneArgs = append(cloneArgs, "--branch", version)
+			}
 		}
-	}
 
-	if verbose {
-		fmt.Printf("Cloning repository: git %s\n", strings.Join(gitArgs, " "))
-	}
+		if verbose {
+			fmt.Printf("Cloning repository: gh %s\n", strings.Join(cloneArgs, " "))
+		}
 
-	// Clone the repository using git
-	cmd := exec.Command("git", gitArgs...)
-	// Disable terminal prompts to prevent hanging on authentication failures
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to clone repository: %w (output: %s)", err, string(output))
+		// Clone the repository using gh CLI
+		_, stdErr, err := gh.Exec(cloneArgs...)
+		if err != nil {
+			return fmt.Errorf("failed to clone repository: %w (stderr: %s)", err, stdErr.String())
+		}
+	} else {
+		// Fall back to git clone when GH_TOKEN is not available
+		packagesLog.Printf("Using git clone (GH_TOKEN not available)")
+		repoURL := fmt.Sprintf("https://github.com/%s", repo)
+
+		var gitArgs []string
+		if isSHA {
+			// For commit SHAs, we need full clone to reach the specific commit
+			gitArgs = []string{"clone", repoURL, tempDir}
+		} else {
+			// For branches/tags, use shallow clone for efficiency
+			gitArgs = []string{"clone", "--depth", "1", repoURL, tempDir}
+			if version != "" && version != "main" {
+				gitArgs = append(gitArgs, "--branch", version)
+			}
+		}
+
+		if verbose {
+			fmt.Printf("Cloning repository: git %s\n", strings.Join(gitArgs, " "))
+		}
+
+		// Clone the repository using git
+		cmd := exec.Command("git", gitArgs...)
+		// Disable terminal prompts to prevent hanging on authentication failures
+		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("failed to clone repository: %w (output: %s)", err, string(output))
+		}
 	}
 
 	// If a specific SHA was requested, checkout that commit
