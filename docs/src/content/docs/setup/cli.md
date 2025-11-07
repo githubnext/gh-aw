@@ -41,7 +41,7 @@ gh aw pr transfer https://github.com/owner/repo/pull/123  # Transfer PR between 
 - **`--verbose` / `-v`**: Enable verbose output with debugging details
 - **`--help` / `-h`**: Show help information
 
-## 📝 Workflow Creation and Management
+## Workflow Creation and Management
 
 The `add` and `new` commands help you create and manage agentic workflows, from templates and samples to completely custom workflows.
 
@@ -95,7 +95,7 @@ gh aw update --verbose --engine copilot  # Override engine
 
 Updates use the `source` field format `owner/repo/path@ref`. Semantic version tags update within the same major version (use `--major` for major updates). Branch references fetch the latest commit. Performs 3-way merge with `git merge-file`, preserving local changes. Conflicts add diff3-style markers and skip recompilation until resolved.
 
-## 🔧 Compilation
+## Compilation
 
 Transforms markdown workflow files into executable GitHub Actions YAML files:
 
@@ -120,7 +120,7 @@ gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --dependabot --force         # Force overwrite existing files
 ```
 
-**Watch Mode:** Auto-recompile workflows on file changes. See [Authoring in VS Code](/gh-aw/tools/vscode/).
+**Watch Mode:** Auto-recompile workflows on file changes. See [Authoring in VS Code](/gh-aw/setup/vscode/).
 
 **Validation:** The `--validate` flag enables schema validation and container image checks. Disabled by default for faster compilation.
 
@@ -132,7 +132,7 @@ gh aw compile --dependabot --force         # Force overwrite existing files
 
 **Dependency Manifest Generation:** The `--dependabot` flag scans workflows and generates manifests for npm (`package.json`), pip (`requirements.txt`), and Go (`go.mod`). Creates or updates `.github/dependabot.yml` with intelligent merging. Use `--force` to overwrite configuration. Cannot be used with specific workflows or custom `--workflows-dir`.
 
-## ⚙️ Workflow Operations on GitHub Actions
+## Workflow Operations on GitHub Actions
 
 These commands control the execution and state of your compiled agentic workflows within GitHub Actions.
 
@@ -207,7 +207,7 @@ Accepts workflow run URLs from any repository and GitHub instance (standard, wor
 
 ### MCP Server Management
 
-Discover, list, inspect, and add Model Context Protocol (MCP) servers. See [MCPs Guide](/gh-aw/guides/mcps/) and [MCP Server Guide](/gh-aw/tools/mcp-server/).
+Discover, list, inspect, and add Model Context Protocol (MCP) servers. See [MCPs Guide](/gh-aw/guides/mcps/) and [MCP Server Guide](/gh-aw/setup/mcp-server/).
 
 ```bash wrap
 # Discovery and listing
@@ -226,7 +226,7 @@ gh aw mcp add ci-doctor server-name --registry https://custom.registry.com/v1
 
 Features include server connection testing, tool capability analysis, multi-protocol support (stdio, Docker, HTTP), and automatic compilation.
 
-## 🔄 Repository Utilities
+## Repository Utilities
 
 ### Trial Mode
 
@@ -286,7 +286,7 @@ gh aw mcp-server --port 3000        # HTTP/SSE transport (workflows)
 gh aw mcp-server --cmd ./gh-aw --port 3000
 ```
 
-Uses subprocess architecture for token isolation. Import with `shared/mcp/gh-aw.md` in workflows. See [MCP Server Guide](/gh-aw/tools/mcp-server/).
+Uses subprocess architecture for token isolation. Import with `shared/mcp/gh-aw.md` in workflows. See [MCP Server Guide](/gh-aw/setup/mcp-server/).
 
 ## Debug Logging
 

@@ -342,6 +342,6 @@ MCP servers run alongside the AI engine in isolated environments with controlled
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All frontmatter configuration options
 - [Network Permissions](/gh-aw/reference/network/) - Network access control for AI engines
 - [MCPs](/gh-aw/guides/mcps/) - Complete Model Context Protocol setup and usage
-- [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
+- [CLI Commands](/gh-aw/setup/cli/) - CLI commands for workflow management
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
 - [Imports](/gh-aw/reference/imports/) - Modularizing workflows with includes

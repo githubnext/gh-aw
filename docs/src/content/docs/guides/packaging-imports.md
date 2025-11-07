@@ -92,4 +92,4 @@ Workflow specifications require minimum 3 parts (owner/repo/workflow-name) for s
 
 Use semantic versioning for stable workflows, branches for development, and commit SHAs for immutability. Organize reusable components in a `shared/` directory with descriptive names. Review updates with `--verbose` before applying, test on branches, and keep local modifications minimal to reduce merge conflicts.
 
-**Related:** [CLI Commands](/gh-aw/tools/cli/) | [Workflow Structure](/gh-aw/reference/workflow-structure/) | [Frontmatter](/gh-aw/reference/frontmatter/) | [Imports](/gh-aw/reference/imports/)
+**Related:** [CLI Commands](/gh-aw/setup/cli/) | [Workflow Structure](/gh-aw/reference/workflow-structure/) | [Frontmatter](/gh-aw/reference/frontmatter/) | [Imports](/gh-aw/reference/imports/)

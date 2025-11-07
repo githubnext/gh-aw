@@ -4,7 +4,6 @@ import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
-// import starlightChangelogs, { makeChangelogsSidebarLinks } from 'starlight-changelogs';
 
 // NOTE: A previous attempt defined a custom Shiki grammar for `aw` (agentic workflow) but
 // Shiki did not register it and builds produced a warning: language "aw" not found.
@@ -20,13 +19,34 @@ export default defineConfig({
 	devToolbar: {
 		enabled: false
 	},
+	experimental: {
+		clientPrerender: false
+	},
 	integrations: [
 		starlight({
 			title: 'GitHub Agentic Workflows',
+			logo: {
+				src: './src/assets/agentic-workflow.svg',
+				replacesTitle: false,
+			},
+		components: {
+				Head: './src/components/CustomHead.astro',
+				SocialIcons: './src/components/CustomHeader.astro',
+				ThemeSelect: './src/components/ThemeToggle.astro',
+				Footer: './src/components/CustomFooter.astro',
+				SiteTitle: './src/components/CustomLogo.astro',
+			},
+			customCss: [
+				'./src/styles/custom.css',
+			],
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/githubnext/gh-aw' },
-				{ icon: 'rocket', label: 'Instructions', href: 'https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/github-agentic-workflows.instructions.md' }
 			],
+			tableOfContents: { 
+				minHeadingLevel: 2, 
+				maxHeadingLevel: 3 
+			},
+			pagination: true,
 			expressiveCode: {
 				shiki: {
 						langs: /** @type {any[]} */ ([
@@ -37,7 +57,6 @@ export default defineConfig({
 				},
 			},
 			plugins: [
-				// starlightChangelogs(),
 				starlightGitHubAlerts(),
 				starlightLinksValidator({
 					errorOnRelativeLinks: true,
@@ -61,32 +80,25 @@ export default defineConfig({
 			],
 			sidebar: [
 				{
-					label: 'Start Here',
-					autogenerate: { directory: 'start-here' },
-				},
-				{
-					label: 'Workflows',
-					autogenerate: { directory: 'reference' },
+					label: 'Get Started',
+					autogenerate: { directory: 'get-started' },
 				},
 				{
 					label: 'Guides',
 					autogenerate: { directory: 'guides' },
 				},
 				{
-					label: 'Application Areas',
+					label: 'Setup',
+					autogenerate: { directory: 'setup' },
+				},
+				{
+					label: 'Workflows',
+					autogenerate: { directory: 'reference' },
+				},
+				{
+					label: 'Applications',
 					autogenerate: { directory: 'samples' },
 				},
-				{
-					label: 'Tools',
-					autogenerate: { directory: 'tools' },
-				},
-				{
-					label: 'Troubleshooting',
-					autogenerate: { directory: 'troubleshooting' },
-				},
-				// ...makeChangelogsSidebarLinks([
-				// 	{ type: 'all', base: 'changelog', label: 'Changelog' }
-				// ]),
 				{
 					label: 'Status',
 					link: '/status/',

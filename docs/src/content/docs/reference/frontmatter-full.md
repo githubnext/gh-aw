@@ -1,5 +1,5 @@
 ---
-title: Frontmatter Full Reference
+title: Frontmatter Reference
 description: Complete JSON Schema-based reference for all GitHub Agentic Workflows frontmatter configuration options with YAML examples.
 sidebar:
   order: 201
