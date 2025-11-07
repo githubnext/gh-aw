@@ -148,7 +148,6 @@ func TestMCPServer_AddToolInvocation(t *testing.T) {
 			Name: "add",
 			Arguments: map[string]any{
 				"workflows": []any{"githubnext/agentics"},
-				"verbose":   true,
 			},
 		})
 

@@ -458,9 +458,6 @@ Returns formatted text output showing:
 		Number    int      `json:"number,omitempty" jsonschema:"Create multiple numbered copies (corresponds to -c flag, default: 1)"`
 		Name      string   `json:"name,omitempty" jsonschema:"Specify name for the added workflow - without .md extension (corresponds to -n flag)"`
 		Engine    string   `json:"engine,omitempty" jsonschema:"Override AI engine (corresponds to -a flag): claude, codex, copilot, custom"`
-		Force     bool     `json:"force,omitempty" jsonschema:"Overwrite existing workflow files"`
-		Append    string   `json:"append,omitempty" jsonschema:"Append extra content to the end of agentic workflow on installation"`
-		Verbose   bool     `json:"verbose,omitempty" jsonschema:"Enable verbose output"`
 	}
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -491,15 +488,6 @@ Returns formatted text output showing:
 		}
 		if args.Engine != "" {
 			cmdArgs = append(cmdArgs, "-a", args.Engine)
-		}
-		if args.Force {
-			cmdArgs = append(cmdArgs, "--force")
-		}
-		if args.Append != "" {
-			cmdArgs = append(cmdArgs, "--append", args.Append)
-		}
-		if args.Verbose {
-			cmdArgs = append(cmdArgs, "--verbose")
 		}
 
 		// Execute the CLI command
