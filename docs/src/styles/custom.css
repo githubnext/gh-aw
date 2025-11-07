@@ -526,6 +526,10 @@ header .header {
   gap: 1rem;
 }
 
+header .sl-flex {
+  flex: 1 1 auto;
+}
+
 header .site-title {
   flex-shrink: 0;
   margin-right: 0;
