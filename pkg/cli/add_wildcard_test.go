@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -415,4 +416,102 @@ func TestExpandWildcardWorkflows_ErrorHandling(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestAddWorkflowWithTracking_WildcardDuplicateHandling tests that when adding workflows from wildcard,
+// existing workflows emit warnings and are skipped instead of erroring
+func TestAddWorkflowWithTracking_WildcardDuplicateHandling(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+
+	// Override HOME for package discovery
+	oldHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempDir)
+	defer os.Setenv("HOME", oldHome)
+
+	// Change to the temp directory
+	oldWd, _ := os.Getwd()
+	defer os.Chdir(oldWd)
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Initialize a git repository
+	if err := os.MkdirAll(filepath.Join(tempDir, ".git"), 0755); err != nil {
+		t.Fatalf("Failed to create .git directory: %v", err)
+	}
+
+	// Run git init to properly initialize the repository
+	initCmd := exec.Command("git", "init")
+	initCmd.Dir = tempDir
+	if err := initCmd.Run(); err != nil {
+		t.Logf("Warning: git init failed, trying to continue anyway: %v", err)
+	}
+
+	// Create .github/workflows directory
+	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Create an existing workflow file
+	existingWorkflow := filepath.Join(workflowsDir, "test-workflow.md")
+	existingContent := `---
+on: push
+---
+
+# Test Workflow
+`
+	if err := os.WriteFile(existingWorkflow, []byte(existingContent), 0644); err != nil {
+		t.Fatalf("Failed to create existing workflow: %v", err)
+	}
+
+	// Create a WorkflowSpec for the same workflow
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "test-org/test-repo",
+			Version:  "",
+		},
+		WorkflowPath: "workflows/test-workflow.md",
+		WorkflowName: "test-workflow",
+		IsWildcard:   false,
+	}
+
+	// Create a mock package structure with the workflow
+	packagePath := filepath.Join(tempDir, ".aw", "packages", "test-org", "test-repo", "workflows")
+	if err := os.MkdirAll(packagePath, 0755); err != nil {
+		t.Fatalf("Failed to create package directory: %v", err)
+	}
+	mockWorkflow := filepath.Join(packagePath, "test-workflow.md")
+	if err := os.WriteFile(mockWorkflow, []byte(existingContent), 0644); err != nil {
+		t.Fatalf("Failed to create mock workflow: %v", err)
+	}
+
+	// Test 1: Non-wildcard duplicate should return error
+	t.Run("non_wildcard_duplicate_returns_error", func(t *testing.T) {
+		err := addWorkflowWithTracking(spec, 1, false, "", "", false, "", nil, false)
+		if err == nil {
+			t.Error("Expected error for non-wildcard duplicate, got nil")
+		}
+		if err != nil && !strings.Contains(err.Error(), "already exists") {
+			t.Errorf("Expected 'already exists' error, got: %v", err)
+		}
+	})
+
+	// Test 2: Wildcard duplicate should return nil (skip with warning)
+	t.Run("wildcard_duplicate_returns_nil", func(t *testing.T) {
+		err := addWorkflowWithTracking(spec, 1, false, "", "", false, "", nil, true)
+		if err != nil {
+			t.Errorf("Expected nil for wildcard duplicate (should skip), got error: %v", err)
+		}
+	})
+
+	// Test 3: Wildcard duplicate with force flag should succeed
+	t.Run("wildcard_duplicate_with_force_succeeds", func(t *testing.T) {
+		err := addWorkflowWithTracking(spec, 1, false, "", "", true, "", nil, true)
+		// This should succeed or return nil
+		if err != nil && strings.Contains(err.Error(), "already exists") {
+			t.Errorf("Expected success with force flag, got 'already exists' error: %v", err)
+		}
+	})
 }
