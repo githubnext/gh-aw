@@ -72,12 +72,17 @@ gh aw add githubnext/agentics/ci-doctor --number 3  # Create 3 copies
 gh aw add githubnext/agentics/ci-doctor --append "Extra content"  # Append custom content
 gh aw add githubnext/agentics/ci-doctor --no-gitattributes  # Skip .gitattributes update
 
+# Add multiple workflows with wildcards
+gh aw add "githubnext/agentics/ci-*"  # Add all CI workflows
+
 # Remove workflows
 gh aw remove WorkflowName
 gh aw remove WorkflowName --keep-orphans  # Keep shared includes
 ```
 
 **Automatic .gitattributes Configuration:** The `add` command automatically updates `.gitattributes` to mark `.lock.yml` files as generated. Use `--no-gitattributes` to disable.
+
+**Workflow Discovery:** When a workflow is not found, the `add` command displays a formatted table of available workflows with their IDs, names, and descriptions to help you find the correct workflow. When adding workflows with wildcards that match existing workflows, the command emits warnings instead of errors and continues processing.
 
 **Workflow Updates:**
 

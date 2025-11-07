@@ -268,13 +268,13 @@ tools:
   github:
     allowed: [get_issue, add_issue_comment]
 
-# Restricted bash (avoid wildcards)
+# Specific bash commands (recommended for security)
 engine: claude
 tools:
   edit:
   bash: ["echo", "git status"]
 
-# Avoid: ["*"] or [":*"] (too broad)
+# Consider carefully: ["*"] or [":*"] (unrestricted access)
 ```
 
 #### Egress Filtering

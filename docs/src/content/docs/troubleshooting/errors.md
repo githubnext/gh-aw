@@ -899,52 +899,6 @@ mcp-servers:
       Authorization: "Bearer ${{ secrets.API_TOKEN }}"
 ```
 
-### Strict Mode Bash Wildcard Not Allowed
-
-**Error Message:**
-```
-strict mode: bash wildcard '*' is not allowed - use specific commands instead
-```
-
-**Cause:** The workflow uses bash wildcard `*` or `:*` when compiled with `--strict` flag.
-
-**Solution:** Replace wildcards with specific command allowlists:
-
-```yaml wrap
-# Incorrect
-tools:
-  bash:
-    - "*"
-
-# Correct - specify exact commands
-tools:
-  bash:
-    - "git status"
-    - "git diff"
-    - "npm test"
-    - "ls -la"
-```
-
-**Example:** Complete workflow with specific bash commands:
-
-```aw wrap
----
-on: push
-permissions:
-  contents: read
-network: defaults
-tools:
-  bash:
-    - "git --no-pager status"
-    - "git --no-pager diff"
-    - "npm run lint"
----
-
-# Code Check
-
-Run specific bash commands for validation.
-```
-
 ### Strict Mode Custom MCP Server Requires Network Configuration
 
 **Error Message:**
