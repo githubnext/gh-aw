@@ -287,7 +287,7 @@ safe-outputs:
 **Solution:** Reduce scope or adjust timeout:
 
 ```yaml wrap
-timeout_minutes: 30
+timeout-minutes: 30
 engine:
   id: claude
   max-turns: 5  # Reduce if timing out

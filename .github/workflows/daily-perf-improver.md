@@ -5,7 +5,7 @@ on:
         # Run daily at 2am UTC, all days except Saturday and Sunday
         - cron: "0 2 * * 1-5"
 
-timeout_minutes: 60
+timeout-minutes: 60
 
 permissions:
   all: read

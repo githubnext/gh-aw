@@ -17,7 +17,7 @@ safe-outputs:
     commit-title-suffix: " [skip-ci]"
   threat-detection:
     engine: false
-timeout_minutes: 20
+timeout-minutes: 20
 network:
   firewall: true
 tools:

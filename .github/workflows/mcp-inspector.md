@@ -19,7 +19,7 @@ safe-outputs:
   create-discussion:
     category: "audits"
     max: 1
-timeout_minutes: 20
+timeout-minutes: 20
 strict: true
 imports:
   - shared/mcp/arxiv.md

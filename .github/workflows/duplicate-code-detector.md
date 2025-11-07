@@ -17,7 +17,7 @@ safe-outputs:
     labels: [code-quality, automated-analysis]
     assignees: copilot
     max: 3
-timeout_minutes: 15
+timeout-minutes: 15
 strict: true
 ---
 

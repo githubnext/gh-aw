@@ -11,7 +11,7 @@ permissions:
   issues: read
   pull-requests: read
 
-timeout_minutes: 45
+timeout-minutes: 45
 
 safe-outputs:
   upload-assets:

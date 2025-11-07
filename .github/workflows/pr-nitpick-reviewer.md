@@ -21,7 +21,7 @@ safe-outputs:
   create-pull-request-review-comment:
     max: 10
     side: "RIGHT"
-timeout_minutes: 15
+timeout-minutes: 15
 imports:
   - shared/reporting.md
 ---

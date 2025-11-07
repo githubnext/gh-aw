@@ -20,7 +20,7 @@ safe-outputs:
   create-issue:
     title-prefix: ${{ github.workflow }}
 source: githubnext/agentics/workflows/ci-doctor.md
-timeout_minutes: 10
+timeout-minutes: 10
 tools:
   cache-memory: true
   web-fetch: null

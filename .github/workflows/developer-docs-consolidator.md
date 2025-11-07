@@ -41,7 +41,7 @@ tools:
     - "grep -r '*' specs"
     - "wc -l specs/*.md"
 
-timeout_minutes: 30
+timeout-minutes: 30
 
 imports:
   - shared/reporting.md

@@ -328,7 +328,7 @@ safe-outputs:
             /tmp/gh-aw/ollama-logs/
           if-no-files-found: ignore
   push-to-pull-request-branch:
-timeout_minutes: 20
+timeout-minutes: 20
 ---
 
 # Generate a Poem

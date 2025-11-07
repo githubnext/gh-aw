@@ -18,7 +18,7 @@ safe-outputs:
     title-prefix: "[security-fix] "
     labels: [security, automated-fix]
     reviewers: copilot
-timeout_minutes: 20
+timeout-minutes: 20
 ---
 
 # Security Issue Fix Agent

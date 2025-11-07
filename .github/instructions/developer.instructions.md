@@ -782,7 +782,7 @@ When `"additionalProperties": false` is set at the root level, the validator rej
 - `permisions` instead of `permissions`
 - `engnie` instead of `engine`
 - `toolz` instead of `tools`
-- `timeout_minute` instead of `timeout_minutes`
+- `timeout_minute` instead of `timeout-minutes`
 - `runs_on` instead of `runs-on`
 - `safe_outputs` instead of `safe-outputs`
 

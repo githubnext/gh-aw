@@ -70,7 +70,7 @@ steps:
       echo "Schema saved to /tmp/gh-aw/pr-data/copilot-prs-schema.json"
       echo "Total PRs found: $(jq 'length' /tmp/gh-aw/pr-data/copilot-prs.json)"
 
-timeout_minutes: 15
+timeout-minutes: 15
 
 ---
 

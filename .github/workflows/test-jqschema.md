@@ -5,7 +5,7 @@ on:
 permissions:
   contents: read
 engine: copilot
-timeout_minutes: 5
+timeout-minutes: 5
 imports:
   - shared/jqschema.md
 tools:

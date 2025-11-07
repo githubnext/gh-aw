@@ -14,7 +14,7 @@ permissions:
 
 engine: copilot
 
-timeout_minutes: 30  # Reduced from 45 since pre-fetching data is faster
+timeout-minutes: 30  # Reduced from 45 since pre-fetching data is faster
 
 network:
   firewall: true

@@ -135,7 +135,7 @@ safe-outputs:
   github-token: ${{ secrets.GITHUB_TOKEN }}
 
 # Global timeout
-timeout_minutes: 15
+timeout-minutes: 15
 
 # Custom run name
 run-name: "Poem Bot triggered by repository workflow"

@@ -124,7 +124,7 @@ steps:
       echo "Downloaded workflow logs:"
       ls -la /tmp/gh-aw/workflow-logs
 
-timeout_minutes: 20
+timeout-minutes: 20
 
 ---
 

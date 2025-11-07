@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 engine: copilot
-timeout_minutes: 10
+timeout-minutes: 10
 
 network: {}
 

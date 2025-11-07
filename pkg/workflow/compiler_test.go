@@ -22,7 +22,7 @@ func TestCompileWorkflow(t *testing.T) {
 	// Create a test markdown file with basic frontmatter
 	testContent := `---
 on: push
-timeout_minutes: 10
+timeout-minutes: 10
 permissions:
   contents: read
   issues: write
@@ -1588,7 +1588,7 @@ func TestWorkflowNameWithColon(t *testing.T) {
 	// Create a test markdown file with a header containing a colon
 	testContent := `---
 on: push
-timeout_minutes: 10
+timeout-minutes: 10
 permissions:
   contents: read
   issues: read
@@ -1646,7 +1646,7 @@ func TestExtractTopLevelYAMLSection_NestedEnvIssue(t *testing.T) {
 		"on": map[string]any{
 			"workflow_dispatch": nil,
 		},
-		"timeout_minutes": 15,
+		"timeout-minutes": 15,
 		"permissions": map[string]any{
 			"contents": "read",
 			"models":   "read",
@@ -1691,9 +1691,9 @@ func TestExtractTopLevelYAMLSection_NestedEnvIssue(t *testing.T) {
 			expected: "\"on\":\n  workflow_dispatch: null",
 		},
 		{
-			name:     "top-level timeout_minutes should be found",
-			key:      "timeout_minutes",
-			expected: "timeout_minutes: 15",
+			name:     "top-level timeout-minutes should be found",
+			key:      "timeout-minutes",
+			expected: "timeout-minutes: 15",
 		},
 		{
 			name:     "top-level permissions should be found",
@@ -1743,7 +1743,7 @@ func TestCompileWorkflowWithNestedEnv_NoOrphanedEnv(t *testing.T) {
 on:
   workflow_dispatch:
 
-timeout_minutes: 15
+timeout-minutes: 15
 
 permissions:
   contents: read
@@ -2487,7 +2487,7 @@ permissions:
 tools:
   github:
     toolsets: [issues]
-timeout_minutes: 5
+timeout-minutes: 5
 ---
 
 # AI Reaction Test
@@ -2580,7 +2580,7 @@ permissions:
 tools:
   github:
     toolsets: [issues]
-timeout_minutes: 5
+timeout-minutes: 5
 ---
 
 # No Reaction Test
@@ -3576,7 +3576,7 @@ Invalid YAML with missing comma in array.`,
 			name: "invalid_number_format",
 			content: `---
 on: push
-timeout_minutes: 05.5
+timeout-minutes: 05.5
 permissions:
   contents: read
   issues: read
@@ -3587,8 +3587,8 @@ engine: claude
 # Test Workflow
 
 Invalid YAML with invalid number format.`,
-			expectedErrorLine:   3,                          // The timeout_minutes field is on line 3
-			expectedErrorColumn: 17,                         // After "timeout_minutes: "
+			expectedErrorLine:   3,                          // The timeout-minutes field is on line 3
+			expectedErrorColumn: 17,                         // After "timeout-minutes: "
 			expectedMessagePart: "got number, want integer", // Schema validation catches this
 			description:         "invalid number format should trigger schema validation error",
 		},

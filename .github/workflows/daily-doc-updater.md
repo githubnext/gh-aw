@@ -36,7 +36,7 @@ tools:
     - "find docs -name '*.md' -exec cat {} +"
     - "grep -r '*' docs"
 
-timeout_minutes: 45
+timeout-minutes: 45
 
 ---
 

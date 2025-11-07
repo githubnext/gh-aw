@@ -97,7 +97,7 @@ safe-outputs:
   missing-tool:
 
 # Global timeout
-timeout_minutes: 10
+timeout-minutes: 10
 strict: true
 ---
 

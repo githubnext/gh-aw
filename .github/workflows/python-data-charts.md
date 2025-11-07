@@ -16,7 +16,7 @@ safe-outputs:
   create-discussion:
     category: "artifacts"
     max: 1
-timeout_minutes: 15
+timeout-minutes: 15
 ---
 
 # Python Data Visualization Generator

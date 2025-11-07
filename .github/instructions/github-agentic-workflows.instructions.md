@@ -16,7 +16,7 @@ on:
     types: [opened]
 permissions:
   issues: write
-timeout_minutes: 10
+timeout-minutes: 10
 safe-outputs:
   create-issue: # for bugs, features
   create-discussion: # for status, audits, reports, logs
@@ -49,7 +49,7 @@ The YAML frontmatter supports these fields:
   - Available permissions: `contents`, `issues`, `pull-requests`, `discussions`, `actions`, `checks`, `statuses`, `models`, `deployments`, `security-events`
 
 - **`runs-on:`** - Runner type (string, array, or object)
-- **`timeout_minutes:`** - Workflow timeout (integer, has sensible default and can typically be omitted)
+- **`timeout-minutes:`** - Workflow timeout (integer, has sensible default and can typically be omitted)
 - **`concurrency:`** - Concurrency control (string or object)
 - **`env:`** - Environment variables (object or string)
 - **`if:`** - Conditional execution expression (string)
@@ -843,7 +843,7 @@ permissions:
 tools:
   github:
     allowed: [get_issue, add_issue_comment, update_issue]
-timeout_minutes: 5
+timeout-minutes: 5
 ---
 
 # Issue Triage
@@ -872,7 +872,7 @@ safe-outputs:
   create-issue:
     title-prefix: "[research] "
     labels: [weekly, research]
-timeout_minutes: 15
+timeout-minutes: 15
 ---
 
 # Weekly Research
@@ -918,7 +918,7 @@ safe-outputs:
   create-issue:
     title-prefix: "[workflow-analysis] "
     labels: [automation, ci-improvement]
-timeout_minutes: 10
+timeout-minutes: 10
 ---
 
 # Workflow Improvement Analyzer
@@ -1147,7 +1147,7 @@ Agentic workflows compile to GitHub Actions YAML:
 The workflow frontmatter is validated against JSON Schema during compilation. Common validation errors:
 
 - **Invalid field names** - Only fields in the schema are allowed
-- **Wrong field types** - e.g., `timeout_minutes` must be integer
+- **Wrong field types** - e.g., `timeout-minutes` must be integer
 - **Invalid enum values** - e.g., `engine` must be "copilot", "claude", "codex" or "custom"
 - **Missing required fields** - Some triggers require specific configuration
 
