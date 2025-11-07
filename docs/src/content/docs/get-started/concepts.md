@@ -55,4 +55,4 @@ Start simple and iterate. Write clear, specific instructions. Test with `gh aw c
 
 ## Next Steps
 
-Explore [Workflow Structure](/gh-aw/reference/workflow-structure/), [Frontmatter](/gh-aw/reference/frontmatter/), [Tools](/gh-aw/reference/tools/), [Security Guide](/gh-aw/guides/security/), and [VS Code Integration](/gh-aw/tools/vscode/) to build sophisticated workflows that understand context, make intelligent decisions, and take meaningful actions while maintaining GitHub Actions reliability.
+Explore [Workflow Structure](/gh-aw/reference/workflow-structure/), [Frontmatter](/gh-aw/reference/frontmatter/), [Tools](/gh-aw/reference/tools/), [Security Guide](/gh-aw/guides/security/), and [VS Code Integration](/gh-aw/setup/vscode/) to build sophisticated workflows that understand context, make intelligent decisions, and take meaningful actions while maintaining GitHub Actions reliability.

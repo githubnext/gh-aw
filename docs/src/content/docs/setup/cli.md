@@ -120,7 +120,7 @@ gh aw compile --dependabot                 # Generate dependency manifests
 gh aw compile --dependabot --force         # Force overwrite existing files
 ```
 
-**Watch Mode:** Auto-recompile workflows on file changes. See [Authoring in VS Code](/gh-aw/tools/vscode/).
+**Watch Mode:** Auto-recompile workflows on file changes. See [Authoring in VS Code](/gh-aw/setup/vscode/).
 
 **Validation:** The `--validate` flag enables schema validation and container image checks. Disabled by default for faster compilation.
 
@@ -207,7 +207,7 @@ Accepts workflow run URLs from any repository and GitHub instance (standard, wor
 
 ### MCP Server Management
 
-Discover, list, inspect, and add Model Context Protocol (MCP) servers. See [MCPs Guide](/gh-aw/guides/mcps/) and [MCP Server Guide](/gh-aw/tools/mcp-server/).
+Discover, list, inspect, and add Model Context Protocol (MCP) servers. See [MCPs Guide](/gh-aw/guides/mcps/) and [MCP Server Guide](/gh-aw/setup/mcp-server/).
 
 ```bash wrap
 # Discovery and listing
@@ -286,7 +286,7 @@ gh aw mcp-server --port 3000        # HTTP/SSE transport (workflows)
 gh aw mcp-server --cmd ./gh-aw --port 3000
 ```
 
-Uses subprocess architecture for token isolation. Import with `shared/mcp/gh-aw.md` in workflows. See [MCP Server Guide](/gh-aw/tools/mcp-server/).
+Uses subprocess architecture for token isolation. Import with `shared/mcp/gh-aw.md` in workflows. See [MCP Server Guide](/gh-aw/setup/mcp-server/).
 
 ## Debug Logging
 
