@@ -109,7 +109,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build additional custom jobs from frontmatter jobs section
-	if err := c.buildCustomJobs(data); err != nil {
+	if err := c.buildCustomJobs(data, activationJobCreated); err != nil {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
 	}
 
@@ -730,7 +730,7 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 }
 
 // buildCustomJobs creates custom jobs defined in the frontmatter jobs section
-func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
+func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool) error {
 	for jobName, jobConfig := range data.Jobs {
 		if configMap, ok := jobConfig.(map[string]any); ok {
 			job := &Job{
@@ -738,7 +738,9 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 			}
 
 			// Extract job dependencies
+			hasExplicitNeeds := false
 			if needs, hasNeeds := configMap["needs"]; hasNeeds {
+				hasExplicitNeeds = true
 				if needsList, ok := needs.([]any); ok {
 					for _, need := range needsList {
 						if needStr, ok := need.(string); ok {
@@ -749,6 +751,13 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 					// Single dependency as string
 					job.Needs = append(job.Needs, needStr)
 				}
+			}
+
+			// If no explicit needs and activation job exists, automatically add activation as dependency
+			// This ensures custom jobs wait for workflow validation before executing
+			if !hasExplicitNeeds && activationJobCreated {
+				job.Needs = append(job.Needs, constants.ActivationJobName)
+				log.Printf("Added automatic dependency: custom job '%s' now depends on '%s'", jobName, constants.ActivationJobName)
 			}
 
 			// Extract other job properties
