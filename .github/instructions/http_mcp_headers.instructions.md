@@ -1,3 +1,8 @@
+---
+description: HTTP MCP Header Secret Support - Implementation Summary
+applyTo: "pkg/workflow/mcp-config.go,pkg/workflow/copilot_engine.go,pkg/workflow/mcp_servers.go"
+---
+
 # HTTP MCP Header Secret Support - Implementation Summary
 
 This document demonstrates the complete implementation of HTTP MCP header secret support for the copilot engine.

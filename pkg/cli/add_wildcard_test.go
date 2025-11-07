@@ -114,12 +114,19 @@ func TestDiscoverWorkflowsInPackage(t *testing.T) {
 		t.Fatalf("Failed to create test directories: %v", err)
 	}
 
-	// Create some mock workflow files
+	// Create some mock workflow files with valid frontmatter
 	workflows := []string{
 		"workflow1.md",
 		"workflow2.md",
 		"nested/workflow3.md",
 	}
+
+	validWorkflowContent := `---
+on: push
+---
+
+# Test Workflow
+`
 
 	for _, wf := range workflows {
 		filePath := filepath.Join(packagePath, wf)
@@ -127,7 +134,7 @@ func TestDiscoverWorkflowsInPackage(t *testing.T) {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			t.Fatalf("Failed to create directory %s: %v", dir, err)
 		}
-		if err := os.WriteFile(filePath, []byte("# Test Workflow"), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(validWorkflowContent), 0644); err != nil {
 			t.Fatalf("Failed to create test workflow %s: %v", wf, err)
 		}
 	}
@@ -230,15 +237,22 @@ func TestExpandWildcardWorkflows(t *testing.T) {
 		t.Fatalf("Failed to create test directories: %v", err)
 	}
 
-	// Create mock workflow files
+	// Create mock workflow files with valid frontmatter
 	workflows := []string{
 		"workflows/workflow1.md",
 		"workflows/workflow2.md",
 	}
 
+	validWorkflowContent := `---
+on: push
+---
+
+# Test Workflow
+`
+
 	for _, wf := range workflows {
 		filePath := filepath.Join(packagePath, wf)
-		if err := os.WriteFile(filePath, []byte("# Test Workflow"), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(validWorkflowContent), 0644); err != nil {
 			t.Fatalf("Failed to create test workflow %s: %v", wf, err)
 		}
 	}
