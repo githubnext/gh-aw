@@ -970,7 +970,15 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Env = c.extractTopLevelYAMLSection(result.Frontmatter, "env")
 	workflowData.Features = c.extractFeatures(result.Frontmatter)
 	workflowData.If = c.extractIfCondition(result.Frontmatter)
-	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout_minutes")
+	// Prefer timeout-minutes (new) over timeout_minutes (deprecated)
+	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout-minutes")
+	if workflowData.TimeoutMinutes == "" {
+		workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout_minutes")
+		if workflowData.TimeoutMinutes != "" {
+			// Emit deprecation warning
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Field 'timeout_minutes' is deprecated. Please use 'timeout-minutes' instead to follow GitHub Actions naming convention."))
+		}
+	}
 	workflowData.CustomSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "steps")
 
 	// Merge imported steps if any

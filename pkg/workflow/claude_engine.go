@@ -158,7 +158,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add timeout at step level (GitHub Actions standard)
 	if workflowData.TimeoutMinutes != "" {
-		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %s", strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout_minutes: ")))
+		// Strip both possible prefixes (timeout_minutes or timeout-minutes)
+		timeoutValue := strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout_minutes: ")
+		timeoutValue = strings.TrimPrefix(timeoutValue, "timeout-minutes: ")
+		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %s", timeoutValue))
 	} else {
 		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", constants.DefaultAgenticWorkflowTimeoutMinutes)) // Default timeout for agentic workflows
 	}
