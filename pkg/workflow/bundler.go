@@ -121,6 +121,7 @@ func bundleFromSources(content string, currentPath string, sources map[string]st
 }
 
 // removeExports removes module.exports and exports statements from JavaScript code
+// but preserves conditional exports (wrapped in if statements) as they may be needed for testing
 func removeExports(content string) string {
 	lines := strings.Split(content, "\n")
 	var result strings.Builder
@@ -129,10 +130,51 @@ func removeExports(content string) string {
 	moduleExportsRegex := regexp.MustCompile(`^\s*module\.exports\s*=`)
 	exportsRegex := regexp.MustCompile(`^\s*exports\.\w+\s*=`)
 
+	// Track if we're inside a conditional export block
+	inConditionalExport := false
+	conditionalDepth := 0
+
 	for i, line := range lines {
-		// Skip lines that are module.exports or exports.* assignments
+		trimmed := strings.TrimSpace(line)
+
+		// Check if this starts a conditional export block
+		// Pattern: if (typeof module !== "undefined" && module.exports) {
+		if strings.Contains(trimmed, "if") &&
+			strings.Contains(trimmed, "module") &&
+			strings.Contains(trimmed, "exports") &&
+			strings.Contains(trimmed, "{") {
+			inConditionalExport = true
+			conditionalDepth = 1
+			result.WriteString(line)
+			if i < len(lines)-1 {
+				result.WriteString("\n")
+			}
+			continue
+		}
+
+		// Track braces if we're in a conditional export
+		if inConditionalExport {
+			for _, ch := range trimmed {
+				if ch == '{' {
+					conditionalDepth++
+				} else if ch == '}' {
+					conditionalDepth--
+					if conditionalDepth == 0 {
+						inConditionalExport = false
+					}
+				}
+			}
+			// Keep all lines inside conditional export blocks
+			result.WriteString(line)
+			if i < len(lines)-1 {
+				result.WriteString("\n")
+			}
+			continue
+		}
+
+		// Skip lines that are unconditional module.exports or exports.* assignments
 		if moduleExportsRegex.MatchString(line) || exportsRegex.MatchString(line) {
-			// Skip this line - it's an export
+			// Skip this line - it's an unconditional export
 			continue
 		}
 

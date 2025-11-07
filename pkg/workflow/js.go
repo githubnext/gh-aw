@@ -30,15 +30,6 @@ var checkCommandPositionScript string
 //go:embed js/check_workflow_timestamp.cjs
 var checkWorkflowTimestampScript string
 
-//go:embed js/parse_claude_log.cjs
-var parseClaudeLogScript string
-
-//go:embed js/parse_codex_log.cjs
-var parseCodexLogScript string
-
-//go:embed js/parse_copilot_log.cjs
-var parseCopilotLogScript string
-
 //go:embed js/log_parser_bootstrap.cjs
 var logParserBootstrapScript string
 
@@ -91,6 +82,7 @@ func GetJavaScriptSources() map[string]string {
 		"load_agent_output.cjs":      loadAgentOutputScript,
 		"staged_preview.cjs":         stagedPreviewScript,
 		"is_truthy.cjs":              isTruthyScript,
+		"log_parser_bootstrap.cjs":   logParserBootstrapScript,
 	}
 }
 
@@ -502,11 +494,11 @@ func WriteJavaScriptToYAMLPreservingComments(yaml *strings.Builder, script strin
 func GetLogParserScript(name string) string {
 	switch name {
 	case "parse_claude_log":
-		return parseClaudeLogScript
+		return getParseClaudeLogScript()
 	case "parse_codex_log":
-		return parseCodexLogScript
+		return getParseCodexLogScript()
 	case "parse_copilot_log":
-		return parseCopilotLogScript
+		return getParseCopilotLogScript()
 	case "parse_firewall_logs":
 		return getParseFirewallLogsScript()
 	case "validate_errors":

@@ -50,6 +50,17 @@ var parseFirewallLogsScriptSource string
 //go:embed js/push_to_pull_request_branch.cjs
 var pushToPullRequestBranchScriptSource string
 
+// Log parser source scripts
+//
+//go:embed js/parse_claude_log.cjs
+var parseClaudeLogScriptSource string
+
+//go:embed js/parse_codex_log.cjs
+var parseCodexLogScriptSource string
+
+//go:embed js/parse_copilot_log.cjs
+var parseCopilotLogScriptSource string
+
 // Bundled scripts (lazily bundled on-demand and cached)
 var (
 	collectJSONLOutputScript     string
@@ -90,6 +101,18 @@ var (
 
 	pushToPullRequestBranchScript     string
 	pushToPullRequestBranchScriptOnce sync.Once
+
+	interpolatePromptBundled     string
+	interpolatePromptBundledOnce sync.Once
+
+	parseClaudeLogBundled     string
+	parseClaudeLogBundledOnce sync.Once
+
+	parseCodexLogBundled     string
+	parseCodexLogBundledOnce sync.Once
+
+	parseCopilotLogBundled     string
+	parseCopilotLogBundledOnce sync.Once
 )
 
 // getCollectJSONLOutputScript returns the bundled collect_ndjson_output script
@@ -313,4 +336,81 @@ func getPushToPullRequestBranchScript() string {
 		}
 	})
 	return pushToPullRequestBranchScript
+}
+
+// getInterpolatePromptScript returns the bundled interpolate_prompt script
+// Bundling is performed on first access and cached for subsequent calls
+// This bundles is_truthy.cjs inline to avoid require() issues in GitHub Actions
+func getInterpolatePromptScript() string {
+	interpolatePromptBundledOnce.Do(func() {
+		scriptsLog.Print("Bundling interpolate_prompt script")
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(interpolatePromptScript, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for interpolate_prompt, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			interpolatePromptBundled = interpolatePromptScript
+		} else {
+			scriptsLog.Printf("Successfully bundled interpolate_prompt script: %d bytes", len(bundled))
+			interpolatePromptBundled = bundled
+		}
+	})
+	return interpolatePromptBundled
+}
+
+// getParseClaudeLogScript returns the bundled parse_claude_log script
+// Bundling is performed on first access and cached for subsequent calls
+// This bundles log_parser_bootstrap.cjs inline to avoid require() issues in GitHub Actions
+func getParseClaudeLogScript() string {
+	parseClaudeLogBundledOnce.Do(func() {
+		scriptsLog.Print("Bundling parse_claude_log script")
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(parseClaudeLogScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for parse_claude_log, using source as-is: %v", err)
+			parseClaudeLogBundled = parseClaudeLogScriptSource
+		} else {
+			scriptsLog.Printf("Successfully bundled parse_claude_log script: %d bytes", len(bundled))
+			parseClaudeLogBundled = bundled
+		}
+	})
+	return parseClaudeLogBundled
+}
+
+// getParseCodexLogScript returns the bundled parse_codex_log script
+// Bundling is performed on first access and cached for subsequent calls
+// This bundles log_parser_bootstrap.cjs inline to avoid require() issues in GitHub Actions
+func getParseCodexLogScript() string {
+	parseCodexLogBundledOnce.Do(func() {
+		scriptsLog.Print("Bundling parse_codex_log script")
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(parseCodexLogScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for parse_codex_log, using source as-is: %v", err)
+			parseCodexLogBundled = parseCodexLogScriptSource
+		} else {
+			scriptsLog.Printf("Successfully bundled parse_codex_log script: %d bytes", len(bundled))
+			parseCodexLogBundled = bundled
+		}
+	})
+	return parseCodexLogBundled
+}
+
+// getParseCopilotLogScript returns the bundled parse_copilot_log script
+// Bundling is performed on first access and cached for subsequent calls
+// This bundles log_parser_bootstrap.cjs inline to avoid require() issues in GitHub Actions
+func getParseCopilotLogScript() string {
+	parseCopilotLogBundledOnce.Do(func() {
+		scriptsLog.Print("Bundling parse_copilot_log script")
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(parseCopilotLogScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for parse_copilot_log, using source as-is: %v", err)
+			parseCopilotLogBundled = parseCopilotLogScriptSource
+		} else {
+			scriptsLog.Printf("Successfully bundled parse_copilot_log script: %d bytes", len(bundled))
+			parseCopilotLogBundled = bundled
+		}
+	})
+	return parseCopilotLogBundled
 }
