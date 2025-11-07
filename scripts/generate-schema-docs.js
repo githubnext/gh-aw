@@ -263,16 +263,22 @@ function generateProperty(propName, prop, indent = 0, isRequired = false) {
  */
 function generateProperties(properties, required = [], indent = 0) {
   const lines = [];
+  let addedCount = 0;
   
-  Object.entries(properties).forEach(([propName, prop], index) => {
-    if (index > 0) {
+  Object.entries(properties).forEach(([propName, prop]) => {
+    // Resolve $ref before checking for deprecated flag
+    const resolvedProp = resolvePropertyRef(prop);
+    
+    // Skip deprecated properties
+    if (resolvedProp.deprecated === true) {
+      return;
+    }
+    
+    if (addedCount > 0) {
       lines.push('');
     }
     
     const isRequired = required.includes(propName);
-    
-    // Resolve $ref before checking for variants
-    const resolvedProp = resolvePropertyRef(prop);
     
     // Check if property has variants
     if (resolvedProp.oneOf || resolvedProp.anyOf) {
@@ -280,6 +286,8 @@ function generateProperties(properties, required = [], indent = 0) {
     } else {
       lines.push(...generateProperty(propName, resolvedProp, indent, isRequired));
     }
+    
+    addedCount++;
   });
   
   return lines.join('\n');
