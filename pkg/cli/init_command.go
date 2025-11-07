@@ -31,8 +31,8 @@ With --mcp flag:
 - Creates .vscode/mcp.json with gh-aw MCP server configuration
 
 After running this command, you can:
-- Use GitHub Copilot Chat with @.github/agents/create-agentic-workflow.md to create workflows interactively
-- Use GitHub Copilot Chat with @.github/agents/setup-agentic-workflows.md for setup guidance
+- Use GitHub Copilot Chat with #.github/agents/create-agentic-workflow.md to create workflows interactively
+- Use GitHub Copilot Chat with #.github/agents/setup-agentic-workflows.md for setup guidance
 - Add workflows from the catalog with: ` + constants.CLIExtensionPrefix + ` add <workflow-name>
 - Create new workflows from scratch with: ` + constants.CLIExtensionPrefix + ` new <workflow-name>
 
