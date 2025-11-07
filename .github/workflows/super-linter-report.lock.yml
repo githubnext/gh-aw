@@ -168,6 +168,7 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Download super-linter log
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
