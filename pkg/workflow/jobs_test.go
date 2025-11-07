@@ -616,11 +616,11 @@ func TestJobManager_GenerateMermaidGraph(t *testing.T) {
 
 func TestBuildCustomJobsActivationDependency(t *testing.T) {
 	tests := []struct {
-		name                  string
-		jobs                  map[string]any
-		activationJobCreated  bool
-		expectedDependencies  map[string][]string
-		description           string
+		name                 string
+		jobs                 map[string]any
+		activationJobCreated bool
+		expectedDependencies map[string][]string
+		description          string
 	}{
 		{
 			name: "custom job without explicit needs should depend on activation",
@@ -734,7 +734,7 @@ func TestBuildCustomJobsActivationDependency(t *testing.T) {
 				}
 
 				if expectedNeeds == nil {
-					if job.Needs != nil && len(job.Needs) > 0 {
+					if len(job.Needs) > 0 {
 						t.Errorf("%s: job '%s' should have no dependencies, got: %v", tt.description, jobName, job.Needs)
 					}
 					continue
