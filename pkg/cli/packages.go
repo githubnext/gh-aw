@@ -21,6 +21,14 @@ var (
 	includePattern = regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
 )
 
+// WorkflowInfo contains metadata about a workflow file
+type WorkflowInfo struct {
+	ID          string // Workflow ID (filename without extension)
+	Name        string // Workflow name from frontmatter or title
+	Description string // Workflow description from frontmatter
+	Path        string // Relative path from package directory
+}
+
 // InstallPackage installs agentic workflows from a GitHub repository
 func InstallPackage(repoSpec string, verbose bool) error {
 	packagesLog.Printf("Installing package: %s", repoSpec)
@@ -279,7 +287,7 @@ func isValidWorkflowFile(filePath string) bool {
 }
 
 // listWorkflowsInPackage lists all available workflows in an installed package
-func listWorkflowsInPackage(repoSlug string, verbose bool) ([]string, error) {
+func listWorkflowsInPackage(repoSlug string, verbose bool) ([]WorkflowInfo, error) {
 	packagesLog.Printf("Listing workflows in package: %s", repoSlug)
 
 	packagesDir, err := getPackagesDir()
@@ -294,7 +302,7 @@ func listWorkflowsInPackage(repoSlug string, verbose bool) ([]string, error) {
 		return nil, fmt.Errorf("package not found: %s", repoSlug)
 	}
 
-	var workflows []string
+	var workflows []WorkflowInfo
 
 	// Walk through the package directory to find all .md files
 	err = filepath.Walk(packagePath, func(path string, info os.FileInfo, err error) error {
@@ -326,14 +334,57 @@ func listWorkflowsInPackage(repoSlug string, verbose bool) ([]string, error) {
 			return err
 		}
 
-		// Extract workflow name (remove .md extension)
-		workflowName := strings.TrimSuffix(filepath.Base(path), ".md")
+		// Extract workflow ID (filename without extension)
+		workflowID := strings.TrimSuffix(filepath.Base(path), ".md")
 
-		// Add to list with relative path information
-		workflows = append(workflows, relPath)
+		// Extract name and description from frontmatter
+		name := ""
+		description := ""
+		content, err := os.ReadFile(path)
+		if err == nil {
+			result, err := parser.ExtractFrontmatterFromContent(string(content))
+			if err == nil {
+				// Try to get 'name' field from frontmatter
+				if nameVal, ok := result.Frontmatter["name"]; ok {
+					if nameStr, ok := nameVal.(string); ok {
+						name = nameStr
+					}
+				}
+				// Try to get 'description' field from frontmatter
+				if descVal, ok := result.Frontmatter["description"]; ok {
+					if descStr, ok := descVal.(string); ok {
+						description = descStr
+					}
+				}
+				// If no name in frontmatter, extract from first H1 heading in markdown content
+				if name == "" && result.Markdown != "" {
+					lines := strings.Split(result.Markdown, "\n")
+					for _, line := range lines {
+						trimmed := strings.TrimSpace(line)
+						if strings.HasPrefix(trimmed, "# ") {
+							name = strings.TrimSpace(trimmed[2:])
+							break
+						}
+					}
+				}
+			}
+		}
+
+		// If still no name, use the workflow ID
+		if name == "" {
+			name = workflowID
+		}
+
+		// Add to list with workflow info
+		workflows = append(workflows, WorkflowInfo{
+			ID:          workflowID,
+			Name:        name,
+			Description: description,
+			Path:        relPath,
+		})
 
 		if verbose {
-			fmt.Printf("Found workflow: %s (name: %s)\n", relPath, workflowName)
+			fmt.Printf("Found workflow: %s (id: %s, name: %s)\n", relPath, workflowID, name)
 		}
 
 		return nil

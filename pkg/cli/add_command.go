@@ -251,41 +251,33 @@ func handleRepoOnlySpec(repoSpec string, verbose bool) error {
 	}
 
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Please specify which workflow you want to add from %s:", spec.RepoSlug)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Available workflows in %s:", spec.RepoSlug)))
 	fmt.Fprintln(os.Stderr, "")
 
-	for _, workflow := range workflows {
-		// Extract workflow name from path (remove .md extension and path)
-		workflowName := strings.TrimSuffix(filepath.Base(workflow), ".md")
-
-		// For workflows in workflows/ directory, show simplified name
-		if strings.HasPrefix(workflow, "workflows/") {
-			workflowName = strings.TrimSuffix(strings.TrimPrefix(workflow, "workflows/"), ".md")
-		}
-
-		// Build the full command
-		fullSpec := fmt.Sprintf("%s/%s", spec.RepoSlug, workflowName)
-		if spec.Version != "" {
-			fullSpec += "@" + spec.Version
-		}
-
-		fmt.Fprintf(os.Stderr, "  • %s\n", workflowName)
-		if verbose {
-			fmt.Fprintf(os.Stderr, "    Command: %s add %s\n", constants.CLIExtensionPrefix, fullSpec)
-		}
+	// Build table configuration
+	tableConfig := console.TableConfig{
+		Headers: []string{"ID", "Name/Description"},
 	}
+
+	// Add each workflow as a row
+	for _, workflow := range workflows {
+		id := workflow.ID
+		nameDesc := workflow.Name
+		if workflow.Description != "" {
+			nameDesc = workflow.Description
+		}
+		tableConfig.Rows = append(tableConfig.Rows, []string{id, nameDesc})
+	}
+
+	// Render the table
+	fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
 
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintf(os.Stderr, "Example:\n")
 
 	// Show example with first workflow
 	exampleWorkflow := workflows[0]
-	exampleName := strings.TrimSuffix(filepath.Base(exampleWorkflow), ".md")
-	if strings.HasPrefix(exampleWorkflow, "workflows/") {
-		exampleName = strings.TrimSuffix(strings.TrimPrefix(exampleWorkflow, "workflows/"), ".md")
-	}
-
-	exampleSpec := fmt.Sprintf("%s/%s", spec.RepoSlug, exampleName)
+	exampleSpec := fmt.Sprintf("%s/%s", spec.RepoSlug, exampleWorkflow.ID)
 	if spec.Version != "" {
 		exampleSpec += "@" + spec.Version
 	}
