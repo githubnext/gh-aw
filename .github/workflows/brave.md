@@ -14,7 +14,7 @@ imports:
 safe-outputs:
   add-comment:
     max: 1
-timeout_minutes: 10
+timeout-minutes: 10
 ---
 
 # Brave Web Search Agent

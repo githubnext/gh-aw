@@ -26,16 +26,21 @@ func NewAddCommand(validateEngine func(string) error) *cobra.Command {
 		Long: `Add one or more workflows from repositories to .github/workflows.
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor
-  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor@v1.0.0
+  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics                           # List available workflows
+  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor                # Add specific workflow
+  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor@v1.0.0         # Add with version
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/workflows/ci-doctor.md@main
   ` + constants.CLIExtensionPrefix + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor --pr --force
+  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/*
+  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/*@v1.0.0
 
 Workflow specifications:
+  - Two parts: "owner/repo[@version]" (lists available workflows in the repository)
   - Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)
   - Four+ parts: "owner/repo/workflows/workflow-name.md[@version]" (requires explicit .md extension)
   - GitHub URL: "https://github.com/owner/repo/blob/branch/path/to/workflow.md"
+  - Wildcard: "owner/repo/*[@version]" (adds all workflows from the repository)
   - Version can be tag, branch, or SHA
 
 The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
@@ -126,6 +131,12 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 		}
 	}
 
+	// Check if this is a repo-only specification (owner/repo instead of owner/repo/workflow)
+	// If so, list available workflows and exit
+	if len(workflows) == 1 && isRepoOnlySpec(workflows[0]) {
+		return handleRepoOnlySpec(workflows[0], verbose)
+	}
+
 	// If creating a PR, check prerequisites
 	if createPR {
 		// Check if GitHub CLI is available
@@ -184,19 +195,132 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 		}
 	}
 
+	// Check if any workflow specs contain wildcards before expansion
+	hasWildcard := false
+	for _, spec := range processedWorkflows {
+		if spec.IsWildcard {
+			hasWildcard = true
+			break
+		}
+	}
+
+	// Expand wildcards after installation
+	var err error
+	processedWorkflows, err = expandWildcardWorkflows(processedWorkflows, verbose)
+	if err != nil {
+		return err
+	}
+
 	// Handle PR creation workflow
 	if createPR {
 		addLog.Print("Creating workflow with PR")
-		return addWorkflowsWithPR(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes)
+		return addWorkflowsWithPR(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, hasWildcard)
 	}
 
 	// Handle normal workflow addition
 	addLog.Print("Adding workflows normally without PR")
-	return addWorkflowsNormal(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes)
+	return addWorkflowsNormal(processedWorkflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, hasWildcard)
+}
+
+// handleRepoOnlySpec handles the case when user provides only owner/repo without workflow name
+// It installs the package and lists available workflows
+func handleRepoOnlySpec(repoSpec string, verbose bool) error {
+	addLog.Printf("Handling repo-only specification: %s", repoSpec)
+
+	// Parse the repository specification to extract repo slug and version
+	spec, err := parseRepoSpec(repoSpec)
+	if err != nil {
+		return fmt.Errorf("invalid repository specification '%s': %w", repoSpec, err)
+	}
+
+	// Install the repository
+	repoWithVersion := spec.RepoSlug
+	if spec.Version != "" {
+		repoWithVersion = fmt.Sprintf("%s@%s", spec.RepoSlug, spec.Version)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing repository %s...", repoWithVersion)))
+	}
+
+	if err := InstallPackage(repoWithVersion, verbose); err != nil {
+		return fmt.Errorf("failed to install repository %s: %w", repoWithVersion, err)
+	}
+
+	// List workflows in the installed package with metadata
+	workflows, err := listWorkflowsWithMetadata(spec.RepoSlug, verbose)
+	if err != nil {
+		return fmt.Errorf("failed to list workflows in %s: %w", spec.RepoSlug, err)
+	}
+
+	// Display the list of available workflows
+	if len(workflows) == 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No workflows found in repository %s", spec.RepoSlug)))
+		return nil
+	}
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Available workflows in %s:", spec.RepoSlug)))
+	fmt.Fprintln(os.Stderr, "")
+
+	// Render workflows as a table using console helpers
+	fmt.Fprint(os.Stderr, console.RenderStruct(workflows))
+
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintln(os.Stderr, "")
+
+	// Show example with first workflow
+	exampleSpec := fmt.Sprintf("%s/%s", spec.RepoSlug, workflows[0].ID)
+	if spec.Version != "" {
+		exampleSpec += "@" + spec.Version
+	}
+
+	fmt.Fprintf(os.Stderr, "  %s add %s\n", constants.CLIExtensionPrefix, exampleSpec)
+	fmt.Fprintln(os.Stderr, "")
+
+	return nil
+}
+
+// displayAvailableWorkflows lists available workflows from an installed package
+func displayAvailableWorkflows(repoSlug, version string, verbose bool) error {
+	addLog.Printf("Displaying available workflows for repository: %s", repoSlug)
+
+	// List workflows in the installed package with metadata
+	workflows, err := listWorkflowsWithMetadata(repoSlug, verbose)
+	if err != nil {
+		return fmt.Errorf("failed to list workflows in %s: %w", repoSlug, err)
+	}
+
+	// Display the list of available workflows
+	if len(workflows) == 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No workflows found in repository %s", repoSlug)))
+		return nil
+	}
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Available workflows in %s:", repoSlug)))
+	fmt.Fprintln(os.Stderr, "")
+
+	// Render workflows as a table using console helpers
+	fmt.Fprint(os.Stderr, console.RenderStruct(workflows))
+
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintln(os.Stderr, "")
+
+	// Show example with first workflow
+	exampleSpec := fmt.Sprintf("%s/%s", repoSlug, workflows[0].ID)
+	if version != "" {
+		exampleSpec += "@" + version
+	}
+
+	fmt.Fprintf(os.Stderr, "  %s add %s\n", constants.CLIExtensionPrefix, exampleSpec)
+	fmt.Fprintln(os.Stderr, "")
+
+	return nil
 }
 
 // addWorkflowsNormal handles normal workflow addition without PR creation
-func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool) error {
+func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool, fromWildcard bool) error {
 	// Create file tracker for all operations
 	tracker, err := NewFileTracker()
 	if err != nil {
@@ -237,7 +361,7 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 			currentName = name
 		}
 
-		if err := addWorkflowWithTracking(workflow, number, verbose, engineOverride, currentName, force, appendText, tracker); err != nil {
+		if err := addWorkflowWithTracking(workflow, number, verbose, engineOverride, currentName, force, appendText, tracker, fromWildcard); err != nil {
 			return fmt.Errorf("failed to add workflow '%s': %w", workflow.String(), err)
 		}
 	}
@@ -250,7 +374,7 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 }
 
 // addWorkflowsWithPR handles workflow addition with PR creation
-func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool) error {
+func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, noGitattributes bool, fromWildcard bool) error {
 	// Get current branch for restoration later
 	currentBranch, err := getCurrentBranch()
 	if err != nil {
@@ -279,7 +403,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 	}()
 
 	// Add workflows using the normal function logic
-	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force, appendText, noGitattributes); err != nil {
+	if err := addWorkflowsNormal(workflows, number, verbose, engineOverride, name, force, appendText, noGitattributes, fromWildcard); err != nil {
 		// Rollback on error
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
@@ -358,7 +482,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 }
 
 // addWorkflowWithTracking adds a workflow from components to .github/workflows with file tracking
-func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, tracker *FileTracker) error {
+func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, appendText string, tracker *FileTracker, fromWildcard bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflow.String())))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Number of copies: %d", number)))
@@ -387,15 +511,18 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 	if err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Workflow '%s' not found.", workflowPath)))
 
-		// Provide information about workflow repositories
-		fmt.Println("\nTo add workflows to your project:")
-		fmt.Println("=================================")
-		fmt.Println("Use the 'add' command with repository/workflow specifications:")
-		fmt.Println("  " + constants.CLIExtensionPrefix + " add owner/repo/workflow-name")
-		fmt.Println("  " + constants.CLIExtensionPrefix + " add owner/repo/workflow-name@version")
-		fmt.Println("\nExample:")
-		fmt.Println("  " + constants.CLIExtensionPrefix + " add githubnext/agentics/ci-doctor")
-		fmt.Println("  " + constants.CLIExtensionPrefix + " add githubnext/agentics/daily-plan@main")
+		// Try to list available workflows from the installed package
+		if err := displayAvailableWorkflows(workflow.RepoSlug, workflow.Version, verbose); err != nil {
+			// If we can't list workflows, provide generic help
+			fmt.Println("\nTo add workflows to your project:")
+			fmt.Println("=================================")
+			fmt.Println("Use the 'add' command with repository/workflow specifications:")
+			fmt.Println("  " + constants.CLIExtensionPrefix + " add owner/repo/workflow-name")
+			fmt.Println("  " + constants.CLIExtensionPrefix + " add owner/repo/workflow-name@version")
+			fmt.Println("\nExample:")
+			fmt.Println("  " + constants.CLIExtensionPrefix + " add githubnext/agentics/ci-doctor")
+			fmt.Println("  " + constants.CLIExtensionPrefix + " add githubnext/agentics/daily-plan@main")
+		}
 
 		return fmt.Errorf("workflow not found: %s", workflowPath)
 	}
@@ -429,6 +556,11 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 	// Check if a workflow with this name already exists
 	existingFile := filepath.Join(githubWorkflowsDir, workflowName+".md")
 	if _, err := os.Stat(existingFile); err == nil && !force {
+		// When adding with wildcard, emit warning and skip instead of error
+		if fromWildcard {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow '%s' already exists in .github/workflows/. Skipping.", workflowName)))
+			return nil
+		}
 		return fmt.Errorf("workflow '%s' already exists in .github/workflows/. Use a different name with -n flag, remove the existing workflow first, or use --force to overwrite", workflowName)
 	}
 
@@ -801,4 +933,42 @@ func createPR(branchName, title, body string, verbose bool) error {
 func addSourceToWorkflow(content, source string) (string, error) {
 	// Use shared frontmatter logic that preserves formatting
 	return addFieldToFrontmatter(content, "source", source)
+}
+
+// expandWildcardWorkflows expands wildcard workflow specifications into individual workflow specs.
+// For each wildcard spec, it discovers all workflows in the installed package and replaces
+// the wildcard with the discovered workflows. Non-wildcard specs are passed through unchanged.
+func expandWildcardWorkflows(specs []*WorkflowSpec, verbose bool) ([]*WorkflowSpec, error) {
+	expandedWorkflows := []*WorkflowSpec{}
+
+	for _, spec := range specs {
+		if spec.IsWildcard {
+			addLog.Printf("Expanding wildcard for repository: %s", spec.RepoSlug)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Discovering workflows in %s...", spec.RepoSlug)))
+			}
+
+			discovered, err := discoverWorkflowsInPackage(spec.RepoSlug, spec.Version, verbose)
+			if err != nil {
+				return nil, fmt.Errorf("failed to discover workflows in %s: %w", spec.RepoSlug, err)
+			}
+
+			if len(discovered) == 0 {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No workflows found in %s", spec.RepoSlug)))
+			} else {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Found %d workflow(s) in %s", len(discovered), spec.RepoSlug)))
+				}
+				expandedWorkflows = append(expandedWorkflows, discovered...)
+			}
+		} else {
+			expandedWorkflows = append(expandedWorkflows, spec)
+		}
+	}
+
+	if len(expandedWorkflows) == 0 {
+		return nil, fmt.Errorf("no workflows to add after expansion")
+	}
+
+	return expandedWorkflows, nil
 }

@@ -138,19 +138,19 @@ func TestGenerateTemplateRenderingWithGitHubContext(t *testing.T) {
 				ParsedTools:     NewTools(tools), // Populate ParsedTools from Tools map
 			}
 
-			compiler.generateTemplateRenderingStep(&yaml, data)
+			compiler.generateInterpolationAndTemplateStep(&yaml, nil, data)
 			output := yaml.String()
 
 			if tt.expectTemplateRendering {
-				if !strings.Contains(output, "Render template conditionals") {
-					t.Error("Expected template rendering step to be added")
+				if !strings.Contains(output, "Interpolate variables and render templates") {
+					t.Error("Expected interpolation and template step to be added")
 				}
 				if !strings.Contains(output, "renderMarkdownTemplate") {
 					t.Error("Expected template rendering script in output")
 				}
 			} else {
-				if strings.Contains(output, "Render template conditionals") {
-					t.Error("Expected NO template rendering step")
+				if strings.Contains(output, "Interpolate variables and render templates") {
+					t.Error("Expected NO interpolation and template step")
 				}
 			}
 		})

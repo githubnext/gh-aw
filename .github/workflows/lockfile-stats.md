@@ -15,7 +15,7 @@ safe-outputs:
   create-discussion:
     category: "audits"
     max: 1
-timeout_minutes: 15
+timeout-minutes: 15
 strict: true
 imports:
   - shared/reporting.md
@@ -97,7 +97,7 @@ Analyze the collected data to generate insights:
 #### 2.4 Interesting Patterns
 - **MCP Server Usage**: Identify which MCP servers are most commonly configured
 - **Tool Configurations**: Common tool allowlists
-- **Timeout Patterns**: Average and distribution of timeout_minutes values
+- **Timeout Patterns**: Average and distribution of timeout-minutes values
 - **Concurrency Groups**: Common concurrency patterns
 - **Engine Distribution**: If detectable, count usage of different engines (claude, copilot, codex, custom)
 

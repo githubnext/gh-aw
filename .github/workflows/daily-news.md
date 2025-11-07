@@ -14,7 +14,7 @@ permissions:
 
 engine: copilot
 
-timeout_minutes: 30  # Reduced from 45 since pre-fetching data is faster
+timeout-minutes: 30  # Reduced from 45 since pre-fetching data is faster
 
 network:
   firewall: true
@@ -80,9 +80,9 @@ steps:
         
         # Fetch issues (open and recently closed)
         echo "Fetching issues..."
-        gh api graphql -f query='
-          query($owner: String!, $repo: String!) {
-            repository(owner: $owner, name: $repo) {
+        gh api graphql -f query="
+          query(\$owner: String!, \$repo: String!) {
+            repository(owner: \$owner, name: \$repo) {
               openIssues: issues(first: 100, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {
                 nodes {
                   number
@@ -109,13 +109,13 @@ steps:
               }
             }
           }
-        ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/issues.json
+        " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/issues.json
         
         # Fetch pull requests (open and recently merged/closed)
         echo "Fetching pull requests..."
-        gh api graphql -f query='
-          query($owner: String!, $repo: String!) {
-            repository(owner: $owner, name: $repo) {
+        gh api graphql -f query="
+          query(\$owner: String!, \$repo: String!) {
+            repository(owner: \$owner, name: \$repo) {
               openPRs: pullRequests(first: 50, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {
                 nodes {
                   number
@@ -155,26 +155,26 @@ steps:
               }
             }
           }
-        ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/pull_requests.json
+        " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/pull_requests.json
         
         # Fetch recent commits (last 100)
         echo "Fetching commits..."
-        gh api repos/${GITHUB_REPOSITORY}/commits \
+        gh api "repos/${GITHUB_REPOSITORY}/commits" \
           --paginate \
           --jq '[.[] | {sha, author: .commit.author, message: .commit.message, date: .commit.author.date, html_url}]' \
           > /tmp/gh-aw/daily-news-data/commits.json
         
         # Fetch releases
         echo "Fetching releases..."
-        gh api repos/${GITHUB_REPOSITORY}/releases \
+        gh api "repos/${GITHUB_REPOSITORY}/releases" \
           --jq '[.[] | {tag_name, name, created_at, published_at, html_url, body}]' \
           > /tmp/gh-aw/daily-news-data/releases.json
         
         # Fetch discussions
         echo "Fetching discussions..."
-        gh api graphql -f query='
-          query($owner: String!, $repo: String!) {
-            repository(owner: $owner, name: $repo) {
+        gh api graphql -f query="
+          query(\$owner: String!, \$repo: String!) {
+            repository(owner: \$owner, name: \$repo) {
               discussions(first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
                 nodes {
                   number
@@ -189,7 +189,7 @@ steps:
               }
             }
           }
-        ' -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/discussions.json
+        " -f owner="${GITHUB_REPOSITORY_OWNER}" -f repo="${GITHUB_REPOSITORY#*/}" > /tmp/gh-aw/daily-news-data/discussions.json
         
         # Check for changesets
         echo "Checking for changesets..."

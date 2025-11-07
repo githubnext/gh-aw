@@ -28,7 +28,7 @@ Schema validation occurs when running `gh aw compile` and validates the workflow
 
 **Field Types:**
 - Strings are strings (`engine: "copilot"`)
-- Numbers are numbers (`timeout_minutes: 10`)
+- Numbers are numbers (`timeout-minutes: 10`)
 - Booleans are booleans (`strict: true`)
 - Arrays are arrays (`imports: [...]`)
 - Objects are objects (`tools: {...}`)
@@ -42,7 +42,7 @@ Schema validation occurs when running `gh aw compile` and validates the workflow
 - Examples: `engine: copilot`, `state: open`
 
 **Field Constraints:**
-- Numeric ranges (e.g., `timeout_minutes: 1-360`)
+- Numeric ranges (e.g., `timeout-minutes: 1-360`)
 - String patterns (e.g., time delta format)
 
 ### When Schema Validation Runs
@@ -77,11 +77,11 @@ issues:  # Missing indentation
 ```aw wrap
 ---
 on: push
-timeout_minutes: "10"  # String instead of number
+timeout-minutes: "10"  # String instead of number
 ---
 ```
 
-**Error:** `timeout_minutes must be an integer`
+**Error:** `timeout-minutes must be an integer`
 
 **Invalid Enum Value:**
 ```aw wrap
@@ -350,7 +350,7 @@ Error: failed to connect to MCP server at https://example.com
 3. **Verify secrets:** Ensure required secrets are set in repository settings
 4. **Monitor logs:** Review GitHub Actions logs for runtime errors
 5. **Use safe outputs:** Prefer safe outputs over direct write permissions
-6. **Set timeouts:** Configure appropriate `timeout_minutes` for task complexity
+6. **Set timeouts:** Configure appropriate `timeout-minutes` for task complexity
 
 ## Debugging by Stage
 

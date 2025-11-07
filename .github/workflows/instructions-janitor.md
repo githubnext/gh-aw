@@ -35,7 +35,7 @@ tools:
     - "git log --since='*' --pretty=format:'%h %s' -- docs/"
     - "git describe --tags --abbrev=0"
 
-timeout_minutes: 15
+timeout-minutes: 15
 
 ---
 

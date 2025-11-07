@@ -13,7 +13,7 @@ permissions:
   pull-requests: read
 
 engine: claude
-timeout_minutes: 10
+timeout-minutes: 10
 
 imports:
   - shared/mcp/ast-grep.md

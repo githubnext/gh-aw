@@ -320,25 +320,25 @@ function test() {
 			expectError: true,
 		},
 		{
-			name: "require in string should not error",
+			name: "require in string should error",
 			content: `const code = 'const x = require("./helper.cjs");';
 function test() {
   console.log(code);
 }`,
-			expectError: false,
+			expectError: true,
 		},
 		{
-			name: "require in double-quoted string should not error",
+			name: "require in double-quoted string should error",
 			content: `const code = "const x = require('./helper.cjs');";
 function test() {
   console.log(code);
 }`,
-			expectError: false,
+			expectError: true,
 		},
 		{
-			name:        "require in backtick string should not error",
+			name:        "require in backtick string should error",
 			content:     "const code = `const x = require('./helper.cjs');`;\nfunction test() {\n  console.log(code);\n}",
-			expectError: false,
+			expectError: true,
 		},
 		{
 			name: "inlined content markers with npm requires is ok",

@@ -121,6 +121,7 @@ func bundleFromSources(content string, currentPath string, sources map[string]st
 }
 
 // removeExports removes module.exports and exports statements from JavaScript code
+// but preserves conditional exports (wrapped in if statements) as they may be needed for testing
 func removeExports(content string) string {
 	lines := strings.Split(content, "\n")
 	var result strings.Builder
@@ -129,10 +130,51 @@ func removeExports(content string) string {
 	moduleExportsRegex := regexp.MustCompile(`^\s*module\.exports\s*=`)
 	exportsRegex := regexp.MustCompile(`^\s*exports\.\w+\s*=`)
 
+	// Track if we're inside a conditional export block
+	inConditionalExport := false
+	conditionalDepth := 0
+
 	for i, line := range lines {
-		// Skip lines that are module.exports or exports.* assignments
+		trimmed := strings.TrimSpace(line)
+
+		// Check if this starts a conditional export block
+		// Pattern: if (typeof module !== "undefined" && module.exports) {
+		if strings.Contains(trimmed, "if") &&
+			strings.Contains(trimmed, "module") &&
+			strings.Contains(trimmed, "exports") &&
+			strings.Contains(trimmed, "{") {
+			inConditionalExport = true
+			conditionalDepth = 1
+			result.WriteString(line)
+			if i < len(lines)-1 {
+				result.WriteString("\n")
+			}
+			continue
+		}
+
+		// Track braces if we're in a conditional export
+		if inConditionalExport {
+			for _, ch := range trimmed {
+				if ch == '{' {
+					conditionalDepth++
+				} else if ch == '}' {
+					conditionalDepth--
+					if conditionalDepth == 0 {
+						inConditionalExport = false
+					}
+				}
+			}
+			// Keep all lines inside conditional export blocks
+			result.WriteString(line)
+			if i < len(lines)-1 {
+				result.WriteString("\n")
+			}
+			continue
+		}
+
+		// Skip lines that are unconditional module.exports or exports.* assignments
 		if moduleExportsRegex.MatchString(line) || exportsRegex.MatchString(line) {
-			// Skip this line - it's an export
+			// Skip this line - it's an unconditional export
 			continue
 		}
 
@@ -183,71 +225,4 @@ func deduplicateRequires(content string) string {
 	}
 
 	return result.String()
-}
-
-// validateNoLocalRequires checks that the bundled JavaScript contains no local require() statements
-// Local requires are those that start with ./ or ../
-// Returns an error if any local requires are found, otherwise returns nil
-func validateNoLocalRequires(bundledContent string) error {
-	// Regular expression to match local require statements
-	// Matches: require('./...') or require("../...")
-	localRequireRegex := regexp.MustCompile(`require\(['"](\.\.?/[^'"]+)['"]\)`)
-
-	lines := strings.Split(bundledContent, "\n")
-	var foundRequires []string
-
-	for lineNum, line := range lines {
-		// Check for local requires
-		matches := localRequireRegex.FindAllStringSubmatch(line, -1)
-		for _, match := range matches {
-			if len(match) > 1 {
-				requirePath := match[1]
-				// Check if this require is inside a string literal
-				matchIdx := strings.Index(line, match[0])
-				if matchIdx >= 0 && !isInsideStringLiteralAt(line, matchIdx) {
-					foundRequires = append(foundRequires, fmt.Sprintf("line %d: require('%s')", lineNum+1, requirePath))
-				}
-			}
-		}
-	}
-
-	if len(foundRequires) > 0 {
-		return fmt.Errorf("bundled JavaScript contains %d local require(s) that were not inlined:\n  %s",
-			len(foundRequires), strings.Join(foundRequires, "\n  "))
-	}
-
-	return nil
-}
-
-// isInsideStringLiteralAt checks if a position in a line is inside a string literal
-func isInsideStringLiteralAt(line string, pos int) bool {
-	// Count unescaped quotes before the position
-	singleQuoteCount := 0
-	doubleQuoteCount := 0
-	backtickCount := 0
-
-	for i := 0; i < pos && i < len(line); i++ {
-		// Count consecutive backslashes before the current character
-		backslashCount := 0
-		for j := i - 1; j >= 0 && line[j] == '\\'; j-- {
-			backslashCount++
-		}
-
-		// If odd number of backslashes, the current character is escaped
-		if backslashCount%2 == 1 {
-			continue
-		}
-
-		switch line[i] {
-		case '\'':
-			singleQuoteCount++
-		case '"':
-			doubleQuoteCount++
-		case '`':
-			backtickCount++
-		}
-	}
-
-	// If any quote count is odd, we're inside that type of string literal
-	return singleQuoteCount%2 == 1 || doubleQuoteCount%2 == 1 || backtickCount%2 == 1
 }

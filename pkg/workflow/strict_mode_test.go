@@ -486,7 +486,7 @@ network:
 			expectError: false,
 		},
 		{
-			name: "bash wildcard star refused in strict mode",
+			name: "bash wildcard star allowed in strict mode",
 			content: `---
 on: push
 permissions:
@@ -503,11 +503,10 @@ network:
 ---
 
 # Test Workflow`,
-			expectError: true,
-			errorMsg:    "strict mode: bash wildcard '*' is not allowed - use specific commands instead",
+			expectError: false,
 		},
 		{
-			name: "bash wildcard colon-star refused in strict mode",
+			name: "bash wildcard colon-star allowed in strict mode",
 			content: `---
 on: push
 permissions:
@@ -524,11 +523,10 @@ network:
 ---
 
 # Test Workflow`,
-			expectError: true,
-			errorMsg:    "strict mode: bash wildcard ':*' is not allowed - use specific commands instead",
+			expectError: false,
 		},
 		{
-			name: "bash wildcard star mixed with commands refused in strict mode",
+			name: "bash wildcard star mixed with commands allowed in strict mode",
 			content: `---
 on: push
 permissions:
@@ -545,8 +543,7 @@ network:
 ---
 
 # Test Workflow`,
-			expectError: true,
-			errorMsg:    "strict mode: bash wildcard '*' is not allowed - use specific commands instead",
+			expectError: false,
 		},
 		{
 			name: "bash command wildcards like git:* are allowed in strict mode",

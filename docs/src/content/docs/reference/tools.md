@@ -55,7 +55,7 @@ bash: ["git:*"]                   # All git commands
 bash: ["npm:*", "echo", "ls"]     # Mix of wildcards and specific commands
 ```
 
-- `:*` or `*`: All commands (Copilot uses `--allow-all-tools`; refused in strict mode)
+- `:*` or `*`: All commands (Copilot uses `--allow-all-tools`)
 - `command:*`: All invocations of a specific command (e.g., `git:*` allows `git add`, `git commit`, etc.)
 
 ## Web Fetch Tool (`web-fetch:`)

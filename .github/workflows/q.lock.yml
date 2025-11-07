@@ -2208,14 +2208,6 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_EXPR_E80C082D: ${{ github.actor }}
-          GH_AW_EXPR_2497EEDF: ${{ github.event.discussion.number }}
-          GH_AW_EXPR_799BE623: ${{ github.event.issue.number || github.event.pull_request.number }}
-          GH_AW_EXPR_9C6DBB26: ${{ github.event.issue.number }}
-          GH_AW_EXPR_079D8664: ${{ github.event.pull_request.number }}
-          GH_AW_EXPR_D892F163: ${{ github.repository }}
-          GH_AW_EXPR_2D1CC6E7: ${{ github.workspace }}
-          GH_AW_EXPR_0BABF60D: ${{ needs.activation.outputs.text }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
@@ -2412,7 +2404,7 @@ jobs:
           #### 4.5 Improve Workflow Configuration
           
           General optimizations:
-          - Add `timeout_minutes` to prevent runaway costs
+          - Add `timeout-minutes` to prevent runaway costs
           - Set appropriate `max-turns` in engine config
           - Add `stop-after` for time-limited workflows
           - Enable `strict: true` for better validation
@@ -2589,7 +2581,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2621,7 +2613,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2634,7 +2626,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           
           ---
@@ -2653,7 +2645,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2678,7 +2670,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2708,7 +2700,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2744,7 +2736,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2760,10 +2752,18 @@ jobs:
           - The PR branch has been checked out using `gh pr checkout`
           
           PROMPT_EOF
-      - name: Render template conditionals
+      - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_E80C082D: ${{ github.actor }}
+          GH_AW_EXPR_2497EEDF: ${{ github.event.discussion.number }}
+          GH_AW_EXPR_799BE623: ${{ github.event.issue.number || github.event.pull_request.number }}
+          GH_AW_EXPR_9C6DBB26: ${{ github.event.issue.number }}
+          GH_AW_EXPR_079D8664: ${{ github.event.pull_request.number }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_2D1CC6E7: ${{ github.workspace }}
+          GH_AW_EXPR_0BABF60D: ${{ needs.activation.outputs.text }}
         with:
           script: |
             const fs = require("fs");
@@ -2771,34 +2771,61 @@ jobs:
               const v = expr.trim().toLowerCase();
               return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
             }
+            function interpolateVariables(content, variables) {
+              let result = content;
+              for (const [varName, value] of Object.entries(variables)) {
+                const pattern = new RegExp(`\\$\\{${varName}\\}`, "g");
+                result = result.replace(pattern, value);
+              }
+              return result;
+            }
             function renderMarkdownTemplate(markdown) {
               return markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
             }
-            function main() {
+            async function main() {
               try {
                 const promptPath = process.env.GH_AW_PROMPT;
                 if (!promptPath) {
                   core.setFailed("GH_AW_PROMPT environment variable is not set");
-                  process.exit(1);
+                  return;
                 }
-                const markdown = fs.readFileSync(promptPath, "utf8");
-                const hasConditionals = /{{#if\s+[^}]+}}/.test(markdown);
-                if (!hasConditionals) {
+                let content = fs.readFileSync(promptPath, "utf8");
+                const variables = {};
+                for (const [key, value] of Object.entries(process.env)) {
+                  if (key.startsWith("GH_AW_EXPR_")) {
+                    variables[key] = value || "";
+                  }
+                }
+                const varCount = Object.keys(variables).length;
+                if (varCount > 0) {
+                  core.info(`Found ${varCount} expression variable(s) to interpolate`);
+                  content = interpolateVariables(content, variables);
+                  core.info(`Successfully interpolated ${varCount} variable(s) in prompt`);
+                } else {
+                  core.info("No expression variables found, skipping interpolation");
+                }
+                const hasConditionals = /{{#if\s+[^}]+}}/.test(content);
+                if (hasConditionals) {
+                  core.info("Processing conditional template blocks");
+                  content = renderMarkdownTemplate(content);
+                  core.info("Template rendered successfully");
+                } else {
                   core.info("No conditional blocks found in prompt, skipping template rendering");
-                  process.exit(0);
                 }
-                const rendered = renderMarkdownTemplate(markdown);
-                fs.writeFileSync(promptPath, rendered, "utf8");
-                core.info("Template rendered successfully");
+                fs.writeFileSync(promptPath, content, "utf8");
               } catch (error) {
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
             main();
-      - name: Print prompt to step summary
+      - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # Print prompt to workflow logs (equivalent to core.info)
+          echo "Generated Prompt:"
+          cat "$GH_AW_PROMPT"
+          # Print prompt to step summary
           {
             echo "<details>"
             echo "<summary>Generated Prompt</summary>"
@@ -2867,26 +2894,7 @@ jobs:
         # --allow-tool safeoutputs
         # --allow-tool serena
         # --allow-tool serena(*)
-        # --allow-tool shell(cat)
-        # --allow-tool shell(date)
-        # --allow-tool shell(echo)
-        # --allow-tool shell(git add:*)
-        # --allow-tool shell(git branch:*)
-        # --allow-tool shell(git checkout:*)
-        # --allow-tool shell(git commit:*)
-        # --allow-tool shell(git merge:*)
-        # --allow-tool shell(git rm:*)
-        # --allow-tool shell(git status)
-        # --allow-tool shell(git switch:*)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(pwd)
-        # --allow-tool shell(sort)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(uniq)
-        # --allow-tool shell(wc)
-        # --allow-tool shell(yq)
+        # --allow-tool shell
         # --allow-tool tavily
         # --allow-tool tavily(*)
         # --allow-tool write
@@ -2899,7 +2907,7 @@ jobs:
           mkdir -p /tmp/gh-aw/agent/
           mkdir -p /tmp/gh-aw/cache-memory/
           mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool gh-aw --allow-tool github --allow-tool safeoutputs --allow-tool serena --allow-tool 'serena(*)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool gh-aw --allow-tool github --allow-tool safeoutputs --allow-tool serena --allow-tool 'serena(*)' --allow-tool shell --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
@@ -3934,9 +3942,10 @@ jobs:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
         with:
           script: |
-            function main() {
+            function runLogParser(options) {
               const fs = require("fs");
               const path = require("path");
+              const { parseLog, parserName, supportsDirectories = false } = options;
               try {
                 const logPath = process.env.GH_AW_AGENT_OUTPUT;
                 if (!logPath) {
@@ -3950,6 +3959,10 @@ jobs:
                 let content = "";
                 const stat = fs.statSync(logPath);
                 if (stat.isDirectory()) {
+                  if (!supportsDirectories) {
+                    core.info(`Log path is a directory but ${parserName} parser does not support directories: ${logPath}`);
+                    return;
+                  }
                   const files = fs.readdirSync(logPath);
                   const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
                   if (logFiles.length === 0) {
@@ -3960,25 +3973,54 @@ jobs:
                   for (const file of logFiles) {
                     const filePath = path.join(logPath, file);
                     const fileContent = fs.readFileSync(filePath, "utf8");
-                    content += fileContent;
                     if (content.length > 0 && !content.endsWith("\n")) {
                       content += "\n";
                     }
+                    content += fileContent;
                   }
                 } else {
                   content = fs.readFileSync(logPath, "utf8");
                 }
-                const parsedLog = parseCopilotLog(content);
-                if (parsedLog) {
-                  core.info(parsedLog);
-                  core.summary.addRaw(parsedLog).write();
-                  core.info("Copilot log parsed successfully");
+                const result = parseLog(content);
+                let markdown = "";
+                let mcpFailures = [];
+                let maxTurnsHit = false;
+                if (typeof result === "string") {
+                  markdown = result;
+                } else if (result && typeof result === "object") {
+                  markdown = result.markdown || "";
+                  mcpFailures = result.mcpFailures || [];
+                  maxTurnsHit = result.maxTurnsHit || false;
+                }
+                if (markdown) {
+                  core.info(markdown);
+                  core.summary.addRaw(markdown).write();
+                  core.info(`${parserName} log parsed successfully`);
                 } else {
-                  core.error("Failed to parse Copilot log");
+                  core.error(`Failed to parse ${parserName} log`);
+                }
+                if (mcpFailures && mcpFailures.length > 0) {
+                  const failedServers = mcpFailures.join(", ");
+                  core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
+                }
+                if (maxTurnsHit) {
+                  core.setFailed(`Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.`);
                 }
               } catch (error) {
                 core.setFailed(error instanceof Error ? error : String(error));
               }
+            }
+            if (typeof module !== "undefined" && module.exports) {
+              module.exports = {
+                runLogParser,
+              };
+            }
+            function main() {
+              runLogParser({
+                parseLog: parseCopilotLog,
+                parserName: "Copilot",
+                supportsDirectories: true,
+              });
             }
             function extractPremiumRequestCount(logContent) {
               const patterns = [

@@ -12,7 +12,6 @@
 //  1. validateStrictPermissions() - Refuses write permissions on sensitive scopes
 //  2. validateStrictNetwork() - Requires explicit network configuration
 //  3. validateStrictMCPNetwork() - Requires network config on custom MCP servers
-//  4. validateStrictBashTools() - Refuses bash wildcard tools ("*" and ":*")
 //
 // # Integration with Security Scanners
 //
@@ -114,48 +113,6 @@ func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any) error {
 					return fmt.Errorf("strict mode: custom MCP server '%s' with container must have network configuration", serverName)
 				}
 			}
-		}
-	}
-
-	return nil
-}
-
-// validateStrictBashTools refuses bash wildcard tools ("*" and ":*")
-func (c *Compiler) validateStrictBashTools(frontmatter map[string]any) error {
-	// Check tools section
-	toolsValue, exists := frontmatter["tools"]
-	if !exists {
-		return nil
-	}
-
-	toolsMap, ok := toolsValue.(map[string]any)
-	if !ok {
-		return nil
-	}
-
-	// Check bash tool for wildcards
-	bashValue, hasBash := toolsMap["bash"]
-	if !hasBash {
-		return nil
-	}
-
-	// Check if bash is an array of commands
-	bashCommands, ok := bashValue.([]any)
-	if !ok {
-		// If bash is not an array (e.g., true, null, or object), it's allowed in strict mode
-		return nil
-	}
-
-	// Check for wildcard patterns in bash commands
-	for _, cmd := range bashCommands {
-		cmdStr, ok := cmd.(string)
-		if !ok {
-			continue
-		}
-
-		// Refuse "*" and ":*" wildcards
-		if cmdStr == "*" || cmdStr == ":*" {
-			return fmt.Errorf("strict mode: bash wildcard '%s' is not allowed - use specific commands instead", cmdStr)
 		}
 	}
 

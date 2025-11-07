@@ -664,10 +664,16 @@ runs-on:
   labels: []
     # Array of strings
 
-# Workflow timeout in minutes. Defaults to 15 minutes for agentic workflows. Has
-# sensible defaults and can typically be omitted.
+# Workflow timeout in minutes (GitHub Actions standard field). Defaults to 15
+# minutes for agentic workflows. Has sensible defaults and can typically be
+# omitted.
 # (optional)
-timeout_minutes: 10
+timeout-minutes: 1
+
+# Deprecated: Use 'timeout-minutes' instead. Workflow timeout in minutes. Defaults
+# to 15 minutes for agentic workflows.
+# (optional)
+timeout-minutes: 10
 
 # Concurrency control to limit concurrent workflow runs (GitHub Actions standard
 # field). Agentic workflows use enhanced concurrency management.

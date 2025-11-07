@@ -1,3 +1,7 @@
+---
+description: GitHub Custom Agent File Format
+---
+
 # GitHub Custom Agent File Format
 
 This document describes the GitHub custom agent file format used by GitHub Copilot to provide repository-specific or task-specific instructions to AI coding agents.

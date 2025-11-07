@@ -35,7 +35,6 @@ package workflow
 //  1. validateStrictPermissions() - Refuses write permissions on sensitive scopes
 //  2. validateStrictNetwork() - Requires explicit network configuration
 //  3. validateStrictMCPNetwork() - Requires network config on custom MCP servers
-//  4. validateStrictBashTools() - Refuses bash wildcard tools ("*" and ":*")
 //
 // Note: Strict mode also affects zizmor security scanner behavior (see pkg/cli/zizmor.go)
 // When zizmor is enabled with --zizmor flag, strict mode will treat any security
@@ -57,11 +56,6 @@ func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermiss
 
 	// 3. Require network configuration on custom MCP servers
 	if err := c.validateStrictMCPNetwork(frontmatter); err != nil {
-		return err
-	}
-
-	// 4. Refuse bash wildcard tools ("*" and ":*")
-	if err := c.validateStrictBashTools(frontmatter); err != nil {
 		return err
 	}
 

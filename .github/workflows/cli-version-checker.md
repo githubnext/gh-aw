@@ -22,7 +22,7 @@ safe-outputs:
   create-issue:
     title-prefix: "[ca] "
     labels: [automation, dependencies]
-timeout_minutes: 15
+timeout-minutes: 15
 ---
 
 # CLI Version Checker
@@ -94,8 +94,13 @@ Include for each updated CLI:
 - **Release Timeline**: dates and intervals
 - **Changes**: Categorized as Breaking/Features/Fixes/Security/Performance
 - **Impact Assessment**: Risk level, affected features, migration notes
-- **Changelog Links**: NPM/GitHub release notes
+- **Changelog Links**: Use plain URLs without backticks
 - **CLI Changes**: New commands, flags, or removed features discovered via help
+
+**URL Formatting Rules**:
+- Use plain URLs: `https://www.npmjs.com/package/@package-name`
+- Do NOT use backticks in URLs
+- Package names in URLs should not be wrapped in backticks
 
 Template structure:
 ```
@@ -109,6 +114,11 @@ Template structure:
 - CLI Discovery: [New commands/flags or "None detected"]
 - Impact: Risk [Low/Medium/High], affects [features]
 - Migration: [Yes/No - details if yes]
+
+## Changelog Links
+- **NPM Package**: https://www.npmjs.com/package/@package-name
+- **Repository**: [GitHub URL if available]
+- **Changelog**: [URL to changelog if available]
 ```
 
 ## Guidelines

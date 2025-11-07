@@ -39,7 +39,7 @@ post-steps:
         echo "This validates the post-steps indentation fix"
       } >> "$GITHUB_STEP_SUMMARY"
 
-timeout_minutes: 5
+timeout-minutes: 5
 ---
 
 # Test Post-Steps Workflow

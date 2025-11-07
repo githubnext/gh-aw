@@ -23,7 +23,7 @@ The main workflow schema (`pkg/parser/schemas/main_workflow_schema.json`) contai
 - [x] Basic workflow metadata (`name`, `description`)
 - [x] Trigger configuration (`on` field with all event types)
 - [x] Permissions with detailed scope descriptions
-- [x] Standard GitHub Actions fields (`runs-on`, `timeout_minutes`, `concurrency`, `run-name`)
+- [x] Standard GitHub Actions fields (`runs-on`, `timeout-minutes`, `concurrency`, `run-name`)
 
 ### Phase 2: Agentic Workflow Specific Fields
 - [x] Engine configuration (`claude`, `copilot`, `codex`, `custom`)

@@ -84,25 +84,49 @@ func validateNoIncludesInTemplateRegions(markdown string) error {
 	return nil
 }
 
-// generateTemplateRenderingStep generates a step that processes conditional template blocks
-func (c *Compiler) generateTemplateRenderingStep(yaml *strings.Builder, data *WorkflowData) {
-	// Check if the markdown content contains any template patterns
+// generateInterpolationAndTemplateStep generates a step that interpolates GitHub expression variables
+// and renders template conditionals in the prompt file.
+// This combines both variable interpolation and template filtering into a single step.
+//
+// Parameters:
+//   - yaml: The string builder to write the YAML to
+//   - expressionMappings: Array of ExpressionMapping containing the mappings between placeholders and GitHub expressions
+//   - data: WorkflowData containing markdown content and parsed tools
+//
+// The generated step:
+//   - Uses actions/github-script action
+//   - Sets GH_AW_PROMPT environment variable to the prompt file path
+//   - Sets GH_AW_EXPR_* environment variables with the actual GitHub expressions (${{ ... }})
+//   - Runs interpolate_prompt.cjs script to replace placeholders and render template conditionals
+func (c *Compiler) generateInterpolationAndTemplateStep(yaml *strings.Builder, expressionMappings []*ExpressionMapping, data *WorkflowData) {
+	// Check if we need interpolation
+	hasExpressions := len(expressionMappings) > 0
+
+	// Check if we need template rendering
 	hasTemplatePattern := strings.Contains(data.MarkdownContent, "{{#if ")
-
-	// Also check if GitHub tool is enabled (which adds template patterns to the prompt)
 	hasGitHubContext := hasGitHubTool(data.ParsedTools)
+	hasTemplates := hasTemplatePattern || hasGitHubContext
 
-	if !hasTemplatePattern && !hasGitHubContext {
+	// Skip if neither interpolation nor template rendering is needed
+	if !hasExpressions && !hasTemplates {
 		return
 	}
 
-	templateLog.Printf("Generating template rendering step: hasPattern=%v, hasGitHubContext=%v", hasTemplatePattern, hasGitHubContext)
+	templateLog.Printf("Generating interpolation and template step: expressions=%d, hasPattern=%v, hasGitHubContext=%v",
+		len(expressionMappings), hasTemplatePattern, hasGitHubContext)
 
-	yaml.WriteString("      - name: Render template conditionals\n")
+	yaml.WriteString("      - name: Interpolate variables and render templates\n")
 	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+
+	// Add environment variables for extracted expressions
+	for _, mapping := range expressionMappings {
+		// Write the environment variable with the original GitHub expression
+		fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
+	}
+
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
-	WriteJavaScriptToYAML(yaml, renderTemplateScript)
+	WriteJavaScriptToYAML(yaml, getInterpolatePromptScript())
 }

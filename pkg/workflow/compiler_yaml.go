@@ -596,16 +596,11 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}\n")
 	}
 
-	// Add environment variables for extracted expressions
-	for _, mapping := range expressionMappings {
-		// Write the environment variable with the original GitHub expression
-		fmt.Fprintf(yaml, "          %s: ${{ %s }}\n", mapping.EnvVar, mapping.Content)
-	}
-
 	yaml.WriteString("        run: |\n")
 	WriteShellScriptToYAML(yaml, createPromptFirstScript, "          ")
 
 	if len(chunks) > 0 {
+		// Use quoted heredoc marker to prevent shell variable expansion
 		yaml.WriteString("          cat > \"$GH_AW_PROMPT\" << 'PROMPT_EOF'\n")
 		// Pre-allocate buffer to avoid repeated allocations
 		lines := strings.Split(chunks[0], "\n")
@@ -626,6 +621,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 		yaml.WriteString("        run: |\n")
+		// Use quoted heredoc marker to prevent shell variable expansion
 		yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << 'PROMPT_EOF'\n")
 		// Avoid string concatenation in loop - write components separately
 		lines := strings.Split(chunk, "\n")
@@ -659,7 +655,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << 'PROMPT_EOF'\n")
+		yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << PROMPT_EOF\n")
 		yaml.WriteString("          ## Note\n")
 		yaml.WriteString(fmt.Sprintf("          This workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.\n", c.trialLogicalRepoSlug))
 		yaml.WriteString("          PROMPT_EOF\n")
@@ -677,11 +673,11 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add PR context prompt as separate step if enabled
 	c.generatePRContextPromptStep(yaml, data)
 
-	// Add template rendering step if conditional patterns are detected
-	c.generateTemplateRenderingStep(yaml, data)
+	// Add combined interpolation and template rendering step
+	c.generateInterpolationAndTemplateStep(yaml, expressionMappings, data)
 
-	// Print prompt to step summary (merged into prompt generation)
-	yaml.WriteString("      - name: Print prompt to step summary\n")
+	// Print prompt (merged into prompt generation)
+	yaml.WriteString("      - name: Print prompt\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")

@@ -21,6 +21,14 @@ var (
 	includePattern = regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
 )
 
+// WorkflowInfo represents metadata about an available workflow
+type WorkflowInfo struct {
+	ID          string `console:"header:ID"`
+	Name        string `console:"header:Name"`
+	Description string `console:"header:Description,omitempty"`
+	Path        string `console:"-"` // Internal use only, not displayed
+}
+
 // InstallPackage installs agentic workflows from a GitHub repository
 func InstallPackage(repoSpec string, verbose bool) error {
 	packagesLog.Printf("Installing package: %s", repoSpec)
@@ -241,6 +249,184 @@ type WorkflowSourceInfo struct {
 	PackagePath string
 	SourcePath  string
 	CommitSHA   string // The actual commit SHA used when the package was installed
+}
+
+// isValidWorkflowFile checks if a markdown file is a valid workflow by attempting to parse its frontmatter.
+// It validates that the file has proper YAML frontmatter delimited by "---" and contains the required "on" field.
+//
+// Parameters:
+//   - filePath: Absolute or relative path to the markdown file to validate
+//
+// Returns:
+//   - true if the file is a valid workflow (has parseable frontmatter with an "on" field)
+//   - false if the file cannot be read, has invalid YAML, or lacks the required "on" field
+func isValidWorkflowFile(filePath string) bool {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return false
+	}
+
+	// Try to extract frontmatter - a valid workflow should have parseable frontmatter
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return false
+	}
+
+	// A valid workflow must have frontmatter with at least an "on" field
+	// Files without frontmatter or with empty frontmatter are not workflows
+	if len(result.Frontmatter) == 0 {
+		return false
+	}
+
+	// Check for the presence of the "on" field which is required for workflows
+	if _, hasOn := result.Frontmatter["on"]; !hasOn {
+		return false
+	}
+
+	return true
+}
+
+// listWorkflowsInPackage lists all available workflows in an installed package
+func listWorkflowsInPackage(repoSlug string, verbose bool) ([]string, error) {
+	workflows, err := listWorkflowsWithMetadata(repoSlug, verbose)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert WorkflowInfo to string paths for backwards compatibility
+	paths := make([]string, len(workflows))
+	for i, wf := range workflows {
+		paths[i] = wf.Path
+	}
+	return paths, nil
+}
+
+// listWorkflowsWithMetadata lists all available workflows in an installed package with metadata
+func listWorkflowsWithMetadata(repoSlug string, verbose bool) ([]WorkflowInfo, error) {
+	packagesLog.Printf("Listing workflows in package: %s", repoSlug)
+
+	packagesDir, err := getPackagesDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get packages directory: %w", err)
+	}
+
+	packagePath := filepath.Join(packagesDir, repoSlug)
+
+	// Check if package exists
+	if _, err := os.Stat(packagePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("package not found: %s", repoSlug)
+	}
+
+	var workflows []WorkflowInfo
+
+	// Walk through the package directory to find all .md files
+	err = filepath.Walk(packagePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip directories and non-markdown files
+		if info.IsDir() || !strings.HasSuffix(info.Name(), ".md") {
+			return nil
+		}
+
+		// Skip metadata files
+		if info.Name() == ".commit-sha" {
+			return nil
+		}
+
+		// Check if this is a valid workflow file
+		if !isValidWorkflowFile(path) {
+			if verbose {
+				fmt.Printf("Skipping non-workflow file: %s\n", path)
+			}
+			return nil
+		}
+
+		// Get relative path from package directory
+		relPath, err := filepath.Rel(packagePath, path)
+		if err != nil {
+			return err
+		}
+
+		// Extract workflow ID (filename without extension)
+		workflowID := strings.TrimSuffix(filepath.Base(path), ".md")
+
+		// For workflows in workflows/ directory, use simplified ID
+		if strings.HasPrefix(relPath, "workflows/") {
+			workflowID = strings.TrimSuffix(strings.TrimPrefix(relPath, "workflows/"), ".md")
+		}
+
+		// Extract name and description from frontmatter
+		name, description := extractWorkflowMetadata(path)
+
+		// Add to list with metadata
+		workflows = append(workflows, WorkflowInfo{
+			ID:          workflowID,
+			Name:        name,
+			Description: description,
+			Path:        relPath,
+		})
+
+		if verbose {
+			fmt.Printf("Found workflow: %s (ID: %s, Name: %s)\n", relPath, workflowID, name)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan package directory: %w", err)
+	}
+
+	packagesLog.Printf("Found %d workflows in package %s", len(workflows), repoSlug)
+	return workflows, nil
+}
+
+// extractWorkflowMetadata extracts name and description from a workflow file's frontmatter
+func extractWorkflowMetadata(filePath string) (name string, description string) {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", ""
+	}
+
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return "", ""
+	}
+
+	// Try to get name from frontmatter
+	if nameVal, ok := result.Frontmatter["name"]; ok {
+		if nameStr, ok := nameVal.(string); ok {
+			name = nameStr
+		}
+	}
+
+	// If no name in frontmatter, try to extract from first H1 heading
+	if name == "" {
+		lines := strings.Split(result.Markdown, "\n")
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "# ") {
+				name = strings.TrimSpace(trimmed[2:])
+				break
+			}
+		}
+	}
+
+	// If still no name, use filename as fallback (handled by caller)
+	if name == "" {
+		name = strings.TrimSuffix(filepath.Base(filePath), ".md")
+	}
+
+	// Try to get description from frontmatter
+	if descVal, ok := result.Frontmatter["description"]; ok {
+		if descStr, ok := descVal.(string); ok {
+			description = descStr
+		}
+	}
+
+	return name, description
 }
 
 // findWorkflowInPackageForRepo searches for a workflow in installed packages
@@ -515,4 +701,73 @@ type IncludeDependency struct {
 	SourcePath string // Path in the source (local)
 	TargetPath string // Relative path where it should be copied in .github/workflows
 	IsOptional bool   // Whether this is an optional include (@include?)
+}
+
+// discoverWorkflowsInPackage discovers all workflow files in an installed package
+// Returns a list of WorkflowSpec for each discovered workflow
+func discoverWorkflowsInPackage(repoSlug, version string, verbose bool) ([]*WorkflowSpec, error) {
+	packagesLog.Printf("Discovering workflows in package: %s (version: %s)", repoSlug, version)
+
+	packagesDir, err := getPackagesDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get packages directory: %w", err)
+	}
+
+	packagePath := filepath.Join(packagesDir, repoSlug)
+	if _, err := os.Stat(packagePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("package not found: %s (try installing it first)", repoSlug)
+	}
+
+	var workflows []*WorkflowSpec
+
+	// Walk through the package directory and find all .md files
+	err = filepath.Walk(packagePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip if not a markdown file
+		if info.IsDir() || !strings.HasSuffix(info.Name(), ".md") {
+			return nil
+		}
+
+		// Check if this is a valid workflow file
+		if !isValidWorkflowFile(path) {
+			if verbose {
+				fmt.Fprintf(os.Stderr, "Skipping non-workflow file: %s\n", path)
+			}
+			return nil
+		}
+
+		// Get relative path from package root
+		relPath, err := filepath.Rel(packagePath, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path: %w", err)
+		}
+
+		// Create workflow spec
+		spec := &WorkflowSpec{
+			RepoSpec: RepoSpec{
+				RepoSlug: repoSlug,
+				Version:  version,
+			},
+			WorkflowPath: relPath,
+			WorkflowName: strings.TrimSuffix(filepath.Base(relPath), ".md"),
+		}
+
+		workflows = append(workflows, spec)
+
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Discovered workflow: %s\n", spec.String())
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to walk package directory: %w", err)
+	}
+
+	packagesLog.Printf("Discovered %d workflows in package %s", len(workflows), repoSlug)
+	return workflows, nil
 }

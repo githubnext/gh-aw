@@ -1,66 +1,14 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { runLogParser } = require("./log_parser_bootstrap.cjs");
+
 function main() {
-  const fs = require("fs");
-  const path = require("path");
-
-  try {
-    const logPath = process.env.GH_AW_AGENT_OUTPUT;
-    if (!logPath) {
-      core.info("No agent log file specified");
-      return;
-    }
-
-    if (!fs.existsSync(logPath)) {
-      core.info(`Log path not found: ${logPath}`);
-      return;
-    }
-
-    let content = "";
-
-    // Check if logPath is a directory or a file
-    const stat = fs.statSync(logPath);
-    if (stat.isDirectory()) {
-      // Read all log files from the directory and concatenate them
-      const files = fs.readdirSync(logPath);
-      const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
-
-      if (logFiles.length === 0) {
-        core.info(`No log files found in directory: ${logPath}`);
-        return;
-      }
-
-      // Sort log files by name to ensure consistent ordering
-      logFiles.sort();
-
-      // Concatenate all log files
-      for (const file of logFiles) {
-        const filePath = path.join(logPath, file);
-        const fileContent = fs.readFileSync(filePath, "utf8");
-        content += fileContent;
-        // Add a newline between files if the previous file doesn't end with one
-        if (content.length > 0 && !content.endsWith("\n")) {
-          content += "\n";
-        }
-      }
-    } else {
-      // Read the single log file
-      content = fs.readFileSync(logPath, "utf8");
-    }
-
-    const parsedLog = parseCopilotLog(content);
-
-    if (parsedLog) {
-      core.info(parsedLog);
-      core.summary.addRaw(parsedLog).write();
-      core.info("Copilot log parsed successfully");
-    } else {
-      core.error("Failed to parse Copilot log");
-    }
-  } catch (error) {
-    core.setFailed(error instanceof Error ? error : String(error));
-  }
+  runLogParser({
+    parseLog: parseCopilotLog,
+    parserName: "Copilot",
+    supportsDirectories: true,
+  });
 }
 
 /**

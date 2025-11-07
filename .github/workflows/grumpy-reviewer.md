@@ -17,7 +17,7 @@ safe-outputs:
   create-pull-request-review-comment:
     max: 5
     side: "RIGHT"
-timeout_minutes: 10
+timeout-minutes: 10
 ---
 
 # Grumpy Code Reviewer 🔥

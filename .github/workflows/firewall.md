@@ -17,7 +17,7 @@ network:
 tools:
   web-fetch:
 
-timeout_minutes: 5
+timeout-minutes: 5
 ---
 
 # Firewall Test Agent

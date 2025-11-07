@@ -60,7 +60,7 @@ tools:
   edit:
   bash:
 
-timeout_minutes: 10
+timeout-minutes: 10
 
 ---
 

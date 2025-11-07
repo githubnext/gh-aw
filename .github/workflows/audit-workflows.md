@@ -22,7 +22,7 @@ safe-outputs:
   create-discussion:
     category: "audits"
     max: 1
-timeout_minutes: 30
+timeout-minutes: 30
 imports:
   - shared/mcp/gh-aw.md
   - shared/jqschema.md

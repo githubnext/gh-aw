@@ -35,7 +35,7 @@ safe-outputs:
   add-comment:
     max: 1
 
-timeout_minutes: 15
+timeout-minutes: 15
 strict: true
 ---
 

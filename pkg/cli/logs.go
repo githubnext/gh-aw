@@ -19,7 +19,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/timeutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
-	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 	"github.com/sourcegraph/conc/pool"
 	"github.com/spf13/cobra"
 )
@@ -1565,7 +1564,7 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			// Report that the agentic output file was found
 			fileInfo, statErr := os.Stat(awOutputPath)
 			if statErr == nil {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agentic output file: safe_output.jsonl (%s)", pretty.FormatFileSize(fileInfo.Size()))))
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agentic output file: safe_output.jsonl (%s)", console.FormatFileSize(fileInfo.Size()))))
 			}
 		}
 	}
@@ -1577,7 +1576,7 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			// Report that the git patch file was found
 			fileInfo, statErr := os.Stat(awPatchPath)
 			if statErr == nil {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found git patch file: aw.patch (%s)", pretty.FormatFileSize(fileInfo.Size()))))
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found git patch file: aw.patch (%s)", console.FormatFileSize(fileInfo.Size()))))
 			}
 		}
 	}
@@ -1588,7 +1587,7 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 		if verbose {
 			fileInfo, statErr := os.Stat(agentOutputPath)
 			if statErr == nil {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agent output file: %s (%s)", filepath.Base(agentOutputPath), pretty.FormatFileSize(fileInfo.Size()))))
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agent output file: %s (%s)", filepath.Base(agentOutputPath), console.FormatFileSize(fileInfo.Size()))))
 			}
 		}
 		// If the file is not already in the logDir root, copy it for convenience
@@ -2543,6 +2542,15 @@ func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose boo
 		return fmt.Errorf("failed to write log file: %w", err)
 	}
 
+	// Write the bootstrap helper to the temp directory
+	bootstrapScript := workflow.GetLogParserBootstrap()
+	if bootstrapScript != "" {
+		bootstrapFile := filepath.Join(tempDir, "log_parser_bootstrap.cjs")
+		if err := os.WriteFile(bootstrapFile, []byte(bootstrapScript), 0644); err != nil {
+			return fmt.Errorf("failed to write bootstrap file: %w", err)
+		}
+	}
+
 	// Create a Node.js script that mimics the GitHub Actions environment
 	nodeScript := fmt.Sprintf(`
 const fs = require('fs');
@@ -2568,17 +2576,11 @@ const core = {
 	}
 };
 
+// Set global core for the parser scripts
+global.core = core;
+
 // Set up environment
 process.env.GH_AW_AGENT_OUTPUT = '%s';
-
-// Override require to provide our mock
-const originalRequire = require;
-require = function(name) {
-	if (name === '@actions/core') {
-		return core;
-	}
-	return originalRequire.apply(this, arguments);
-};
 
 // Execute the parser script
 %s

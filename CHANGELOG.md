@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.28.6 - 2025-11-07
+
+Maintenance release with dependency updates and minor improvements.
+
+## v0.28.5 - 2025-11-06
+
+### Bug Fixes
+
+#### Use JavaScript for prompt variable interpolation instead of shell expansion
+
+The compiler now uses `actions/github-script` to interpolate GitHub Actions expressions in prompts, replacing the previous shell expansion approach. This improves security by using literal shell variables and adds a dedicated JavaScript interpolation step after prompt creation.
+
+
+## v0.28.4 - 2025-11-06
+
+Maintenance release with dependency updates and minor improvements.
+
+## v0.28.3 - 2025-11-06
+
+### Bug Fixes
+
+#### Fix SC2086: Quote ${GITHUB_WORKSPACE} in generated workflow steps
+
+
 ## v0.28.2 - 2025-11-05
 
 ### Bug Fixes
