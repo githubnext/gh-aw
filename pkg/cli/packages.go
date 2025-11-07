@@ -4,12 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/cli/go-gh/v2"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
@@ -20,33 +18,6 @@ var packagesLog = logger.New("cli:packages")
 var (
 	includePattern = regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
 )
-
-// ghExecOrFallback executes a gh CLI command if GH_TOKEN is available,
-// otherwise falls back to an alternative command.
-// Returns the stdout, stderr, and error from whichever command was executed.
-func ghExecOrFallback(ghArgs []string, fallbackCmd string, fallbackArgs []string, fallbackEnv []string) (string, string, error) {
-	ghToken := os.Getenv("GH_TOKEN")
-
-	if ghToken != "" {
-		// Use gh CLI when GH_TOKEN is available
-		packagesLog.Printf("Using gh CLI: gh %s", strings.Join(ghArgs, " "))
-		stdout, stderr, err := gh.Exec(ghArgs...)
-		return stdout.String(), stderr.String(), err
-	}
-
-	// Fall back to alternative command when GH_TOKEN is not available
-	packagesLog.Printf("Using fallback command: %s %s", fallbackCmd, strings.Join(fallbackArgs, " "))
-	cmd := exec.Command(fallbackCmd, fallbackArgs...)
-
-	// Add custom environment variables if provided
-	if len(fallbackEnv) > 0 {
-		cmd.Env = append(os.Environ(), fallbackEnv...)
-	}
-
-	output, err := cmd.CombinedOutput()
-	// For fallback commands, both stdout and stderr are in combined output
-	return string(output), string(output), err
-}
 
 // WorkflowInfo represents metadata about an available workflow
 type WorkflowInfo struct {
@@ -175,7 +146,7 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Printf("Cloning repository using gh CLI or git fallback...\n")
+		fmt.Printf("Cloning repository...\n")
 	}
 
 	// Use helper to execute gh CLI with git fallback
@@ -191,10 +162,14 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 
 	// If a specific SHA was requested, checkout that commit
 	if isSHA {
-		checkoutCmd := exec.Command("git", "checkout", version)
-		checkoutCmd.Dir = tempDir
-		if output, err := checkoutCmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("failed to checkout commit %s: %w (output: %s)", version, err, string(output))
+		stdout, stderr, err := ghExecOrFallback(
+			[]string{"exec", "--", "git", "-C", tempDir, "checkout", version},
+			"git",
+			[]string{"-C", tempDir, "checkout", version},
+			nil,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to checkout commit %s: %w (output: %s)", version, err, stderr+stdout)
 		}
 		if verbose {
 			fmt.Printf("Checked out commit: %s\n", version)
@@ -202,13 +177,16 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 	}
 
 	// Get the current commit SHA from the cloned repository
-	revParseCmd := exec.Command("git", "rev-parse", "HEAD")
-	revParseCmd.Dir = tempDir
-	commitBytes, err := revParseCmd.Output()
+	stdout, stderr, err := ghExecOrFallback(
+		[]string{"exec", "--", "git", "-C", tempDir, "rev-parse", "HEAD"},
+		"git",
+		[]string{"-C", tempDir, "rev-parse", "HEAD"},
+		nil,
+	)
 	if err != nil {
-		return fmt.Errorf("failed to get commit SHA: %w", err)
+		return fmt.Errorf("failed to get commit SHA: %w (output: %s)", err, stderr+stdout)
 	}
-	commitSHA := strings.TrimSpace(string(commitBytes))
+	commitSHA := strings.TrimSpace(stdout)
 
 	// Validate that we're at the expected commit if a specific SHA was requested
 	if isSHA && commitSHA != version {

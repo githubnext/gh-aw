@@ -67,7 +67,7 @@ func TestGhExecOrFallback(t *testing.T) {
 				os.Unsetenv("GH_TOKEN")
 			}
 
-			stdout, stderr, err := ghExecOrFallback(tt.ghArgs, tt.fallbackCmd, tt.fallbackArgs, tt.fallbackEnv)
+			stdout, _, err := ghExecOrFallback(tt.ghArgs, tt.fallbackCmd, tt.fallbackArgs, tt.fallbackEnv)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error for test '%s', got nil", tt.description)
@@ -89,12 +89,8 @@ func TestGhExecOrFallback(t *testing.T) {
 				}
 			}
 
-			// Verify stderr is also populated (combined output for fallback)
-			if !tt.expectError && tt.ghToken == "" {
-				if stderr == "" && stdout != "" {
-					t.Errorf("Expected stderr to be populated with combined output")
-				}
-			}
+			// With separated stdout/stderr, we don't expect both to be populated
+			// This is a change from the previous CombinedOutput behavior
 		})
 	}
 }
