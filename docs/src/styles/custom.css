@@ -800,7 +800,6 @@ nav a[aria-current="page"] {
   color: #010409 !important;
 }
 
-/* Buttons */
 .sl-markdown-content button,
 .sl-markdown-content .button,
 a.button {
@@ -1341,27 +1340,10 @@ footer *,
   }
 }
 
-@media (min-width: 72rem) {
-  .sl-markdown-content > aside,
-  .sl-markdown-content > .starlight-aside {
-    float: right;
-    clear: right;
-    width: 16rem;
-    max-width: 16rem;
-    margin: 0 0 1.5rem 2rem;
-  }
-  .sl-markdown-content::after {
-    content: "";
-    display: block;
-    clear: both;
-  }
-}
-@media (max-width: 71.999rem) {
-  .sl-markdown-content > aside,
-  .sl-markdown-content > .starlight-aside {
-    float: none;
-    width: auto;
-    max-width: none;
-    margin: 1.5rem 0;
-  }
+.sl-markdown-content > aside,
+.sl-markdown-content > .starlight-aside {
+  float: none;
+  width: 100%;
+  max-width: none;
+  margin: 1.5rem 0;
 }
