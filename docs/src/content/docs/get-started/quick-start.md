@@ -44,13 +44,20 @@ Agentic workflows use a coding agent: GitHub Copilot CLI (default), Claude or Co
 For GitHub Copilot CLI, create a fine-grained Personal Access Token (PAT) with the "Copilot Requests" permission enabled:
 
 1. Visit https://github.com/settings/personal-access-tokens/new
-2. Under "Permissions," click "add permissions" and select "Copilot Requests"
-3. Generate your token
-4. Add the token to your repository secrets as `COPILOT_GITHUB_TOKEN`:
+2. Under "Resource owner", select your user account (not an organization, see note below).
+3. Under "Repository access," select "Public repositories"
+4. Under "Permissions," click "Add permissions" and select "Copilot Requests". If you are not finding this option, review steps 2 and 3.
+5. Generate your token
+6. Add the token to your repository secrets as `COPILOT_GITHUB_TOKEN`:
 
 ```bash wrap
 gh secret set COPILOT_GITHUB_TOKEN -a actions --body "<your-personal-access-token>"
 ```
+
+:::note
+There is an ongoing work to support authentication with the GitHub Action token. 
+Once this work is deployed, you will not need to create a token for Copilot CLI.
+:::
 
 For more information, see the [official documentation](https://github.com/github/copilot-cli?tab=readme-ov-file#authenticate-with-a-personal-access-token-pat).
 

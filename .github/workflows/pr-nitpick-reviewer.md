@@ -1,7 +1,6 @@
 ---
 on:
-  pull_request:
-    types: [ready_for_review]
+  command: "nit"
 permissions:
   contents: read
   pull-requests: read

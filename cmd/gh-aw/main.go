@@ -262,6 +262,59 @@ func init() {
 		originalHelpFunc(cmd, args)
 	})
 
+	// Create custom help command that supports "all" subcommand
+	customHelpCmd := &cobra.Command{
+		Use:   "help [command]",
+		Short: "Help about any command",
+		Long: `Help provides help for any command in the application.
+Simply type ` + constants.CLIExtensionPrefix + ` help [path to command] for full details.
+
+Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all commands.`,
+		Run: func(c *cobra.Command, args []string) {
+			// Check if the argument is "all"
+			if len(args) == 1 && args[0] == "all" {
+				// Print header
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Agentic Workflows CLI - Complete Command Reference"))
+				fmt.Fprintln(os.Stderr, "")
+
+				// Iterate through all commands and print their help
+				for _, subCmd := range rootCmd.Commands() {
+					// Skip hidden commands (like completion) and help itself
+					if subCmd.Hidden || subCmd.Name() == "help" {
+						continue
+					}
+
+					// Print command separator
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("═══════════════════════════════════════════════════════════════"))
+					fmt.Fprintf(os.Stderr, "\n%s\n\n", console.FormatInfoMessage(fmt.Sprintf("Command: %s %s", constants.CLIExtensionPrefix, subCmd.Name())))
+
+					// Print the command's help
+					_ = subCmd.Help()
+					fmt.Fprintln(os.Stderr, "")
+				}
+
+				// Print footer
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("═══════════════════════════════════════════════════════════════"))
+				fmt.Fprintln(os.Stderr, "")
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("For more information, visit: https://githubnext.github.io/gh-aw/"))
+				return
+			}
+
+			// Otherwise, use the default help behavior
+			cmd, _, e := rootCmd.Find(args)
+			if cmd == nil || e != nil {
+				fmt.Fprintf(os.Stderr, "Unknown help topic [%#q]\n", args)
+				_ = rootCmd.Usage()
+			} else {
+				cmd.InitDefaultHelpFlag() // make possible 'help' flag to be shown
+				_ = cmd.Help()
+			}
+		},
+	}
+
+	// Replace the default help command
+	rootCmd.SetHelpCommand(customHelpCmd)
+
 	// Create and setup add command
 	addCmd := cli.NewAddCommand(validateEngine)
 
