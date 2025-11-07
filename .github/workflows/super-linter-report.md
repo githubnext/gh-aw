@@ -15,6 +15,8 @@ safe-outputs:
 engine: copilot
 name: Super Linter Report
 timeout-minutes: 15
+imports:
+  - shared/reporting.md
 steps:
   - name: Checkout Code
     uses: actions/checkout@v5
