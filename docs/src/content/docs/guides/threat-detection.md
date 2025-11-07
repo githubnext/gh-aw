@@ -306,7 +306,7 @@ safe-outputs:
               }
             }
 
-timeout_minutes: 20  # Allow time for model download
+timeout-minutes: 20  # Allow time for model download
 ---
 
 # Code Review Agent

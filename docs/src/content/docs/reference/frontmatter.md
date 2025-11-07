@@ -22,7 +22,7 @@ tools:
 
 ## Frontmatter Elements
 
-The frontmatter combines standard GitHub Actions properties (`on`, `permissions`, `run-name`, `runs-on`, `timeout_minutes`, `concurrency`, `env`, `environment`, `container`, `services`, `if`, `steps`, `cache`) with GitHub Agentic Workflows-specific elements (`description`, `source`, `github-token`, `imports`, `engine`, `strict`, `roles`, `features`, `safe-outputs`, `network`, `tools`, `cache-memory`).
+The frontmatter combines standard GitHub Actions properties (`on`, `permissions`, `run-name`, `runs-on`, `timeout-minutes`, `concurrency`, `env`, `environment`, `container`, `services`, `if`, `steps`, `cache`) with GitHub Agentic Workflows-specific elements (`description`, `source`, `github-token`, `imports`, `engine`, `strict`, `roles`, `features`, `safe-outputs`, `network`, `tools`, `cache-memory`).
 
 ### Trigger Events (`on:`)
 
@@ -232,14 +232,16 @@ network:
 
 See [Safe Outputs Processing](/gh-aw/reference/safe-outputs/) for automatic issue creation, comment posting and other safe outputs.
 
-### Run Configuration (`run-name:`, `runs-on:`, `timeout_minutes:`)
+### Run Configuration (`run-name:`, `runs-on:`, `timeout-minutes:`)
 
 Standard GitHub Actions properties:
 ```yaml wrap
 run-name: "Custom workflow run name"  # Defaults to workflow name
 runs-on: ubuntu-latest               # Defaults to ubuntu-latest (main job only)
-timeout_minutes: 30                  # Defaults to 20 minutes
+timeout-minutes: 30                  # Defaults to 20 minutes (timeout_minutes deprecated)
 ```
+
+**Note**: The `timeout_minutes` field is deprecated. Use `timeout-minutes` instead to follow GitHub Actions naming convention.
 
 ### Workflow Concurrency Control (`concurrency:`)
 

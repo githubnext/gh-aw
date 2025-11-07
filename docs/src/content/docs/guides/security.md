@@ -144,7 +144,7 @@ Without branch restrictions, workflows emit warnings during compilation (or erro
 strict: true
 permissions:
   contents: read  # Write permissions are blocked in strict mode
-timeout_minutes: 10
+timeout-minutes: 10
 network:
   allowed:
     - "api.example.com"
