@@ -440,7 +440,7 @@ func TestAddWorkflowWithTracking_WildcardDuplicateHandling(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tempDir, ".git"), 0755); err != nil {
 		t.Fatalf("Failed to create .git directory: %v", err)
 	}
-	
+
 	// Run git init to properly initialize the repository
 	initCmd := exec.Command("git", "init")
 	initCmd.Dir = tempDir
@@ -515,4 +515,3 @@ on: push
 		}
 	})
 }
-
