@@ -106,7 +106,7 @@ jobs:
         with:
           # golangci-lint version to use, v8 requires specific version instead of "latest"
           # https://github.com/golangci/golangci-lint/releases
-          version: v2.1
+          version: v2.6.1
 
       - name: Check formatting
         run: make fmt-check
