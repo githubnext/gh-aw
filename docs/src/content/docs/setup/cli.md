@@ -132,7 +132,7 @@ gh aw compile --dependabot --force         # Force overwrite existing files
 
 **Dependency Manifest Generation:** The `--dependabot` flag scans workflows and generates manifests for npm (`package.json`), pip (`requirements.txt`), and Go (`go.mod`). Creates or updates `.github/dependabot.yml` with intelligent merging. Use `--force` to overwrite configuration. Cannot be used with specific workflows or custom `--workflows-dir`.
 
-## ⚙️ Workflow Operations on GitHub Actions
+## Workflow Operations on GitHub Actions
 
 These commands control the execution and state of your compiled agentic workflows within GitHub Actions.
 

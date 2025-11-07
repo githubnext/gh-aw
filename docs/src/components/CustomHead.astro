@@ -20,7 +20,13 @@ import Default from '@astrojs/starlight/components/Head.astro';
                           window.location.pathname.endsWith('/gh-aw');
     
     if (isLandingPage) {
-      document.body.classList.add('landing-page');
+      if (document.body) {
+        document.body.classList.add('landing-page');
+      } else {
+        document.addEventListener('DOMContentLoaded', function() {
+          document.body.classList.add('landing-page');
+        });
+      }
     }
   })();
 </script>
