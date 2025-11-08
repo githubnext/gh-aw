@@ -18,25 +18,13 @@ The CLI supports GitHub Enterprise Server through the `GITHUB_SERVER_URL` or `GH
 ## Quick Start
 
 ```bash wrap
-# Show version and help
-gh aw version
-gh aw --help
-gh aw help all                                   # Show help for all commands
-
-# Basic workflow lifecycle
-gh aw init                                       # Initialize repository (first-time setup)
-gh aw add githubnext/agentics/ci-doctor    # Add workflow and compile to GitHub Actions
-gh aw compile                                    # Recompile to GitHub Actions
-gh aw trial githubnext/agentics/ci-doctor  # Test workflow safely before adding
-gh aw trial ./my-workflow.md --use-local-secrets  # Test local workflow with local API keys
-gh aw update                                     # Update all workflows with source field
-gh aw status                                     # Check status
-gh aw run daily-perf                        # Execute workflow
-gh aw run daily-perf daily-plan             # Execute multiple workflows
-gh aw run daily-perf --repeat 10            # Execute workflow 10 times
-gh aw logs daily-perf                             # View execution logs
-gh aw audit 12345678                             # Audit a specific run
-gh aw pr transfer https://github.com/owner/repo/pull/123  # Transfer PR between repositories
+# Get started
+gh aw init                                   # Initialize repository
+gh aw add githubnext/agentics/ci-doctor      # Add and compile a workflow
+gh aw trial ./my-workflow.md                 # Test workflow safely
+gh aw run daily-perf                         # Execute workflow
+gh aw logs daily-perf                        # View execution logs
+gh aw status                                 # Check workflow status
 ```
 
 ## Global Flags
@@ -46,298 +34,159 @@ gh aw pr transfer https://github.com/owner/repo/pull/123  # Transfer PR between 
 
 ## Getting Help
 
-```bash wrap
-gh aw --help              # Show general help
-gh aw help [command]      # Show help for specific command
-gh aw help all            # Show comprehensive help for all commands
-```
-
-The `help all` command displays complete documentation for all CLI commands in a single view, useful for reference or searching for specific functionality.
+Use `gh aw --help`, `gh aw help [command]`, or `gh aw help all` for comprehensive command documentation.
 
 ## Workflow Creation and Management
-
-The `add` and `new` commands help you create and manage agentic workflows, from templates and samples to completely custom workflows.
 
 ### Repository Initialization
 
 ```bash wrap
-gh aw init
-gh aw init --mcp  # Configure GitHub Copilot Agent MCP integration
+gh aw init       # Configure .gitattributes, Copilot instructions, custom agent
+gh aw init --mcp # Also setup MCP server integration for Copilot Agent
 ```
 
-Prepares the repository by configuring `.gitattributes`, creating Copilot instructions at `.github/instructions/github-agentic-workflows.instructions.md`, and adding the `create-agentic-workflow` custom agent at `.github/agents/`.
-
-With `--mcp`: Creates `.github/workflows/copilot-setup-steps.yml`, `.vscode/mcp.json`, and enables gh-aw MCP server tools (`status`, `compile`, `logs`, `audit`) in Copilot Agent.
-
-After initialization, use `/agent` in Copilot and select `create-agentic-workflow`, or add pre-built workflows with `gh aw add <workflow-name>`.
+The `--mcp` flag creates GitHub Actions workflow for MCP setup, configures `.vscode/mcp.json`, and enables gh-aw MCP tools (`status`, `compile`, `logs`, `audit`) in Copilot Agent.
 
 ### Workflow Management
 
 ```bash wrap
-# Create new workflows
+# Create, add, and remove workflows
 gh aw new my-custom-workflow
-gh aw new issue-handler --force
-
-# Add workflows from samples repository
 gh aw add githubnext/agentics/ci-doctor
-gh aw add githubnext/agentics/ci-doctor --name my-custom-doctor --pr --engine copilot
-gh aw add githubnext/agentics/ci-doctor --number 3  # Create 3 copies
-gh aw add githubnext/agentics/ci-doctor --append "Extra content"  # Append custom content
-gh aw add githubnext/agentics/ci-doctor --no-gitattributes  # Skip .gitattributes update
-gh aw add githubnext/agentics/ci-doctor --dir shared  # Add to .github/workflows/shared/
-
-# Add multiple workflows with wildcards
-gh aw add "githubnext/agentics/ci-*"  # Add all CI workflows
-
-# Remove workflows
+gh aw add "githubnext/agentics/ci-*"             # Add multiple with wildcards
+gh aw add ci-doctor --dir shared --number 3      # Organize and create copies
 gh aw remove WorkflowName
-gh aw remove WorkflowName --keep-orphans  # Keep shared includes
 ```
 
-**Automatic .gitattributes Configuration:** The `add` command automatically updates `.gitattributes` to mark `.lock.yml` files as generated. Use `--no-gitattributes` to disable.
+The `add` command automatically updates `.gitattributes` to mark `.lock.yml` files as generated (use `--no-gitattributes` to disable). Use `--dir` to organize workflows in subdirectories under `.github/workflows/`. When workflows aren't found, available options are displayed in a formatted table.
 
-**Workflow Organization:** The `--dir` flag specifies a subdirectory within `.github/workflows/` where workflows will be installed. This enables organizing workflows into logical groups (e.g., `--dir team/backend` creates `.github/workflows/team/backend/`). Subdirectory names are automatically prefixed with `.github/workflows/`. Paths starting with `.github/workflows/` are used as-is. Absolute paths are rejected.
-
-**Workflow Discovery:** When a workflow is not found, the `add` command displays a formatted table of available workflows with their IDs, names, and descriptions to help you find the correct workflow. When adding workflows with wildcards that match existing workflows, the command emits warnings instead of errors and continues processing.
-
-**Workflow Updates:**
+### Workflow Updates
 
 ```bash wrap
 gh aw update                              # Update all workflows with source field
-gh aw update ci-doctor issue-triage      # Update specific workflows
-gh aw update ci-doctor --major --force   # Allow major version updates
-gh aw update --verbose --engine copilot  # Override engine
+gh aw update ci-doctor --major --force    # Allow major version updates
 ```
 
-Updates use the `source` field format `owner/repo/path@ref`. Semantic version tags update within the same major version (use `--major` for major updates). Branch references fetch the latest commit. Performs 3-way merge with `git merge-file`, preserving local changes. Conflicts add diff3-style markers and skip recompilation until resolved.
+Updates use `source` field format `owner/repo/path@ref`. Semantic version tags update within the same major version (use `--major` for major updates). Performs 3-way merge preserving local changes; conflicts add diff3 markers and skip recompilation until resolved.
 
 ## Compilation
 
-Transforms markdown workflow files into executable GitHub Actions YAML files:
-
 ```bash wrap
-# Core compilation
 gh aw compile                              # Compile all workflows
-gh aw compile ci-doctor daily-plan         # Compile specific workflows
-gh aw compile --validate --no-emit         # Validate schema and containers without generating files
-gh aw compile --strict --engine copilot    # Strict mode with custom engine
-gh aw compile --purge                      # Remove orphaned .lock.yml files
-
-# Development features
-gh aw compile --watch --verbose            # Auto-recompile on changes
-gh aw compile --workflows-dir custom/      # Custom workflows directory
-
-# Security scanning
-gh aw compile --zizmor                     # Run security scanner on compiled workflows
-gh aw compile --strict --zizmor            # Strict mode with security scanning (fails on findings)
-
-# Dependency management
+gh aw compile --watch                      # Auto-recompile on changes
+gh aw compile --validate --strict          # Schema validation + strict mode
+gh aw compile --zizmor                     # Security scan (warnings)
+gh aw compile --strict --zizmor            # Security scan (fails on findings)
 gh aw compile --dependabot                 # Generate dependency manifests
-gh aw compile --dependabot --force         # Force overwrite existing files
 ```
 
-**Watch Mode:** Auto-recompile workflows on file changes. See [Authoring in VS Code](/gh-aw/setup/vscode/).
+**Flags:**
+- `--validate`: Schema validation and container checks (disabled by default)
+- `--strict`: Requires timeouts, explicit network config, blocks write permissions
+- `--zizmor`: Runs [zizmor](https://github.com/woodruffw/zizmor) security scanner for template injection and permission risks
+- `--dependabot`: Generates npm/pip/Go manifests and updates `.github/dependabot.yml`
+- `--watch`: Auto-recompile on file changes (see [VS Code setup](/gh-aw/setup/vscode/))
 
-**Validation:** The `--validate` flag enables schema validation and container image checks. Disabled by default for faster compilation.
+Compilation fails if workflows use `create-discussion` or `create-issue` but the repository lacks those features.
 
-**Security Scanning:** The `--zizmor` flag runs the [zizmor](https://github.com/woodruffw/zizmor) security scanner on compiled workflows to identify template injection, dangerous permissions, and other security risks. Findings are warnings by default; use `--strict` to treat them as errors.
+## Workflow Operations
 
-**Strict Mode:** Requires timeouts, explicit network configuration, and blocks write permissions. With `--zizmor`, treats security findings as compilation errors requiring zero warnings before deployment. Enable via `--strict` flag or `strict: true` in frontmatter.
-
-**Repository Feature Validation:** Compilation fails if workflows use `create-discussion` or `create-issue` but the target repository lacks those features. Enable them in repository settings or remove incompatible safe-outputs.
-
-**Dependency Manifest Generation:** The `--dependabot` flag scans workflows and generates manifests for npm (`package.json`), pip (`requirements.txt`), and Go (`go.mod`). Creates or updates `.github/dependabot.yml` with intelligent merging. Use `--force` to overwrite configuration. Cannot be used with specific workflows or custom `--workflows-dir`.
-
-## Workflow Operations on GitHub Actions
-
-These commands control the execution and state of your compiled agentic workflows within GitHub Actions.
-
-### Workflow Execution
+### Execution
 
 ```bash wrap
-gh aw run WorkflowName                      # Run single workflow
-gh aw run WorkflowName1 WorkflowName2       # Run multiple workflows
-gh aw run WorkflowName --repeat 3           # Run 3 times total
-gh aw run workflow --use-local-secrets      # Use local API keys for execution
-gh aw run weekly-research --enable-if-needed --input priority=high
+gh aw run WorkflowName                      # Run workflow
+gh aw run workflow1 workflow2 --repeat 3    # Run multiple, repeat 3 times
+gh aw run workflow --use-local-secrets      # Use local API keys
 ```
 
-:::note[Running from GitHub Codespaces]
-When using `gh aw run` from a GitHub Codespace, you need to update the codespace's repository permissions to include `actions: write` and `workflows: write`. This allows the codespace to trigger workflow runs.
-
-To update permissions, go to your codespace settings and manage repository access. See [Managing repository access for your codespaces](https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces) for detailed instructions.
+:::note[Codespaces]
+From GitHub Codespaces, grant `actions: write` and `workflows: write` permissions. See [Managing repository access](https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces).
 :::
 
-### Using Local API Keys
+The `--use-local-secrets` flag temporarily pushes AI engine secrets from environment variables to the repository, then cleans them up. Only pushes secrets needed by the workflow's engine.
+
+### State Management
 
 ```bash wrap
-gh aw run my-workflow --use-local-secrets       # Use local API keys for run
-gh aw trial ./workflow.md --use-local-secrets   # Use local API keys for trial
+gh aw status                                # Show all workflow status
+gh aw enable [prefix]                       # Enable workflows (supports patterns)
+gh aw disable [prefix]                      # Disable and cancel workflows
 ```
 
-The `--use-local-secrets` flag temporarily pushes AI engine secrets from environment variables (`CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `COPILOT_GITHUB_TOKEN`) to the repository before execution, then automatically cleans them up. Only pushes secrets needed by the workflow's engine. Useful for testing without permanently storing secrets in the repository. Use with caution in shared environments.
-
-### Workflow State Management
+### Log Analysis
 
 ```bash wrap
-gh aw status [WorkflowPrefix]               # Show workflow status
-gh aw enable [WorkflowPrefix]               # Enable workflows
-gh aw disable [WorkflowPrefix]              # Disable and cancel workflows
+gh aw logs [workflow-name]                # Download and analyze logs
+gh aw logs -c 10 --start-date -1w         # Filter by count and date
+gh aw logs --parse --json                 # Generate markdown + JSON output
 ```
 
-Status shows workflow names, enabled/disabled state, execution status, and compilation status. Enable/disable commands support pattern matching.
+Downloaded runs are cached (~10-100x faster on subsequent runs). Use `--parse` to generate `log.md` and `firewall.md` with tool calls and network patterns. Use `--json` for structured metrics output.
 
-### Log Analysis and Monitoring
-
-Download and analyze workflow execution history with performance metrics, cost tracking, and error analysis:
+### Run Audit
 
 ```bash wrap
-gh aw logs [workflow-name] -o ./analysis  # Download logs
-gh aw logs -c 10 --start-date -1w --end-date -1d
-gh aw logs --engine claude --branch main
-gh aw logs --after-run-id 1000 --before-run-id 2000
-gh aw logs --no-staged --tool-graph       # Exclude staged runs, generate Mermaid graph
-gh aw logs --parse --verbose --json       # Parse logs to markdown, output JSON
-gh aw logs --timeout 60                   # Limit execution to 60 seconds
+gh aw audit 12345678                                      # By run ID
+gh aw audit https://github.com/owner/repo/actions/runs/123 # By URL
+gh aw audit 12345678 --parse                              # Parse logs to markdown
 ```
 
-**Timeout:** `--timeout` limits execution time in seconds. Set to `0` for no timeout (default). MCP server uses 50s timeout automatically.
+Accepts run IDs or URLs from any repository and GitHub instance. Reports include overview, metrics, tool usage, MCP failures, firewall analysis, and artifacts.
 
-**Caching:** Downloaded runs are cached with `run_summary.json`. Subsequent `logs` commands reuse cached data (~10-100x faster) unless CLI version changes.
-
-**Output:** `--parse` generates `log.md` and `firewall.md` with tool calls, reasoning, and network patterns. `--json` outputs structured metrics, runs, tool usage, MCP failures, and firewall analysis.
-
-### Single Run Audit
-
-Generate concise markdown reports for individual workflow runs with smart permission handling:
+### MCP Servers
 
 ```bash wrap
-gh aw audit 12345678                                            # By run ID
-gh aw audit https://github.com/owner/repo/actions/runs/123      # By URL from any repo
-gh aw audit https://github.example.com/org/repo/runs/456        # GitHub Enterprise URL
-gh aw audit 12345678 -o ./audit-reports -v
-gh aw audit 12345678 --parse                                    # Parse logs to markdown
+gh aw mcp list [workflow]                 # List MCP servers
+gh aw mcp inspect [workflow]              # Inspect and test servers
+gh aw mcp add                             # Add servers from registry
 ```
 
-Accepts workflow run URLs from any repository and GitHub instance (standard, workflow run, job URLs, and GitHub Enterprise). The `--parse` flag generates detailed `log.md` and `firewall.md` files. Checks local cache first, then attempts download. Reports include overview, metrics, tool usage, MCP failures, firewall analysis, and artifacts.
-
-### MCP Server Management
-
-Discover, list, inspect, and add Model Context Protocol (MCP) servers. See [MCPs Guide](/gh-aw/guides/mcps/) and [MCP Server Guide](/gh-aw/setup/mcp-server/).
-
-```bash wrap
-# Discovery and listing
-gh aw mcp list [workflow-name] [--verbose]
-gh aw mcp list-tools github [ci-doctor] [--verbose]
-
-# Inspection and testing
-gh aw mcp inspect [workflow-name] [--server server-name] [--tool tool-name]
-gh aw mcp inspect workflow-name --inspector  # Launch web inspector
-
-# Add from registry
-gh aw mcp add                                # List available servers
-gh aw mcp add ci-doctor makenotion/notion-mcp-server --transport stdio --tool-id my-notion
-gh aw mcp add ci-doctor server-name --registry https://custom.registry.com/v1
-```
-
-Features include server connection testing, tool capability analysis, multi-protocol support (stdio, Docker, HTTP), and automatic compilation.
+See [MCPs Guide](/gh-aw/guides/mcps/) and [MCP Server Guide](/gh-aw/setup/mcp-server/) for details.
 
 ## Repository Utilities
 
 ### Trial Mode
 
-Test workflows safely in a temporary private repository without affecting your target repository:
+Test workflows in a temporary private repository:
 
 ```bash wrap
-gh aw trial githubnext/agentics/ci-doctor  # Test from source repo
-gh aw trial ./my-local-workflow.md         # Test local file
-gh aw trial workflow1 workflow2            # Compare multiple workflows
-gh aw trial ./workflow.md --use-local-secrets  # Use local API keys for trial
-gh aw trial ./workflow.md --logical-repo myorg/myrepo --host-repo myorg/host-repo # Act as if in a different logical repo. Uses PAT to see issues/PRs
-gh aw trial ./workflow.md --clone-repo myorg/myrepo --host-repo myorg/host-repo # Copy the code of the clone repo for into host repo. Agentic will see the codebase of clone repo but not the issues/PRs.
-gh aw trial ./workflow.md --append "Extra content"  # Append custom content to workflow
-
-# Test issue-triggered workflows with context
-gh aw trial ./issue-workflow.md --trigger-context https://github.com/owner/repo/issues/123
-gh aw trial githubnext/agentics/issue-triage --trigger-context "#456"
-
-Other flags:
- --engine ENGINE               # Override engine (default: from frontmatter)
- --auto-merge-prs            # Auto-merge PRs created during trial
- --use-local-secrets         # Use local environment API keys (pushes/cleans up secrets)
- --repeat N                  # Repeat N times
- --force-delete-host-repo-before  # Force delete existing host repo BEFORE start
- --delete-host-repo-after         # Delete host repo AFTER trial
- --append TEXT                # Append extra content to workflow files
+gh aw trial githubnext/agentics/ci-doctor          # Test workflow
+gh aw trial ./workflow.md --use-local-secrets       # Test with local API keys
+gh aw trial ./workflow.md --logical-repo owner/repo # Act as different repo
+gh aw trial ./issue-workflow.md --trigger-context "#123" # With issue context
 ```
 
-Trial results are saved to `trials/` directory and the trial repository. Set `GH_AW_GITHUB_TOKEN` to override authentication. See the [Security Guide](/gh-aw/guides/security/#authorization-and-token-management).
+Common flags: `--engine`, `--auto-merge-prs`, `--repeat N`, `--delete-host-repo-after`
 
-`--logical-repo` makes workflows operate as if running in the specified repository, accessing its issues and PRs. Use `gh aw compile --trial --logical-repo owner/repo` to recompile. `--clone-repo` uses the codebase from the clone repository while interacting with the host repository's issues and PRs.
+Trial results save to `trials/` directory. Use `--logical-repo` to access issues/PRs from a specific repository, or `--clone-repo` to use a different codebase.
 
-### Pull Request Transfer
-
-Transfer pull requests between repositories, preserving code changes, title, and description:
+### PR Transfer
 
 ```bash wrap
-# Transfer PR to current repository
-gh aw pr transfer https://github.com/source-owner/source-repo/pull/234
-
-# Transfer PR to specific repository
-gh aw pr transfer https://github.com/source-owner/source-repo/pull/234 --repo target-owner/target-repo
-
-# Verbose output for debugging
-gh aw pr transfer https://github.com/source-owner/source-repo/pull/234 --verbose
+gh aw pr transfer https://github.com/source/repo/pull/234
+gh aw pr transfer <pr-url> --repo target-owner/target-repo
 ```
 
-Fetches PR details, creates a patch with `gh pr diff`, applies changes to a new branch in the target repository, and creates a PR with attribution. Requires authenticated `gh` CLI, write access to target repository, and read access to source repository.
+Transfers PR between repositories, preserving code changes, title, and description.
 
-### MCP Server for gh aw
-
-Run gh-aw as an MCP server exposing CLI commands (`status`, `compile`, `logs`, `audit`) as tools for AI agents:
+### gh-aw MCP Server
 
 ```bash wrap
-gh aw mcp-server                    # stdio transport (local CLI)
-gh aw mcp-server --port 3000        # HTTP/SSE transport (workflows)
-gh aw mcp-server --cmd ./gh-aw --port 3000
+gh aw mcp-server              # stdio transport (local)
+gh aw mcp-server --port 3000  # HTTP/SSE transport (workflows)
 ```
 
-Uses subprocess architecture for token isolation. Import with `shared/mcp/gh-aw.md` in workflows. See [MCP Server Guide](/gh-aw/setup/mcp-server/).
+Exposes CLI commands as MCP tools. See [MCP Server Guide](/gh-aw/setup/mcp-server/).
 
 ## Debug Logging
 
-Enable detailed debug logs using the `DEBUG` environment variable with pattern matching:
-
 ```bash wrap
-# Enable all debug logs
-DEBUG=* gh aw compile
-
-# Enable specific package logs (e.g., CLI operations)
-DEBUG=cli:* gh aw compile
-
-# Enable compiler logs
-DEBUG=workflow:* gh aw compile
-
-# Enable multiple packages
-DEBUG=cli:*,workflow:* gh aw compile
-
-# Exclude specific patterns
-DEBUG=*,-workflow:test gh aw compile
-
-# Disable colors (auto-disabled when piping)
-DEBUG_COLORS=0 DEBUG=* gh aw compile
+DEBUG=* gh aw compile                # All debug logs
+DEBUG=cli:* gh aw compile            # CLI operations only
+DEBUG=cli:*,workflow:* gh aw compile # Multiple packages
 ```
 
-Debug logs show:
-- **Namespace**: Category of the log (e.g., `cli:compile_command`, `workflow:compiler`)
-- **Message**: Debug information
-- **Time diff**: Elapsed time since last log (e.g., `+50ms`, `+2.5s`)
-- **Colors**: Automatic color coding for each namespace (when in terminal)
-
-**When to use:**
-- Use `DEBUG` for internal diagnostic information and performance insights
-- Use `--verbose` for user-facing operational details
-- Debug logs are zero-overhead when disabled (no performance impact)
+Debug logs show namespace, message, and time diff (e.g., `+50ms`). Zero overhead when disabled. Use `--verbose` for user-facing details.
 
 ## Related Documentation
 
