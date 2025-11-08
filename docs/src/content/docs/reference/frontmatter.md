@@ -344,6 +344,31 @@ Post-steps are useful for:
 - Cleanup operations
 - Triggering downstream workflows
 
+## Custom Jobs (`jobs:`)
+
+Define custom jobs that run before the agentic execution using standard GitHub Actions `jobs:` syntax. Custom jobs support the complete GitHub Actions step specification including all standard properties (`id`, `if`, `name`, `uses`, `run`, `with`, `env`, `continue-on-error`, `timeout-minutes`, `working-directory`, `shell`).
+
+```yaml wrap
+jobs:
+  super_linter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Super-Linter
+        uses: super-linter/super-linter@v7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: linter-results
+          path: super-linter.log
+```
+
+The agentic execution job automatically waits for all custom jobs to complete before running. Custom jobs without explicit `needs:` dependencies automatically depend on the activation job (if present). This enables workflows that perform preliminary checks, prepare data, or run linters before the AI agent executes.
+
+Custom jobs can share data with the agentic execution through artifacts or job outputs.
+
 ## Cache Configuration (`cache:`)
 
 Cache configuration using standard GitHub Actions `actions/cache` syntax:
