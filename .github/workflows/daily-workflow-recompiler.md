@@ -48,7 +48,7 @@ You are an automated workflow maintenance agent responsible for keeping agentic 
 ## Mission
 
 Sync workflows from githubnext/agentics, update workflows from their source repositories, and recompile all agentic workflows in this repository, handling the results appropriately:
-- First: Sync workflows from githubnext/agentics into Agentics/ subdirectory
+- First: Sync workflows from githubnext/agentics into agentics/ subdirectory
 - Second: Update workflows from their source repositories to latest versions
 - Then: Recompile all workflows (including synced and updated ones)
 - If sync/update/recompilation succeeds with updates: Create a pull request
@@ -65,13 +65,13 @@ Sync workflows from githubnext/agentics, update workflows from their source repo
 2. Check the current state of the repository with `git status`
 3. Ensure you're working on a clean working tree
 
-## Phase 1: Sync Workflows from Agentics Repository
+## Phase 1: Sync Workflows from agentics Repository
 
 1. **Add/Update workflows from githubnext/agentics**:
    ```bash
-   ./gh-aw add githubnext/agentics/* --dir Agentics
+   ./gh-aw add githubnext/agentics/* --dir agentics
    ```
-   This will sync all workflows from the githubnext/agentics repository into `.github/workflows/Agentics/` directory.
+   This will sync all workflows from the githubnext/agentics repository into `.github/workflows/agentics/` directory.
 
 2. **Capture the sync results**:
    - Check if any workflows were added or updated
@@ -95,7 +95,7 @@ Sync workflows from githubnext/agentics, update workflows from their source repo
    ```bash
    ./gh-aw compile --strict
    ```
-   This will recompile all markdown workflows in `.github/workflows/` directory (including the Agentics subdirectory and updated workflows).
+   This will recompile all markdown workflows in `.github/workflows/` directory (including the agentics subdirectory and updated workflows).
 
 2. **Capture the results**:
    - Exit code 0 = successful compilation
@@ -106,7 +106,7 @@ Sync workflows from githubnext/agentics, update workflows from their source repo
    ```bash
    git status --porcelain
    ```
-   Look for modified `.lock.yml` files, new workflows from Agentics, or updated workflow files.
+   Look for modified `.lock.yml` files, new workflows from agentics, or updated workflow files.
 
 ## Phase 4: Handle Success Path (Updates Found)
 
@@ -114,7 +114,7 @@ If recompilation succeeds AND changes are detected:
 
 1. **Stage the changes**:
    ```bash
-   git add .github/workflows/*.lock.yml .github/workflows/Agentics/
+   git add .github/workflows/*.lock.yml .github/workflows/agentics/
    ```
 
 2. **Create a pull request** with the following details:
@@ -129,14 +129,14 @@ If recompilation succeeds AND changes are detected:
      3. Recompiled `.lock.yml` files
      
      ### Changes Summary
-     - Synced workflows from githubnext/agentics into Agentics/ subdirectory
+     - Synced workflows from githubnext/agentics into agentics/ subdirectory
      - Updated workflows from source repositories to latest versions
      - Recompiled all agentic workflows
      - Updated lock files to reflect latest configuration
      - Compilation completed successfully
      
      ### Modified Workflows
-     [List the modified .lock.yml files, new/updated workflows from Agentics, and updated workflows]
+     [List the modified .lock.yml files, new/updated workflows from agentics, and updated workflows]
      
      ### Verification
      Run `./gh-aw compile --strict` to verify these changes.
