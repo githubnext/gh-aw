@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
+	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
 )
 
@@ -184,6 +185,11 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	yamlStr := string(yamlBytes)
 	// Remove the trailing newline
 	yamlStr = strings.TrimSuffix(yamlStr, "\n")
+
+	// Post-process YAML to ensure cron expressions are quoted
+	// The YAML library may drop quotes from cron expressions like "0 14 * * 1-5"
+	// which causes validation errors since they start with numbers but contain spaces
+	yamlStr = parser.QuoteCronExpressions(yamlStr)
 
 	// Clean up quoted keys - replace "key": with key: at the start of a line
 	// Don't unquote "on" key as it's a YAML boolean keyword and must remain quoted

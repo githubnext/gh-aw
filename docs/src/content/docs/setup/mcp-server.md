@@ -91,6 +91,7 @@ The MCP server provides:
 - **compile**: Generate GitHub Actions YAML
 - **logs**: Download with timeout handling and continuation
 - **audit**: Generate report to `/tmp/gh-aw/aw-mcp/logs`
+- **add**: Install workflows from remote repositories
 - **mcp-inspect**: Inspect servers and validate secrets
 
 ### Logs Tool Features

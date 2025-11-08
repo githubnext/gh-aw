@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var copilotParticipantLog = logger.New("workflow:copilot_participant_steps")
 
 // CopilotParticipantConfig holds configuration for generating Copilot participant steps
 type CopilotParticipantConfig struct {
@@ -25,7 +29,10 @@ type CopilotParticipantConfig struct {
 // buildCopilotParticipantSteps generates steps for adding Copilot participants (assignees or reviewers)
 // This function extracts the common logic between issue assignees and PR reviewers
 func buildCopilotParticipantSteps(config CopilotParticipantConfig) []string {
+	copilotParticipantLog.Printf("Building Copilot participant steps: type=%s, count=%d", config.ParticipantType, len(config.Participants))
+
 	if len(config.Participants) == 0 {
+		copilotParticipantLog.Print("No participants to add, returning empty steps")
 		return nil
 	}
 
@@ -50,15 +57,19 @@ func buildCopilotParticipantSteps(config CopilotParticipantConfig) []string {
 	// Use Copilot token preference if adding copilot as participant, otherwise use regular token
 	var effectiveToken string
 	if hasCopilotParticipant {
+		copilotParticipantLog.Print("Using Copilot token preference")
 		effectiveToken = getEffectiveCopilotGitHubToken(config.CustomToken, getEffectiveCopilotGitHubToken(config.SafeOutputsToken, config.WorkflowToken))
 	} else {
+		copilotParticipantLog.Print("Using regular GitHub token")
 		effectiveToken = getEffectiveGitHubToken(config.CustomToken, getEffectiveGitHubToken(config.SafeOutputsToken, config.WorkflowToken))
 	}
 
 	// Generate participant-specific steps
 	if config.ParticipantType == "assignee" {
+		copilotParticipantLog.Printf("Generating issue assignee steps for %d participants", len(config.Participants))
 		steps = append(steps, buildIssueAssigneeSteps(config, effectiveToken)...)
 	} else if config.ParticipantType == "reviewer" {
+		copilotParticipantLog.Printf("Generating PR reviewer steps for %d participants", len(config.Participants))
 		steps = append(steps, buildPRReviewerSteps(config, effectiveToken)...)
 	}
 

@@ -13,12 +13,15 @@ This page lists available commands for managing agentic workflows with the GitHu
 gh extension install githubnext/gh-aw
 ```
 
+The CLI supports GitHub Enterprise Server through the `GITHUB_SERVER_URL` or `GH_HOST` environment variables. When set, commands like `gh aw add` will use the specified GitHub instance for cloning and accessing workflows.
+
 ## Quick Start
 
 ```bash wrap
 # Show version and help
 gh aw version
 gh aw --help
+gh aw help all                                   # Show help for all commands
 
 # Basic workflow lifecycle
 gh aw init                                       # Initialize repository (first-time setup)
@@ -40,6 +43,16 @@ gh aw pr transfer https://github.com/owner/repo/pull/123  # Transfer PR between 
 
 - **`--verbose` / `-v`**: Enable verbose output with debugging details
 - **`--help` / `-h`**: Show help information
+
+## Getting Help
+
+```bash wrap
+gh aw --help              # Show general help
+gh aw help [command]      # Show help for specific command
+gh aw help all            # Show comprehensive help for all commands
+```
+
+The `help all` command displays complete documentation for all CLI commands in a single view, useful for reference or searching for specific functionality.
 
 ## Workflow Creation and Management
 
@@ -71,6 +84,7 @@ gh aw add githubnext/agentics/ci-doctor --name my-custom-doctor --pr --engine co
 gh aw add githubnext/agentics/ci-doctor --number 3  # Create 3 copies
 gh aw add githubnext/agentics/ci-doctor --append "Extra content"  # Append custom content
 gh aw add githubnext/agentics/ci-doctor --no-gitattributes  # Skip .gitattributes update
+gh aw add githubnext/agentics/ci-doctor --dir shared  # Add to .github/workflows/shared/
 
 # Add multiple workflows with wildcards
 gh aw add "githubnext/agentics/ci-*"  # Add all CI workflows
@@ -81,6 +95,8 @@ gh aw remove WorkflowName --keep-orphans  # Keep shared includes
 ```
 
 **Automatic .gitattributes Configuration:** The `add` command automatically updates `.gitattributes` to mark `.lock.yml` files as generated. Use `--no-gitattributes` to disable.
+
+**Workflow Organization:** The `--dir` flag specifies a subdirectory within `.github/workflows/` where workflows will be installed. This enables organizing workflows into logical groups (e.g., `--dir team/backend` creates `.github/workflows/team/backend/`). Subdirectory names are automatically prefixed with `.github/workflows/`. Paths starting with `.github/workflows/` are used as-is. Absolute paths are rejected.
 
 **Workflow Discovery:** When a workflow is not found, the `add` command displays a formatted table of available workflows with their IDs, names, and descriptions to help you find the correct workflow. When adding workflows with wildcards that match existing workflows, the command emits warnings instead of errors and continues processing.
 
