@@ -119,9 +119,10 @@ Include for each updated CLI:
 - **GitHub Release Notes**: Include highlights and PR summaries when available from GitHub releases
 
 **URL Formatting Rules**:
-- Use plain URLs: `https://www.npmjs.com/package/@package-name`
-- Do NOT use backticks in URLs
-- Package names in URLs should not be wrapped in backticks
+- Use plain URLs without backticks around package names
+- **CORRECT**: https://www.npmjs.com/package/@github/copilot
+- **INCORRECT**: `https://www.npmjs.com/package/@github/copilot` (has backticks)
+- **INCORRECT**: https://www.npmjs.com/package/`@github/copilot` (package name wrapped in backticks)
 
 Template structure:
 ```
@@ -144,6 +145,8 @@ Template structure:
 
 ## Changelog Links
 - **NPM Package**: https://www.npmjs.com/package/@package-name
+## Package Links
+- **NPM Package**: https://www.npmjs.com/package/package-name-here
 - **Repository**: [GitHub URL if available]
 - **Release Notes**: [GitHub releases URL if available]
 - **Specific Release**: [Direct link to version's release notes if available]
