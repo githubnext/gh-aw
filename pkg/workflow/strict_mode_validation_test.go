@@ -25,9 +25,9 @@ func TestValidateStrictPermissions(t *testing.T) {
 			frontmatter: map[string]any{
 				"on": "push",
 				"permissions": map[string]any{
-					"contents":       "read",
-					"issues":         "read",
-					"pull-requests":  "read",
+					"contents":      "read",
+					"issues":        "read",
+					"pull-requests": "read",
 				},
 			},
 			expectError: false,
@@ -438,7 +438,7 @@ func TestValidateStrictModeEdgeCases(t *testing.T) {
 		errorMsg           string
 	}{
 		{
-			name: "empty frontmatter with valid network",
+			name:        "empty frontmatter with valid network",
 			frontmatter: map[string]any{},
 			networkPermissions: &NetworkPermissions{
 				Mode:    "custom",
@@ -447,7 +447,7 @@ func TestValidateStrictModeEdgeCases(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "nil frontmatter map is handled",
+			name:        "nil frontmatter map is handled",
 			frontmatter: nil,
 			networkPermissions: &NetworkPermissions{
 				Mode:    "custom",
