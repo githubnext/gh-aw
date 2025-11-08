@@ -48,10 +48,10 @@ func parseTitlePrefixFromConfig(configMap map[string]any) string {
 	return parseStringFromConfig(configMap, "title-prefix")
 }
 
-// parseTargetRepoFromConfig extracts and validates target-repo from a config map
-// Returns the target repository slug, or empty string if not present or invalid
-// Returns error string "*" if the wildcard value is used (which is invalid for target-repo)
-// Callers should check for "*" and handle it as an error condition
+// parseTargetRepoFromConfig extracts the target-repo value from a config map.
+// Returns the target repository slug as a string, or empty string if not present or invalid.
+// This function does not perform any special handling or validation for wildcard values ("*");
+// callers are responsible for validating the returned value as needed.
 func parseTargetRepoFromConfig(configMap map[string]any) string {
 	return parseStringFromConfig(configMap, "target-repo")
 }
