@@ -122,6 +122,43 @@ type FirewallAnalysis struct {
 	RequestsByDomain map[string]DomainRequestStats
 }
 
+// GetAllowedDomains returns the list of allowed domains
+func (f *FirewallAnalysis) GetAllowedDomains() []string {
+	return f.AllowedDomains
+}
+
+// GetDeniedDomains returns the list of denied domains
+func (f *FirewallAnalysis) GetDeniedDomains() []string {
+	return f.DeniedDomains
+}
+
+// SetAllowedDomains sets the list of allowed domains
+func (f *FirewallAnalysis) SetAllowedDomains(domains []string) {
+	f.AllowedDomains = domains
+}
+
+// SetDeniedDomains sets the list of denied domains
+func (f *FirewallAnalysis) SetDeniedDomains(domains []string) {
+	f.DeniedDomains = domains
+}
+
+// AddMetrics adds metrics from another analysis
+func (f *FirewallAnalysis) AddMetrics(other LogAnalysis) {
+	if otherFirewall, ok := other.(*FirewallAnalysis); ok {
+		f.TotalRequests += otherFirewall.TotalRequests
+		f.AllowedRequests += otherFirewall.AllowedRequests
+		f.DeniedRequests += otherFirewall.DeniedRequests
+
+		// Merge request stats by domain
+		for domain, stats := range otherFirewall.RequestsByDomain {
+			existing := f.RequestsByDomain[domain]
+			existing.Allowed += stats.Allowed
+			existing.Denied += stats.Denied
+			f.RequestsByDomain[domain] = existing
+		}
+	}
+}
+
 // DomainRequestStats tracks request statistics per domain
 type DomainRequestStats struct {
 	Allowed int
@@ -374,77 +411,17 @@ func analyzeFirewallLogs(runDir string, verbose bool) (*FirewallAnalysis, error)
 
 // analyzeMultipleFirewallLogs analyzes multiple firewall log files in a directory
 func analyzeMultipleFirewallLogs(logsDir string, verbose bool) (*FirewallAnalysis, error) {
-	files, err := filepath.Glob(filepath.Join(logsDir, "*.log"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to find firewall log files: %w", err)
-	}
-
-	if len(files) == 0 {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No firewall log files found in %s", logsDir)))
-		}
-		return nil, nil
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Analyzing %d firewall log files from %s", len(files), logsDir)))
-	}
-
-	// Aggregate analysis from all files
-	aggregated := &FirewallAnalysis{
-		AllowedDomains:   []string{},
-		DeniedDomains:    []string{},
-		RequestsByDomain: make(map[string]DomainRequestStats),
-	}
-
-	allAllowedDomains := make(map[string]bool)
-	allDeniedDomains := make(map[string]bool)
-
-	for _, file := range files {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Parsing %s", filepath.Base(file))))
-		}
-
-		analysis, err := parseFirewallLog(file, verbose)
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse %s: %v", filepath.Base(file), err)))
+	return aggregateLogFiles(
+		logsDir,
+		"*.log",
+		verbose,
+		parseFirewallLog,
+		func() *FirewallAnalysis {
+			return &FirewallAnalysis{
+				AllowedDomains:   []string{},
+				DeniedDomains:    []string{},
+				RequestsByDomain: make(map[string]DomainRequestStats),
 			}
-			continue
-		}
-
-		// Aggregate metrics
-		aggregated.TotalRequests += analysis.TotalRequests
-		aggregated.AllowedRequests += analysis.AllowedRequests
-		aggregated.DeniedRequests += analysis.DeniedRequests
-
-		// Collect unique domains
-		for _, domain := range analysis.AllowedDomains {
-			allAllowedDomains[domain] = true
-		}
-		for _, domain := range analysis.DeniedDomains {
-			allDeniedDomains[domain] = true
-		}
-
-		// Merge request stats by domain
-		for domain, stats := range analysis.RequestsByDomain {
-			existing := aggregated.RequestsByDomain[domain]
-			existing.Allowed += stats.Allowed
-			existing.Denied += stats.Denied
-			aggregated.RequestsByDomain[domain] = existing
-		}
-	}
-
-	// Convert sets to sorted slices
-	for domain := range allAllowedDomains {
-		aggregated.AllowedDomains = append(aggregated.AllowedDomains, domain)
-	}
-	for domain := range allDeniedDomains {
-		aggregated.DeniedDomains = append(aggregated.DeniedDomains, domain)
-	}
-
-	sort.Strings(aggregated.AllowedDomains)
-	sort.Strings(aggregated.DeniedDomains)
-
-	return aggregated, nil
+		},
+	)
 }

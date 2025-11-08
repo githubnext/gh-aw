@@ -35,6 +35,35 @@ type DomainAnalysis struct {
 	DeniedCount    int
 }
 
+// GetAllowedDomains returns the list of allowed domains
+func (d *DomainAnalysis) GetAllowedDomains() []string {
+	return d.AllowedDomains
+}
+
+// GetDeniedDomains returns the list of denied domains
+func (d *DomainAnalysis) GetDeniedDomains() []string {
+	return d.DeniedDomains
+}
+
+// SetAllowedDomains sets the list of allowed domains
+func (d *DomainAnalysis) SetAllowedDomains(domains []string) {
+	d.AllowedDomains = domains
+}
+
+// SetDeniedDomains sets the list of denied domains
+func (d *DomainAnalysis) SetDeniedDomains(domains []string) {
+	d.DeniedDomains = domains
+}
+
+// AddMetrics adds metrics from another analysis
+func (d *DomainAnalysis) AddMetrics(other LogAnalysis) {
+	if otherDomain, ok := other.(*DomainAnalysis); ok {
+		d.TotalRequests += otherDomain.TotalRequests
+		d.AllowedCount += otherDomain.AllowedCount
+		d.DeniedCount += otherDomain.DeniedCount
+	}
+}
+
 // parseSquidAccessLog parses a squid access log file and extracts domain information
 func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) {
 	file, err := os.Open(logPath)
@@ -175,70 +204,18 @@ func analyzeAccessLogs(runDir string, verbose bool) (*DomainAnalysis, error) {
 
 // analyzeMultipleAccessLogs analyzes multiple separate access log files
 func analyzeMultipleAccessLogs(accessLogsDir string, verbose bool) (*DomainAnalysis, error) {
-	files, err := filepath.Glob(filepath.Join(accessLogsDir, "access-*.log"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to find access log files: %w", err)
-	}
-
-	if len(files) == 0 {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No access log files found in %s", accessLogsDir)))
-		}
-		return nil, nil
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Analyzing %d access log files from %s", len(files), accessLogsDir)))
-	}
-
-	// Aggregate analysis from all files
-	aggregatedAnalysis := &DomainAnalysis{
-		AllowedDomains: []string{},
-		DeniedDomains:  []string{},
-	}
-
-	allAllowedDomains := make(map[string]bool)
-	allDeniedDomains := make(map[string]bool)
-
-	for _, file := range files {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Parsing %s", filepath.Base(file))))
-		}
-
-		analysis, err := parseSquidAccessLog(file, verbose)
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse %s: %v", filepath.Base(file), err)))
+	return aggregateLogFiles(
+		accessLogsDir,
+		"access-*.log",
+		verbose,
+		parseSquidAccessLog,
+		func() *DomainAnalysis {
+			return &DomainAnalysis{
+				AllowedDomains: []string{},
+				DeniedDomains:  []string{},
 			}
-			continue
-		}
-
-		// Aggregate the metrics
-		aggregatedAnalysis.TotalRequests += analysis.TotalRequests
-		aggregatedAnalysis.AllowedCount += analysis.AllowedCount
-		aggregatedAnalysis.DeniedCount += analysis.DeniedCount
-
-		// Collect unique domains
-		for _, domain := range analysis.AllowedDomains {
-			allAllowedDomains[domain] = true
-		}
-		for _, domain := range analysis.DeniedDomains {
-			allDeniedDomains[domain] = true
-		}
-	}
-
-	// Convert maps to sorted slices
-	for domain := range allAllowedDomains {
-		aggregatedAnalysis.AllowedDomains = append(aggregatedAnalysis.AllowedDomains, domain)
-	}
-	for domain := range allDeniedDomains {
-		aggregatedAnalysis.DeniedDomains = append(aggregatedAnalysis.DeniedDomains, domain)
-	}
-
-	sort.Strings(aggregatedAnalysis.AllowedDomains)
-	sort.Strings(aggregatedAnalysis.DeniedDomains)
-
-	return aggregatedAnalysis, nil
+		},
+	)
 }
 
 // formatDomainWithEcosystem formats a domain with its ecosystem identifier if found
