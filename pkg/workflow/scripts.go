@@ -41,6 +41,9 @@ var createPRReviewCommentScriptSource string
 //go:embed js/add_comment.cjs
 var addCommentScriptSource string
 
+//go:embed js/create_commit_status.cjs
+var createCommitStatusScriptSource string
+
 //go:embed js/upload_assets.cjs
 var uploadAssetsScriptSource string
 
@@ -92,6 +95,9 @@ var (
 
 	addCommentScript     string
 	addCommentScriptOnce sync.Once
+
+	createCommitStatusScript     string
+	createCommitStatusScriptOnce sync.Once
 
 	uploadAssetsScript     string
 	uploadAssetsScriptOnce sync.Once
@@ -302,6 +308,23 @@ func getAddCommentScript() string {
 		}
 	})
 	return addCommentScript
+}
+
+// getCreateCommitStatusScript returns the bundled create_commit_status script
+// Bundling is performed on first access and cached for subsequent calls
+func getCreateCommitStatusScript() string {
+	createCommitStatusScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(createCommitStatusScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for create_commit_status, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			createCommitStatusScript = createCommitStatusScriptSource
+		} else {
+			createCommitStatusScript = bundled
+		}
+	})
+	return createCommitStatusScript
 }
 
 // getUploadAssetsScript returns the bundled upload_assets script

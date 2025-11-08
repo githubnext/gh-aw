@@ -36,7 +36,8 @@
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
         {"$ref": "#/$defs/CreateDiscussionOutput"},
         {"$ref": "#/$defs/MissingToolOutput"},
-        {"$ref": "#/$defs/CreateCodeScanningAlertOutput"}
+        {"$ref": "#/$defs/CreateCodeScanningAlertOutput"},
+        {"$ref": "#/$defs/CreateCommitStatusOutput"}
       ]
     },
     "CreateIssueOutput": {
@@ -303,6 +304,40 @@
         }
       },
       "required": ["type", "sarif"],
+      "additionalProperties": false
+    },
+    "CreateCommitStatusOutput": {
+      "title": "Create Commit Status Output",
+      "description": "Output for creating a commit status on a pull request or commit",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "create_commit_status"
+        },
+        "state": {
+          "type": "string",
+          "description": "The state of the status",
+          "enum": ["error", "failure", "pending", "success"]
+        },
+        "description": {
+          "type": "string",
+          "description": "A short description of the status",
+          "minLength": 1
+        },
+        "context": {
+          "type": "string",
+          "description": "A string label to differentiate this status from others (defaults to workflow name)"
+        },
+        "target_url": {
+          "type": "string",
+          "description": "The target URL to associate with this status"
+        },
+        "sha": {
+          "type": "string",
+          "description": "The commit SHA (optional, defaults to PR head SHA or push SHA)"
+        }
+      },
+      "required": ["type", "state", "description"],
       "additionalProperties": false
     }
   }

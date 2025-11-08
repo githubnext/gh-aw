@@ -207,6 +207,7 @@ type SafeOutputsConfig struct {
 	CreatePullRequests              *CreatePullRequestsConfig              `yaml:"create-pull-requests,omitempty"`
 	CreatePullRequestReviewComments *CreatePullRequestReviewCommentsConfig `yaml:"create-pull-request-review-comments,omitempty"`
 	CreateCodeScanningAlerts        *CreateCodeScanningAlertsConfig        `yaml:"create-code-scanning-alerts,omitempty"`
+	CreateCommitStatus              *CreateCommitStatusConfig              `yaml:"create-commit-status,omitempty"`
 	AddLabels                       *AddLabelsConfig                       `yaml:"add-labels,omitempty"`
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`

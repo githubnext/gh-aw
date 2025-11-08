@@ -36,6 +36,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.CreatePullRequests != nil ||
 		safeOutputs.CreatePullRequestReviewComments != nil ||
 		safeOutputs.CreateCodeScanningAlerts != nil ||
+		safeOutputs.CreateCommitStatus != nil ||
 		safeOutputs.AddLabels != nil ||
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
@@ -125,6 +126,14 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		written = true
 	}
 
+	if safeOutputs.CreateCommitStatus != nil {
+		if written {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("Creating Commit Status")
+		written = true
+	}
+
 	if safeOutputs.UploadAssets != nil {
 		if written {
 			yaml.WriteString(", ")
@@ -210,6 +219,13 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          \n")
 	}
 
+	if safeOutputs.CreateCommitStatus != nil {
+		yaml.WriteString("          **Creating Commit Status**\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString(fmt.Sprintf("          To create a commit status, use the create-commit-status tool from %s\n", constants.SafeOutputsMCPServerID))
+		yaml.WriteString("          \n")
+	}
+
 	if safeOutputs.UploadAssets != nil {
 		yaml.WriteString("          **Uploading Assets**\n")
 		yaml.WriteString("          \n")
@@ -291,6 +307,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			securityReportsConfig := c.parseCodeScanningAlertsConfig(outputMap)
 			if securityReportsConfig != nil {
 				config.CreateCodeScanningAlerts = securityReportsConfig
+			}
+
+			// Handle create-commit-status
+			commitStatusConfig := c.parseCommitStatusConfig(outputMap)
+			if commitStatusConfig != nil {
+				config.CreateCommitStatus = commitStatusConfig
 			}
 
 			// Parse allowed-domains configuration
@@ -735,6 +757,13 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 				securityReportConfig["max"] = data.SafeOutputs.CreateCodeScanningAlerts.Max
 			}
 			safeOutputsConfig["create_code_scanning_alert"] = securityReportConfig
+		}
+		if data.SafeOutputs.CreateCommitStatus != nil {
+			commitStatusConfig := map[string]any{}
+			if data.SafeOutputs.CreateCommitStatus.Max > 0 {
+				commitStatusConfig["max"] = data.SafeOutputs.CreateCommitStatus.Max
+			}
+			safeOutputsConfig["create_commit_status"] = commitStatusConfig
 		}
 		if data.SafeOutputs.AddLabels != nil {
 			labelConfig := map[string]any{}
