@@ -1,16 +1,25 @@
 package workflow
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
+)
+
+var xmlCommentsLog = logger.New("workflow:xml_comments")
 
 // removeXMLComments removes XML comments (<!-- -->) from markdown content
 // while preserving comments that appear within code blocks
 func removeXMLComments(content string) string {
+	xmlCommentsLog.Printf("Removing XML comments from content: %d lines", len(strings.Split(content, "\n")))
+
 	// Track if we're inside a code block to avoid removing comments in code
 	lines := strings.Split(content, "\n")
 	var result []string
 	inCodeBlock := false
 	var openMarker string
 	inXMLComment := false
+	removedComments := 0
 
 	for _, line := range lines {
 		// If we're in a code block, preserve the line as-is (ignore XML comment processing)
@@ -33,6 +42,7 @@ func removeXMLComments(content string) string {
 		// If we're in an XML comment, skip this line entirely (including code block markers)
 		if wasInComment && isInComment {
 			// In the middle of a comment, skip the line completely
+			removedComments++
 			continue
 		}
 
@@ -43,6 +53,7 @@ func removeXMLComments(content string) string {
 			// Opening a code block
 			openMarker, _ = extractCodeBlockMarker(trimmedLine)
 			inCodeBlock = true
+			xmlCommentsLog.Printf("Detected code block opening with marker: %s", openMarker)
 			result = append(result, processedLine)
 			continue
 		}
@@ -65,6 +76,7 @@ func removeXMLComments(content string) string {
 		}
 	}
 
+	xmlCommentsLog.Printf("XML comment removal completed: removed %d comment lines, output %d lines", removedComments, len(result))
 	return strings.Join(result, "\n")
 }
 
