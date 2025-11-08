@@ -143,8 +143,6 @@ Template structure:
 ## Merged PRs (from GitHub)
 [List significant merged PRs from release notes if available]
 
-## Changelog Links
-- **NPM Package**: https://www.npmjs.com/package/@package-name
 ## Package Links
 - **NPM Package**: https://www.npmjs.com/package/package-name-here
 - **Repository**: [GitHub URL if available]

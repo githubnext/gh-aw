@@ -1335,6 +1335,12 @@ jobs:
           - Impact: Risk [Low/Medium/High], affects [features]
           - Migration: [Yes/No - details if yes]
           
+          ## Release Highlights (from GitHub)
+          [Include key highlights from GitHub release notes if available]
+          
+          ## Merged PRs (from GitHub)
+          [List significant merged PRs from release notes if available]
+          
           ## Package Links
           - **NPM Package**: https://www.npmjs.com/package/package-name-here
           - **Repository**: [GitHub URL if available]
