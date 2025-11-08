@@ -1259,7 +1259,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		if err == nil {
 			yamlStr := strings.TrimSuffix(string(onEventsYAML), "\n")
 			// Post-process YAML to ensure cron expressions are quoted
-			yamlStr = quoteCronExpressionsInWorkflow(yamlStr)
+			yamlStr = parser.QuoteCronExpressions(yamlStr)
 			// Apply comment processing to filter fields (draft, forks, names)
 			yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr)
 			// Keep "on" quoted as it's a YAML boolean keyword

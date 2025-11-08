@@ -223,7 +223,7 @@ func ExtractFrontmatterString(content string) (string, error) {
 	// The YAML library may drop quotes from cron expressions like "0 14 * * 1-5"
 	// which causes validation errors since they start with numbers but contain spaces
 	yamlString := string(yamlBytes)
-	yamlString = quoteCronExpressions(yamlString)
+	yamlString = QuoteCronExpressions(yamlString)
 
 	return strings.TrimSpace(yamlString), nil
 }
@@ -1781,10 +1781,10 @@ func reconstructWorkflowFile(frontmatterYAML, markdownContent string) (string, e
 	return strings.Join(lines, "\n"), nil
 }
 
-// quoteCronExpressions ensures cron expressions in schedule sections are properly quoted.
+// QuoteCronExpressions ensures cron expressions in schedule sections are properly quoted.
 // The YAML library may drop quotes from cron expressions like "0 14 * * 1-5" which
 // causes validation errors since they start with numbers but contain spaces and special chars.
-func quoteCronExpressions(yamlContent string) string {
+func QuoteCronExpressions(yamlContent string) string {
 	// Pattern to match unquoted cron expressions after "cron:"
 	// Matches: cron: 0 14 * * 1-5
 	// Captures the cron value to be quoted
@@ -1799,14 +1799,14 @@ func quoteCronExpressions(yamlContent string) string {
 		}
 		prefix := submatches[1]
 		cronValue := strings.TrimSpace(submatches[2])
-		
+
 		// Remove any trailing comments
 		if idx := strings.Index(cronValue, "#"); idx != -1 {
 			comment := cronValue[idx:]
 			cronValue = strings.TrimSpace(cronValue[:idx])
 			return prefix + `"` + cronValue + `" ` + comment
 		}
-		
+
 		return prefix + `"` + cronValue + `"`
 	})
 }

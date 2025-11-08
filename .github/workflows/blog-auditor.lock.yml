@@ -38,7 +38,7 @@
 name: "Blog Auditor"
 "on":
   schedule:
-  - cron: 0 12 * * 3
+  - cron: "0 12 * * 3"
   workflow_dispatch: null
 
 permissions:

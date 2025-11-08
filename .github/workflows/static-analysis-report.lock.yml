@@ -43,7 +43,7 @@
 name: "Static Analysis Report"
 "on":
   schedule:
-  - cron: 0 9 * * *
+  - cron: "0 9 * * *"
   workflow_dispatch: null
 
 permissions:
