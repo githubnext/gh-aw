@@ -4,6 +4,88 @@ import (
 	"testing"
 )
 
+func TestParseStringFromConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    map[string]any
+		key      string
+		expected string
+	}{
+		{
+			name: "valid string value",
+			input: map[string]any{
+				"my-key": "my-value",
+			},
+			key:      "my-key",
+			expected: "my-value",
+		},
+		{
+			name: "empty string value",
+			input: map[string]any{
+				"my-key": "",
+			},
+			key:      "my-key",
+			expected: "",
+		},
+		{
+			name:     "missing key",
+			input:    map[string]any{},
+			key:      "my-key",
+			expected: "",
+		},
+		{
+			name: "non-string type",
+			input: map[string]any{
+				"my-key": 123,
+			},
+			key:      "my-key",
+			expected: "",
+		},
+		{
+			name: "string with special characters",
+			input: map[string]any{
+				"my-key": "[Special] 🎯 Value",
+			},
+			key:      "my-key",
+			expected: "[Special] 🎯 Value",
+		},
+		{
+			name: "different key returns different value",
+			input: map[string]any{
+				"key1": "value1",
+				"key2": "value2",
+			},
+			key:      "key2",
+			expected: "value2",
+		},
+		{
+			name: "non-string value returns empty",
+			input: map[string]any{
+				"my-key": []string{"array", "value"},
+			},
+			key:      "my-key",
+			expected: "",
+		},
+		{
+			name: "nil value returns empty",
+			input: map[string]any{
+				"my-key": nil,
+			},
+			key:      "my-key",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseStringFromConfig(tt.input, tt.key)
+			if result != tt.expected {
+				t.Errorf("expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
 func TestParseLabelsFromConfig(t *testing.T) {
 	tests := []struct {
 		name     string
