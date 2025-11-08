@@ -35,13 +35,9 @@ jobs:
           FILTER_REGEX_EXCLUDE: dist/**/*
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LINTER_RULES_PATH: .
-          # Only enable specific linters (implicitly disables all others)
+          # Only validate Markdown files
           # Note: Do not use VALIDATE_ALL_CODEBASE with VALIDATE_* flags
-          VALIDATE_GITHUB_ACTIONS: "true"     # Keep GitHub Actions validation
-          VALIDATE_MARKDOWN: "true"            # Keep Markdown validation
-          VALIDATE_YAML: "true"                # Keep YAML validation
-          VALIDATE_SHELL_SHFMT: "true"         # Keep shell script formatting
-          VALIDATE_BASH: "true"                # Keep bash validation
+          VALIDATE_MARKDOWN: "true"
           LOG_FILE: super-linter.log
           CREATE_LOG_FILE: "true"
       
@@ -95,10 +91,9 @@ You are an expert code quality analyst for a Go-based GitHub CLI extension proje
 1. **Read the linter output** from `/tmp/gh-aw/super-linter.log` using the bash tool
 2. **Analyze the findings**:
    - Categorize errors by severity (critical, high, medium, low)
-   - Group errors by file type or linter (Markdown, YAML, Shell, GitHub Actions)
    - Identify patterns in the errors
    - Determine which errors are most important to fix first
-   - Note: Go and JavaScript linting are handled by dedicated CI jobs (golangci-lint, npm test)
+   - Note: This workflow only validates Markdown files. Other linters (Go, JavaScript, YAML, Shell, etc.) are handled by separate CI jobs
 3. **Create a detailed issue** with the following structure:
 
 ### Issue Title
@@ -162,7 +157,7 @@ Use format: "Code Quality Report - [Date] - [X] issues found"
 - **Suggest fixes**: Give practical recommendations
 - **Use proper formatting**: Make the issue easy to read and navigate
 - **If no errors found**: Create a positive report celebrating clean code
-- **Remember**: This is a Go project with separate Go/JS linting in CI, so focus on Markdown, YAML, Shell, and GitHub Actions files
+- **Remember**: This workflow only validates Markdown files. Other file types (Go, JavaScript, YAML, Shell, GitHub Actions) are handled by separate CI workflows
 
 ## Validating Fixes with Super Linter
 
@@ -177,11 +172,7 @@ To validate your fixes locally before committing, run super-linter using Docker:
 docker run --rm \
   -e DEFAULT_BRANCH=main \
   -e RUN_LOCAL=true \
-  -e VALIDATE_GITHUB_ACTIONS=true \
   -e VALIDATE_MARKDOWN=true \
-  -e VALIDATE_YAML=true \
-  -e VALIDATE_SHELL_SHFMT=true \
-  -e VALIDATE_BASH=true \
   -v $(pwd):/tmp/lint \
   ghcr.io/super-linter/super-linter:slim-v8
 
