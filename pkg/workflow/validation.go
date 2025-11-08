@@ -5,13 +5,13 @@
 // This file contains general-purpose validation functions that apply across the entire
 // workflow system. For domain-specific validation (e.g., strict mode, package validation,
 // expression safety), see the corresponding domain files:
-//   - strict_mode.go: Security and strict mode validation
-//   - pip.go: Python package validation
-//   - npm.go: NPM package validation
+//   - strict_mode_validation.go: Security and strict mode validation
+//   - pip_validation.go: Python package validation
+//   - npm_validation.go: NPM package validation
+//   - docker_validation.go: Docker image validation
 //   - expression_safety.go: GitHub Actions expression security
 //   - engine.go: AI engine configuration validation
 //   - mcp-config.go: MCP server configuration validation
-//   - docker_validation.go: Docker image validation
 //   - template.go: Template structure validation
 //
 // # When to Add Validation Here
