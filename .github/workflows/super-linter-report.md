@@ -20,11 +20,19 @@ imports:
 jobs:
   super_linter:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      # To report GitHub Actions status checks
+      statuses: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v5
         with:
+          # super-linter needs the full git history to get the
+          # list of files that changed across commits
           fetch-depth: 0
+          persist-credentials: false
       
       - name: Run Super Linter
         id: super-linter

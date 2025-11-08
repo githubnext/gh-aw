@@ -4496,11 +4496,17 @@ jobs:
   super_linter:
     needs: activation
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      statuses: write
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Run Super Linter
         id: super-linter
         uses: super-linter/super-linter/slim@f6d06a003575dde14f917e642302cf1251f28f4a
