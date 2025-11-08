@@ -163,7 +163,7 @@ For maintenance releases with dependency updates or minor improvements that don'
 - ✅ **Safety First**: Requires explicit specification for major releases
 - ✅ **Flexible Releases**: Supports releases with or without changeset files
 - ✅ **Clean Workflow**: Deletes processed changesets after release
-- ✅ **Zero Dependencies**: Pure Node.js implementation
+- ✅ **No External Dependencies**: Implemented using only Node.js standard library
 
 ## Requirements
 
