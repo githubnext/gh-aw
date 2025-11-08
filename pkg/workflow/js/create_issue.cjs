@@ -2,8 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { processAgentOutput } = require("./load_agent_output.cjs");
 
 /**
  * Generate footer with AI attribution and workflow installation instructions
@@ -49,24 +48,12 @@ async function main() {
   core.setOutput("issue_number", "");
   core.setOutput("issue_url", "");
 
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  const createIssueItems = result.items.filter(item => item.type === "create_issue");
-  if (createIssueItems.length === 0) {
-    core.info("No create-issue items found in agent output");
-    return;
-  }
-  core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-  if (isStaged) {
-    await generateStagedPreview({
+  // Process agent output with common boilerplate handling
+  const result = await processAgentOutput({
+    itemType: "create_issue",
+    stagedPreview: {
       title: "Create Issues",
       description: "The following issues would be created if staged mode was disabled:",
-      items: createIssueItems,
       renderItem: (item, index) => {
         let content = `### Issue ${index + 1}\n`;
         content += `**Title:** ${item.title || "No title provided"}\n\n`;
@@ -78,9 +65,15 @@ async function main() {
         }
         return content;
       },
-    });
+    },
+  });
+
+  // Exit if processing failed or we're in staged mode
+  if (!result.success || result.isStaged) {
     return;
   }
+
+  const createIssueItems = result.items;
   const parentIssueNumber = context.payload?.issue?.number;
 
   // Extract triggering context for footer generation

@@ -67,4 +67,87 @@ function loadAgentOutput() {
   return { success: true, items: validatedOutput.items };
 }
 
-module.exports = { loadAgentOutput };
+/**
+ * Process agent output with common boilerplate handling.
+ * 
+ * This utility encapsulates the common pattern used across all safe-output handlers:
+ * 1. Load and validate agent output
+ * 2. Filter items by type
+ * 3. Handle empty results
+ * 4. Handle staged mode with preview generation
+ * 5. Return filtered items for processing
+ * 
+ * @param {Object} options - Configuration options
+ * @param {string} options.itemType - The type of items to filter (e.g., "create_issue", "add_labels")
+ * @param {Object} [options.stagedPreview] - Configuration for staged mode preview (if omitted, uses inline preview)
+ * @param {string} options.stagedPreview.title - Title for the staged preview
+ * @param {string} options.stagedPreview.description - Description for the staged preview
+ * @param {(item: any, index: number) => string} options.stagedPreview.renderItem - Function to render each item
+ * @param {boolean} [options.useWarningForEmpty=false] - Use core.warning instead of core.info for empty results
+ * @param {boolean} [options.findOne=false] - Filter to find a single item instead of all matching items
+ * 
+ * @returns {Promise<{
+ *   success: true,
+ *   items: any[],
+ *   isStaged: false
+ * } | {
+ *   success: true,
+ *   items: any[],
+ *   isStaged: true
+ * } | {
+ *   success: false,
+ *   items?: undefined
+ * }>} Result object with success flag, filtered items array, and staged mode indicator
+ */
+async function processAgentOutput(options) {
+  const { itemType, stagedPreview, useWarningForEmpty = false, findOne = false } = options;
+  
+  // Load agent output
+  const result = loadAgentOutput();
+  if (!result.success) {
+    return { success: false };
+  }
+  
+  // Filter items by type
+  let filteredItems;
+  if (findOne) {
+    const item = result.items.find(item => item.type === itemType);
+    filteredItems = item ? [item] : [];
+  } else {
+    filteredItems = result.items.filter(item => item.type === itemType);
+  }
+  
+  // Handle empty results
+  if (filteredItems.length === 0) {
+    const message = `No ${itemType} items found in agent output`;
+    if (useWarningForEmpty) {
+      core.warning(message);
+    } else {
+      core.info(message);
+    }
+    return { success: false };
+  }
+  
+  // Log found items
+  core.info(`Found ${filteredItems.length} ${itemType} item(s)`);
+  
+  // Check for staged mode
+  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+  
+  // Handle staged mode with preview
+  if (isStaged && stagedPreview) {
+    const { generateStagedPreview } = require("./staged_preview.cjs");
+    await generateStagedPreview({
+      title: stagedPreview.title,
+      description: stagedPreview.description,
+      items: filteredItems,
+      renderItem: stagedPreview.renderItem,
+    });
+    return { success: true, items: filteredItems, isStaged: true };
+  }
+  
+  // Return filtered items for processing
+  return { success: true, items: filteredItems, isStaged: false };
+}
+
+module.exports = { loadAgentOutput, processAgentOutput };
