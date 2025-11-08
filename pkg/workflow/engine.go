@@ -257,31 +257,6 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 	return "", nil
 }
 
-// validateEngine validates that the given engine ID is supported
-func (c *Compiler) validateEngine(engineID string) error {
-	if engineID == "" {
-		engineLog.Print("No engine ID specified, will use default")
-		return nil // Empty engine is valid (will use default)
-	}
-
-	engineLog.Printf("Validating engine ID: %s", engineID)
-
-	// First try exact match
-	if c.engineRegistry.IsValidEngine(engineID) {
-		engineLog.Printf("Engine ID %s is valid (exact match)", engineID)
-		return nil
-	}
-
-	// Try prefix match for backward compatibility (e.g., "codex-experimental")
-	engine, err := c.engineRegistry.GetEngineByPrefix(engineID)
-	if err == nil {
-		engineLog.Printf("Engine ID %s matched by prefix to: %s", engineID, engine.GetID())
-	} else {
-		engineLog.Printf("Engine ID %s not found: %v", engineID, err)
-	}
-	return err
-}
-
 // getAgenticEngine returns the agentic engine for the given engine setting
 func (c *Compiler) getAgenticEngine(engineSetting string) (CodingAgentEngine, error) {
 	if engineSetting == "" {
@@ -309,57 +284,6 @@ func (c *Compiler) getAgenticEngine(engineSetting string) (CodingAgentEngine, er
 		engineLog.Printf("Failed to find engine for setting %s: %v", engineSetting, err)
 	}
 	return engine, err
-}
-
-// validateSingleEngineSpecification validates that only one engine field exists across all files
-func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, includedEnginesJSON []string) (string, error) {
-	var allEngines []string
-
-	// Add main engine if specified
-	if mainEngineSetting != "" {
-		allEngines = append(allEngines, mainEngineSetting)
-	}
-
-	// Add included engines
-	for _, engineJSON := range includedEnginesJSON {
-		if engineJSON != "" {
-			allEngines = append(allEngines, engineJSON)
-		}
-	}
-
-	// Check count
-	if len(allEngines) == 0 {
-		return "", nil // No engine specified anywhere, will use default
-	}
-
-	if len(allEngines) > 1 {
-		return "", fmt.Errorf("multiple engine fields found. Only one engine field is allowed across the main workflow and all included files. Remove engine specifications to have only one")
-	}
-
-	// Exactly one engine found - parse and return it
-	if mainEngineSetting != "" {
-		return mainEngineSetting, nil
-	}
-
-	// Must be from included file
-	var firstEngine any
-	if err := json.Unmarshal([]byte(includedEnginesJSON[0]), &firstEngine); err != nil {
-		return "", fmt.Errorf("failed to parse included engine configuration: %w", err)
-	}
-
-	// Handle string format
-	if engineStr, ok := firstEngine.(string); ok {
-		return engineStr, nil
-	} else if engineObj, ok := firstEngine.(map[string]any); ok {
-		// Handle object format - return the ID
-		if id, hasID := engineObj["id"]; hasID {
-			if idStr, ok := id.(string); ok {
-				return idStr, nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("invalid engine configuration in included file")
 }
 
 // extractEngineConfigFromJSON parses engine configuration from JSON string (from included files)
