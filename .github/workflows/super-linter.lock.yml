@@ -74,7 +74,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
-          GH_AW_WORKFLOW_FILE: "super-linter-report.lock.yml"
+          GH_AW_WORKFLOW_FILE: "super-linter.lock.yml"
         with:
           script: |
             const fs = require("fs");
@@ -168,7 +168,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Download super-linter log
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: super-linter-log
           path: /tmp/gh-aw/
@@ -1217,10 +1217,9 @@ jobs:
           1. **Read the linter output** from `/tmp/gh-aw/super-linter.log` using the bash tool
           2. **Analyze the findings**:
              - Categorize errors by severity (critical, high, medium, low)
-             - Group errors by file type or linter (Markdown, YAML, Shell, GitHub Actions)
              - Identify patterns in the errors
              - Determine which errors are most important to fix first
-             - Note: Go and JavaScript linting are handled by dedicated CI jobs (golangci-lint, npm test)
+             - Note: This workflow only validates Markdown files. Other linters (Go, JavaScript, YAML, Shell, etc.) are handled by separate CI jobs
           3. **Create a detailed issue** with the following structure:
           
           ### Issue Title
@@ -1284,7 +1283,7 @@ jobs:
           - **Suggest fixes**: Give practical recommendations
           - **Use proper formatting**: Make the issue easy to read and navigate
           - **If no errors found**: Create a positive report celebrating clean code
-          - **Remember**: This is a Go project with separate Go/JS linting in CI, so focus on Markdown, YAML, Shell, and GitHub Actions files
+          - **Remember**: This workflow only validates Markdown files. Other file types (Go, JavaScript, YAML, Shell, GitHub Actions) are handled by separate CI workflows
           
           ## Validating Fixes with Super Linter
           
@@ -1295,17 +1294,11 @@ jobs:
           To validate your fixes locally before committing, run super-linter using Docker:
           
           ```bash
-          # Run super-linter on the entire repository
+          # Run super-linter with the same configuration as the workflow
           docker run --rm \
             -e DEFAULT_BRANCH=main \
             -e RUN_LOCAL=true \
-            -e VALIDATE_ALL_CODEBASE=true \
-            -e VALIDATE_GO=false \
-            -e VALIDATE_GO_MODULES=false \
-            -e VALIDATE_JAVASCRIPT_ES=false \
-            -e VALIDATE_TYPESCRIPT_ES=false \
-            -e VALIDATE_JSCPD=false \
-            -e VALIDATE_JSON=false \
+            -e VALIDATE_MARKDOWN=true \
             -v $(pwd):/tmp/lint \
             ghcr.io/super-linter/super-linter:slim-v8
           
@@ -1313,7 +1306,6 @@ jobs:
           # For example, to validate only Markdown files:
           docker run --rm \
             -e RUN_LOCAL=true \
-            -e VALIDATE_ALL_CODEBASE=true \
             -e VALIDATE_MARKDOWN=true \
             -v $(pwd):/tmp/lint \
             ghcr.io/super-linter/super-linter:slim-v8
@@ -4504,34 +4496,26 @@ jobs:
   super_linter:
     needs: activation
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      statuses: write
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           fetch-depth: 0
-      - name: Run Super Linter
+          persist-credentials: false
+      - name: Super-linter
         id: super-linter
-        uses: super-linter/super-linter/slim@f6d06a003575dde14f917e642302cf1251f28f4a
+        uses: super-linter/super-linter@2bdd90ed3262e023ac84bf8fe35dc480721fc1f2
         env:
           CREATE_LOG_FILE: "true"
           DEFAULT_BRANCH: main
-          FILTER_REGEX_EXCLUDE: dist/**/*
+          ENABLE_GITHUB_ACTIONS_STEP_SUMMARY: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LINTER_RULES_PATH: .
           LOG_FILE: super-linter.log
-          VALIDATE_ALL_CODEBASE: "true"
-          VALIDATE_BASH: "true"
-          VALIDATE_GITHUB_ACTIONS: "true"
-          VALIDATE_GO: "false"
-          VALIDATE_GO_MODULES: "false"
-          VALIDATE_JAVASCRIPT_ES: "false"
-          VALIDATE_JSCPD: "false"
-          VALIDATE_JSON: "false"
-          VALIDATE_MARKDOWN: "true"
-          VALIDATE_SHELL_SHFMT: "true"
-          VALIDATE_TYPESCRIPT_ES: "false"
-          VALIDATE_YAML: "true"
-        continue-on-error: true
       - name: Check for linting issues
         id: check-results
         run: |

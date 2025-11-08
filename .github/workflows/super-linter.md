@@ -20,36 +20,29 @@ imports:
 jobs:
   super_linter:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      # To report GitHub Actions status checks
+      statuses: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v5
         with:
+          # super-linter needs the full git history to get the
+          # list of files that changed across commits
           fetch-depth: 0
+          persist-credentials: false
       
-      - name: Run Super Linter
+      - name: Super-linter
+        uses: super-linter/super-linter@v8.2.1 # x-release-please-version
         id: super-linter
-        continue-on-error: true
-        uses: super-linter/super-linter/slim@v8
         env:
-          DEFAULT_BRANCH: main
-          FILTER_REGEX_EXCLUDE: dist/**/*
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LINTER_RULES_PATH: .
-          VALIDATE_ALL_CODEBASE: "true"
-          # Disable linters that are covered by other workflows or not applicable
-          VALIDATE_GO: "false"                # golangci-lint is used instead in CI
-          VALIDATE_GO_MODULES: "false"        # Go mod verification in CI
-          VALIDATE_JAVASCRIPT_ES: "false"     # ESLint/npm test handles JS linting
-          VALIDATE_TYPESCRIPT_ES: "false"     # Not using TypeScript
-          VALIDATE_JSCPD: "false"              # Copy-paste detection not required
-          VALIDATE_JSON: "false"               # Not strictly enforced
-          VALIDATE_GITHUB_ACTIONS: "true"     # Keep GitHub Actions validation
-          VALIDATE_MARKDOWN: "true"            # Keep Markdown validation
-          VALIDATE_YAML: "true"                # Keep YAML validation
-          VALIDATE_SHELL_SHFMT: "true"         # Keep shell script formatting
-          VALIDATE_BASH: "true"                # Keep bash validation
-          LOG_FILE: super-linter.log
           CREATE_LOG_FILE: "true"
+          LOG_FILE: super-linter.log
+          DEFAULT_BRANCH: main
+          ENABLE_GITHUB_ACTIONS_STEP_SUMMARY: "true"
       
       - name: Check for linting issues
         id: check-results
@@ -101,10 +94,9 @@ You are an expert code quality analyst for a Go-based GitHub CLI extension proje
 1. **Read the linter output** from `/tmp/gh-aw/super-linter.log` using the bash tool
 2. **Analyze the findings**:
    - Categorize errors by severity (critical, high, medium, low)
-   - Group errors by file type or linter (Markdown, YAML, Shell, GitHub Actions)
    - Identify patterns in the errors
    - Determine which errors are most important to fix first
-   - Note: Go and JavaScript linting are handled by dedicated CI jobs (golangci-lint, npm test)
+   - Note: This workflow only validates Markdown files. Other linters (Go, JavaScript, YAML, Shell, etc.) are handled by separate CI jobs
 3. **Create a detailed issue** with the following structure:
 
 ### Issue Title
@@ -168,7 +160,7 @@ Use format: "Code Quality Report - [Date] - [X] issues found"
 - **Suggest fixes**: Give practical recommendations
 - **Use proper formatting**: Make the issue easy to read and navigate
 - **If no errors found**: Create a positive report celebrating clean code
-- **Remember**: This is a Go project with separate Go/JS linting in CI, so focus on Markdown, YAML, Shell, and GitHub Actions files
+- **Remember**: This workflow only validates Markdown files. Other file types (Go, JavaScript, YAML, Shell, GitHub Actions) are handled by separate CI workflows
 
 ## Validating Fixes with Super Linter
 
@@ -179,17 +171,11 @@ When suggesting fixes for linting errors, you can provide instructions for runni
 To validate your fixes locally before committing, run super-linter using Docker:
 
 ```bash
-# Run super-linter on the entire repository
+# Run super-linter with the same configuration as the workflow
 docker run --rm \
   -e DEFAULT_BRANCH=main \
   -e RUN_LOCAL=true \
-  -e VALIDATE_ALL_CODEBASE=true \
-  -e VALIDATE_GO=false \
-  -e VALIDATE_GO_MODULES=false \
-  -e VALIDATE_JAVASCRIPT_ES=false \
-  -e VALIDATE_TYPESCRIPT_ES=false \
-  -e VALIDATE_JSCPD=false \
-  -e VALIDATE_JSON=false \
+  -e VALIDATE_MARKDOWN=true \
   -v $(pwd):/tmp/lint \
   ghcr.io/super-linter/super-linter:slim-v8
 
@@ -197,7 +183,6 @@ docker run --rm \
 # For example, to validate only Markdown files:
 docker run --rm \
   -e RUN_LOCAL=true \
-  -e VALIDATE_ALL_CODEBASE=true \
   -e VALIDATE_MARKDOWN=true \
   -v $(pwd):/tmp/lint \
   ghcr.io/super-linter/super-linter:slim-v8
