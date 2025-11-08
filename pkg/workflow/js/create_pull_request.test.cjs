@@ -1598,4 +1598,232 @@ describe("create_pull_request.cjs", () => {
       expect(mockDependencies.core.setFailed).toHaveBeenCalledWith("Failed to apply patch");
     });
   });
+
+  describe("activation comment update", () => {
+    it("should update activation comment with PR link when comment_id is provided", async () => {
+      mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+      mockDependencies.process.env.GH_AW_COMMENT_ID = "123456";
+      mockDependencies.process.env.GH_AW_COMMENT_REPO = "testowner/testrepo";
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "create_pull_request",
+            title: "Test PR",
+            body: "Test PR body",
+          },
+        ],
+      });
+
+      const mockPullRequest = {
+        number: 42,
+        html_url: "https://github.com/testowner/testrepo/pull/42",
+      };
+
+      mockDependencies.github.rest.pulls.create.mockResolvedValue({
+        data: mockPullRequest,
+      });
+
+      // Mock the GET request to fetch current comment body
+      mockDependencies.github.request = vi.fn().mockImplementation(async (method, params) => {
+        if (method.startsWith("GET")) {
+          return {
+            data: {
+              body: "Agentic [test-workflow](https://github.com/testowner/testrepo/actions/runs/12345) triggered by this issue.",
+            },
+          };
+        }
+        // Mock the PATCH request to update comment
+        if (method.startsWith("PATCH")) {
+          return {
+            data: {
+              id: 123456,
+              html_url: "https://github.com/testowner/testrepo/issues/1#issuecomment-123456",
+            },
+          };
+        }
+        return { data: {} };
+      });
+
+      const mainFunction = createMainFunction(mockDependencies);
+      await mainFunction();
+
+      // Verify PR was created
+      expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
+
+      // Verify comment was fetched
+      expect(mockDependencies.github.request).toHaveBeenCalledWith(
+        "GET /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        expect.objectContaining({
+          owner: "testowner",
+          repo: "testrepo",
+          comment_id: 123456,
+        })
+      );
+
+      // Verify comment was updated with PR link
+      expect(mockDependencies.github.request).toHaveBeenCalledWith(
+        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        expect.objectContaining({
+          owner: "testowner",
+          repo: "testrepo",
+          comment_id: 123456,
+          body: expect.stringContaining("✅ Pull request created: [#42](https://github.com/testowner/testrepo/pull/42)"),
+        })
+      );
+
+      // Verify info messages
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("Updating activation comment 123456 with PR link");
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated comment with PR link");
+    });
+
+    it("should update discussion comment with PR link when comment_id starts with DC_", async () => {
+      mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+      mockDependencies.process.env.GH_AW_COMMENT_ID = "DC_kwDOABCDEF4ABCDEF";
+      mockDependencies.process.env.GH_AW_COMMENT_REPO = "testowner/testrepo";
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "create_pull_request",
+            title: "Test PR",
+            body: "Test PR body",
+          },
+        ],
+      });
+
+      const mockPullRequest = {
+        number: 42,
+        html_url: "https://github.com/testowner/testrepo/pull/42",
+      };
+
+      mockDependencies.github.rest.pulls.create.mockResolvedValue({
+        data: mockPullRequest,
+      });
+
+      // Mock GraphQL for discussion comment
+      mockDependencies.github.graphql = vi.fn().mockImplementation(async (query, params) => {
+        if (query.includes("query")) {
+          // Mock GET query for discussion comment
+          return {
+            node: {
+              body: "Agentic [test-workflow](https://github.com/testowner/testrepo/actions/runs/12345) triggered by this discussion.",
+            },
+          };
+        }
+        if (query.includes("mutation")) {
+          // Mock UPDATE mutation for discussion comment
+          return {
+            updateDiscussionComment: {
+              comment: {
+                id: "DC_kwDOABCDEF4ABCDEF",
+                url: "https://github.com/testowner/testrepo/discussions/1#discussioncomment-123456",
+              },
+            },
+          };
+        }
+        return {};
+      });
+
+      const mainFunction = createMainFunction(mockDependencies);
+      await mainFunction();
+
+      // Verify PR was created
+      expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
+
+      // Verify GraphQL was called to get current comment
+      expect(mockDependencies.github.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("query($commentId: ID!)"),
+        expect.objectContaining({
+          commentId: "DC_kwDOABCDEF4ABCDEF",
+        })
+      );
+
+      // Verify GraphQL was called to update comment with PR link
+      expect(mockDependencies.github.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("mutation($commentId: ID!, $body: String!)"),
+        expect.objectContaining({
+          commentId: "DC_kwDOABCDEF4ABCDEF",
+          body: expect.stringContaining("✅ Pull request created: [#42](https://github.com/testowner/testrepo/pull/42)"),
+        })
+      );
+
+      // Verify info messages
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated discussion comment with PR link");
+    });
+
+    it("should skip updating comment when GH_AW_COMMENT_ID is not set", async () => {
+      mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+      // No GH_AW_COMMENT_ID set
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "create_pull_request",
+            title: "Test PR",
+            body: "Test PR body",
+          },
+        ],
+      });
+
+      const mockPullRequest = {
+        number: 42,
+        html_url: "https://github.com/testowner/testrepo/pull/42",
+      };
+
+      mockDependencies.github.rest.pulls.create.mockResolvedValue({
+        data: mockPullRequest,
+      });
+
+      mockDependencies.github.request = vi.fn();
+
+      const mainFunction = createMainFunction(mockDependencies);
+      await mainFunction();
+
+      // Verify PR was created
+      expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
+
+      // Verify comment update was skipped
+      expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set)");
+      expect(mockDependencies.github.request).not.toHaveBeenCalled();
+    });
+
+    it("should not fail workflow if comment update fails", async () => {
+      mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+      mockDependencies.process.env.GH_AW_COMMENT_ID = "123456";
+      mockDependencies.process.env.GH_AW_COMMENT_REPO = "testowner/testrepo";
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "create_pull_request",
+            title: "Test PR",
+            body: "Test PR body",
+          },
+        ],
+      });
+
+      const mockPullRequest = {
+        number: 42,
+        html_url: "https://github.com/testowner/testrepo/pull/42",
+      };
+
+      mockDependencies.github.rest.pulls.create.mockResolvedValue({
+        data: mockPullRequest,
+      });
+
+      // Mock comment update to fail
+      mockDependencies.github.request = vi.fn().mockRejectedValue(new Error("Comment update failed"));
+
+      const mainFunction = createMainFunction(mockDependencies);
+      await mainFunction();
+
+      // Verify PR was created successfully
+      expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
+
+      // Verify warning was logged but workflow didn't fail
+      expect(mockDependencies.core.warning).toHaveBeenCalledWith("Failed to update activation comment: Comment update failed");
+      expect(mockDependencies.core.setFailed).not.toHaveBeenCalled();
+    });
+  });
 });

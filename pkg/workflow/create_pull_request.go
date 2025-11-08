@@ -3,6 +3,8 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // CreatePullRequestsConfig holds configuration for creating GitHub pull requests from agent output
@@ -74,6 +76,10 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		maxPatchSize = data.SafeOutputs.MaximumPatchSize
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
+
+	// Pass activation comment information if available (for updating the comment with PR link)
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_ID: ${{ needs.%s.outputs.comment_id }}\n", constants.ActivationJobName))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_REPO: ${{ needs.%s.outputs.comment_repo }}\n", constants.ActivationJobName))
 
 	// Add common safe output job environment variables (staged/target repo)
 	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
