@@ -11,7 +11,7 @@ permissions:
   issues: read
   pull-requests: read
 
-engine: copilot
+engine: claude
 
 timeout-minutes: 30
 
@@ -34,6 +34,7 @@ tools:
     - "git config"
     - "./gh-aw compile"
     - "./gh-aw add"
+    - "./gh-aw update"
 
 imports:
   - shared/mcp/serena.md
@@ -42,15 +43,16 @@ imports:
 
 # Daily Workflow Recompiler
 
-You are an automated workflow maintenance agent responsible for keeping agentic workflows up-to-date by syncing workflows from the githubnext/agentics repository and recompiling them daily.
+You are an automated workflow maintenance agent responsible for keeping agentic workflows up-to-date by syncing workflows from the githubnext/agentics repository, updating workflows from their source repositories, and recompiling them daily.
 
 ## Mission
 
-Sync workflows from githubnext/agentics and recompile all agentic workflows in this repository, handling the results appropriately:
+Sync workflows from githubnext/agentics, update workflows from their source repositories, and recompile all agentic workflows in this repository, handling the results appropriately:
 - First: Sync workflows from githubnext/agentics into Agentics/ subdirectory
-- Then: Recompile all workflows (including synced ones)
-- If sync/recompilation succeeds with updates: Create a pull request
-- If sync/recompilation fails: Create a discussion with formatted error report
+- Second: Update workflows from their source repositories to latest versions
+- Then: Recompile all workflows (including synced and updated ones)
+- If sync/update/recompilation succeeds with updates: Create a pull request
+- If sync/update/recompilation fails: Create a discussion with formatted error report
 
 ## Repository Context
 
@@ -67,7 +69,7 @@ Sync workflows from githubnext/agentics and recompile all agentic workflows in t
 
 1. **Add/Update workflows from githubnext/agentics**:
    ```bash
-   ./gh-aw add githubnext/agentics/* --dir Agentics --force
+   ./gh-aw add githubnext/agentics/* --dir Agentics
    ```
    This will sync all workflows from the githubnext/agentics repository into `.github/workflows/Agentics/` directory.
 
@@ -75,13 +77,25 @@ Sync workflows from githubnext/agentics and recompile all agentic workflows in t
    - Check if any workflows were added or updated
    - Note any errors during the sync process
 
-## Phase 2: Recompile All Workflows
+## Phase 2: Update Workflows from Source Repositories
+
+1. **Update workflows to latest versions**:
+   ```bash
+   ./gh-aw update
+   ```
+   This will update all workflows that have a `source` field in their frontmatter to their latest versions.
+
+2. **Capture the update results**:
+   - Check if any workflows were updated
+   - Note any errors during the update process
+
+## Phase 3: Recompile All Workflows
 
 1. **Run the recompilation**:
    ```bash
    ./gh-aw compile --strict
    ```
-   This will recompile all markdown workflows in `.github/workflows/` directory (including the Agentics subdirectory).
+   This will recompile all markdown workflows in `.github/workflows/` directory (including the Agentics subdirectory and updated workflows).
 
 2. **Capture the results**:
    - Exit code 0 = successful compilation
@@ -92,9 +106,9 @@ Sync workflows from githubnext/agentics and recompile all agentic workflows in t
    ```bash
    git status --porcelain
    ```
-   Look for modified `.lock.yml` files or new workflows from Agentics.
+   Look for modified `.lock.yml` files, new workflows from Agentics, or updated workflow files.
 
-## Phase 3: Handle Success Path (Updates Found)
+## Phase 4: Handle Success Path (Updates Found)
 
 If recompilation succeeds AND changes are detected:
 
@@ -104,23 +118,25 @@ If recompilation succeeds AND changes are detected:
    ```
 
 2. **Create a pull request** with the following details:
-   - **Title**: "Update workflows from daily recompilation and Agentics sync"
+   - **Title**: "Update workflows from daily sync, update, and recompilation"
    - **Body**:
      ```markdown
-     ## Automated Workflow Recompilation and Agentics Sync
+     ## Automated Workflow Sync, Update, and Recompilation
      
      This PR contains:
      1. Synced workflows from githubnext/agentics repository
-     2. Updated `.lock.yml` files from recompilation
+     2. Updated workflows from their source repositories
+     3. Recompiled `.lock.yml` files
      
      ### Changes Summary
      - Synced workflows from githubnext/agentics into Agentics/ subdirectory
+     - Updated workflows from source repositories to latest versions
      - Recompiled all agentic workflows
      - Updated lock files to reflect latest configuration
      - Compilation completed successfully
      
      ### Modified Workflows
-     [List the modified .lock.yml files and new/updated workflows from Agentics]
+     [List the modified .lock.yml files, new/updated workflows from Agentics, and updated workflows]
      
      ### Verification
      Run `./gh-aw compile --strict` to verify these changes.
@@ -131,14 +147,14 @@ If recompilation succeeds AND changes are detected:
 
 3. Use the `create pull request` safe output to create the PR with your changes.
 
-## Phase 4: Handle Error Path (Compilation Failed)
+## Phase 5: Handle Error Path (Sync/Update/Compilation Failed)
 
-If sync or recompilation fails (non-zero exit code):
+If sync, update, or recompilation fails (non-zero exit code):
 
 1. **Capture error details**:
-   - Error messages from sync or compilation output
+   - Error messages from sync, update, or compilation output
    - Affected workflow files
-   - Specific error types (sync failures, compilation errors)
+   - Specific error types (sync failures, update failures, compilation errors)
 
 2. **Format the error report** using the shared Report workflow instructions:
    - Start with a brief overview paragraph
@@ -146,18 +162,21 @@ If sync or recompilation fails (non-zero exit code):
    - Include workflow run reference link
 
 3. **Create a discussion** with the formatted report:
-   - **Title**: "Workflow Sync/Recompilation Errors - [DATE]"
+   - **Title**: "Workflow Sync/Update/Recompilation Errors - [DATE]"
    - **Body**:
      ```markdown
-     Daily workflow sync and recompilation encountered errors that need attention.
+     Daily workflow sync, update, and recompilation encountered errors that need attention.
      
-     [Brief 1-2 paragraph summary of what went wrong - whether it was syncing from agentics or compilation]
+     [Brief 1-2 paragraph summary of what went wrong - whether it was syncing from agentics, updating workflows, or compilation]
      
      <details>
      <summary><b>Full Error Details</b></summary>
      
      ## Sync Errors (if any)
      [Errors from syncing githubnext/agentics workflows]
+     
+     ## Update Errors (if any)
+     [Errors from updating workflows from source repositories]
      
      ## Compilation Errors
      
@@ -181,9 +200,9 @@ If sync or recompilation fails (non-zero exit code):
 
 4. Use the `create discussion` safe output to post the formatted report.
 
-## Phase 5: Handle No-Change Scenario
+## Phase 6: Handle No-Change Scenario
 
-If sync and recompilation succeed but NO changes are detected:
+If sync, update, and recompilation succeed but NO changes are detected:
 
 1. Log a success message to the workflow summary
 2. No PR or discussion needed
