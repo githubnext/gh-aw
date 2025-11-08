@@ -45,7 +45,7 @@
 name: "The Daily Repository Chronicle"
 "on":
   schedule:
-  - cron: 0 16 * * 1-5
+  - cron: "0 16 * * 1-5"
   workflow_dispatch: null
 
 permissions:

@@ -40,7 +40,7 @@
 name: "CLI Version Checker"
 "on":
   schedule:
-  - cron: 0 15 * * *
+  - cron: "0 15 * * *"
   workflow_dispatch: null
 
 permissions:

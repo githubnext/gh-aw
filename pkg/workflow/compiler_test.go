@@ -346,7 +346,7 @@ tools:
     - opened
     - closed
   schedule:
-  - cron: 0 8 * * *
+  - cron: "0 8 * * *"
   workflow_dispatch: null`,
 		},
 	}
@@ -563,7 +563,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "command-with-schedule.md",
-			expectedOn:      "\"on\":\n  discussion:\n    types:\n    - created\n    - edited\n  discussion_comment:\n    types:\n    - created\n    - edited\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  schedule:\n  - cron: 0 9 * * 1",
+			expectedOn:      "\"on\":\n  discussion:\n    types:\n    - created\n    - edited\n  discussion_comment:\n    types:\n    - created\n    - edited\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  schedule:\n  - cron: \"0 9 * * 1\"",
 			expectedIf:      "github.event_name == 'issues'",
 			expectedCommand: "schedule-bot",
 			shouldError:     false,
@@ -4555,7 +4555,7 @@ engine: claude
 			},
 			shouldContain: []string{
 				"workflow_dispatch: null",
-				"- cron: 0 2 * * 1-5",
+				"- cron: \"0 2 * * 1-5\"",
 			},
 			description: "stop-after should be compiled away when used with workflow_dispatch and schedule",
 		},
@@ -4629,7 +4629,7 @@ engine: claude
 			},
 			shouldContain: []string{
 				"schedule:",
-				"- cron: 0 9 * * 1",
+				"- cron: \"0 9 * * 1\"",
 			},
 			description: "stop-after should be compiled away when used only with schedule",
 		},
@@ -4686,7 +4686,7 @@ engine: claude
 				"- opened",
 				"- edited",
 				"schedule:",
-				"- cron: 0 8 * * *",
+				"- cron: \"0 8 * * *\"",
 			},
 			description: "stop-after should be compiled away when used with reaction and schedule",
 		},
@@ -4713,7 +4713,7 @@ engine: claude
 			shouldContain: []string{
 				"workflow_dispatch: null",
 				"schedule:",
-				"- cron: 0 12 * * *",
+				"- cron: \"0 12 * * *\"",
 				"issue_comment:",
 				"issues:",
 				"pull_request:",

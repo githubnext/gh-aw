@@ -40,7 +40,7 @@
 name: "Lockfile Statistics Analysis Agent"
 "on":
   schedule:
-  - cron: 0 3 * * *
+  - cron: "0 3 * * *"
   workflow_dispatch: null
 
 permissions:

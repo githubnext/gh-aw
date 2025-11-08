@@ -68,7 +68,7 @@
 name: "MCP Inspector Agent"
 "on":
   schedule:
-  - cron: 0 18 * * 1
+  - cron: "0 18 * * 1"
   workflow_dispatch: null
 
 permissions:
