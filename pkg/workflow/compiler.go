@@ -1530,14 +1530,6 @@ func needsGitCommands(safeOutputs *SafeOutputsConfig) bool {
 	return safeOutputs.CreatePullRequests != nil || safeOutputs.PushToPullRequestBranch != nil
 }
 
-// detectTextOutputUsage checks if the markdown content uses ${{ needs.activation.outputs.text }}
-func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
-	// Check for the specific GitHub Actions expression
-	hasUsage := strings.Contains(markdownContent, "${{ needs.activation.outputs.text }}")
-	log.Printf("Detected usage of activation.outputs.text: %v", hasUsage)
-	return hasUsage
-}
-
 // generateYAML generates the complete GitHub Actions YAML content
 
 // isActivationJobNeeded determines if the activation job is required
@@ -1566,43 +1558,3 @@ func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
 // generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata
 
 // generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
-// parseBaseSafeOutputConfig parses common fields (max, min, github-token) from a config map
-func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *BaseSafeOutputConfig) {
-	// Parse max
-	if max, exists := configMap["max"]; exists {
-		if maxInt, ok := parseIntValue(max); ok {
-			config.Max = maxInt
-		}
-	}
-
-	// Parse github-token
-	if githubToken, exists := configMap["github-token"]; exists {
-		if githubTokenStr, ok := githubToken.(string); ok {
-			config.GitHubToken = githubTokenStr
-		}
-	}
-}
-
-// computeAllowedDomainsForSanitization computes the allowed domains for sanitization
-// based on the engine and network configuration, matching what's provided to the firewall
-func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) string {
-	// Determine which engine is being used
-	var engineID string
-	if data.EngineConfig != nil {
-		engineID = data.EngineConfig.ID
-	} else if data.AI != "" {
-		engineID = data.AI
-	}
-
-	// Compute domains based on engine type
-	// For Copilot with firewall support, use GetCopilotAllowedDomains which merges
-	// Copilot defaults with network permissions
-	// For other engines, use GetAllowedDomains which uses network permissions only
-	if engineID == "copilot" {
-		return GetCopilotAllowedDomains(data.NetworkPermissions)
-	}
-
-	// For Claude, Codex, and other engines, use network permissions
-	domains := GetAllowedDomains(data.NetworkPermissions)
-	return strings.Join(domains, ",")
-}
