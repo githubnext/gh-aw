@@ -34,20 +34,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       
-      - name: Run Super Linter
+      - name: Super-linter
+        uses: super-linter/super-linter@v8.2.1 # x-release-please-version
         id: super-linter
-        continue-on-error: true
-        uses: super-linter/super-linter/slim@v8
         env:
-          DEFAULT_BRANCH: main
-          FILTER_REGEX_EXCLUDE: dist/**/*
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LINTER_RULES_PATH: .
-          # Only validate Markdown files
-          # Note: Do not use VALIDATE_ALL_CODEBASE with VALIDATE_* flags
-          VALIDATE_MARKDOWN: "true"
-          LOG_FILE: super-linter.log
           CREATE_LOG_FILE: "true"
+          LOG_FILE: super-linter.log
+          DEFAULT_BRANCH: main
+          ENABLE_GITHUB_ACTIONS_STEP_SUMMARY: "true"
       
       - name: Check for linting issues
         id: check-results

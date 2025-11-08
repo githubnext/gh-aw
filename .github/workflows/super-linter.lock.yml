@@ -74,7 +74,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
-          GH_AW_WORKFLOW_FILE: "super-linter-report.lock.yml"
+          GH_AW_WORKFLOW_FILE: "super-linter.lock.yml"
         with:
           script: |
             const fs = require("fs");
@@ -168,7 +168,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Download super-linter log
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: super-linter-log
           path: /tmp/gh-aw/
@@ -4507,18 +4507,15 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Run Super Linter
+      - name: Super-linter
         id: super-linter
-        uses: super-linter/super-linter/slim@f6d06a003575dde14f917e642302cf1251f28f4a
+        uses: super-linter/super-linter@2bdd90ed3262e023ac84bf8fe35dc480721fc1f2
         env:
           CREATE_LOG_FILE: "true"
           DEFAULT_BRANCH: main
-          FILTER_REGEX_EXCLUDE: dist/**/*
+          ENABLE_GITHUB_ACTIONS_STEP_SUMMARY: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LINTER_RULES_PATH: .
           LOG_FILE: super-linter.log
-          VALIDATE_MARKDOWN: "true"
-        continue-on-error: true
       - name: Check for linting issues
         id: check-results
         run: |

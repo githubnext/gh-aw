@@ -10,6 +10,11 @@
       "version": "v5",
       "sha": "08c6903cd8c0fde910a37f88322edcfb5dd907a8"
     },
+    "actions/download-artifact@v4": {
+      "repo": "actions/download-artifact",
+      "version": "v4",
+      "sha": "d3f86a106a0bac45b974a628896c90dbdf5c8093"
+    },
     "actions/github-script@v8": {
       "repo": "actions/github-script",
       "version": "v8",
@@ -44,6 +49,11 @@
       "repo": "super-linter/super-linter/slim",
       "version": "v8",
       "sha": "f6d06a003575dde14f917e642302cf1251f28f4a"
+    },
+    "super-linter/super-linter@v8.2.1": {
+      "repo": "super-linter/super-linter",
+      "version": "v8.2.1",
+      "sha": "2bdd90ed3262e023ac84bf8fe35dc480721fc1f2"
     }
   }
 }
