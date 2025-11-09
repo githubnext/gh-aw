@@ -15,10 +15,11 @@ const createTestableFunction = scriptContent => {
   // Remove const declarations for fs and crypto since they'll be provided as parameters
   scriptBody = scriptBody.replace(/\/\*\* @type \{typeof import\("fs"\)\} \*\/\s*const fs = require\("fs"\);?\s*/g, "");
   scriptBody = scriptBody.replace(/\/\*\* @type \{typeof import\("crypto"\)\} \*\/\s*const crypto = require\("crypto"\);?\s*/g, "");
+  scriptBody = scriptBody.replace(/const \{ updateActivationComment \} = require\("\.\/update_activation_comment\.cjs"\);?\s*/g, "");
 
   // Create a testable function that has the same logic but can be called with dependencies
   return new Function(`
-    const { fs, crypto, github, core, context, process, console } = arguments[0];
+    const { fs, crypto, github, core, context, process, console, updateActivationComment } = arguments[0];
     
     ${scriptBody}
     
@@ -154,6 +155,7 @@ describe("create_pull_request.cjs", () => {
       console: {
         log: vi.fn(),
       },
+      updateActivationComment: vi.fn(),
     };
   });
 
@@ -1624,57 +1626,20 @@ describe("create_pull_request.cjs", () => {
         data: mockPullRequest,
       });
 
-      // Mock the GET request to fetch current comment body
-      mockDependencies.github.request = vi.fn().mockImplementation(async (method, params) => {
-        if (method.startsWith("GET")) {
-          return {
-            data: {
-              body: "Agentic [test-workflow](https://github.com/testowner/testrepo/actions/runs/12345) triggered by this issue.",
-            },
-          };
-        }
-        // Mock the PATCH request to update comment
-        if (method.startsWith("PATCH")) {
-          return {
-            data: {
-              id: 123456,
-              html_url: "https://github.com/testowner/testrepo/issues/1#issuecomment-123456",
-            },
-          };
-        }
-        return { data: {} };
-      });
-
       const mainFunction = createMainFunction(mockDependencies);
       await mainFunction();
 
       // Verify PR was created
       expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
 
-      // Verify comment was fetched
-      expect(mockDependencies.github.request).toHaveBeenCalledWith(
-        "GET /repos/{owner}/{repo}/issues/comments/{comment_id}",
-        expect.objectContaining({
-          owner: "testowner",
-          repo: "testrepo",
-          comment_id: 123456,
-        })
+      // Verify updateActivationComment was called with correct parameters
+      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(
+        mockDependencies.github,
+        mockDependencies.context,
+        mockDependencies.core,
+        "https://github.com/testowner/testrepo/pull/42",
+        42
       );
-
-      // Verify comment was updated with PR link
-      expect(mockDependencies.github.request).toHaveBeenCalledWith(
-        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
-        expect.objectContaining({
-          owner: "testowner",
-          repo: "testrepo",
-          comment_id: 123456,
-          body: expect.stringContaining("✅ Pull request created: [#42](https://github.com/testowner/testrepo/pull/42)"),
-        })
-      );
-
-      // Verify info messages
-      expect(mockDependencies.core.info).toHaveBeenCalledWith("Updating activation comment 123456 with PR link");
-      expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated comment with PR link");
     });
 
     it("should update discussion comment with PR link when comment_id starts with DC_", async () => {
@@ -1701,55 +1666,20 @@ describe("create_pull_request.cjs", () => {
         data: mockPullRequest,
       });
 
-      // Mock GraphQL for discussion comment
-      mockDependencies.github.graphql = vi.fn().mockImplementation(async (query, params) => {
-        if (query.includes("query")) {
-          // Mock GET query for discussion comment
-          return {
-            node: {
-              body: "Agentic [test-workflow](https://github.com/testowner/testrepo/actions/runs/12345) triggered by this discussion.",
-            },
-          };
-        }
-        if (query.includes("mutation")) {
-          // Mock UPDATE mutation for discussion comment
-          return {
-            updateDiscussionComment: {
-              comment: {
-                id: "DC_kwDOABCDEF4ABCDEF",
-                url: "https://github.com/testowner/testrepo/discussions/1#discussioncomment-123456",
-              },
-            },
-          };
-        }
-        return {};
-      });
-
       const mainFunction = createMainFunction(mockDependencies);
       await mainFunction();
 
       // Verify PR was created
       expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
 
-      // Verify GraphQL was called to get current comment
-      expect(mockDependencies.github.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("query($commentId: ID!)"),
-        expect.objectContaining({
-          commentId: "DC_kwDOABCDEF4ABCDEF",
-        })
+      // Verify updateActivationComment was called with correct parameters
+      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(
+        mockDependencies.github,
+        mockDependencies.context,
+        mockDependencies.core,
+        "https://github.com/testowner/testrepo/pull/42",
+        42
       );
-
-      // Verify GraphQL was called to update comment with PR link
-      expect(mockDependencies.github.graphql).toHaveBeenCalledWith(
-        expect.stringContaining("mutation($commentId: ID!, $body: String!)"),
-        expect.objectContaining({
-          commentId: "DC_kwDOABCDEF4ABCDEF",
-          body: expect.stringContaining("✅ Pull request created: [#42](https://github.com/testowner/testrepo/pull/42)"),
-        })
-      );
-
-      // Verify info messages
-      expect(mockDependencies.core.info).toHaveBeenCalledWith("Successfully updated discussion comment with PR link");
     });
 
     it("should skip updating comment when GH_AW_COMMENT_ID is not set", async () => {
@@ -1775,17 +1705,20 @@ describe("create_pull_request.cjs", () => {
         data: mockPullRequest,
       });
 
-      mockDependencies.github.request = vi.fn();
-
       const mainFunction = createMainFunction(mockDependencies);
       await mainFunction();
 
       // Verify PR was created
       expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
 
-      // Verify comment update was skipped
-      expect(mockDependencies.core.info).toHaveBeenCalledWith("No activation comment to update (GH_AW_COMMENT_ID not set)");
-      expect(mockDependencies.github.request).not.toHaveBeenCalled();
+      // Verify updateActivationComment was still called (it will check internally if comment_id is set)
+      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(
+        mockDependencies.github,
+        mockDependencies.context,
+        mockDependencies.core,
+        "https://github.com/testowner/testrepo/pull/42",
+        42
+      );
     });
 
     it("should not fail workflow if comment update fails", async () => {
@@ -1812,18 +1745,20 @@ describe("create_pull_request.cjs", () => {
         data: mockPullRequest,
       });
 
-      // Mock comment update to fail
-      mockDependencies.github.request = vi.fn().mockRejectedValue(new Error("Comment update failed"));
-
       const mainFunction = createMainFunction(mockDependencies);
       await mainFunction();
 
       // Verify PR was created successfully
       expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
 
-      // Verify warning was logged but workflow didn't fail
-      expect(mockDependencies.core.warning).toHaveBeenCalledWith("Failed to update activation comment: Comment update failed");
-      expect(mockDependencies.core.setFailed).not.toHaveBeenCalled();
+      // Verify updateActivationComment was called (error handling is tested in update_activation_comment.test.cjs)
+      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(
+        mockDependencies.github,
+        mockDependencies.context,
+        mockDependencies.core,
+        "https://github.com/testowner/testrepo/pull/42",
+        42
+      );
     });
   });
 });
