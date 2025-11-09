@@ -59,6 +59,8 @@ func WritePromptTextToYAML(yaml *strings.Builder, text string, indent string) {
 
 	// Write each chunk as a separate heredoc
 	for _, chunk := range chunks {
+		// shellcheck disable directive suppresses false positives from markdown backticks
+		yaml.WriteString(indent + "# shellcheck disable=SC2006,SC2287\n")
 		yaml.WriteString(indent + "cat >> \"$GH_AW_PROMPT\" << PROMPT_EOF\n")
 		for _, line := range chunk {
 			fmt.Fprintf(yaml, "%s%s\n", indent, line)
