@@ -190,6 +190,20 @@ jobs:
             /tmp/gh-aw/python/*.py
             /tmp/gh-aw/python/data/*
           retention-days: 30
+      - id: clone-mcp
+        name: Clone master-control-program repository
+        run: |
+          set -e
+          echo "Cloning master-control-program repository..."
+          git clone https://github.com/gokhanarkan/master-control-program.git /tmp/mcp-repo
+          cd /tmp/mcp-repo
+          echo "Repository cloned successfully"
+      - env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: start-mcp
+        name: Setup and start MCP server
+        run: "set -e\ncd /tmp/mcp-repo\n\necho \"Setting up environment configuration...\"\ncp .env.example .env\n\n# Configure environment variables\nsed -i \"s|GITHUB_TOKEN=.*|GITHUB_TOKEN=$GITHUB_TOKEN|g\" .env\nsed -i \"s|GEMINI_API_KEY=.*|GEMINI_API_KEY=$GEMINI_API_KEY|g\" .env\nsed -i \"s|NEO4J_PASSWORD=.*|NEO4J_PASSWORD=tron-1982|g\" .env\n\necho \"Starting MCP server with quickstart...\"\n# Run quickstart (this installs tools, builds, starts services, and initializes Neo4j)\nmake quickstart\n\n# Wait for server to be ready\necho \"Waiting for MCP server to be ready...\"\nfor i in {1..30}; do\n  if curl -s http://localhost:8000/health > /dev/null; then\n    echo \"MCP server is ready!\"\n    break\n  fi\n  echo \"Waiting... attempt $i/30\"\n  sleep 2\ndone\n\n# Verify server is responding\ncurl -f http://localhost:8000/health || exit 1\necho \"MCP server health check passed\""
 
       - name: Create gh-aw temp directory
         run: |
@@ -1123,6 +1137,13 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_MCP_SERVER_TOKEN}"
                 }
               },
+              "master-control-program": {
+                "type": "http",
+                "url": "http://localhost:8000/api/bring-servers",
+                "tools": [
+                  "bring-servers"
+                ]
+              },
               "safeoutputs": {
                 "type": "local",
                 "command": "node",
@@ -1662,6 +1683,8 @@ jobs:
           
           You are analyzing the **master-control-program** repository (https://github.com/gokhanarkan/master-control-program) - an intelligent MCP meta-server that discovers and analyzes tools from 1000+ Model Context Protocol servers.
           
+          **IMPORTANT**: The master-control-program MCP server is now running locally at `http://localhost:8000`. You have access to it via the `master-control-program` MCP tool which allows you to query for MCP tools and servers using natural language.
+          
           ## Repository Context
           
           The master-control-program is a Go-based orchestration system that:
@@ -1669,18 +1692,38 @@ jobs:
           - Extracts tools and schemas from server documentation
           - Uses AI (Google Gemini) to semantically categorize and analyze servers
           - Stores data in a Neo4j graph database
-          - Provides intelligent tool selection based on natural language queries
-          - Returns installation URLs for IDE integration
-          
-          ## Your Mission
-          
           PROMPT_EOF
       - name: Append prompt (part 2)
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          Create a comprehensive weekly analysis discussion that provides insights into the repository's development, algorithms, and ecosystem trends.
+          - Provides intelligent tool selection based on natural language queries
+          - Returns installation URLs for IDE integration
+          
+          ## Using the MCP Server
+          
+          The MCP server is running and ready to use! You can query it to:
+          - Discover what MCP servers and tools are available in the ecosystem
+          - Test the semantic understanding and tool selection algorithms
+          - Analyze trends in tool categories and server popularity
+          - Evaluate the quality of tool descriptions and categorizations
+          
+          **Example MCP Query**:
+          ```
+          Query: "I need tools for data transformation and database operations"
+          Response: Returns relevant MCP servers with their tools and installation URLs
+          ```
+          
+          Use this capability to:
+          1. Test the semantic matching quality with various queries
+          2. Analyze what categories of tools are most prevalent
+          3. Identify gaps in the MCP ecosystem
+          4. Evaluate how well the AI categorizes and selects tools
+          
+          ## Your Mission
+          
+          Create a comprehensive weekly analysis discussion that provides insights into the repository's development, algorithms, and ecosystem trends. **Leverage the running MCP server** to provide real-world examples of its capabilities.
           
           ## 📊 Required Trend Charts
           
@@ -1794,12 +1837,31 @@ jobs:
           - `internal/discovery/` - Registry sync & tool extraction
           - `internal/protocol/` - MCP protocol handling
           
+          **IMPORTANT - Live MCP Testing**: Use the running MCP server to demonstrate its capabilities:
+          1. Make 2-3 test queries to the MCP server using different scenarios:
+             - Example 1: "I need tools for web scraping and data extraction"
+             - Example 2: "Help me find tools for database management and SQL operations"
+             - Example 3: "I want to integrate with Slack and GitHub for notifications"
+          2. Analyze the quality of tool selection and semantic matching
+          3. Comment on the relevance and usefulness of returned servers/tools
+          4. Include snippets of the MCP responses in your analysis (show what tools were selected)
+          
+          This provides concrete examples of the algorithm's performance and helps readers understand how well it works in practice.
+          
           ### 📦 Registry & Ecosystem Trends
-          If there's discussion of:
-          - New MCP servers discovered
+          Use the MCP server to analyze the current state of the MCP ecosystem:
+          
+          **Live Ecosystem Analysis**:
+          1. Query the MCP server to understand what categories of tools are available
+          2. Test semantic matching with edge cases or unusual queries
+          3. Identify popular server patterns (e.g., most common tool types, language preferences)
+          
+          Also look for code/documentation discussing:
+          - New MCP servers discovered in the registry
           - Tool categorization improvements
           - Server quality metrics
           - Popular tool patterns
+          - Integration capabilities
           
           ### 🚀 Performance & Technical Improvements
           Highlight commits related to:
@@ -2132,7 +2194,7 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 30
+        timeout-minutes: 45
         run: |
           set -o pipefail
           sudo -E awf --env-all --allow-domains '*.githubusercontent.com,*.pythonhosted.org,anaconda.org,api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,codeload.github.com,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.npmjs.org,repo.anaconda.com,repo.continuum.io,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info \
@@ -2273,9 +2335,10 @@ jobs:
             }
             await main();
         env:
-          GH_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,COPILOT_GITHUB_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
+          GH_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,COPILOT_GITHUB_TOKEN,GEMINI_API_KEY,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
           SECRET_COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
           SECRET_COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          SECRET_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload Safe Outputs
