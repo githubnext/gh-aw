@@ -253,4 +253,164 @@ describe("update_activation_comment.cjs", () => {
       })
     );
   });
+
+  it("should handle invalid comment_repo format and fall back to context", async () => {
+    mockDependencies.process.env.GH_AW_COMMENT_ID = "123456";
+    mockDependencies.process.env.GH_AW_COMMENT_REPO = "invalid-format";
+
+    mockDependencies.github.request.mockImplementation(async (method, params) => {
+      if (method.startsWith("GET")) {
+        return {
+          data: {
+            body: "Original comment",
+          },
+        };
+      }
+      if (method.startsWith("PATCH")) {
+        return {
+          data: {
+            id: 123456,
+            html_url: "https://github.com/testowner/testrepo/issues/1#issuecomment-123456",
+          },
+        };
+      }
+      return { data: {} };
+    });
+
+    const { updateActivationComment } = createFunctionFromScript(mockDependencies);
+
+    await updateActivationComment(
+      mockDependencies.github,
+      mockDependencies.context,
+      mockDependencies.core,
+      "https://github.com/testowner/testrepo/pull/42",
+      42
+    );
+
+    // Verify warning was logged
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
+      'Invalid comment repo format: invalid-format, expected "owner/repo". Falling back to context.repo.'
+    );
+
+    // Verify request used context repo as fallback
+    expect(mockDependencies.github.request).toHaveBeenCalledWith(
+      "GET /repos/{owner}/{repo}/issues/comments/{comment_id}",
+      expect.objectContaining({
+        owner: "testowner",
+        repo: "testrepo",
+      })
+    );
+  });
+
+  it("should handle deleted discussion comment (null body in GraphQL)", async () => {
+    mockDependencies.process.env.GH_AW_COMMENT_ID = "DC_kwDOABCDEF4ABCDEF";
+    mockDependencies.process.env.GH_AW_COMMENT_REPO = "testowner/testrepo";
+
+    // Mock GraphQL to return null body (comment deleted)
+    mockDependencies.github.graphql.mockResolvedValue({
+      node: {
+        body: null,
+      },
+    });
+
+    const { updateActivationComment } = createFunctionFromScript(mockDependencies);
+
+    await updateActivationComment(
+      mockDependencies.github,
+      mockDependencies.context,
+      mockDependencies.core,
+      "https://github.com/testowner/testrepo/pull/42",
+      42
+    );
+
+    // Verify warning was logged
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
+      "Unable to fetch current comment body, comment may have been deleted or is inaccessible"
+    );
+
+    // Verify mutation was not attempted
+    expect(mockDependencies.github.graphql).toHaveBeenCalledTimes(1);
+  });
+
+  it("should handle deleted discussion comment (null node in GraphQL)", async () => {
+    mockDependencies.process.env.GH_AW_COMMENT_ID = "DC_kwDOABCDEF4ABCDEF";
+    mockDependencies.process.env.GH_AW_COMMENT_REPO = "testowner/testrepo";
+
+    // Mock GraphQL to return null node (comment deleted)
+    mockDependencies.github.graphql.mockResolvedValue({
+      node: null,
+    });
+
+    const { updateActivationComment } = createFunctionFromScript(mockDependencies);
+
+    await updateActivationComment(
+      mockDependencies.github,
+      mockDependencies.context,
+      mockDependencies.core,
+      "https://github.com/testowner/testrepo/pull/42",
+      42
+    );
+
+    // Verify warning was logged
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
+      "Unable to fetch current comment body, comment may have been deleted or is inaccessible"
+    );
+
+    // Verify mutation was not attempted
+    expect(mockDependencies.github.graphql).toHaveBeenCalledTimes(1);
+  });
+
+  it("should handle deleted issue comment (null body in REST API)", async () => {
+    mockDependencies.process.env.GH_AW_COMMENT_ID = "123456";
+    mockDependencies.process.env.GH_AW_COMMENT_REPO = "testowner/testrepo";
+
+    // Mock REST API to return null body (comment deleted)
+    mockDependencies.github.request.mockResolvedValue({
+      data: {
+        body: null,
+      },
+    });
+
+    const { updateActivationComment } = createFunctionFromScript(mockDependencies);
+
+    await updateActivationComment(
+      mockDependencies.github,
+      mockDependencies.context,
+      mockDependencies.core,
+      "https://github.com/testowner/testrepo/pull/42",
+      42
+    );
+
+    // Verify warning was logged
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith("Unable to fetch current comment body, comment may have been deleted");
+
+    // Verify PATCH was not attempted
+    expect(mockDependencies.github.request).toHaveBeenCalledTimes(1);
+  });
+
+  it("should handle deleted issue comment (undefined body in REST API)", async () => {
+    mockDependencies.process.env.GH_AW_COMMENT_ID = "123456";
+    mockDependencies.process.env.GH_AW_COMMENT_REPO = "testowner/testrepo";
+
+    // Mock REST API to return undefined body (comment deleted)
+    mockDependencies.github.request.mockResolvedValue({
+      data: {},
+    });
+
+    const { updateActivationComment } = createFunctionFromScript(mockDependencies);
+
+    await updateActivationComment(
+      mockDependencies.github,
+      mockDependencies.context,
+      mockDependencies.core,
+      "https://github.com/testowner/testrepo/pull/42",
+      42
+    );
+
+    // Verify warning was logged
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith("Unable to fetch current comment body, comment may have been deleted");
+
+    // Verify PATCH was not attempted
+    expect(mockDependencies.github.request).toHaveBeenCalledTimes(1);
+  });
 });
