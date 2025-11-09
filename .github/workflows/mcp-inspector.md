@@ -26,9 +26,7 @@ imports:
   - shared/mcp/ast-grep.md
   # Note: azure.md excluded due to schema validation issue with entrypointArgs
   - shared/mcp/brave.md
-  - shared/mcp/context7.md
   - shared/mcp/datadog.md
-  - shared/mcp/deepwiki.md
   - shared/mcp/fabric-rti.md
   - shared/mcp/gh-aw.md
   - shared/mcp/markitdown.md
