@@ -1,45 +1,32 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { processAgentOutput } = require("./load_agent_output.cjs");
 
 async function main() {
-  const result = loadAgentOutput();
-  if (!result.success) {
+  // Process agent output with common boilerplate handling
+  const result = await processAgentOutput({
+    itemType: "create_code_scanning_alert",
+    stagedPreview: {
+      title: "Create Code Scanning Alerts",
+      description: "The following code scanning alerts would be created if staged mode was disabled:",
+      renderItem: (item, index) => {
+        let content = `### Security Finding ${index + 1}\n`;
+        content += `**File:** ${item.file || "No file provided"}\n\n`;
+        content += `**Line:** ${item.line || "No line provided"}\n\n`;
+        content += `**Severity:** ${item.severity || "No severity provided"}\n\n`;
+        content += `**Message:**\n${item.message || "No message provided"}\n\n`;
+        return content;
+      },
+    },
+  });
+
+  // Exit if processing failed or we're in staged mode
+  if (!result.success || result.isStaged) {
     return;
   }
 
-  // Find all create-code-scanning-alert items
-  const securityItems = result.items.filter(/** @param {any} item */ item => item.type === "create_code_scanning_alert");
-  if (securityItems.length === 0) {
-    core.info("No create-code-scanning-alert items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${securityItems.length} create-code-scanning-alert item(s)`);
-
-  // If in staged mode, emit step summary instead of creating code scanning alerts
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    let summaryContent = "## 🎭 Staged Mode: Create Code Scanning Alerts Preview\n\n";
-    summaryContent += "The following code scanning alerts would be created if staged mode was disabled:\n\n";
-
-    for (let i = 0; i < securityItems.length; i++) {
-      const item = securityItems[i];
-      summaryContent += `### Security Finding ${i + 1}\n`;
-      summaryContent += `**File:** ${item.file || "No file provided"}\n\n`;
-      summaryContent += `**Line:** ${item.line || "No line provided"}\n\n`;
-      summaryContent += `**Severity:** ${item.severity || "No severity provided"}\n\n`;
-      summaryContent += `**Message:**\n${item.message || "No message provided"}\n\n`;
-      summaryContent += "---\n\n";
-    }
-
-    // Write to step summary
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 Code scanning alert creation preview written to step summary");
-    return;
-  }
-
-  // Get the max configuration from environment variable
+  const securityItems = result.items;
   const maxFindings = process.env.GH_AW_SECURITY_REPORT_MAX ? parseInt(process.env.GH_AW_SECURITY_REPORT_MAX) : 0; // 0 means unlimited
   core.info(`Max findings configuration: ${maxFindings === 0 ? "unlimited" : maxFindings}`);
 

@@ -2,26 +2,17 @@
 /// <reference types="@actions/github-script" />
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { processAgentOutput } = require("./load_agent_output.cjs");
 
 async function main() {
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  const labelsItem = result.items.find(item => item.type === "add_labels");
-  if (!labelsItem) {
-    core.warning("No add-labels item found in agent output");
-    return;
-  }
-  core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    await generateStagedPreview({
+  // Process agent output with common boilerplate handling (find a single item)
+  const result = await processAgentOutput({
+    itemType: "add_labels",
+    useWarningForEmpty: true,
+    findOne: true,
+    stagedPreview: {
       title: "Add Labels",
       description: "The following labels would be added if staged mode was disabled:",
-      items: [labelsItem],
       renderItem: item => {
         let content = "";
         if (item.item_number) {
@@ -34,9 +25,16 @@ async function main() {
         }
         return content;
       },
-    });
+    },
+  });
+
+  // Exit if processing failed or we're in staged mode
+  if (!result.success || result.isStaged) {
     return;
   }
+
+  const labelsItem = result.items[0];
+  core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
   const allowedLabelsEnv = process.env.GH_AW_LABELS_ALLOWED?.trim();
   const allowedLabels = allowedLabelsEnv
     ? allowedLabelsEnv

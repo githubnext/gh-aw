@@ -1,8 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateStagedPreview } = require("./staged_preview.cjs");
+const { processAgentOutput } = require("./load_agent_output.cjs");
 
 /**
  * Generate footer with AI attribution and workflow installation instructions
@@ -66,26 +65,12 @@ async function main() {
     }
   }
 
-  const result = loadAgentOutput();
-  if (!result.success) {
-    return;
-  }
-
-  // Find all create-pr-review-comment items
-  const reviewCommentItems = result.items.filter(/** @param {any} item */ item => item.type === "create_pull_request_review_comment");
-  if (reviewCommentItems.length === 0) {
-    core.info("No create-pull-request-review-comment items found in agent output");
-    return;
-  }
-
-  core.info(`Found ${reviewCommentItems.length} create-pull-request-review-comment item(s)`);
-
-  // If in staged mode, emit step summary instead of creating review comments
-  if (isStaged) {
-    await generateStagedPreview({
+  // Process agent output with common boilerplate handling
+  const result = await processAgentOutput({
+    itemType: "create_pull_request_review_comment",
+    stagedPreview: {
       title: "Create PR Review Comments",
       description: "The following review comments would be created if staged mode was disabled:",
-      items: reviewCommentItems,
       renderItem: (item, index) => {
         let content = `### Review Comment ${index + 1}\n`;
         if (item.pull_request_number) {
@@ -104,11 +89,15 @@ async function main() {
         content += `**Body:**\n${item.body || "No content provided"}\n\n`;
         return content;
       },
-    });
+    },
+  });
+
+  // Exit if processing failed or we're in staged mode
+  if (!result.success || result.isStaged) {
     return;
   }
 
-  // Get the side configuration from environment variable
+  const reviewCommentItems = result.items;
   const defaultSide = process.env.GH_AW_PR_REVIEW_COMMENT_SIDE || "RIGHT";
   core.info(`Default comment side configuration: ${defaultSide}`);
 

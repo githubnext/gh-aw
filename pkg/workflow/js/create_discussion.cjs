@@ -1,43 +1,40 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { processAgentOutput } = require("./load_agent_output.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
   core.setOutput("discussion_number", "");
   core.setOutput("discussion_url", "");
 
-  const result = loadAgentOutput();
-  if (!result.success) {
+  // Process agent output with common boilerplate handling
+  const result = await processAgentOutput({
+    itemType: "create_discussion",
+    useWarningForEmpty: true,
+    stagedPreview: {
+      title: "Create Discussions",
+      description: "The following discussions would be created if staged mode was disabled:",
+      renderItem: (item, index) => {
+        let content = `### Discussion ${index + 1}\n`;
+        content += `**Title:** ${item.title || "No title provided"}\n\n`;
+        if (item.body) {
+          content += `**Body:**\n${item.body}\n\n`;
+        }
+        if (item.category) {
+          content += `**Category:** ${item.category}\n\n`;
+        }
+        return content;
+      },
+    },
+  });
+
+  // Exit if processing failed or we're in staged mode
+  if (!result.success || result.isStaged) {
     return;
   }
 
-  const createDiscussionItems = result.items.filter(item => item.type === "create_discussion");
-  if (createDiscussionItems.length === 0) {
-    core.warning("No create-discussion items found in agent output");
-    return;
-  }
-  core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
-  if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
-    let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
-    summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
-    for (let i = 0; i < createDiscussionItems.length; i++) {
-      const item = createDiscussionItems[i];
-      summaryContent += `### Discussion ${i + 1}\n`;
-      summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-      if (item.body) {
-        summaryContent += `**Body:**\n${item.body}\n\n`;
-      }
-      if (item.category) {
-        summaryContent += `**Category:** ${item.category}\n\n`;
-      }
-      summaryContent += "---\n\n";
-    }
-    await core.summary.addRaw(summaryContent).write();
-    core.info("📝 Discussion creation preview written to step summary");
-    return;
-  }
+  const createDiscussionItems = result.items;
   let discussionCategories = [];
   let repositoryId = undefined;
   try {

@@ -234,7 +234,7 @@ describe("load_agent_output.cjs", () => {
       });
 
       expect(result.success).toBe(false);
-      expect(mockCore.info).toHaveBeenCalledWith("No nonexistent_type items found in agent output");
+      expect(mockCore.info).toHaveBeenCalledWith("No nonexistent-type items found in agent output");
     });
 
     it("should use core.warning for empty results when useWarningForEmpty is true", async () => {
@@ -244,7 +244,7 @@ describe("load_agent_output.cjs", () => {
       });
 
       expect(result.success).toBe(false);
-      expect(mockCore.warning).toHaveBeenCalledWith("No nonexistent_type items found in agent output");
+      expect(mockCore.warning).toHaveBeenCalledWith("No nonexistent-type items found in agent output");
     });
 
     it("should log the number of found items", async () => {

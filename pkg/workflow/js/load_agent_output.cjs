@@ -119,7 +119,9 @@ async function processAgentOutput(options) {
 
   // Handle empty results
   if (filteredItems.length === 0) {
-    const message = `No ${itemType} items found in agent output`;
+    // Convert underscores to hyphens for better readability in messages
+    const readableType = itemType.replace(/_/g, "-");
+    const message = `No ${readableType} items found in agent output`;
     if (useWarningForEmpty) {
       core.warning(message);
     } else {
@@ -128,7 +130,7 @@ async function processAgentOutput(options) {
     return { success: false };
   }
 
-  // Log found items
+  // Log found items (keep underscore format for consistency)
   core.info(`Found ${filteredItems.length} ${itemType} item(s)`);
 
   // Check for staged mode
