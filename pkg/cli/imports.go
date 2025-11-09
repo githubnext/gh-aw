@@ -9,13 +9,17 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
+var importsLog = logger.New("cli:imports")
+
 // processImportsWithWorkflowSpec processes imports field in frontmatter and replaces local file references
 // with workflowspec format (owner/repo/path@sha) for all imports found
 func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, commitSHA string, verbose bool) (string, error) {
+	importsLog.Printf("Processing imports with workflowspec: repo=%s, sha=%s", workflow.RepoSlug, commitSHA)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Processing imports field to replace with workflowspec"))
 	}
@@ -23,12 +27,14 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 	// Extract frontmatter from content
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil {
+		importsLog.Printf("No frontmatter found, skipping imports processing")
 		return content, nil // Return original content if no frontmatter
 	}
 
 	// Check if imports field exists
 	importsField, exists := result.Frontmatter["imports"]
 	if !exists {
+		importsLog.Print("No imports field in frontmatter")
 		return content, nil // No imports field, return original content
 	}
 
@@ -44,14 +50,18 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 	case []string:
 		imports = v
 	default:
+		importsLog.Print("Invalid imports field type, skipping")
 		return content, nil // Invalid imports field, skip processing
 	}
+
+	importsLog.Printf("Found %d imports to process", len(imports))
 
 	// Process each import and replace with workflowspec format
 	processedImports := make([]string, 0, len(imports))
 	for _, importPath := range imports {
 		// Skip if already a workflowspec
 		if isWorkflowSpecFormat(importPath) {
+			importsLog.Printf("Import already in workflowspec format: %s", importPath)
 			processedImports = append(processedImports, importPath)
 			continue
 		}
@@ -65,6 +75,7 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 			workflowSpec += "@" + workflow.Version
 		}
 
+		importsLog.Printf("Converted import: %s -> %s", importPath, workflowSpec)
 		processedImports = append(processedImports, workflowSpec)
 	}
 
@@ -106,6 +117,7 @@ func reconstructWorkflowFileFromMap(frontmatter map[string]any, markdown string)
 // processIncludesWithWorkflowSpec processes @include directives in content and replaces local file references
 // with workflowspec format (owner/repo/path@sha) for all includes found in the package
 func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, commitSHA, packagePath string, verbose bool) (string, error) {
+	importsLog.Printf("Processing @include directives: repo=%s, sha=%s, package=%s", workflow.RepoSlug, commitSHA, packagePath)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Processing @include directives to replace with workflowspec"))
 	}

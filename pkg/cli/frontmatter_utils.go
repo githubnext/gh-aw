@@ -5,22 +5,29 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
+
+var frontmatterUtilsLog = logger.New("cli:frontmatter_utils")
 
 // UpdateFieldInFrontmatter updates a field in the frontmatter while preserving the original formatting
 // when possible. It tries to preserve whitespace, comments, and formatting by working with the raw
 // frontmatter lines, similar to how addSourceToWorkflow works.
 func UpdateFieldInFrontmatter(content, fieldName, fieldValue string) (string, error) {
+	frontmatterUtilsLog.Printf("Updating frontmatter field: %s = %s", fieldName, fieldValue)
+
 	// Parse frontmatter using parser package
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil {
+		frontmatterUtilsLog.Printf("Failed to parse frontmatter: %v", err)
 		return "", fmt.Errorf("failed to parse frontmatter: %w", err)
 	}
 
 	// Try to preserve original frontmatter formatting by manually updating the field
 	if len(result.FrontmatterLines) > 0 {
+		frontmatterUtilsLog.Printf("Using raw frontmatter lines for field update (%d lines)", len(result.FrontmatterLines))
 		// Look for existing field in the raw lines
 		fieldUpdated := false
 		frontmatterLines := make([]string, len(result.FrontmatterLines))
@@ -48,6 +55,7 @@ func UpdateFieldInFrontmatter(content, fieldName, fieldValue string) (string, er
 					frontmatterLines[i] = fmt.Sprintf("%s%s: %s", leadingSpace, fieldName, fieldValue)
 				}
 				fieldUpdated = true
+				frontmatterUtilsLog.Printf("Updated existing field %s in place (line %d)", fieldName, i+1)
 				break
 			}
 		}
@@ -56,6 +64,7 @@ func UpdateFieldInFrontmatter(content, fieldName, fieldValue string) (string, er
 		if !fieldUpdated {
 			newField := fmt.Sprintf("%s: %s", fieldName, fieldValue)
 			frontmatterLines = append(frontmatterLines, newField)
+			frontmatterUtilsLog.Printf("Added new field %s at end of frontmatter", fieldName)
 		}
 
 		// Reconstruct the file with preserved formatting
