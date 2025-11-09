@@ -1130,7 +1130,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
 
-	// Extract safe-jobs from the new location (safe-outputs.jobs) or old location (safe-jobs) for backwards compatibility
+	// Extract safe-jobs from safe-outputs.jobs location
 	topSafeJobs := extractSafeJobsFromFrontmatter(result.Frontmatter)
 
 	// Process @include directives to extract additional safe-outputs configurations
