@@ -460,6 +460,18 @@ func (c *Compiler) validateRepositoryFeatures(workflowData *WorkflowData) error 
 		}
 	}
 
+	// Check if Projects v2 are accessible when campaign.project is configured
+	if workflowData.CampaignProject != nil {
+		// Note: Projects v2 API requires organization-level or user-level access via GraphQL
+		// We cannot easily validate access without making an authenticated API call
+		// The workflow will fail at runtime if Projects v2 access is not available
+		validationLog.Printf("Campaign project configured: %s", workflowData.CampaignProject.Name)
+		if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+				"Campaign project board configured. Ensure the repository has access to Projects v2 API"))
+		}
+	}
+
 	return nil
 }
 

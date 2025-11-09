@@ -3,37 +3,25 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - ../instructions/documentation.instructions.md
-#     - ../agents/technical-doc-writer.md
-#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
 #   activation["activation"]
-#   add_comment["add_comment"]
 #   agent["agent"]
-#   create_pull_request["create_pull_request"]
+#   campaign_project["campaign_project"]
+#   create_issue["create_issue"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
-#   upload_assets["upload_assets"]
-#   agent --> add_comment
-#   create_pull_request --> add_comment
-#   detection --> add_comment
 #   activation --> agent
-#   agent --> create_pull_request
-#   detection --> create_pull_request
+#   agent --> campaign_project
+#   agent --> create_issue
+#   detection --> create_issue
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
-#   agent --> upload_assets
-#   detection --> upload_assets
 # ```
 #
 # Pinned GitHub Actions:
-#   - actions/cache@v4 (0057852bfaa89a56745cba8c7296529d2fc39830)
-#     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
 #   - actions/checkout@v5 (08c6903cd8c0fde910a37f88322edcfb5dd907a8)
 #     https://github.com/actions/checkout/commit/08c6903cd8c0fde910a37f88322edcfb5dd907a8
 #   - actions/download-artifact@v5 (634f93cb2916e3fdff6788551b99b062d0335ce0)
@@ -45,25 +33,21 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Technical Doc Writer"
+name: "Multi-Agent Research Campaign"
 "on":
   workflow_dispatch:
     inputs:
-      topic:
-        description: Documentation topic to review
+      research_topics:
+        default: AI safety, Machine learning ethics, Responsible AI
+        description: Comma-separated list of research topics
         required: true
-        type: string
 
-permissions:
-  actions: read
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: read-all
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Technical Doc Writer"
+run-name: "Multi-Agent Research Campaign"
 
 jobs:
   activation:
@@ -80,7 +64,7 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
-          GH_AW_WORKFLOW_FILE: "technical-doc-writer.lock.yml"
+          GH_AW_WORKFLOW_FILE: "campaign-with-project.lock.yml"
         with:
           script: |
             const fs = require("fs");
@@ -143,422 +127,13 @@ jobs:
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
-  add_comment:
-    needs:
-      - agent
-      - create_pull_request
-      - detection
-    if: >
-      (((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'add_comment'))) &&
-      (((github.event.issue.number) || (github.event.pull_request.number)) || (github.event.discussion.number))
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      comment_id: ${{ steps.add_comment.outputs.comment_id }}
-      comment_url: ${{ steps.add_comment.outputs.comment_url }}
-    steps:
-      - name: Debug agent outputs
-        env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
-        run: |
-          echo "Output: $AGENT_OUTPUT"
-          echo "Output types: $AGENT_OUTPUT_TYPES"
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Add Issue Comment
-        id: add_comment
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Technical Doc Writer"
-          GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
-          GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require("fs");
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.setFailed(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.setFailed(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            function generateFooter(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
-              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
-              if (triggeringIssueNumber) {
-                footer += ` for #${triggeringIssueNumber}`;
-              } else if (triggeringPRNumber) {
-                footer += ` for #${triggeringPRNumber}`;
-              } else if (triggeringDiscussionNumber) {
-                footer += ` for discussion #${triggeringDiscussionNumber}`;
-              }
-              if (workflowSource && workflowSourceURL) {
-                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
-              }
-              footer += "\n";
-              return footer;
-            }
-            async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
-              const { repository } = await github.graphql(
-                `
-                query($owner: String!, $repo: String!, $num: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    discussion(number: $num) { 
-                      id 
-                      url
-                    }
-                  }
-                }`,
-                { owner, repo, num: discussionNumber }
-              );
-              if (!repository || !repository.discussion) {
-                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
-              }
-              const discussionId = repository.discussion.id;
-              const discussionUrl = repository.discussion.url;
-              let result;
-              if (replyToId) {
-                result = await github.graphql(
-                  `
-                  mutation($dId: ID!, $body: String!, $replyToId: ID!) {
-                    addDiscussionComment(input: { discussionId: $dId, body: $body, replyToId: $replyToId }) {
-                      comment { 
-                        id 
-                        body 
-                        createdAt 
-                        url
-                      }
-                    }
-                  }`,
-                  { dId: discussionId, body: message, replyToId }
-                );
-              } else {
-                result = await github.graphql(
-                  `
-                  mutation($dId: ID!, $body: String!) {
-                    addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-                      comment { 
-                        id 
-                        body 
-                        createdAt 
-                        url
-                      }
-                    }
-                  }`,
-                  { dId: discussionId, body: message }
-                );
-              }
-              const comment = result.addDiscussionComment.comment;
-              return {
-                id: comment.id,
-                html_url: comment.url,
-                discussion_url: discussionUrl,
-              };
-            }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const isDiscussionExplicit = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const commentItems = result.items.filter( item => item.type === "add_comment");
-              if (commentItems.length === 0) {
-                core.info("No add-comment items found in agent output");
-                return;
-              }
-              core.info(`Found ${commentItems.length} add-comment item(s)`);
-              function getRepositoryUrl() {
-                const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
-                if (targetRepoSlug) {
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  return `${githubServer}/${targetRepoSlug}`;
-                } else if (context.payload.repository) {
-                  return context.payload.repository.html_url;
-                } else {
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
-                }
-              }
-              function getTargetNumber(item) {
-                return item.item_number;
-              }
-              const commentTarget = process.env.GH_AW_COMMENT_TARGET || "triggering";
-              core.info(`Comment target configuration: ${commentTarget}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment";
-              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
-              const isDiscussion = isDiscussionContext || isDiscussionExplicit;
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-                summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
-                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
-                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
-                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
-                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
-                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
-                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-                if (createdIssueUrl || createdDiscussionUrl || createdPullRequestUrl) {
-                  summaryContent += "#### Related Items\n\n";
-                  if (createdIssueUrl && createdIssueNumber) {
-                    summaryContent += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
-                  }
-                  if (createdDiscussionUrl && createdDiscussionNumber) {
-                    summaryContent += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
-                  }
-                  if (createdPullRequestUrl && createdPullRequestNumber) {
-                    summaryContent += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
-                  }
-                  summaryContent += "\n";
-                }
-                for (let i = 0; i < commentItems.length; i++) {
-                  const item = commentItems[i];
-                  summaryContent += `### Comment ${i + 1}\n`;
-                  const targetNumber = getTargetNumber(item);
-                  if (targetNumber) {
-                    const repoUrl = getRepositoryUrl();
-                    if (isDiscussion) {
-                      const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
-                      summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
-                    } else {
-                      const issueUrl = `${repoUrl}/issues/${targetNumber}`;
-                      summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
-                    }
-                  } else {
-                    if (isDiscussion) {
-                      summaryContent += `**Target:** Current discussion\n\n`;
-                    } else {
-                      summaryContent += `**Target:** Current issue/PR\n\n`;
-                    }
-                  }
-                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Comment creation preview written to step summary");
-                return;
-              }
-              if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
-                core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
-                return;
-              }
-              const triggeringIssueNumber =
-                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-              const triggeringPRNumber =
-                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
-              const triggeringDiscussionNumber = context.payload?.discussion?.number;
-              const createdComments = [];
-              for (let i = 0; i < commentItems.length; i++) {
-                const commentItem = commentItems[i];
-                core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
-                let itemNumber;
-                let commentEndpoint;
-                if (commentTarget === "*") {
-                  const targetNumber = getTargetNumber(commentItem);
-                  if (targetNumber) {
-                    itemNumber = parseInt(targetNumber, 10);
-                    if (isNaN(itemNumber) || itemNumber <= 0) {
-                      core.info(`Invalid target number specified: ${targetNumber}`);
-                      continue;
-                    }
-                    commentEndpoint = isDiscussion ? "discussions" : "issues";
-                  } else {
-                    core.info(`Target is "*" but no number specified in comment item`);
-                    continue;
-                  }
-                } else if (commentTarget && commentTarget !== "triggering") {
-                  itemNumber = parseInt(commentTarget, 10);
-                  if (isNaN(itemNumber) || itemNumber <= 0) {
-                    core.info(`Invalid target number in target configuration: ${commentTarget}`);
-                    continue;
-                  }
-                  commentEndpoint = isDiscussion ? "discussions" : "issues";
-                } else {
-                  if (isIssueContext) {
-                    itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
-                    if (context.payload.issue) {
-                      commentEndpoint = "issues";
-                    } else {
-                      core.info("Issue context detected but no issue found in payload");
-                      continue;
-                    }
-                  } else if (isPRContext) {
-                    itemNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
-                    if (context.payload.pull_request) {
-                      commentEndpoint = "issues"; 
-                    } else {
-                      core.info("Pull request context detected but no pull request found in payload");
-                      continue;
-                    }
-                  } else if (isDiscussionContext) {
-                    itemNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
-                    if (context.payload.discussion) {
-                      commentEndpoint = "discussions"; 
-                    } else {
-                      core.info("Discussion context detected but no discussion found in payload");
-                      continue;
-                    }
-                  }
-                }
-                if (!itemNumber) {
-                  core.info("Could not determine issue, pull request, or discussion number");
-                  continue;
-                }
-                let body = commentItem.body.trim();
-                const createdIssueUrl = process.env.GH_AW_CREATED_ISSUE_URL;
-                const createdIssueNumber = process.env.GH_AW_CREATED_ISSUE_NUMBER;
-                const createdDiscussionUrl = process.env.GH_AW_CREATED_DISCUSSION_URL;
-                const createdDiscussionNumber = process.env.GH_AW_CREATED_DISCUSSION_NUMBER;
-                const createdPullRequestUrl = process.env.GH_AW_CREATED_PULL_REQUEST_URL;
-                const createdPullRequestNumber = process.env.GH_AW_CREATED_PULL_REQUEST_NUMBER;
-                let hasReferences = false;
-                let referencesSection = "\n\n#### Related Items\n\n";
-                if (createdIssueUrl && createdIssueNumber) {
-                  referencesSection += `- Issue: [#${createdIssueNumber}](${createdIssueUrl})\n`;
-                  hasReferences = true;
-                }
-                if (createdDiscussionUrl && createdDiscussionNumber) {
-                  referencesSection += `- Discussion: [#${createdDiscussionNumber}](${createdDiscussionUrl})\n`;
-                  hasReferences = true;
-                }
-                if (createdPullRequestUrl && createdPullRequestNumber) {
-                  referencesSection += `- Pull Request: [#${createdPullRequestNumber}](${createdPullRequestUrl})\n`;
-                  hasReferences = true;
-                }
-                if (hasReferences) {
-                  body += referencesSection;
-                }
-                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-                const runId = context.runId;
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                body += generateFooter(
-                  workflowName,
-                  runUrl,
-                  workflowSource,
-                  workflowSourceURL,
-                  triggeringIssueNumber,
-                  triggeringPRNumber,
-                  triggeringDiscussionNumber
-                );
-                try {
-                  let comment;
-                  if (commentEndpoint === "discussions") {
-                    core.info(`Creating comment on discussion #${itemNumber}`);
-                    core.info(`Comment content length: ${body.length}`);
-                    let replyToId;
-                    if (context.eventName === "discussion_comment" && context.payload?.comment?.node_id) {
-                      replyToId = context.payload.comment.node_id;
-                      core.info(`Creating threaded reply to comment ${replyToId}`);
-                    }
-                    comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body, replyToId);
-                    core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
-                    comment.discussion_url = comment.discussion_url;
-                  } else {
-                    core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
-                    core.info(`Comment content length: ${body.length}`);
-                    const { data: restComment } = await github.rest.issues.createComment({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      issue_number: itemNumber,
-                      body: body,
-                    });
-                    comment = restComment;
-                    core.info("Created comment #" + comment.id + ": " + comment.html_url);
-                  }
-                  createdComments.push(comment);
-                  if (i === commentItems.length - 1) {
-                    core.setOutput("comment_id", comment.id);
-                    core.setOutput("comment_url", comment.html_url);
-                  }
-                } catch (error) {
-                  core.error(`✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
-                  throw error;
-                }
-              }
-              if (createdComments.length > 0) {
-                let summaryContent = "\n\n## GitHub Comments\n";
-                for (const comment of createdComments) {
-                  summaryContent += `- Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully created ${createdComments.length} comment(s)`);
-              return createdComments;
-            }
-            await main();
-
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      issues: read
-      pull-requests: read
+    permissions: read-all
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
-      GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-      GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-      GH_AW_ASSETS_MAX_SIZE_KB: 10240
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
@@ -568,45 +143,10 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           persist-credentials: false
-      - name: Setup Node.js
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
-        with:
-          cache: npm
-          cache-dependency-path: docs/package-lock.json
-          node-version: "24"
-      - name: Install dependencies
-        run: npm ci
-        working-directory: ./docs
-      - env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Build documentation
-        run: npm run build
-        working-directory: ./docs
-
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
-        run: |
-          mkdir -p /tmp/gh-aw/cache-memory
-          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
-          echo "This folder provides persistent file storage across workflow runs"
-          echo "LLMs and agentic tools can freely read and write files in this directory"
-      - name: Cache memory file share data
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            memory-${{ github.workflow }}-
-            memory-
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
-        with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -676,16 +216,6 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
-      - name: Install awf binary
-        run: |
-          echo "Installing awf from release: v0.1.1"
-          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.1.1/awf-linux-x64 -o awf
-          chmod +x awf
-          sudo mv awf /usr/local/bin/
-          which awf
-          awf --version
-      - name: Cleanup any existing awf resources
-        run: ./scripts/ci/cleanup.sh || true
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.354
       - name: Downloading container images
@@ -696,7 +226,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":1},"create_pull_request":{},"missing_tool":{},"upload_asset":{}}
+          {"create_issue":{"max":1},"missing_tool":{}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1544,408 +1074,56 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_EXPR_0CEE4D27: ${{ github.event.inputs.topic }}
+          GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          ### Documentation
+          # Multi-Agent Research Campaign
           
-          The documentation for this project is available in the `docs/` directory. It uses the Astro Starlight system and follows the Diátaxis framework for systematic documentation.
-          
-          ## Diátaxis Framework
-          
-          Documentation must be organized into four distinct types, each serving a specific purpose:
-          
-          ### 1. Tutorials (Learning-Oriented)
-          **Purpose**: Guide beginners through achieving a specific outcome to build confidence.
-          
-          - Start with what the user will build or achieve
-          - Provide a clear, step-by-step path from start to finish
-          - Include concrete examples and working code
-          - Assume minimal prior knowledge
-          - Focus on the happy path (avoid edge cases and alternatives)
-          - End with a working result the user can see and use
-          - Use imperative mood: "Create a file", "Run the command"
-          
-          **Avoid**: Explaining concepts in depth, multiple options, troubleshooting
-          
-          ### 2. How-to Guides (Goal-Oriented)
-          **Purpose**: Show how to solve a specific real-world problem or accomplish a particular task.
-          
-          - Title format: "How to [accomplish specific goal]"
-          - Assume the user knows the basics
-          - Focus on practical steps to solve one problem
-          - Include necessary context but stay focused
-          - Show multiple approaches only when genuinely useful
-          - End when the goal is achieved
-          - Use imperative mood: "Configure the setting", "Add the following"
-          
-          **Avoid**: Teaching fundamentals, explaining every detail, being exhaustive
-          
-          ### 3. Reference (Information-Oriented)
-          **Purpose**: Provide accurate, complete technical descriptions of the system.
-          
-          - Organized by structure (CLI commands, configuration options, API endpoints)
-          - Comprehensive and authoritative
-          - Consistent format across all entries
-          - Technical accuracy is paramount
-          - Include all parameters, options, and return values
-          - Use descriptive mood: "The command accepts", "Returns a string"
-          - Minimal narrative or explanation
-          
-          **Avoid**: Instructions, tutorials, opinions on usage
-          
-          ### 4. Explanation (Understanding-Oriented)
-          **Purpose**: Clarify and illuminate topics to deepen understanding.
-          
-          - Discuss why things are the way they are
-          - Explain design decisions and tradeoffs
-          - Provide context and background
-          - Connect concepts to help form mental models
-          - Discuss alternatives and their implications
-          - Use indicative mood: "This approach provides", "The engine uses"
-          
-          **Avoid**: Step-by-step instructions, exhaustive reference material
-          
-          ## General Style Guidelines
-          
-          - **Tone**: Neutral, technical, not promotional
-          - **Voice**: Avoid "we", "our", "us" (use "the tool", "this command")
-          - **Headings**: Use markdown heading syntax, not bold text as headings
-          - **Lists**: Avoid long bullet point lists; prefer prose with structure
-          - **Code samples**: Minimal and focused; exclude optional fields unless relevant
-          - **Language tag**: Use `aw` for agentic workflow snippets with YAML frontmatter
-          
-          **Example workflow code block**:
-          ```aw wrap
-          ---
-          on: push
-          ---
-          # Your workflow steps here
-          ```
-          
-          ## Astro Starlight Syntax
-          
-          Documentation files use Astro Starlight with MDX support. Key syntax elements:
-          
-          ### Frontmatter
-          Every documentation page must have frontmatter:
-          ```markdown
-          ---
-          title: Page Title
-          description: Brief description for SEO and navigation
-          ---
-          ```
-          
-          ### Callouts and Asides
-          Use Starlight's aside component for notes, tips, warnings, and cautions:
-          ```markdown
-          :::note
-          Important information the reader should notice.
-          :::
-          
-          :::tip
-          Helpful advice for the reader.
-          :::
-          
-          :::caution
-          Warning about potential issues or pitfalls.
-          :::
-          
-          :::danger
-          Critical warning about dangerous operations.
-          :::
-          ```
-          
-          ### Code Blocks
-          - Use syntax highlighting with language tags
-          - Add `title` attribute for file names: ` ```yaml title=".github/workflows/example.yml" `
-          - Use `aw` language for agentic workflow files with YAML frontmatter
-          - Add `wrap` for line wrapping: ` ```aw wrap `
-          
-          ### Links
-          - Internal links: Use relative paths between documentation pages
-          - External links: Open in new tab automatically
-          - Link text: Use descriptive text, avoid "click here"
-          
-          ### Tabs
-          Use tabs for showing alternatives (e.g., different languages, platforms):
-          ```markdown
-          import { Tabs, TabItem } from '@astrojs/starlight/components';
-          
-          <Tabs>
-            <TabItem label="npm">
-              ```bash
-              npm install package
-              ```
-            </TabItem>
-            <TabItem label="yarn">
-              ```bash
-              yarn add package
-              ```
-            </TabItem>
-          </Tabs>
-          ```
-          
-          ### Cards
-          Use cards for navigation or highlighting multiple options:
-          ```markdown
-          import { Card, CardGrid } from '@astrojs/starlight/components';
-          
-          <CardGrid>
-            <Card title="Getting Started" icon="rocket">
-              Quick introduction to the basics.
-            </Card>
-            <Card title="Advanced Usage" icon="setting">
-              Deep dive into advanced features.
-            </Card>
-          </CardGrid>
-          ```
-          
-          **Remember**: Keep components minimal. Prefer standard markdown when possible.
-          
-          ## Content to Avoid
-          
-          - "Key Features" sections
-          - Marketing language or selling points
-          - Excessive bullet points (prefer structured prose)
-          - Overly verbose examples with all optional parameters
-          - Mixing documentation types (e.g., tutorials that become reference)
-          
-          ## Avoiding Documentation Bloat
-          
-          Documentation bloat reduces clarity and makes content harder to navigate. Common types of bloat include:
-          
-          ### Types of Documentation Bloat
-          
-          1. **Duplicate content**: Same information repeated in different sections
-          2. **Excessive bullet points**: Long lists that could be condensed into prose or tables
-          3. **Redundant examples**: Multiple examples showing the same concept
-          4. **Verbose descriptions**: Overly wordy explanations that could be more concise
-          5. **Repetitive structure**: The same "What it does" / "Why it's valuable" pattern overused
-          
-          ### Writing Concise Documentation
-          
-          When editing documentation, focus on:
-          
-          **Consolidate bullet points**: 
-          - Convert long bullet lists into concise prose or tables
-          - Remove redundant points that say the same thing differently
-          
-          **Eliminate duplicates**:
-          - Remove repeated information
-          - Consolidate similar sections
-          
-          **Condense verbose text**:
-          - Make descriptions more direct and concise
-          - Remove filler words and phrases
-          - Keep technical accuracy while reducing word count
-          
-          **Standardize structure**:
-          - Reduce repetitive "What it does" / "Why it's valuable" patterns
-          - Use varied, natural language
-          
-          **Simplify code samples**:
-          - Remove unnecessary complexity from code examples
-          - Focus on demonstrating the core concept clearly
-          - Eliminate boilerplate or setup code unless essential for understanding
-          - Keep examples minimal yet complete
-          - Use realistic but simple scenarios
-          
-          ### Example: Before and After
-          
-          **Before (Bloated)**:
-          ```markdown
-          ### Tool Name
-          Description of the tool.
-          
-          - **What it does**: This tool does X, Y, and Z
-          - **Why it's valuable**: It's valuable because A, B, and C
-          - **How to use**: You use it by doing steps 1, 2, 3, 4, 5
-          - **When to use**: Use it when you need X
-          - **Benefits**: Gets you benefit A, benefit B, benefit C
-          - **Learn more**: [Link](url)
-          ```
-          
-          **After (Concise)**:
-          ```markdown
-          ### Tool Name
-          Description of the tool that does X, Y, and Z to achieve A, B, and C.
-          
-          Use it when you need X by following steps 1-5. [Learn more](url)
-          ```
-          
-          ### Documentation Quality Guidelines
-          
-          1. **Preserve meaning**: Never lose important information
-          2. **Be surgical**: Make precise edits, don't rewrite everything
-          3. **Maintain tone**: Keep the neutral, technical tone
-          4. **Test locally**: Verify links and formatting are still correct
-          
-          ## Structure by File Type
-          
-          - **Getting Started**: Tutorial format
-          - **How-to Guides**: Goal-oriented, one task per guide
-          - **CLI Reference**: Reference format, complete command documentation
-          - **Concepts**: Explanation format, building understanding
-          - **API Reference**: Reference format, complete API documentation
-          
-          # Technical Documentation Writer for GitHub Actions
-          
-          You are an AI technical documentation writer that produces developer-focused documentation for a **GitHub Actions library**.  
-          Your docs use **Astro Starlight** and follow the **GitHub Docs voice**.  
-          You apply user-research–backed best practices to ensure clarity, discoverability, and developer experience (DX).
-          
-          ## Core Principles
-          
-          ### Framework
-          - Output uses **Astro Starlight** features:
-            - Markdown/MDX with headings, sidebars, and TOC.
-            - Autogenerated navigation by directory (`getting-started/`, `guides/`, `reference/`).
-            - Admonitions (`:::note`, `:::tip`, `:::caution`) for key callouts.
-            - Frontmatter metadata (`title`, `description`) for each page.
-          
-          ### Style & Tone (GitHub Docs)
-          - Clear, concise, approachable English.
-          - Active voice; address reader as "you".
-          - Friendly, empathetic, trustworthy tone.
-          - Prioritize clarity over rigid grammar rules.
-          - Consistent terminology across all docs.
-          - Inclusive, globally understandable (avoid slang/idioms).
-          
-          ### Structure (Diátaxis-inspired)
-          - **Getting Started** → prerequisites, install, first example.
-          - **How-to Guides** → task-based, step-by-step workflows.
-          - **Reference** → full breakdown of inputs, outputs, options.
-          - **Concepts/FAQs** → background explanations.
-          
-          ### Developer Experience (DX)
-          - Runnable, copy-paste–ready code blocks.
-          - Prerequisites clearly listed.
-          - Minimal setup friction.
-          - Early "Hello World" example.
-          - Optimized headings for search.
-          
-          ## Navigation & Linking
-          - Sidebar auto-generated by folder structure.
-          - Per-page TOC built from headings.
-          - Descriptive internal links (`See [Getting Started](/docs/getting-started)`).
-          - Relative links within docs; clear labels for external references.
-          
-          ## Code Guidelines
-          - Use fenced code blocks with language tags:
-            ```yaml
-            name: CI
-            on: [push]
-            jobs:
-              build:
-                runs-on: ubuntu-latest
-                steps:
-                  - uses: actions/checkout@v4
-                  - uses: my-org/my-action@v1
-            ```
-          - Do **not** include `$` prompts.
-          - Use ALL_CAPS placeholders (e.g. `USERNAME`).
-          - Keep lines ~60 chars wide.
-          - Comment out command outputs.
-          
-          ## Alerts & Callouts
-          Use Starlight admonition syntax sparingly:
-          
-          :::note
-          This is optional context.
-          :::
-          
-          :::tip
-          This is a recommended best practice.
-          :::
-          
-          :::warning
-          This step may cause irreversible changes.
-          :::
-          
-          :::caution
-          This action could result in data loss.
-          :::
-          
-          ## Behavior Rules
-          - Optimize for clarity and user goals.
-          - Check factual accuracy (syntax, versions).
-          - Maintain voice and consistency.
-          - Anticipate pitfalls and explain fixes empathetically.
-          - Use alerts only when necessary.
-          
-          ## Example Document Skeleton
-          ```md
-          ---
-          title: Getting Started
-          description: Quickstart for using the GitHub Actions library
-          ---
-          
-          # Getting Started
-          
-          ## Prerequisites
-          - Node.js ≥ 20
-          - GitHub account
-          
-          ## Installation
-          ```bash
-          pnpm add @my-org/github-action
-          ```
-          
-          ## Quick Example
-          ```yaml
-          name: CI
-          on: [push]
-          jobs:
-            build:
-              runs-on: ubuntu-latest
-              steps:
-                - uses: actions/checkout@v4
-                - uses: my-org/my-action@v1
-          ```
-          
-          ---
-          ```
+          You are part of a coordinated research campaign with multiple AI agents working together.
           
           ## Your Task
           
-          This workflow is triggered manually via workflow_dispatch with a documentation topic.
+          Research one of the following topics and create a comprehensive summary:
           
-          **Topic to review:** "${GH_AW_EXPR_0CEE4D27}"
+          **Topics:** {{ inputs.research_topics }}
           
-          The documentation has been built successfully in the `docs/dist` folder. You can review both the source files in `docs/` and the built output in `docs/dist`.
+          ## Instructions
           
-          **To run the Astro dev server locally for live preview:**
-          ```bash
-          cd docs && npm run dev
-          ```
+          1. **Select a topic** from the list above (coordinate with other agents if possible)
+          2. **Research the topic** thoroughly:
+             - Key concepts and definitions
+             - Current state of the art
+             - Main challenges and opportunities
+             - Notable researchers and organizations
+             - Recent developments (2023-2024)
+          3. **Create an issue** using the `create-issue` tool with:
+             - Title: "Research: [Topic Name]"
+             - Body: A well-structured summary with:
+               - Overview
+               - Key findings
+               - Challenges
+               - Future directions
+               - References (if available)
           
-          When reviewing documentation for the specified topic in the **docs/** folder, apply these principles to:
+          ## Campaign Tracking
           
-          1. **Analyze the topic** provided in the workflow input
-          2. **Review relevant documentation files** in the docs/ folder related to: "${GH_AW_EXPR_0CEE4D27}"
-          3. **Verify the built documentation** in docs/dist is properly generated
-          4. **Provide constructive feedback** as a comment addressing:
-             - Clarity and conciseness
-             - Tone and voice consistency with GitHub Docs
-             - Code block formatting and examples
-             - Structure and organization
-             - Developer experience considerations
-             - Any missing prerequisites or setup steps
-             - Appropriate use of admonitions
-             - Link quality and accessibility
-             - Build output quality and completeness
-          5. **Create a pull request with improvements** if you identify any changes needed:
-             - Make the necessary edits to improve the documentation
-             - Create a pull request with your changes using the safe-outputs create-pull-request functionality
-             - Include a clear description of the improvements made
-             - Only create a pull request if you have made actual changes to the documentation files
+          This workflow uses a GitHub Project board to track all agents across the campaign:
           
-          Keep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements for the topic: "${GH_AW_EXPR_0CEE4D27}"
+          - **Board:** Research Campaign - ${GH_AW_EXPR_B50B6E9C}
+          - **Your Status:** Will be automatically updated as you work
+          - **Collaboration:** Check the project board to see what other agents are researching
           
-          You have access to cache-memory for persistent storage across runs, which you can use to track documentation patterns and improvement suggestions.
+          ## Tips
+          
+          - Be thorough but concise
+          - Use clear headings and bullet points
+          - Focus on practical insights
+          - Include specific examples where relevant
+          - Cite sources when possible
+          
+          Good luck! 🚀
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1993,50 +1171,6 @@ jobs:
           **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/agent/` directory** that has been pre-created for you. Do NOT use the root `/tmp/` directory directly.
           
           PROMPT_EOF
-      - name: Append edit tool accessibility instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          
-          
-          ---
-          
-          ## File Editing Access
-          
-          **IMPORTANT**: The edit tool provides file editing capabilities. You have write access to files in the following directories:
-          
-          - **Current workspace**: `$GITHUB_WORKSPACE` - The repository you're working on
-          - **Temporary directory**: `/tmp/gh-aw/` - For temporary files and agent work
-          
-          **Do NOT** attempt to edit files outside these directories as you do not have the necessary permissions.
-          
-          PROMPT_EOF
-      - name: Append cache memory instructions to prompt
-        env:
-          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          
-          ---
-          
-          ## Cache Folder Available
-          
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
-          
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
-          
-          Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
-          
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
-          PROMPT_EOF
       - name: Append safe outputs instructions to prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2045,30 +1179,13 @@ jobs:
           
           ---
           
-          ## Adding a Comment to an Issue or Pull Request, Creating a Pull Request, Uploading Assets, Reporting Missing Tools or Functionality
+          ## Creating an Issue, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
-          **Adding a Comment to an Issue or Pull Request**
+          **Creating an Issue**
           
-          To add a comment to an issue or pull request, use the add-comments tool from safeoutputs
-          
-          **Creating a Pull Request**
-          
-          To create a pull request:
-          1. Make any file changes directly in the working directory
-          2. If you haven't done so already, create a local branch using an appropriate unique name
-          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
-          4. Do not push your changes. That will be done by the tool.
-          5. Create the pull request with the create-pull-request tool from safeoutputs
-          
-          **Uploading Assets**
-          
-          To upload files as URL-addressable assets:
-          1. Use the `upload asset` tool from safeoutputs
-          2. Provide the path to the file you want to upload
-          3. The tool will copy the file to a staging area and return a GitHub raw content URL
-          4. Assets are uploaded to an orphaned git branch after workflow completion
+          To create an issue, use the create-issue tool from safeoutputs
           
           **Reporting Missing Tools or Functionality**
           
@@ -2177,7 +1294,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "0.0.354",
-              workflow_name: "Technical Doc Writer",
+              workflow_name: "Multi-Agent Research Campaign",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -2191,7 +1308,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               steps: {
-                firewall: "squid"
+                firewall: ""
               },
               created_at: new Date().toISOString()
             };
@@ -2213,31 +1330,18 @@ jobs:
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
         # --allow-tool safeoutputs
-        # --allow-tool shell
-        # --allow-tool write
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: |
           set -o pipefail
-          sudo -E awf --env-all \
-            --allow-domains '*.githubusercontent.com,api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' \
-            --log-level info \
-            "npx -y @github/copilot@0.0.354 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --agent /Users/mnkiefer/Projects/gh-aw-projects/.github/agents/technical-doc-writer.md --allow-tool github --allow-tool safeoutputs --allow-tool shell --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
-            2>&1 | tee /tmp/gh-aw/agent-stdio.log
-
-          # Move preserved Copilot logs to expected location
-          COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
-          if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
-            echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/.copilot/logs/"
-            sudo mkdir -p /tmp/gh-aw/.copilot/logs/
-            sudo mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/.copilot/logs/ || true
-            sudo rmdir "$COPILOT_LOGS_DIR" || true
-          fi
+          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
+          mkdir -p /tmp/
+          mkdir -p /tmp/gh-aw/
+          mkdir -p /tmp/gh-aw/agent/
+          mkdir -p /tmp/gh-aw/.copilot/logs/
+          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
-          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GH_AW_ASSETS_MAX_SIZE_KB: 10240
           GH_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
@@ -2375,7 +1479,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com"
+          GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -4137,373 +3241,6 @@ jobs:
               };
             }
             main();
-      - name: Agent Firewall logs
-        if: always()
-        run: |
-          # Squid logs are preserved in timestamped directories
-          SQUID_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
-          if [ -n "$SQUID_LOGS_DIR" ] && [ -d "$SQUID_LOGS_DIR" ]; then
-            echo "Found Squid logs at: $SQUID_LOGS_DIR"
-            mkdir -p /tmp/gh-aw/squid-logs-technical-doc-writer/
-            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-technical-doc-writer/ || true
-            sudo chmod -R a+r /tmp/gh-aw/squid-logs-technical-doc-writer/ || true
-          fi
-      - name: Upload Firewall Logs
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
-        with:
-          name: squid-logs-technical-doc-writer
-          path: /tmp/gh-aw/squid-logs-technical-doc-writer/
-          if-no-files-found: ignore
-      - name: Parse firewall logs for step summary
-        if: always()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        with:
-          script: |
-            function sanitizeWorkflowName(name) {
-
-              return name
-
-                .toLowerCase()
-
-                .replace(/[:\\/\s]/g, "-")
-
-                .replace(/[^a-z0-9._-]/g, "-");
-
-            }
-
-            function main() {
-
-              const fs = require("fs");
-
-              const path = require("path");
-
-              try {
-
-                const workflowName = process.env.GITHUB_WORKFLOW || "workflow";
-
-                const sanitizedName = sanitizeWorkflowName(workflowName);
-
-                const squidLogsDir = `/tmp/gh-aw/squid-logs-${sanitizedName}/`;
-
-                if (!fs.existsSync(squidLogsDir)) {
-
-                  core.info(`No firewall logs directory found at: ${squidLogsDir}`);
-
-                  return;
-
-                }
-
-                const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
-
-                if (files.length === 0) {
-
-                  core.info(`No firewall log files found in: ${squidLogsDir}`);
-
-                  return;
-
-                }
-
-                core.info(`Found ${files.length} firewall log file(s)`);
-
-                let totalRequests = 0;
-
-                let allowedRequests = 0;
-
-                let deniedRequests = 0;
-
-                const allowedDomains = new Set();
-
-                const deniedDomains = new Set();
-
-                const requestsByDomain = new Map();
-
-                for (const file of files) {
-
-                  const filePath = path.join(squidLogsDir, file);
-
-                  core.info(`Parsing firewall log: ${file}`);
-
-                  const content = fs.readFileSync(filePath, "utf8");
-
-                  const lines = content.split("\n").filter(line => line.trim());
-
-                  for (const line of lines) {
-
-                    const entry = parseFirewallLogLine(line);
-
-                    if (!entry) {
-
-                      continue;
-
-                    }
-
-                    totalRequests++;
-
-                    const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
-                    if (isAllowed) {
-
-                      allowedRequests++;
-
-                      allowedDomains.add(entry.domain);
-
-                    } else {
-
-                      deniedRequests++;
-
-                      deniedDomains.add(entry.domain);
-
-                    }
-
-                    if (!requestsByDomain.has(entry.domain)) {
-
-                      requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
-
-                    }
-
-                    const domainStats = requestsByDomain.get(entry.domain);
-
-                    if (isAllowed) {
-
-                      domainStats.allowed++;
-
-                    } else {
-
-                      domainStats.denied++;
-
-                    }
-
-                  }
-
-                }
-
-                const summary = generateFirewallSummary({
-
-                  totalRequests,
-
-                  allowedRequests,
-
-                  deniedRequests,
-
-                  allowedDomains: Array.from(allowedDomains).sort(),
-
-                  deniedDomains: Array.from(deniedDomains).sort(),
-
-                  requestsByDomain,
-
-                });
-
-                core.summary.addRaw(summary).write();
-
-                core.info("Firewall log summary generated successfully");
-
-              } catch (error) {
-
-                core.setFailed(error instanceof Error ? error : String(error));
-
-              }
-
-            }
-
-            function parseFirewallLogLine(line) {
-
-              const trimmed = line.trim();
-
-              if (!trimmed || trimmed.startsWith("#")) {
-
-                return null;
-
-              }
-
-              const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
-
-              if (!fields || fields.length < 10) {
-
-                return null;
-
-              }
-
-              const timestamp = fields[0];
-
-              if (!/^\d+(\.\d+)?$/.test(timestamp)) {
-
-                return null;
-
-              }
-
-              const clientIpPort = fields[1];
-
-              if (clientIpPort !== "-" && !/^[\d.]+:\d+$/.test(clientIpPort)) {
-
-                return null;
-
-              }
-
-              const domain = fields[2];
-
-              if (domain !== "-" && !/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*:\d+$/.test(domain)) {
-
-                return null;
-
-              }
-
-              const destIpPort = fields[3];
-
-              if (destIpPort !== "-" && !/^[\d.]+:\d+$/.test(destIpPort)) {
-
-                return null;
-
-              }
-
-              const status = fields[6];
-
-              if (status !== "-" && !/^\d+$/.test(status)) {
-
-                return null;
-
-              }
-
-              const decision = fields[7];
-
-              if (decision !== "-" && !decision.includes(":")) {
-
-                return null;
-
-              }
-
-              return {
-
-                timestamp: timestamp,
-
-                clientIpPort: clientIpPort,
-
-                domain: domain,
-
-                destIpPort: destIpPort,
-
-                proto: fields[4],
-
-                method: fields[5],
-
-                status: status,
-
-                decision: decision,
-
-                url: fields[8],
-
-                userAgent: fields[9] ? fields[9].replace(/^"|"$/g, "") : "-",
-
-              };
-
-            }
-
-            function isRequestAllowed(decision, status) {
-
-              const statusCode = parseInt(status, 10);
-
-              if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
-
-                return true;
-
-              }
-
-              if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
-
-                return true;
-
-              }
-
-              if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
-
-                return false;
-
-              }
-
-              return false;
-
-            }
-
-            function generateFirewallSummary(analysis) {
-
-              const { totalRequests, deniedRequests, deniedDomains, requestsByDomain } = analysis;
-
-              let summary = "### 🔥 Firewall Blocked Requests\n\n";
-
-              const validDeniedDomains = deniedDomains.filter(domain => domain !== "-");
-
-              const validDeniedRequests = validDeniedDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
-
-              if (validDeniedRequests > 0) {
-
-                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
-
-                summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
-
-                summary += "<details>\n";
-
-                summary += "<summary>🚫 Blocked Domains (click to expand)</summary>\n\n";
-
-                summary += "| Domain | Blocked Requests |\n";
-
-                summary += "|--------|------------------|\n";
-
-                for (const domain of validDeniedDomains) {
-
-                  const stats = requestsByDomain.get(domain);
-
-                  summary += `| ${domain} | ${stats.denied} |\n`;
-
-                }
-
-                summary += "\n</details>\n\n";
-
-              } else {
-
-                summary += "✅ **No blocked requests detected**\n\n";
-
-                if (totalRequests > 0) {
-
-                  summary += `All ${totalRequests} request${totalRequests !== 1 ? "s" : ""} were allowed through the firewall.\n\n`;
-
-                } else {
-
-                  summary += "No firewall activity detected.\n\n";
-
-                }
-
-              }
-
-              return summary;
-
-            }
-
-            if (typeof module !== "undefined" && module.exports) {
-
-              module.exports = {
-
-                parseFirewallLogLine,
-
-                isRequestAllowed,
-
-                generateFirewallSummary,
-
-                main,
-
-              };
-
-            }
-
-            const isDirectExecution =
-
-              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
-
-            if (isDirectExecution) {
-
-              main();
-
-            }
-
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
@@ -4511,16 +3248,6 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
-      - name: Cleanup awf resources
-        if: always()
-        run: ./scripts/ci/cleanup.sh || true
-      - name: Upload safe outputs assets
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
-        with:
-          name: safe-outputs-assets
-          path: /tmp/gh-aw/safeoutputs/assets/
-          if-no-files-found: ignore
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -4756,180 +3483,22 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
-      - name: Generate git patch
-        if: always()
-        env:
-          GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GITHUB_SHA: ${{ github.sha }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        run: |
-          # Diagnostic logging: Show recent commits before patch generation
-          echo "=== Diagnostic: Recent commits (last 5) ==="
-          git log --oneline -5 || echo "Failed to show git log"
-          # Check current git status
-          echo ""
-          echo "=== Diagnostic: Current git status ==="
-          git status
-          # Extract branch name from JSONL output
-          BRANCH_NAME=""
-          if [ -f "$GH_AW_SAFE_OUTPUTS" ]; then
-            echo ""
-            echo "Checking for branch name in JSONL output..."
-            while IFS= read -r line; do
-              if [ -n "$line" ]; then
-                # Extract branch from create-pull-request line using simple grep and sed
-                # Note: types use underscores (normalized by safe-outputs MCP server)
-                if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create_pull_request"'; then
-                  echo "Found create_pull_request line: $line"
-                  # Extract branch value using sed
-                  BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
-                  if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from create_pull_request: $BRANCH_NAME"
-                    break
-                  fi
-                # Extract branch from push_to_pull_request_branch line using simple grep and sed
-                # Note: types use underscores (normalized by safe-outputs MCP server)
-                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push_to_pull_request_branch"'; then
-                  echo "Found push_to_pull_request_branch line: $line"
-                  # Extract branch value using sed
-                  BRANCH_NAME="$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
-                  if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from push_to_pull_request_branch: $BRANCH_NAME"
-                    break
-                  fi
-                fi
-              fi
-            done < "$GH_AW_SAFE_OUTPUTS"
-          fi
-          # If no branch or branch doesn't exist, no patch
-          if [ -z "$BRANCH_NAME" ]; then
-            echo "No branch found, no patch generation"
-          fi
-          # If we have a branch name, check if that branch exists and get its diff
-          if [ -n "$BRANCH_NAME" ]; then
-            echo "Looking for branch: $BRANCH_NAME"
-            # Check if the branch exists
-            if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
-              echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
-              # Check if origin/$BRANCH_NAME exists to use as base
-              if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
-                echo "Using origin/$BRANCH_NAME as base for patch generation"
-                BASE_REF="origin/$BRANCH_NAME"
-              else
-                echo "origin/$BRANCH_NAME does not exist, using merge-base with default branch"
-                # Use the default branch name from environment variable
-                echo "Default branch: $DEFAULT_BRANCH"
-                # Fetch the default branch to ensure it's available locally
-                git fetch origin "$DEFAULT_BRANCH"
-                # Find merge base between default branch and current branch
-                BASE_REF="$(git merge-base "origin/$DEFAULT_BRANCH" "$BRANCH_NAME")"
-                echo "Using merge-base as base: $BASE_REF"
-              fi
-              # Diagnostic logging: Show diff stats before generating patch
-              echo ""
-              echo "=== Diagnostic: Diff stats for patch generation ==="
-              echo "Command: git diff --stat $BASE_REF..$BRANCH_NAME"
-              git diff --stat "$BASE_REF".."$BRANCH_NAME" || echo "Failed to show diff stats"
-              # Diagnostic logging: Count commits to be included
-              echo ""
-              echo "=== Diagnostic: Commits to be included in patch ==="
-              COMMIT_COUNT="$(git rev-list --count "$BASE_REF".."$BRANCH_NAME" 2>/dev/null || echo "0")"
-              echo "Number of commits: $COMMIT_COUNT"
-              if [ "$COMMIT_COUNT" -gt 0 ]; then
-                echo "Commit SHAs:"
-                git log --oneline "$BASE_REF".."$BRANCH_NAME" || echo "Failed to list commits"
-              fi
-              # Diagnostic logging: Show the exact command being used
-              echo ""
-              echo "=== Diagnostic: Generating patch ==="
-              echo "Command: git format-patch $BASE_REF..$BRANCH_NAME --stdout > /tmp/gh-aw/aw.patch"
-              # Generate patch from the determined base to the branch
-              git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from branch" > /tmp/gh-aw/aw.patch
-              echo "Patch file created from branch: $BRANCH_NAME (base: $BASE_REF)"
-            else
-              echo "Branch $BRANCH_NAME does not exist, no patch"
-            fi
-          fi
-          # Show patch info if it exists
-          if [ -f /tmp/gh-aw/aw.patch ]; then
-            echo ""
-            echo "=== Diagnostic: Patch file information ==="
-            ls -lh /tmp/gh-aw/aw.patch
-            # Get patch file size in KB
-            PATCH_SIZE="$(du -k /tmp/gh-aw/aw.patch | cut -f1)"
-            echo "Patch file size: ${PATCH_SIZE} KB"
-            # Count lines in patch
-            PATCH_LINES="$(wc -l < /tmp/gh-aw/aw.patch)"
-            echo "Patch file lines: $PATCH_LINES"
-            # Extract and count commits from patch file (each commit starts with "From <sha>")
-            PATCH_COMMITS="$(grep -c "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch 2>/dev/null || echo "0")"
-            echo "Commits included in patch: $PATCH_COMMITS"
-            # List commit SHAs in the patch
-            if [ "$PATCH_COMMITS" -gt 0 ]; then
-              echo "Commit SHAs in patch:"
-              grep "^From [0-9a-f]\{40\}" /tmp/gh-aw/aw.patch | sed 's/^From \([0-9a-f]\{40\}\).*/  \1/' || echo "Failed to extract commit SHAs"
-            fi
-            # Show the first 50 lines of the patch for review
-            {
-              echo '## Git Patch'
-              echo ''
-              echo '```diff'
-              head -500 /tmp/gh-aw/aw.patch || echo "Could not display patch contents"
-              echo '...'
-              echo '```'
-              echo ''
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
-      - name: Upload git patch
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/aw.patch
-          if-no-files-found: ignore
 
-  create_pull_request:
-    needs:
-      - agent
-      - detection
-    if: >
-      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+  campaign_project:
+    needs: agent
+    if: always()
     runs-on: ubuntu-slim
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+      contents: read
+      repository-projects: write
     timeout-minutes: 10
     outputs:
-      branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
-      fallback_used: ${{ steps.create_pull_request.outputs.fallback_used }}
-      issue_number: ${{ steps.create_pull_request.outputs.issue_number }}
-      issue_url: ${{ steps.create_pull_request.outputs.issue_url }}
-      pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
-      pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
+      issue_count: ${{ steps.campaign_project.outputs.issue_count }}
+      item_count: ${{ steps.campaign_project.outputs.item_count }}
+      item_id: ${{ steps.campaign_project.outputs.item_id }}
+      project_number: ${{ steps.campaign_project.outputs.project_number }}
+      project_url: ${{ steps.campaign_project.outputs.project_url }}
     steps:
-      - name: Download patch artifact
-        continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/
-      - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL="${{ github.server_url }}"
-          SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
@@ -4941,467 +3510,1130 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs/
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Create Pull Request
-        id: create_pull_request
+      - name: Manage Campaign Project
+        id: campaign_project
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_ID: "agent"
-          GH_AW_WORKFLOW_NAME: "Technical Doc Writer"
-          GH_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GH_AW_PR_TITLE_PREFIX: "[docs] "
-          GH_AW_PR_LABELS: "documentation"
-          GH_AW_PR_DRAFT: "false"
-          GH_AW_PR_IF_NO_CHANGES: "warn"
-          GH_AW_MAX_PATCH_SIZE: 1024
+          GH_AW_WORKFLOW_NAME: "Multi-Agent Research Campaign"
+          GH_AW_PROJECT_NAME: "Research Campaign - ${{ github.run_id }}"
+          GH_AW_PROJECT_VIEW: "board"
+          GH_AW_PROJECT_STATUS_FIELD: "Status"
+          GH_AW_PROJECT_AGENT_FIELD: "Agent"
+          GH_AW_PROJECT_FIELDS: "{\"campaign-id\":\"${{ github.run_id }}\",\"started-at\":\"${{ github.event.repository.updated_at }}\",\"agent-name\":\"${{ github.job }}\"}"
+          GH_AW_PROJECT_INSIGHTS: "agent-velocity,campaign-progress"
+          GH_AW_PROJECT_CUSTOM_FIELDS: "[{\"name\":\"Priority\",\"type\":\"single_select\",\"value\":\"Medium\",\"description\":\"Research priority level\",\"options\":[\"Critical\",\"High\",\"Medium\",\"Low\"]},{\"name\":\"Effort (hours)\",\"type\":\"number\",\"value\":\"4\",\"description\":\"Estimated research effort in hours\"},{\"name\":\"Due Date\",\"type\":\"date\",\"value\":\"${{ github.event.repository.updated_at }}\",\"description\":\"Research completion target\"},{\"name\":\"Team\",\"type\":\"single_select\",\"value\":\"Research\",\"options\":[\"Research\",\"Engineering\",\"Product\",\"Design\"]},{\"name\":\"Tags\",\"type\":\"text\",\"value\":\"AI, Research, Ethics\"}]"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
-            const crypto = require("crypto");
-            function generatePatchPreview(patchContent) {
-              if (!patchContent || !patchContent.trim()) {
-                return "";
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
               }
-              const lines = patchContent.split("\n");
-              const maxLines = 500;
-              const maxChars = 2000;
-              let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
-              const lineTruncated = lines.length > maxLines;
-              const charTruncated = preview.length > maxChars;
-              if (charTruncated) {
-                preview = preview.slice(0, maxChars);
-              }
-              const truncated = lineTruncated || charTruncated;
-              const summary = truncated
-                ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
-                : `Show patch (${lines.length} lines)`;
-              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
-            }
-            async function main() {
-              core.setOutput("pull_request_number", "");
-              core.setOutput("pull_request_url", "");
-              core.setOutput("issue_number", "");
-              core.setOutput("issue_url", "");
-              core.setOutput("branch_name", "");
-              core.setOutput("fallback_used", "");
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const workflowId = process.env.GH_AW_WORKFLOW_ID;
-              if (!workflowId) {
-                throw new Error("GH_AW_WORKFLOW_ID environment variable is required");
-              }
-              const baseBranch = process.env.GH_AW_BASE_BRANCH;
-              if (!baseBranch) {
-                throw new Error("GH_AW_BASE_BRANCH environment variable is required");
-              }
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT || "";
-              let outputContent = "";
-              if (agentOutputFile.trim() !== "") {
-                try {
-                  outputContent = fs.readFileSync(agentOutputFile, "utf8");
-                } catch (error) {
-                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                  return;
-                }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
               }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
-              }
-              const ifNoChanges = process.env.GH_AW_PR_IF_NO_CHANGES || "warn";
-              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                const message = "No patch file found - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (no patch file)");
-                  return;
-                }
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-              if (patchContent.includes("Failed to generate patch")) {
-                const message = "Patch file contains error message - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (patch error)");
-                  return;
-                }
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              const isEmpty = !patchContent || !patchContent.trim();
-              if (!isEmpty) {
-                const maxSizeKb = parseInt(process.env.GH_AW_MAX_PATCH_SIZE || "1024", 10);
-                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
-                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
-                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
-                if (patchSizeKb > maxSizeKb) {
-                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-                  if (isStaged) {
-                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                    summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
-                    summaryContent += `**Message:** ${message}\n\n`;
-                    await core.summary.addRaw(summaryContent).write();
-                    core.info("📝 Pull request creation preview written to step summary (patch size error)");
-                    return;
-                  }
-                  throw new Error(message);
-                }
-                core.info("Patch size validation passed");
-              }
-              if (isEmpty && !isStaged) {
-                const message = "Patch file is empty - no changes to apply (noop operation)";
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to push - failing as configured by if-no-changes: error");
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
+                return { success: false };
               }
               core.info(`Agent output content length: ${outputContent.length}`);
-              if (!isEmpty) {
-                core.info("Patch content validation passed");
-              } else {
-                core.info("Patch file is empty - processing noop operation");
-              }
               let validatedOutput;
               try {
                 validatedOutput = JSON.parse(outputContent);
               } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
-                return;
+                core.info("No valid items found in agent output");
+                return { success: false };
               }
-              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
-              if (!pullRequestItem) {
-                core.warning("No create-pull-request item found in agent output");
-                return;
+              return { success: true, items: validatedOutput.items };
+            }
+            async function main() {
+              core.setOutput("project_number", "");
+              core.setOutput("project_url", "");
+              core.setOutput("item_id", "");
+              const result = loadAgentOutput();
+              if (!result.success) {
+                core.warning("No agent output available");
               }
-              core.info(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
-                summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
-                summaryContent += `**Base:** ${baseBranch}\n\n`;
-                if (pullRequestItem.body) {
-                  summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
+              const projectName = process.env.GH_AW_PROJECT_NAME;
+              if (!projectName) {
+                core.error("GH_AW_PROJECT_NAME is required");
+                throw new Error("Project name is required");
+              }
+              const statusField = process.env.GH_AW_PROJECT_STATUS_FIELD || "Status";
+              const agentField = process.env.GH_AW_PROJECT_AGENT_FIELD || "Agent";
+              const view = process.env.GH_AW_PROJECT_VIEW || "board";
+              core.info(`Managing campaign project: ${projectName}`);
+              core.info(`Status field: ${statusField}, Agent field: ${agentField}, View: ${view}`);
+              const owner = context.repo.owner;
+              let ownerType = "USER";
+              let ownerId;
+              try {
+                const ownerQuery = `
+                  query($login: String!) {
+                    repositoryOwner(login: $login) {
+                      __typename
+                      id
+                    }
+                  }
+                `;
+                const ownerResult = await github.graphql(ownerQuery, { login: owner });
+                ownerType = ownerResult.repositoryOwner.__typename === "Organization" ? "ORGANIZATION" : "USER";
+                ownerId = ownerResult.repositoryOwner.id;
+                core.info(`Owner type: ${ownerType}, ID: ${ownerId}`);
+              } catch (error) {
+                core.error(`Failed to get owner info: ${error instanceof Error ? error.message : String(error)}`);
+                throw error;
+              }
+              let project;
+              try {
+                const projectsQuery = `
+                  query($login: String!, $first: Int!) {
+                    ${ownerType === "ORGANIZATION" ? "organization" : "user"}(login: $login) {
+                      projectsV2(first: $first) {
+                        nodes {
+                          id
+                          number
+                          title
+                          url
+                        }
+                      }
+                    }
+                  }
+                `;
+                const projectsResult = await github.graphql(projectsQuery, {
+                  login: owner,
+                  first: 100,
+                });
+                const projects = ownerType === "ORGANIZATION" ? projectsResult.organization.projectsV2.nodes : projectsResult.user.projectsV2.nodes;
+                project = projects.find(p => p.title === projectName);
+                if (project) {
+                  core.info(`Found existing project: ${project.title} (#${project.number})`);
+                } else {
+                  core.info(`Creating new project: ${projectName}`);
+                  const createProjectMutation = `
+                    mutation($ownerId: ID!, $title: String!) {
+                      createProjectV2(input: {
+                        ownerId: $ownerId,
+                        title: $title
+                      }) {
+                        projectV2 {
+                          id
+                          number
+                          title
+                          url
+                        }
+                      }
+                    }
+                  `;
+                  const createResult = await github.graphql(createProjectMutation, {
+                    ownerId: ownerId,
+                    title: projectName,
+                  });
+                  project = createResult.createProjectV2.projectV2;
+                  core.info(`Created project #${project.number}: ${project.url}`);
                 }
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  if (patchStats.trim()) {
-                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-                  } else {
-                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
+              } catch (error) {
+                core.error(`Failed to find/create project: ${error instanceof Error ? error.message : String(error)}`);
+                throw error;
+              }
+              let customFieldsConfig = [];
+              const customFieldsJSON = process.env.GH_AW_PROJECT_CUSTOM_FIELDS;
+              if (customFieldsJSON) {
+                try {
+                  customFieldsConfig = JSON.parse(customFieldsJSON);
+                  core.info(`Custom fields config: ${customFieldsConfig.length} field(s)`);
+                } catch (error) {
+                  core.warning(`Failed to parse custom fields config: ${error instanceof Error ? error.message : String(error)}`);
+                }
+              }
+              let statusFieldId;
+              let agentFieldId;
+              let statusOptions = [];
+              const existingFields = new Map();
+              try {
+                const fieldsQuery = `
+                  query($projectId: ID!) {
+                    node(id: $projectId) {
+                      ... on ProjectV2 {
+                        fields(first: 50) {
+                          nodes {
+                            __typename
+                            ... on ProjectV2FieldCommon {
+                              id
+                              name
+                            }
+                            ... on ProjectV2SingleSelectField {
+                              id
+                              name
+                              options {
+                                id
+                                name
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                `;
+                const fieldsResult = await github.graphql(fieldsQuery, { projectId: project.id });
+                const fields = fieldsResult.node.fields.nodes;
+                const statusFieldNode = fields.find(f => f.name === statusField);
+                if (statusFieldNode) {
+                  statusFieldId = statusFieldNode.id;
+                  if (statusFieldNode.options) {
+                    statusOptions = statusFieldNode.options;
+                  }
+                  core.info(`Found status field: ${statusField} (${statusFieldId})`);
+                  core.info(`Status options: ${statusOptions.map(o => o.name).join(", ")}`);
+                }
+                const agentFieldNode = fields.find(f => f.name === agentField);
+                if (agentFieldNode) {
+                  agentFieldId = agentFieldNode.id;
+                  core.info(`Found agent field: ${agentField} (${agentFieldId})`);
+                }
+                for (const field of fields) {
+                  existingFields.set(field.name, {
+                    id: field.id,
+                    type: field.__typename,
+                    options: field.options,
+                  });
+                }
+              } catch (error) {
+                core.error(`Failed to get project fields: ${error instanceof Error ? error.message : String(error)}`);
+                throw error;
+              }
+              for (const customField of customFieldsConfig) {
+                if (!existingFields.has(customField.name)) {
+                  try {
+                    core.info(`Creating custom field: ${customField.name} (${customField.type})`);
+                    let mutation = "";
+                    let variables = {
+                      projectId: project.id,
+                      name: customField.name,
+                    };
+                    switch (customField.type) {
+                      case "number":
+                        mutation = `
+                          mutation($projectId: ID!, $name: String!) {
+                            createProjectV2Field(input: {
+                              projectId: $projectId,
+                              dataType: NUMBER,
+                              name: $name
+                            }) {
+                              projectV2Field {
+                                ... on ProjectV2Field {
+                                  id
+                                  name
+                                }
+                              }
+                            }
+                          }
+                        `;
+                        break;
+                      case "date":
+                        mutation = `
+                          mutation($projectId: ID!, $name: String!) {
+                            createProjectV2Field(input: {
+                              projectId: $projectId,
+                              dataType: DATE,
+                              name: $name
+                            }) {
+                              projectV2Field {
+                                ... on ProjectV2Field {
+                                  id
+                                  name
+                                }
+                              }
+                            }
+                          }
+                        `;
+                        break;
+                      case "text":
+                        mutation = `
+                          mutation($projectId: ID!, $name: String!) {
+                            createProjectV2Field(input: {
+                              projectId: $projectId,
+                              dataType: TEXT,
+                              name: $name
+                            }) {
+                              projectV2Field {
+                                ... on ProjectV2Field {
+                                  id
+                                  name
+                                }
+                              }
+                            }
+                          }
+                        `;
+                        break;
+                      case "single_select":
+                        if (customField.options && customField.options.length > 0) {
+                          mutation = `
+                            mutation($projectId: ID!, $name: String!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
+                              createProjectV2Field(input: {
+                                projectId: $projectId,
+                                dataType: SINGLE_SELECT,
+                                name: $name,
+                                singleSelectOptions: $options
+                              }) {
+                                projectV2Field {
+                                  ... on ProjectV2SingleSelectField {
+                                    id
+                                    name
+                                    options {
+                                      id
+                                      name
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          `;
+                          variables.options = customField.options.map(( opt) => ({
+                            name: opt,
+                            color: "GRAY",
+                          }));
+                        } else {
+                          core.warning(`Skipping single_select field ${customField.name}: no options provided`);
+                          continue;
+                        }
+                        break;
+                      case "iteration":
+                        core.warning(`Iteration fields must be created manually in GitHub Projects UI`);
+                        continue;
+                      default:
+                        core.warning(`Unknown custom field type: ${customField.type}`);
+                        continue;
+                    }
+                    if (mutation) {
+                      const createResult = await github.graphql(mutation, variables);
+                      const newField = createResult.createProjectV2Field.projectV2Field;
+                      existingFields.set(newField.name, {
+                        id: newField.id,
+                        type: customField.type,
+                        options: newField.options,
+                      });
+                      core.info(`✓ Created custom field: ${newField.name} (${newField.id})`);
+                    }
+                  } catch (error) {
+                    core.warning(`Failed to create custom field ${customField.name}: ${error instanceof Error ? error.message : String(error)}`);
+                  }
+                } else {
+                  core.info(`Custom field ${customField.name} already exists`);
+                }
+              }
+              let status = "In Progress";
+              const jobStatus = context.payload?.workflow_run?.conclusion || process.env.GITHUB_JOB_STATUS;
+              if (jobStatus === "success") {
+                status = "Done";
+              } else if (jobStatus === "failure") {
+                status = "Failed";
+              } else if (jobStatus === "cancelled") {
+                status = "Cancelled";
+              }
+              core.info(`Item status: ${status} (job status: ${jobStatus})`);
+              const createdIssues = [];
+              if (result.success && result.items.length > 0) {
+                for (const output of result.items) {
+                  if (output.type === "create-issue" && output.issueNumber) {
+                    createdIssues.push({
+                      number: output.issueNumber,
+                      url: output.issueUrl,
+                      title: output.issueTitle || `Issue #${output.issueNumber}`,
+                      isSubIssue: output.parentIssue !== undefined,
+                      parentIssue: output.parentIssue,
+                    });
+                    core.info(`Found created issue: #${output.issueNumber} - ${output.issueTitle || "(no title)"}`);
+                  }
+                }
+              }
+              let repositoryId;
+              try {
+                const repoQuery = `
+                  query($owner: String!, $name: String!) {
+                    repository(owner: $owner, name: $name) {
+                      id
+                    }
+                  }
+                `;
+                const repoResult = await github.graphql(repoQuery, {
+                  owner: context.repo.owner,
+                  name: context.repo.repo,
+                });
+                repositoryId = repoResult.repository.id;
+              } catch (error) {
+                core.warning(`Failed to get repository ID: ${error instanceof Error ? error.message : String(error)}`);
+              }
+              const addedItemIds = [];
+              if (createdIssues.length > 0 && repositoryId) {
+                core.info(`Adding ${createdIssues.length} issue(s) to project board`);
+                for (const issue of createdIssues) {
+                  try {
+                    const issueQuery = `
+                      query($owner: String!, $name: String!, $number: Int!) {
+                        repository(owner: $owner, name: $name) {
+                          issue(number: $number) {
+                            id
+                          }
+                        }
+                      }
+                    `;
+                    const issueResult = await github.graphql(issueQuery, {
+                      owner: context.repo.owner,
+                      name: context.repo.repo,
+                      number: issue.number,
+                    });
+                    const issueId = issueResult.repository.issue.id;
+                    const addIssueMutation = `
+                      mutation($projectId: ID!, $contentId: ID!) {
+                        addProjectV2ItemById(input: {
+                          projectId: $projectId,
+                          contentId: $contentId
+                        }) {
+                          item {
+                            id
+                          }
+                        }
+                      }
+                    `;
+                    const addIssueResult = await github.graphql(addIssueMutation, {
+                      projectId: project.id,
+                      contentId: issueId,
+                    });
+                    const itemId = addIssueResult.addProjectV2ItemById.item.id;
+                    addedItemIds.push(itemId);
+                    core.info(`Added issue #${issue.number} to project (item ID: ${itemId})`);
+                    if (statusFieldId) {
+                      const issueStatus = jobStatus === "success" ? "Done" : status;
+                      const statusOption = statusOptions.find(( o) => o.name === issueStatus);
+                      if (statusOption) {
+                        const updateStatusMutation = `
+                          mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                            updateProjectV2ItemFieldValue(input: {
+                              projectId: $projectId,
+                              itemId: $itemId,
+                              fieldId: $fieldId,
+                              value: { 
+                                singleSelectOptionId: $optionId
+                              }
+                            }) {
+                              projectV2Item {
+                                id
+                              }
+                            }
+                          }
+                        `;
+                        await github.graphql(updateStatusMutation, {
+                          projectId: project.id,
+                          itemId: itemId,
+                          fieldId: statusFieldId,
+                          optionId: statusOption.id,
+                        });
+                        core.info(`Updated issue #${issue.number} status to: ${issueStatus}`);
+                      }
+                    }
+                    if (agentFieldId) {
+                      const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agent Workflow";
+                      const runNumber = context.runNumber;
+                      const agentName = `${workflowName} #${runNumber}`;
+                      const updateAgentMutation = `
+                        mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $text: String!) {
+                          updateProjectV2ItemFieldValue(input: {
+                            projectId: $projectId,
+                            itemId: $itemId,
+                            fieldId: $fieldId,
+                            value: { 
+                              text: $text
+                            }
+                          }) {
+                            projectV2Item {
+                              id
+                            }
+                          }
+                        }
+                      `;
+                      await github.graphql(updateAgentMutation, {
+                        projectId: project.id,
+                        itemId: itemId,
+                        fieldId: agentFieldId,
+                        text: agentName,
+                      });
+                      core.info(`Set agent field to: ${agentName}`);
+                    }
+                    for (const customFieldConfig of customFieldsConfig) {
+                      if (!customFieldConfig.value) continue;
+                      const fieldInfo = existingFields.get(customFieldConfig.name);
+                      if (!fieldInfo) {
+                        core.warning(`Custom field ${customFieldConfig.name} not found in project`);
+                        continue;
+                      }
+                      try {
+                        let mutation = "";
+                        let fieldVariables = {
+                          projectId: project.id,
+                          itemId: itemId,
+                          fieldId: fieldInfo.id,
+                        };
+                        switch (customFieldConfig.type) {
+                          case "number":
+                            mutation = `
+                              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: Float!) {
+                                updateProjectV2ItemFieldValue(input: {
+                                  projectId: $projectId,
+                                  itemId: $itemId,
+                                  fieldId: $fieldId,
+                                  value: { number: $value }
+                                }) {
+                                  projectV2Item { id }
+                                }
+                              }
+                            `;
+                            fieldVariables.value = parseFloat(customFieldConfig.value);
+                            break;
+                          case "date":
+                            mutation = `
+                              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: Date!) {
+                                updateProjectV2ItemFieldValue(input: {
+                                  projectId: $projectId,
+                                  itemId: $itemId,
+                                  fieldId: $fieldId,
+                                  value: { date: $value }
+                                }) {
+                                  projectV2Item { id }
+                                }
+                              }
+                            `;
+                            const dateValue = new Date(customFieldConfig.value);
+                            fieldVariables.value = dateValue.toISOString().split("T")[0];
+                            break;
+                          case "text":
+                            mutation = `
+                              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: String!) {
+                                updateProjectV2ItemFieldValue(input: {
+                                  projectId: $projectId,
+                                  itemId: $itemId,
+                                  fieldId: $fieldId,
+                                  value: { text: $value }
+                                }) {
+                                  projectV2Item { id }
+                                }
+                              }
+                            `;
+                            fieldVariables.value = customFieldConfig.value;
+                            break;
+                          case "single_select":
+                            if (fieldInfo.options) {
+                              const option = fieldInfo.options.find(( o) => o.name === customFieldConfig.value);
+                              if (option) {
+                                mutation = `
+                                  mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                                    updateProjectV2ItemFieldValue(input: {
+                                      projectId: $projectId,
+                                      itemId: $itemId,
+                                      fieldId: $fieldId,
+                                      value: { singleSelectOptionId: $optionId }
+                                    }) {
+                                      projectV2Item { id }
+                                    }
+                                  }
+                                `;
+                                fieldVariables.optionId = option.id;
+                              } else {
+                                core.warning(`Option "${customFieldConfig.value}" not found in field ${customFieldConfig.name}`);
+                                continue;
+                              }
+                            }
+                            break;
+                          default:
+                            core.warning(`Cannot set value for field type: ${customFieldConfig.type}`);
+                            continue;
+                        }
+                        if (mutation) {
+                          await github.graphql(mutation, fieldVariables);
+                          core.info(`Set ${customFieldConfig.name} = ${customFieldConfig.value}`);
+                        }
+                      } catch (error) {
+                        core.warning(`Failed to set custom field ${customFieldConfig.name}: ${error instanceof Error ? error.message : String(error)}`);
+                      }
+                    }
+                    const customFieldsJSON = process.env.GH_AW_PROJECT_FIELDS;
+                    if (customFieldsJSON) {
+                      try {
+                        const customFields = JSON.parse(customFieldsJSON);
+                        core.info(`Setting custom fields: ${Object.keys(customFields).join(", ")}`);
+                      } catch (error) {
+                        core.warning(`Failed to parse custom fields: ${error instanceof Error ? error.message : String(error)}`);
+                      }
+                    }
+                  } catch (error) {
+                    core.warning(`Failed to update issue #${issue.number}: ${error instanceof Error ? error.message : String(error)}`);
+                  }
+                }
+              } else if (createdIssues.length === 0) {
+                core.info("No issues created during workflow - creating tracking item");
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agent Workflow";
+                const runNumber = context.runNumber;
+                const itemTitle = `${workflowName} #${runNumber}`;
+                try {
+                  const createItemMutation = `
+                    mutation($projectId: ID!, $title: String!) {
+                      addProjectV2DraftIssue(input: {
+                        projectId: $projectId,
+                        title: $title
+                      }) {
+                        projectItem {
+                          id
+                        }
+                      }
+                    }
+                  `;
+                  const createItemResult = await github.graphql(createItemMutation, {
+                    projectId: project.id,
+                    title: itemTitle,
+                  });
+                  const itemId = createItemResult.addProjectV2DraftIssue.projectItem.id;
+                  addedItemIds.push(itemId);
+                  core.info(`Created draft item: ${itemTitle} (${itemId})`);
+                  if (statusFieldId) {
+                    const statusOption = statusOptions.find(( o) => o.name === status);
+                    if (statusOption) {
+                      const updateStatusMutation = `
+                        mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                          updateProjectV2ItemFieldValue(input: {
+                            projectId: $projectId,
+                            itemId: $itemId,
+                            fieldId: $fieldId,
+                            value: { 
+                              singleSelectOptionId: $optionId
+                            }
+                          }) {
+                            projectV2Item {
+                              id
+                            }
+                          }
+                        }
+                      `;
+                      await github.graphql(updateStatusMutation, {
+                        projectId: project.id,
+                        itemId: itemId,
+                        fieldId: statusFieldId,
+                        optionId: statusOption.id,
+                      });
+                      core.info(`Updated status to: ${status}`);
+                    }
+                  }
+                } catch (error) {
+                  core.error(`Failed to create draft item: ${error instanceof Error ? error.message : String(error)}`);
+                  throw error;
+                }
+              }
+              const insightsConfig = process.env.GH_AW_PROJECT_INSIGHTS;
+              if (insightsConfig) {
+                const insights = insightsConfig.split(",").map(i => i.trim());
+                core.info(`Generating insights: ${insights.join(", ")}`);
+                let projectItems = [];
+                try {
+                  const itemsQuery = `
+                    query($projectId: ID!, $first: Int!) {
+                      node(id: $projectId) {
+                        ... on ProjectV2 {
+                          items(first: $first) {
+                            nodes {
+                              id
+                              type
+                              content {
+                                ... on Issue {
+                                  number
+                                  title
+                                  url
+                                  state
+                                  createdAt
+                                  closedAt
+                                  labels(first: 10) {
+                                    nodes {
+                                      name
+                                    }
+                                  }
+                                }
+                              }
+                              fieldValues(first: 20) {
+                                nodes {
+                                  __typename
+                                  ... on ProjectV2ItemFieldSingleSelectValue {
+                                    name
+                                    field {
+                                      ... on ProjectV2SingleSelectField {
+                                        name
+                                      }
+                                    }
+                                  }
+                                  ... on ProjectV2ItemFieldTextValue {
+                                    text
+                                    field {
+                                      ... on ProjectV2Field {
+                                        name
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  `;
+                  const itemsResult = await github.graphql(itemsQuery, {
+                    projectId: project.id,
+                    first: 100,
+                  });
+                  projectItems = itemsResult.node.items.nodes;
+                  core.info(`Retrieved ${projectItems.length} project items for insights`);
+                } catch (error) {
+                  core.warning(`Failed to query project items: ${error instanceof Error ? error.message : String(error)}`);
+                }
+                let summaryContent = "\n\n## 📊 Campaign Project Insights\n\n";
+                summaryContent += `**Project:** [${project.title}](${project.url})\n\n`;
+                summaryContent += `**Issues Added:** ${createdIssues.length}\n\n`;
+                if (createdIssues.length > 0) {
+                  summaryContent += "### Created Issues\n\n";
+                  for (const issue of createdIssues) {
+                    const badge = issue.isSubIssue ? "🔗" : "📝";
+                    summaryContent += `- ${badge} [#${issue.number}](${issue.url}) - ${issue.title}\n`;
+                    if (issue.isSubIssue && issue.parentIssue) {
+                      summaryContent += `  ↳ Sub-issue of #${issue.parentIssue}\n`;
+                    }
+                  }
+                  summaryContent += "\n";
+                  const mainIssues = createdIssues.filter(i => !i.isSubIssue);
+                  const subIssues = createdIssues.filter(i => i.isSubIssue);
+                  if (subIssues.length > 0) {
+                    summaryContent += `**Issue Breakdown:** ${mainIssues.length} main issue(s), ${subIssues.length} sub-issue(s)\n\n`;
+                  }
+                }
+                if (projectItems.length > 0) {
+                  const statusCounts = {};
+                  for (const item of projectItems) {
+                    for (const fieldValue of item.fieldValues.nodes) {
+                      if (fieldValue.__typename === "ProjectV2ItemFieldSingleSelectValue" && fieldValue.field?.name === statusField) {
+                        statusCounts[fieldValue.name] = (statusCounts[fieldValue.name] || 0) + 1;
+                      }
+                    }
+                  }
+                  if (insights.includes("campaign-progress")) {
+                    summaryContent += "### Campaign Progress\n\n";
+                    const total = projectItems.length;
+                    for (const [statusName, count] of Object.entries(statusCounts)) {
+                      const percentage = Math.round((count / total) * 100);
+                      summaryContent += `- **${statusName}:** ${count}/${total} (${percentage}%)\n`;
+                    }
+                    summaryContent += "\n";
+                  }
+                  if (insights.includes("agent-velocity")) {
+                    summaryContent += "### Agent Velocity\n\n";
+                    const completedItems = projectItems.filter(( item) => {
+                      if (!item.content?.closedAt) return false;
+                      for (const fieldValue of item.fieldValues.nodes) {
+                        if (fieldValue.__typename === "ProjectV2ItemFieldSingleSelectValue" && fieldValue.field?.name === statusField) {
+                          return fieldValue.name === "Done";
+                        }
+                      }
+                      return false;
+                    });
+                    if (completedItems.length > 0) {
+                      const durations = completedItems
+                        .filter(( item) => item.content?.createdAt && item.content?.closedAt)
+                        .map(( item) => {
+                          const created = new Date(item.content.createdAt).getTime();
+                          const closed = new Date(item.content.closedAt).getTime();
+                          return (closed - created) / 1000 / 60; 
+                        });
+                      if (durations.length > 0) {
+                        const avgDuration = durations.reduce(( sum,  d) => sum + d, 0) / durations.length;
+                        const hours = Math.floor(avgDuration / 60);
+                        const minutes = Math.round(avgDuration % 60);
+                        summaryContent += `**Average Completion Time:** ${hours}h ${minutes}m\n`;
+                        summaryContent += `**Completed Items:** ${completedItems.length}\n\n`;
+                      }
+                    } else {
+                      summaryContent += "_No completed items yet_\n\n";
+                    }
+                  }
+                  if (insights.includes("bottlenecks")) {
+                    summaryContent += "### Bottlenecks\n\n";
+                    const inProgressItems = projectItems.filter(( item) => {
+                      for (const fieldValue of item.fieldValues.nodes) {
+                        if (fieldValue.__typename === "ProjectV2ItemFieldSingleSelectValue" && fieldValue.field?.name === statusField) {
+                          return fieldValue.name === "In Progress";
+                        }
+                      }
+                      return false;
+                    });
+                    if (inProgressItems.length > 0) {
+                      summaryContent += `**Currently In Progress:** ${inProgressItems.length} item(s)\n`;
+                      for (const item of inProgressItems.slice(0, 5)) {
+                        if (item.content?.title && item.content?.url) {
+                          const ageMinutes = (Date.now() - new Date(item.content.createdAt).getTime()) / 1000 / 60;
+                          const hours = Math.floor(ageMinutes / 60);
+                          const minutes = Math.round(ageMinutes % 60);
+                          summaryContent += `- [#${item.content.number}](${item.content.url}) - ${item.content.title} (${hours}h ${minutes}m)\n`;
+                        }
+                      }
+                      summaryContent += "\n";
+                    } else {
+                      summaryContent += "_No items in progress_\n\n";
+                    }
                   }
                 }
                 await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Pull request creation preview written to step summary");
+              }
+              core.setOutput("project_number", project.number);
+              core.setOutput("project_url", project.url);
+              core.setOutput("item_id", addedItemIds.length > 0 ? addedItemIds[0] : "");
+              core.setOutput("item_count", addedItemIds.length);
+              core.setOutput("issue_count", createdIssues.length);
+              core.info(`✓ Successfully managed campaign project board`);
+            }
+            await main();
+
+  create_issue:
+    needs:
+      - agent
+      - detection
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_issue'))
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      issues: write
+    timeout-minutes: 10
+    outputs:
+      issue_number: ${{ steps.create_issue.outputs.issue_number }}
+      issue_url: ${{ steps.create_issue.outputs.issue_url }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Create Output Issue
+        id: create_issue
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_NAME: "Multi-Agent Research Campaign"
+          GH_AW_ISSUE_TITLE_PREFIX: "Research: "
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            function sanitizeLabelContent(content) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              let sanitized = content.trim();
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitized.replace(
+                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                (_m, p1, p2) => `${p1}\`@${p2}\``
+              );
+              sanitized = sanitized.replace(/[<>&'"]/g, "");
+              return sanitized.trim();
+            }
+            const fs = require("fs");
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            function generateFooter(
+              workflowName,
+              runUrl,
+              workflowSource,
+              workflowSourceURL,
+              triggeringIssueNumber,
+              triggeringPRNumber,
+              triggeringDiscussionNumber
+            ) {
+              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
+              if (triggeringIssueNumber) {
+                footer += ` for #${triggeringIssueNumber}`;
+              } else if (triggeringPRNumber) {
+                footer += ` for #${triggeringPRNumber}`;
+              } else if (triggeringDiscussionNumber) {
+                footer += ` for discussion #${triggeringDiscussionNumber}`;
+              }
+              if (workflowSource && workflowSourceURL) {
+                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
+              }
+              footer += "\n";
+              return footer;
+            }
+            async function main() {
+              core.setOutput("issue_number", "");
+              core.setOutput("issue_url", "");
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const result = loadAgentOutput();
+              if (!result.success) {
                 return;
               }
-              let title = pullRequestItem.title.trim();
-              let bodyLines = pullRequestItem.body.split("\n");
-              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
-              if (!title) {
-                title = "Agent Output";
+              const createIssueItems = result.items.filter(item => item.type === "create_issue");
+              if (createIssueItems.length === 0) {
+                core.info("No create-issue items found in agent output");
+                return;
               }
-              const titlePrefix = process.env.GH_AW_PR_TITLE_PREFIX;
-              if (titlePrefix && !title.startsWith(titlePrefix)) {
-                title = titlePrefix + title;
+              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
+                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
+                for (let i = 0; i < createIssueItems.length; i++) {
+                  const item = createIssueItems[i];
+                  summaryContent += `### Issue ${i + 1}\n`;
+                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
+                  if (item.body) {
+                    summaryContent += `**Body:**\n${item.body}\n\n`;
+                  }
+                  if (item.labels && item.labels.length > 0) {
+                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                  }
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info("📝 Issue creation preview written to step summary");
+                return;
               }
-              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const runId = context.runId;
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-              const body = bodyLines.join("\n").trim();
-              const labelsEnv = process.env.GH_AW_PR_LABELS;
-              const labels = labelsEnv
+              const parentIssueNumber = context.payload?.issue?.number;
+              const triggeringIssueNumber =
+                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+              const triggeringPRNumber =
+                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+              const triggeringDiscussionNumber = context.payload?.discussion?.number;
+              const labelsEnv = process.env.GH_AW_ISSUE_LABELS;
+              let envLabels = labelsEnv
                 ? labelsEnv
                     .split(",")
-                    .map( label => label.trim())
-                    .filter( label => label)
+                    .map(label => label.trim())
+                    .filter(label => label)
                 : [];
-              const draftEnv = process.env.GH_AW_PR_DRAFT;
-              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
-              core.info(`Creating pull request with title: ${title}`);
-              core.info(`Labels: ${JSON.stringify(labels)}`);
-              core.info(`Draft: ${draft}`);
-              core.info(`Body length: ${body.length}`);
-              const randomHex = crypto.randomBytes(8).toString("hex");
-              if (!branchName) {
-                core.info("No branch name provided in JSONL, generating unique branch name");
-                branchName = `${workflowId}-${randomHex}`;
-              } else {
-                branchName = `${branchName}-${randomHex}`;
-                core.info(`Using branch name from JSONL with added salt: ${branchName}`);
-              }
-              core.info(`Generated branch name: ${branchName}`);
-              core.info(`Base branch: ${baseBranch}`);
-              core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
-              await exec.exec("git fetch origin");
-              await exec.exec(`git checkout ${baseBranch}`);
-              core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
-              await exec.exec(`git checkout -b ${branchName}`);
-              core.info(`Created new branch from base: ${branchName}`);
-              if (!isEmpty) {
-                core.info("Applying patch...");
-                const patchLines = patchContent.split("\n");
-                const previewLineCount = Math.min(500, patchLines.length);
-                core.info(`Patch preview (first ${previewLineCount} of ${patchLines.length} lines):`);
-                for (let i = 0; i < previewLineCount; i++) {
-                  core.info(patchLines[i]);
+              const createdIssues = [];
+              for (let i = 0; i < createIssueItems.length; i++) {
+                const createIssueItem = createIssueItems[i];
+                core.info(
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
+                );
+                core.info(`Debug: createIssueItem.parent = ${JSON.stringify(createIssueItem.parent)}`);
+                core.info(`Debug: parentIssueNumber from context = ${JSON.stringify(parentIssueNumber)}`);
+                const effectiveParentIssueNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentIssueNumber;
+                core.info(`Debug: effectiveParentIssueNumber = ${JSON.stringify(effectiveParentIssueNumber)}`);
+                if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
+                  core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
                 }
-                try {
-                  await exec.exec("git am /tmp/gh-aw/aw.patch");
-                  core.info("Patch applied successfully");
-                } catch (patchError) {
-                  core.error(`Failed to apply patch: ${patchError instanceof Error ? patchError.message : String(patchError)}`);
-                  try {
-                    core.info("Investigating patch failure...");
-                    const statusResult = await exec.getExecOutput("git", ["status"]);
-                    core.info("Git status output:");
-                    core.info(statusResult.stdout);
-                    const patchResult = await exec.getExecOutput("git", ["am", "--show-current-patch=diff"]);
-                    core.info("Failed patch content:");
-                    core.info(patchResult.stdout);
-                  } catch (investigateError) {
-                    core.warning(
-                      `Failed to investigate patch failure: ${investigateError instanceof Error ? investigateError.message : String(investigateError)}`
-                    );
-                  }
-                  core.setFailed("Failed to apply patch");
-                  return;
+                let labels = [...envLabels];
+                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
+                  labels = [...labels, ...createIssueItem.labels];
                 }
-                try {
-                  let remoteBranchExists = false;
-                  try {
-                    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-                    if (stdout.trim()) {
-                      remoteBranchExists = true;
-                    }
-                  } catch (checkError) {
-                    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                  }
-                  if (remoteBranchExists) {
-                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-                    const extraHex = crypto.randomBytes(4).toString("hex");
-                    const oldBranch = branchName;
-                    branchName = `${branchName}-${extraHex}`;
-                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-                    core.info(`Renamed branch to ${branchName}`);
-                  }
-                  await exec.exec(`git push origin ${branchName}`);
-                  core.info("Changes pushed to branch");
-                } catch (pushError) {
-                  core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
-                  core.warning("Git push operation failed - creating fallback issue instead of pull request");
-                  const runId = context.runId;
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  const runUrl = context.payload.repository
-                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                  let patchPreview = "";
-                  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                    const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                    patchPreview = generatePatchPreview(patchContent);
-                  }
-                  const fallbackBody = `${body}
-            ---
-            > [!NOTE]
-            > This was originally intended as a pull request, but the git push operation failed.
-            >
-            > **Workflow Run:** [View run details and download patch artifact](${runUrl})
-            >
-            > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
-            To apply the patch locally:
-            \`\`\`sh
-            # Download the artifact from the workflow run ${runUrl}
-            # (Use GitHub MCP tools if gh CLI is not available)
-            gh run download ${runId} -n aw.patch
-            # Apply the patch
-            git am aw.patch
-            \`\`\`
-            ${patchPreview}`;
-                  try {
-                    const { data: issue } = await github.rest.issues.create({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      title: title,
-                      body: fallbackBody,
-                      labels: labels,
-                    });
-                    core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                    core.setOutput("branch_name", branchName);
-                    core.setOutput("fallback_used", "true");
-                    core.setOutput("push_failed", "true");
-                    await core.summary
-                      .addRaw(
-                        `
-            ## Push Failure Fallback
-            - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
-            - **Fallback Issue:** [#${issue.number}](${issue.html_url})
-            - **Patch Artifact:** Available in workflow run artifacts
-            - **Note:** Push failed, created issue as fallback
-            `
-                      )
-                      .write();
-                    return;
-                  } catch (issueError) {
-                    core.setFailed(
-                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                    );
-                    return;
-                  }
+                labels = labels
+                  .filter(label => !!label)
+                  .map(label => String(label).trim())
+                  .filter(label => label)
+                  .map(label => sanitizeLabelContent(label))
+                  .filter(label => label)
+                  .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+                  .filter((label, index, arr) => arr.indexOf(label) === index);
+                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
+                let bodyLines = createIssueItem.body.split("\n");
+                if (!title) {
+                  title = createIssueItem.body || "Agent Output";
                 }
-              } else {
-                core.info("Skipping patch application (empty patch)");
-                const message = "No changes to apply - noop operation completed successfully";
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to apply - failing as configured by if-no-changes: error");
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
+                const titlePrefix = process.env.GH_AW_ISSUE_TITLE_PREFIX;
+                if (titlePrefix && !title.startsWith(titlePrefix)) {
+                  title = titlePrefix + title;
                 }
-              }
-              try {
-                const { data: pullRequest } = await github.rest.pulls.create({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  title: title,
-                  body: body,
-                  head: branchName,
-                  base: baseBranch,
-                  draft: draft,
-                });
-                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
-                if (labels.length > 0) {
-                  await github.rest.issues.addLabels({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: pullRequest.number,
-                    labels: labels,
-                  });
-                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+                if (effectiveParentIssueNumber) {
+                  core.info("Detected issue context, parent issue #" + effectiveParentIssueNumber);
+                  bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
                 }
-                core.setOutput("pull_request_number", pullRequest.number);
-                core.setOutput("pull_request_url", pullRequest.html_url);
-                core.setOutput("branch_name", branchName);
-                await core.summary
-                  .addRaw(
-                    `
-            ## Pull Request
-            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
-            - **Branch**: \`${branchName}\`
-            - **Base Branch**: \`${baseBranch}\`
-            `
-                  )
-                  .write();
-              } catch (prError) {
-                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
-                core.info("Falling back to creating an issue instead");
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
+                const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
+                const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+                const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const branchUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/tree/${branchName}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
-                let patchPreview = "";
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  patchPreview = generatePatchPreview(patchContent);
-                }
-                const fallbackBody = `${body}
-            ---
-            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
-            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
-            You can manually create a pull request from the branch if needed.${patchPreview}`;
+                const runUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                bodyLines.push(
+                  ``,
+                  ``,
+                  generateFooter(
+                    workflowName,
+                    runUrl,
+                    workflowSource,
+                    workflowSourceURL,
+                    triggeringIssueNumber,
+                    triggeringPRNumber,
+                    triggeringDiscussionNumber
+                  ).trimEnd(),
+                  ""
+                );
+                const body = bodyLines.join("\n").trim();
+                core.info(`Creating issue with title: ${title}`);
+                core.info(`Labels: ${labels}`);
+                core.info(`Body length: ${body.length}`);
                 try {
                   const { data: issue } = await github.rest.issues.create({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
                     title: title,
-                    body: fallbackBody,
+                    body: body,
                     labels: labels,
                   });
-                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                  core.setOutput("issue_number", issue.number);
-                  core.setOutput("issue_url", issue.html_url);
-                  core.setOutput("branch_name", branchName);
-                  core.setOutput("fallback_used", "true");
-                  await core.summary
-                    .addRaw(
-                      `
-            ## Fallback Issue Created
-            - **Issue**: [#${issue.number}](${issue.html_url})
-            - **Branch**: [\`${branchName}\`](${branchUrl})
-            - **Base Branch**: \`${baseBranch}\`
-            - **Note**: Pull request creation failed, created issue as fallback
-            `
-                    )
-                    .write();
-                } catch (issueError) {
-                  core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                  );
-                  return;
+                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
+                  createdIssues.push(issue);
+                  core.info(`Debug: About to check if sub-issue linking is needed. effectiveParentIssueNumber = ${effectiveParentIssueNumber}`);
+                  if (effectiveParentIssueNumber) {
+                    core.info(`Attempting to link issue #${issue.number} as sub-issue of #${effectiveParentIssueNumber}`);
+                    try {
+                      core.info(`Fetching node ID for parent issue #${effectiveParentIssueNumber}...`);
+                      const getIssueNodeIdQuery = `
+                        query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                          repository(owner: $owner, name: $repo) {
+                            issue(number: $issueNumber) {
+                              id
+                            }
+                          }
+                        }
+                      `;
+                      const parentResult = await github.graphql(getIssueNodeIdQuery, {
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issueNumber: effectiveParentIssueNumber,
+                      });
+                      const parentNodeId = parentResult.repository.issue.id;
+                      core.info(`Parent issue node ID: ${parentNodeId}`);
+                      core.info(`Fetching node ID for child issue #${issue.number}...`);
+                      const childResult = await github.graphql(getIssueNodeIdQuery, {
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issueNumber: issue.number,
+                      });
+                      const childNodeId = childResult.repository.issue.id;
+                      core.info(`Child issue node ID: ${childNodeId}`);
+                      core.info(`Executing addSubIssue mutation...`);
+                      const addSubIssueMutation = `
+                        mutation($issueId: ID!, $subIssueId: ID!) {
+                          addSubIssue(input: {
+                            issueId: $issueId,
+                            subIssueId: $subIssueId
+                          }) {
+                            subIssue {
+                              id
+                              number
+                            }
+                          }
+                        }
+                      `;
+                      await github.graphql(addSubIssueMutation, {
+                        issueId: parentNodeId,
+                        subIssueId: childNodeId,
+                      });
+                      core.info("✓ Successfully linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
+                    } catch (error) {
+                      core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
+                      core.info(`Error details: ${error instanceof Error ? error.stack : String(error)}`);
+                      try {
+                        core.info(`Attempting fallback: adding comment to parent issue #${effectiveParentIssueNumber}...`);
+                        await github.rest.issues.createComment({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: effectiveParentIssueNumber,
+                          body: `Created related issue: #${issue.number}`,
+                        });
+                        core.info("✓ Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
+                      } catch (commentError) {
+                        core.info(
+                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
+                        );
+                      }
+                    }
+                  } else {
+                    core.info(`Debug: No parent issue number set, skipping sub-issue linking`);
+                  }
+                  if (i === createIssueItems.length - 1) {
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
+                  }
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  if (errorMessage.includes("Issues has been disabled in this repository")) {
+                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
+                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
+                    continue;
+                  }
+                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
+                  throw error;
                 }
               }
+              if (createdIssues.length > 0) {
+                let summaryContent = "\n\n## GitHub Issues\n";
+                for (const issue of createdIssues) {
+                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully created ${createdIssues.length} issue(s)`);
             }
-            await main();
-      - name: Checkout repository for gh CLI
-        if: steps.create_pull_request.outputs.pull_request_url != ''
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          persist-credentials: false
-      - name: Add copilot as reviewer
-        if: steps.create_pull_request.outputs.pull_request_number != ''
-        env:
-          GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.create_pull_request.outputs.pull_request_number }}
-        run: |
-          # shellcheck disable=SC2086
-          gh api --method POST /repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers \
-            -f 'reviewers[]=copilot-pull-request-reviewer[bot]'
+            (async () => {
+              await main();
+            })();
 
   detection:
     needs: agent
@@ -5437,7 +4669,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
-          WORKFLOW_NAME: "Technical Doc Writer"
+          WORKFLOW_NAME: "Multi-Agent Research Campaign"
           WORKFLOW_DESCRIPTION: "No description provided"
         with:
           script: |
@@ -5770,216 +5002,4 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
-
-  upload_assets:
-    needs:
-      - agent
-      - detection
-    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
-    runs-on: ubuntu-slim
-    permissions:
-      contents: write
-    timeout-minutes: 10
-    outputs:
-      branch_name: ${{ steps.upload_assets.outputs.branch_name }}
-      published_count: ${{ steps.upload_assets.outputs.published_count }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL="${{ github.server_url }}"
-          SERVER_URL="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Download assets
-        continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
-        with:
-          name: safe-outputs-assets
-          path: /tmp/gh-aw/safeoutputs/assets/
-      - name: List downloaded asset files
-        continue-on-error: true
-        run: |
-          echo "Downloaded asset files:"
-          ls -la /tmp/gh-aw/safeoutputs/assets/
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safeoutputs/
-      - name: Setup agent output environment variable
-        run: |
-          mkdir -p /tmp/gh-aw/safeoutputs/
-          find "/tmp/gh-aw/safeoutputs/" -type f -print
-          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
-      - name: Upload Assets to Orphaned Branch
-        id: upload_assets
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GH_AW_ASSETS_MAX_SIZE_KB: 10240
-          GH_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-        with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require("fs");
-            const path = require("path");
-            const crypto = require("crypto");
-            function loadAgentOutput() {
-              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
-              if (!agentOutputFile) {
-                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
-                return { success: false };
-              }
-              let outputContent;
-              try {
-                outputContent = fs.readFileSync(agentOutputFile, "utf8");
-              } catch (error) {
-                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
-                core.setFailed(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return { success: false };
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
-                core.setFailed(errorMessage);
-                return { success: false, error: errorMessage };
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return { success: false };
-              }
-              return { success: true, items: validatedOutput.items };
-            }
-            function normalizeBranchName(branchName) {
-              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
-                return branchName;
-              }
-              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
-              normalized = normalized.replace(/-+/g, "-");
-              normalized = normalized.replace(/^-+|-+$/g, "");
-              if (normalized.length > 128) {
-                normalized = normalized.substring(0, 128);
-              }
-              normalized = normalized.replace(/-+$/, "");
-              normalized = normalized.toLowerCase();
-              return normalized;
-            }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const branchName = process.env.GH_AW_ASSETS_BRANCH;
-              if (!branchName || typeof branchName !== "string") {
-                core.setFailed("GH_AW_ASSETS_BRANCH environment variable is required but not set");
-                return;
-              }
-              const normalizedBranchName = normalizeBranchName(branchName);
-              core.info(`Using assets branch: ${normalizedBranchName}`);
-              const result = loadAgentOutput();
-              if (!result.success) {
-                core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", normalizedBranchName);
-                return;
-              }
-              const uploadItems = result.items.filter( item => item.type === "upload_assets");
-              const uploadAssetItems = result.items.filter( item => item.type === "upload_asset");
-              const allUploadItems = [...uploadItems, ...uploadAssetItems];
-              if (allUploadItems.length === 0) {
-                core.info("No upload-asset items found in agent output");
-                core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", normalizedBranchName);
-                return;
-              }
-              core.info(`Found ${allUploadItems.length} upload-asset item(s)`);
-              let uploadCount = 0;
-              let hasChanges = false;
-              try {
-                try {
-                  await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
-                  await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
-                  core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
-                } catch (originError) {
-                  core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
-                  await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
-                  await exec.exec(`git rm -rf .`);
-                  await exec.exec(`git clean -fdx`);
-                }
-                for (const asset of uploadAssetItems) {
-                  try {
-                    const { fileName, sha, size, targetFileName } = asset;
-                    if (!fileName || !sha || !targetFileName) {
-                      core.error(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
-                      continue;
-                    }
-                    const assetSourcePath = path.join("/tmp/gh-aw/safeoutputs/assets", fileName);
-                    if (!fs.existsSync(assetSourcePath)) {
-                      core.warning(`Asset file not found: ${assetSourcePath}`);
-                      continue;
-                    }
-                    const fileContent = fs.readFileSync(assetSourcePath);
-                    const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
-                    if (computedSha !== sha) {
-                      core.warning(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
-                      continue;
-                    }
-                    if (fs.existsSync(targetFileName)) {
-                      core.info(`Asset ${targetFileName} already exists, skipping`);
-                      continue;
-                    }
-                    fs.copyFileSync(assetSourcePath, targetFileName);
-                    await exec.exec(`git add "${targetFileName}"`);
-                    uploadCount++;
-                    hasChanges = true;
-                    core.info(`Added asset: ${targetFileName} (${size} bytes)`);
-                  } catch (error) {
-                    core.warning(`Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`);
-                  }
-                }
-                if (hasChanges) {
-                  const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
-                  await exec.exec(`git`, [`commit`, `-m`, commitMessage]);
-                  if (isStaged) {
-                    core.summary.addRaw("## Staged Asset Publication");
-                  } else {
-                    await exec.exec(`git push origin ${normalizedBranchName}`);
-                    core.summary
-                      .addRaw("## Assets")
-                      .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
-                      .addRaw("");
-                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
-                  }
-                  for (const asset of uploadAssetItems) {
-                    if (asset.fileName && asset.sha && asset.size && asset.url) {
-                      core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
-                    }
-                  }
-                  core.summary.write();
-                } else {
-                  core.info("No new assets to upload");
-                }
-              } catch (error) {
-                core.setFailed(`Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              core.setOutput("upload_count", uploadCount.toString());
-              core.setOutput("branch_name", normalizedBranchName);
-            }
-            await main();
 

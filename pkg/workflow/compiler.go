@@ -170,28 +170,29 @@ type WorkflowData struct {
 	EngineConfig        *EngineConfig // Extended engine configuration
 	AgentFile           string        // Path to custom agent file (from imports)
 	StopTime            string
-	ManualApproval      string               // environment name for manual approval from on: section
-	Command             string               // for /command trigger support
-	CommandEvents       []string             // events where command should be active (nil = all events)
-	CommandOtherEvents  map[string]any       // for merging command with other events
-	AIReaction          string               // AI reaction type like "eyes", "heart", etc.
-	Jobs                map[string]any       // custom job configurations with dependencies
-	Cache               string               // cache configuration
-	NeedsTextOutput     bool                 // whether the workflow uses ${{ needs.task.outputs.text }}
-	NetworkPermissions  *NetworkPermissions  // parsed network permissions
-	SafeOutputs         *SafeOutputsConfig   // output configuration for automatic output routes
-	Roles               []string             // permission levels required to trigger workflow
-	CacheMemoryConfig   *CacheMemoryConfig   // parsed cache-memory configuration
-	SafetyPrompt        bool                 // whether to include XPIA safety prompt (default true)
-	Runtimes            map[string]any       // runtime version overrides from frontmatter
-	ToolsTimeout        int                  // timeout in seconds for tool/MCP operations (0 = use engine default)
-	GitHubToken         string               // top-level github-token expression from frontmatter
-	ToolsStartupTimeout int                  // timeout in seconds for MCP server startup (0 = use engine default)
-	Features            map[string]bool      // feature flags from frontmatter
-	ActionCache         *ActionCache         // cache for action pin resolutions
-	ActionResolver      *ActionResolver      // resolver for action pins
-	StrictMode          bool                 // strict mode for action pinning
-	SecretMasking       *SecretMaskingConfig // secret masking configuration
+	ManualApproval      string                 // environment name for manual approval from on: section
+	Command             string                 // for /command trigger support
+	CommandEvents       []string               // events where command should be active (nil = all events)
+	CommandOtherEvents  map[string]any         // for merging command with other events
+	AIReaction          string                 // AI reaction type like "eyes", "heart", etc.
+	Jobs                map[string]any         // custom job configurations with dependencies
+	Cache               string                 // cache configuration
+	NeedsTextOutput     bool                   // whether the workflow uses ${{ needs.task.outputs.text }}
+	NetworkPermissions  *NetworkPermissions    // parsed network permissions
+	SafeOutputs         *SafeOutputsConfig     // output configuration for automatic output routes
+	Roles               []string               // permission levels required to trigger workflow
+	CacheMemoryConfig   *CacheMemoryConfig     // parsed cache-memory configuration
+	SafetyPrompt        bool                   // whether to include XPIA safety prompt (default true)
+	Runtimes            map[string]any         // runtime version overrides from frontmatter
+	ToolsTimeout        int                    // timeout in seconds for tool/MCP operations (0 = use engine default)
+	GitHubToken         string                 // top-level github-token expression from frontmatter
+	ToolsStartupTimeout int                    // timeout in seconds for MCP server startup (0 = use engine default)
+	Features            map[string]bool        // feature flags from frontmatter
+	ActionCache         *ActionCache           // cache for action pin resolutions
+	ActionResolver      *ActionResolver        // resolver for action pins
+	StrictMode          bool                   // strict mode for action pinning
+	SecretMasking       *SecretMaskingConfig   // secret masking configuration
+	CampaignProject     *CampaignProjectConfig // campaign project board configuration
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
@@ -767,6 +768,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract SafeOutputs configuration early so we can use it when applying default tools
 	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
 
+	// Extract Campaign Project configuration
+	var campaignProject *CampaignProjectConfig
+	if campaign, exists := result.Frontmatter["campaign"]; exists {
+		if campaignMap, ok := campaign.(map[string]any); ok {
+			campaignProject = c.parseCampaignProjectConfig(campaignMap)
+		}
+	}
+
 	// Extract SecretMasking configuration
 	secretMasking := c.extractSecretMaskingConfig(result.Frontmatter)
 
@@ -950,6 +959,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		GitHubToken:         extractStringValue(result.Frontmatter, "github-token"),
 		StrictMode:          c.strictMode,
 		SecretMasking:       secretMasking,
+		CampaignProject:     campaignProject,
 	}
 
 	// Initialize action cache and resolver

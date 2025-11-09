@@ -3073,6 +3073,94 @@
     "github-token": {
       "$ref": "#/$defs/github_token",
       "description": "GitHub token expression to use for all steps that require GitHub authentication. Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}. If not specified, defaults to ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}. This value can be overridden by safe-outputs github-token or individual safe-output github-token fields."
+    },
+    "campaign": {
+      "type": "object",
+      "description": "Campaign configuration for coordinating multiple AI agents across workflow runs with project board tracking",
+      "properties": {
+        "project": {
+          "type": "object",
+          "description": "GitHub Projects (v2) configuration for campaign tracking",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Project board name (supports GitHub expressions like ${{ github.run_id }})"
+            },
+            "view": {
+              "type": "string",
+              "enum": ["board", "table", "roadmap"],
+              "description": "Default project view type"
+            },
+            "status-field": {
+              "type": "string",
+              "description": "Name of the status field in the project"
+            },
+            "agent-field": {
+              "type": "string",
+              "description": "Name of the field to track agent information"
+            },
+            "fields": {
+              "type": "object",
+              "description": "Standard field values to set on project items",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "custom-fields": {
+              "type": "array",
+              "description": "Custom fields to create in the project",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Field name"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["text", "number", "date", "single_select", "iteration"],
+                    "description": "Field type"
+                  },
+                  "options": {
+                    "type": "array",
+                    "description": "Options for single_select fields",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "value": {
+                    "description": "Default value for this field",
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Field description"
+                  }
+                },
+                "required": ["name", "type"],
+                "additionalProperties": false
+              }
+            },
+            "insights": {
+              "type": "array",
+              "description": "Insights to enable for campaign analytics",
+              "items": {
+                "type": "string",
+                "enum": ["agent-velocity", "campaign-progress"]
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false,

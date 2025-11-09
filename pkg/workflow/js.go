@@ -118,6 +118,9 @@ var uploadAssetsScriptSource string
 //go:embed js/parse_firewall_logs.cjs
 var parseFirewallLogsScriptSource string
 
+//go:embed js/campaign_project.cjs
+var campaignProjectScriptSource string
+
 // Bundled scripts (lazily bundled on-demand and cached)
 var (
 	collectJSONLOutputScript     string
@@ -149,6 +152,9 @@ var (
 
 	addCommentScript     string
 	addCommentScriptOnce sync.Once
+
+	campaignProjectScript     string
+	campaignProjectScriptOnce sync.Once
 
 	uploadAssetsScript     string
 	uploadAssetsScriptOnce sync.Once
@@ -788,4 +794,20 @@ func GetLogParserScript(name string) string {
 // GetSafeOutputsMCPServerScript returns the JavaScript content for the GitHub Agentic Workflows Safe Outputs MCP server
 func GetSafeOutputsMCPServerScript() string {
 	return safeOutputsMCPServerScript
+}
+
+// getCampaignProjectScript returns the bundled campaign_project script
+// Bundling is performed on first access and cached for subsequent calls
+func getCampaignProjectScript() string {
+	campaignProjectScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(campaignProjectScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			campaignProjectScript = campaignProjectScriptSource
+		} else {
+			campaignProjectScript = bundled
+		}
+	})
+	return campaignProjectScript
 }
