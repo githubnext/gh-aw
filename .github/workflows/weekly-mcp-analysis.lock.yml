@@ -42,7 +42,7 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Weekly Master Control Program Analysis"
+name: "Weekly MCP Registry Insights"
 "on":
   schedule:
   - cron: "0 14 * * 1"
@@ -56,7 +56,7 @@ permissions:
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Weekly Master Control Program Analysis"
+run-name: "Weekly MCP Registry Insights"
 
 jobs:
   activation:
@@ -1679,7 +1679,7 @@ jobs:
           data = pd.read_csv('/tmp/gh-aw/python/data/sample_data.csv')
           ```
           
-          # Weekly Master Control Program Analysis
+          # Weekly MCP Registry Insights
           
           You are analyzing the **master-control-program** repository (https://github.com/gokhanarkan/master-control-program) - an intelligent MCP meta-server that discovers and analyzes tools from 1000+ Model Context Protocol servers.
           
@@ -2160,7 +2160,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "0.0.354",
-              workflow_name: "Weekly Master Control Program Analysis",
+              workflow_name: "Weekly MCP Registry Insights",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -4156,16 +4156,16 @@ jobs:
           SQUID_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
           if [ -n "$SQUID_LOGS_DIR" ] && [ -d "$SQUID_LOGS_DIR" ]; then
             echo "Found Squid logs at: $SQUID_LOGS_DIR"
-            mkdir -p /tmp/gh-aw/squid-logs-weekly-master-control-program-analysis/
-            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-weekly-master-control-program-analysis/ || true
-            sudo chmod -R a+r /tmp/gh-aw/squid-logs-weekly-master-control-program-analysis/ || true
+            mkdir -p /tmp/gh-aw/squid-logs-weekly-mcp-registry-insights/
+            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-weekly-mcp-registry-insights/ || true
+            sudo chmod -R a+r /tmp/gh-aw/squid-logs-weekly-mcp-registry-insights/ || true
           fi
       - name: Upload Firewall Logs
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
-          name: squid-logs-weekly-master-control-program-analysis
-          path: /tmp/gh-aw/squid-logs-weekly-master-control-program-analysis/
+          name: squid-logs-weekly-mcp-registry-insights
+          path: /tmp/gh-aw/squid-logs-weekly-mcp-registry-insights/
           if-no-files-found: ignore
       - name: Parse firewall logs for step summary
         if: always()
@@ -4797,7 +4797,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Weekly Master Control Program Analysis"
+          GH_AW_WORKFLOW_NAME: "Weekly MCP Registry Insights"
           GH_AW_DISCUSSION_TITLE_PREFIX: "🎯 "
           GH_AW_DISCUSSION_CATEGORY: "General"
         with:
@@ -5060,7 +5060,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
-          WORKFLOW_NAME: "Weekly Master Control Program Analysis"
+          WORKFLOW_NAME: "Weekly MCP Registry Insights"
           WORKFLOW_DESCRIPTION: "No description provided"
         with:
           script: |

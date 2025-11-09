@@ -85,7 +85,7 @@ steps:
       echo "MCP server health check passed"
 ---
 
-# Weekly Master Control Program Analysis
+# Weekly MCP Registry Insights
 
 You are analyzing the **master-control-program** repository (https://github.com/gokhanarkan/master-control-program) - an intelligent MCP meta-server that discovers and analyzes tools from 1000+ Model Context Protocol servers.
 
