@@ -93,7 +93,7 @@ export default defineConfig({
 					],
 				},
 				{
-					label: 'Workflows',
+					label: 'Guides',
 					items: [
 						{ label: 'Creating Workflows', link: '/setup/agentic-authoring/' },
 						{ label: 'Packaging & Distribution', link: '/guides/packaging-imports/' },
