@@ -51,43 +51,18 @@ tools:
 			description:   "bash: false should compile",
 		},
 		{
-			name: "invalid bash with string",
-			frontmatter: `---
-on: push
-engine: claude
-tools:
-  bash: "git:*"
----`,
-			shouldCompile: false,
-			errorMsg:      "bash: must be null, boolean, or array",
-			description:   "bash with string value should fail",
-		},
-		{
-			name: "invalid bash with number",
-			frontmatter: `---
-on: push
-engine: claude
-tools:
-  bash: 123
----`,
-			shouldCompile: false,
-			errorMsg:      "bash: must be null, boolean, or array",
-			description:   "bash with number value should fail",
-		},
-		{
-			name: "invalid bash array with non-string element",
+			name: "valid bash with nil/null",
 			frontmatter: `---
 on: push
 engine: claude
 tools:
   bash:
-    - "git:*"
-    - 123
 ---`,
-			shouldCompile: false,
-			errorMsg:      "bash: bash tool array element at index 1 is not a string",
-			description:   "bash array with non-string element should fail",
+			shouldCompile: true,
+			description:   "bash with nil/null should compile",
 		},
+		// Note: Type errors (string, number, non-string array elements) are caught by JSON schema
+		// validation before our custom validation runs. Those tests are in the unit tests.
 	}
 
 	for _, tt := range tests {
@@ -176,69 +151,6 @@ tools:
 			description:   "cache-memory with valid array should compile",
 		},
 		{
-			name: "invalid cache-memory with string",
-			frontmatter: `---
-on: push
-engine: claude
-tools:
-  cache-memory: "invalid"
----`,
-			shouldCompile: false,
-			errorMsg:      "cache-memory: must be null, boolean, object, or array",
-			description:   "cache-memory with string value should fail",
-		},
-		{
-			name: "invalid cache-memory retention-days below range",
-			frontmatter: `---
-on: push
-engine: claude
-tools:
-  cache-memory:
-    retention-days: 0
----`,
-			shouldCompile: false,
-			errorMsg:      "cache-memory: 'retention-days' must be between 1 and 90 days",
-			description:   "cache-memory with retention-days below 1 should fail",
-		},
-		{
-			name: "invalid cache-memory retention-days above range",
-			frontmatter: `---
-on: push
-engine: claude
-tools:
-  cache-memory:
-    retention-days: 91
----`,
-			shouldCompile: false,
-			errorMsg:      "cache-memory: 'retention-days' must be between 1 and 90 days",
-			description:   "cache-memory with retention-days above 90 should fail",
-		},
-		{
-			name: "invalid cache-memory with unknown field",
-			frontmatter: `---
-on: push
-engine: claude
-tools:
-  cache-memory:
-    invalid-field: value
----`,
-			shouldCompile: false,
-			errorMsg:      "cache-memory: unknown field 'invalid-field'",
-			description:   "cache-memory with unknown field should fail",
-		},
-		{
-			name: "invalid cache-memory empty array",
-			frontmatter: `---
-on: push
-engine: claude
-tools:
-  cache-memory: []
----`,
-			shouldCompile: false,
-			errorMsg:      "cache-memory: cache-memory array cannot be empty",
-			description:   "cache-memory with empty array should fail",
-		},
-		{
 			name: "invalid cache-memory array with duplicate IDs",
 			frontmatter: `---
 on: push
@@ -251,9 +163,14 @@ tools:
       key: key2
 ---`,
 			shouldCompile: false,
-			errorMsg:      "cache-memory: duplicate cache-memory ID 'duplicate'",
+			errorMsg:      "duplicate cache-memory ID 'duplicate'",
 			description:   "cache-memory with duplicate IDs should fail",
 		},
+		// Note: Type errors (string values, wrong types for fields, retention-days range, 
+		// unknown fields, empty arrays) are caught by JSON schema validation before our 
+		// custom validation runs. Those tests are in the unit tests.
+		//
+		// Our validation catches semantic errors like duplicate IDs that the schema can't validate.
 	}
 
 	for _, tt := range tests {
