@@ -845,7 +845,7 @@ post-steps: []
   # Array items: undefined
 
 # AI engine configuration that specifies which AI processor interprets and
-# executes the markdown content of the workflow. Defaults to 'claude'.
+# executes the markdown content of the workflow. Defaults to 'copilot'.
 # (optional)
 # This field supports multiple formats (oneOf):
 
