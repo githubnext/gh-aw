@@ -21,9 +21,18 @@ async function updateActivationComment(github, context, core, pullRequestUrl, pu
 
   core.info(`Updating activation comment ${commentId} with PR link`);
 
-  // Parse comment repo (format: "owner/repo")
-  const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
-  const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
+  // Parse comment repo (format: "owner/repo") with validation
+  let repoOwner = context.repo.owner;
+  let repoName = context.repo.repo;
+  if (commentRepo) {
+    const parts = commentRepo.split("/");
+    if (parts.length === 2) {
+      repoOwner = parts[0];
+      repoName = parts[1];
+    } else {
+      core.warning(`Invalid comment repo format: ${commentRepo}, expected "owner/repo". Falling back to context.repo.`);
+    }
+  }
 
   core.info(`Updating comment in ${repoOwner}/${repoName}`);
 
