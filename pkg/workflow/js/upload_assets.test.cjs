@@ -96,11 +96,11 @@ describe("upload_assets.cjs", () => {
       const fileContent = fs.readFileSync(assetPath);
       const actualSha = crypto.createHash("sha256").update(fileContent).digest("hex");
 
-      // Set up agent output with a valid upload-asset item
+      // Set up agent output with a valid upload-assets item
       const agentOutput = {
         items: [
           {
-            type: "upload_asset",
+            type: "upload_assets",
             fileName: "test.png",
             sha: actualSha,
             size: fileContent.length,

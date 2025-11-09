@@ -19,7 +19,7 @@ describe("Safe Output Type Validation", () => {
     "create_pr_review_comment.cjs": "create_pull_request_review_comment",
     "add_labels.cjs": "add_labels",
     "create_code_scanning_alert.cjs": "create_code_scanning_alert",
-    "upload_assets.cjs": "upload_asset",
+    "upload_assets.cjs": "upload_assets",
     "create_discussion.cjs": "create_discussion",
     "push_to_pull_request_branch.cjs": "push_to_pull_request_branch",
     "create_pull_request.cjs": "create_pull_request",
@@ -95,7 +95,7 @@ describe("Safe Output Type Validation", () => {
       "add_labels",
       "update_issue",
       "push_to_pull_request_branch",
-      "upload_asset",
+      "upload_assets",
     ];
 
     toolNames.forEach(toolName => {

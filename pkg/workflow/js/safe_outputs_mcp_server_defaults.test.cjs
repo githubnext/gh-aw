@@ -877,11 +877,11 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
   });
 });
 
-// Test that upload_asset tool description is patched with constraints from environment
-describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
-  it("should patch upload_asset tool description with max size and allowed extensions", async () => {
+// Test that upload_assets tool description is patched with constraints from environment
+describe("safe_outputs_mcp_server.cjs upload_assets tool patching", () => {
+  it("should patch upload_assets tool description with max size and allowed extensions", async () => {
     const config = {
-      upload_asset: {},
+      upload_assets: {},
     };
 
     // Write config to temporary file
@@ -968,26 +968,26 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
         expect(listResponse.result).toBeDefined();
         expect(listResponse.result.tools).toBeDefined();
 
-        // Find the upload_asset tool
-        const uploadAssetTool = listResponse.result.tools.find(t => t.name === "upload_asset");
-        expect(uploadAssetTool).toBeDefined();
+        // Find the upload_assets tool
+        const uploadAssetsTool = listResponse.result.tools.find(t => t.name === "upload_assets");
+        expect(uploadAssetsTool).toBeDefined();
 
         // Check that the description includes the constraints
-        expect(uploadAssetTool.description).toContain("5120 KB");
-        expect(uploadAssetTool.description).toContain(".pdf");
-        expect(uploadAssetTool.description).toContain(".txt");
-        expect(uploadAssetTool.description).toContain(".md");
-        expect(uploadAssetTool.description).toContain("Maximum file size:");
-        expect(uploadAssetTool.description).toContain("Allowed extensions:");
+        expect(uploadAssetsTool.description).toContain("5120 KB");
+        expect(uploadAssetsTool.description).toContain(".pdf");
+        expect(uploadAssetsTool.description).toContain(".txt");
+        expect(uploadAssetsTool.description).toContain(".md");
+        expect(uploadAssetsTool.description).toContain("Maximum file size:");
+        expect(uploadAssetsTool.description).toContain("Allowed extensions:");
 
         resolve();
       }, 500);
     });
   });
 
-  it("should patch upload_asset tool description with defaults when env vars not set", async () => {
+  it("should patch upload_assets tool description with defaults when env vars not set", async () => {
     const config = {
-      upload_asset: {},
+      upload_assets: {},
     };
 
     // Write config to temporary file
@@ -1077,17 +1077,17 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
         expect(listResponse.result).toBeDefined();
         expect(listResponse.result.tools).toBeDefined();
 
-        // Find the upload_asset tool
-        const uploadAssetTool = listResponse.result.tools.find(t => t.name === "upload_asset");
-        expect(uploadAssetTool).toBeDefined();
+        // Find the upload_assets tool
+        const uploadAssetsTool = listResponse.result.tools.find(t => t.name === "upload_assets");
+        expect(uploadAssetsTool).toBeDefined();
 
         // Check that the description includes the default constraints
-        expect(uploadAssetTool.description).toContain("10240 KB");
-        expect(uploadAssetTool.description).toContain(".png");
-        expect(uploadAssetTool.description).toContain(".jpg");
-        expect(uploadAssetTool.description).toContain(".jpeg");
-        expect(uploadAssetTool.description).toContain("Maximum file size:");
-        expect(uploadAssetTool.description).toContain("Allowed extensions:");
+        expect(uploadAssetsTool.description).toContain("10240 KB");
+        expect(uploadAssetsTool.description).toContain(".png");
+        expect(uploadAssetsTool.description).toContain(".jpg");
+        expect(uploadAssetsTool.description).toContain(".jpeg");
+        expect(uploadAssetsTool.description).toContain("Maximum file size:");
+        expect(uploadAssetsTool.description).toContain("Allowed extensions:");
 
         resolve();
       }, 500);

@@ -806,6 +806,32 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            async function processAgentOutput(options) {
+              const { itemType, stagedPreview, useWarningForEmpty = false, findOne = false } = options;
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return { success: false };
+              }
+              let filteredItems;
+              if (findOne) {
+                const item = result.items.find(item => item.type === itemType);
+                filteredItems = item ? [item] : [];
+              } else {
+                filteredItems = result.items.filter(item => item.type === itemType);
+              }
+              if (filteredItems.length === 0) {
+                const readableType = itemType.replace(/_/g, "-");
+                const message = `No ${readableType} items found in agent output`;
+                if (useWarningForEmpty) {
+                  core.warning(message);
+                } else {
+                  core.info(message);
+                }
+                return { success: false };
+              }
+              core.info(`Found ${filteredItems.length} ${itemType} item(s)`);
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              if (isStaged && stagedPreview) {
             async function generateStagedPreview(options) {
               const { title, description, items, renderItem } = options;
               let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
@@ -823,22 +849,24 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
-            async function main() {
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const labelsItem = result.items.find(item => item.type === "add_labels");
-              if (!labelsItem) {
-                core.warning("No add-labels item found in agent output");
-                return;
-              }
-              core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
-              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
                 await generateStagedPreview({
+                  title: stagedPreview.title,
+                  description: stagedPreview.description,
+                  items: filteredItems,
+                  renderItem: stagedPreview.renderItem,
+                });
+                return { success: true, items: filteredItems, isStaged: true };
+              }
+              return { success: true, items: filteredItems, isStaged: false };
+            }
+            async function main() {
+              const result = await processAgentOutput({
+                itemType: "add_labels",
+                useWarningForEmpty: true,
+                findOne: true,
+                stagedPreview: {
                   title: "Add Labels",
                   description: "The following labels would be added if staged mode was disabled:",
-                  items: [labelsItem],
                   renderItem: item => {
                     let content = "";
                     if (item.item_number) {
@@ -851,9 +879,13 @@ jobs:
                     }
                     return content;
                   },
-                });
+                },
+              });
+              if (!result.success || result.isStaged) {
                 return;
               }
+              const labelsItem = result.items[0];
+              core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
               const allowedLabelsEnv = process.env.GH_AW_LABELS_ALLOWED?.trim();
               const allowedLabels = allowedLabelsEnv
                 ? allowedLabelsEnv

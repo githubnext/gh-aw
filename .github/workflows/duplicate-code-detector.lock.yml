@@ -3252,6 +3252,32 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            async function processAgentOutput(options) {
+              const { itemType, stagedPreview, useWarningForEmpty = false, findOne = false } = options;
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return { success: false };
+              }
+              let filteredItems;
+              if (findOne) {
+                const item = result.items.find(item => item.type === itemType);
+                filteredItems = item ? [item] : [];
+              } else {
+                filteredItems = result.items.filter(item => item.type === itemType);
+              }
+              if (filteredItems.length === 0) {
+                const readableType = itemType.replace(/_/g, "-");
+                const message = `No ${readableType} items found in agent output`;
+                if (useWarningForEmpty) {
+                  core.warning(message);
+                } else {
+                  core.info(message);
+                }
+                return { success: false };
+              }
+              core.info(`Found ${filteredItems.length} ${itemType} item(s)`);
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              if (isStaged && stagedPreview) {
             async function generateStagedPreview(options) {
               const { title, description, items, renderItem } = options;
               let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
@@ -3268,6 +3294,16 @@ jobs:
               } catch (error) {
                 core.setFailed(error instanceof Error ? error : String(error));
               }
+            }
+                await generateStagedPreview({
+                  title: stagedPreview.title,
+                  description: stagedPreview.description,
+                  items: filteredItems,
+                  renderItem: stagedPreview.renderItem,
+                });
+                return { success: true, items: filteredItems, isStaged: true };
+              }
+              return { success: true, items: filteredItems, isStaged: false };
             }
             function generateFooter(
               workflowName,
@@ -3295,22 +3331,11 @@ jobs:
             async function main() {
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const createIssueItems = result.items.filter(item => item.type === "create_issue");
-              if (createIssueItems.length === 0) {
-                core.info("No create-issue items found in agent output");
-                return;
-              }
-              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-              if (isStaged) {
-                await generateStagedPreview({
+              const result = await processAgentOutput({
+                itemType: "create_issue",
+                stagedPreview: {
                   title: "Create Issues",
                   description: "The following issues would be created if staged mode was disabled:",
-                  items: createIssueItems,
                   renderItem: (item, index) => {
                     let content = `### Issue ${index + 1}\n`;
                     content += `**Title:** ${item.title || "No title provided"}\n\n`;
@@ -3322,9 +3347,12 @@ jobs:
                     }
                     return content;
                   },
-                });
+                },
+              });
+              if (!result.success || result.isStaged) {
                 return;
               }
+              const createIssueItems = result.items;
               const parentIssueNumber = context.payload?.issue?.number;
               const triggeringIssueNumber =
                 context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
@@ -3505,9 +3533,7 @@ jobs:
               }
               core.info(`Successfully created ${createdIssues.length} issue(s)`);
             }
-            (async () => {
-              await main();
-            })();
+            await main();
       - name: Checkout repository for gh CLI
         if: steps.create_issue.outputs.issue_number != ''
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8

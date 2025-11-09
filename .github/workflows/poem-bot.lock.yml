@@ -850,6 +850,59 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            async function processAgentOutput(options) {
+              const { itemType, stagedPreview, useWarningForEmpty = false, findOne = false } = options;
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return { success: false };
+              }
+              let filteredItems;
+              if (findOne) {
+                const item = result.items.find(item => item.type === itemType);
+                filteredItems = item ? [item] : [];
+              } else {
+                filteredItems = result.items.filter(item => item.type === itemType);
+              }
+              if (filteredItems.length === 0) {
+                const readableType = itemType.replace(/_/g, "-");
+                const message = `No ${readableType} items found in agent output`;
+                if (useWarningForEmpty) {
+                  core.warning(message);
+                } else {
+                  core.info(message);
+                }
+                return { success: false };
+              }
+              core.info(`Found ${filteredItems.length} ${itemType} item(s)`);
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              if (isStaged && stagedPreview) {
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+                await generateStagedPreview({
+                  title: stagedPreview.title,
+                  description: stagedPreview.description,
+                  items: filteredItems,
+                  renderItem: stagedPreview.renderItem,
+                });
+                return { success: true, items: filteredItems, isStaged: true };
+              }
+              return { success: true, items: filteredItems, isStaged: false };
+            }
             function generateFooter(
               workflowName,
               runUrl,
@@ -1256,6 +1309,32 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            async function processAgentOutput(options) {
+              const { itemType, stagedPreview, useWarningForEmpty = false, findOne = false } = options;
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return { success: false };
+              }
+              let filteredItems;
+              if (findOne) {
+                const item = result.items.find(item => item.type === itemType);
+                filteredItems = item ? [item] : [];
+              } else {
+                filteredItems = result.items.filter(item => item.type === itemType);
+              }
+              if (filteredItems.length === 0) {
+                const readableType = itemType.replace(/_/g, "-");
+                const message = `No ${readableType} items found in agent output`;
+                if (useWarningForEmpty) {
+                  core.warning(message);
+                } else {
+                  core.info(message);
+                }
+                return { success: false };
+              }
+              core.info(`Found ${filteredItems.length} ${itemType} item(s)`);
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              if (isStaged && stagedPreview) {
             async function generateStagedPreview(options) {
               const { title, description, items, renderItem } = options;
               let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
@@ -1273,22 +1352,24 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
-            async function main() {
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const labelsItem = result.items.find(item => item.type === "add_labels");
-              if (!labelsItem) {
-                core.warning("No add-labels item found in agent output");
-                return;
-              }
-              core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
-              if (process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true") {
                 await generateStagedPreview({
+                  title: stagedPreview.title,
+                  description: stagedPreview.description,
+                  items: filteredItems,
+                  renderItem: stagedPreview.renderItem,
+                });
+                return { success: true, items: filteredItems, isStaged: true };
+              }
+              return { success: true, items: filteredItems, isStaged: false };
+            }
+            async function main() {
+              const result = await processAgentOutput({
+                itemType: "add_labels",
+                useWarningForEmpty: true,
+                findOne: true,
+                stagedPreview: {
                   title: "Add Labels",
                   description: "The following labels would be added if staged mode was disabled:",
-                  items: [labelsItem],
                   renderItem: item => {
                     let content = "";
                     if (item.item_number) {
@@ -1301,9 +1382,13 @@ jobs:
                     }
                     return content;
                   },
-                });
+                },
+              });
+              if (!result.success || result.isStaged) {
                 return;
               }
+              const labelsItem = result.items[0];
+              core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
               const allowedLabelsEnv = process.env.GH_AW_LABELS_ALLOWED?.trim();
               const allowedLabels = allowedLabelsEnv
                 ? allowedLabelsEnv
@@ -5245,6 +5330,32 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            async function processAgentOutput(options) {
+              const { itemType, stagedPreview, useWarningForEmpty = false, findOne = false } = options;
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return { success: false };
+              }
+              let filteredItems;
+              if (findOne) {
+                const item = result.items.find(item => item.type === itemType);
+                filteredItems = item ? [item] : [];
+              } else {
+                filteredItems = result.items.filter(item => item.type === itemType);
+              }
+              if (filteredItems.length === 0) {
+                const readableType = itemType.replace(/_/g, "-");
+                const message = `No ${readableType} items found in agent output`;
+                if (useWarningForEmpty) {
+                  core.warning(message);
+                } else {
+                  core.info(message);
+                }
+                return { success: false };
+              }
+              core.info(`Found ${filteredItems.length} ${itemType} item(s)`);
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              if (isStaged && stagedPreview) {
             async function generateStagedPreview(options) {
               const { title, description, items, renderItem } = options;
               let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
@@ -5261,6 +5372,16 @@ jobs:
               } catch (error) {
                 core.setFailed(error instanceof Error ? error : String(error));
               }
+            }
+                await generateStagedPreview({
+                  title: stagedPreview.title,
+                  description: stagedPreview.description,
+                  items: filteredItems,
+                  renderItem: stagedPreview.renderItem,
+                });
+                return { success: true, items: filteredItems, isStaged: true };
+              }
+              return { success: true, items: filteredItems, isStaged: false };
             }
             function generateFooter(
               workflowName,
@@ -5288,22 +5409,11 @@ jobs:
             async function main() {
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const createIssueItems = result.items.filter(item => item.type === "create_issue");
-              if (createIssueItems.length === 0) {
-                core.info("No create-issue items found in agent output");
-                return;
-              }
-              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-              if (isStaged) {
-                await generateStagedPreview({
+              const result = await processAgentOutput({
+                itemType: "create_issue",
+                stagedPreview: {
                   title: "Create Issues",
                   description: "The following issues would be created if staged mode was disabled:",
-                  items: createIssueItems,
                   renderItem: (item, index) => {
                     let content = `### Issue ${index + 1}\n`;
                     content += `**Title:** ${item.title || "No title provided"}\n\n`;
@@ -5315,9 +5425,12 @@ jobs:
                     }
                     return content;
                   },
-                });
+                },
+              });
+              if (!result.success || result.isStaged) {
                 return;
               }
+              const createIssueItems = result.items;
               const parentIssueNumber = context.payload?.issue?.number;
               const triggeringIssueNumber =
                 context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
@@ -5498,9 +5611,7 @@ jobs:
               }
               core.info(`Successfully created ${createdIssues.length} issue(s)`);
             }
-            (async () => {
-              await main();
-            })();
+            await main();
 
   create_pr_review_comment:
     needs:
@@ -5574,6 +5685,32 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            async function processAgentOutput(options) {
+              const { itemType, stagedPreview, useWarningForEmpty = false, findOne = false } = options;
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return { success: false };
+              }
+              let filteredItems;
+              if (findOne) {
+                const item = result.items.find(item => item.type === itemType);
+                filteredItems = item ? [item] : [];
+              } else {
+                filteredItems = result.items.filter(item => item.type === itemType);
+              }
+              if (filteredItems.length === 0) {
+                const readableType = itemType.replace(/_/g, "-");
+                const message = `No ${readableType} items found in agent output`;
+                if (useWarningForEmpty) {
+                  core.warning(message);
+                } else {
+                  core.info(message);
+                }
+                return { success: false };
+              }
+              core.info(`Found ${filteredItems.length} ${itemType} item(s)`);
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              if (isStaged && stagedPreview) {
             async function generateStagedPreview(options) {
               const { title, description, items, renderItem } = options;
               let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
@@ -5590,6 +5727,16 @@ jobs:
               } catch (error) {
                 core.setFailed(error instanceof Error ? error : String(error));
               }
+            }
+                await generateStagedPreview({
+                  title: stagedPreview.title,
+                  description: stagedPreview.description,
+                  items: filteredItems,
+                  renderItem: stagedPreview.renderItem,
+                });
+                return { success: true, items: filteredItems, isStaged: true };
+              }
+              return { success: true, items: filteredItems, isStaged: false };
             }
             function generateFooter(
               workflowName,
@@ -5628,21 +5775,11 @@ jobs:
                   return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
                 }
               }
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const reviewCommentItems = result.items.filter( item => item.type === "create_pull_request_review_comment");
-              if (reviewCommentItems.length === 0) {
-                core.info("No create-pull-request-review-comment items found in agent output");
-                return;
-              }
-              core.info(`Found ${reviewCommentItems.length} create-pull-request-review-comment item(s)`);
-              if (isStaged) {
-                await generateStagedPreview({
+              const result = await processAgentOutput({
+                itemType: "create_pull_request_review_comment",
+                stagedPreview: {
                   title: "Create PR Review Comments",
                   description: "The following review comments would be created if staged mode was disabled:",
-                  items: reviewCommentItems,
                   renderItem: (item, index) => {
                     let content = `### Review Comment ${index + 1}\n`;
                     if (item.pull_request_number) {
@@ -5661,9 +5798,12 @@ jobs:
                     content += `**Body:**\n${item.body || "No content provided"}\n\n`;
                     return content;
                   },
-                });
+                },
+              });
+              if (!result.success || result.isStaged) {
                 return;
               }
+              const reviewCommentItems = result.items;
               const defaultSide = process.env.GH_AW_PR_REVIEW_COMMENT_SIDE || "RIGHT";
               core.info(`Default comment side configuration: ${defaultSide}`);
               const commentTarget = process.env.GH_AW_PR_REVIEW_COMMENT_TARGET || "triggering";
@@ -7316,6 +7456,32 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            async function processAgentOutput(options) {
+              const { itemType, stagedPreview, useWarningForEmpty = false, findOne = false } = options;
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return { success: false };
+              }
+              let filteredItems;
+              if (findOne) {
+                const item = result.items.find(item => item.type === itemType);
+                filteredItems = item ? [item] : [];
+              } else {
+                filteredItems = result.items.filter(item => item.type === itemType);
+              }
+              if (filteredItems.length === 0) {
+                const readableType = itemType.replace(/_/g, "-");
+                const message = `No ${readableType} items found in agent output`;
+                if (useWarningForEmpty) {
+                  core.warning(message);
+                } else {
+                  core.info(message);
+                }
+                return { success: false };
+              }
+              core.info(`Found ${filteredItems.length} ${itemType} item(s)`);
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              if (isStaged && stagedPreview) {
             async function generateStagedPreview(options) {
               const { title, description, items, renderItem } = options;
               let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
@@ -7333,23 +7499,22 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
-            async function main() {
-              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-              const result = loadAgentOutput();
-              if (!result.success) {
-                return;
-              }
-              const updateItems = result.items.filter( item => item.type === "update_issue");
-              if (updateItems.length === 0) {
-                core.info("No update-issue items found in agent output");
-                return;
-              }
-              core.info(`Found ${updateItems.length} update-issue item(s)`);
-              if (isStaged) {
                 await generateStagedPreview({
+                  title: stagedPreview.title,
+                  description: stagedPreview.description,
+                  items: filteredItems,
+                  renderItem: stagedPreview.renderItem,
+                });
+                return { success: true, items: filteredItems, isStaged: true };
+              }
+              return { success: true, items: filteredItems, isStaged: false };
+            }
+            async function main() {
+              const result = await processAgentOutput({
+                itemType: "update_issue",
+                stagedPreview: {
                   title: "Update Issues",
                   description: "The following issue updates would be applied if staged mode was disabled:",
-                  items: updateItems,
                   renderItem: (item, index) => {
                     let content = `### Issue Update ${index + 1}\n`;
                     if (item.issue_number) {
@@ -7368,9 +7533,12 @@ jobs:
                     }
                     return content;
                   },
-                });
+                },
+              });
+              if (!result.success || result.isStaged) {
                 return;
               }
+              const updateItems = result.items;
               const updateTarget = process.env.GH_AW_UPDATE_TARGET || "triggering";
               const canUpdateStatus = process.env.GH_AW_UPDATE_STATUS === "true";
               const canUpdateTitle = process.env.GH_AW_UPDATE_TITLE === "true";
@@ -7725,6 +7893,59 @@ jobs:
                 return { success: false };
               }
               return { success: true, items: validatedOutput.items };
+            }
+            async function processAgentOutput(options) {
+              const { itemType, stagedPreview, useWarningForEmpty = false, findOne = false } = options;
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return { success: false };
+              }
+              let filteredItems;
+              if (findOne) {
+                const item = result.items.find(item => item.type === itemType);
+                filteredItems = item ? [item] : [];
+              } else {
+                filteredItems = result.items.filter(item => item.type === itemType);
+              }
+              if (filteredItems.length === 0) {
+                const readableType = itemType.replace(/_/g, "-");
+                const message = `No ${readableType} items found in agent output`;
+                if (useWarningForEmpty) {
+                  core.warning(message);
+                } else {
+                  core.info(message);
+                }
+                return { success: false };
+              }
+              core.info(`Found ${filteredItems.length} ${itemType} item(s)`);
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              if (isStaged && stagedPreview) {
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+                await generateStagedPreview({
+                  title: stagedPreview.title,
+                  description: stagedPreview.description,
+                  items: filteredItems,
+                  renderItem: stagedPreview.renderItem,
+                });
+                return { success: true, items: filteredItems, isStaged: true };
+              }
+              return { success: true, items: filteredItems, isStaged: false };
             }
             function normalizeBranchName(branchName) {
               if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {

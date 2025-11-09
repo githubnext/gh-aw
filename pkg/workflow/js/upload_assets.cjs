@@ -4,7 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { loadAgentOutput } = require("./load_agent_output.cjs");
+const { processAgentOutput } = require("./load_agent_output.cjs");
 
 /**
  * Normalizes a branch name to be a valid git branch name.
@@ -55,9 +55,6 @@ function normalizeBranchName(branchName) {
 }
 
 async function main() {
-  // Check if we're in staged mode
-  const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
-
   // Get the branch name from environment variable (required)
   const branchName = process.env.GH_AW_ASSETS_BRANCH;
   if (!branchName || typeof branchName !== "string") {
@@ -69,29 +66,35 @@ async function main() {
   const normalizedBranchName = normalizeBranchName(branchName);
   core.info(`Using assets branch: ${normalizedBranchName}`);
 
-  const result = loadAgentOutput();
-  if (!result.success) {
+  // Process agent output with common boilerplate handling
+  const result = await processAgentOutput({
+    itemType: "upload_assets",
+    stagedPreview: {
+      title: "Upload Assets",
+      description: "The following assets would be uploaded if staged mode was disabled:",
+      renderItem: (item, index) => {
+        let content = `### Asset ${index + 1}\n`;
+        content += `**File:** ${item.fileName || "No file provided"}\n\n`;
+        content += `**Target:** ${item.targetFileName || "No target provided"}\n\n`;
+        if (item.size) {
+          content += `**Size:** ${item.size} bytes\n\n`;
+        }
+        if (item.sha) {
+          content += `**SHA256:** ${item.sha}\n\n`;
+        }
+        return content;
+      },
+    },
+  });
+
+  // Exit if processing failed or we're in staged mode
+  if (!result.success || result.isStaged) {
     core.setOutput("upload_count", "0");
     core.setOutput("branch_name", normalizedBranchName);
     return;
   }
 
-  // Find all upload-assets items
-  const uploadItems = result.items.filter(/** @param {any} item */ item => item.type === "upload_assets");
-
-  // Also check for legacy upload-asset items
-  const uploadAssetItems = result.items.filter(/** @param {any} item */ item => item.type === "upload_asset");
-
-  const allUploadItems = [...uploadItems, ...uploadAssetItems];
-
-  if (allUploadItems.length === 0) {
-    core.info("No upload-asset items found in agent output");
-    core.setOutput("upload_count", "0");
-    core.setOutput("branch_name", normalizedBranchName);
-    return;
-  }
-
-  core.info(`Found ${allUploadItems.length} upload-asset item(s)`);
+  const allUploadItems = result.items;
 
   let uploadCount = 0;
   let hasChanges = false;
@@ -111,7 +114,7 @@ async function main() {
     }
 
     // Process each asset
-    for (const asset of uploadAssetItems) {
+    for (const asset of allUploadItems) {
       try {
         const { fileName, sha, size, targetFileName } = asset;
 
@@ -157,22 +160,18 @@ async function main() {
       }
     }
 
-    // Commit and push if there are changes (skip if staged)
+    // Commit and push if there are changes
     if (hasChanges) {
       const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
       await exec.exec(`git`, [`commit`, `-m`, commitMessage]);
-      if (isStaged) {
-        core.summary.addRaw("## Staged Asset Publication");
-      } else {
-        await exec.exec(`git push origin ${normalizedBranchName}`);
-        core.summary
-          .addRaw("## Assets")
-          .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
-          .addRaw("");
-        core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
-      }
+      await exec.exec(`git push origin ${normalizedBranchName}`);
+      core.summary
+        .addRaw("## Assets")
+        .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
+        .addRaw("");
+      core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
 
-      for (const asset of uploadAssetItems) {
+      for (const asset of allUploadItems) {
         if (asset.fileName && asset.sha && asset.size && asset.url) {
           core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
         }

@@ -407,7 +407,7 @@ const uploadAssetHandler = args => {
 
   // Create entry for safe outputs
   const entry = {
-    type: "upload_asset",
+    type: "upload_assets",
     path: filePath,
     fileName: fileName,
     sha: sha,
@@ -763,7 +763,7 @@ const ALL_TOOLS = [
     handler: pushToPullRequestBranchHandler,
   },
   {
-    name: "upload_asset",
+    name: "upload_assets",
     description: "Publish a file as a URL-addressable asset to an orphaned git branch",
     inputSchema: {
       type: "object",
@@ -957,8 +957,8 @@ function handleMessage(req) {
           }
         }
 
-        // Patch upload_asset tool description with constraints from environment
-        if (tool.name === "upload_asset") {
+        // Patch upload_assets tool description with constraints from environment
+        if (tool.name === "upload_assets") {
           const maxSizeKB = process.env.GH_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GH_AW_ASSETS_MAX_SIZE_KB, 10) : 10240;
           const allowedExts = process.env.GH_AW_ASSETS_ALLOWED_EXTS
             ? process.env.GH_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())

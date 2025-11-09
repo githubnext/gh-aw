@@ -831,6 +831,59 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            async function processAgentOutput(options) {
+              const { itemType, stagedPreview, useWarningForEmpty = false, findOne = false } = options;
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return { success: false };
+              }
+              let filteredItems;
+              if (findOne) {
+                const item = result.items.find(item => item.type === itemType);
+                filteredItems = item ? [item] : [];
+              } else {
+                filteredItems = result.items.filter(item => item.type === itemType);
+              }
+              if (filteredItems.length === 0) {
+                const readableType = itemType.replace(/_/g, "-");
+                const message = `No ${readableType} items found in agent output`;
+                if (useWarningForEmpty) {
+                  core.warning(message);
+                } else {
+                  core.info(message);
+                }
+                return { success: false };
+              }
+              core.info(`Found ${filteredItems.length} ${itemType} item(s)`);
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              if (isStaged && stagedPreview) {
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+                await generateStagedPreview({
+                  title: stagedPreview.title,
+                  description: stagedPreview.description,
+                  items: filteredItems,
+                  renderItem: stagedPreview.renderItem,
+                });
+                return { success: true, items: filteredItems, isStaged: true };
+              }
+              return { success: true, items: filteredItems, isStaged: false };
+            }
             function generateFooter(
               workflowName,
               runUrl,
