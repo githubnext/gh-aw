@@ -39,7 +39,9 @@ func HasSafeJobsEnabled(safeJobs map[string]*SafeJobConfig) bool {
 	return len(safeJobs) > 0
 }
 
-// parseSafeJobsConfig parses the safe-jobs configuration from top-level frontmatter
+// parseSafeJobsConfig parses safe-jobs configuration from a frontmatter map.
+// This is an internal helper function that expects a map with a "safe-jobs" key.
+// User workflows should use "safe-outputs.jobs" syntax; the top-level "safe-jobs" key is NOT supported.
 func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*SafeJobConfig {
 	safeJobsSection, exists := frontmatter["safe-jobs"]
 	if !exists {
@@ -328,8 +330,8 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 	return nil
 }
 
-// extractSafeJobsFromFrontmatter extracts safe-jobs section from frontmatter map
-// Only checks the location under safe-outputs.jobs
+// extractSafeJobsFromFrontmatter extracts safe-jobs configuration from frontmatter.
+// Only checks the safe-outputs.jobs location. The old top-level "safe-jobs" syntax is NOT supported.
 func extractSafeJobsFromFrontmatter(frontmatter map[string]any) map[string]*SafeJobConfig {
 	// Check location: safe-outputs.jobs
 	if safeOutputs, exists := frontmatter["safe-outputs"]; exists {
