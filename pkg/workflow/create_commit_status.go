@@ -2,12 +2,14 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 )
 
 // CreateCommitStatusConfig holds configuration for creating commit statuses from agent output
 type CreateCommitStatusConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Context              string `yaml:"context,omitempty"` // Context string to differentiate status (default: workflow name)
+	Context              string   `yaml:"context,omitempty"`         // Context string to differentiate status (default: workflow name)
+	AllowedDomains       []string `yaml:"allowed-domains,omitempty"` // Allowed domains for target_url validation (defaults to network allowed domains)
 }
 
 // parseCommitStatusConfig handles create-commit-status configuration
@@ -28,6 +30,19 @@ func (c *Compiler) parseCommitStatusConfig(outputMap map[string]any) *CreateComm
 		if context, exists := configMap["context"]; exists {
 			if contextStr, ok := context.(string); ok {
 				commitStatusConfig.Context = contextStr
+			}
+		}
+
+		// Parse allowed-domains
+		if allowedDomains, exists := configMap["allowed-domains"]; exists {
+			if domainsArray, ok := allowedDomains.([]any); ok {
+				var domainStrings []string
+				for _, domain := range domainsArray {
+					if domainStr, ok := domain.(string); ok {
+						domainStrings = append(domainStrings, domainStr)
+					}
+				}
+				commitStatusConfig.AllowedDomains = domainStrings
 			}
 		}
 	}
@@ -55,6 +70,20 @@ func (c *Compiler) buildCreateCommitStatusJob(data *WorkflowData, mainJobName st
 		}
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMIT_STATUS_CONTEXT: %q\n", contextName))
+
+	// Add allowed domains for target_url validation
+	// Use manually configured domains if available, otherwise compute from network configuration
+	var domainsStr string
+	if len(data.SafeOutputs.CreateCommitStatus.AllowedDomains) > 0 {
+		// Use manually configured allowed domains
+		domainsStr = strings.Join(data.SafeOutputs.CreateCommitStatus.AllowedDomains, ",")
+	} else {
+		// Fall back to computing from network configuration (same as for sanitization)
+		domainsStr = c.computeAllowedDomainsForSanitization(data)
+	}
+	if domainsStr != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMIT_STATUS_ALLOWED_DOMAINS: %q\n", domainsStr))
+	}
 
 	// Add common safe output job environment variables (staged/target repo)
 	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(

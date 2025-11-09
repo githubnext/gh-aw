@@ -310,4 +310,82 @@ describe("create_commit_status.cjs", () => {
       })
     );
   });
+
+  it("should validate target_url against allowed domains", async () => {
+    process.env.GH_AW_COMMIT_STATUS_ALLOWED_DOMAINS = "example.com,trusted.org";
+
+    setAgentOutput({
+      items: [
+        {
+          type: "create_commit_status",
+          state: "success",
+          description: "Valid URL",
+          target_url: "https://example.com/status",
+        },
+      ],
+      errors: [],
+    });
+
+    mockGithub.rest.repos.createCommitStatus.mockResolvedValue({
+      data: { url: "https://api.github.com/status/6" },
+    });
+
+    await import("./create_commit_status.cjs");
+
+    expect(mockGithub.rest.repos.createCommitStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        target_url: "https://example.com/status",
+      })
+    );
+  });
+
+  it("should reject target_url with disallowed domain", async () => {
+    process.env.GH_AW_COMMIT_STATUS_ALLOWED_DOMAINS = "example.com";
+
+    setAgentOutput({
+      items: [
+        {
+          type: "create_commit_status",
+          state: "success",
+          description: "Invalid URL",
+          target_url: "https://untrusted.com/status",
+        },
+      ],
+      errors: [],
+    });
+
+    await import("./create_commit_status.cjs");
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith(
+      expect.stringContaining('Target URL domain "untrusted.com" is not in the allowed domains list')
+    );
+  });
+
+  it("should allow wildcard domain matching", async () => {
+    process.env.GH_AW_COMMIT_STATUS_ALLOWED_DOMAINS = "*.example.com";
+
+    setAgentOutput({
+      items: [
+        {
+          type: "create_commit_status",
+          state: "success",
+          description: "Subdomain URL",
+          target_url: "https://sub.example.com/status",
+        },
+      ],
+      errors: [],
+    });
+
+    mockGithub.rest.repos.createCommitStatus.mockResolvedValue({
+      data: { url: "https://api.github.com/status/7" },
+    });
+
+    await import("./create_commit_status.cjs");
+
+    expect(mockGithub.rest.repos.createCommitStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        target_url: "https://sub.example.com/status",
+      })
+    );
+  });
 });

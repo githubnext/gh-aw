@@ -114,6 +114,46 @@ async function main() {
       return;
     }
 
+    // Validate target_url against allowed domains if provided
+    if (item.target_url) {
+      const allowedDomains = process.env.GH_AW_COMMIT_STATUS_ALLOWED_DOMAINS;
+      if (allowedDomains) {
+        const domains = allowedDomains.split(",").map(d => d.trim());
+        let isAllowed = false;
+
+        try {
+          const url = new URL(item.target_url);
+          const hostname = url.hostname;
+
+          // Check if the hostname matches any allowed domain
+          for (const domain of domains) {
+            if (domain.startsWith("*.")) {
+              // Wildcard domain: *.example.com matches sub.example.com but not example.com
+              const domainSuffix = domain.slice(1); // Remove the *
+              if (hostname.endsWith(domainSuffix) && hostname !== domainSuffix.slice(1)) {
+                isAllowed = true;
+                break;
+              }
+            } else if (hostname === domain || hostname.endsWith("." + domain)) {
+              // Exact domain or subdomain match
+              isAllowed = true;
+              break;
+            }
+          }
+
+          if (!isAllowed) {
+            core.setFailed(
+              `Target URL domain "${hostname}" is not in the allowed domains list. Allowed domains: ${allowedDomains}`
+            );
+            return;
+          }
+        } catch (error) {
+          core.setFailed(`Invalid target_url format: ${item.target_url}`);
+          return;
+        }
+      }
+    }
+
     // Prepare the status data
     const statusData = {
       owner,

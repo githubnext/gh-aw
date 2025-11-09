@@ -765,6 +765,38 @@ jobs:
                 },
               },
               {
+                name: "create_commit_status",
+                description: "Create a commit status on a pull request or commit. state MUST be one of 'error', 'failure', 'pending', 'success'.",
+                inputSchema: {
+                  type: "object",
+                  required: ["state", "description"],
+                  properties: {
+                    state: {
+                      type: "string",
+                      enum: ["error", "failure", "pending", "success"],
+                      description: "The state of the status. Must be one of: error, failure, pending, success.",
+                    },
+                    description: {
+                      type: "string",
+                      description: "A short description of the status",
+                    },
+                    context: {
+                      type: "string",
+                      description: "A string label to differentiate this status from others (optional, defaults to workflow name)",
+                    },
+                    target_url: {
+                      type: "string",
+                      description: "The target URL to associate with this status (optional)",
+                    },
+                    sha: {
+                      type: "string",
+                      description: "The commit SHA (optional, defaults to PR head SHA or push SHA)",
+                    },
+                  },
+                  additionalProperties: false,
+                },
+              },
+              {
                 name: "add_labels",
                 description: "Add labels to a GitHub issue or pull request",
                 inputSchema: {

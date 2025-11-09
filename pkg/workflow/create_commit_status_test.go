@@ -54,6 +54,20 @@ func TestParseCommitStatusConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "config with allowed-domains",
+			input: map[string]any{
+				"create-commit-status": map[string]any{
+					"allowed-domains": []any{"example.com", "*.trusted.org"},
+				},
+			},
+			expected: &CreateCommitStatusConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: 1,
+				},
+				AllowedDomains: []string{"example.com", "*.trusted.org"},
+			},
+		},
+		{
 			name: "config with github-token",
 			input: map[string]any{
 				"create-commit-status": map[string]any{
@@ -112,6 +126,17 @@ func TestParseCommitStatusConfig(t *testing.T) {
 
 			if result.GitHubToken != tt.expected.GitHubToken {
 				t.Errorf("GitHubToken: expected %q, got %q", tt.expected.GitHubToken, result.GitHubToken)
+			}
+
+			// Check AllowedDomains
+			if len(result.AllowedDomains) != len(tt.expected.AllowedDomains) {
+				t.Errorf("AllowedDomains length: expected %d, got %d", len(tt.expected.AllowedDomains), len(result.AllowedDomains))
+			} else {
+				for i, domain := range tt.expected.AllowedDomains {
+					if result.AllowedDomains[i] != domain {
+						t.Errorf("AllowedDomains[%d]: expected %q, got %q", i, domain, result.AllowedDomains[i])
+					}
+				}
 			}
 		})
 	}

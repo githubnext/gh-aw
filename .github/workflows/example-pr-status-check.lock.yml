@@ -230,6 +230,14 @@ jobs:
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
         with:
           node-version: '24'
+      - name: Install awf binary
+        run: |
+          echo "Installing awf from release: v0.1.1"
+          curl -L https://github.com/githubnext/gh-aw-firewall/releases/download/v0.1.1/awf-linux-x64 -o awf
+          chmod +x awf
+          sudo mv awf /usr/local/bin/
+          which awf
+          awf --version
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.354
       - name: Downloading container images
@@ -1137,12 +1145,14 @@ jobs:
           After your analysis, use the `create-commit-status` tool to create a commit status with:
           - state: "success" if the code looks good, "pending" if needs minor fixes, "failure" if has serious issues
           - description: A brief summary of your findings (max 140 characters)
-          - target_url: (optional) Link to detailed analysis if you create an issue or discussion
+          - target_url: (optional) Link to detailed analysis if you create an issue or discussion. The URL must be from allowed domains: example.com or *.github.io
           
           Example status messages:
           - "✓ Code looks good - well tested and documented"
           - "⚠ Consider adding tests for new functionality"
           - "✗ Found potential security issue in authentication code"
+          
+          Note: target_url validation ensures only trusted domains can be linked.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1354,7 +1364,7 @@ jobs:
               event_name: context.eventName,
               staged: false,
               steps: {
-                firewall: ""
+                firewall: "squid"
               },
               created_at: new Date().toISOString()
             };
@@ -1379,12 +1389,18 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
-          mkdir -p /tmp/
-          mkdir -p /tmp/gh-aw/
-          mkdir -p /tmp/gh-aw/agent/
-          mkdir -p /tmp/gh-aw/.copilot/logs/
-          copilot --add-dir /tmp/ --add-dir /tmp/gh-aw/ --add-dir /tmp/gh-aw/agent/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          sudo -E awf --env-all --allow-domains '*.github.io,api.enterprise.githubcopilot.com,api.github.com,example.com,github.com,raw.githubusercontent.com,registry.npmjs.org' --log-level info \
+            "npx -y @github/copilot@0.0.354 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
+            2>&1 | tee /tmp/gh-aw/agent-stdio.log
+
+          # Move preserved Copilot logs to expected location
+          COPILOT_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'copilot-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+          if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
+            echo "Moving Copilot logs from $COPILOT_LOGS_DIR to /tmp/gh-aw/.copilot/logs/"
+            sudo mkdir -p /tmp/gh-aw/.copilot/logs/
+            sudo mv "$COPILOT_LOGS_DIR"/* /tmp/gh-aw/.copilot/logs/ || true
+            sudo rmdir "$COPILOT_LOGS_DIR" || true
+          fi
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN  }}
@@ -1525,7 +1541,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
+          GH_AW_ALLOWED_DOMAINS: "*.github.io,api.enterprise.githubcopilot.com,api.github.com,example.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -3321,6 +3337,373 @@ jobs:
               };
             }
             main();
+      - name: Agent Firewall logs
+        if: always()
+        run: |
+          # Squid logs are preserved in timestamped directories
+          SQUID_LOGS_DIR="$(find /tmp -maxdepth 1 -type d -name 'squid-logs-*' -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1)"
+          if [ -n "$SQUID_LOGS_DIR" ] && [ -d "$SQUID_LOGS_DIR" ]; then
+            echo "Found Squid logs at: $SQUID_LOGS_DIR"
+            mkdir -p /tmp/gh-aw/squid-logs-pr-status-check/
+            sudo cp -r "$SQUID_LOGS_DIR"/* /tmp/gh-aw/squid-logs-pr-status-check/ || true
+            sudo chmod -R a+r /tmp/gh-aw/squid-logs-pr-status-check/ || true
+          fi
+      - name: Upload Firewall Logs
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: squid-logs-pr-status-check
+          path: /tmp/gh-aw/squid-logs-pr-status-check/
+          if-no-files-found: ignore
+      - name: Parse firewall logs for step summary
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        with:
+          script: |
+            function sanitizeWorkflowName(name) {
+
+              return name
+
+                .toLowerCase()
+
+                .replace(/[:\\/\s]/g, "-")
+
+                .replace(/[^a-z0-9._-]/g, "-");
+
+            }
+
+            function main() {
+
+              const fs = require("fs");
+
+              const path = require("path");
+
+              try {
+
+                const workflowName = process.env.GITHUB_WORKFLOW || "workflow";
+
+                const sanitizedName = sanitizeWorkflowName(workflowName);
+
+                const squidLogsDir = `/tmp/gh-aw/squid-logs-${sanitizedName}/`;
+
+                if (!fs.existsSync(squidLogsDir)) {
+
+                  core.info(`No firewall logs directory found at: ${squidLogsDir}`);
+
+                  return;
+
+                }
+
+                const files = fs.readdirSync(squidLogsDir).filter(file => file.endsWith(".log"));
+
+                if (files.length === 0) {
+
+                  core.info(`No firewall log files found in: ${squidLogsDir}`);
+
+                  return;
+
+                }
+
+                core.info(`Found ${files.length} firewall log file(s)`);
+
+                let totalRequests = 0;
+
+                let allowedRequests = 0;
+
+                let deniedRequests = 0;
+
+                const allowedDomains = new Set();
+
+                const deniedDomains = new Set();
+
+                const requestsByDomain = new Map();
+
+                for (const file of files) {
+
+                  const filePath = path.join(squidLogsDir, file);
+
+                  core.info(`Parsing firewall log: ${file}`);
+
+                  const content = fs.readFileSync(filePath, "utf8");
+
+                  const lines = content.split("\n").filter(line => line.trim());
+
+                  for (const line of lines) {
+
+                    const entry = parseFirewallLogLine(line);
+
+                    if (!entry) {
+
+                      continue;
+
+                    }
+
+                    totalRequests++;
+
+                    const isAllowed = isRequestAllowed(entry.decision, entry.status);
+
+                    if (isAllowed) {
+
+                      allowedRequests++;
+
+                      allowedDomains.add(entry.domain);
+
+                    } else {
+
+                      deniedRequests++;
+
+                      deniedDomains.add(entry.domain);
+
+                    }
+
+                    if (!requestsByDomain.has(entry.domain)) {
+
+                      requestsByDomain.set(entry.domain, { allowed: 0, denied: 0 });
+
+                    }
+
+                    const domainStats = requestsByDomain.get(entry.domain);
+
+                    if (isAllowed) {
+
+                      domainStats.allowed++;
+
+                    } else {
+
+                      domainStats.denied++;
+
+                    }
+
+                  }
+
+                }
+
+                const summary = generateFirewallSummary({
+
+                  totalRequests,
+
+                  allowedRequests,
+
+                  deniedRequests,
+
+                  allowedDomains: Array.from(allowedDomains).sort(),
+
+                  deniedDomains: Array.from(deniedDomains).sort(),
+
+                  requestsByDomain,
+
+                });
+
+                core.summary.addRaw(summary).write();
+
+                core.info("Firewall log summary generated successfully");
+
+              } catch (error) {
+
+                core.setFailed(error instanceof Error ? error : String(error));
+
+              }
+
+            }
+
+            function parseFirewallLogLine(line) {
+
+              const trimmed = line.trim();
+
+              if (!trimmed || trimmed.startsWith("#")) {
+
+                return null;
+
+              }
+
+              const fields = trimmed.match(/(?:[^\s"]+|"[^"]*")+/g);
+
+              if (!fields || fields.length < 10) {
+
+                return null;
+
+              }
+
+              const timestamp = fields[0];
+
+              if (!/^\d+(\.\d+)?$/.test(timestamp)) {
+
+                return null;
+
+              }
+
+              const clientIpPort = fields[1];
+
+              if (clientIpPort !== "-" && !/^[\d.]+:\d+$/.test(clientIpPort)) {
+
+                return null;
+
+              }
+
+              const domain = fields[2];
+
+              if (domain !== "-" && !/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*:\d+$/.test(domain)) {
+
+                return null;
+
+              }
+
+              const destIpPort = fields[3];
+
+              if (destIpPort !== "-" && !/^[\d.]+:\d+$/.test(destIpPort)) {
+
+                return null;
+
+              }
+
+              const status = fields[6];
+
+              if (status !== "-" && !/^\d+$/.test(status)) {
+
+                return null;
+
+              }
+
+              const decision = fields[7];
+
+              if (decision !== "-" && !decision.includes(":")) {
+
+                return null;
+
+              }
+
+              return {
+
+                timestamp: timestamp,
+
+                clientIpPort: clientIpPort,
+
+                domain: domain,
+
+                destIpPort: destIpPort,
+
+                proto: fields[4],
+
+                method: fields[5],
+
+                status: status,
+
+                decision: decision,
+
+                url: fields[8],
+
+                userAgent: fields[9] ? fields[9].replace(/^"|"$/g, "") : "-",
+
+              };
+
+            }
+
+            function isRequestAllowed(decision, status) {
+
+              const statusCode = parseInt(status, 10);
+
+              if (statusCode === 200 || statusCode === 206 || statusCode === 304) {
+
+                return true;
+
+              }
+
+              if (decision.includes("TCP_TUNNEL") || decision.includes("TCP_HIT") || decision.includes("TCP_MISS")) {
+
+                return true;
+
+              }
+
+              if (decision.includes("NONE_NONE") || decision.includes("TCP_DENIED") || statusCode === 403 || statusCode === 407) {
+
+                return false;
+
+              }
+
+              return false;
+
+            }
+
+            function generateFirewallSummary(analysis) {
+
+              const { totalRequests, deniedRequests, deniedDomains, requestsByDomain } = analysis;
+
+              let summary = "### 🔥 Firewall Blocked Requests\n\n";
+
+              const validDeniedDomains = deniedDomains.filter(domain => domain !== "-");
+
+              const validDeniedRequests = validDeniedDomains.reduce((sum, domain) => sum + (requestsByDomain.get(domain)?.denied || 0), 0);
+
+              if (validDeniedRequests > 0) {
+
+                summary += `**${validDeniedRequests}** request${validDeniedRequests !== 1 ? "s" : ""} blocked across **${validDeniedDomains.length}** unique domain${validDeniedDomains.length !== 1 ? "s" : ""}`;
+
+                summary += ` (${totalRequests > 0 ? Math.round((validDeniedRequests / totalRequests) * 100) : 0}% of total traffic)\n\n`;
+
+                summary += "<details>\n";
+
+                summary += "<summary>🚫 Blocked Domains (click to expand)</summary>\n\n";
+
+                summary += "| Domain | Blocked Requests |\n";
+
+                summary += "|--------|------------------|\n";
+
+                for (const domain of validDeniedDomains) {
+
+                  const stats = requestsByDomain.get(domain);
+
+                  summary += `| ${domain} | ${stats.denied} |\n`;
+
+                }
+
+                summary += "\n</details>\n\n";
+
+              } else {
+
+                summary += "✅ **No blocked requests detected**\n\n";
+
+                if (totalRequests > 0) {
+
+                  summary += `All ${totalRequests} request${totalRequests !== 1 ? "s" : ""} were allowed through the firewall.\n\n`;
+
+                } else {
+
+                  summary += "No firewall activity detected.\n\n";
+
+                }
+
+              }
+
+              return summary;
+
+            }
+
+            if (typeof module !== "undefined" && module.exports) {
+
+              module.exports = {
+
+                parseFirewallLogLine,
+
+                isRequestAllowed,
+
+                generateFirewallSummary,
+
+                main,
+
+              };
+
+            }
+
+            const isDirectExecution =
+
+              typeof module === "undefined" || (typeof require !== "undefined" && typeof require.main !== "undefined" && require.main === module);
+
+            if (isDirectExecution) {
+
+              main();
+
+            }
+
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
@@ -3598,6 +3981,7 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_NAME: "PR Status Check"
           GH_AW_COMMIT_STATUS_CONTEXT: "ai-review"
+          GH_AW_COMMIT_STATUS_ALLOWED_DOMAINS: "example.com,*.github.io"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -3732,6 +4116,38 @@ jobs:
                     `Invalid commit status state: ${item.state}. Must be one of: ${validStates.join(", ")}`
                   );
                   return;
+                }
+                if (item.target_url) {
+                  const allowedDomains = process.env.GH_AW_COMMIT_STATUS_ALLOWED_DOMAINS;
+                  if (allowedDomains) {
+                    const domains = allowedDomains.split(",").map(d => d.trim());
+                    let isAllowed = false;
+                    try {
+                      const url = new URL(item.target_url);
+                      const hostname = url.hostname;
+                      for (const domain of domains) {
+                        if (domain.startsWith("*.")) {
+                          const domainSuffix = domain.slice(1); 
+                          if (hostname.endsWith(domainSuffix) && hostname !== domainSuffix.slice(1)) {
+                            isAllowed = true;
+                            break;
+                          }
+                        } else if (hostname === domain || hostname.endsWith("." + domain)) {
+                          isAllowed = true;
+                          break;
+                        }
+                      }
+                      if (!isAllowed) {
+                        core.setFailed(
+                          `Target URL domain "${hostname}" is not in the allowed domains list. Allowed domains: ${allowedDomains}`
+                        );
+                        return;
+                      }
+                    } catch (error) {
+                      core.setFailed(`Invalid target_url format: ${item.target_url}`);
+                      return;
+                    }
+                  }
                 }
                 const statusData = {
                   owner,

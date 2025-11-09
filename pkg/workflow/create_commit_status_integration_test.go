@@ -77,6 +77,27 @@ Create a commit status using a custom GitHub token.
 			expectError:         false,
 			expectedPermissions: "statuses: write",
 		},
+		{
+			name: "create-commit-status with allowed-domains",
+			workflowContent: `---
+on:
+  pull_request:
+    types: [opened]
+permissions:
+  contents: read
+safe-outputs:
+  create-commit-status:
+    allowed-domains: ["example.com", "*.trusted.org"]
+---
+
+# Status Check with Allowed Domains
+
+Create a commit status with validated target URLs.
+`,
+			expectedJobName:     "create_commit_status",
+			expectError:         false,
+			expectedPermissions: "statuses: write",
+		},
 	}
 
 	for _, tt := range tests {
@@ -144,6 +165,16 @@ Create a commit status using a custom GitHub token.
 			// Verify the MCP tool is registered in the config
 			if !strings.Contains(yamlContent, "create_commit_status") {
 				t.Error("Expected 'create_commit_status' tool not found in config")
+			}
+
+			// If this is the allowed-domains test, verify the env var is set
+			if strings.Contains(tt.name, "allowed-domains") {
+				if !strings.Contains(yamlContent, "GH_AW_COMMIT_STATUS_ALLOWED_DOMAINS") {
+					t.Error("Expected 'GH_AW_COMMIT_STATUS_ALLOWED_DOMAINS' environment variable not found")
+				}
+				if !strings.Contains(yamlContent, "example.com") || !strings.Contains(yamlContent, "*.trusted.org") {
+					t.Error("Expected allowed domains not found in environment variable")
+				}
 			}
 		})
 	}

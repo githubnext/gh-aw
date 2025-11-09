@@ -2624,6 +2624,14 @@
                   "type": "string",
                   "description": "A string label to differentiate this status from others (default: workflow name)"
                 },
+                "allowed-domains": {
+                  "type": "array",
+                  "description": "List of allowed domains for target_url validation. If not specified, defaults to top-level network allowed domains. Supports wildcards (e.g., '*.example.com')",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                },
                 "github-token": {
                   "$ref": "#/$defs/github_token",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
