@@ -3520,7 +3520,7 @@ jobs:
           GH_AW_PROJECT_VIEW: "board"
           GH_AW_PROJECT_STATUS_FIELD: "Status"
           GH_AW_PROJECT_AGENT_FIELD: "Agent"
-          GH_AW_PROJECT_FIELDS: "{\"campaign-id\":\"${{ github.run_id }}\",\"started-at\":\"${{ github.event.repository.updated_at }}\",\"agent-name\":\"${{ github.job }}\"}"
+          GH_AW_PROJECT_FIELDS: "{\"agent-name\":\"${{ github.job }}\",\"campaign-id\":\"${{ github.run_id }}\",\"started-at\":\"${{ github.event.repository.updated_at }}\"}"
           GH_AW_PROJECT_INSIGHTS: "agent-velocity,campaign-progress"
           GH_AW_PROJECT_CUSTOM_FIELDS: "[{\"name\":\"Priority\",\"type\":\"single_select\",\"value\":\"Medium\",\"description\":\"Research priority level\",\"options\":[\"Critical\",\"High\",\"Medium\",\"Low\"]},{\"name\":\"Effort (hours)\",\"type\":\"number\",\"value\":\"4\",\"description\":\"Estimated research effort in hours\"},{\"name\":\"Due Date\",\"type\":\"date\",\"value\":\"${{ github.event.repository.updated_at }}\",\"description\":\"Research completion target\"},{\"name\":\"Team\",\"type\":\"single_select\",\"value\":\"Research\",\"options\":[\"Research\",\"Engineering\",\"Product\",\"Design\"]},{\"name\":\"Tags\",\"type\":\"text\",\"value\":\"AI, Research, Ethics\"}]"
         with:

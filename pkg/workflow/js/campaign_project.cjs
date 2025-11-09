@@ -70,7 +70,14 @@ async function main() {
     ownerId = ownerResult.repositoryOwner.id;
     core.info(`Owner type: ${ownerType}, ID: ${ownerId}`);
   } catch (error) {
-    core.error(`Failed to get owner info: ${error instanceof Error ? error.message : String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("does not have permission") || errorMessage.includes("Resource not accessible")) {
+      core.warning(`⚠️  GitHub Actions token does not have permission to manage projects. Project board features will be skipped.`);
+      core.warning(`💡 To enable project boards, provide a personal access token with 'project' scope via the 'github-token' field in your workflow configuration.`);
+      core.info(`✓ Workflow will continue without project board integration.`);
+      return; // Exit gracefully
+    }
+    core.error(`Failed to get owner info: ${errorMessage}`);
     throw error;
   }
 
