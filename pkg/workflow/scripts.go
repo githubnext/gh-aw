@@ -44,6 +44,12 @@ var addCommentScriptSource string
 //go:embed js/create_commit_status.cjs
 var createCommitStatusScriptSource string
 
+//go:embed js/create_pending_commit_status.cjs
+var createPendingCommitStatusScriptSource string
+
+//go:embed js/update_final_commit_status.cjs
+var updateFinalCommitStatusScriptSource string
+
 //go:embed js/upload_assets.cjs
 var uploadAssetsScriptSource string
 
@@ -98,6 +104,12 @@ var (
 
 	createCommitStatusScript     string
 	createCommitStatusScriptOnce sync.Once
+
+	createPendingCommitStatusScript     string
+	createPendingCommitStatusScriptOnce sync.Once
+
+	updateFinalCommitStatusScript     string
+	updateFinalCommitStatusScriptOnce sync.Once
 
 	uploadAssetsScript     string
 	uploadAssetsScriptOnce sync.Once
@@ -325,6 +337,24 @@ func getCreateCommitStatusScript() string {
 		}
 	})
 	return createCommitStatusScript
+}
+
+// getCreatePendingCommitStatusScript returns the create_pending_commit_status script
+// This script doesn't require bundling as it has no dependencies
+func getCreatePendingCommitStatusScript() string {
+	createPendingCommitStatusScriptOnce.Do(func() {
+		createPendingCommitStatusScript = createPendingCommitStatusScriptSource
+	})
+	return createPendingCommitStatusScript
+}
+
+// getUpdateFinalCommitStatusScript returns the update_final_commit_status script
+// This script doesn't require bundling as it has no dependencies
+func getUpdateFinalCommitStatusScript() string {
+	updateFinalCommitStatusScriptOnce.Do(func() {
+		updateFinalCommitStatusScript = updateFinalCommitStatusScriptSource
+	})
+	return updateFinalCommitStatusScript
 }
 
 // getUploadAssetsScript returns the bundled upload_assets script

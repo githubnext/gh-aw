@@ -15,7 +15,8 @@ func TestUpdateReactionJob(t *testing.T) {
 		command            string
 		safeOutputJobNames []string
 		expectJob          bool
-		expectConditions   []string
+		expectJobConditions   []string // Conditions on the job-level If
+		expectStepConditions  []string // Conditions on the comment update step If
 		expectNeeds        []string
 	}{
 		{
@@ -25,9 +26,11 @@ func TestUpdateReactionJob(t *testing.T) {
 			command:            "",
 			safeOutputJobNames: []string{"add_comment", "create_issue", "missing_tool"},
 			expectJob:          true,
-			expectConditions: []string{
+			expectJobConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
+			},
+			expectStepConditions: []string{
 				"needs.activation.outputs.comment_id",
 				"(!contains(needs.agent.outputs.output_types, 'add_comment'))",
 				"(!contains(needs.agent.outputs.output_types, 'create_pull_request'))",
@@ -42,9 +45,11 @@ func TestUpdateReactionJob(t *testing.T) {
 			command:            "",
 			safeOutputJobNames: []string{"add_comment", "create_issue", "missing_tool"},
 			expectJob:          true,
-			expectConditions: []string{
+			expectJobConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
+			},
+			expectStepConditions: []string{
 				"needs.activation.outputs.comment_id",
 				"(!contains(needs.agent.outputs.output_types, 'add_comment'))",
 				"(!contains(needs.agent.outputs.output_types, 'create_pull_request'))",
@@ -83,9 +88,11 @@ func TestUpdateReactionJob(t *testing.T) {
 			command:            "test-command",
 			safeOutputJobNames: []string{"missing_tool"},
 			expectJob:          true,
-			expectConditions: []string{
+			expectJobConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
+			},
+			expectStepConditions: []string{
 				"needs.activation.outputs.comment_id",
 				"(!contains(needs.agent.outputs.output_types, 'add_comment'))",
 				"(!contains(needs.agent.outputs.output_types, 'create_pull_request'))",
@@ -100,9 +107,11 @@ func TestUpdateReactionJob(t *testing.T) {
 			command:            "mergefest",
 			safeOutputJobNames: []string{"push_to_pull_request_branch", "missing_tool"},
 			expectJob:          true,
-			expectConditions: []string{
+			expectJobConditions: []string{
 				"always()",
 				"needs.agent.result != 'skipped'",
+			},
+			expectStepConditions: []string{
 				"needs.activation.outputs.comment_id",
 				"(!contains(needs.agent.outputs.output_types, 'add_comment'))",
 				"(!contains(needs.agent.outputs.output_types, 'create_pull_request'))",
@@ -156,10 +165,18 @@ func TestUpdateReactionJob(t *testing.T) {
 					t.Errorf("Expected job name 'update_reaction', got '%s'", job.Name)
 				}
 
-				// Check conditions
-				for _, expectedCond := range tt.expectConditions {
+				// Check job-level conditions
+				for _, expectedCond := range tt.expectJobConditions {
 					if !strings.Contains(job.If, expectedCond) {
-						t.Errorf("Expected condition '%s' to be in job.If, but it wasn't.\nActual If: %s", expectedCond, job.If)
+						t.Errorf("Expected job condition '%s' to be in job.If, but it wasn't.\nActual If: %s", expectedCond, job.If)
+					}
+				}
+
+				// Check step-level conditions (on the comment update step)
+				stepConditionStr := strings.Join(job.Steps, "")
+				for _, expectedCond := range tt.expectStepConditions {
+					if !strings.Contains(stepConditionStr, expectedCond) {
+						t.Errorf("Expected step condition '%s' to be in steps, but it wasn't.\nActual Steps: %s", expectedCond, stepConditionStr)
 					}
 				}
 
@@ -240,11 +257,6 @@ func TestUpdateReactionJobIntegration(t *testing.T) {
 	// Convert job to YAML string for checking
 	jobYAML := strings.Join(job.Steps, "")
 
-	// Check that the job references activation outputs
-	if !strings.Contains(job.If, "needs.activation.outputs.comment_id") {
-		t.Error("Expected update_reaction to reference activation.outputs.comment_id")
-	}
-
 	// Check that environment variables reference activation outputs
 	if !strings.Contains(jobYAML, "needs.activation.outputs.comment_id") {
 		t.Error("Expected GH_AW_COMMENT_ID to reference activation.outputs.comment_id")
@@ -258,24 +270,26 @@ func TestUpdateReactionJobIntegration(t *testing.T) {
 		t.Error("Expected GH_AW_AGENT_CONCLUSION to reference needs.agent.result")
 	}
 
-	// Check all six conditions are present
+	// Check job-level conditions (only base conditions)
 	if !strings.Contains(job.If, "always()") {
-		t.Error("Expected always() in update_reaction condition")
+		t.Error("Expected always() in update_reaction job condition")
 	}
 	if !strings.Contains(job.If, "needs.agent.result != 'skipped'") {
-		t.Error("Expected agent not skipped check in update_reaction condition")
+		t.Error("Expected agent not skipped check in update_reaction job condition")
 	}
-	if !strings.Contains(job.If, "needs.activation.outputs.comment_id") {
-		t.Error("Expected comment_id check in update_reaction condition")
+
+	// Check step-level conditions (comment-specific conditions are on the step now)
+	if !strings.Contains(jobYAML, "needs.activation.outputs.comment_id") {
+		t.Error("Expected comment_id check in update_reaction step condition")
 	}
-	if !strings.Contains(job.If, "(!contains(needs.agent.outputs.output_types, 'add_comment'))") {
-		t.Error("Expected NOT contains add_comment check in update_reaction condition")
+	if !strings.Contains(jobYAML, "(!contains(needs.agent.outputs.output_types, 'add_comment'))") {
+		t.Error("Expected NOT contains add_comment check in update_reaction step condition")
 	}
-	if !strings.Contains(job.If, "(!contains(needs.agent.outputs.output_types, 'create_pull_request'))") {
-		t.Error("Expected NOT contains create_pull_request check in update_reaction condition")
+	if !strings.Contains(jobYAML, "(!contains(needs.agent.outputs.output_types, 'create_pull_request'))") {
+		t.Error("Expected NOT contains create_pull_request check in update_reaction step condition")
 	}
-	if !strings.Contains(job.If, "(!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))") {
-		t.Error("Expected NOT contains push_to_pull_request_branch check in update_reaction condition")
+	if !strings.Contains(jobYAML, "(!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))") {
+		t.Error("Expected NOT contains push_to_pull_request_branch check in update_reaction step condition")
 	}
 
 	// Verify job depends on the safe output jobs

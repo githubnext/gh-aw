@@ -18,6 +18,7 @@
 #   missing_tool["missing_tool"]
 #   pre_activation["pre_activation"]
 #   push_to_pull_request_branch["push_to_pull_request_branch"]
+#   update_reaction["update_reaction"]
 #   pre_activation --> activation
 #   activation --> agent
 #   agent --> create_commit_status
@@ -27,6 +28,11 @@
 #   detection --> missing_tool
 #   agent --> push_to_pull_request_branch
 #   detection --> push_to_pull_request_branch
+#   agent --> update_reaction
+#   activation --> update_reaction
+#   create_commit_status --> update_reaction
+#   push_to_pull_request_branch --> update_reaction
+#   missing_tool --> update_reaction
 # ```
 #
 # Pinned GitHub Actions:
@@ -76,11 +82,14 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+      statuses: write
     outputs:
       comment_id: ${{ steps.react.outputs.comment-id }}
       comment_repo: ${{ steps.react.outputs.comment-repo }}
       comment_url: ${{ steps.react.outputs.comment-url }}
       reaction_id: ${{ steps.react.outputs.reaction-id }}
+      status_context: ${{ steps.pending_status.outputs.status_context }}
+      status_sha: ${{ steps.pending_status.outputs.status_sha }}
       text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Checkout workflows
@@ -401,6 +410,55 @@ jobs:
               const sanitizedText = sanitizeContent(text);
               core.info(`text: ${sanitizedText}`);
               core.setOutput("text", sanitizedText);
+            }
+            await main();
+      - name: Create pending commit status
+        id: pending_status
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_COMMIT_STATUS_CONTEXT: "changeset/generated"
+          GH_AW_WORKFLOW_NAME: "Changeset Generator"
+        with:
+          script: |
+            async function main() {
+              try {
+                const context = process.env.GH_AW_COMMIT_STATUS_CONTEXT || "agentic-workflow";
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Workflow";
+                let sha;
+                if (context.payload.pull_request?.head?.sha) {
+                  sha = context.payload.pull_request.head.sha;
+                  core.info(`Using SHA from PR head: ${sha}`);
+                }
+                else if (context.payload.after && context.payload.after !== "0000000000000000000000000000000000000000") {
+                  sha = context.payload.after;
+                  core.info(`Using SHA from push event: ${sha}`);
+                }
+                else if (context.sha) {
+                  sha = context.sha;
+                  core.info(`Using SHA from workflow context: ${sha}`);
+                }
+                else {
+                  core.setFailed("Could not determine commit SHA for status creation");
+                  return;
+                }
+                core.info(`Creating pending commit status with context: ${context}`);
+                core.info(`SHA: ${sha}`);
+                core.info(`Workflow: ${workflowName}`);
+                await github.rest.repos.createCommitStatus({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  sha: sha,
+                  state: "pending",
+                  context: context,
+                  description: `${workflowName} is running...`,
+                  target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                });
+                core.info("✓ Successfully created pending commit status");
+                core.setOutput("status_context", context);
+                core.setOutput("status_sha", sha);
+              } catch (error) {
+                core.error(`Failed to create pending commit status: ${error instanceof Error ? error.message : String(error)}`);
+              }
             }
             await main();
       - name: Add rocket reaction to the triggering item
@@ -5964,6 +6022,106 @@ jobs:
             - **URL**: [${pushUrl}](${pushUrl})
             `;
               await core.summary.addRaw(summaryContent).write();
+            }
+            await main();
+
+  update_reaction:
+    needs:
+      - agent
+      - activation
+      - create_commit_status
+      - push_to_pull_request_branch
+      - missing_tool
+    if: (always()) && (needs.agent.result != 'skipped')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      - name: Debug job inputs
+        env:
+          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+          AGENT_CONCLUSION: ${{ needs.agent.result }}
+          STATUS_CONTEXT: ${{ needs.activation.outputs.status_context }}
+          STATUS_SHA: ${{ needs.activation.outputs.status_sha }}
+        run: |
+          echo "Comment ID: $COMMENT_ID"
+          echo "Comment Repo: $COMMENT_REPO"
+          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
+          echo "Agent Conclusion: $AGENT_CONCLUSION"
+          echo "Status Context: $STATUS_CONTEXT"
+          echo "Status SHA: $STATUS_SHA"
+      - name: Update final commit status
+        id: update_status
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_STATUS_CONTEXT: ${{ needs.activation.outputs.status_context }}
+          GH_AW_STATUS_SHA: ${{ needs.activation.outputs.status_sha }}
+          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_WORKFLOW_NAME: "Changeset Generator"
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            async function main() {
+              try {
+                const context = process.env.GH_AW_COMMIT_STATUS_CONTEXT || process.env.GH_AW_STATUS_CONTEXT || "agentic-workflow";
+                const sha = process.env.GH_AW_STATUS_SHA;
+                const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "unknown";
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Workflow";
+                const runUrl = process.env.GH_AW_RUN_URL;
+                if (!sha) {
+                  core.setFailed("Missing status SHA - cannot update commit status");
+                  return;
+                }
+                core.info(`Updating commit status with context: ${context}`);
+                core.info(`SHA: ${sha}`);
+                core.info(`Agent conclusion: ${agentConclusion}`);
+                let state;
+                let description;
+                switch (agentConclusion) {
+                  case "success":
+                    state = "success";
+                    description = `✓ ${workflowName} completed successfully`;
+                    break;
+                  case "failure":
+                    state = "failure";
+                    description = `✗ ${workflowName} failed`;
+                    break;
+                  case "cancelled":
+                    state = "error";
+                    description = `⊘ ${workflowName} was cancelled`;
+                    break;
+                  case "skipped":
+                    state = "error";
+                    description = `⊘ ${workflowName} was skipped`;
+                    break;
+                  case "timed_out":
+                    state = "error";
+                    description = `⊘ ${workflowName} timed out`;
+                    break;
+                  default:
+                    state = "failure";
+                    description = `✗ ${workflowName} completed with unknown status`;
+                    core.warning(`Unknown agent conclusion: ${agentConclusion}, marking as failure`);
+                    break;
+                }
+                core.info(`Setting status to: ${state}`);
+                core.info(`Description: ${description}`);
+                await github.rest.repos.createCommitStatus({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  sha: sha,
+                  state: state,
+                  context: context,
+                  description: description,
+                  target_url: runUrl,
+                });
+                core.info("✓ Successfully updated commit status");
+              } catch (error) {
+                core.setFailed(`Failed to update commit status: ${error instanceof Error ? error.message : String(error)}`);
+              }
             }
             await main();
 

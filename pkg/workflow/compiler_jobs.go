@@ -545,6 +545,37 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
 	}
 
+	// Add pending commit status if create-commit-status is configured
+	if data.SafeOutputs != nil && data.SafeOutputs.CreateCommitStatus != nil {
+		steps = append(steps, "      - name: Create pending commit status\n")
+		steps = append(steps, "        id: pending_status\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        env:\n")
+
+		// Determine the context name
+		contextName := data.SafeOutputs.CreateCommitStatus.Context
+		if contextName == "" {
+			if data.FrontmatterName != "" {
+				contextName = data.FrontmatterName
+			} else {
+				contextName = data.Name
+			}
+		}
+		steps = append(steps, fmt.Sprintf("          GH_AW_COMMIT_STATUS_CONTEXT: %q\n", contextName))
+		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Add the pending status creation script
+		formattedScript := FormatJavaScriptForYAML(getCreatePendingCommitStatusScript())
+		steps = append(steps, formattedScript...)
+
+		// Add outputs for status context and SHA
+		outputs["status_context"] = "${{ steps.pending_status.outputs.status_context }}"
+		outputs["status_sha"] = "${{ steps.pending_status.outputs.status_sha }}"
+	}
+
 	// Add reaction step if ai-reaction is configured and not "none"
 	if data.AIReaction != "" && data.AIReaction != "none" {
 		reactionCondition := buildReactionCondition()
@@ -615,6 +646,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	// Set permissions - activation job always needs contents:read for checkout step
 	// Also add reaction permissions if reaction is configured and not "none"
+	// Also add statuses:write if create-commit-status is configured
 	permsMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead, // Always needed for checkout step
 	}
@@ -623,6 +655,10 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		permsMap[PermissionDiscussions] = PermissionWrite
 		permsMap[PermissionIssues] = PermissionWrite
 		permsMap[PermissionPullRequests] = PermissionWrite
+	}
+
+	if data.SafeOutputs != nil && data.SafeOutputs.CreateCommitStatus != nil {
+		permsMap[PermissionStatuses] = PermissionWrite
 	}
 
 	perms := NewPermissionsFromMap(permsMap)

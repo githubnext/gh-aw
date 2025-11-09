@@ -49,7 +49,7 @@ func TestParseCommitStatusConfig(t *testing.T) {
 			},
 			expected: &CreateCommitStatusConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max: 3,
+					Max: 1, // Max is always enforced to 1 for commit status
 				},
 			},
 		},
@@ -92,7 +92,7 @@ func TestParseCommitStatusConfig(t *testing.T) {
 			},
 			expected: &CreateCommitStatusConfig{
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
-					Max:         2,
+					Max:         1, // Max is always enforced to 1 for commit status
 					GitHubToken: "${{ secrets.TOKEN }}",
 				},
 				Context: "ci/build",

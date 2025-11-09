@@ -2,35 +2,35 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // buildUpdateReactionJob creates a job that updates the activation comment with workflow completion status
-// This job is only generated when both add-comment and ai-reaction are configured.
+// AND updates the commit status if create-commit-status is configured
 // This job runs when:
 // 1. always() - runs even if agent fails
-// 2. A comment was created in activation job (comment_id exists)
-// 3. NO add_comment output was produced by the agent
-// 4. NO create_pull_request output was produced by the agent
+// 2. For comment updates: A comment was created in activation job AND no conflicting outputs
+// 3. For commit status updates: create-commit-status is configured (always runs)
 // This job depends on all safe output jobs to ensure it runs last
 func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string, safeOutputJobNames []string) (*Job, error) {
 	// Create this job when:
 	// 1. add-comment is configured with a reaction, OR
-	// 2. command is configured with a reaction (which auto-creates a comment in activation)
+	// 2. command is configured with a reaction (which auto-creates a comment in activation), OR
+	// 3. create-commit-status is configured (needs final status update)
 
 	hasAddComment := data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil
 	hasCommand := data.Command != ""
 	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
+	hasCommitStatus := data.SafeOutputs != nil && data.SafeOutputs.CreateCommitStatus != nil
 
-	// Only create this job when reactions are being used AND either add-comment or command is configured
-	// This job updates the activation comment, which is only created when AIReaction is configured
-	if !hasReaction {
-		return nil, nil // No reaction configured or explicitly disabled, no comment to update
-	}
+	// Determine if we need this job at all
+	needsCommentUpdate := hasReaction && (hasAddComment || hasCommand)
+	needsStatusUpdate := hasCommitStatus
 
-	if !hasAddComment && !hasCommand {
-		return nil, nil // Neither add-comment nor command is configured, no need for update_reaction job
+	if !needsCommentUpdate && !needsStatusUpdate {
+		return nil, nil // No updates needed
 	}
 
 	// Build the job steps
@@ -43,53 +43,136 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 	steps = append(steps, fmt.Sprintf("          COMMENT_REPO: ${{ needs.%s.outputs.comment_repo }}\n", constants.ActivationJobName))
 	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT_TYPES: ${{ needs.%s.outputs.output_types }}\n", mainJobName))
 	steps = append(steps, fmt.Sprintf("          AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
+	if hasCommitStatus {
+		steps = append(steps, fmt.Sprintf("          STATUS_CONTEXT: ${{ needs.%s.outputs.status_context }}\n", constants.ActivationJobName))
+		steps = append(steps, fmt.Sprintf("          STATUS_SHA: ${{ needs.%s.outputs.status_sha }}\n", constants.ActivationJobName))
+	}
 	steps = append(steps, "        run: |\n")
 	steps = append(steps, "          echo \"Comment ID: $COMMENT_ID\"\n")
 	steps = append(steps, "          echo \"Comment Repo: $COMMENT_REPO\"\n")
 	steps = append(steps, "          echo \"Agent Output Types: $AGENT_OUTPUT_TYPES\"\n")
 	steps = append(steps, "          echo \"Agent Conclusion: $AGENT_CONCLUSION\"\n")
-
-	// Build environment variables for the script
-	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_ID: ${{ needs.%s.outputs.comment_id }}\n", constants.ActivationJobName))
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_REPO: ${{ needs.%s.outputs.comment_repo }}\n", constants.ActivationJobName))
-	customEnvVars = append(customEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
-
-	// Get token from config
-	var token string
-	if data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil {
-		token = data.SafeOutputs.AddComments.GitHubToken
+	if hasCommitStatus {
+		steps = append(steps, "          echo \"Status Context: $STATUS_CONTEXT\"\n")
+		steps = append(steps, "          echo \"Status SHA: $STATUS_SHA\"\n")
 	}
 
-	// Build the GitHub Script step using the common helper
-	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Update reaction comment with completion status",
-		StepID:        "update_reaction",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        notifyCommentErrorScript,
-		Token:         token,
-	})
-	steps = append(steps, scriptSteps...)
+	// Add commit status update step if create-commit-status is configured
+	// This step ALWAYS runs (no conditional) and updates the final status
+	if hasCommitStatus {
+		steps = append(steps, "      - name: Update final commit status\n")
+		steps = append(steps, "        id: update_status\n")
+		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GH_AW_STATUS_CONTEXT: ${{ needs.%s.outputs.status_context }}\n", constants.ActivationJobName))
+		steps = append(steps, fmt.Sprintf("          GH_AW_STATUS_SHA: ${{ needs.%s.outputs.status_sha }}\n", constants.ActivationJobName))
+		steps = append(steps, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
+		steps = append(steps, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+		steps = append(steps, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Add the final status update script
+		formattedScript := FormatJavaScriptForYAML(getUpdateFinalCommitStatusScript())
+		steps = append(steps, formattedScript...)
+	}
+
+	// Add comment update step if reactions are configured
+	// This step is conditional on comment existence and no conflicting outputs
+	if needsCommentUpdate {
+		// Build environment variables for the comment update script
+		var customEnvVars []string
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_ID: ${{ needs.%s.outputs.comment_id }}\n", constants.ActivationJobName))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_REPO: ${{ needs.%s.outputs.comment_repo }}\n", constants.ActivationJobName))
+		customEnvVars = append(customEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
+
+		// Get token from config
+		var token string
+		if data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil {
+			token = data.SafeOutputs.AddComments.GitHubToken
+		}
+
+		// Build the conditional comment update steps using the common helper
+		scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
+			StepName:      "Update reaction comment with completion status",
+			StepID:        "update_reaction_comment",
+			MainJobName:   mainJobName,
+			CustomEnvVars: customEnvVars,
+			Script:        notifyCommentErrorScript,
+			Token:         token,
+		})
+		
+		// Add condition to the first step line (the "- name:" line)
+		// Find and modify the first line to add the condition
+		for i, line := range scriptSteps {
+			if strings.Contains(line, "- name:") {
+				// Insert the condition after the id line
+				// Find the line with "id:" and insert condition after it
+				for j := i; j < len(scriptSteps); j++ {
+					if strings.Contains(scriptSteps[j], "id:") {
+						// Insert condition line after id
+						condition := fmt.Sprintf("        if: %s\n", buildCommentUpdateCondition(mainJobName).Render())
+						scriptSteps = append(scriptSteps[:j+1], append([]string{condition}, scriptSteps[j+1:]...)...)
+						break
+					}
+				}
+				break
+			}
+		}
+		
+		steps = append(steps, scriptSteps...)
+	}
 
 	// Build the condition for this job:
-	// 1. always() - run even if agent fails
-	// 2. agent was activated (not skipped)
-	// 3. comment_id exists (comment was created in activation)
-	// 4. NOT contains(output_types, 'add_comment')
-	// 5. NOT contains(output_types, 'create_pull_request')
-	// 6. NOT contains(output_types, 'push_to_pull_request_branch')
-
+	// For commit status: always() && agent not skipped
+	// For comments: same as before (always() && agent not skipped && comment exists && no conflicting outputs)
+	
+	// Base condition: always() && agent not skipped
 	alwaysFunc := BuildFunctionCall("always")
-
-	// Check that agent job was activated (not skipped)
 	agentNotSkipped := BuildNotEquals(
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
 		BuildStringLiteral("skipped"),
 	)
+	
+	baseCondition := buildAnd(alwaysFunc, agentNotSkipped)
 
+	// Build dependencies - this job depends on all safe output jobs to ensure it runs last
+	needs := []string{mainJobName, constants.ActivationJobName}
+	needs = append(needs, safeOutputJobNames...)
+
+	// Set permissions - need statuses:write if commit status is configured
+	// Also need comment permissions if reactions are configured
+	permsMap := map[PermissionScope]PermissionLevel{
+		PermissionContents: PermissionRead,
+	}
+	
+	if needsCommentUpdate {
+		permsMap[PermissionIssues] = PermissionWrite
+		permsMap[PermissionPullRequests] = PermissionWrite
+		permsMap[PermissionDiscussions] = PermissionWrite
+	}
+	
+	if hasCommitStatus {
+		permsMap[PermissionStatuses] = PermissionWrite
+	}
+
+	job := &Job{
+		Name:        "update_reaction",
+		If:          baseCondition.Render(),
+		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		Permissions: NewPermissionsFromMap(permsMap).RenderToYAML(),
+		Steps:       steps,
+		Needs:       needs,
+	}
+
+	return job, nil
+}
+
+// buildCommentUpdateCondition builds the condition for when to update the comment
+// This is a helper function to keep the logic clear
+func buildCommentUpdateCondition(mainJobName string) ConditionNode {
 	// Check that a comment was created in activation
 	commentIdExists := BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.comment_id", constants.ActivationJobName))
 
@@ -118,32 +201,14 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 	}
 
 	// Combine all conditions with AND
-	condition := buildAnd(
+	return buildAnd(
 		buildAnd(
 			buildAnd(
-				buildAnd(
-					buildAnd(alwaysFunc, agentNotSkipped),
-					commentIdExists,
-				),
+				commentIdExists,
 				noAddComment,
 			),
 			noCreatePR,
 		),
 		noPushToBranch,
 	)
-
-	// Build dependencies - this job depends on all safe output jobs to ensure it runs last
-	needs := []string{mainJobName, constants.ActivationJobName}
-	needs = append(needs, safeOutputJobNames...)
-
-	job := &Job{
-		Name:        "update_reaction",
-		If:          condition.Render(),
-		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions: NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite().RenderToYAML(),
-		Steps:       steps,
-		Needs:       needs,
-	}
-
-	return job, nil
 }

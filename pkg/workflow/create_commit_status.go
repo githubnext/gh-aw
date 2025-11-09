@@ -20,11 +20,16 @@ func (c *Compiler) parseCommitStatusConfig(outputMap map[string]any) *CreateComm
 
 	configData := outputMap["create-commit-status"]
 	commitStatusConfig := &CreateCommitStatusConfig{}
-	commitStatusConfig.Max = 1 // Default max is 1
+	commitStatusConfig.Max = 1 // Default and enforced max is 1 (only one commit status supported)
 
 	if configMap, ok := configData.(map[string]any); ok {
 		// Parse common base fields
 		c.parseBaseSafeOutputConfig(configMap, &commitStatusConfig.BaseSafeOutputConfig)
+
+		// Enforce max=1 for commit status (only one status per workflow run)
+		if commitStatusConfig.Max != 1 {
+			commitStatusConfig.Max = 1
+		}
 
 		// Parse context
 		if context, exists := configMap["context"]; exists {

@@ -5303,9 +5303,7 @@ jobs:
       - activation
       - add_comment
       - missing_tool
-    if: >
-      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!contains(needs.agent.outputs.output_types, 'add_comment'))) &&
-      (!contains(needs.agent.outputs.output_types, 'create_pull_request'))) && (!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
+    if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
       contents: read
@@ -5336,7 +5334,8 @@ jobs:
           find "/tmp/gh-aw/safeoutputs/" -type f -print
           echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
       - name: Update reaction comment with completion status
-        id: update_reaction
+        id: update_reaction_comment
+        if: (((needs.activation.outputs.comment_id) && (!contains(needs.agent.outputs.output_types, 'add_comment'))) && (!contains(needs.agent.outputs.output_types, 'create_pull_request'))) && (!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
