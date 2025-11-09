@@ -12,6 +12,36 @@ import (
 
 var claudeToolsLog = logger.New("workflow:claude_tools")
 
+// validateBashToolValue validates the bash tool value and returns normalized value or error
+func validateBashToolValue(bashTool any) (any, error) {
+	// Handle nil - allow all bash commands
+	if bashTool == nil {
+		return nil, nil
+	}
+
+	// Handle boolean
+	if boolValue, ok := bashTool.(bool); ok {
+		if boolValue {
+			return nil, nil // true means allow all bash commands
+		}
+		return []any{}, nil // false means no bash commands allowed
+	}
+
+	// Handle array
+	if bashCommands, ok := bashTool.([]any); ok {
+		// Validate each element is a string
+		for i, cmd := range bashCommands {
+			if _, isString := cmd.(string); !isString {
+				return nil, fmt.Errorf("bash tool array element at index %d is not a string (got %T). Expected array of command patterns like [\"git:*\", \"npm:*\"]", i, cmd)
+			}
+		}
+		return bashCommands, nil
+	}
+
+	// Invalid type
+	return nil, fmt.Errorf("bash tool must be null, boolean, or array of command patterns. Got %T. Valid examples:\n  bash: true  # Allow all commands\n  bash: [\"git:*\", \"npm:*\"]  # Allow specific commands\n  bash: false  # Disable bash", bashTool)
+}
+
 // expandNeutralToolsToClaudeTools converts neutral tool names to Claude-specific tool configurations
 func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map[string]any {
 	claudeToolsLog.Printf("Expanding neutral tools to Claude-specific tools: tool_count=%d", len(tools))
@@ -56,7 +86,16 @@ func (e *ClaudeEngine) expandNeutralToolsToClaudeTools(tools map[string]any) map
 	// Convert neutral tools to Claude tools
 	if bashTool, hasBash := tools["bash"]; hasBash {
 		// bash -> Bash, KillBash, BashOutput
-		if bashCommands, ok := bashTool.([]any); ok {
+		// Note: Validation should have already been done during compilation,
+		// but we do a defensive check here
+		validatedBash, err := validateBashToolValue(bashTool)
+		if err != nil {
+			// Log the error but don't panic - validation should catch this earlier
+			claudeToolsLog.Printf("Warning: Invalid bash tool value: %v", err)
+			validatedBash = nil // Default to allowing all bash
+		}
+		
+		if bashCommands, ok := validatedBash.([]any); ok {
 			claudeAllowed["Bash"] = bashCommands
 		} else {
 			claudeAllowed["Bash"] = nil // Allow all bash commands

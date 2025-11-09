@@ -31,33 +31,24 @@ func generateDefaultCacheKey(cacheID string) string {
 	return fmt.Sprintf("memory-%s-${{ github.workflow }}-${{ github.run_id }}", cacheID)
 }
 
-// extractCacheMemoryConfig extracts cache-memory configuration from tools section
-func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryConfig, error) {
-	cacheMemoryValue, exists := tools["cache-memory"]
-	if !exists {
-		return nil, nil
-	}
-
-	cacheLog.Print("Extracting cache-memory configuration from tools")
-
-	config := &CacheMemoryConfig{}
-
+// validateCacheMemoryToolValue validates the cache-memory tool value
+func validateCacheMemoryToolValue(cacheMemoryValue any) (*CacheMemoryConfig, error) {
 	// Handle nil value (simple enable with defaults) - same as true
-	// This handles the case where cache-memory: is specified without a value
 	if cacheMemoryValue == nil {
-		config.Caches = []CacheMemoryEntry{
-			{
-				ID:  "default",
-				Key: generateDefaultCacheKey("default"),
+		return &CacheMemoryConfig{
+			Caches: []CacheMemoryEntry{
+				{
+					ID:  "default",
+					Key: generateDefaultCacheKey("default"),
+				},
 			},
-		}
-		return config, nil
+		}, nil
 	}
 
 	// Handle boolean value (simple enable/disable)
 	if boolValue, ok := cacheMemoryValue.(bool); ok {
+		config := &CacheMemoryConfig{}
 		if boolValue {
-			// Create a single default cache entry
 			config.Caches = []CacheMemoryEntry{
 				{
 					ID:  "default",
@@ -65,67 +56,157 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryC
 				},
 			}
 		}
-		// If false, return empty config (empty array means disabled)
+		// If false, return empty config (no caches)
 		return config, nil
 	}
 
-	// Handle array of cache configurations
-	if cacheArray, ok := cacheMemoryValue.([]any); ok {
-		cacheLog.Printf("Processing cache array with %d entries", len(cacheArray))
-		config.Caches = make([]CacheMemoryEntry, 0, len(cacheArray))
-		for _, item := range cacheArray {
-			if cacheMap, ok := item.(map[string]any); ok {
-				entry := CacheMemoryEntry{}
+	// Handle object configuration
+	if configMap, ok := cacheMemoryValue.(map[string]any); ok {
+		entry := CacheMemoryEntry{
+			ID:  "default",
+			Key: generateDefaultCacheKey("default"),
+		}
 
-				// ID is required for array notation
-				if id, exists := cacheMap["id"]; exists {
-					if idStr, ok := id.(string); ok {
-						entry.ID = idStr
-					}
-				}
-				// Use "default" if no ID specified
-				if entry.ID == "" {
-					entry.ID = "default"
-				}
-
-				// Parse custom key
-				if key, exists := cacheMap["key"]; exists {
-					if keyStr, ok := key.(string); ok {
-						entry.Key = keyStr
-						// Automatically append -${{ github.run_id }} if the key doesn't already end with it
-						runIdSuffix := "-${{ github.run_id }}"
-						if !strings.HasSuffix(entry.Key, runIdSuffix) {
-							entry.Key = entry.Key + runIdSuffix
-						}
-					}
-				}
-				// Set default key if not specified
-				if entry.Key == "" {
-					entry.Key = generateDefaultCacheKey(entry.ID)
-				}
-
-				// Parse description
-				if description, exists := cacheMap["description"]; exists {
-					if descStr, ok := description.(string); ok {
-						entry.Description = descStr
-					}
-				}
-
-				// Parse retention days
-				if retentionDays, exists := cacheMap["retention-days"]; exists {
-					if retentionDaysInt, ok := retentionDays.(int); ok {
-						entry.RetentionDays = &retentionDaysInt
-					} else if retentionDaysFloat, ok := retentionDays.(float64); ok {
-						retentionDaysIntValue := int(retentionDaysFloat)
-						entry.RetentionDays = &retentionDaysIntValue
-					} else if retentionDaysUint64, ok := retentionDays.(uint64); ok {
-						retentionDaysIntValue := int(retentionDaysUint64)
-						entry.RetentionDays = &retentionDaysIntValue
-					}
-				}
-
-				config.Caches = append(config.Caches, entry)
+		// Validate and parse fields
+		if id, exists := configMap["id"]; exists {
+			if idStr, ok := id.(string); ok {
+				entry.ID = idStr
+			} else {
+				return nil, fmt.Errorf("'id' field must be a string, got %T", id)
 			}
+		}
+
+		if key, exists := configMap["key"]; exists {
+			if keyStr, ok := key.(string); ok {
+				entry.Key = keyStr
+				// Automatically append -${{ github.run_id }} if the key doesn't already end with it
+				runIdSuffix := "-${{ github.run_id }}"
+				if !strings.HasSuffix(entry.Key, runIdSuffix) {
+					entry.Key = entry.Key + runIdSuffix
+				}
+			} else {
+				return nil, fmt.Errorf("'key' field must be a string, got %T", key)
+			}
+		}
+
+		if description, exists := configMap["description"]; exists {
+			if descStr, ok := description.(string); ok {
+				entry.Description = descStr
+			} else {
+				return nil, fmt.Errorf("'description' field must be a string, got %T", description)
+			}
+		}
+
+		if retentionDays, exists := configMap["retention-days"]; exists {
+			retentionDaysInt, err := parseRetentionDays(retentionDays)
+			if err != nil {
+				return nil, err
+			}
+			// Validate range (1-90)
+			if retentionDaysInt < 1 || retentionDaysInt > 90 {
+				return nil, fmt.Errorf("'retention-days' must be between 1 and 90 days, got %d", retentionDaysInt)
+			}
+			entry.RetentionDays = &retentionDaysInt
+		}
+
+		// Check for unknown fields
+		validFields := map[string]bool{
+			"id":             true,
+			"key":            true,
+			"description":    true,
+			"retention-days": true,
+		}
+		for field := range configMap {
+			if !validFields[field] {
+				return nil, fmt.Errorf("unknown field '%s'. Valid fields: id, key, description, retention-days", field)
+			}
+		}
+
+		return &CacheMemoryConfig{Caches: []CacheMemoryEntry{entry}}, nil
+	}
+
+	// Handle array configuration
+	if cacheArray, ok := cacheMemoryValue.([]any); ok {
+		if len(cacheArray) == 0 {
+			return nil, fmt.Errorf("cache-memory array cannot be empty. Use 'false' to disable or provide at least one cache configuration")
+		}
+
+		config := &CacheMemoryConfig{
+			Caches: make([]CacheMemoryEntry, 0, len(cacheArray)),
+		}
+
+		for i, item := range cacheArray {
+			cacheMap, ok := item.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("cache-memory array element at index %d must be an object with cache configuration, got %T", i, item)
+			}
+
+			entry := CacheMemoryEntry{
+				ID: "default", // Default if not specified
+			}
+
+			// Validate and parse fields
+			if id, exists := cacheMap["id"]; exists {
+				if idStr, ok := id.(string); ok {
+					entry.ID = idStr
+				} else {
+					return nil, fmt.Errorf("cache-memory[%d].id must be a string, got %T", i, id)
+				}
+			}
+
+			// Generate default key if not provided
+			if entry.ID == "" {
+				entry.ID = "default"
+			}
+			entry.Key = generateDefaultCacheKey(entry.ID)
+
+			if key, exists := cacheMap["key"]; exists {
+				if keyStr, ok := key.(string); ok {
+					entry.Key = keyStr
+					// Automatically append -${{ github.run_id }} if the key doesn't already end with it
+					runIdSuffix := "-${{ github.run_id }}"
+					if !strings.HasSuffix(entry.Key, runIdSuffix) {
+						entry.Key = entry.Key + runIdSuffix
+					}
+				} else {
+					return nil, fmt.Errorf("cache-memory[%d].key must be a string, got %T", i, key)
+				}
+			}
+
+			if description, exists := cacheMap["description"]; exists {
+				if descStr, ok := description.(string); ok {
+					entry.Description = descStr
+				} else {
+					return nil, fmt.Errorf("cache-memory[%d].description must be a string, got %T", i, description)
+				}
+			}
+
+			if retentionDays, exists := cacheMap["retention-days"]; exists {
+				retentionDaysInt, err := parseRetentionDays(retentionDays)
+				if err != nil {
+					return nil, fmt.Errorf("cache-memory[%d]: %w", i, err)
+				}
+				// Validate range (1-90)
+				if retentionDaysInt < 1 || retentionDaysInt > 90 {
+					return nil, fmt.Errorf("cache-memory[%d].retention-days must be between 1 and 90 days, got %d", i, retentionDaysInt)
+				}
+				entry.RetentionDays = &retentionDaysInt
+			}
+
+			// Check for unknown fields
+			validFields := map[string]bool{
+				"id":             true,
+				"key":            true,
+				"description":    true,
+				"retention-days": true,
+			}
+			for field := range cacheMap {
+				if !validFields[field] {
+					return nil, fmt.Errorf("cache-memory[%d]: unknown field '%s'. Valid fields: id, key, description, retention-days", i, field)
+				}
+			}
+
+			config.Caches = append(config.Caches, entry)
 		}
 
 		// Check for duplicate cache IDs
@@ -136,51 +217,37 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryC
 		return config, nil
 	}
 
-	// Handle object configuration (single cache, backward compatible)
-	// Convert to array with single entry
-	if configMap, ok := cacheMemoryValue.(map[string]any); ok {
-		entry := CacheMemoryEntry{
-			ID:  "default",
-			Key: generateDefaultCacheKey("default"),
-		}
+	// Invalid type
+	return nil, fmt.Errorf("must be null, boolean, object, or array. Got %T. Valid examples:\n  cache-memory: true  # Enable with defaults\n  cache-memory:\n    key: custom-key\n  cache-memory:\n    - id: default\n      key: memory-default\n    - id: session\n      key: memory-session", cacheMemoryValue)
+}
 
-		// Parse custom key
-		if key, exists := configMap["key"]; exists {
-			if keyStr, ok := key.(string); ok {
-				entry.Key = keyStr
-				// Automatically append -${{ github.run_id }} if the key doesn't already end with it
-				runIdSuffix := "-${{ github.run_id }}"
-				if !strings.HasSuffix(entry.Key, runIdSuffix) {
-					entry.Key = entry.Key + runIdSuffix
-				}
-			}
-		}
+// parseRetentionDays parses retention-days value from various numeric types
+func parseRetentionDays(value any) (int, error) {
+	switch v := value.(type) {
+	case int:
+		return v, nil
+	case int64:
+		return int(v), nil
+	case float64:
+		return int(v), nil
+	case uint64:
+		return int(v), nil
+	default:
+		return 0, fmt.Errorf("'retention-days' must be a number, got %T", value)
+	}
+}
 
-		// Parse description
-		if description, exists := configMap["description"]; exists {
-			if descStr, ok := description.(string); ok {
-				entry.Description = descStr
-			}
-		}
-
-		// Parse retention days
-		if retentionDays, exists := configMap["retention-days"]; exists {
-			if retentionDaysInt, ok := retentionDays.(int); ok {
-				entry.RetentionDays = &retentionDaysInt
-			} else if retentionDaysFloat, ok := retentionDays.(float64); ok {
-				retentionDaysIntValue := int(retentionDaysFloat)
-				entry.RetentionDays = &retentionDaysIntValue
-			} else if retentionDaysUint64, ok := retentionDays.(uint64); ok {
-				retentionDaysIntValue := int(retentionDaysUint64)
-				entry.RetentionDays = &retentionDaysIntValue
-			}
-		}
-
-		config.Caches = []CacheMemoryEntry{entry}
-		return config, nil
+// extractCacheMemoryConfig extracts cache-memory configuration from tools section
+func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryConfig, error) {
+	cacheMemoryValue, exists := tools["cache-memory"]
+	if !exists {
+		return nil, nil
 	}
 
-	return nil, nil
+	cacheLog.Print("Extracting cache-memory configuration from tools")
+
+	// Use the validation function which also handles all type conversions
+	return validateCacheMemoryToolValue(cacheMemoryValue)
 }
 
 // generateCacheSteps generates cache steps for the workflow based on cache configuration

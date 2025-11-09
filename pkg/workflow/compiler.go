@@ -850,6 +850,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("invalid MCP configuration: %w", err)
 	}
 
+	// Validate bash and cache-memory tool configurations
+	if err := ValidateToolsConfiguration(tools); err != nil {
+		return nil, fmt.Errorf("invalid tool configuration: %w", err)
+	}
+
 	// Validate HTTP transport support for the current engine
 	if err := c.validateHTTPTransportSupport(tools, agenticEngine); err != nil {
 		return nil, fmt.Errorf("HTTP transport not supported: %w", err)
