@@ -7,14 +7,14 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
-// buildUpdateReactionJob creates a job that updates the activation comment with workflow completion status
+// buildConclusionJob creates a job that updates the activation comment with workflow completion status
 // AND updates the commit status if create-commit-status is configured
 // This job runs when:
 // 1. always() - runs even if agent fails
 // 2. For comment updates: A comment was created in activation job AND no conflicting outputs
 // 3. For commit status updates: create-commit-status is configured (always runs)
 // This job depends on all safe output jobs to ensure it runs last
-func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string, safeOutputJobNames []string) (*Job, error) {
+func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, safeOutputJobNames []string) (*Job, error) {
 	// Create this job when:
 	// 1. add-comment is configured with a reaction, OR
 	// 2. command is configured with a reaction (which auto-creates a comment in activation), OR
@@ -97,7 +97,7 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 		// Build the conditional comment update steps using the common helper
 		scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
 			StepName:      "Update reaction comment with completion status",
-			StepID:        "update_reaction_comment",
+			StepID:        "conclusion_comment",
 			MainJobName:   mainJobName,
 			CustomEnvVars: customEnvVars,
 			Script:        notifyCommentErrorScript,
@@ -159,7 +159,7 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 	}
 
 	job := &Job{
-		Name:        "update_reaction",
+		Name:        "conclusion",
 		If:          baseCondition.Render(),
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: NewPermissionsFromMap(permsMap).RenderToYAML(),

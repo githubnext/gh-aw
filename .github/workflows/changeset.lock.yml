@@ -13,14 +13,19 @@
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
+#   conclusion["conclusion"]
 #   create_commit_status["create_commit_status"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   pre_activation["pre_activation"]
 #   push_to_pull_request_branch["push_to_pull_request_branch"]
-#   update_reaction["update_reaction"]
 #   pre_activation --> activation
 #   activation --> agent
+#   agent --> conclusion
+#   activation --> conclusion
+#   create_commit_status --> conclusion
+#   push_to_pull_request_branch --> conclusion
+#   missing_tool --> conclusion
 #   agent --> create_commit_status
 #   detection --> create_commit_status
 #   agent --> detection
@@ -28,11 +33,6 @@
 #   detection --> missing_tool
 #   agent --> push_to_pull_request_branch
 #   detection --> push_to_pull_request_branch
-#   agent --> update_reaction
-#   activation --> update_reaction
-#   create_commit_status --> update_reaction
-#   push_to_pull_request_branch --> update_reaction
-#   missing_tool --> update_reaction
 # ```
 #
 # Pinned GitHub Actions:
@@ -4971,6 +4971,106 @@ jobs:
           path: /tmp/gh-aw/aw.patch
           if-no-files-found: ignore
 
+  conclusion:
+    needs:
+      - agent
+      - activation
+      - create_commit_status
+      - push_to_pull_request_branch
+      - missing_tool
+    if: (always()) && (needs.agent.result != 'skipped')
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      - name: Debug job inputs
+        env:
+          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+          AGENT_CONCLUSION: ${{ needs.agent.result }}
+          STATUS_CONTEXT: ${{ needs.activation.outputs.status_context }}
+          STATUS_SHA: ${{ needs.activation.outputs.status_sha }}
+        run: |
+          echo "Comment ID: $COMMENT_ID"
+          echo "Comment Repo: $COMMENT_REPO"
+          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
+          echo "Agent Conclusion: $AGENT_CONCLUSION"
+          echo "Status Context: $STATUS_CONTEXT"
+          echo "Status SHA: $STATUS_SHA"
+      - name: Update final commit status
+        id: update_status
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_STATUS_CONTEXT: ${{ needs.activation.outputs.status_context }}
+          GH_AW_STATUS_SHA: ${{ needs.activation.outputs.status_sha }}
+          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+          GH_AW_WORKFLOW_NAME: "Changeset Generator"
+          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            async function main() {
+              try {
+                const context = process.env.GH_AW_COMMIT_STATUS_CONTEXT || process.env.GH_AW_STATUS_CONTEXT || "agentic-workflow";
+                const sha = process.env.GH_AW_STATUS_SHA;
+                const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "unknown";
+                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Workflow";
+                const runUrl = process.env.GH_AW_RUN_URL;
+                if (!sha) {
+                  core.setFailed("Missing status SHA - cannot update commit status");
+                  return;
+                }
+                core.info(`Updating commit status with context: ${context}`);
+                core.info(`SHA: ${sha}`);
+                core.info(`Agent conclusion: ${agentConclusion}`);
+                let state;
+                let description;
+                switch (agentConclusion) {
+                  case "success":
+                    state = "success";
+                    description = `✓ ${workflowName} completed successfully`;
+                    break;
+                  case "failure":
+                    state = "failure";
+                    description = `✗ ${workflowName} failed`;
+                    break;
+                  case "cancelled":
+                    state = "error";
+                    description = `⊘ ${workflowName} was cancelled`;
+                    break;
+                  case "skipped":
+                    state = "error";
+                    description = `⊘ ${workflowName} was skipped`;
+                    break;
+                  case "timed_out":
+                    state = "error";
+                    description = `⊘ ${workflowName} timed out`;
+                    break;
+                  default:
+                    state = "failure";
+                    description = `✗ ${workflowName} completed with unknown status`;
+                    core.warning(`Unknown agent conclusion: ${agentConclusion}, marking as failure`);
+                    break;
+                }
+                core.info(`Setting status to: ${state}`);
+                core.info(`Description: ${description}`);
+                await github.rest.repos.createCommitStatus({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  sha: sha,
+                  state: state,
+                  context: context,
+                  description: description,
+                  target_url: runUrl,
+                });
+                core.info("✓ Successfully updated commit status");
+              } catch (error) {
+                core.setFailed(`Failed to update commit status: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            await main();
+
   create_commit_status:
     needs:
       - agent
@@ -6022,106 +6122,6 @@ jobs:
             - **URL**: [${pushUrl}](${pushUrl})
             `;
               await core.summary.addRaw(summaryContent).write();
-            }
-            await main();
-
-  update_reaction:
-    needs:
-      - agent
-      - activation
-      - create_commit_status
-      - push_to_pull_request_branch
-      - missing_tool
-    if: (always()) && (needs.agent.result != 'skipped')
-    runs-on: ubuntu-slim
-    permissions:
-      contents: read
-      statuses: write
-    steps:
-      - name: Debug job inputs
-        env:
-          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
-          AGENT_CONCLUSION: ${{ needs.agent.result }}
-          STATUS_CONTEXT: ${{ needs.activation.outputs.status_context }}
-          STATUS_SHA: ${{ needs.activation.outputs.status_sha }}
-        run: |
-          echo "Comment ID: $COMMENT_ID"
-          echo "Comment Repo: $COMMENT_REPO"
-          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
-          echo "Agent Conclusion: $AGENT_CONCLUSION"
-          echo "Status Context: $STATUS_CONTEXT"
-          echo "Status SHA: $STATUS_SHA"
-      - name: Update final commit status
-        id: update_status
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        env:
-          GH_AW_STATUS_CONTEXT: ${{ needs.activation.outputs.status_context }}
-          GH_AW_STATUS_SHA: ${{ needs.activation.outputs.status_sha }}
-          GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_WORKFLOW_NAME: "Changeset Generator"
-          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        with:
-          script: |
-            async function main() {
-              try {
-                const context = process.env.GH_AW_COMMIT_STATUS_CONTEXT || process.env.GH_AW_STATUS_CONTEXT || "agentic-workflow";
-                const sha = process.env.GH_AW_STATUS_SHA;
-                const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "unknown";
-                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Workflow";
-                const runUrl = process.env.GH_AW_RUN_URL;
-                if (!sha) {
-                  core.setFailed("Missing status SHA - cannot update commit status");
-                  return;
-                }
-                core.info(`Updating commit status with context: ${context}`);
-                core.info(`SHA: ${sha}`);
-                core.info(`Agent conclusion: ${agentConclusion}`);
-                let state;
-                let description;
-                switch (agentConclusion) {
-                  case "success":
-                    state = "success";
-                    description = `✓ ${workflowName} completed successfully`;
-                    break;
-                  case "failure":
-                    state = "failure";
-                    description = `✗ ${workflowName} failed`;
-                    break;
-                  case "cancelled":
-                    state = "error";
-                    description = `⊘ ${workflowName} was cancelled`;
-                    break;
-                  case "skipped":
-                    state = "error";
-                    description = `⊘ ${workflowName} was skipped`;
-                    break;
-                  case "timed_out":
-                    state = "error";
-                    description = `⊘ ${workflowName} timed out`;
-                    break;
-                  default:
-                    state = "failure";
-                    description = `✗ ${workflowName} completed with unknown status`;
-                    core.warning(`Unknown agent conclusion: ${agentConclusion}, marking as failure`);
-                    break;
-                }
-                core.info(`Setting status to: ${state}`);
-                core.info(`Description: ${description}`);
-                await github.rest.repos.createCommitStatus({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  sha: sha,
-                  state: state,
-                  context: context,
-                  description: description,
-                  target_url: runUrl,
-                });
-                core.info("✓ Successfully updated commit status");
-              } catch (error) {
-                core.setFailed(`Failed to update commit status: ${error instanceof Error ? error.message : String(error)}`);
-              }
             }
             await main();
 

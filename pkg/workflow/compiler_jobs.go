@@ -139,7 +139,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		threatDetectionEnabled = true
 	}
 
-	// Track safe output job names to establish dependencies for update_reaction job
+	// Track safe output job names to establish dependencies for conclusion job
 	var safeOutputJobNames []string
 
 	// Track which jobs create_issue, create_discussion, and create_pull_request were created
@@ -362,16 +362,16 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, createAgentTaskJob.Name)
 	}
 
-	// Build update_reaction job if add-comment is configured OR if command trigger is configured with reactions
+	// Build conclusion job if add-comment is configured OR if command trigger is configured with reactions
 	// This job runs last, after all safe output jobs, to update the activation comment on failure
-	// The buildUpdateReactionJob function itself will decide whether to create the job based on the configuration
-	updateReactionJob, err := c.buildUpdateReactionJob(data, jobName, safeOutputJobNames)
+	// The buildConclusionJob function itself will decide whether to create the job based on the configuration
+	conclusionJob, err := c.buildConclusionJob(data, jobName, safeOutputJobNames)
 	if err != nil {
-		return fmt.Errorf("failed to build update_reaction job: %w", err)
+		return fmt.Errorf("failed to build conclusion job: %w", err)
 	}
-	if updateReactionJob != nil {
-		if err := c.jobManager.AddJob(updateReactionJob); err != nil {
-			return fmt.Errorf("failed to add update_reaction job: %w", err)
+	if conclusionJob != nil {
+		if err := c.jobManager.AddJob(conclusionJob); err != nil {
+			return fmt.Errorf("failed to add conclusion job: %w", err)
 		}
 	}
 

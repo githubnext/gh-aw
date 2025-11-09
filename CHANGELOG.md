@@ -400,7 +400,7 @@ Users must now configure a Personal Access Token (PAT) as either `GH_AW_COPILOT_
 
 #### Add --parse option to audit command
 
-#### Add success handling to update_reaction job
+#### Add success handling to conclusion job
 
 #### Add command position validation for command triggers to prevent accidental execution
 
@@ -523,7 +523,7 @@ Users must now configure a Personal Access Token (PAT) as either `GH_AW_COPILOT_
 
 #### Remove bloat from packaging-imports.md guide (56% reduction)
 
-#### Add update_reaction job to update activation comments when agent fails without producing output
+#### Add conclusion job to update activation comments when agent fails without producing output
 
 #### Update Claude Code to 2.0.21 and GitHub Copilot CLI to 0.0.343
 

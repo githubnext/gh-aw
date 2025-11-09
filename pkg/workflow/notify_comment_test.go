@@ -20,7 +20,7 @@ func TestUpdateReactionJob(t *testing.T) {
 		expectNeeds        []string
 	}{
 		{
-			name:               "update_reaction job created when add-comment and ai-reaction are configured",
+			name:               "conclusion job created when add-comment and ai-reaction are configured",
 			addCommentConfig:   true,
 			aiReaction:         "eyes",
 			command:            "",
@@ -39,7 +39,7 @@ func TestUpdateReactionJob(t *testing.T) {
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "create_issue", "missing_tool"},
 		},
 		{
-			name:               "update_reaction job depends on all safe output jobs",
+			name:               "conclusion job depends on all safe output jobs",
 			addCommentConfig:   true,
 			aiReaction:         "eyes",
 			command:            "",
@@ -58,7 +58,7 @@ func TestUpdateReactionJob(t *testing.T) {
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "create_issue", "missing_tool"},
 		},
 		{
-			name:               "update_reaction job not created when add-comment is not configured",
+			name:               "conclusion job not created when add-comment is not configured",
 			addCommentConfig:   false,
 			aiReaction:         "",
 			command:            "",
@@ -66,7 +66,7 @@ func TestUpdateReactionJob(t *testing.T) {
 			expectJob:          false,
 		},
 		{
-			name:               "update_reaction job not created when add-comment is configured but ai-reaction is not",
+			name:               "conclusion job not created when add-comment is configured but ai-reaction is not",
 			addCommentConfig:   true,
 			aiReaction:         "",
 			command:            "",
@@ -74,7 +74,7 @@ func TestUpdateReactionJob(t *testing.T) {
 			expectJob:          false,
 		},
 		{
-			name:               "update_reaction job not created when reaction is explicitly set to none",
+			name:               "conclusion job not created when reaction is explicitly set to none",
 			addCommentConfig:   true,
 			aiReaction:         "none",
 			command:            "",
@@ -82,7 +82,7 @@ func TestUpdateReactionJob(t *testing.T) {
 			expectJob:          false,
 		},
 		{
-			name:               "update_reaction job created when command and reaction are configured (no add-comment)",
+			name:               "conclusion job created when command and reaction are configured (no add-comment)",
 			addCommentConfig:   false,
 			aiReaction:         "eyes",
 			command:            "test-command",
@@ -101,7 +101,7 @@ func TestUpdateReactionJob(t *testing.T) {
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "missing_tool"},
 		},
 		{
-			name:               "update_reaction job created when command is configured with push-to-pull-request-branch",
+			name:               "conclusion job created when command is configured with push-to-pull-request-branch",
 			addCommentConfig:   false,
 			aiReaction:         "eyes",
 			command:            "mergefest",
@@ -120,7 +120,7 @@ func TestUpdateReactionJob(t *testing.T) {
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "push_to_pull_request_branch", "missing_tool"},
 		},
 		{
-			name:               "update_reaction job not created when command is configured but reaction is none",
+			name:               "conclusion job not created when command is configured but reaction is none",
 			addCommentConfig:   false,
 			aiReaction:         "none",
 			command:            "test-command",
@@ -149,20 +149,20 @@ func TestUpdateReactionJob(t *testing.T) {
 				}
 			}
 
-			// Build the update_reaction job
-			job, err := compiler.buildUpdateReactionJob(workflowData, constants.AgentJobName, tt.safeOutputJobNames)
+			// Build the conclusion job
+			job, err := compiler.buildConclusionJob(workflowData, constants.AgentJobName, tt.safeOutputJobNames)
 			if err != nil {
-				t.Fatalf("Failed to build update_reaction job: %v", err)
+				t.Fatalf("Failed to build conclusion job: %v", err)
 			}
 
 			if tt.expectJob {
 				if job == nil {
-					t.Fatal("Expected update_reaction job to be created, but got nil")
+					t.Fatal("Expected conclusion job to be created, but got nil")
 				}
 
 				// Check job name
-				if job.Name != "update_reaction" {
-					t.Errorf("Expected job name 'update_reaction', got '%s'", job.Name)
+				if job.Name != "conclusion" {
+					t.Errorf("Expected job name 'conclusion', got '%s'", job.Name)
 				}
 
 				// Check job-level conditions
@@ -199,29 +199,29 @@ func TestUpdateReactionJob(t *testing.T) {
 
 				// Check permissions
 				if !strings.Contains(job.Permissions, "issues: write") {
-					t.Error("Expected 'issues: write' permission in update_reaction job")
+					t.Error("Expected 'issues: write' permission in conclusion job")
 				}
 				if !strings.Contains(job.Permissions, "pull-requests: write") {
-					t.Error("Expected 'pull-requests: write' permission in update_reaction job")
+					t.Error("Expected 'pull-requests: write' permission in conclusion job")
 				}
 				if !strings.Contains(job.Permissions, "discussions: write") {
-					t.Error("Expected 'discussions: write' permission in update_reaction job")
+					t.Error("Expected 'discussions: write' permission in conclusion job")
 				}
 
 				// Check that the job has the update reaction step
 				stepsYAML := strings.Join(job.Steps, "")
 				if !strings.Contains(stepsYAML, "Update reaction comment with completion status") {
-					t.Error("Expected 'Update reaction comment with completion status' step in update_reaction job")
+					t.Error("Expected 'Update reaction comment with completion status' step in conclusion job")
 				}
 				if !strings.Contains(stepsYAML, "GH_AW_COMMENT_ID") {
-					t.Error("Expected GH_AW_COMMENT_ID environment variable in update_reaction job")
+					t.Error("Expected GH_AW_COMMENT_ID environment variable in conclusion job")
 				}
 				if !strings.Contains(stepsYAML, "GH_AW_AGENT_CONCLUSION") {
-					t.Error("Expected GH_AW_AGENT_CONCLUSION environment variable in update_reaction job")
+					t.Error("Expected GH_AW_AGENT_CONCLUSION environment variable in conclusion job")
 				}
 			} else {
 				if job != nil {
-					t.Errorf("Expected no update_reaction job, but got one: %v", job)
+					t.Errorf("Expected no conclusion job, but got one: %v", job)
 				}
 			}
 		})
@@ -243,15 +243,15 @@ func TestUpdateReactionJobIntegration(t *testing.T) {
 		},
 	}
 
-	// Build the update_reaction job with sample safe output job names
+	// Build the conclusion job with sample safe output job names
 	safeOutputJobNames := []string{"add_comment", "missing_tool"}
-	job, err := compiler.buildUpdateReactionJob(workflowData, constants.AgentJobName, safeOutputJobNames)
+	job, err := compiler.buildConclusionJob(workflowData, constants.AgentJobName, safeOutputJobNames)
 	if err != nil {
-		t.Fatalf("Failed to build update_reaction job: %v", err)
+		t.Fatalf("Failed to build conclusion job: %v", err)
 	}
 
 	if job == nil {
-		t.Fatal("Expected update_reaction job to be created")
+		t.Fatal("Expected conclusion job to be created")
 	}
 
 	// Convert job to YAML string for checking
@@ -272,24 +272,24 @@ func TestUpdateReactionJobIntegration(t *testing.T) {
 
 	// Check job-level conditions (only base conditions)
 	if !strings.Contains(job.If, "always()") {
-		t.Error("Expected always() in update_reaction job condition")
+		t.Error("Expected always() in conclusion job condition")
 	}
 	if !strings.Contains(job.If, "needs.agent.result != 'skipped'") {
-		t.Error("Expected agent not skipped check in update_reaction job condition")
+		t.Error("Expected agent not skipped check in conclusion job condition")
 	}
 
 	// Check step-level conditions (comment-specific conditions are on the step now)
 	if !strings.Contains(jobYAML, "needs.activation.outputs.comment_id") {
-		t.Error("Expected comment_id check in update_reaction step condition")
+		t.Error("Expected comment_id check in conclusion step condition")
 	}
 	if !strings.Contains(jobYAML, "(!contains(needs.agent.outputs.output_types, 'add_comment'))") {
-		t.Error("Expected NOT contains add_comment check in update_reaction step condition")
+		t.Error("Expected NOT contains add_comment check in conclusion step condition")
 	}
 	if !strings.Contains(jobYAML, "(!contains(needs.agent.outputs.output_types, 'create_pull_request'))") {
-		t.Error("Expected NOT contains create_pull_request check in update_reaction step condition")
+		t.Error("Expected NOT contains create_pull_request check in conclusion step condition")
 	}
 	if !strings.Contains(jobYAML, "(!contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))") {
-		t.Error("Expected NOT contains push_to_pull_request_branch check in update_reaction step condition")
+		t.Error("Expected NOT contains push_to_pull_request_branch check in conclusion step condition")
 	}
 
 	// Verify job depends on the safe output jobs
@@ -302,7 +302,7 @@ func TestUpdateReactionJobIntegration(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Errorf("Expected update_reaction job to depend on '%s'", expectedNeed)
+			t.Errorf("Expected conclusion job to depend on '%s'", expectedNeed)
 		}
 	}
 }
