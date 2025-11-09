@@ -36,6 +36,43 @@ tools:
 
 This uses the default cache key `memory-${{ github.workflow }}-${{ github.run_id }}` and stores files at `/tmp/gh-aw/cache-memory/` using standard file operations.
 
+### Usage Guidance: Boolean vs Null vs Object vs Array
+
+**Use boolean or null form** for simple enable with defaults:
+
+```aw wrap
+tools:
+  cache-memory: true   # Enable with default cache key
+  # OR
+  cache-memory: null   # Same as true - enable with defaults
+```
+
+**Use object form** for custom cache key or retention:
+
+```aw wrap
+tools:
+  cache-memory:
+    key: custom-memory-${{ github.workflow }}-${{ github.run_id }}
+    retention-days: 30  # Keep artifacts for 30 days
+```
+
+**Use array form** for multiple independent caches:
+
+```aw wrap
+tools:
+  cache-memory:
+    - id: default
+      key: memory-default
+    - id: session
+      key: memory-session-${{ github.run_id }}
+    - id: logs
+      retention-days: 7
+```
+
+**Migration path:** Start with boolean form for simple persistent storage. Move to object form when you need custom cache keys or retention. Use array form for workflows needing separate storage areas (e.g., session data, logs, configuration).
+
+**Best practice:** Use boolean form for most workflows. Use object form with custom keys to control cache lifetime. Use array form when you need logical separation of different data types or access patterns.
+
 ## Using the Cache Folder
 
 AI agents can store and retrieve information using standard file operations:

@@ -36,6 +36,35 @@ The `on:` section uses standard GitHub Actions syntax to define workflow trigger
 
 See [Trigger Events](/gh-aw/reference/triggers/) for complete documentation.
 
+#### Usage Guidance: String vs Object
+
+**Use string form** when you have a simple trigger without filters:
+
+```yaml wrap
+# Simple trigger - workflow runs on any issue event
+on: issues
+```
+
+**Use object form** when you need:
+- Event-specific filters (types, branches, paths)
+- Multiple trigger events
+- Special features (reaction, stop-after, manual-approval)
+- Fork filtering for pull_request triggers
+- Command triggers
+
+```yaml wrap
+# Complex trigger with filters
+on:
+  issues:
+    types: [opened, reopened]
+  pull_request:
+    types: [opened, synchronize]
+    branches: [main, dev]
+    forks: ["trusted-org/*"]
+```
+
+**Migration path:** Start with string form for basic triggers, expand to object form as you add event filters or additional trigger events.
+
 ### Description (`description:`)
 
 The `description:` field provides a human-readable description of the workflow that is rendered as a comment in the generated lock file. This helps document the purpose and functionality of the workflow.
@@ -158,6 +187,32 @@ Treats under-provisioned permissions as compilation errors, requiring workflows 
 
 Use strict mode for production workflows that require enhanced security validation or compliance with security policies.
 
+#### Usage Guidance: String vs Object
+
+**Use string form** for broad permission sets:
+
+```yaml wrap
+# Read all permissions
+permissions: read-all
+
+# Write all permissions (⚠️ use with caution)
+permissions: write-all
+```
+
+**Use object form** for granular permission control (recommended):
+
+```yaml wrap
+# Specific permissions only
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+```
+
+**Migration path:** Start with `read-all` for prototyping, then switch to object form with specific permissions for production. When using safe-outputs, the main job only needs read permissions.
+
+**Best practice:** Use object form with `safe-outputs` to minimize permissions in the main job. Safe-output jobs automatically receive necessary write permissions.
+
 ### Repository Access Roles (`roles:`)
 
 Controls who can trigger agentic workflows based on repository permission level. Defaults to `[admin, maintainer, write]` for security.
@@ -172,6 +227,32 @@ roles: all                         # Allow any user (⚠️ use with caution)
 Available roles: `admin` (full access), `maintainer` (manage repository), `write` (push and manage issues/PRs), `read` (read/clone only), `all` (no permission checking).
 
 Workflows with potentially unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce permission checks. Safe triggers (`schedule`, `workflow_run`) skip checks by default. Failed permission checks cancel the workflow with a warning.
+
+#### Usage Guidance: String vs Array
+
+**Use string form** to disable role checking:
+
+```yaml wrap
+# Allow any authenticated user (⚠️ security consideration)
+roles: all
+```
+
+**Use array form** for role-based access control (recommended):
+
+```yaml wrap
+# Default - maintainers and above
+roles: [admin, maintainer, write]
+
+# Restrict to repository owners only
+roles: [admin]
+
+# Allow contributors with write access
+roles: [admin, maintainer, write]
+```
+
+**Migration path:** Start with the default array (`[admin, maintainer, write]`), tighten to `[admin]` for sensitive workflows, or use `all` only for public, read-only operations.
+
+**Best practice:** Keep the default array for most workflows. Use `[admin]` for workflows that modify repository settings or trigger expensive operations.
 
 ### Strict Mode (`strict:`)
 
@@ -228,6 +309,39 @@ network:
     - "api.example.com"    # Custom domain
 ```
 
+#### Usage Guidance: String vs Object
+
+**Use string form** for default network permissions:
+
+```yaml wrap
+# Basic infrastructure only (certificates, JSON schema, Ubuntu)
+network: defaults
+```
+
+**Use object form** when you need custom network access:
+
+```yaml wrap
+# Custom domains and ecosystems
+network:
+  allowed:
+    - defaults           # Include basic infrastructure
+    - python            # Add Python ecosystem
+    - node              # Add Node.js ecosystem
+    - "api.custom.com"  # Add specific domain
+  firewall: true        # Enable AWF (Copilot only)
+```
+
+**Deny all network access:**
+
+```yaml wrap
+# No network access (empty object)
+network: {}
+```
+
+**Migration path:** Start with `network: defaults` or omit the field (defaults to `defaults`). Add object form with `allowed:` array when you need web-fetch or web-search capabilities. Add ecosystem identifiers as needed for specific tools.
+
+**Best practice:** Use `defaults` for workflows without web access. Use object form with specific ecosystems and domains for workflows needing external APIs or package repositories.
+
 ### Safe Outputs (`safe-outputs:`)
 
 See [Safe Outputs Processing](/gh-aw/reference/safe-outputs/) for automatic issue creation, comment posting and other safe outputs.
@@ -249,6 +363,31 @@ GitHub Agentic Workflows automatically generates concurrency policies for the ag
 
 See [Concurrency Control](/gh-aw/reference/concurrency/) for complete documentation on agent concurrency configuration.
 
+#### Usage Guidance: String vs Object
+
+**Use string form** for simple concurrency grouping:
+
+```yaml wrap
+# Prevent concurrent runs of this workflow
+concurrency: ${{ github.workflow }}
+
+# Per-branch concurrency
+concurrency: workflow-${{ github.ref }}
+```
+
+**Use object form** when you need to cancel in-progress runs:
+
+```yaml wrap
+# Cancel old runs when new ones start
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+```
+
+**Migration path:** Start with string form for basic queuing. Add object form with `cancel-in-progress: true` when you want newer runs to supersede older ones (useful for PR analysis workflows).
+
+**Best practice:** Use string form with workflow-specific grouping for most cases. Use object form with `cancel-in-progress: true` for workflows where only the latest run matters.
+
 ## Environment Variables (`env:`)
 
 GitHub Actions standard `env:` syntax:
@@ -258,6 +397,27 @@ env:
   CUSTOM_VAR: "value"
   SECRET_VAR: ${{ secrets.MY_SECRET }}
 ```
+
+#### Usage Guidance: Object vs String
+
+**Use object form** for structured environment variables (recommended):
+
+```yaml wrap
+env:
+  NODE_ENV: production
+  API_KEY: ${{ secrets.API_KEY }}
+  DEBUG: "false"
+```
+
+**Use string form** for single-line environment definitions (rare, legacy support):
+
+```yaml wrap
+env: "NODE_ENV=production"
+```
+
+**Migration path:** Always use object form for clarity and maintainability. String form is supported for legacy compatibility but not recommended.
+
+**Best practice:** Use object form with descriptive keys. Store sensitive values in secrets and reference them with `${{ secrets.* }}`.
 
 ## Environment Protection (`environment:`)
 
@@ -270,6 +430,28 @@ environment: production
 
 For more information about environments, see [GitHub Action's environment documentation](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment).
 
+#### Usage Guidance: String vs Object
+
+**Use string form** for basic environment references:
+
+```yaml wrap
+# Simple environment reference
+environment: production
+```
+
+**Use object form** when you need deployment URLs:
+
+```yaml wrap
+# Environment with deployment URL
+environment:
+  name: production
+  url: https://myapp.example.com
+```
+
+**Migration path:** Start with string form for basic protection rules. Add object form with `url` when you need deployment tracking in GitHub's deployments view.
+
+**Best practice:** Use string form for environment protection rules and secrets. Add object form with `url` for deployments that should appear in GitHub's deployment dashboard.
+
 ## Container Configuration (`container:`)
 
 The `container:` section specifies a container to run the job steps in, useful for standardized execution environments or specific runtime requirements.
@@ -280,6 +462,44 @@ container: node:18
 ```
 
 For more information about environments, see [GitHub Action's container documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container).
+
+#### Usage Guidance: String vs Object
+
+**Use string form** for public images without credentials:
+
+```yaml wrap
+# Public Docker Hub image
+container: node:18
+
+# Public GitHub Container Registry image
+container: ghcr.io/owner/image:tag
+```
+
+**Use object form** when you need:
+- Private registry authentication
+- Custom environment variables
+- Port mappings
+- Volume mounts
+- Additional container options
+
+```yaml wrap
+# Private image with credentials and custom settings
+container:
+  image: myregistry.azurecr.io/myapp:latest
+  credentials:
+    username: ${{ secrets.REGISTRY_USERNAME }}
+    password: ${{ secrets.REGISTRY_PASSWORD }}
+  env:
+    NODE_ENV: production
+  ports:
+    - 3000
+  volumes:
+    - /data:/app/data
+```
+
+**Migration path:** Start with string form for public images. Expand to object form when you need authentication or custom configuration.
+
+**Best practice:** Use string form for public images. Use object form for private registries or when you need container customization.
 
 ## Service Containers (`services:`)
 
@@ -318,6 +538,32 @@ steps:
 
 If no custom steps are specified, a default step to checkout the repository is added automatically.
 
+#### Usage Guidance: Object vs Array
+
+**Use object form** for single-step definitions (legacy syntax):
+
+```yaml wrap
+steps:
+  name: Install dependencies
+  run: npm ci
+```
+
+**Use array form** for multiple steps (recommended):
+
+```yaml wrap
+steps:
+  - name: Checkout code
+    uses: actions/checkout@v4
+  - name: Install dependencies
+    run: npm ci
+  - name: Setup environment
+    run: echo "Ready for AI execution"
+```
+
+**Migration path:** Start with array form for consistency with GitHub Actions. Object form is supported but array form is more flexible and standard.
+
+**Best practice:** Always use array form for steps to support multiple steps and align with GitHub Actions conventions. If no custom steps are provided, a checkout step is added automatically.
+
 ## Post-Execution Steps (`post-steps:`)
 
 Add custom steps after the agentic execution step using GitHub Actions standard `steps:` syntax. These steps run after the AI engine completes, regardless of whether the AI execution succeeds or fails (unless you add conditional expressions).
@@ -343,6 +589,34 @@ Post-steps are useful for:
 - Creating workflow summaries or reports
 - Cleanup operations
 - Triggering downstream workflows
+
+#### Usage Guidance: Object vs Array
+
+**Use object form** for single-step definitions (legacy syntax):
+
+```yaml wrap
+post-steps:
+  name: Upload Results
+  run: echo "Uploading results"
+```
+
+**Use array form** for multiple steps (recommended):
+
+```yaml wrap
+post-steps:
+  - name: Upload Results
+    if: always()
+    uses: actions/upload-artifact@v4
+    with:
+      name: workflow-results
+      path: /tmp/gh-aw/
+  - name: Generate Summary
+    run: echo "## Complete" >> $GITHUB_STEP_SUMMARY
+```
+
+**Migration path:** Start with array form for consistency with GitHub Actions. Object form is supported but array form is more flexible and standard.
+
+**Best practice:** Always use array form for post-steps to support multiple steps and align with GitHub Actions conventions.
 
 ## Custom Jobs (`jobs:`)
 
@@ -381,6 +655,38 @@ cache:
   restore-keys: |
     node-modules-
 ```
+
+#### Usage Guidance: Object vs Array
+
+**Use object form** for a single cache:
+
+```yaml wrap
+# Single cache for node_modules
+cache:
+  key: node-modules-${{ hashFiles('package-lock.json') }}
+  path: node_modules
+  restore-keys: |
+    node-modules-
+```
+
+**Use array form** for multiple caches:
+
+```yaml wrap
+# Multiple caches for different directories
+cache:
+  - key: node-modules-${{ hashFiles('package-lock.json') }}
+    path: node_modules
+    restore-keys: node-modules-
+  - key: build-cache-${{ github.sha }}
+    path: 
+      - dist
+      - .cache
+    restore-keys: build-cache-
+```
+
+**Migration path:** Start with object form for simple dependency caching. Expand to array form when you need to cache multiple directories with different keys or restore strategies.
+
+**Best practice:** Use object form for single-directory caching (e.g., `node_modules`). Use array form when caching multiple directories with different lifecycles (e.g., dependencies vs build outputs).
 
 ## Related Documentation
 

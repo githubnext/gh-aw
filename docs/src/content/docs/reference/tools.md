@@ -58,6 +58,43 @@ bash: ["npm:*", "echo", "ls"]     # Mix of wildcards and specific commands
 - `:*` or `*`: All commands (Copilot uses `--allow-all-tools`)
 - `command:*`: All invocations of a specific command (e.g., `git:*` allows `git add`, `git commit`, etc.)
 
+### Usage Guidance: Null vs Boolean vs Array
+
+**Use null form** (or omit) for default safe commands:
+
+```yaml wrap
+tools:
+  bash:        # Default: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date
+  # OR
+  bash: null   # Explicit default safe commands
+```
+
+**Use boolean form** for simple enable/disable:
+
+```yaml wrap
+tools:
+  bash: true   # Enable with default safe commands (same as null)
+  bash: false  # Disable bash tool completely
+```
+
+**Use array form** for fine-grained control (recommended for production):
+
+```yaml wrap
+tools:
+  # Specific commands only
+  bash: ["echo", "ls", "git status"]
+  
+  # All commands (⚠️ security consideration)
+  bash: [":*"]
+  
+  # Command-specific wildcards
+  bash: ["git:*", "npm:*", "echo"]
+```
+
+**Migration path:** Start with null or boolean for prototyping. Move to array form with specific commands for production workflows. Use command-specific wildcards (e.g., `git:*`) to allow all subcommands of a tool.
+
+**Best practice:** Use array form with specific commands in production. Avoid `[":*"]` unless absolutely necessary. Use command-specific wildcards (e.g., `git:*`, `npm:*`) for common tools.
+
 ## Web Fetch Tool (`web-fetch:`)
 
 Enables web content fetching.
