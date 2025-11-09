@@ -830,6 +830,200 @@ permissions:
 
 **Note**: Full write permissions should be avoided whenever possible. Use `safe-outputs` configuration instead to provide secure, controlled access to GitHub API operations without granting write permissions to the main AI job.
 
+## Type Union Selection Examples
+
+This section provides practical examples demonstrating when to use each form (string vs object/array) for union type fields.
+
+### `on:` Field Examples
+
+**Simple string** - Basic trigger:
+```yaml
+on: issues                    # Any issue event
+```
+
+**Complex object** - Filtered trigger with special features:
+```yaml
+on:
+  issues:
+    types: [opened, labeled]
+  pull_request:
+    branches: [main]
+    forks: ["trusted-org/*"]
+  reaction: "eyes"
+  stop-after: "+7d"
+```
+
+### `permissions:` Field Examples
+
+**String form** - Broad permissions:
+```yaml
+permissions: read-all         # All read permissions
+```
+
+**Object form** - Granular control:
+```yaml
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+```
+
+### `roles:` Field Examples
+
+**String form** - Disable checking:
+```yaml
+roles: all                    # ⚠️ Any user
+```
+
+**Array form** - Restricted access:
+```yaml
+roles: [admin, maintainer]    # Only maintainers+
+```
+
+### `network:` Field Examples
+
+**String form** - Defaults:
+```yaml
+network: defaults             # Basic infrastructure only
+```
+
+**Object form** - Custom access:
+```yaml
+network:
+  allowed:
+    - defaults
+    - python
+    - "api.example.com"
+  firewall: true
+```
+
+### `concurrency:` Field Examples
+
+**String form** - Simple queue:
+```yaml
+concurrency: workflow-${{ github.ref }}
+```
+
+**Object form** - Cancel old runs:
+```yaml
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+```
+
+### `env:` Field Examples
+
+**Object form** (recommended):
+```yaml
+env:
+  NODE_ENV: production
+  API_KEY: ${{ secrets.API_KEY }}
+```
+
+### `environment:` Field Examples
+
+**String form** - Simple reference:
+```yaml
+environment: production
+```
+
+**Object form** - With URL:
+```yaml
+environment:
+  name: production
+  url: https://myapp.example.com
+```
+
+### `container:` Field Examples
+
+**String form** - Public image:
+```yaml
+container: node:18
+```
+
+**Object form** - Private with credentials:
+```yaml
+container:
+  image: myregistry.azurecr.io/app:latest
+  credentials:
+    username: ${{ secrets.REGISTRY_USER }}
+    password: ${{ secrets.REGISTRY_PASS }}
+```
+
+### `steps:` and `post-steps:` Field Examples
+
+**Array form** (recommended):
+```yaml
+steps:
+  - name: Setup Node
+    uses: actions/setup-node@v4
+  - name: Install deps
+    run: npm ci
+
+post-steps:
+  - name: Upload artifacts
+    if: always()
+    uses: actions/upload-artifact@v4
+```
+
+### `cache:` Field Examples
+
+**Object form** - Single cache:
+```yaml
+cache:
+  key: node-modules-${{ hashFiles('package-lock.json') }}
+  path: node_modules
+```
+
+**Array form** - Multiple caches:
+```yaml
+cache:
+  - key: node-modules-${{ hashFiles('package-lock.json') }}
+    path: node_modules
+  - key: build-${{ github.sha }}
+    path: [dist, .cache]
+```
+
+### `bash:` Tool Examples
+
+**Array form** - Specific commands:
+```yaml
+tools:
+  bash: ["echo", "ls", "git:*"]
+```
+
+**Boolean form** - Default safe commands:
+```yaml
+tools:
+  bash: true
+```
+
+### `cache-memory:` Tool Examples
+
+**Boolean form** - Default:
+```yaml
+tools:
+  cache-memory: true
+```
+
+**Object form** - Custom:
+```yaml
+tools:
+  cache-memory:
+    key: custom-${{ github.workflow }}
+    retention-days: 30
+```
+
+**Array form** - Multiple caches:
+```yaml
+tools:
+  cache-memory:
+    - id: default
+    - id: session
+      key: session-${{ github.run_id }}
+    - id: logs
+```
+
 ## Common Workflow Patterns
 
 ### Issue Triage Bot
