@@ -50,13 +50,125 @@ async function main() {
   // Get default context from environment
   const defaultContext = process.env.GH_AW_COMMIT_STATUS_CONTEXT || "default";
 
+  // Get repository info
+  const owner = context.repo.owner;
+  const repo = context.repo.repo;
+
+  // Process all items
+  const createdStatuses = [];
+  for (const item of createCommitStatusItems) {
+    try {
+      const result = await createCommitStatus(item, owner, repo, defaultContext);
+      if (result) {
+        createdStatuses.push(result);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      core.error(`Failed to create commit status: ${errorMessage}`);
+      // Continue processing other items
+    }
+  }
+
+  // Set outputs based on results
+  if (createdStatuses.length > 0) {
+    core.setOutput("status_created", "true");
+    core.setOutput("status_url", createdStatuses[0].url);
+
+    // Add to step summary
+    await core.summary
+      .addHeading(`Created ${createdStatuses.length} Commit Status(es)`, 2);
+    
+    for (const status of createdStatuses) {
+      await core.summary
+        .addRaw(`**State:** ${status.state}\n\n`)
+        .addRaw(`**Context:** ${status.context}\n\n`)
+        .addRaw(`**Description:** ${status.description}\n\n`)
+        .addRaw(`**SHA:** ${status.sha}\n\n`)
+        .addRaw(status.url ? `**Status URL:** ${status.url}\n\n` : "")
+        .addRaw("---\n\n");
+    }
+    
+    await core.summary.write();
+  } else {
+    core.setFailed("No commit statuses were created successfully");
+  }
+}
+
+/**
+ * Creates a single commit status
+ * @param {object} item - The commit status item
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {string} defaultContext - Default context string
+ * @returns {Promise<object|null>} Created status info or null on failure
+ */
+async function createCommitStatus(item, owner, repo, defaultContext) {
+  // Validate required fields
+  if (!item.state) {
+    core.error("Commit status 'state' is required");
+    return null;
+  }
+
+  if (!item.description) {
+    core.error("Commit status 'description' is required");
+    return null;
+  }
+
+  // Validate state enum
+  const validStates = ["error", "failure", "pending", "success"];
+  if (!validStates.includes(item.state)) {
+    core.error(
+      `Invalid commit status state: ${item.state}. Must be one of: ${validStates.join(", ")}`
+    );
+    return null;
+  }
+
+  // Validate target_url against allowed domains if provided
+  if (item.target_url) {
+    const allowedDomains = process.env.GH_AW_COMMIT_STATUS_ALLOWED_DOMAINS;
+    if (allowedDomains) {
+      const domains = allowedDomains.split(",").map(d => d.trim());
+      let isAllowed = false;
+
+      try {
+        const url = new URL(item.target_url);
+        const hostname = url.hostname;
+
+        // Check if the hostname matches any allowed domain
+        for (const domain of domains) {
+          if (domain.startsWith("*.")) {
+            // Wildcard domain: *.example.com matches sub.example.com but not example.com
+            const domainSuffix = domain.slice(1); // Remove the *
+            if (hostname.endsWith(domainSuffix) && hostname !== domainSuffix.slice(1)) {
+              isAllowed = true;
+              break;
+            }
+          } else if (hostname === domain || hostname.endsWith("." + domain)) {
+            // Exact domain or subdomain match
+            isAllowed = true;
+            break;
+          }
+        }
+
+        if (!isAllowed) {
+          core.error(
+            `Target URL domain "${hostname}" is not in the allowed domains list. Allowed domains: ${allowedDomains}`
+          );
+          return null;
+        }
+      } catch (error) {
+        core.error(`Invalid target_url format: ${item.target_url}`);
+        return null;
+      }
+    }
+  }
+
   // Determine the SHA to use
   let sha = null;
   
   // Priority 1: Check if SHA is provided in the item
-  const firstItem = createCommitStatusItems[0];
-  if (firstItem.sha) {
-    sha = firstItem.sha;
+  if (item.sha) {
+    sha = item.sha;
     core.info(`Using SHA from agent output: ${sha}`);
   }
   
@@ -79,130 +191,47 @@ async function main() {
   }
 
   if (!sha) {
-    core.setFailed("Could not determine commit SHA for status creation");
-    return;
+    core.error("Could not determine commit SHA for status creation");
+    return null;
   }
 
-  let statusCreated = false;
-  let statusUrl = "";
+  // Prepare the status data
+  const statusData = {
+    owner,
+    repo,
+    sha,
+    state: item.state,
+    description: item.description,
+    context: item.context || defaultContext,
+  };
 
-  try {
-    // Get repository info
-    const owner = context.repo.owner;
-    const repo = context.repo.repo;
-
-    // Process the first item only (respecting max: 1 default)
-    const item = createCommitStatusItems[0];
-
-    // Validate required fields
-    if (!item.state) {
-      core.setFailed("Commit status 'state' is required");
-      return;
-    }
-
-    if (!item.description) {
-      core.setFailed("Commit status 'description' is required");
-      return;
-    }
-
-    // Validate state enum
-    const validStates = ["error", "failure", "pending", "success"];
-    if (!validStates.includes(item.state)) {
-      core.setFailed(
-        `Invalid commit status state: ${item.state}. Must be one of: ${validStates.join(", ")}`
-      );
-      return;
-    }
-
-    // Validate target_url against allowed domains if provided
-    if (item.target_url) {
-      const allowedDomains = process.env.GH_AW_COMMIT_STATUS_ALLOWED_DOMAINS;
-      if (allowedDomains) {
-        const domains = allowedDomains.split(",").map(d => d.trim());
-        let isAllowed = false;
-
-        try {
-          const url = new URL(item.target_url);
-          const hostname = url.hostname;
-
-          // Check if the hostname matches any allowed domain
-          for (const domain of domains) {
-            if (domain.startsWith("*.")) {
-              // Wildcard domain: *.example.com matches sub.example.com but not example.com
-              const domainSuffix = domain.slice(1); // Remove the *
-              if (hostname.endsWith(domainSuffix) && hostname !== domainSuffix.slice(1)) {
-                isAllowed = true;
-                break;
-              }
-            } else if (hostname === domain || hostname.endsWith("." + domain)) {
-              // Exact domain or subdomain match
-              isAllowed = true;
-              break;
-            }
-          }
-
-          if (!isAllowed) {
-            core.setFailed(
-              `Target URL domain "${hostname}" is not in the allowed domains list. Allowed domains: ${allowedDomains}`
-            );
-            return;
-          }
-        } catch (error) {
-          core.setFailed(`Invalid target_url format: ${item.target_url}`);
-          return;
-        }
-      }
-    }
-
-    // Prepare the status data
-    const statusData = {
-      owner,
-      repo,
-      sha,
-      state: item.state,
-      description: item.description,
-      context: item.context || defaultContext,
-    };
-
-    // Add optional target_url if provided
-    if (item.target_url) {
-      statusData.target_url = item.target_url;
-    }
-
-    core.info(`Creating commit status for SHA ${sha}...`);
-    core.info(`  State: ${statusData.state}`);
-    core.info(`  Context: ${statusData.context}`);
-    core.info(`  Description: ${statusData.description}`);
-    if (statusData.target_url) {
-      core.info(`  Target URL: ${statusData.target_url}`);
-    }
-
-    // Create the commit status
-    const response = await github.rest.repos.createCommitStatus(statusData);
-
-    statusCreated = true;
-    statusUrl = response.data.url || "";
-
-    core.info(`✓ Commit status created successfully`);
-    core.info(`  Status URL: ${statusUrl}`);
-
-    // Set outputs
-    core.setOutput("status_created", "true");
-    core.setOutput("status_url", statusUrl);
-
-    // Add to step summary
-    await core.summary
-      .addHeading("Commit Status Created", 2)
-      .addRaw(`**State:** ${statusData.state}\n\n`)
-      .addRaw(`**Context:** ${statusData.context}\n\n`)
-      .addRaw(`**Description:** ${statusData.description}\n\n`)
-      .addRaw(`**SHA:** ${sha}\n\n`)
-      .addRaw(statusUrl ? `**Status URL:** ${statusUrl}\n\n` : "")
-      .write();
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    core.setFailed(`Failed to create commit status: ${errorMessage}`);
+  // Add optional target_url if provided
+  if (item.target_url) {
+    statusData.target_url = item.target_url;
   }
+
+  core.info(`Creating commit status for SHA ${sha}...`);
+  core.info(`  State: ${statusData.state}`);
+  core.info(`  Context: ${statusData.context}`);
+  core.info(`  Description: ${statusData.description}`);
+  if (statusData.target_url) {
+    core.info(`  Target URL: ${statusData.target_url}`);
+  }
+
+  // Create the commit status
+  const response = await github.rest.repos.createCommitStatus(statusData);
+  const statusUrl = response.data.url || "";
+
+  core.info(`✓ Commit status created successfully`);
+  core.info(`  Status URL: ${statusUrl}`);
+
+  return {
+    state: statusData.state,
+    context: statusData.context,
+    description: statusData.description,
+    sha: sha,
+    url: statusUrl,
+  };
 }
 
 main().catch(error => {

@@ -132,7 +132,8 @@ describe("create_commit_status.cjs", () => {
 
     await import("./create_commit_status.cjs");
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith("Commit status 'state' is required");
+    expect(mockCore.error).toHaveBeenCalledWith("Commit status 'state' is required");
+    expect(mockCore.setFailed).toHaveBeenCalledWith("No commit statuses were created successfully");
   });
 
   it("should fail when description is missing", async () => {
@@ -148,7 +149,8 @@ describe("create_commit_status.cjs", () => {
 
     await import("./create_commit_status.cjs");
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith("Commit status 'description' is required");
+    expect(mockCore.error).toHaveBeenCalledWith("Commit status 'description' is required");
+    expect(mockCore.setFailed).toHaveBeenCalledWith("No commit statuses were created successfully");
   });
 
   it("should fail when state is invalid", async () => {
@@ -165,9 +167,11 @@ describe("create_commit_status.cjs", () => {
 
     await import("./create_commit_status.cjs");
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
+    expect(mockCore.error).toHaveBeenCalledWith(
       expect.stringContaining("Invalid commit status state: invalid")
     );
+    expect(mockCore.setFailed).toHaveBeenCalledWith("No commit statuses were created successfully");
+  });
   });
 
   it("should create commit status successfully with PR head SHA", async () => {
@@ -356,9 +360,10 @@ describe("create_commit_status.cjs", () => {
 
     await import("./create_commit_status.cjs");
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
+    expect(mockCore.error).toHaveBeenCalledWith(
       expect.stringContaining('Target URL domain "untrusted.com" is not in the allowed domains list')
     );
+    expect(mockCore.setFailed).toHaveBeenCalledWith("No commit statuses were created successfully");
   });
 
   it("should allow wildcard domain matching", async () => {
@@ -386,6 +391,98 @@ describe("create_commit_status.cjs", () => {
       expect.objectContaining({
         target_url: "https://sub.example.com/status",
       })
+    );
+  });
+
+  it("should process multiple commit status items", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "create_commit_status",
+          state: "success",
+          description: "First status",
+          context: "test/first",
+        },
+        {
+          type: "create_commit_status",
+          state: "pending",
+          description: "Second status",
+          context: "test/second",
+        },
+        {
+          type: "create_commit_status",
+          state: "failure",
+          description: "Third status",
+          context: "test/third",
+        },
+      ],
+      errors: [],
+    });
+
+    mockGithub.rest.repos.createCommitStatus
+      .mockResolvedValueOnce({ data: { url: "https://api.github.com/status/1" } })
+      .mockResolvedValueOnce({ data: { url: "https://api.github.com/status/2" } })
+      .mockResolvedValueOnce({ data: { url: "https://api.github.com/status/3" } });
+
+    await import("./create_commit_status.cjs");
+
+    expect(mockGithub.rest.repos.createCommitStatus).toHaveBeenCalledTimes(3);
+    expect(mockGithub.rest.repos.createCommitStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "success",
+        description: "First status",
+        context: "test/first",
+      })
+    );
+    expect(mockGithub.rest.repos.createCommitStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "pending",
+        description: "Second status",
+        context: "test/second",
+      })
+    );
+    expect(mockGithub.rest.repos.createCommitStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "failure",
+        description: "Third status",
+        context: "test/third",
+      })
+    );
+  });
+
+  it("should continue processing items after a failure", async () => {
+    setAgentOutput({
+      items: [
+        {
+          type: "create_commit_status",
+          state: "invalid",  // Invalid state - will fail
+          description: "First status",
+        },
+        {
+          type: "create_commit_status",
+          state: "success",
+          description: "Second status",
+        },
+      ],
+      errors: [],
+    });
+
+    mockGithub.rest.repos.createCommitStatus.mockResolvedValue({
+      data: { url: "https://api.github.com/status/1" },
+    });
+
+    await import("./create_commit_status.cjs");
+
+    // Should only create one status (the second one)
+    expect(mockGithub.rest.repos.createCommitStatus).toHaveBeenCalledTimes(1);
+    expect(mockGithub.rest.repos.createCommitStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "success",
+        description: "Second status",
+      })
+    );
+    expect(mockCore.error).toHaveBeenCalledWith(
+      expect.stringContaining("Invalid commit status state: invalid")
     );
   });
 });
