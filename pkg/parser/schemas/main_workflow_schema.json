@@ -2608,6 +2608,35 @@
             }
           ]
         },
+        "create-commit-status": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for creating GitHub commit statuses on pull requests from agentic workflow output",
+              "properties": {
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of commit statuses to create (default: 1)",
+                  "minimum": 1,
+                  "default": 1
+                },
+                "context": {
+                  "type": "string",
+                  "description": "A string label to differentiate this status from others (default: workflow name)"
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable commit status creation with default configuration"
+            }
+          ]
+        },
         "add-labels": {
           "oneOf": [
             {
