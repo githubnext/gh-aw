@@ -5,10 +5,6 @@ sidebar:
   order: 700
 ---
 
-This guide covers the available tools that can be configured in agentic workflows, including GitHub tools, Playwright browser automation, custom MCP servers, and neutral tools.
-
-## Overview
-
 Tools are defined in the frontmatter to specify which GitHub API calls, browser automation, and AI capabilities are available to your workflow:
 
 ```yaml wrap

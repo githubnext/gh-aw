@@ -1,11 +1,13 @@
 ---
-title: Concepts
-description: Learn the core concepts and capabilities of GitHub Agentic Workflows, combining AI agents with GitHub's collaboration platform for Continuous AI.
+title: How It Works
+description: Understanding the core concepts and architecture of GitHub Agentic Workflows, from compilation to execution
 sidebar:
   order: 2
 ---
 
 GitHub Agentic Workflows enable AI agents to perform complex, multi-step tasks automatically with your team. Built on GitHub Actions, they use Claude Code, GitHub Copilot, or Codex to interpret natural language instructions and enable [Continuous AI](https://githubnext.com/projects/continuous-ai) — systematic, automated application of AI to software collaboration.
+
+## Core Concepts
 
 ## Agentic vs Traditional Workflows
 

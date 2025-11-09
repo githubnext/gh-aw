@@ -855,7 +855,8 @@ a.button:hover {
   scrollbar-color: rgba(48, 54, 61, 0.4) transparent;
 }
 
-.right-sidebar {
+.right-sidebar,
+.right-sidebar[class*="astro-"] {
   position: sticky;
   top: 6rem;
   width: 14rem;
@@ -864,6 +865,7 @@ a.button:hover {
   padding: 1rem 0.5rem 2rem 1rem;
   border-left: 1px solid rgba(48, 54, 61, 0.25);
   overflow-y: auto;
+  overflow-x: hidden;
   z-index: 10;
   flex: 0 0 14rem;
   contain: layout paint;
@@ -873,12 +875,22 @@ a.button:hover {
   margin-right: 1rem;
 }
 
-:root[data-theme='light'] .right-sidebar {
+.right-sidebar *,
+.right-sidebar[class*="astro-"] * {
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+:root[data-theme='light'] .right-sidebar,
+:root[data-theme='light'] .right-sidebar[class*="astro-"] {
   border-left-color: rgba(208, 215, 222, 0.4);
 }
 
 starlight-toc nav {
   font-size: 0.875rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 starlight-toc a {
@@ -890,6 +902,9 @@ starlight-toc a {
   transition: none;
   line-height: 1.4;
   font-weight: 400;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 starlight-toc a:hover {
@@ -910,6 +925,14 @@ starlight-toc h2 {
   margin-bottom: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+starlight-toc,
+starlight-toc * {
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 :root[data-theme='light'] starlight-toc a {

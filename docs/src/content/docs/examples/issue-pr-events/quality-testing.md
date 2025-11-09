@@ -1,11 +1,18 @@
 ---
 title: Quality & Testing
-description: Automated workflows for test coverage improvement and performance optimization
+description: Test coverage improvements and performance optimization - automated quality enhancements
 sidebar:
-  order: 400
+  badge: { text: 'Event-triggered', variant: 'success' }
 ---
 
 Quality and testing workflows automate test coverage analysis, performance optimization, and systematic quality improvements.
+
+## When to Use Quality & Testing Workflows
+
+- **Test coverage** - Daily incremental test improvements
+- **Performance checks** - Automated performance regression detection
+- **Quality gates** - Enforce standards on PRs
+- **Systematic improvements** - Gradual quality enhancements
 
 ### Daily Test Coverage Improver
 

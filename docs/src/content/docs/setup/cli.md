@@ -5,8 +5,6 @@ sidebar:
   order: 200
 ---
 
-## Overview
-
 The `gh aw` CLI extension enables developers to create, manage, and execute AI-powered workflows directly from the command line. It transforms natural language markdown files into GitHub Actions, allowing you to:
 
 - **Automate repository tasks** with AI-driven workflows that understand context and make decisions
@@ -642,9 +640,9 @@ Common issues and their solutions.
 ## See Also
 
 **Getting Started:**
-- [Quick Start](/gh-aw/get-started/quick-start/) - Get your first workflow running
-- [Concepts](/gh-aw/get-started/concepts/) - Understanding agentic workflows
-- [About](/gh-aw/get-started/about/) - How natural language becomes GitHub Actions
+- [Quick Start](/gh-aw/setup/quick-start/) - Get your first workflow running
+- [Overview](/gh-aw/introduction/overview/) - What GitHub Agentic Workflows is
+- [How It Works](/gh-aw/introduction/how-it-works/) - Understanding concepts and architecture
 
 **Workflow Management:**
 - [Packaging and Updating](/gh-aw/guides/packaging-imports/) - Adding, updating, and importing workflows
