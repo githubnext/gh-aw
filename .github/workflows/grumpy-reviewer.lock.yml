@@ -9,6 +9,7 @@
 #   activation["activation"]
 #   add_comment["add_comment"]
 #   agent["agent"]
+#   create_commit_status["create_commit_status"]
 #   create_pr_review_comment["create_pr_review_comment"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
@@ -18,6 +19,8 @@
 #   agent --> add_comment
 #   detection --> add_comment
 #   activation --> agent
+#   agent --> create_commit_status
+#   detection --> create_commit_status
 #   agent --> create_pr_review_comment
 #   detection --> create_pr_review_comment
 #   agent --> detection
@@ -27,6 +30,7 @@
 #   activation --> update_reaction
 #   add_comment --> update_reaction
 #   create_pr_review_comment --> update_reaction
+#   create_commit_status --> update_reaction
 #   missing_tool --> update_reaction
 # ```
 #
@@ -1254,7 +1258,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"add_comment":{"max":1},"create_pull_request_review_comment":{"max":5},"missing_tool":{}}
+          {"add_comment":{"max":1},"create_commit_status":{"max":1},"create_pull_request_review_comment":{"max":5},"missing_tool":{}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -2194,7 +2198,7 @@ jobs:
           For each issue you find:
           
           1. **Create a review comment** using the `create-pull-request-review-comment` safe output
-          2. **Be specific** about the file, line number, and what's wrong
+          2. **Be specific** about the file path, line number, and what's wrong
           3. **Use your grumpy tone** but be constructive
           4. **Reference proper standards** when applicable
           5. **Be concise** - no rambling
@@ -2211,7 +2215,35 @@ jobs:
           - "Surprisingly not terrible. The error handling is actually present."
           - "Huh. This is clean. Did AI actually write something decent?"
           
-          ### Step 5: Update Memory
+          ### Step 5: Create Commit Status
+          
+          After completing your grumpy review, create a commit status:
+          
+          **When issues found:**
+          ```json
+          {
+            "type": "create_commit_status",
+            "state": "failure",
+            "description": "Found [count] issues that need fixing",
+          }
+          ```
+          
+          **When code is acceptable:**
+          ```json
+          {
+            "type": "create_commit_status",
+            "state": "success",
+            "description": "Grudgingly approved. It's... acceptable.",
+          }
+          ```
+          
+          **Guidelines for commit status:**
+          - Use `failure` if you found any significant issues
+          - Use `success` if the code meets standards (even grudgingly)
+          - Keep description brief and grumpy
+          - Context is automatically set to "ai-review/grumpy"
+          
+          ### Step 6: Update Memory
           
           Save your review to cache memory:
           - Write a summary to `/tmp/gh-aw/cache-memory/pr-${GH_AW_EXPR_9C6DBB26}.json` including:
@@ -2343,13 +2375,17 @@ jobs:
           
           ---
           
-          ## Adding a Comment to an Issue or Pull Request, Reporting Missing Tools or Functionality
+          ## Adding a Comment to an Issue or Pull Request, Creating Commit Status, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safeoutputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
           **Adding a Comment to an Issue or Pull Request**
           
           To add a comment to an issue or pull request, use the add-comments tool from safeoutputs
+          
+          **Creating Commit Status**
+          
+          To create a commit status, use the create-commit-status tool from safeoutputs
           
           **Reporting Missing Tools or Functionality**
           
@@ -4740,6 +4776,269 @@ jobs:
               main();
             }
 
+  create_commit_status:
+    needs:
+      - agent
+      - detection
+    if: >
+      ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_commit_status'))
+    runs-on: ubuntu-slim
+    permissions:
+      actions: read
+      contents: read
+      statuses: write
+    timeout-minutes: 10
+    outputs:
+      status_created: ${{ steps.create_commit_status.outputs.status_created }}
+      status_url: ${{ steps.create_commit_status.outputs.status_url }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Create Commit Status
+        id: create_commit_status
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_NAME: "Grumpy Code Reviewer 🔥"
+          GH_AW_COMMIT_STATUS_CONTEXT: "ai-review/grumpy"
+          GH_AW_COMMIT_STATUS_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            async function main() {
+              core.setOutput("status_created", "");
+              core.setOutput("status_url", "");
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const createCommitStatusItems = result.items.filter(item => item.type === "create_commit_status");
+              if (createCommitStatusItems.length === 0) {
+                core.info("No create-commit-status items found in agent output");
+                return;
+              }
+              core.info(`Found ${createCommitStatusItems.length} create-commit-status item(s)`);
+              if (isStaged) {
+                await generateStagedPreview({
+                  title: "Create Commit Status",
+                  description: "The following commit statuses would be created if staged mode was disabled:",
+                  items: createCommitStatusItems,
+                  renderItem: (item, index) => {
+                    let content = `### Status ${index + 1}\n`;
+                    content += `**State:** ${item.state || "No state provided"}\n\n`;
+                    content += `**Description:** ${item.description || "No description provided"}\n\n`;
+                    if (item.context) {
+                      content += `**Context:** ${item.context}\n\n`;
+                    }
+                    if (item.target_url) {
+                      content += `**Target URL:** ${item.target_url}\n\n`;
+                    }
+                    if (item.sha) {
+                      content += `**SHA:** ${item.sha}\n\n`;
+                    }
+                    return content;
+                  },
+                });
+                return;
+              }
+              const defaultContext = process.env.GH_AW_COMMIT_STATUS_CONTEXT || "default";
+              const owner = context.repo.owner;
+              const repo = context.repo.repo;
+              const createdStatuses = [];
+              for (const item of createCommitStatusItems) {
+                try {
+                  const result = await createCommitStatus(item, owner, repo, defaultContext);
+                  if (result) {
+                    createdStatuses.push(result);
+                  }
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.error(`Failed to create commit status: ${errorMessage}`);
+                }
+              }
+              if (createdStatuses.length > 0) {
+                core.setOutput("status_created", "true");
+                core.setOutput("status_url", createdStatuses[0].url);
+                await core.summary
+                  .addHeading(`Created ${createdStatuses.length} Commit Status(es)`, 2);
+                for (const status of createdStatuses) {
+                  await core.summary
+                    .addRaw(`**State:** ${status.state}\n\n`)
+                    .addRaw(`**Context:** ${status.context}\n\n`)
+                    .addRaw(`**Description:** ${status.description}\n\n`)
+                    .addRaw(`**SHA:** ${status.sha}\n\n`)
+                    .addRaw(status.url ? `**Status URL:** ${status.url}\n\n` : "")
+                    .addRaw("---\n\n");
+                }
+                await core.summary.write();
+              } else {
+                core.setFailed("No commit statuses were created successfully");
+              }
+            }
+            async function createCommitStatus(item, owner, repo, defaultContext) {
+              if (!item.state) {
+                core.error("Commit status 'state' is required");
+                return null;
+              }
+              if (!item.description) {
+                core.error("Commit status 'description' is required");
+                return null;
+              }
+              const validStates = ["error", "failure", "pending", "success"];
+              if (!validStates.includes(item.state)) {
+                core.error(
+                  `Invalid commit status state: ${item.state}. Must be one of: ${validStates.join(", ")}`
+                );
+                return null;
+              }
+              if (item.target_url) {
+                const allowedDomains = process.env.GH_AW_COMMIT_STATUS_ALLOWED_DOMAINS;
+                if (allowedDomains) {
+                  const domains = allowedDomains.split(",").map(d => d.trim());
+                  let isAllowed = false;
+                  try {
+                    const url = new URL(item.target_url);
+                    const hostname = url.hostname;
+                    for (const domain of domains) {
+                      if (domain.startsWith("*.")) {
+                        const domainSuffix = domain.slice(1); 
+                        if (hostname.endsWith(domainSuffix) && hostname !== domainSuffix.slice(1)) {
+                          isAllowed = true;
+                          break;
+                        }
+                      } else if (hostname === domain || hostname.endsWith("." + domain)) {
+                        isAllowed = true;
+                        break;
+                      }
+                    }
+                    if (!isAllowed) {
+                      core.error(
+                        `Target URL domain "${hostname}" is not in the allowed domains list. Allowed domains: ${allowedDomains}`
+                      );
+                      return null;
+                    }
+                  } catch (error) {
+                    core.error(`Invalid target_url format: ${item.target_url}`);
+                    return null;
+                  }
+                }
+              }
+              let sha = null;
+              if (item.sha) {
+                sha = item.sha;
+                core.info(`Using SHA from agent output: ${sha}`);
+              }
+              if (!sha && context.payload?.pull_request?.head?.sha) {
+                sha = context.payload.pull_request.head.sha;
+                core.info(`Using SHA from pull request head: ${sha}`);
+              }
+              if (!sha && context.payload?.after) {
+                sha = context.payload.after;
+                core.info(`Using SHA from push event: ${sha}`);
+              }
+              if (!sha && context.sha) {
+                sha = context.sha;
+                core.info(`Using SHA from workflow context: ${sha}`);
+              }
+              if (!sha) {
+                core.error("Could not determine commit SHA for status creation");
+                return null;
+              }
+              const statusData = {
+                owner,
+                repo,
+                sha,
+                state: item.state,
+                description: item.description,
+                context: item.context || defaultContext,
+              };
+              if (item.target_url) {
+                statusData.target_url = item.target_url;
+              }
+              core.info(`Creating commit status for SHA ${sha}...`);
+              core.info(`  State: ${statusData.state}`);
+              core.info(`  Context: ${statusData.context}`);
+              core.info(`  Description: ${statusData.description}`);
+              if (statusData.target_url) {
+                core.info(`  Target URL: ${statusData.target_url}`);
+              }
+              const response = await github.rest.repos.createCommitStatus(statusData);
+              const statusUrl = response.data.url || "";
+              core.info(`✓ Commit status created successfully`);
+              core.info(`  Status URL: ${statusUrl}`);
+              return {
+                state: statusData.state,
+                context: statusData.context,
+                description: statusData.description,
+                sha: sha,
+                url: statusUrl,
+              };
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
+
   create_pr_review_comment:
     needs:
       - agent
@@ -5581,6 +5880,7 @@ jobs:
       - activation
       - add_comment
       - create_pr_review_comment
+      - create_commit_status
       - missing_tool
     if: >
       (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!contains(needs.agent.outputs.output_types, 'add_comment'))) &&

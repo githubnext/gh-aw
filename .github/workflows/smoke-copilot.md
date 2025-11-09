@@ -21,8 +21,16 @@ tools:
 safe-outputs:
     staged: true
     create-issue:
+    create-commit-status:
+      context: "ci/smoke-copilot"
+      max: 1
 timeout-minutes: 10
 strict: true
 ---
 
 Review the last 2 merged pull requests in this repository and post summary in an issue.
+
+If triggered by a pull request (labeled with "smoke"), create a commit status indicating the smoke test result:
+- Use `state: "success"` if the review completes successfully
+- Use `state: "failure"` if there are any errors
+- Include brief description of the test result

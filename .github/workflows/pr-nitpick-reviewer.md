@@ -20,6 +20,9 @@ safe-outputs:
   create-pull-request-review-comment:
     max: 10
     side: "RIGHT"
+  create-commit-status:
+    context: "ai-review/nitpick"
+    max: 1
 timeout-minutes: 15
 imports:
   - shared/reporting.md
@@ -183,7 +186,38 @@ For each nitpick found, decide on the appropriate output type:
 - **Pattern analysis** - Trends across multiple reviews
 - **Learning resources** - Links and explanations for common issues
 
-### Step 5: Generate Daily Summary Report
+### Step 5: Create Commit Status
+
+After completing your review, create a commit status on the pull request using `create_commit_status`:
+
+**When review finds issues:**
+```json
+{
+  "type": "create_commit_status",
+  "state": "failure",
+  "description": "Found [count] nitpicks requiring attention",
+  "target_url": "[link to discussion if created]"
+}
+```
+
+**When review is clean:**
+```json
+{
+  "type": "create_commit_status",
+  "state": "success",
+  "description": "No significant nitpicks found",
+  "target_url": "[link to discussion if created]"
+}
+```
+
+**Guidelines for commit status:**
+- Use `failure` if you found 5+ important nitpicks
+- Use `success` if you found fewer than 5 nitpicks or none
+- Include count of nitpicks in the description
+- Link to discussion report if one was created
+- Context is automatically set to "ai-review/nitpick"
+
+### Step 6: Generate Daily Summary Report
 
 Create a comprehensive markdown report using the imported `reporting.md` format:
 
@@ -263,7 +297,7 @@ Things done well in this PR:
 - Reviewed: [timestamp]
 ```
 
-### Step 6: Update Memory Cache
+### Step 7: Update Memory Cache
 
 After completing the review, update cache memory files:
 

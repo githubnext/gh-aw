@@ -15,6 +15,9 @@ engine: copilot
 safe-outputs:
   push-to-pull-request-branch:
     commit-title-suffix: " [skip-ci]"
+  create-commit-status:
+    context: "changeset/generated"
+    max: 1
   threat-detection:
     engine: false
 timeout-minutes: 20
@@ -86,6 +89,27 @@ Your task is to:
    - The `branch` parameter is optional - it will automatically detect the current PR branch
    - This tool call is REQUIRED for your changes to be pushed to the pull request
    - **WARNING**: If you don't call this tool, your changeset file will NOT be pushed and the job will be skipped
+
+6. **Create Commit Status**:
+   After successfully creating and pushing the changeset, create a commit status:
+   
+   **Success case:**
+   ```json
+   {
+     "type": "create_commit_status",
+     "state": "success",
+     "description": "Changeset generated: [type]-[description]"
+   }
+   ```
+   
+   **Failure case (if unable to generate changeset):**
+   ```json
+   {
+     "type": "create_commit_status",
+     "state": "failure",
+     "description": "Failed to generate changeset"
+   }
+   ```
 
 ## Guidelines
 

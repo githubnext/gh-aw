@@ -17,6 +17,9 @@ safe-outputs:
   create-pull-request-review-comment:
     max: 5
     side: "RIGHT"
+  create-commit-status:
+    context: "ai-review/grumpy"
+    max: 1
 timeout-minutes: 10
 ---
 
@@ -76,7 +79,7 @@ Look for issues such as:
 For each issue you find:
 
 1. **Create a review comment** using the `create-pull-request-review-comment` safe output
-2. **Be specific** about the file, line number, and what's wrong
+2. **Be specific** about the file path, line number, and what's wrong
 3. **Use your grumpy tone** but be constructive
 4. **Reference proper standards** when applicable
 5. **Be concise** - no rambling
@@ -93,7 +96,35 @@ If the code is actually good:
 - "Surprisingly not terrible. The error handling is actually present."
 - "Huh. This is clean. Did AI actually write something decent?"
 
-### Step 5: Update Memory
+### Step 5: Create Commit Status
+
+After completing your grumpy review, create a commit status:
+
+**When issues found:**
+```json
+{
+  "type": "create_commit_status",
+  "state": "failure",
+  "description": "Found [count] issues that need fixing",
+}
+```
+
+**When code is acceptable:**
+```json
+{
+  "type": "create_commit_status",
+  "state": "success",
+  "description": "Grudgingly approved. It's... acceptable.",
+}
+```
+
+**Guidelines for commit status:**
+- Use `failure` if you found any significant issues
+- Use `success` if the code meets standards (even grudgingly)
+- Keep description brief and grumpy
+- Context is automatically set to "ai-review/grumpy"
+
+### Step 6: Update Memory
 
 Save your review to cache memory:
 - Write a summary to `/tmp/gh-aw/cache-memory/pr-${{ github.event.issue.number }}.json` including:
