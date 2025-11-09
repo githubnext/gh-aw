@@ -93,6 +93,10 @@ async function updateActivationComment(github, context, core, pullRequestUrl, pu
         },
       });
 
+      if (!currentComment?.data?.body) {
+        core.warning("Unable to fetch current comment body, comment may have been deleted");
+        return;
+      }
       const currentBody = currentComment.data.body;
       const updatedBody = currentBody + prLinkMessage;
 
