@@ -9,7 +9,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
-func TestValidatePermissions(t *testing.T) {
+func TestValidateIncludedPermissions(t *testing.T) {
 	tests := []struct {
 		name                string
 		topPermissionsYAML  string
@@ -73,17 +73,17 @@ func TestValidatePermissions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler(false, "", "test")
-			err := compiler.ValidatePermissions(tt.topPermissionsYAML, tt.importedPermissions)
+			err := compiler.ValidateIncludedPermissions(tt.topPermissionsYAML, tt.importedPermissions)
 
 			if tt.expectError {
 				if err == nil {
-					t.Errorf("ValidatePermissions() expected error but got none")
+					t.Errorf("ValidateIncludedPermissions() expected error but got none")
 				} else if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
-					t.Errorf("ValidatePermissions() error should contain '%s', got: %v", tt.errorContains, err)
+					t.Errorf("ValidateIncludedPermissions() error should contain '%s', got: %v", tt.errorContains, err)
 				}
 			} else {
 				if err != nil {
-					t.Errorf("ValidatePermissions() unexpected error: %v", err)
+					t.Errorf("ValidateIncludedPermissions() unexpected error: %v", err)
 				}
 			}
 		})
