@@ -84,20 +84,32 @@ export default defineConfig({
 					autogenerate: { directory: 'get-started' },
 				},
 				{
+					label: 'CLI',
+					items: [
+						{ label: 'Commands', link: '/setup/cli/' },
+						{ label: 'VS Code Integration', link: '/setup/vscode/' },
+						{ label: 'MCP Server', link: '/setup/mcp-server/' },
+					],
+				},
+				{
 					label: 'Guides',
 					autogenerate: { directory: 'guides' },
 				},
 				{
-					label: 'Setup',
-					autogenerate: { directory: 'setup' },
-				},
-				{
-					label: 'Workflows',
+					label: 'Workflow Reference',
 					autogenerate: { directory: 'reference' },
 				},
 				{
-					label: 'Applications',
+					label: 'Examples',
 					autogenerate: { directory: 'samples' },
+				},
+				{
+					label: 'Troubleshooting',
+					autogenerate: { directory: 'troubleshooting' },
+				},
+				{
+					label: 'Authoring',
+					link: '/setup/agentic-authoring/',
 				},
 				{
 					label: 'Status',
