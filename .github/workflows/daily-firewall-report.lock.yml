@@ -1172,6 +1172,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
+          # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           ## Report Formatting
           
@@ -1696,6 +1697,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           1. Create CSV files in `/tmp/gh-aw/python/data/` with the collected data:
              - `firewall_requests.csv` - Daily allowed/denied request counts
@@ -1967,6 +1969,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
@@ -1999,6 +2002,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
@@ -2012,6 +2016,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           
@@ -2031,6 +2036,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
@@ -2056,6 +2062,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
@@ -2081,6 +2088,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
