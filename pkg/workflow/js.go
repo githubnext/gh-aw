@@ -6,9 +6,6 @@ import (
 	"strings"
 )
 
-//go:embed js/create_pull_request.cjs
-var createPullRequestScript string
-
 //go:embed js/create_agent_task.cjs
 var createAgentTaskScript string
 

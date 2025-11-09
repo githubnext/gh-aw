@@ -126,7 +126,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		StepID:         "create_pull_request",
 		MainJobName:    mainJobName,
 		CustomEnvVars:  customEnvVars,
-		Script:         createPullRequestScript,
+		Script:         getCreatePullRequestScript(),
 		Permissions:    NewPermissionsContentsWriteIssuesWritePRWrite(),
 		Outputs:        outputs,
 		PreSteps:       preSteps,
