@@ -64,7 +64,7 @@ steps:
         > /tmp/gh-aw/pr-data/copilot-prs.json
 
       # Generate schema for reference
-      cat /tmp/gh-aw/pr-data/copilot-prs.json | /tmp/gh-aw/jqschema.sh > /tmp/gh-aw/pr-data/copilot-prs-schema.json
+      /tmp/gh-aw/jqschema.sh < /tmp/gh-aw/pr-data/copilot-prs.json > /tmp/gh-aw/pr-data/copilot-prs-schema.json
 
       echo "PR data saved to /tmp/gh-aw/pr-data/copilot-prs.json"
       echo "Schema saved to /tmp/gh-aw/pr-data/copilot-prs-schema.json"
