@@ -275,6 +275,4 @@ async function main() {
   }
   core.info(`Successfully created ${createdIssues.length} issue(s)`);
 }
-(async () => {
-  await main();
-})();
+await main();

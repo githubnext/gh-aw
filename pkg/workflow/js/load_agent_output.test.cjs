@@ -290,7 +290,7 @@ describe("load_agent_output.cjs", () => {
 
     it("should handle staged mode with preview config", async () => {
       process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
-      
+
       // Mock core.summary
       const mockSummary = {
         addRaw: vi.fn().mockReturnThis(),
@@ -316,7 +316,7 @@ describe("load_agent_output.cjs", () => {
 
     it("should not trigger staged preview when not in staged mode", async () => {
       delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
-      
+
       const mockSummary = {
         addRaw: vi.fn().mockReturnThis(),
         write: vi.fn().mockResolvedValue(undefined),
@@ -328,7 +328,7 @@ describe("load_agent_output.cjs", () => {
         stagedPreview: {
           title: "Create Issues",
           description: "The following issues would be created:",
-          renderItem: (item) => `Item: ${item.title}`,
+          renderItem: item => `Item: ${item.title}`,
         },
       });
 
