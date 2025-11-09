@@ -9,7 +9,7 @@
 
 async function main() {
   try {
-    const context = process.env.GH_AW_COMMIT_STATUS_CONTEXT || process.env.GH_AW_STATUS_CONTEXT || "agentic-workflow";
+    const statusContext = process.env.GH_AW_COMMIT_STATUS_CONTEXT || process.env.GH_AW_STATUS_CONTEXT || "agentic-workflow";
     const sha = process.env.GH_AW_STATUS_SHA;
     const agentConclusion = process.env.GH_AW_AGENT_CONCLUSION || "unknown";
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Workflow";
@@ -20,7 +20,7 @@ async function main() {
       return;
     }
 
-    core.info(`Updating commit status with context: ${context}`);
+    core.info(`Updating commit status with context: ${statusContext}`);
     core.info(`SHA: ${sha}`);
     core.info(`Agent conclusion: ${agentConclusion}`);
 
@@ -62,11 +62,11 @@ async function main() {
 
     // Update the commit status
     await github.rest.repos.createCommitStatus({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
+      owner: github.context.repo.owner,
+      repo: github.context.repo.repo,
       sha: sha,
       state: state,
-      context: context,
+      context: statusContext,
       description: description,
       target_url: runUrl,
     });

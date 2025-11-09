@@ -1,10 +1,5 @@
 package workflow
 
-import (
-	"fmt"
-	"strings"
-)
-
 // CreateCommitStatusConfig holds configuration for creating commit statuses from agent output
 type CreateCommitStatusConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
@@ -53,73 +48,4 @@ func (c *Compiler) parseCommitStatusConfig(outputMap map[string]any) *CreateComm
 	}
 
 	return commitStatusConfig
-}
-
-// buildCreateCommitStatusJob creates the create_commit_status job
-func (c *Compiler) buildCreateCommitStatusJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.CreateCommitStatus == nil {
-		return nil, fmt.Errorf("safe-outputs.create-commit-status configuration is required")
-	}
-
-	// Build custom environment variables specific to create-commit-status
-	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
-	
-	// Pass the context configuration, defaulting to workflow name
-	contextName := data.SafeOutputs.CreateCommitStatus.Context
-	if contextName == "" {
-		if data.FrontmatterName != "" {
-			contextName = data.FrontmatterName
-		} else {
-			contextName = data.Name // fallback to H1 header name
-		}
-	}
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMIT_STATUS_CONTEXT: %q\n", contextName))
-
-	// Add allowed domains for target_url validation
-	// Use manually configured domains if available, otherwise compute from network configuration
-	var domainsStr string
-	if len(data.SafeOutputs.CreateCommitStatus.AllowedDomains) > 0 {
-		// Use manually configured allowed domains
-		domainsStr = strings.Join(data.SafeOutputs.CreateCommitStatus.AllowedDomains, ",")
-	} else {
-		// Fall back to computing from network configuration (same as for sanitization)
-		domainsStr = c.computeAllowedDomainsForSanitization(data)
-	}
-	if domainsStr != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMIT_STATUS_ALLOWED_DOMAINS: %q\n", domainsStr))
-	}
-
-	// Add common safe output job environment variables (staged/target repo)
-	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
-		c.trialMode,
-		c.trialLogicalRepoSlug,
-		data.SafeOutputs.Staged,
-		"", // commit status doesn't support target-repo
-	)...)
-
-	// Get token from config
-	var token string
-	if data.SafeOutputs.CreateCommitStatus != nil {
-		token = data.SafeOutputs.CreateCommitStatus.GitHubToken
-	}
-
-	// Create outputs for the job
-	outputs := map[string]string{
-		"status_created": "${{ steps.create_commit_status.outputs.status_created }}",
-		"status_url":     "${{ steps.create_commit_status.outputs.status_url }}",
-	}
-
-	// Use the shared builder function to create the job
-	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
-		JobName:       "create_commit_status",
-		StepName:      "Create Commit Status",
-		StepID:        "create_commit_status",
-		MainJobName:   mainJobName,
-		CustomEnvVars: customEnvVars,
-		Script:        getCreateCommitStatusScript(),
-		Permissions:   NewPermissionsContentsReadStatusesWrite(),
-		Outputs:       outputs,
-		Token:         token,
-	})
 }

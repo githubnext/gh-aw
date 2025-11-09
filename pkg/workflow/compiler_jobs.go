@@ -250,21 +250,9 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, createCodeScanningAlertJob.Name)
 	}
 
-	// Build create_commit_status job if output.create-commit-status is configured
-	if data.SafeOutputs.CreateCommitStatus != nil {
-		createCommitStatusJob, err := c.buildCreateCommitStatusJob(data, jobName)
-		if err != nil {
-			return fmt.Errorf("failed to build create_commit_status job: %w", err)
-		}
-		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
-		if threatDetectionEnabled {
-			createCommitStatusJob.Needs = append(createCommitStatusJob.Needs, constants.DetectionJobName)
-		}
-		if err := c.jobManager.AddJob(createCommitStatusJob); err != nil {
-			return fmt.Errorf("failed to add create_commit_status job: %w", err)
-		}
-		safeOutputJobNames = append(safeOutputJobNames, createCommitStatusJob.Name)
-	}
+	// Note: create-commit-status safe output uses pending/final status lifecycle
+	// Pending status is created in activation job, final status in conclusion job
+	// No separate safe-output job is needed
 
 	// Build add_labels job if output.add-labels is configured (including null/empty)
 	if data.SafeOutputs.AddLabels != nil {
