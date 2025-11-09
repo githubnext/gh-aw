@@ -1032,7 +1032,7 @@ network: defaults
 If you encounter an error not documented here:
 
 1. **Search this page:** Use Ctrl+F / Cmd+F to search for keywords from your error message
-2. **Check examples:** Review workflow examples in [Research & Planning](/gh-aw/samples/research-planning/), [Triage & Analysis](/gh-aw/samples/triage-analysis/), [Coding & Development](/gh-aw/samples/coding-development/), or [Quality & Testing](/gh-aw/samples/quality-testing/)
+2. **Check examples:** Review workflow examples in [Research & Planning](/gh-aw/examples/scheduled/research-planning/), [Triage & Analysis](/gh-aw/examples/issue-pr-events/triage-analysis/), [Coding & Development](/gh-aw/examples/issue-pr-events/coding-development/), or [Quality & Testing](/gh-aw/examples/issue-pr-events/quality-testing/)
 3. **Enable verbose mode:** Run `gh aw compile --verbose` for detailed error context
 4. **Review validation timing:** See [Validation Timing](/gh-aw/troubleshooting/validation-timing/) to understand when errors occur
 5. **Report issues:** If you believe you've found a bug, [report it on GitHub](https://github.com/githubnext/gh-aw/issues)
