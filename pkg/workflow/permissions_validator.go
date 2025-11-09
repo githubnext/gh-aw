@@ -89,7 +89,12 @@ type PermissionsValidationResult struct {
 	MissingToolsetDetails map[string][]PermissionScope        // Maps toolset name to missing permissions
 }
 
-// ValidatePermissions validates that permissions match the required GitHub MCP toolsets
+// ValidatePermissions validates that workflow permissions match the required GitHub MCP toolsets
+// This is the general-purpose permission validator used during workflow compilation to check
+// that the declared permissions are sufficient for the GitHub MCP toolsets being used.
+//
+// Use ValidatePermissions (this function) for general permission validation against GitHub MCP toolsets.
+// Use ValidateIncludedPermissions (in imports.go) when validating permissions from included/imported workflow files.
 func ValidatePermissions(permissions *Permissions, githubTool any) *PermissionsValidationResult {
 	permissionsValidatorLog.Print("Starting permissions validation")
 

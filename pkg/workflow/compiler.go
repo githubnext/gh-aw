@@ -673,7 +673,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract top-level permissions first
 	topLevelPermissions := c.extractPermissions(result.Frontmatter)
 	if importsResult.MergedPermissions != "" {
-		if err := c.ValidatePermissions(topLevelPermissions, importsResult.MergedPermissions); err != nil {
+		if err := c.ValidateIncludedPermissions(topLevelPermissions, importsResult.MergedPermissions); err != nil {
 			return nil, fmt.Errorf("permission validation failed: %w", err)
 		}
 	}
