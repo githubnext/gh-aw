@@ -690,30 +690,6 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	WriteShellScriptToYAML(yaml, printPromptSummaryScript, "          ")
 }
 
-func (c *Compiler) generateCacheMemoryPromptStep(yaml *strings.Builder, config *CacheMemoryConfig) {
-	if config == nil || len(config.Caches) == 0 {
-		return
-	}
-
-	appendPromptStepWithHeredoc(yaml,
-		"Append cache memory instructions to prompt",
-		func(y *strings.Builder) {
-			generateCacheMemoryPromptSection(y, config)
-		})
-}
-
-func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutputs *SafeOutputsConfig) {
-	if safeOutputs == nil {
-		return
-	}
-
-	appendPromptStepWithHeredoc(yaml,
-		"Append safe outputs instructions to prompt",
-		func(y *strings.Builder) {
-			generateSafeOutputsPromptSection(y, safeOutputs)
-		})
-}
-
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {
 	if data.PostSteps != "" {
 		// Remove "post-steps:" line and adjust indentation, similar to CustomSteps processing
