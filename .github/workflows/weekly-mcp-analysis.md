@@ -17,7 +17,18 @@ network:
 tools:
   edit:
   bash:
-    - "*"
+    - "echo"
+    - "git"
+    - "cd"
+    - "cp"
+    - "sed"
+    - "make"
+    - "curl"
+    - "sleep"
+    - "mkdir"
+    - "cat"
+    - "ls"
+    - "grep"
   web-fetch:
   github:
     toolsets:
@@ -53,6 +64,7 @@ steps:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
     run: |
       set -e
       cd /tmp/mcp-repo
@@ -63,7 +75,7 @@ steps:
       # Configure environment variables
       sed -i "s|GITHUB_TOKEN=.*|GITHUB_TOKEN=$GITHUB_TOKEN|g" .env
       sed -i "s|GEMINI_API_KEY=.*|GEMINI_API_KEY=$GEMINI_API_KEY|g" .env
-      sed -i "s|NEO4J_PASSWORD=.*|NEO4J_PASSWORD=tron-1982|g" .env
+      sed -i "s|NEO4J_PASSWORD=.*|NEO4J_PASSWORD=${NEO4J_PASSWORD:-tron-1982}|g" .env
       
       echo "Starting MCP server with quickstart..."
       # Run quickstart (this installs tools, builds, starts services, and initializes Neo4j)
