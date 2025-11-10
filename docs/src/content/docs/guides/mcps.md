@@ -1,8 +1,8 @@
 ---
 title: Using MCPs
-description: Learn how to use Model Context Protocol (MCP) servers with GitHub Agentic Workflows to connect AI agents to external tools, databases, and services.
+description: How to use Model Context Protocol (MCP) servers with GitHub Agentic Workflows to connect AI agents to external tools, databases, and services.
 sidebar:
-  order: 200
+  order: 4
 ---
 
 This guide covers using Model Context Protocol (MCP) servers with GitHub Agentic Workflows.
@@ -353,7 +353,7 @@ This provides diagnostic tools and the `report_diagnostics_to_pull_request` cust
 ## Related Documentation
 
 - [Tools](/gh-aw/reference/tools/) - Complete tools reference
-- [CLI Commands](/gh-aw/tools/cli/) - CLI commands including `mcp inspect`
+- [CLI Commands](/gh-aw/setup/cli/) - CLI commands including `mcp inspect`
 - [Imports](/gh-aw/reference/imports/) - Modularizing workflows with includes
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory organization

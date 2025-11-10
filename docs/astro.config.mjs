@@ -4,7 +4,6 @@ import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
-// import starlightChangelogs, { makeChangelogsSidebarLinks } from 'starlight-changelogs';
 
 // NOTE: A previous attempt defined a custom Shiki grammar for `aw` (agentic workflow) but
 // Shiki did not register it and builds produced a warning: language "aw" not found.
@@ -20,14 +19,36 @@ export default defineConfig({
 	devToolbar: {
 		enabled: false
 	},
+	experimental: {
+		clientPrerender: false
+	},
 	integrations: [
 		starlight({
 			title: 'GitHub Agentic Workflows',
+			logo: {
+				src: './src/assets/agentic-workflow.svg',
+				replacesTitle: false,
+			},
+		components: {
+				Head: './src/components/CustomHead.astro',
+				SocialIcons: './src/components/CustomHeader.astro',
+				ThemeSelect: './src/components/ThemeToggle.astro',
+				Footer: './src/components/CustomFooter.astro',
+				SiteTitle: './src/components/CustomLogo.astro',
+			},
+			customCss: [
+				'./src/styles/custom.css',
+			],
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/githubnext/gh-aw' },
-				{ icon: 'rocket', label: 'Instructions', href: 'https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/github-agentic-workflows.instructions.md' }
 			],
+			tableOfContents: { 
+			minHeadingLevel: 2, 
+			maxHeadingLevel: 4 
+		},
+			pagination: true,
 			expressiveCode: {
+				frames: false,
 				shiki: {
 						langs: /** @type {any[]} */ ([
 							"markdown",
@@ -37,7 +58,6 @@ export default defineConfig({
 				},
 			},
 			plugins: [
-				// starlightChangelogs(),
 				starlightGitHubAlerts(),
 				starlightLinksValidator({
 					errorOnRelativeLinks: true,
@@ -61,32 +81,69 @@ export default defineConfig({
 			],
 			sidebar: [
 				{
-					label: 'Start Here',
-					autogenerate: { directory: 'start-here' },
+					label: 'Introduction',
+					autogenerate: { directory: 'introduction' },
 				},
 				{
-					label: 'Workflows',
-					autogenerate: { directory: 'reference' },
+					label: 'Setup',
+					items: [
+						{ label: 'Quick Start', link: '/setup/quick-start/' },
+						{ label: 'CLI Commands', link: '/setup/cli/' },
+						{ label: 'VS Code Integration', link: '/setup/vscode/' },
+						{ label: 'MCP Server', link: '/setup/mcp-server/' },
+					],
 				},
 				{
 					label: 'Guides',
-					autogenerate: { directory: 'guides' },
+					items: [
+						{ label: 'Creating Workflows', link: '/setup/agentic-authoring/' },
+						{ label: 'Packaging & Distribution', link: '/guides/packaging-imports/' },
+						{ label: 'Security Best Practices', link: '/guides/security/' },
+						{ label: 'Using MCPs', link: '/guides/mcps/' },
+						{ label: 'Custom Safe Outputs', link: '/guides/custom-safe-outputs/' },
+						{ label: 'Threat Detection', link: '/guides/threat-detection/' },
+						{ label: 'Web Search', link: '/guides/web-search/' },
+					],
 				},
 				{
-					label: 'Application Areas',
-					autogenerate: { directory: 'samples' },
+					label: 'Examples',
+					items: [
+						{ label: 'ChatOps', link: '/examples/comment-triggered/chatops/' },
+						{ label: 'IssueOps', link: '/examples/issue-pr-events/issueops/' },
+						{ label: 'LabelOps', link: '/examples/issue-pr-events/labelops/' },
+						{ label: 'DailyOps', link: '/examples/scheduled/dailyops/' },
+						{ label: 'Research & Planning', link: '/examples/scheduled/research-planning/' },
+						{ label: 'Triage & Analysis', link: '/examples/issue-pr-events/triage-analysis/' },
+						{ label: 'Coding & Development', link: '/examples/issue-pr-events/coding-development/' },
+						{ label: 'Quality & Testing', link: '/examples/issue-pr-events/quality-testing/' },
+					],
 				},
 				{
-					label: 'Tools',
-					autogenerate: { directory: 'tools' },
+					label: 'Reference',
+					items: [
+						{ label: 'Workflow Structure', link: '/reference/workflow-structure/' },
+						{ label: 'Frontmatter', link: '/reference/frontmatter/' },
+						{ label: 'Frontmatter (Full)', link: '/reference/frontmatter-full/' },
+						{ label: 'Triggers', link: '/reference/triggers/' },
+						{ label: 'Command Triggers', link: '/reference/command-triggers/' },
+						{ label: 'Permissions', link: '/reference/permissions/' },
+						{ label: 'AI Engines', link: '/reference/engines/' },
+						{ label: 'Tools', link: '/reference/tools/' },
+						{ label: 'Safe Outputs', link: '/reference/safe-outputs/' },
+						{ label: 'Custom Safe Outputs', link: '/guides/custom-safe-outputs/' },
+						{ label: 'Imports', link: '/reference/imports/' },
+						{ label: 'Templating', link: '/reference/templating/' },
+						{ label: 'Network Access', link: '/reference/network/' },
+						{ label: 'Cache & Memory', link: '/reference/cache-memory/' },
+						{ label: 'Concurrency', link: '/reference/concurrency/' },
+						{ label: 'Markdown', link: '/reference/markdown/' },
+						{ label: 'Custom Agents', link: '/reference/custom-agents/' },
+					],
 				},
 				{
 					label: 'Troubleshooting',
 					autogenerate: { directory: 'troubleshooting' },
 				},
-				// ...makeChangelogsSidebarLinks([
-				// 	{ type: 'all', base: 'changelog', label: 'Changelog' }
-				// ]),
 				{
 					label: 'Status',
 					link: '/status/',

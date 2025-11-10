@@ -24,7 +24,7 @@ safe-outputs:
   create-discussion:
     category: "dev"
     max: 1
-timeout_minutes: 30
+timeout-minutes: 30
 imports:
   - shared/reporting.md
 ---

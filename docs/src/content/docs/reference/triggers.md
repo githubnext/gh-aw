@@ -156,7 +156,7 @@ tools:
 safe-outputs:
   add-comment:
     max: 5
-timeout_minutes: 10
+timeout-minutes: 10
 ---
 
 # Code Review Assistant
@@ -183,7 +183,7 @@ on:
     names: [bug, critical, security]
 ```
 
-This filtering is especially useful for [LabelOps workflows](/gh-aw/guides/labelops/) where specific labels trigger different automation behaviors.
+This filtering is especially useful for [LabelOps workflows](/gh-aw/examples/issue-pr-events/labelops/) where specific labels trigger different automation behaviors.
 
 ### Reactions (`reaction:`)
 
@@ -233,5 +233,5 @@ The field accepts a string environment name that must match a configured environ
 
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special @mention triggers and context text
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
-- [LabelOps Guide](/gh-aw/guides/labelops/) - Label-based automation workflows
+- [LabelOps Guide](/gh-aw/examples/issue-pr-events/labelops/) - Label-based automation workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization

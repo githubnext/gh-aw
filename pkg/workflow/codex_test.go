@@ -154,8 +154,8 @@ This is a test workflow.
 					t.Errorf("Expected lock file to NOT contain 'mcp-servers.json' when using codex.\nContent:\n%s", lockContent)
 				}
 				// Check that prompt printing step is present (regardless of engine)
-				if !strings.Contains(lockContent, "Print prompt to step summary") {
-					t.Errorf("Expected lock file to contain 'Print prompt to step summary' step but it didn't.\nContent:\n%s", lockContent)
+				if !strings.Contains(lockContent, "Print prompt") {
+					t.Errorf("Expected lock file to contain 'Print prompt' step but it didn't.\nContent:\n%s", lockContent)
 				}
 				if !strings.Contains(lockContent, "cat \"$GH_AW_PROMPT\"") {
 					t.Errorf("Expected lock file to contain prompt printing command but it didn't.\nContent:\n%s", lockContent)
@@ -182,8 +182,8 @@ This is a test workflow.
 					t.Errorf("Expected lock file to contain claude command but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that prompt printing step is present
-				if !strings.Contains(lockContent, "Print prompt to step summary") {
-					t.Errorf("Expected lock file to contain 'Print prompt to step summary' step but it didn't.\nContent:\n%s", lockContent)
+				if !strings.Contains(lockContent, "Print prompt") {
+					t.Errorf("Expected lock file to contain 'Print prompt' step but it didn't.\nContent:\n%s", lockContent)
 				}
 				if !strings.Contains(lockContent, "cat \"$GH_AW_PROMPT\"") {
 					t.Errorf("Expected lock file to contain prompt printing command but it didn't.\nContent:\n%s", lockContent)
@@ -219,8 +219,8 @@ This is a test workflow.
 					t.Errorf("Expected lock file to contain Copilot npm install command but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that prompt printing step is present
-				if !strings.Contains(lockContent, "Print prompt to step summary") {
-					t.Errorf("Expected lock file to contain 'Print prompt to step summary' step but it didn't.\nContent:\n%s", lockContent)
+				if !strings.Contains(lockContent, "Print prompt") {
+					t.Errorf("Expected lock file to contain 'Print prompt' step but it didn't.\nContent:\n%s", lockContent)
 				}
 				if !strings.Contains(lockContent, "cat \"$GH_AW_PROMPT\"") {
 					t.Errorf("Expected lock file to contain prompt printing command but it didn't.\nContent:\n%s", lockContent)

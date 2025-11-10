@@ -5,10 +5,6 @@ sidebar:
   order: 300
 ---
 
-The markdown content is where you write natural language instructions for the agentic workflow.
-
-## Overview
-
 The markdown is the most important part of your agentic workflow, and should describe its intended operation. The markdown follows the frontmatter. For example:
 
 ```aw wrap

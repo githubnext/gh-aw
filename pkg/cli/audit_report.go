@@ -11,7 +11,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/timeutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
-	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 )
 
 // AuditData represents the complete structured audit data for a workflow run
@@ -233,14 +232,14 @@ func extractDownloadedFiles(logsPath string) []FileInfo {
 		if !entry.IsDir() {
 			if info, err := os.Stat(fullPath); err == nil {
 				fileInfo.Size = info.Size()
-				fileInfo.SizeFormatted = pretty.FormatFileSize(info.Size())
+				fileInfo.SizeFormatted = console.FormatFileSize(info.Size())
 			}
 		} else {
 			// For directories, sum the sizes of files inside
 			totalSize := calculateDirectorySize(fullPath)
 			fileInfo.Size = totalSize
 			if totalSize > 0 {
-				fileInfo.SizeFormatted = pretty.FormatFileSize(totalSize)
+				fileInfo.SizeFormatted = console.FormatFileSize(totalSize)
 			}
 		}
 

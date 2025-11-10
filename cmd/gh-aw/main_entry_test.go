@@ -184,6 +184,59 @@ func TestMainFunction(t *testing.T) {
 		// Reset args for other tests
 		rootCmd.SetArgs([]string{})
 	})
+
+	t.Run("help all command", func(t *testing.T) {
+		// Capture output
+		oldStderr := os.Stderr
+		r, w, _ := os.Pipe()
+		os.Stderr = w
+
+		// Update the command's output to use the new os.Stderr pipe
+		rootCmd.SetOut(os.Stderr)
+
+		// Execute help all
+		rootCmd.SetArgs([]string{"help", "all"})
+		err := rootCmd.Execute()
+
+		// Restore output
+		w.Close()
+		os.Stderr = oldStderr
+		rootCmd.SetOut(os.Stderr)
+
+		// Read captured output
+		var buf bytes.Buffer
+		_, _ = buf.ReadFrom(r)
+		output := buf.String()
+
+		if err != nil {
+			t.Errorf("help all command failed: %v", err)
+		}
+
+		if output == "" {
+			t.Error("help all command should produce output")
+		}
+
+		// Verify output contains expected content
+		if !strings.Contains(output, "Complete Command Reference") {
+			t.Error("help all output should contain 'Complete Command Reference'")
+		}
+
+		// Verify output contains multiple commands
+		commandCount := 0
+		expectedCommands := []string{"add", "compile", "init", "version", "status"}
+		for _, cmd := range expectedCommands {
+			if strings.Contains(output, fmt.Sprintf("Command: gh aw %s", cmd)) {
+				commandCount++
+			}
+		}
+
+		if commandCount < len(expectedCommands) {
+			t.Errorf("help all should show help for all commands, found %d/%d", commandCount, len(expectedCommands))
+		}
+
+		// Reset args for other tests
+		rootCmd.SetArgs([]string{})
+	})
 }
 
 // TestMainFunctionExecutionPath tests the main function execution path

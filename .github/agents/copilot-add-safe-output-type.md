@@ -335,7 +335,7 @@ safe-outputs:
   your-new-type:
     max: 3
     custom-option: "test"
-timeout_minutes: 5
+timeout-minutes: 5
 ---
 
 # Test Your New Type
@@ -349,7 +349,209 @@ Create a your-new-type output with:
 Output as JSONL format.
 ```
 
-### Step 8: Build and Test
+### Step 8: Create Go Job Builder
+
+**File**: `pkg/workflow/your_new_type.go`
+
+Create the Go job builder using the refactored pattern with `buildSafeOutputJob()` helper:
+
+```go
+package workflow
+
+import (
+	"fmt"
+)
+
+// YourNewTypeConfig holds configuration for your new type from agent output
+type YourNewTypeConfig struct {
+	BaseSafeOutputConfig `yaml:",inline"`
+	CustomOption         string `yaml:"custom-option,omitempty"`      // Custom configuration option
+	AnotherOption        *bool  `yaml:"another-option,omitempty"`     // Another optional configuration
+	TargetRepoSlug       string `yaml:"target-repo,omitempty"`        // Target repository for cross-repo operations
+}
+
+// buildCreateOutputYourNewTypeJob creates the your_new_type job using the shared builder
+func (c *Compiler) buildCreateOutputYourNewTypeJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	if data.SafeOutputs == nil || data.SafeOutputs.YourNewType == nil {
+		return nil, fmt.Errorf("safe-outputs.your-new-type configuration is required")
+	}
+
+	// Build custom environment variables specific to your-new-type
+	var customEnvVars []string
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+	
+	// Add your custom configuration options as environment variables
+	if data.SafeOutputs.YourNewType.CustomOption != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_CUSTOM_OPTION: %q\n", data.SafeOutputs.YourNewType.CustomOption))
+	}
+	
+	if data.SafeOutputs.YourNewType.AnotherOption != nil && *data.SafeOutputs.YourNewType.AnotherOption {
+		customEnvVars = append(customEnvVars, "          GH_AW_ANOTHER_OPTION: \"true\"\n")
+	}
+
+	// Add common safe output job environment variables (staged/target repo)
+	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
+		c.trialMode,
+		c.trialLogicalRepoSlug,
+		data.SafeOutputs.Staged,
+		data.SafeOutputs.YourNewType.TargetRepoSlug,
+	)...)
+
+	// Get token from config
+	var token string
+	if data.SafeOutputs.YourNewType != nil {
+		token = data.SafeOutputs.YourNewType.GitHubToken
+	}
+
+	// Create outputs for the job
+	outputs := map[string]string{
+		"result_id":  "${{ steps.your_new_type.outputs.result_id }}",
+		"result_url": "${{ steps.your_new_type.outputs.result_url }}",
+	}
+
+	// Use the shared builder function to create the job
+	return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+		JobName:        "your_new_type",
+		StepName:       "Execute Your New Type",
+		StepID:         "your_new_type",
+		MainJobName:    mainJobName,
+		CustomEnvVars:  customEnvVars,
+		Script:         getYourNewTypeScript(),
+		Permissions:    NewPermissionsContentsReadYourPermissions(),  // Adjust permissions as needed
+		Outputs:        outputs,
+		Token:          token,
+		TargetRepoSlug: data.SafeOutputs.YourNewType.TargetRepoSlug,
+	})
+}
+
+// parseYourNewTypeConfig handles your-new-type configuration
+func (c *Compiler) parseYourNewTypeConfig(outputMap map[string]any) *YourNewTypeConfig {
+	if configData, exists := outputMap["your-new-type"]; exists {
+		yourNewTypeConfig := &YourNewTypeConfig{}
+		yourNewTypeConfig.Max = 1 // Default max is 1
+
+		if configMap, ok := configData.(map[string]any); ok {
+			// Parse common base fields
+			c.parseBaseSafeOutputConfig(configMap, &yourNewTypeConfig.BaseSafeOutputConfig)
+
+			// Parse custom-option
+			if customOption, exists := configMap["custom-option"]; exists {
+				if customOptionStr, ok := customOption.(string); ok {
+					yourNewTypeConfig.CustomOption = customOptionStr
+				}
+			}
+
+			// Parse another-option
+			if anotherOption, exists := configMap["another-option"]; exists {
+				if anotherOptionBool, ok := anotherOption.(bool); ok {
+					yourNewTypeConfig.AnotherOption = &anotherOptionBool
+				}
+			}
+
+			// Parse target-repo using shared helper
+			targetRepoSlug := parseTargetRepoFromConfig(configMap)
+			yourNewTypeConfig.TargetRepoSlug = targetRepoSlug
+		}
+
+		return yourNewTypeConfig
+	}
+
+	return nil
+}
+
+// getYourNewTypeScript returns the JavaScript implementation
+func getYourNewTypeScript() string {
+	return embedJavaScript("your_new_type.cjs")
+}
+```
+
+**Key Implementation Points**:
+
+1. **Use `buildSafeOutputJob()` helper**: This is the new refactored pattern that eliminates duplicate code. The helper handles:
+   - Pre-steps execution (if provided)
+   - GitHub Script step creation with artifact download
+   - Post-steps execution (if provided)
+   - Job creation with standard metadata (timeout, runs-on, permissions)
+
+2. **SafeOutputJobConfig struct**: Pass configuration via this struct:
+   - `JobName`: Job identifier (e.g., "your_new_type")
+   - `StepName`: Human-readable step name
+   - `StepID`: Step identifier for outputs
+   - `MainJobName`: Main workflow job for dependencies
+   - `CustomEnvVars`: Your specific environment variables
+   - `Script`: JavaScript implementation (from `your_new_type.cjs`)
+   - `Permissions`: Job permissions using permission helpers
+   - `Outputs`: Job outputs mapping
+   - `Token`: GitHub token configuration
+   - `PreSteps`: Optional steps before main script (e.g., checkout, git config)
+   - `PostSteps`: Optional steps after main script (e.g., assignees, reviewers)
+   - `Condition`: Optional custom job condition
+   - `Needs`: Optional custom job dependencies
+
+3. **No manual Job construction**: The helper creates the Job struct with:
+   - Consistent 10-minute timeout
+   - Standard runs-on configuration
+   - Proper condition rendering
+   - Automatic needs configuration
+
+4. **Integration Points**:
+   - Add `YourNewType *YourNewTypeConfig` field to `SafeOutputsConfig` struct in `pkg/workflow/config.go`
+   - Call `parseYourNewTypeConfig()` in `extractSafeOutputsConfig()` in `pkg/workflow/safe_outputs.go`
+   - Call `buildCreateOutputYourNewTypeJob()` in job creation logic in `pkg/workflow/compiler_jobs.go`
+
+**Example with Pre/Post-Steps** (if needed):
+
+```go
+// Build pre-steps for special setup (like create-pull-request does for checkout)
+var preSteps []string
+preSteps = append(preSteps, "      - name: Setup step\n")
+preSteps = append(preSteps, "        run: echo 'Setting up'\n")
+
+// Build post-steps for additional actions (like create-issue does for assignees)
+var postSteps []string
+postSteps = append(postSteps, buildSpecialPostSteps(...)...)
+
+return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+	// ... other fields ...
+	PreSteps:  preSteps,   // Executed before GitHub Script step
+	PostSteps: postSteps,  // Executed after GitHub Script step
+})
+```
+
+**Adding Custom Conditions** (like update-issue does):
+
+```go
+// Build custom job condition
+var jobCondition ConditionNode = BuildSafeOutputType("your_new_type")
+if needsExtraCondition {
+	extraCondition := BuildPropertyAccess("github.event.some.field")
+	jobCondition = buildAnd(jobCondition, extraCondition)
+}
+
+return c.buildSafeOutputJob(data, SafeOutputJobConfig{
+	// ... other fields ...
+	Condition: jobCondition,  // Override default condition
+})
+```
+
+**Permission Helpers**: Use existing helpers from `pkg/workflow/permissions.go`:
+- `NewPermissionsContentsRead()` - Read-only content access
+- `NewPermissionsContentsReadIssuesWrite()` - Content read + issue write
+- `NewPermissionsContentsReadDiscussionsWrite()` - Content read + discussion write
+- `NewPermissionsContentsReadIssuesWritePRWrite()` - Content read + issue/PR write
+- `NewPermissionsContentsWriteIssuesWritePRWrite()` - Content write + issue/PR write
+
+Or create a new one following the pattern:
+```go
+func NewPermissionsContentsReadYourPermissions() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents:    PermissionRead,
+		PermissionYourScope:   PermissionWrite,
+	})
+}
+```
+
+### Step 9: Build and Test
 
 1. **Compile TypeScript**: `make js`
 2. **Format code**: `make fmt-cjs`
@@ -358,7 +560,7 @@ Output as JSONL format.
 5. **Compile workflows**: `make recompile`
 6. **Full validation**: `make agent-finish`
 
-### Step 9: Manual Validation
+### Step 10: Manual Validation
 
 1. Create a simple test workflow using your new safe output type
 2. Test both staged and non-staged modes

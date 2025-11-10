@@ -1,0 +1,34 @@
+---
+import type { Props } from '@astrojs/starlight/props';
+import Default from '@astrojs/starlight/components/Head.astro';
+---
+
+<Default {...Astro.props}><slot /></Default>
+
+<link rel="icon" type="image/svg+xml" href="/gh-aw/favicon.svg" />
+
+<script is:inline>
+  (function() {
+    const storedTheme = localStorage.getItem('starlight-theme') || 'auto';
+    const isDark = storedTheme === 'dark' || (storedTheme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme-mode', storedTheme);
+  })();
+
+  (function() {
+    const isLandingPage = window.location.pathname === '/gh-aw/' || 
+                          window.location.pathname === '/gh-aw/index.html' ||
+                          window.location.pathname.endsWith('/gh-aw');
+    
+    if (isLandingPage) {
+      if (document.body) {
+        document.body.classList.add('landing-page');
+      } else {
+        document.addEventListener('DOMContentLoaded', function() {
+          document.body.classList.add('landing-page');
+        });
+      }
+    }
+  })();
+</script>

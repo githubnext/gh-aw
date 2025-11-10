@@ -1,3 +1,7 @@
+---
+description: Dictation Instructions
+---
+
 # Dictation Instructions
 
 Fix text-to-speech errors in dictated text for creating agentic workflow prompts in the gh-aw repository.
@@ -19,39 +23,48 @@ audit
 bash
 cache
 cache-memory
-category
 chatops
+checkout
 claude
+cli
 codex
 command
 compile
 concurrency
+container
 contents
 copilot
 create-agent-task
-create-code-scanning-alert
 create-discussion
 create-issue
 create-pull-request
 create-pull-request-review-comment
 custom
 defaults
+description
 discussion
 discussion-comment
 draft
 edit
 engine
+env
+environment
+firewall
 fmt
+fork
+forks
 frontmatter
 gh-aw
 github
 github-token
 if-no-changes
 imports
+init
 issue-comment
 issue_comment
 issueops
 issues
+job
 jobs
 labelops
 labels
@@ -59,6 +72,8 @@ lint
 lock-yml
 lockfile
 logs
+markdown
+max
 max-concurrency
 max-patch-size
 max-turns
@@ -70,8 +85,11 @@ missing-tool
 mode
 model
 network
+npm
 npmjs
 on
+output
+permission
 permissions
 playwright
 post-steps
@@ -80,12 +98,14 @@ pull-request-comment
 pull-request-review-comment
 pull_request
 purge
+push
 push-to-pull-request-branch
 pypi
 reaction
 read-only
 recompile
 remote
+repo
 retention-days
 reviewers
 run-name
@@ -94,9 +114,12 @@ safe-outputs
 sanitized
 sarif
 schedule
+schema
 secrets
+server
 session
 staged
+status
 steps
 stop-after
 strict
@@ -106,8 +129,10 @@ test-unit
 timeout
 timeout-minutes
 title-prefix
+toolset
 toolsets
 tools
+trigger
 triggers
 update-issue
 verbose
@@ -186,3 +211,10 @@ Replace speech-to-text ambiguities with correct technical terms from the glossar
 - "discussion comment" → "discussion-comment"
 - "issue comment" → "issue-comment" or "issue_comment"
 - "pull request" → "pull-request" or "pull_request"
+
+## Guidelines
+
+You do not have enough background information to plan or provide code examples.
+- do NOT generate code examples
+- do NOT plan steps
+- focus on fixing speech-to-text errors only

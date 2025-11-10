@@ -6,7 +6,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var fileTrackerLog = logger.New("cli:file_tracker")
 
 // FileTracker keeps track of files created or modified during workflow operations
 // to enable proper staging and rollback functionality
@@ -19,10 +23,13 @@ type FileTracker struct {
 
 // NewFileTracker creates a new file tracker
 func NewFileTracker() (*FileTracker, error) {
+	fileTrackerLog.Print("Creating new file tracker")
 	gitRoot, err := findGitRoot()
 	if err != nil {
+		fileTrackerLog.Printf("Failed to find git root: %v", err)
 		return nil, fmt.Errorf("file tracker requires being in a git repository: %w", err)
 	}
+	fileTrackerLog.Printf("File tracker initialized with git root: %s", gitRoot)
 	return &FileTracker{
 		CreatedFiles:    make([]string, 0),
 		ModifiedFiles:   make([]string, 0),
@@ -37,6 +44,7 @@ func (ft *FileTracker) TrackCreated(filePath string) {
 	if err != nil {
 		absPath = filePath
 	}
+	fileTrackerLog.Printf("Tracking created file: %s", absPath)
 	ft.CreatedFiles = append(ft.CreatedFiles, absPath)
 }
 
@@ -51,6 +59,9 @@ func (ft *FileTracker) TrackModified(filePath string) {
 	if _, exists := ft.OriginalContent[absPath]; !exists {
 		if content, err := os.ReadFile(absPath); err == nil {
 			ft.OriginalContent[absPath] = content
+			fileTrackerLog.Printf("Tracking modified file: %s (stored %d bytes)", absPath, len(content))
+		} else {
+			fileTrackerLog.Printf("Tracking modified file: %s (failed to store original: %v)", absPath, err)
 		}
 	}
 
@@ -68,6 +79,7 @@ func (ft *FileTracker) GetAllFiles() []string {
 // StageAllFiles stages all tracked files using git add
 func (ft *FileTracker) StageAllFiles(verbose bool) error {
 	allFiles := ft.GetAllFiles()
+	fileTrackerLog.Printf("Staging %d tracked files", len(allFiles))
 	if len(allFiles) == 0 {
 		if verbose {
 			fmt.Println("No files to stage")
@@ -87,9 +99,11 @@ func (ft *FileTracker) StageAllFiles(verbose bool) error {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = ft.gitRoot
 	if err := cmd.Run(); err != nil {
+		fileTrackerLog.Printf("Failed to stage files: %v", err)
 		return fmt.Errorf("failed to stage files: %w", err)
 	}
 
+	fileTrackerLog.Printf("Successfully staged all files")
 	return nil
 }
 
@@ -99,6 +113,7 @@ func (ft *FileTracker) RollbackCreatedFiles(verbose bool) error {
 		return nil
 	}
 
+	fileTrackerLog.Printf("Rolling back %d created files", len(ft.CreatedFiles))
 	if verbose {
 		fmt.Printf("Rolling back %d created files...\n", len(ft.CreatedFiles))
 	}
@@ -109,6 +124,7 @@ func (ft *FileTracker) RollbackCreatedFiles(verbose bool) error {
 			fmt.Printf("  - Deleting %s\n", file)
 		}
 		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
+			fileTrackerLog.Printf("Failed to delete %s: %v", file, err)
 			errors = append(errors, fmt.Sprintf("failed to delete %s: %v", file, err))
 		}
 	}
@@ -117,6 +133,7 @@ func (ft *FileTracker) RollbackCreatedFiles(verbose bool) error {
 		return fmt.Errorf("rollback errors: %s", strings.Join(errors, "; "))
 	}
 
+	fileTrackerLog.Print("Successfully rolled back created files")
 	return nil
 }
 

@@ -1,8 +1,8 @@
 ---
-title: Security Guide
+title: Security Best Practices
 description: Important security considerations for GitHub Agentic Workflows, including sandboxing, permissions, and best practices for safe agentic automation.
 sidebar:
-  order: 100
+  order: 3
 ---
 
 > [!WARNING]
@@ -144,7 +144,7 @@ Without branch restrictions, workflows emit warnings during compilation (or erro
 strict: true
 permissions:
   contents: read  # Write permissions are blocked in strict mode
-timeout_minutes: 10
+timeout-minutes: 10
 network:
   allowed:
     - "api.example.com"
@@ -268,13 +268,13 @@ tools:
   github:
     allowed: [get_issue, add_issue_comment]
 
-# Restricted bash (avoid wildcards)
+# Specific bash commands (recommended for security)
 engine: claude
 tools:
   edit:
   bash: ["echo", "git status"]
 
-# Avoid: ["*"] or [":*"] (too broad)
+# Consider carefully: ["*"] or [":*"] (unrestricted access)
 ```
 
 #### Egress Filtering

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
+	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 func TestCompileWorkflowExpressionSizeValidation(t *testing.T) {
@@ -22,7 +22,7 @@ func TestCompileWorkflowExpressionSizeValidation(t *testing.T) {
 		// Create a workflow with normal-sized expressions
 		testContent := `---
 on: push
-timeout_minutes: 10
+timeout-minutes: 10
 permissions:
   contents: read
   issues: write
@@ -63,7 +63,7 @@ The content is reasonable and won't generate overly long environment variables.
 		largeContent := strings.Repeat("x", 25000)
 		testContent := fmt.Sprintf(`---
 on: push
-timeout_minutes: 10
+timeout-minutes: 10
 permissions:
   contents: read
   pull-requests: write
@@ -110,8 +110,8 @@ safe-outputs:
 	t.Run("expression size validation error message format", func(t *testing.T) {
 		// Test that the validation produces correct error message format
 		testLineSize := int64(25000) // 25KB, exceeds limit
-		actualSize := pretty.FormatFileSize(testLineSize)
-		maxSizeFormatted := pretty.FormatFileSize(int64(MaxExpressionSize))
+		actualSize := console.FormatFileSize(testLineSize)
+		maxSizeFormatted := console.FormatFileSize(int64(MaxExpressionSize))
 
 		expectedMessage := fmt.Sprintf("expression value for 'WORKFLOW_MARKDOWN' (%s) exceeds maximum allowed size (%s)",
 			actualSize, maxSizeFormatted)

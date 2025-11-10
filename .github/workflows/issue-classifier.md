@@ -12,7 +12,7 @@ safe-outputs:
   add-labels:
     allowed: [bug, feature, enhancement, documentation]
     max: 1
-timeout_minutes: 5
+timeout-minutes: 5
 imports:
   - shared/actions-ai-inference.md
 strict: true

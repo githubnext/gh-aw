@@ -6,7 +6,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var timeDeltaLog = logger.New("workflow:time_delta")
 
 // Pre-compiled regexes for time parsing (performance optimization)
 var (
@@ -53,12 +57,15 @@ func parseTimeDeltaForStopAfter(deltaStr string) (*TimeDelta, error) {
 
 // parseTimeDeltaWithMinutes parses a relative time delta string with optional minute support
 func parseTimeDeltaWithMinutes(deltaStr string, allowMinutes bool) (*TimeDelta, error) {
+	timeDeltaLog.Printf("Parsing time delta: input=%s, allowMinutes=%v", deltaStr, allowMinutes)
+
 	if deltaStr == "" {
 		return nil, fmt.Errorf("empty time delta")
 	}
 
 	// Must start with '+'
 	if !strings.HasPrefix(deltaStr, "+") {
+		timeDeltaLog.Printf("Time delta validation failed: missing '+' prefix")
 		return nil, fmt.Errorf("time delta must start with '+', got: %s", deltaStr)
 	}
 
@@ -148,6 +155,7 @@ func parseTimeDeltaWithMinutes(deltaStr string, allowMinutes bool) (*TimeDelta, 
 		return nil, fmt.Errorf("time delta too large: %d minutes exceeds maximum of 525600 minutes", delta.Minutes)
 	}
 
+	timeDeltaLog.Printf("Parsed time delta successfully: %s", delta.String())
 	return delta, nil
 }
 
@@ -182,6 +190,8 @@ func isRelativeStopTime(stopTime string) bool {
 
 // parseAbsoluteDateTime parses various date-time formats and returns a standardized timestamp
 func parseAbsoluteDateTime(dateTimeStr string) (string, error) {
+	timeDeltaLog.Printf("Parsing absolute date-time: %s", dateTimeStr)
+
 	// Try multiple date-time formats in order of preference
 	formats := []string{
 		// Standard formats
@@ -236,7 +246,9 @@ func parseAbsoluteDateTime(dateTimeStr string) (string, error) {
 	for _, format := range formats {
 		if parsed, err := time.Parse(format, dateTimeStr); err == nil {
 			// Successfully parsed, convert to UTC and return in standard format
-			return parsed.UTC().Format("2006-01-02 15:04:05"), nil
+			result := parsed.UTC().Format("2006-01-02 15:04:05")
+			timeDeltaLog.Printf("Successfully parsed date-time using format, result: %s", result)
+			return result, nil
 		}
 	}
 
@@ -247,7 +259,9 @@ func parseAbsoluteDateTime(dateTimeStr string) (string, error) {
 	for _, format := range formats {
 		if parsed, err := time.Parse(format, normalizedStr); err == nil {
 			// Successfully parsed, convert to UTC and return in standard format
-			return parsed.UTC().Format("2006-01-02 15:04:05"), nil
+			result := parsed.UTC().Format("2006-01-02 15:04:05")
+			timeDeltaLog.Printf("Successfully parsed date-time using ordinal normalization, result: %s", result)
+			return result, nil
 		}
 	}
 

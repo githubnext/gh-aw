@@ -68,6 +68,8 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 			mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": commandEventsMap})
 			if err == nil {
 				yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
+				// Post-process YAML to ensure cron expressions are quoted
+				yamlStr = parser.QuoteCronExpressions(yamlStr)
 				// Keep "on" quoted as it's a YAML boolean keyword
 				data.On = yamlStr
 			} else {

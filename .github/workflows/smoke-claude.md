@@ -12,13 +12,18 @@ permissions:
   pull-requests: read
   
 name: Smoke Claude
-engine: claude
+engine:
+  id: claude
+  max-turns: 15
+imports:
+  - shared/mcp-pagination.md
 tools:
   github:
+    toolsets: [repos, pull_requests]
 safe-outputs:
     staged: true
     create-issue:
-timeout_minutes: 10
+timeout-minutes: 10
 strict: true
 ---
 

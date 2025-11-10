@@ -30,28 +30,28 @@ func parseLabelsFromConfig(configMap map[string]any) []string {
 	return nil
 }
 
-// parseTitlePrefixFromConfig extracts and validates title-prefix from a config map
-// Returns the title prefix string, or empty string if not present or invalid
-func parseTitlePrefixFromConfig(configMap map[string]any) string {
-	if titlePrefix, exists := configMap["title-prefix"]; exists {
-		if titlePrefixStr, ok := titlePrefix.(string); ok {
-			configLog.Printf("Parsed title-prefix from config: %s", titlePrefixStr)
-			return titlePrefixStr
+// parseStringFromConfig is a generic helper that extracts and validates a string value from a config map
+// Returns the string value, or empty string if not present or invalid
+func parseStringFromConfig(configMap map[string]any, key string) string {
+	if value, exists := configMap[key]; exists {
+		if valueStr, ok := value.(string); ok {
+			configLog.Printf("Parsed %s from config: %s", key, valueStr)
+			return valueStr
 		}
 	}
 	return ""
 }
 
-// parseTargetRepoFromConfig extracts and validates target-repo from a config map
-// Returns the target repository slug, or empty string if not present or invalid
-// Returns error string "*" if the wildcard value is used (which is invalid for target-repo)
-// Callers should check for "*" and handle it as an error condition
+// parseTitlePrefixFromConfig extracts and validates title-prefix from a config map
+// Returns the title prefix string, or empty string if not present or invalid
+func parseTitlePrefixFromConfig(configMap map[string]any) string {
+	return parseStringFromConfig(configMap, "title-prefix")
+}
+
+// parseTargetRepoFromConfig extracts the target-repo value from a config map.
+// Returns the target repository slug as a string, or empty string if not present or invalid.
+// This function does not perform any special handling or validation for wildcard values ("*");
+// callers are responsible for validating the returned value as needed.
 func parseTargetRepoFromConfig(configMap map[string]any) string {
-	if targetRepoSlug, exists := configMap["target-repo"]; exists {
-		if targetRepoStr, ok := targetRepoSlug.(string); ok {
-			configLog.Printf("Parsed target-repo from config: %s", targetRepoStr)
-			return targetRepoStr
-		}
-	}
-	return ""
+	return parseStringFromConfig(configMap, "target-repo")
 }

@@ -58,6 +58,8 @@ run-name: "Basic Research Agent"
 jobs:
   activation:
     runs-on: ubuntu-slim
+    permissions:
+      contents: read
     steps:
       - name: Checkout workflows
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -117,14 +119,22 @@ jobs:
               core.info(`  Source modified: ${workflowStat.mtime.toISOString()}`);
               core.info(`  Lock modified: ${lockStat.mtime.toISOString()}`);
               if (workflowMtime > lockMtime) {
-                const warningMessage = `🔴🔴🔴 WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
+                const warningMessage = `WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
                 core.error(warningMessage);
-                await core.summary
-                  .addRaw("## ⚠️ Workflow Lock File Warning\n\n")
-                  .addRaw(`🔴🔴🔴 **WARNING**: Lock file \`${lockFile}\` is outdated!\n\n`)
-                  .addRaw(`The workflow file \`${workflowMdFile}\` has been modified more recently.\n\n`)
-                  .addRaw("Run `gh aw compile` to regenerate the lock file.\n\n")
-                  .write();
+                const workflowTimestamp = workflowStat.mtime.toISOString();
+                const lockTimestamp = lockStat.mtime.toISOString();
+                const gitSha = process.env.GITHUB_SHA;
+                let summary = core.summary
+                  .addRaw("### ⚠️ Workflow Lock File Warning\n\n")
+                  .addRaw("**WARNING**: Lock file is outdated and needs to be regenerated.\n\n")
+                  .addRaw("**Files:**\n")
+                  .addRaw(`- Source: \`${workflowMdFile}\` (modified: ${workflowTimestamp})\n`)
+                  .addRaw(`- Lock: \`${lockFile}\` (modified: ${lockTimestamp})\n\n`);
+                if (gitSha) {
+                  summary = summary.addRaw(`**Git Commit:** \`${gitSha}\`\n\n`);
+                }
+                summary = summary.addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n");
+                await summary.write();
               } else {
                 core.info("✅ Lock file is up to date");
               }
@@ -233,8 +243,6 @@ jobs:
           sudo mv awf /usr/local/bin/
           which awf
           awf --version
-      - name: Cleanup any existing awf resources
-        run: ./scripts/ci/cleanup.sh || true
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.354
       - name: Downloading container images
@@ -1106,12 +1114,10 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_EXPR_E80C082D: ${{ github.actor }}
-          GH_AW_EXPR_0CEE4D27: ${{ github.event.inputs.topic }}
-          GH_AW_EXPR_D892F163: ${{ github.repository }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
+          # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           
@@ -1220,7 +1226,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1252,7 +1259,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1265,7 +1273,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1282,7 +1291,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1312,10 +1322,13 @@ jobs:
           Use this context information to understand the scope of your work.
           
           PROMPT_EOF
-      - name: Render template conditionals
+      - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_E80C082D: ${{ github.actor }}
+          GH_AW_EXPR_0CEE4D27: ${{ github.event.inputs.topic }}
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
         with:
           script: |
             const fs = require("fs");
@@ -1323,34 +1336,61 @@ jobs:
               const v = expr.trim().toLowerCase();
               return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
             }
+            function interpolateVariables(content, variables) {
+              let result = content;
+              for (const [varName, value] of Object.entries(variables)) {
+                const pattern = new RegExp(`\\$\\{${varName}\\}`, "g");
+                result = result.replace(pattern, value);
+              }
+              return result;
+            }
             function renderMarkdownTemplate(markdown) {
               return markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
             }
-            function main() {
+            async function main() {
               try {
                 const promptPath = process.env.GH_AW_PROMPT;
                 if (!promptPath) {
                   core.setFailed("GH_AW_PROMPT environment variable is not set");
-                  process.exit(1);
+                  return;
                 }
-                const markdown = fs.readFileSync(promptPath, "utf8");
-                const hasConditionals = /{{#if\s+[^}]+}}/.test(markdown);
-                if (!hasConditionals) {
+                let content = fs.readFileSync(promptPath, "utf8");
+                const variables = {};
+                for (const [key, value] of Object.entries(process.env)) {
+                  if (key.startsWith("GH_AW_EXPR_")) {
+                    variables[key] = value || "";
+                  }
+                }
+                const varCount = Object.keys(variables).length;
+                if (varCount > 0) {
+                  core.info(`Found ${varCount} expression variable(s) to interpolate`);
+                  content = interpolateVariables(content, variables);
+                  core.info(`Successfully interpolated ${varCount} variable(s) in prompt`);
+                } else {
+                  core.info("No expression variables found, skipping interpolation");
+                }
+                const hasConditionals = /{{#if\s+[^}]+}}/.test(content);
+                if (hasConditionals) {
+                  core.info("Processing conditional template blocks");
+                  content = renderMarkdownTemplate(content);
+                  core.info("Template rendered successfully");
+                } else {
                   core.info("No conditional blocks found in prompt, skipping template rendering");
-                  process.exit(0);
                 }
-                const rendered = renderMarkdownTemplate(markdown);
-                fs.writeFileSync(promptPath, rendered, "utf8");
-                core.info("Template rendered successfully");
+                fs.writeFileSync(promptPath, content, "utf8");
               } catch (error) {
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
             main();
-      - name: Print prompt to step summary
+      - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # Print prompt to workflow logs (equivalent to core.info)
+          echo "Generated Prompt:"
+          cat "$GH_AW_PROMPT"
+          # Print prompt to step summary
           {
             echo "<details>"
             echo "<summary>Generated Prompt</summary>"
@@ -1421,9 +1461,7 @@ jobs:
         timeout-minutes: 10
         run: |
           set -o pipefail
-          sudo -E awf --env-all \
-            --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org \
-            --log-level info \
+          sudo -E awf --env-all --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org --log-level info \
             "npx -y @github/copilot@0.0.354 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool github --allow-tool safeoutputs --allow-tool tavily --allow-tool 'tavily(*)' --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
@@ -2468,9 +2506,10 @@ jobs:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
         with:
           script: |
-            function main() {
+            function runLogParser(options) {
               const fs = require("fs");
               const path = require("path");
+              const { parseLog, parserName, supportsDirectories = false } = options;
               try {
                 const logPath = process.env.GH_AW_AGENT_OUTPUT;
                 if (!logPath) {
@@ -2484,6 +2523,10 @@ jobs:
                 let content = "";
                 const stat = fs.statSync(logPath);
                 if (stat.isDirectory()) {
+                  if (!supportsDirectories) {
+                    core.info(`Log path is a directory but ${parserName} parser does not support directories: ${logPath}`);
+                    return;
+                  }
                   const files = fs.readdirSync(logPath);
                   const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
                   if (logFiles.length === 0) {
@@ -2494,25 +2537,54 @@ jobs:
                   for (const file of logFiles) {
                     const filePath = path.join(logPath, file);
                     const fileContent = fs.readFileSync(filePath, "utf8");
-                    content += fileContent;
                     if (content.length > 0 && !content.endsWith("\n")) {
                       content += "\n";
                     }
+                    content += fileContent;
                   }
                 } else {
                   content = fs.readFileSync(logPath, "utf8");
                 }
-                const parsedLog = parseCopilotLog(content);
-                if (parsedLog) {
-                  core.info(parsedLog);
-                  core.summary.addRaw(parsedLog).write();
-                  core.info("Copilot log parsed successfully");
+                const result = parseLog(content);
+                let markdown = "";
+                let mcpFailures = [];
+                let maxTurnsHit = false;
+                if (typeof result === "string") {
+                  markdown = result;
+                } else if (result && typeof result === "object") {
+                  markdown = result.markdown || "";
+                  mcpFailures = result.mcpFailures || [];
+                  maxTurnsHit = result.maxTurnsHit || false;
+                }
+                if (markdown) {
+                  core.info(markdown);
+                  core.summary.addRaw(markdown).write();
+                  core.info(`${parserName} log parsed successfully`);
                 } else {
-                  core.error("Failed to parse Copilot log");
+                  core.error(`Failed to parse ${parserName} log`);
+                }
+                if (mcpFailures && mcpFailures.length > 0) {
+                  const failedServers = mcpFailures.join(", ");
+                  core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
+                }
+                if (maxTurnsHit) {
+                  core.setFailed(`Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.`);
                 }
               } catch (error) {
                 core.setFailed(error instanceof Error ? error : String(error));
               }
+            }
+            if (typeof module !== "undefined" && module.exports) {
+              module.exports = {
+                runLogParser,
+              };
+            }
+            function main() {
+              runLogParser({
+                parseLog: parseCopilotLog,
+                parserName: "Copilot",
+                supportsDirectories: true,
+              });
             }
             function extractPremiumRequestCount(logContent) {
               const patterns = [
@@ -3713,9 +3785,6 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
-      - name: Cleanup awf resources
-        if: always()
-        run: ./scripts/ci/cleanup.sh || true
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd

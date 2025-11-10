@@ -134,7 +134,7 @@ Follow these principles when organizing code:
 - Large files (500-800 lines): Complex features (consider splitting)
 - Very large files (800+ lines): Core infrastructure only (refactor if possible)
 
-For detailed guidance, see [Code Organization Patterns](docs/CODE_ORGANIZATION.md).
+For detailed guidance, see [Code Organization Patterns](specs/code-organization.md).
 
 #### Validation Patterns
 
@@ -148,13 +148,13 @@ When adding validation logic, follow the established architecture:
 - Repository-level feature detection
 
 **Domain-specific validation** (dedicated files):
-- `strict_mode.go` - Security and strict mode enforcement
-- `pip.go` - Python package validation
-- `npm.go` - NPM package validation
+- `strict_mode_validation.go` - Security and strict mode enforcement
+- `pip_validation.go` - Python package validation
+- `npm_validation.go` - NPM package validation
+- `docker_validation.go` - Docker image validation
 - `expression_safety.go` - GitHub Actions expression security
 - `engine.go` - AI engine configuration
 - `mcp-config.go` - MCP server configuration
-- `docker.go` - Docker image validation
 - `template.go` - Template structure validation
 
 **When to create a new validation file**:

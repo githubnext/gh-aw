@@ -47,7 +47,7 @@
 name: "Daily News"
 "on":
   schedule:
-  - cron: 0 9 * * 1-5
+  - cron: "0 9 * * 1-5"
   workflow_dispatch: null
 
 permissions:
@@ -65,6 +65,8 @@ run-name: "Daily News"
 jobs:
   activation:
     runs-on: ubuntu-slim
+    permissions:
+      contents: read
     steps:
       - name: Checkout workflows
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -124,14 +126,22 @@ jobs:
               core.info(`  Source modified: ${workflowStat.mtime.toISOString()}`);
               core.info(`  Lock modified: ${lockStat.mtime.toISOString()}`);
               if (workflowMtime > lockMtime) {
-                const warningMessage = `🔴🔴🔴 WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
+                const warningMessage = `WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
                 core.error(warningMessage);
-                await core.summary
-                  .addRaw("## ⚠️ Workflow Lock File Warning\n\n")
-                  .addRaw(`🔴🔴🔴 **WARNING**: Lock file \`${lockFile}\` is outdated!\n\n`)
-                  .addRaw(`The workflow file \`${workflowMdFile}\` has been modified more recently.\n\n`)
-                  .addRaw("Run `gh aw compile` to regenerate the lock file.\n\n")
-                  .write();
+                const workflowTimestamp = workflowStat.mtime.toISOString();
+                const lockTimestamp = lockStat.mtime.toISOString();
+                const gitSha = process.env.GITHUB_SHA;
+                let summary = core.summary
+                  .addRaw("### ⚠️ Workflow Lock File Warning\n\n")
+                  .addRaw("**WARNING**: Lock file is outdated and needs to be regenerated.\n\n")
+                  .addRaw("**Files:**\n")
+                  .addRaw(`- Source: \`${workflowMdFile}\` (modified: ${workflowTimestamp})\n`)
+                  .addRaw(`- Lock: \`${lockFile}\` (modified: ${lockTimestamp})\n\n`);
+                if (gitSha) {
+                  summary = summary.addRaw(`**Git Commit:** \`${gitSha}\`\n\n`);
+                }
+                summary = summary.addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n");
+                await summary.write();
               } else {
                 core.info("✅ Lock file is up to date");
               }
@@ -193,7 +203,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         id: download-data
         name: Download repository activity data
-        run: "set -e\n\n# Create directories\nmkdir -p /tmp/gh-aw/daily-news-data\nmkdir -p /tmp/gh-aw/cache-memory/daily-news-data\n\n# Check if cached data exists and is recent (< 24 hours old)\nCACHE_VALID=false\nCACHE_TIMESTAMP_FILE=\"/tmp/gh-aw/cache-memory/daily-news-data/.timestamp\"\n\nif [ -f \"$CACHE_TIMESTAMP_FILE\" ]; then\n  CACHE_AGE=$(($(date +%s) - $(cat \"$CACHE_TIMESTAMP_FILE\")))\n  # 24 hours = 86400 seconds\n  if [ $CACHE_AGE -lt 86400 ]; then\n    echo \"✅ Found valid cached data (age: ${CACHE_AGE}s, less than 24h)\"\n    CACHE_VALID=true\n  else\n    echo \"⚠ Cached data is stale (age: ${CACHE_AGE}s, more than 24h)\"\n  fi\nelse\n  echo \"ℹ No cached data found, will fetch fresh data\"\nfi\n\n# Use cached data if valid, otherwise fetch fresh data\nif [ \"$CACHE_VALID\" = true ]; then\n  echo \"📦 Using cached data from previous run\"\n  cp -r /tmp/gh-aw/cache-memory/daily-news-data/* /tmp/gh-aw/daily-news-data/\n  echo \"✅ Cached data restored to working directory\"\nelse\n  echo \"🔄 Fetching fresh data from GitHub API...\"\n  \n  # Calculate date range (last 30 days)\n  END_DATE=$(date -u +%Y-%m-%d)\n  START_DATE=$(date -u -d '30 days ago' +%Y-%m-%d 2>/dev/null || date -u -v-30d +%Y-%m-%d)\n  \n  echo \"Fetching data from $START_DATE to $END_DATE\"\n  \n  # Fetch issues (open and recently closed)\n  echo \"Fetching issues...\"\n  gh api graphql -f query='\n    query($owner: String!, $repo: String!) {\n      repository(owner: $owner, name: $repo) {\n        openIssues: issues(first: 100, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            author { login }\n            labels(first: 10) { nodes { name } }\n            comments { totalCount }\n          }\n        }\n        closedIssues: issues(first: 100, states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            closedAt\n            author { login }\n            labels(first: 10) { nodes { name } }\n          }\n        }\n      }\n    }\n  ' -f owner=\"${GITHUB_REPOSITORY_OWNER}\" -f repo=\"${GITHUB_REPOSITORY#*/}\" > /tmp/gh-aw/daily-news-data/issues.json\n  \n  # Fetch pull requests (open and recently merged/closed)\n  echo \"Fetching pull requests...\"\n  gh api graphql -f query='\n    query($owner: String!, $repo: String!) {\n      repository(owner: $owner, name: $repo) {\n        openPRs: pullRequests(first: 50, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            author { login }\n            additions\n            deletions\n            changedFiles\n            reviews(first: 10) { totalCount }\n          }\n        }\n        mergedPRs: pullRequests(first: 50, states: MERGED, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            mergedAt\n            author { login }\n            additions\n            deletions\n          }\n        }\n        closedPRs: pullRequests(first: 30, states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            closedAt\n            author { login }\n          }\n        }\n      }\n    }\n  ' -f owner=\"${GITHUB_REPOSITORY_OWNER}\" -f repo=\"${GITHUB_REPOSITORY#*/}\" > /tmp/gh-aw/daily-news-data/pull_requests.json\n  \n  # Fetch recent commits (last 100)\n  echo \"Fetching commits...\"\n  gh api repos/${GITHUB_REPOSITORY}/commits \\\n    --paginate \\\n    --jq '[.[] | {sha, author: .commit.author, message: .commit.message, date: .commit.author.date, html_url}]' \\\n    > /tmp/gh-aw/daily-news-data/commits.json\n  \n  # Fetch releases\n  echo \"Fetching releases...\"\n  gh api repos/${GITHUB_REPOSITORY}/releases \\\n    --jq '[.[] | {tag_name, name, created_at, published_at, html_url, body}]' \\\n    > /tmp/gh-aw/daily-news-data/releases.json\n  \n  # Fetch discussions\n  echo \"Fetching discussions...\"\n  gh api graphql -f query='\n    query($owner: String!, $repo: String!) {\n      repository(owner: $owner, name: $repo) {\n        discussions(first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            createdAt\n            updatedAt\n            author { login }\n            category { name }\n            comments { totalCount }\n            url\n          }\n        }\n      }\n    }\n  ' -f owner=\"${GITHUB_REPOSITORY_OWNER}\" -f repo=\"${GITHUB_REPOSITORY#*/}\" > /tmp/gh-aw/daily-news-data/discussions.json\n  \n  # Check for changesets\n  echo \"Checking for changesets...\"\n  if [ -d \".changeset\" ]; then\n    find .changeset -name \"*.md\" -type f ! -name \"README.md\" > /tmp/gh-aw/daily-news-data/changesets.txt\n  else\n    echo \"No changeset directory\" > /tmp/gh-aw/daily-news-data/changesets.txt\n  fi\n  \n  # Cache the freshly downloaded data for next run\n  echo \"💾 Caching data for future runs...\"\n  cp -r /tmp/gh-aw/daily-news-data/* /tmp/gh-aw/cache-memory/daily-news-data/\n  date +%s > \"$CACHE_TIMESTAMP_FILE\"\n  \n  echo \"✅ Data download and caching complete\"\nfi\n\nls -lh /tmp/gh-aw/daily-news-data/\n"
+        run: "set -e\n\n# Create directories\nmkdir -p /tmp/gh-aw/daily-news-data\nmkdir -p /tmp/gh-aw/cache-memory/daily-news-data\n\n# Check if cached data exists and is recent (< 24 hours old)\nCACHE_VALID=false\nCACHE_TIMESTAMP_FILE=\"/tmp/gh-aw/cache-memory/daily-news-data/.timestamp\"\n\nif [ -f \"$CACHE_TIMESTAMP_FILE\" ]; then\n  CACHE_AGE=$(($(date +%s) - $(cat \"$CACHE_TIMESTAMP_FILE\")))\n  # 24 hours = 86400 seconds\n  if [ $CACHE_AGE -lt 86400 ]; then\n    echo \"✅ Found valid cached data (age: ${CACHE_AGE}s, less than 24h)\"\n    CACHE_VALID=true\n  else\n    echo \"⚠ Cached data is stale (age: ${CACHE_AGE}s, more than 24h)\"\n  fi\nelse\n  echo \"ℹ No cached data found, will fetch fresh data\"\nfi\n\n# Use cached data if valid, otherwise fetch fresh data\nif [ \"$CACHE_VALID\" = true ]; then\n  echo \"📦 Using cached data from previous run\"\n  cp -r /tmp/gh-aw/cache-memory/daily-news-data/* /tmp/gh-aw/daily-news-data/\n  echo \"✅ Cached data restored to working directory\"\nelse\n  echo \"🔄 Fetching fresh data from GitHub API...\"\n  \n  # Calculate date range (last 30 days)\n  END_DATE=$(date -u +%Y-%m-%d)\n  START_DATE=$(date -u -d '30 days ago' +%Y-%m-%d 2>/dev/null || date -u -v-30d +%Y-%m-%d)\n  \n  echo \"Fetching data from $START_DATE to $END_DATE\"\n  \n  # Fetch issues (open and recently closed)\n  echo \"Fetching issues...\"\n  gh api graphql -f query=\"\n    query(\\$owner: String!, \\$repo: String!) {\n      repository(owner: \\$owner, name: \\$repo) {\n        openIssues: issues(first: 100, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            author { login }\n            labels(first: 10) { nodes { name } }\n            comments { totalCount }\n          }\n        }\n        closedIssues: issues(first: 100, states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            closedAt\n            author { login }\n            labels(first: 10) { nodes { name } }\n          }\n        }\n      }\n    }\n  \" -f owner=\"${GITHUB_REPOSITORY_OWNER}\" -f repo=\"${GITHUB_REPOSITORY#*/}\" > /tmp/gh-aw/daily-news-data/issues.json\n  \n  # Fetch pull requests (open and recently merged/closed)\n  echo \"Fetching pull requests...\"\n  gh api graphql -f query=\"\n    query(\\$owner: String!, \\$repo: String!) {\n      repository(owner: \\$owner, name: \\$repo) {\n        openPRs: pullRequests(first: 50, states: OPEN, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            author { login }\n            additions\n            deletions\n            changedFiles\n            reviews(first: 10) { totalCount }\n          }\n        }\n        mergedPRs: pullRequests(first: 50, states: MERGED, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            updatedAt\n            mergedAt\n            author { login }\n            additions\n            deletions\n          }\n        }\n        closedPRs: pullRequests(first: 30, states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            state\n            createdAt\n            closedAt\n            author { login }\n          }\n        }\n      }\n    }\n  \" -f owner=\"${GITHUB_REPOSITORY_OWNER}\" -f repo=\"${GITHUB_REPOSITORY#*/}\" > /tmp/gh-aw/daily-news-data/pull_requests.json\n  \n  # Fetch recent commits (last 100)\n  echo \"Fetching commits...\"\n  gh api \"repos/${GITHUB_REPOSITORY}/commits\" \\\n    --paginate \\\n    --jq '[.[] | {sha, author: .commit.author, message: .commit.message, date: .commit.author.date, html_url}]' \\\n    > /tmp/gh-aw/daily-news-data/commits.json\n  \n  # Fetch releases\n  echo \"Fetching releases...\"\n  gh api \"repos/${GITHUB_REPOSITORY}/releases\" \\\n    --jq '[.[] | {tag_name, name, created_at, published_at, html_url, body}]' \\\n    > /tmp/gh-aw/daily-news-data/releases.json\n  \n  # Fetch discussions\n  echo \"Fetching discussions...\"\n  gh api graphql -f query=\"\n    query(\\$owner: String!, \\$repo: String!) {\n      repository(owner: \\$owner, name: \\$repo) {\n        discussions(first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {\n          nodes {\n            number\n            title\n            createdAt\n            updatedAt\n            author { login }\n            category { name }\n            comments { totalCount }\n            url\n          }\n        }\n      }\n    }\n  \" -f owner=\"${GITHUB_REPOSITORY_OWNER}\" -f repo=\"${GITHUB_REPOSITORY#*/}\" > /tmp/gh-aw/daily-news-data/discussions.json\n  \n  # Check for changesets\n  echo \"Checking for changesets...\"\n  if [ -d \".changeset\" ]; then\n    find .changeset -name \"*.md\" -type f ! -name \"README.md\" > /tmp/gh-aw/daily-news-data/changesets.txt\n  else\n    echo \"No changeset directory\" > /tmp/gh-aw/daily-news-data/changesets.txt\n  fi\n  \n  # Cache the freshly downloaded data for next run\n  echo \"💾 Caching data for future runs...\"\n  cp -r /tmp/gh-aw/daily-news-data/* /tmp/gh-aw/cache-memory/daily-news-data/\n  date +%s > \"$CACHE_TIMESTAMP_FILE\"\n  \n  echo \"✅ Data download and caching complete\"\nfi\n\nls -lh /tmp/gh-aw/daily-news-data/\n"
 
       - name: Create gh-aw temp directory
         run: |
@@ -296,8 +306,6 @@ jobs:
           sudo mv awf /usr/local/bin/
           which awf
           awf --version
-      - name: Cleanup any existing awf resources
-        run: ./scripts/ci/cleanup.sh || true
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.354
       - name: Downloading container images
@@ -1183,6 +1191,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
+          # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           
           
@@ -1702,6 +1711,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
               raise FileNotFoundError(f"Data file not found: {data_file}")
           ```
@@ -1966,7 +1976,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1998,7 +2009,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2011,7 +2023,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           
           ---
@@ -2030,7 +2043,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2055,7 +2069,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2080,7 +2095,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2110,7 +2126,7 @@ jobs:
           Use this context information to understand the scope of your work.
           
           PROMPT_EOF
-      - name: Render template conditionals
+      - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -2121,34 +2137,61 @@ jobs:
               const v = expr.trim().toLowerCase();
               return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
             }
+            function interpolateVariables(content, variables) {
+              let result = content;
+              for (const [varName, value] of Object.entries(variables)) {
+                const pattern = new RegExp(`\\$\\{${varName}\\}`, "g");
+                result = result.replace(pattern, value);
+              }
+              return result;
+            }
             function renderMarkdownTemplate(markdown) {
               return markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
             }
-            function main() {
+            async function main() {
               try {
                 const promptPath = process.env.GH_AW_PROMPT;
                 if (!promptPath) {
                   core.setFailed("GH_AW_PROMPT environment variable is not set");
-                  process.exit(1);
+                  return;
                 }
-                const markdown = fs.readFileSync(promptPath, "utf8");
-                const hasConditionals = /{{#if\s+[^}]+}}/.test(markdown);
-                if (!hasConditionals) {
+                let content = fs.readFileSync(promptPath, "utf8");
+                const variables = {};
+                for (const [key, value] of Object.entries(process.env)) {
+                  if (key.startsWith("GH_AW_EXPR_")) {
+                    variables[key] = value || "";
+                  }
+                }
+                const varCount = Object.keys(variables).length;
+                if (varCount > 0) {
+                  core.info(`Found ${varCount} expression variable(s) to interpolate`);
+                  content = interpolateVariables(content, variables);
+                  core.info(`Successfully interpolated ${varCount} variable(s) in prompt`);
+                } else {
+                  core.info("No expression variables found, skipping interpolation");
+                }
+                const hasConditionals = /{{#if\s+[^}]+}}/.test(content);
+                if (hasConditionals) {
+                  core.info("Processing conditional template blocks");
+                  content = renderMarkdownTemplate(content);
+                  core.info("Template rendered successfully");
+                } else {
                   core.info("No conditional blocks found in prompt, skipping template rendering");
-                  process.exit(0);
                 }
-                const rendered = renderMarkdownTemplate(markdown);
-                fs.writeFileSync(promptPath, rendered, "utf8");
-                core.info("Template rendered successfully");
+                fs.writeFileSync(promptPath, content, "utf8");
               } catch (error) {
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
             main();
-      - name: Print prompt to step summary
+      - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # Print prompt to workflow logs (equivalent to core.info)
+          echo "Generated Prompt:"
+          cat "$GH_AW_PROMPT"
+          # Print prompt to step summary
           {
             echo "<details>"
             echo "<summary>Generated Prompt</summary>"
@@ -2215,9 +2258,7 @@ jobs:
         timeout-minutes: 30
         run: |
           set -o pipefail
-          sudo -E awf --env-all \
-            --allow-domains '*.pythonhosted.org,anaconda.org,api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.npmjs.org,repo.anaconda.com,repo.continuum.io,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' \
-            --log-level info \
+          sudo -E awf --env-all --allow-domains '*.pythonhosted.org,anaconda.org,api.enterprise.githubcopilot.com,api.github.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,binstar.org,bootstrap.pypa.io,conda.anaconda.org,conda.binstar.org,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,files.pythonhosted.org,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pip.pypa.io,ppa.launchpad.net,pypi.org,pypi.python.org,raw.githubusercontent.com,registry.npmjs.org,repo.anaconda.com,repo.continuum.io,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com' --log-level info \
             "npx -y @github/copilot@0.0.354 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
@@ -3265,9 +3306,10 @@ jobs:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
         with:
           script: |
-            function main() {
+            function runLogParser(options) {
               const fs = require("fs");
               const path = require("path");
+              const { parseLog, parserName, supportsDirectories = false } = options;
               try {
                 const logPath = process.env.GH_AW_AGENT_OUTPUT;
                 if (!logPath) {
@@ -3281,6 +3323,10 @@ jobs:
                 let content = "";
                 const stat = fs.statSync(logPath);
                 if (stat.isDirectory()) {
+                  if (!supportsDirectories) {
+                    core.info(`Log path is a directory but ${parserName} parser does not support directories: ${logPath}`);
+                    return;
+                  }
                   const files = fs.readdirSync(logPath);
                   const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
                   if (logFiles.length === 0) {
@@ -3291,25 +3337,54 @@ jobs:
                   for (const file of logFiles) {
                     const filePath = path.join(logPath, file);
                     const fileContent = fs.readFileSync(filePath, "utf8");
-                    content += fileContent;
                     if (content.length > 0 && !content.endsWith("\n")) {
                       content += "\n";
                     }
+                    content += fileContent;
                   }
                 } else {
                   content = fs.readFileSync(logPath, "utf8");
                 }
-                const parsedLog = parseCopilotLog(content);
-                if (parsedLog) {
-                  core.info(parsedLog);
-                  core.summary.addRaw(parsedLog).write();
-                  core.info("Copilot log parsed successfully");
+                const result = parseLog(content);
+                let markdown = "";
+                let mcpFailures = [];
+                let maxTurnsHit = false;
+                if (typeof result === "string") {
+                  markdown = result;
+                } else if (result && typeof result === "object") {
+                  markdown = result.markdown || "";
+                  mcpFailures = result.mcpFailures || [];
+                  maxTurnsHit = result.maxTurnsHit || false;
+                }
+                if (markdown) {
+                  core.info(markdown);
+                  core.summary.addRaw(markdown).write();
+                  core.info(`${parserName} log parsed successfully`);
                 } else {
-                  core.error("Failed to parse Copilot log");
+                  core.error(`Failed to parse ${parserName} log`);
+                }
+                if (mcpFailures && mcpFailures.length > 0) {
+                  const failedServers = mcpFailures.join(", ");
+                  core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
+                }
+                if (maxTurnsHit) {
+                  core.setFailed(`Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.`);
                 }
               } catch (error) {
                 core.setFailed(error instanceof Error ? error : String(error));
               }
+            }
+            if (typeof module !== "undefined" && module.exports) {
+              module.exports = {
+                runLogParser,
+              };
+            }
+            function main() {
+              runLogParser({
+                parseLog: parseCopilotLog,
+                parserName: "Copilot",
+                supportsDirectories: true,
+              });
             }
             function extractPremiumRequestCount(logContent) {
               const patterns = [
@@ -4510,9 +4585,6 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
-      - name: Cleanup awf resources
-        if: always()
-        run: ./scripts/ci/cleanup.sh || true
       - name: Upload safe outputs assets
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4

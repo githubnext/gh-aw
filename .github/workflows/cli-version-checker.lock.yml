@@ -40,7 +40,7 @@
 name: "CLI Version Checker"
 "on":
   schedule:
-  - cron: 0 15 * * *
+  - cron: "0 15 * * *"
   workflow_dispatch: null
 
 permissions:
@@ -56,6 +56,8 @@ run-name: "CLI Version Checker"
 jobs:
   activation:
     runs-on: ubuntu-slim
+    permissions:
+      contents: read
     steps:
       - name: Checkout workflows
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -115,14 +117,22 @@ jobs:
               core.info(`  Source modified: ${workflowStat.mtime.toISOString()}`);
               core.info(`  Lock modified: ${lockStat.mtime.toISOString()}`);
               if (workflowMtime > lockMtime) {
-                const warningMessage = `🔴🔴🔴 WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
+                const warningMessage = `WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
                 core.error(warningMessage);
-                await core.summary
-                  .addRaw("## ⚠️ Workflow Lock File Warning\n\n")
-                  .addRaw(`🔴🔴🔴 **WARNING**: Lock file \`${lockFile}\` is outdated!\n\n`)
-                  .addRaw(`The workflow file \`${workflowMdFile}\` has been modified more recently.\n\n`)
-                  .addRaw("Run `gh aw compile` to regenerate the lock file.\n\n")
-                  .write();
+                const workflowTimestamp = workflowStat.mtime.toISOString();
+                const lockTimestamp = lockStat.mtime.toISOString();
+                const gitSha = process.env.GITHUB_SHA;
+                let summary = core.summary
+                  .addRaw("### ⚠️ Workflow Lock File Warning\n\n")
+                  .addRaw("**WARNING**: Lock file is outdated and needs to be regenerated.\n\n")
+                  .addRaw("**Files:**\n")
+                  .addRaw(`- Source: \`${workflowMdFile}\` (modified: ${workflowTimestamp})\n`)
+                  .addRaw(`- Lock: \`${lockFile}\` (modified: ${lockTimestamp})\n\n`);
+                if (gitSha) {
+                  summary = summary.addRaw(`**Git Commit:** \`${gitSha}\`\n\n`);
+                }
+                summary = summary.addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n");
+                await summary.write();
               } else {
                 core.info("✅ Lock file is up to date");
               }
@@ -254,8 +264,6 @@ jobs:
           sudo mv awf /usr/local/bin/
           which awf
           awf --version
-      - name: Cleanup any existing awf resources
-        run: ./scripts/ci/cleanup.sh || true
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.354
       - name: Downloading container images
@@ -1125,11 +1133,10 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_EXPR_D892F163: ${{ github.repository }}
-          GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
+          # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           ## jqschema - JSON Schema Discovery
           
@@ -1239,9 +1246,14 @@ jobs:
           
           ### Version Sources
           - **Claude Code**: Use `npm view @anthropic-ai/claude-code version` (faster than web-fetch)
+            - No public GitHub repository
           - **Copilot CLI**: Use `npm view @github/copilot version`
+            - Repository: https://github.com/github/copilot-cli (may be private)
           - **Codex**: Use `npm view @openai/codex version`
+            - Repository: https://github.com/openai/codex
+            - Release Notes: https://github.com/openai/codex/releases
           - **GitHub MCP Server**: `https://api.github.com/repos/github/github-mcp-server/releases/latest`
+            - Release Notes: https://github.com/github/github-mcp-server/releases
           
           **Optimization**: Fetch all versions in parallel using multiple npm view or WebFetch calls in a single turn.
           
@@ -1251,6 +1263,21 @@ jobs:
           - Assess impact on gh-aw workflows
           - Document migration requirements
           - Assign risk level (Low/Medium/High)
+          
+          **GitHub Release Notes (when available)**:
+          - **Codex**: Fetch release notes from https://github.com/openai/codex/releases/tag/rust-v{VERSION}
+            - Parse the "Highlights" section for key changes
+            - Parse the "PRs merged" or "Merged PRs" section for detailed changes
+            - Extract links to pull requests and issues for context
+          - **GitHub MCP Server**: Fetch release notes from https://github.com/github/github-mcp-server/releases/tag/v{VERSION}
+            - Parse release body for changelog entries
+          - **Copilot CLI**: Repository may be private, skip release notes if inaccessible
+          - **Claude Code**: No public repository, rely on NPM metadata and CLI help output
+          
+          **NPM Metadata Fallback**: When GitHub release notes are unavailable, use:
+          - `npm view <package> --json` for package metadata
+          - Compare CLI help outputs between versions
+          - Check for version changelog in package description
           
           ### Tool Installation & Discovery
           **CACHE OPTIMIZATION**: 
@@ -1286,8 +1313,15 @@ jobs:
           - **Release Timeline**: dates and intervals
           - **Changes**: Categorized as Breaking/Features/Fixes/Security/Performance
           - **Impact Assessment**: Risk level, affected features, migration notes
-          - **Changelog Links**: NPM/GitHub release notes
+          - **Changelog Links**: Use plain URLs without backticks
           - **CLI Changes**: New commands, flags, or removed features discovered via help
+          - **GitHub Release Notes**: Include highlights and PR summaries when available from GitHub releases
+          
+          **URL Formatting Rules**:
+          - Use plain URLs without backticks around package names
+          - **CORRECT**: https://www.npmjs.com/package/@github/copilot
+          - **INCORRECT**: `https://www.npmjs.com/package/@github/copilot` (has backticks)
+          - **INCORRECT**: https://www.npmjs.com/package/`@github/copilot` (package name wrapped in backticks)
           
           Template structure:
           ```
@@ -1301,6 +1335,18 @@ jobs:
           - CLI Discovery: [New commands/flags or "None detected"]
           - Impact: Risk [Low/Medium/High], affects [features]
           - Migration: [Yes/No - details if yes]
+          
+          ## Release Highlights (from GitHub)
+          [Include key highlights from GitHub release notes if available]
+          
+          ## Merged PRs (from GitHub)
+          [List significant merged PRs from release notes if available]
+          
+          ## Package Links
+          - **NPM Package**: https://www.npmjs.com/package/package-name-here
+          - **Repository**: [GitHub URL if available]
+          - **Release Notes**: [GitHub releases URL if available]
+          - **Specific Release**: [Direct link to version's release notes if available]
           ```
           
           ## Guidelines
@@ -1311,11 +1357,64 @@ jobs:
           - **CHECK CACHE FIRST**: Before re-analyzing versions, check cache-memory for recent results
           - **PARALLEL FETCHING**: Fetch all versions in parallel using multiple npm/WebFetch calls in one turn
           - **EARLY EXIT**: If no version changes detected, save check timestamp to cache and exit successfully
+          - **FETCH GITHUB RELEASE NOTES**: For tools with public GitHub repositories, fetch release notes to get detailed changelog information
+            - Codex: Always fetch from https://github.com/openai/codex/releases
+            - GitHub MCP Server: Always fetch from https://github.com/github/github-mcp-server/releases
+            - Copilot CLI: Try to fetch, but may be inaccessible (private repo)
           - Install and test CLI tools to discover new features via `--help`
           - Compare help output between old and new versions
           - **SAVE TO CACHE**: Store help outputs and version check results in cache-memory
           - Test with `make recompile` before creating PR
           - **DO NOT COMMIT** `*.lock.yml` or `pkg/workflow/js/*.js` files directly
+          
+          ## Common JSON Parsing Issues
+          
+          When using npm commands or other CLI tools, their output may include informational messages with Unicode symbols that break JSON parsing:
+          
+          **Problem Patterns**:
+          - `Unexpected token 'ℹ', "ℹ Timeout "... is not valid JSON`
+          - `Unexpected token '⚠', "⚠ pip pack"... is not valid JSON`
+          - `Unexpected token '✓', "✓ Success"... is not valid JSON`
+          
+          **Solutions**:
+          
+          ### 1. Filter stderr (Recommended)
+          Redirect stderr to suppress npm warnings/info:
+          ```bash
+          npm view @github/copilot version 2>/dev/null
+          npm view @anthropic-ai/claude-code --json 2>/dev/null
+          ```
+          
+          ### 2. Use grep to filter output
+          Remove lines with Unicode symbols before parsing:
+          ```bash
+          npm view @github/copilot --json | grep -v "^[ℹ⚠✓]"
+          ```
+          
+          ### 3. Use jq for reliable extraction
+          Let jq handle malformed input:
+          ```bash
+          # Extract version field only, ignoring non-JSON lines
+          npm view @github/copilot --json 2>/dev/null | jq -r '.version'
+          ```
+          
+          ### 4. Check tool output before parsing
+          Always validate JSON before attempting to parse:
+          ```bash
+          output=$(npm view package --json 2>/dev/null)
+          if echo "$output" | jq empty 2>/dev/null; then
+            # Valid JSON, safe to parse
+            version=$(echo "$output" | jq -r '.version')
+          else
+            # Invalid JSON, handle error
+            echo "Warning: npm output is not valid JSON"
+          fi
+          ```
+          
+          **Best Practice**: Combine stderr filtering with jq extraction for most reliable results:
+          ```bash
+          npm view @github/copilot --json 2>/dev/null | jq -r '.version'
+          ```
           
           ## Error Handling
           - **SAVE PROGRESS**: Before exiting on errors, save current state to cache-memory
@@ -1331,7 +1430,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1363,7 +1463,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1376,7 +1477,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           
           ---
@@ -1395,7 +1497,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1420,7 +1523,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1441,7 +1545,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -1471,10 +1576,12 @@ jobs:
           Use this context information to understand the scope of your work.
           
           PROMPT_EOF
-      - name: Render template conditionals
+      - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
         with:
           script: |
             const fs = require("fs");
@@ -1482,34 +1589,61 @@ jobs:
               const v = expr.trim().toLowerCase();
               return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
             }
+            function interpolateVariables(content, variables) {
+              let result = content;
+              for (const [varName, value] of Object.entries(variables)) {
+                const pattern = new RegExp(`\\$\\{${varName}\\}`, "g");
+                result = result.replace(pattern, value);
+              }
+              return result;
+            }
             function renderMarkdownTemplate(markdown) {
               return markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
             }
-            function main() {
+            async function main() {
               try {
                 const promptPath = process.env.GH_AW_PROMPT;
                 if (!promptPath) {
                   core.setFailed("GH_AW_PROMPT environment variable is not set");
-                  process.exit(1);
+                  return;
                 }
-                const markdown = fs.readFileSync(promptPath, "utf8");
-                const hasConditionals = /{{#if\s+[^}]+}}/.test(markdown);
-                if (!hasConditionals) {
+                let content = fs.readFileSync(promptPath, "utf8");
+                const variables = {};
+                for (const [key, value] of Object.entries(process.env)) {
+                  if (key.startsWith("GH_AW_EXPR_")) {
+                    variables[key] = value || "";
+                  }
+                }
+                const varCount = Object.keys(variables).length;
+                if (varCount > 0) {
+                  core.info(`Found ${varCount} expression variable(s) to interpolate`);
+                  content = interpolateVariables(content, variables);
+                  core.info(`Successfully interpolated ${varCount} variable(s) in prompt`);
+                } else {
+                  core.info("No expression variables found, skipping interpolation");
+                }
+                const hasConditionals = /{{#if\s+[^}]+}}/.test(content);
+                if (hasConditionals) {
+                  core.info("Processing conditional template blocks");
+                  content = renderMarkdownTemplate(content);
+                  core.info("Template rendered successfully");
+                } else {
                   core.info("No conditional blocks found in prompt, skipping template rendering");
-                  process.exit(0);
                 }
-                const rendered = renderMarkdownTemplate(markdown);
-                fs.writeFileSync(promptPath, rendered, "utf8");
-                core.info("Template rendered successfully");
+                fs.writeFileSync(promptPath, content, "utf8");
               } catch (error) {
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
             main();
-      - name: Print prompt to step summary
+      - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # Print prompt to workflow logs (equivalent to core.info)
+          echo "Generated Prompt:"
+          cat "$GH_AW_PROMPT"
+          # Print prompt to step summary
           {
             echo "<details>"
             echo "<summary>Generated Prompt</summary>"
@@ -1576,9 +1710,7 @@ jobs:
         timeout-minutes: 15
         run: |
           set -o pipefail
-          sudo -E awf --env-all \
-            --allow-domains api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,ghcr.io,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com \
-            --log-level info \
+          sudo -E awf --env-all --allow-domains api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,ghcr.io,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info \
             "npx -y @github/copilot@0.0.354 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
@@ -2621,9 +2753,10 @@ jobs:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
         with:
           script: |
-            function main() {
+            function runLogParser(options) {
               const fs = require("fs");
               const path = require("path");
+              const { parseLog, parserName, supportsDirectories = false } = options;
               try {
                 const logPath = process.env.GH_AW_AGENT_OUTPUT;
                 if (!logPath) {
@@ -2637,6 +2770,10 @@ jobs:
                 let content = "";
                 const stat = fs.statSync(logPath);
                 if (stat.isDirectory()) {
+                  if (!supportsDirectories) {
+                    core.info(`Log path is a directory but ${parserName} parser does not support directories: ${logPath}`);
+                    return;
+                  }
                   const files = fs.readdirSync(logPath);
                   const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
                   if (logFiles.length === 0) {
@@ -2647,25 +2784,54 @@ jobs:
                   for (const file of logFiles) {
                     const filePath = path.join(logPath, file);
                     const fileContent = fs.readFileSync(filePath, "utf8");
-                    content += fileContent;
                     if (content.length > 0 && !content.endsWith("\n")) {
                       content += "\n";
                     }
+                    content += fileContent;
                   }
                 } else {
                   content = fs.readFileSync(logPath, "utf8");
                 }
-                const parsedLog = parseCopilotLog(content);
-                if (parsedLog) {
-                  core.info(parsedLog);
-                  core.summary.addRaw(parsedLog).write();
-                  core.info("Copilot log parsed successfully");
+                const result = parseLog(content);
+                let markdown = "";
+                let mcpFailures = [];
+                let maxTurnsHit = false;
+                if (typeof result === "string") {
+                  markdown = result;
+                } else if (result && typeof result === "object") {
+                  markdown = result.markdown || "";
+                  mcpFailures = result.mcpFailures || [];
+                  maxTurnsHit = result.maxTurnsHit || false;
+                }
+                if (markdown) {
+                  core.info(markdown);
+                  core.summary.addRaw(markdown).write();
+                  core.info(`${parserName} log parsed successfully`);
                 } else {
-                  core.error("Failed to parse Copilot log");
+                  core.error(`Failed to parse ${parserName} log`);
+                }
+                if (mcpFailures && mcpFailures.length > 0) {
+                  const failedServers = mcpFailures.join(", ");
+                  core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
+                }
+                if (maxTurnsHit) {
+                  core.setFailed(`Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.`);
                 }
               } catch (error) {
                 core.setFailed(error instanceof Error ? error : String(error));
               }
+            }
+            if (typeof module !== "undefined" && module.exports) {
+              module.exports = {
+                runLogParser,
+              };
+            }
+            function main() {
+              runLogParser({
+                parseLog: parseCopilotLog,
+                parserName: "Copilot",
+                supportsDirectories: true,
+              });
             }
             function extractPremiumRequestCount(logContent) {
               const patterns = [
@@ -3866,9 +4032,6 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
-      - name: Cleanup awf resources
-        if: always()
-        run: ./scripts/ci/cleanup.sh || true
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -4189,6 +4352,23 @@ jobs:
               }
               return { success: true, items: validatedOutput.items };
             }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
             function generateFooter(
               workflowName,
               runUrl,
@@ -4227,23 +4407,22 @@ jobs:
               }
               core.info(`Found ${createIssueItems.length} create-issue item(s)`);
               if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
-                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < createIssueItems.length; i++) {
-                  const item = createIssueItems[i];
-                  summaryContent += `### Issue ${i + 1}\n`;
-                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-                  if (item.body) {
-                    summaryContent += `**Body:**\n${item.body}\n\n`;
-                  }
-                  if (item.labels && item.labels.length > 0) {
-                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
-                  }
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info(summaryContent);
-                core.info("📝 Issue creation preview written to step summary");
+                await generateStagedPreview({
+                  title: "Create Issues",
+                  description: "The following issues would be created if staged mode was disabled:",
+                  items: createIssueItems,
+                  renderItem: (item, index) => {
+                    let content = `### Issue ${index + 1}\n`;
+                    content += `**Title:** ${item.title || "No title provided"}\n\n`;
+                    if (item.body) {
+                      content += `**Body:**\n${item.body}\n\n`;
+                    }
+                    if (item.labels && item.labels.length > 0) {
+                      content += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                    }
+                    return content;
+                  },
+                });
                 return;
               }
               const parentIssueNumber = context.payload?.issue?.number;

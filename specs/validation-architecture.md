@@ -42,26 +42,22 @@ This architecture balances maintainability with domain expertise, allowing valid
 
 Domain-specific validation is organized into separate files based on functional area:
 
-#### 1. **Strict Mode Validation**: `strict_mode.go` and `validation_strict_mode.go`
+#### 1. **Strict Mode Validation**: `strict_mode_validation.go`
 
-**Location**: 
-- `pkg/workflow/strict_mode.go` (70 lines) - Main orchestrator
-- `pkg/workflow/validation_strict_mode.go` (170 lines) - Individual validation functions
+**Location**: `pkg/workflow/strict_mode_validation.go` (190 lines)
 
 **Purpose**: Enforces security and safety constraints in strict mode
 
 **Validation Functions**:
-- `validateStrictMode()` - Main strict mode orchestrator (in `strict_mode.go`)
-- `validateStrictPermissions()` - Refuses write permissions (in `validation_strict_mode.go`)
-- `validateStrictNetwork()` - Requires explicit network configuration (in `validation_strict_mode.go`)
-- `validateStrictMCPNetwork()` - Requires network config on custom MCP servers (in `validation_strict_mode.go`)
-- `validateStrictBashTools()` - Refuses bash wildcard tools (in `validation_strict_mode.go`)
+- `validateStrictMode()` - Main strict mode orchestrator
+- `validateStrictPermissions()` - Refuses write permissions
+- `validateStrictNetwork()` - Requires explicit network configuration
+- `validateStrictMCPNetwork()` - Requires network config on custom MCP servers
+- `validateStrictBashTools()` - Refuses bash wildcard tools
 
 **Pattern**: Security policy enforcement with progressive validation
 
-**Architecture**: The strict mode validation is split across two files for better organization:
-- `strict_mode.go` contains the main orchestrator that coordinates validation
-- `validation_strict_mode.go` contains the individual validation function implementations
+**Architecture**: All strict mode validation logic is consolidated in a single file following the `*_validation.go` naming pattern used throughout the codebase
 
 **When to add validation here**:
 - ✅ Strict mode security policies
@@ -200,7 +196,7 @@ Use this decision tree to determine where to place new validation logic:
        ┌───────────────┐
        │ Is it about   │
        │ security or   │     YES
-       │ strict mode?  ├──────────► strict_mode.go
+       │ strict mode?  ├──────────► strict_mode_validation.go
        └───────┬───────┘
                │ NO
                ▼
@@ -332,7 +328,7 @@ func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 
 ### Pattern 4: Progressive Validation
 
-**Used in**: `strict_mode.go`
+**Used in**: `strict_mode_validation.go`
 
 **Purpose**: Apply multiple validation checks in sequence
 

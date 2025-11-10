@@ -18,7 +18,7 @@ safe-outputs:
     max: 5
   staged: true
 
-timeout_minutes: 5
+timeout-minutes: 5
 ---
 
 # Test Claude with Missing Tool Safe Output and Cache Memory

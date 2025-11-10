@@ -41,7 +41,9 @@ func appendPromptStepWithHeredoc(yaml *strings.Builder, stepName string, rendere
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << 'PROMPT_EOF'\n")
+	// shellcheck disable directive suppresses false positives from markdown backticks
+	yaml.WriteString("          " + shellcheckDisableBackticks)
+	yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << PROMPT_EOF\n")
 
 	// Call the renderer to write the content
 	renderer(yaml)

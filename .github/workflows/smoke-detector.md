@@ -39,7 +39,7 @@ safe-outputs:
   create-issue:
     title-prefix: "[smoke-detector] "
     labels: [smoke-test, investigation]
-timeout_minutes: 20
+timeout-minutes: 20
 engine: claude
 imports:
   - shared/mcp/gh-aw.md

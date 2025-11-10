@@ -3,7 +3,7 @@ name: Changeset Generator
 on:
   pull_request:
     types: [labeled]
-    names: ["smoke"]
+    names: ["changeset", "smoke"]
   workflow_dispatch:
   reaction: "rocket"
 if: github.event.pull_request.base.ref == github.event.repository.default_branch
@@ -17,7 +17,7 @@ safe-outputs:
     commit-title-suffix: " [skip-ci]"
   threat-detection:
     engine: false
-timeout_minutes: 20
+timeout-minutes: 20
 network:
   firewall: true
 tools:

@@ -71,6 +71,9 @@ describe("parse_claude_log.cjs", () => {
       if (module === "@actions/core") {
         return mockCore;
       }
+      if (module === "./log_parser_bootstrap.cjs") {
+        return require("./log_parser_bootstrap.cjs");
+      }
       throw new Error(`Module not found: ${module}`);
     });
 
@@ -480,7 +483,7 @@ npm warn exec The following package was not found
       scriptFunction();
       await global.testMain();
 
-      expect(mockCore.info).toHaveBeenCalledWith("Log file not found: /nonexistent/file.log");
+      expect(mockCore.info).toHaveBeenCalledWith("Log path not found: /nonexistent/file.log");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 

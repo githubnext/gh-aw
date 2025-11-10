@@ -219,7 +219,13 @@ func ExtractFrontmatterString(content string) (string, error) {
 		return "", fmt.Errorf("failed to marshal frontmatter: %w", err)
 	}
 
-	return strings.TrimSpace(string(yamlBytes)), nil
+	// Post-process YAML to ensure cron expressions are quoted
+	// The YAML library may drop quotes from cron expressions like "0 14 * * 1-5"
+	// which causes validation errors since they start with numbers but contain spaces
+	yamlString := string(yamlBytes)
+	yamlString = QuoteCronExpressions(yamlString)
+
+	return strings.TrimSpace(yamlString), nil
 }
 
 // ExtractMarkdownContent extracts only the markdown content (excluding frontmatter)
@@ -475,8 +481,14 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 				// Multiple agent files found - error
 				return nil, fmt.Errorf("multiple agent files found in imports: '%s' and '%s'. Only one agent file is allowed per workflow", agentFile, item.importPath)
 			}
-			agentFile = item.fullPath
-			log.Printf("Found agent file: %s", item.fullPath)
+			// Extract relative path from repository root (from .github/ onwards)
+			// This ensures the path works at runtime with $GITHUB_WORKSPACE
+			if idx := strings.Index(item.fullPath, "/.github/"); idx >= 0 {
+				agentFile = item.fullPath[idx+1:] // +1 to skip the leading slash
+			} else {
+				agentFile = item.fullPath
+			}
+			log.Printf("Found agent file: %s (resolved to: %s)", item.fullPath, agentFile)
 
 			// For agent files, only extract markdown content
 			markdownContent, err := processIncludedFileWithVisited(item.fullPath, item.sectionName, false, visited)
@@ -1767,4 +1779,34 @@ func reconstructWorkflowFile(frontmatterYAML, markdownContent string) (string, e
 	}
 
 	return strings.Join(lines, "\n"), nil
+}
+
+// QuoteCronExpressions ensures cron expressions in schedule sections are properly quoted.
+// The YAML library may drop quotes from cron expressions like "0 14 * * 1-5" which
+// causes validation errors since they start with numbers but contain spaces and special chars.
+func QuoteCronExpressions(yamlContent string) string {
+	// Pattern to match unquoted cron expressions after "cron:"
+	// Matches: cron: 0 14 * * 1-5
+	// Captures the cron value to be quoted
+	cronPattern := regexp.MustCompile(`(?m)^(\s*-?\s*cron:\s*)([0-9][^\n"']*)$`)
+
+	// Replace unquoted cron expressions with quoted versions
+	return cronPattern.ReplaceAllStringFunc(yamlContent, func(match string) string {
+		// Extract the cron prefix and value
+		submatches := cronPattern.FindStringSubmatch(match)
+		if len(submatches) < 3 {
+			return match
+		}
+		prefix := submatches[1]
+		cronValue := strings.TrimSpace(submatches[2])
+
+		// Remove any trailing comments
+		if idx := strings.Index(cronValue, "#"); idx != -1 {
+			comment := cronValue[idx:]
+			cronValue = strings.TrimSpace(cronValue[:idx])
+			return prefix + `"` + cronValue + `" ` + comment
+		}
+
+		return prefix + `"` + cronValue + `"`
+	})
 }

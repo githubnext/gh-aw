@@ -5,13 +5,13 @@
 // This file contains general-purpose validation functions that apply across the entire
 // workflow system. For domain-specific validation (e.g., strict mode, package validation,
 // expression safety), see the corresponding domain files:
-//   - strict_mode.go: Security and strict mode validation
-//   - pip.go: Python package validation
-//   - npm.go: NPM package validation
+//   - strict_mode_validation.go: Security and strict mode validation
+//   - pip_validation.go: Python package validation
+//   - npm_validation.go: NPM package validation
+//   - docker_validation.go: Docker image validation
 //   - expression_safety.go: GitHub Actions expression security
 //   - engine.go: AI engine configuration validation
 //   - mcp-config.go: MCP server configuration validation
-//   - docker.go: Docker image validation
 //   - template.go: Template structure validation
 //
 // # When to Add Validation Here
@@ -43,6 +43,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -50,7 +51,6 @@ import (
 	"github.com/cli/go-gh/v2"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/logger"
-	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 	"github.com/goccy/go-yaml"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
@@ -112,8 +112,8 @@ func (c *Compiler) validateExpressionSizes(yamlContent string) error {
 			}
 
 			// Format sizes for display
-			actualSize := pretty.FormatFileSize(int64(len(line)))
-			maxSizeFormatted := pretty.FormatFileSize(int64(maxSize))
+			actualSize := console.FormatFileSize(int64(len(line)))
+			maxSizeFormatted := console.FormatFileSize(int64(maxSize))
 
 			var errorMsg string
 			if key != "" {
@@ -701,8 +701,23 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 	agentPath := workflowData.AgentFile
 	validationLog.Printf("Validating agent file exists: %s", agentPath)
 
-	// Check if the file exists (it should already be resolved by imports processor)
-	if _, err := os.Stat(agentPath); err != nil {
+	var fullAgentPath string
+
+	// Check if agentPath is already absolute
+	if filepath.IsAbs(agentPath) {
+		// Use the path as-is (for backward compatibility with tests)
+		fullAgentPath = agentPath
+	} else {
+		// Agent file path is relative to repository root (e.g., ".github/agents/file.md")
+		// Need to resolve it relative to the markdown file's directory
+		markdownDir := filepath.Dir(markdownPath)
+		// Navigate up from .github/workflows to repository root
+		repoRoot := filepath.Join(markdownDir, "..", "..")
+		fullAgentPath = filepath.Join(repoRoot, agentPath)
+	}
+
+	// Check if the file exists
+	if _, err := os.Stat(fullAgentPath); err != nil {
 		if os.IsNotExist(err) {
 			formattedErr := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{

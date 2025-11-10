@@ -396,43 +396,48 @@ function updateChangelog(version, changesets, dryRun = false) {
   const date = new Date().toISOString().split('T')[0];
   let newEntry = `## ${version} - ${date}\n\n`;
   
-  // Group changes by type
-  const majorChanges = changesets.filter(cs => cs.bumpType === 'major');
-  const minorChanges = changesets.filter(cs => cs.bumpType === 'minor');
-  const patchChanges = changesets.filter(cs => cs.bumpType === 'patch');
-  
-  // Write changes by category
-  if (majorChanges.length > 0) {
-    newEntry += '### Breaking Changes\n\n';
-    for (const cs of majorChanges) {
-      newEntry += formatChangesetBody(cs.description);
+  // If no changesets, add a minimal entry
+  if (changesets.length === 0) {
+    newEntry += 'Maintenance release with dependency updates and minor improvements.\n\n';
+  } else {
+    // Group changes by type
+    const majorChanges = changesets.filter(cs => cs.bumpType === 'major');
+    const minorChanges = changesets.filter(cs => cs.bumpType === 'minor');
+    const patchChanges = changesets.filter(cs => cs.bumpType === 'patch');
+    
+    // Write changes by category
+    if (majorChanges.length > 0) {
+      newEntry += '### Breaking Changes\n\n';
+      for (const cs of majorChanges) {
+        newEntry += formatChangesetBody(cs.description);
+      }
+      newEntry += '\n';
     }
-    newEntry += '\n';
-  }
-  
-  if (minorChanges.length > 0) {
-    newEntry += '### Features\n\n';
-    for (const cs of minorChanges) {
-      newEntry += formatChangesetBody(cs.description);
+    
+    if (minorChanges.length > 0) {
+      newEntry += '### Features\n\n';
+      for (const cs of minorChanges) {
+        newEntry += formatChangesetBody(cs.description);
+      }
+      newEntry += '\n';
     }
-    newEntry += '\n';
-  }
-  
-  if (patchChanges.length > 0) {
-    newEntry += '### Bug Fixes\n\n';
-    for (const cs of patchChanges) {
-      newEntry += formatChangesetBody(cs.description);
+    
+    if (patchChanges.length > 0) {
+      newEntry += '### Bug Fixes\n\n';
+      for (const cs of patchChanges) {
+        newEntry += formatChangesetBody(cs.description);
+      }
+      newEntry += '\n';
     }
-    newEntry += '\n';
-  }
-  
-  // Add consolidated codemods as a markdown code region if any exist
-  const codemodPrompt = extractCodemods(changesets);
-  if (codemodPrompt) {
-    newEntry += '### Migration Guide\n\n';
-    newEntry += '`````markdown\n';
-    newEntry += codemodPrompt + '\n';
-    newEntry += '`````\n\n';
+    
+    // Add consolidated codemods as a markdown code region if any exist
+    const codemodPrompt = extractCodemods(changesets);
+    if (codemodPrompt) {
+      newEntry += '### Migration Guide\n\n';
+      newEntry += '`````markdown\n';
+      newEntry += codemodPrompt + '\n';
+      newEntry += '`````\n\n';
+    }
   }
   
   // Insert new entry after header
@@ -521,16 +526,22 @@ function runVersion() {
 /**
  * Run the release command
  * @param {string} releaseType - Optional release type (patch, minor, major)
+ * @param {boolean} skipConfirmation - If true, skip confirmation prompt
  */
-async function runRelease(releaseType) {
+async function runRelease(releaseType, skipConfirmation = false) {
   // Check git prerequisites (clean tree, main branch)
   checkGitPrerequisites();
   
   const changesets = readChangesets();
   
   if (changesets.length === 0) {
-    console.error(formatErrorMessage('No changesets found to release'));
-    process.exit(1);
+    // If no changesets exist, default to patch release
+    if (!releaseType) {
+      releaseType = 'patch';
+      console.log(formatInfoMessage('No changesets found - defaulting to patch release'));
+    } else {
+      console.log(formatInfoMessage('No changesets found - creating release without changeset entries'));
+    }
   }
   
   // Determine bump type
@@ -555,30 +566,41 @@ async function runRelease(releaseType) {
   console.log(formatInfoMessage(`Creating ${bumpType} release: ${versionString}`));
   
   // Show what will be included in the release
-  console.log('');
-  console.log(formatInfoMessage('Changes to be included:'));
-  for (const cs of changesets) {
-    console.log(`  [${cs.bumpType}] ${extractFirstLine(cs.description)}`);
+  if (changesets.length > 0) {
+    console.log('');
+    console.log(formatInfoMessage('Changes to be included:'));
+    for (const cs of changesets) {
+      console.log(`  [${cs.bumpType}] ${extractFirstLine(cs.description)}`);
+    }
   }
   
-  // Ask for confirmation before making any changes
-  console.log('');
-  const confirmed = await promptConfirmation(formatInfoMessage('Proceed with creating the release (update files, commit, tag, and push)?'));
-  
-  if (!confirmed) {
-    console.log(formatInfoMessage('Release cancelled. No changes have been made.'));
-    return;
+  // Ask for confirmation before making any changes (unless --yes flag is used)
+  if (!skipConfirmation) {
+    console.log('');
+    const confirmed = await promptConfirmation(formatInfoMessage('Proceed with creating the release (update files, commit, tag, and push)?'));
+    
+    if (!confirmed) {
+      console.log(formatInfoMessage('Release cancelled. No changes have been made.'));
+      return;
+    }
+  } else {
+    console.log('');
+    console.log(formatInfoMessage('Skipping confirmation (--yes flag provided)'));
   }
   
   // Update changelog
   updateChangelog(versionString, changesets, false);
   
-  // Delete changeset files
-  deleteChangesetFiles(changesets, false);
+  // Delete changeset files only if there are any
+  if (changesets.length > 0) {
+    deleteChangesetFiles(changesets, false);
+  }
   
   console.log('');
   console.log(formatSuccessMessage('Updated CHANGELOG.md'));
-  console.log(formatSuccessMessage(`Removed ${changesets.length} changeset file(s)`));
+  if (changesets.length > 0) {
+    console.log(formatSuccessMessage(`Removed ${changesets.length} changeset file(s)`));
+  }
   
   // Extract and display consolidated codemods if any
   const codemodPrompt = extractCodemods(changesets);
@@ -597,7 +619,11 @@ async function runRelease(releaseType) {
   try {
     // Stage changes
     console.log(formatInfoMessage('Staging changes...'));
-    execSync('git add CHANGELOG.md .changeset/', { encoding: 'utf8' });
+    if (changesets.length > 0) {
+      execSync('git add CHANGELOG.md .changeset/', { encoding: 'utf8' });
+    } else {
+      execSync('git add CHANGELOG.md', { encoding: 'utf8' });
+    }
     
     // Commit changes
     console.log(formatInfoMessage('Committing changes...'));
@@ -623,7 +649,11 @@ async function runRelease(releaseType) {
     console.error(formatErrorMessage('Git operation failed: ' + error.message));
     console.log('');
     console.log(formatInfoMessage('You can complete the release manually with:'));
-    console.log(`  git add CHANGELOG.md .changeset/`);
+    if (changesets.length > 0) {
+      console.log(`  git add CHANGELOG.md .changeset/`);
+    } else {
+      console.log(`  git add CHANGELOG.md`);
+    }
     console.log(`  git commit -m "Release ${versionString}"`);
     console.log(`  git tag -a ${versionString} -m "Release ${versionString}"`);
     console.log(`  git push`);
@@ -640,9 +670,12 @@ function showHelp() {
   console.log('');
   console.log('Usage:');
   console.log('  node scripts/changeset.js version      - Preview next version from changesets');
-  console.log('  node scripts/changeset.js release [type] - Create release and update CHANGELOG');
+  console.log('  node scripts/changeset.js release [type] [--yes] - Create release and update CHANGELOG');
   console.log('');
   console.log('Release types: patch, minor, major');
+  console.log('');
+  console.log('Flags:');
+  console.log('  --yes, -y    Skip confirmation prompt and proceed automatically');
   console.log('');
   console.log('Examples:');
   console.log('  node scripts/changeset.js version');
@@ -650,6 +683,8 @@ function showHelp() {
   console.log('  node scripts/changeset.js release patch');
   console.log('  node scripts/changeset.js release minor');
   console.log('  node scripts/changeset.js release major');
+  console.log('  node scripts/changeset.js release --yes');
+  console.log('  node scripts/changeset.js release patch --yes');
 }
 
 // Main entry point
@@ -669,7 +704,21 @@ async function main() {
         runVersion();
         break;
       case 'release':
-        await runRelease(args[1]);
+        // Parse release type and flags
+        let releaseType = null;
+        let skipConfirmation = false;
+        
+        for (let i = 1; i < args.length; i++) {
+          const arg = args[i];
+          if (arg === '--yes' || arg === '-y') {
+            skipConfirmation = true;
+          } else if (!releaseType && ['patch', 'minor', 'major'].includes(arg)) {
+            releaseType = arg;
+          }
+        }
+        
+        await runRelease(releaseType, skipConfirmation);
+        break;
         break;
       default:
         console.error(formatErrorMessage(`Unknown command: ${command}`));

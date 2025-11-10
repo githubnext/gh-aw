@@ -5,10 +5,6 @@ sidebar:
   order: 700
 ---
 
-This guide covers the available tools that can be configured in agentic workflows, including GitHub tools, Playwright browser automation, custom MCP servers, and neutral tools.
-
-## Overview
-
 Tools are defined in the frontmatter to specify which GitHub API calls, browser automation, and AI capabilities are available to your workflow:
 
 ```yaml wrap
@@ -55,7 +51,7 @@ bash: ["git:*"]                   # All git commands
 bash: ["npm:*", "echo", "ls"]     # Mix of wildcards and specific commands
 ```
 
-- `:*` or `*`: All commands (Copilot uses `--allow-all-tools`; refused in strict mode)
+- `:*` or `*`: All commands (Copilot uses `--allow-all-tools`)
 - `command:*`: All invocations of a specific command (e.g., `git:*` allows `git add`, `git commit`, etc.)
 
 ## Web Fetch Tool (`web-fetch:`)
@@ -342,6 +338,6 @@ MCP servers run alongside the AI engine in isolated environments with controlled
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All frontmatter configuration options
 - [Network Permissions](/gh-aw/reference/network/) - Network access control for AI engines
 - [MCPs](/gh-aw/guides/mcps/) - Complete Model Context Protocol setup and usage
-- [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
+- [CLI Commands](/gh-aw/setup/cli/) - CLI commands for workflow management
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
 - [Imports](/gh-aw/reference/imports/) - Modularizing workflows with includes

@@ -2,7 +2,7 @@
 title: Threat Detection
 description: Configure automated threat detection to analyze agent output and code changes for security issues before they are applied.
 sidebar:
-  order: 650
+  order: 14
 ---
 
 GitHub Agentic Workflows includes automatic threat detection to analyze agent output and code changes for potential security issues before they are applied. When safe outputs are configured, a threat detection job automatically runs to identify prompt injection attempts, secret leaks, and malicious code patches.
@@ -306,7 +306,7 @@ safe-outputs:
               }
             }
 
-timeout_minutes: 20  # Allow time for model download
+timeout-minutes: 20  # Allow time for model download
 ---
 
 # Code Review Agent
@@ -386,7 +386,7 @@ If the detection process itself fails (e.g., network issues, tool errors), the w
 
 - **AI Analysis**: Typically completes in 10-30 seconds
 - **Custom Tools**: Varies by tool (LlamaGuard: 5-15 minutes with model download)
-- **Timeout**: Set appropriate `timeout_minutes` for custom tools
+- **Timeout**: Set appropriate `timeout-minutes` for custom tools
 - **Artifact Size**: Large patches may require truncation for analysis
 
 ### Security Recommendations
@@ -424,7 +424,7 @@ If the detection process itself fails (e.g., network issues, tool errors), the w
 **Symptom**: Detection times out with large code changes
 
 **Solutions**:
-- Increase `timeout_minutes` in workflow frontmatter
+- Increase `timeout-minutes` in workflow frontmatter
 - Configure `max-patch-size` to limit patch size
 - Truncate content before analysis in custom steps
 - Split large changes into smaller PRs

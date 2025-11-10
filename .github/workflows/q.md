@@ -20,6 +20,8 @@ tools:
     toolsets:
       - default
       - actions
+  edit:
+  bash:
   cache-memory: true
 safe-outputs:
   add-comment:
@@ -29,7 +31,7 @@ safe-outputs:
     labels: [automation, workflow-optimization]
     reviewers: copilot
     draft: false
-timeout_minutes: 15
+timeout-minutes: 15
 strict: true
 ---
 
@@ -215,7 +217,7 @@ If multiple workflows share similar logic:
 #### 4.5 Improve Workflow Configuration
 
 General optimizations:
-- Add `timeout_minutes` to prevent runaway costs
+- Add `timeout-minutes` to prevent runaway costs
 - Set appropriate `max-turns` in engine config
 - Add `stop-after` for time-limited workflows
 - Enable `strict: true` for better validation

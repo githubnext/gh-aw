@@ -85,9 +85,9 @@ func TestBuildCopilotParticipantSteps_CopilotAssignee(t *testing.T) {
 		t.Error("Expected ASSIGNEE environment variable to be set to '@copilot'")
 	}
 
-	// Check that Copilot token precedence is used
-	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
-		t.Error("Expected Copilot token precedence")
+	// Check that Copilot token precedence is used with legacy fallback
+	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
+		t.Error("Expected Copilot token precedence with legacy fallback")
 	}
 
 	// Verify GITHUB_TOKEN is NOT in the fallback chain for copilot assignees
@@ -160,9 +160,9 @@ func TestBuildCopilotParticipantSteps_CopilotReviewer(t *testing.T) {
 		t.Error("Should not use gh pr edit for copilot reviewer")
 	}
 
-	// Check that Copilot token precedence is used
-	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
-		t.Error("Expected Copilot token precedence")
+	// Check that Copilot token precedence is used with legacy fallback
+	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
+		t.Error("Expected Copilot token precedence with legacy fallback")
 	}
 }
 
@@ -216,9 +216,9 @@ func TestBuildCopilotParticipantSteps_MixedParticipants(t *testing.T) {
 		t.Error("Expected assignee step for user2")
 	}
 
-	// When copilot is in the list, all steps should use Copilot token
-	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
-		t.Error("Expected Copilot token precedence when copilot is in the list")
+	// When copilot is in the list, all steps should use Copilot token with legacy fallback
+	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.COPILOT_CLI_TOKEN || secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}") {
+		t.Error("Expected Copilot token precedence with legacy fallback when copilot is in the list")
 	}
 
 	// Verify GITHUB_TOKEN is NOT in the fallback chain

@@ -35,6 +35,7 @@ The server provides the following tools:
   - logs        - Download and analyze workflow logs
   - audit       - Investigate a workflow run and generate a report
   - mcp-inspect - Inspect MCP servers in workflows and list available tools
+  - add         - Add workflows from remote repositories to .github/workflows
 
 By default, the server uses stdio transport. Use the --port flag to run
 an HTTP server with SSE (Server-Sent Events) transport instead.
@@ -76,41 +77,6 @@ func runMCPServer(port int, cmdPath string) error {
 
 	// Run stdio transport
 	return server.Run(context.Background(), &mcp.StdioTransport{})
-}
-
-// validateMCPServerConfiguration validates that the CLI is properly configured
-// by running the status command as a test
-func validateMCPServerConfiguration(cmdPath string) error {
-	// Try to run the status command to verify CLI is working
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	var cmd *exec.Cmd
-	if cmdPath != "" {
-		// Use custom command path
-		cmd = exec.CommandContext(ctx, cmdPath, "status")
-	} else {
-		// Use default gh aw command
-		cmd = exec.CommandContext(ctx, "gh", "aw", "status")
-	}
-	output, err := cmd.CombinedOutput()
-
-	if err != nil {
-		// Check for common error cases
-		if ctx.Err() == context.DeadlineExceeded {
-			return fmt.Errorf("status command timed out - this may indicate a configuration issue")
-		}
-
-		// If the command failed, provide helpful error message
-		if cmdPath != "" {
-			return fmt.Errorf("failed to run status command with custom command '%s': %w\nOutput: %s\n\nPlease ensure:\n  - The command path is correct and executable\n  - You are in a git repository with .github/workflows directory", cmdPath, err, string(output))
-		}
-		return fmt.Errorf("failed to run status command: %w\nOutput: %s\n\nPlease ensure:\n  - gh CLI is installed and in PATH\n  - gh aw extension is installed (run: gh extension install githubnext/gh-aw)\n  - You are in a git repository with .github/workflows directory", err, string(output))
-	}
-
-	// Status command succeeded - configuration is valid
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✅ Configuration validated successfully"))
-	return nil
 }
 
 // createMCPServer creates and configures the MCP server with all tools
@@ -466,6 +432,59 @@ Returns formatted text output showing:
 
 		// Always enable secret checking (will be silently ignored if GitHub token is not available)
 		cmdArgs = append(cmdArgs, "--check-secrets")
+
+		// Execute the CLI command
+		cmd := execCmd(ctx, cmdArgs...)
+		output, err := cmd.CombinedOutput()
+
+		if err != nil {
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: fmt.Sprintf("Error: %v\nOutput: %s", err, string(output))},
+				},
+			}, nil, nil
+		}
+
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: string(output)},
+			},
+		}, nil, nil
+	})
+
+	// Add add tool
+	type addArgs struct {
+		Workflows []string `json:"workflows" jsonschema:"Workflows to add (e.g., 'owner/repo/workflow-name' or 'owner/repo/workflow-name@version')"`
+		Number    int      `json:"number,omitempty" jsonschema:"Create multiple numbered copies (corresponds to -c flag, default: 1)"`
+		Name      string   `json:"name,omitempty" jsonschema:"Specify name for the added workflow - without .md extension (corresponds to -n flag)"`
+	}
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "add",
+		Description: "Add workflows from remote repositories to .github/workflows",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args addArgs) (*mcp.CallToolResult, any, error) {
+		// Validate required arguments
+		if len(args.Workflows) == 0 {
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: "Error: at least one workflow specification is required"},
+				},
+			}, nil, nil
+		}
+
+		// Build command arguments
+		cmdArgs := []string{"add"}
+
+		// Add workflows
+		cmdArgs = append(cmdArgs, args.Workflows...)
+
+		// Add optional flags
+		if args.Number > 0 {
+			cmdArgs = append(cmdArgs, "-c", strconv.Itoa(args.Number))
+		}
+		if args.Name != "" {
+			cmdArgs = append(cmdArgs, "-n", args.Name)
+		}
 
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)

@@ -17,7 +17,7 @@ safe-outputs:
     labels: [code-quality, automated-analysis]
     assignees: copilot
     max: 3
-timeout_minutes: 15
+timeout-minutes: 15
 strict: true
 ---
 
@@ -44,7 +44,7 @@ Detect and report code duplication by:
 ### 1. Project Activation
 
 Activate the project in Serena:
-- Use `activate_project` tool with workspace path `/workspace` (mounted repository directory)
+- Use `activate_project` tool with workspace path `${{ github.workspace }}` (mounted repository directory)
 - This sets up the semantic code analysis environment
 
 ### 2. Changed Files Analysis

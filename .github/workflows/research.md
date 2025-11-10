@@ -26,7 +26,7 @@ safe-outputs:
     category: "research"
     max: 1
 
-timeout_minutes: 10
+timeout-minutes: 10
 strict: true
 ---
 

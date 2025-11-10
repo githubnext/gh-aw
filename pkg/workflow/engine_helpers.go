@@ -4,7 +4,31 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var engineHelpersLog = logger.New("workflow:engine_helpers")
+
+// ResolveAgentFilePath returns the properly quoted agent file path with GITHUB_WORKSPACE prefix.
+// This helper extracts the common pattern shared by Copilot, Codex, and Claude engines.
+//
+// The agent file path is relative to the repository root, so we prefix it with ${GITHUB_WORKSPACE}
+// and wrap the entire expression in quotes to handle paths with spaces.
+//
+// Parameters:
+//   - agentFile: The relative path to the agent file (e.g., ".github/agents/test-agent.md")
+//
+// Returns:
+//   - string: The quoted path with GITHUB_WORKSPACE prefix (e.g., "${GITHUB_WORKSPACE}/.github/agents/test-agent.md")
+//
+// Example:
+//
+//	agentPath := ResolveAgentFilePath(".github/agents/my-agent.md")
+//	// Returns: "${GITHUB_WORKSPACE}/.github/agents/my-agent.md"
+func ResolveAgentFilePath(agentFile string) string {
+	return fmt.Sprintf("\"${GITHUB_WORKSPACE}\"/%s", agentFile)
+}
 
 // BuildStandardNpmEngineInstallSteps creates standard npm installation steps for engines
 // This helper extracts the common pattern shared by Copilot, Codex, and Claude engines.
@@ -25,10 +49,13 @@ func BuildStandardNpmEngineInstallSteps(
 	cacheKeyPrefix string,
 	workflowData *WorkflowData,
 ) []GitHubActionStep {
+	engineHelpersLog.Printf("Building npm engine install steps: package=%s, version=%s", packageName, defaultVersion)
+
 	// Use version from engine config if provided, otherwise default to pinned version
 	version := defaultVersion
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 		version = workflowData.EngineConfig.Version
+		engineHelpersLog.Printf("Using engine config version: %s", version)
 	}
 
 	// Add npm package installation steps (includes Node.js setup)
@@ -58,14 +85,17 @@ func InjectCustomEngineSteps(
 
 	// Handle custom steps if they exist in engine config
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
+		engineHelpersLog.Printf("Injecting %d custom engine steps", len(workflowData.EngineConfig.Steps))
 		for _, step := range workflowData.EngineConfig.Steps {
 			stepYAML, err := convertStepFunc(step)
 			if err != nil {
+				engineHelpersLog.Printf("Failed to convert custom step: %v", err)
 				// Log error but continue with other steps
 				continue
 			}
 			steps = append(steps, GitHubActionStep{stepYAML})
 		}
+		engineHelpersLog.Printf("Successfully injected %d custom engine steps", len(steps))
 	}
 
 	return steps
@@ -355,6 +385,8 @@ func RenderJSONMCPConfig(
 	workflowData *WorkflowData,
 	options JSONMCPConfigOptions,
 ) {
+	engineHelpersLog.Printf("Rendering JSON MCP config: %d tools, path=%s", len(mcpTools), options.ConfigPath)
+
 	// Write config file header
 	yaml.WriteString(fmt.Sprintf("          cat > %s << EOF\n", options.ConfigPath))
 	yaml.WriteString("          {\n")
@@ -364,10 +396,13 @@ func RenderJSONMCPConfig(
 	var filteredTools []string
 	for _, toolName := range mcpTools {
 		if options.FilterTool != nil && !options.FilterTool(toolName) {
+			engineHelpersLog.Printf("Filtering out MCP tool: %s", toolName)
 			continue
 		}
 		filteredTools = append(filteredTools, toolName)
 	}
+
+	engineHelpersLog.Printf("Rendering %d MCP tools after filtering", len(filteredTools))
 
 	// Process each MCP tool
 	totalServers := len(filteredTools)

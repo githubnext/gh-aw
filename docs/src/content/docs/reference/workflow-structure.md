@@ -5,10 +5,6 @@ sidebar:
   order: 100
 ---
 
-This guide explains how agentic workflows are organized and structured within your repository.
-
-## Overview
-
 Each workflow consists of:
 
 1. **YAML Frontmatter**: Configuration options wrapped in `---`. See [Frontmatter](/gh-aw/reference/frontmatter/) for details.
@@ -66,5 +62,5 @@ gh aw compile
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options for workflows
 - [Markdown](/gh-aw/reference/markdown/) - The main markdown content of workflows
 - [Imports](/gh-aw/reference/imports/) - Modularizing workflows with includes
-- [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
+- [CLI Commands](/gh-aw/setup/cli/) - CLI commands for workflow management
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol configuration

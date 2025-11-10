@@ -47,7 +47,7 @@ func TestMCPServer_ListTools(t *testing.T) {
 	}
 
 	// Verify expected tools are present
-	expectedTools := []string{"status", "compile", "logs", "audit", "mcp-inspect"}
+	expectedTools := []string{"status", "compile", "logs", "audit", "mcp-inspect", "add"}
 	toolNames := make(map[string]bool)
 	for _, tool := range result.Tools {
 		toolNames[tool.Name] = true

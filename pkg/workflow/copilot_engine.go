@@ -67,19 +67,13 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		// Install AWF after Node.js setup but before Copilot CLI installation
 		firewallConfig := getFirewallConfig(workflowData)
 		var awfVersion string
-		var cleanupScript string
 		if firewallConfig != nil {
 			awfVersion = firewallConfig.Version
-			cleanupScript = firewallConfig.CleanupScript
 		}
 
 		// Install AWF binary
 		awfInstall := generateAWFInstallationStep(awfVersion)
 		steps = append(steps, awfInstall)
-
-		// Pre-execution cleanup
-		awfCleanup := generateAWFCleanupStep(cleanupScript)
-		steps = append(steps, awfCleanup)
 	}
 
 	// Add Copilot CLI installation step after AWF
@@ -130,7 +124,8 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// Add --agent flag if custom agent file is specified (via imports)
 	if workflowData.AgentFile != "" {
-		copilotArgs = append(copilotArgs, "--agent", workflowData.AgentFile)
+		agentPath := ResolveAgentFilePath(workflowData.AgentFile)
+		copilotArgs = append(copilotArgs, "--agent", agentPath)
 	}
 
 	// Add tool permission arguments based on configuration
@@ -206,12 +201,21 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		// Get allowed domains (copilot defaults + network permissions) with specific ordering
 		allowedDomains := GetCopilotAllowedDomains(workflowData.NetworkPermissions)
 
+		// Build AWF arguments: standard flags + custom args from config
+		var awfArgs []string
+		awfArgs = append(awfArgs, "--env-all")
+		awfArgs = append(awfArgs, "--allow-domains", allowedDomains)
+		awfArgs = append(awfArgs, "--log-level", awfLogLevel)
+
+		// Add custom args if specified in firewall config
+		if firewallConfig != nil && len(firewallConfig.Args) > 0 {
+			awfArgs = append(awfArgs, firewallConfig.Args...)
+		}
+
 		// Properly escape shell arguments using shell helper functions
 		// The copilot command is wrapped as a single string argument to AWF using shellEscapeCommandString
 		command = fmt.Sprintf(`set -o pipefail
-sudo -E awf --env-all \
-  --allow-domains %s \
-  --log-level %s \
+sudo -E awf %s \
   %s \
   2>&1 | tee %s
 
@@ -222,7 +226,7 @@ if [ -n "$COPILOT_LOGS_DIR" ] && [ -d "$COPILOT_LOGS_DIR" ]; then
   sudo mkdir -p %s
   sudo mv "$COPILOT_LOGS_DIR"/* %s || true
   sudo rmdir "$COPILOT_LOGS_DIR" || true
-fi`, shellEscapeArg(allowedDomains), shellEscapeArg(awfLogLevel), shellEscapeCommandString(copilotCommand), shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder))
+fi`, shellJoinArgs(awfArgs), shellEscapeCommandString(copilotCommand), shellEscapeArg(logFile), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder), shellEscapeArg(logsFolder))
 	} else {
 		// Run copilot command without AWF wrapper
 		command = fmt.Sprintf(`set -o pipefail
@@ -308,7 +312,10 @@ COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
 
 	// Add timeout at step level (GitHub Actions standard)
 	if workflowData.TimeoutMinutes != "" {
-		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %s", strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout_minutes: ")))
+		// Strip both possible prefixes (timeout_minutes or timeout-minutes)
+		timeoutValue := strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout_minutes: ")
+		timeoutValue = strings.TrimPrefix(timeoutValue, "timeout-minutes: ")
+		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %s", timeoutValue))
 	} else {
 		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", constants.DefaultAgenticWorkflowTimeoutMinutes)) // Default timeout for agentic workflows
 	}
@@ -343,16 +350,7 @@ func (e *CopilotEngine) GetSquidLogsSteps(workflowData *WorkflowData) []GitHubAc
 
 // GetCleanupStep returns the post-execution cleanup step
 func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionStep {
-	// Only add cleanup step if firewall is enabled
-	if isFirewallEnabled(workflowData) {
-		firewallConfig := getFirewallConfig(workflowData)
-		var postCleanupScript string
-		if firewallConfig != nil {
-			postCleanupScript = firewallConfig.CleanupScript
-		}
-		return generateAWFPostExecutionCleanupStep(postCleanupScript)
-	}
-	// Return empty step if firewall is disabled
+	// Return empty step - cleanup steps have been removed
 	return GitHubActionStep([]string{})
 }
 
@@ -879,20 +877,6 @@ func generateAWFInstallationStep(version string) GitHubActionStep {
 	return GitHubActionStep(stepLines)
 }
 
-// generateAWFCleanupStep creates a GitHub Actions step to cleanup AWF resources
-func generateAWFCleanupStep(scriptPath string) GitHubActionStep {
-	if scriptPath == "" {
-		scriptPath = "./scripts/ci/cleanup.sh"
-	}
-
-	stepLines := []string{
-		"      - name: Cleanup any existing awf resources",
-		fmt.Sprintf("        run: %s || true", scriptPath),
-	}
-
-	return GitHubActionStep(stepLines)
-}
-
 // generateSquidLogsCollectionStep creates a GitHub Actions step to collect Squid logs from AWF
 func generateSquidLogsCollectionStep(workflowName string) GitHubActionStep {
 	sanitizedName := strings.ToLower(SanitizeWorkflowName(workflowName))
@@ -954,21 +938,6 @@ func generateFirewallLogParsingStep(workflowName string) GitHubActionStep {
 	// Inline the JavaScript code with proper indentation
 	scriptLines := FormatJavaScriptForYAML(parserScript)
 	stepLines = append(stepLines, scriptLines...)
-
-	return GitHubActionStep(stepLines)
-}
-
-// generateAWFPostExecutionCleanupStep creates a GitHub Actions step to cleanup AWF resources after execution
-func generateAWFPostExecutionCleanupStep(scriptPath string) GitHubActionStep {
-	if scriptPath == "" {
-		scriptPath = "./scripts/ci/cleanup.sh"
-	}
-
-	stepLines := []string{
-		"      - name: Cleanup awf resources",
-		"        if: always()",
-		fmt.Sprintf("        run: %s || true", scriptPath),
-	}
 
 	return GitHubActionStep(stepLines)
 }

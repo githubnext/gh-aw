@@ -1,0 +1,159 @@
+---
+import octicons from '@primer/octicons';
+
+const sunIcon = octicons.sun.toSVG({ width: 16, height: 16 });
+const moonIcon = octicons.moon.toSVG({ width: 16, height: 16 });
+const autoIcon = octicons['device-desktop'].toSVG({ width: 16, height: 16 });
+---
+
+<starlight-theme-select>
+  <label class="theme-label">
+    <span class="sr-only">Select theme</span>
+    <select value="auto">
+      <option value="auto">Auto</option>
+      <option value="dark">Dark</option>
+      <option value="light">Light</option>
+    </select>
+    <span class="icon-wrapper">
+      <span class="auto-icon" set:html={autoIcon} />
+      <span class="light-icon" set:html={sunIcon} />
+      <span class="dark-icon" set:html={moonIcon} />
+    </span>
+  </label>
+</starlight-theme-select>
+
+<script>
+  type Theme = 'auto' | 'dark' | 'light';
+
+  function setTheme(theme: Theme) {
+    document.querySelectorAll('starlight-theme-select select').forEach((select) => {
+      (select as HTMLSelectElement).value = theme;
+    });
+    
+    const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme-mode', theme);
+    
+    localStorage.setItem('starlight-theme', theme);
+  }
+
+  const currentMode = document.documentElement.getAttribute('data-theme-mode') as Theme || 'auto';
+  document.querySelectorAll('starlight-theme-select select').forEach((select) => {
+    (select as HTMLSelectElement).value = currentMode;
+  });
+  
+  document.querySelectorAll('.icon-wrapper').forEach(iconWrapper => {
+    iconWrapper.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const select = iconWrapper.parentElement?.querySelector('select') as HTMLSelectElement;
+      if (!select) return;
+      
+      const currentTheme = select.value as Theme;
+      let newTheme: Theme;
+      
+      if (currentTheme === 'auto') {
+        newTheme = 'light';
+      } else if (currentTheme === 'light') {
+        newTheme = 'dark';
+      } else {
+        newTheme = 'auto';
+      }
+      
+      setTheme(newTheme);
+    });
+  });
+
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    const theme = localStorage.getItem('starlight-theme') as Theme;
+    if (theme === 'auto') {
+      setTheme('auto');
+    }
+  });
+</script>
+
+<style>
+  starlight-theme-select {
+    display: flex;
+    align-items: center;
+  }
+
+  .theme-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  select {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+  }
+
+  .icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border-radius: 0.375rem;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #8d96a0;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+
+  .icon-wrapper:hover {
+    background: rgba(110, 118, 129, 0.1);
+    color: #f0f6fc;
+  }
+
+  .icon-wrapper > span {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(90deg) scale(0.8);
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .icon-wrapper :global(svg) {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    display: block;
+  }
+
+  :global(html:not([data-theme-mode])) .auto-icon,
+  :global([data-theme-mode='auto']) .auto-icon {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  }
+
+  :global([data-theme-mode='light']) .light-icon {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  }
+
+  :global([data-theme-mode='dark']) .dark-icon {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  }
+</style>

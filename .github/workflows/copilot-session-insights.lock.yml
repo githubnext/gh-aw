@@ -46,7 +46,7 @@
 name: "Copilot Session Insights"
 "on":
   schedule:
-  - cron: 0 16 * * *
+  - cron: "0 16 * * *"
   workflow_dispatch: null
 
 permissions:
@@ -63,6 +63,8 @@ run-name: "Copilot Session Insights"
 jobs:
   activation:
     runs-on: ubuntu-slim
+    permissions:
+      contents: read
     steps:
       - name: Checkout workflows
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -122,14 +124,22 @@ jobs:
               core.info(`  Source modified: ${workflowStat.mtime.toISOString()}`);
               core.info(`  Lock modified: ${lockStat.mtime.toISOString()}`);
               if (workflowMtime > lockMtime) {
-                const warningMessage = `🔴🔴🔴 WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
+                const warningMessage = `WARNING: Lock file '${lockFile}' is outdated! The workflow file '${workflowMdFile}' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.`;
                 core.error(warningMessage);
-                await core.summary
-                  .addRaw("## ⚠️ Workflow Lock File Warning\n\n")
-                  .addRaw(`🔴🔴🔴 **WARNING**: Lock file \`${lockFile}\` is outdated!\n\n`)
-                  .addRaw(`The workflow file \`${workflowMdFile}\` has been modified more recently.\n\n`)
-                  .addRaw("Run `gh aw compile` to regenerate the lock file.\n\n")
-                  .write();
+                const workflowTimestamp = workflowStat.mtime.toISOString();
+                const lockTimestamp = lockStat.mtime.toISOString();
+                const gitSha = process.env.GITHUB_SHA;
+                let summary = core.summary
+                  .addRaw("### ⚠️ Workflow Lock File Warning\n\n")
+                  .addRaw("**WARNING**: Lock file is outdated and needs to be regenerated.\n\n")
+                  .addRaw("**Files:**\n")
+                  .addRaw(`- Source: \`${workflowMdFile}\` (modified: ${workflowTimestamp})\n`)
+                  .addRaw(`- Lock: \`${lockFile}\` (modified: ${lockTimestamp})\n\n`);
+                if (gitSha) {
+                  summary = summary.addRaw(`**Git Commit:** \`${gitSha}\`\n\n`);
+                }
+                summary = summary.addRaw("**Action Required:** Run `gh aw compile` to regenerate the lock file.\n\n");
+                await summary.write();
               } else {
                 core.info("✅ Lock file is up to date");
               }
@@ -188,9 +198,15 @@ jobs:
       - continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
+        id: install-extension
+        name: Install gh agent-task extension
+        run: "echo \"::group::Install gh agent-task Extension\"\n\n# Check if gh CLI is available\nif ! command -v gh &> /dev/null; then\n  echo \"::error::GitHub CLI (gh) is not installed or not in PATH\"\n  echo \"EXTENSION_INSTALLED=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ GitHub CLI found: $(gh --version | head -1)\"\n\n# Check if gh agent-task extension is already installed\nif gh extension list | grep -q \"github/agent-task\"; then\n  echo \"✓ gh agent-task extension is already installed\"\n  echo \"EXTENSION_INSTALLED=true\" >> \"$GITHUB_OUTPUT\"\n  echo \"::endgroup::\"\n  exit 0\nfi\n\n# Attempt to install the extension\necho \"Installing gh agent-task extension...\"\nif gh extension install github/agent-task; then\n  echo \"✓ gh agent-task extension installed successfully\"\n  echo \"EXTENSION_INSTALLED=true\" >> \"$GITHUB_OUTPUT\"\nelse\n  echo \"::warning::Failed to install gh agent-task extension\"\n  echo \"::warning::This workflow requires GitHub Enterprise Copilot access\"\n  echo \"::warning::The extension may not be available for this account\"\n  echo \"EXTENSION_INSTALLED=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\n\necho \"::endgroup::\"\n"
+      - continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_COPILOT_TOKEN || secrets.GH_AW_GITHUB_TOKEN }}
         id: download-sessions
         name: List and download Copilot agent sessions
-        run: "# Create output directory\nmkdir -p /tmp/gh-aw/agent-sessions\nmkdir -p /tmp/gh-aw/agent-sessions/logs\n\n# Pre-flight validation checks\necho \"::group::Pre-flight Validation\"\n\n# Check if gh CLI is available\nif ! command -v gh &> /dev/null; then\n  echo \"::error::GitHub CLI (gh) is not installed or not in PATH\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ GitHub CLI found: $(gh --version | head -1)\"\n\n# Check if gh agent-task extension is installed\nif ! gh agent-task --help &> /dev/null; then\n  echo \"::warning::gh agent-task extension is not installed\"\n  echo \"::warning::To install: gh extension install github/agent-task\"\n  echo \"::warning::This workflow requires GitHub Enterprise Copilot access\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ gh agent-task extension found\"\n\n# Check authentication\nif [ -z \"$GH_TOKEN\" ]; then\n  echo \"::error::GH_TOKEN is not set\"\n  echo \"::warning::Configure GH_AW_COPILOT_TOKEN secret with a Personal Access Token\"\n  echo \"::warning::The default GITHUB_TOKEN does not have agent-task API access\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ GH_TOKEN is configured\"\n\necho \"::endgroup::\"\n\n# Attempt to fetch sessions\necho \"::group::Fetching Copilot Agent Sessions\"\necho \"Fetching Copilot agent task sessions...\"\n\n# List recent agent tasks (limit to 50 for manageable analysis)\nif ! gh agent-task list --limit 50 --json number,title,state,createdAt,sessionId > /tmp/gh-aw/agent-sessions/sessions-list.json 2>&1; then\n  echo \"::error::Failed to list agent tasks\"\n  echo \"::warning::This may indicate missing permissions or GitHub Enterprise Copilot is not enabled\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\n\necho \"Sessions list saved to /tmp/gh-aw/agent-sessions/sessions-list.json\"\nTOTAL_SESSIONS=$(jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json)\necho \"Total sessions found: $TOTAL_SESSIONS\"\n\nif [ \"$TOTAL_SESSIONS\" -eq 0 ]; then\n  echo \"::warning::No sessions available for analysis\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 0\nfi\n\n# Download logs for each session (limit to first 50)\necho \"Downloading session logs...\"\njq -r '.[] | .sessionId // .number' /tmp/gh-aw/agent-sessions/sessions-list.json | head -50 | while read -r session_id; do\n  if [ -n \"$session_id\" ]; then\n    echo \"Downloading session: $session_id\"\n    gh agent-task view \"$session_id\" --log > \"/tmp/gh-aw/agent-sessions/logs/${session_id}.log\" 2>&1 || true\n  fi\ndone\n\nLOG_COUNT=$(find /tmp/gh-aw/agent-sessions/logs/ -maxdepth 1 -type f 2>/dev/null | wc -l)\necho \"Session logs downloaded to /tmp/gh-aw/agent-sessions/logs/\"\necho \"Total log files: $LOG_COUNT\"\n\necho \"SESSIONS_AVAILABLE=true\" >> \"$GITHUB_OUTPUT\"\necho \"::endgroup::\"\n"
+        run: "# Create output directory\nmkdir -p /tmp/gh-aw/agent-sessions\nmkdir -p /tmp/gh-aw/agent-sessions/logs\n\n# Pre-flight validation checks\necho \"::group::Pre-flight Validation\"\n\n# Check if gh CLI is available\nif ! command -v gh &> /dev/null; then\n  echo \"::error::GitHub CLI (gh) is not installed or not in PATH\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ GitHub CLI found: $(gh --version | head -1)\"\n\n# Check if gh agent-task extension is installed\nif ! gh agent-task --help &> /dev/null; then\n  echo \"::warning::gh agent-task extension is not installed\"\n  echo \"::warning::Extension installation status from previous step: ${{ steps.install-extension.outputs.EXTENSION_INSTALLED }}\"\n  echo \"::warning::This workflow requires GitHub Enterprise Copilot access\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ gh agent-task extension found\"\n\n# Check authentication\nif [ -z \"$GH_TOKEN\" ]; then\n  echo \"::error::GH_TOKEN is not set\"\n  echo \"::warning::Configure GH_AW_COPILOT_TOKEN secret with a Personal Access Token\"\n  echo \"::warning::The default GITHUB_TOKEN does not have agent-task API access\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\necho \"✓ GH_TOKEN is configured\"\n\necho \"::endgroup::\"\n\n# Attempt to fetch sessions\necho \"::group::Fetching Copilot Agent Sessions\"\necho \"Fetching Copilot agent task sessions...\"\n\n# List recent agent tasks (limit to 50 for manageable analysis)\nif ! gh agent-task list --limit 50 --json number,title,state,createdAt,sessionId > /tmp/gh-aw/agent-sessions/sessions-list.json 2>&1; then\n  echo \"::error::Failed to list agent tasks\"\n  echo \"::warning::This may indicate missing permissions or GitHub Enterprise Copilot is not enabled\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 1\nfi\n\necho \"Sessions list saved to /tmp/gh-aw/agent-sessions/sessions-list.json\"\nTOTAL_SESSIONS=$(jq 'length' /tmp/gh-aw/agent-sessions/sessions-list.json)\necho \"Total sessions found: $TOTAL_SESSIONS\"\n\nif [ \"$TOTAL_SESSIONS\" -eq 0 ]; then\n  echo \"::warning::No sessions available for analysis\"\n  echo \"SESSIONS_AVAILABLE=false\" >> \"$GITHUB_OUTPUT\"\n  exit 0\nfi\n\n# Download logs for each session (limit to first 50)\necho \"Downloading session logs...\"\njq -r '.[] | .sessionId // .number' /tmp/gh-aw/agent-sessions/sessions-list.json | head -50 | while read -r session_id; do\n  if [ -n \"$session_id\" ]; then\n    echo \"Downloading session: $session_id\"\n    gh agent-task view \"$session_id\" --log > \"/tmp/gh-aw/agent-sessions/logs/${session_id}.log\" 2>&1 || true\n  fi\ndone\n\nLOG_COUNT=$(find /tmp/gh-aw/agent-sessions/logs/ -maxdepth 1 -type f 2>/dev/null | wc -l)\necho \"Session logs downloaded to /tmp/gh-aw/agent-sessions/logs/\"\necho \"Total log files: $LOG_COUNT\"\n\necho \"SESSIONS_AVAILABLE=true\" >> \"$GITHUB_OUTPUT\"\necho \"::endgroup::\"\n"
       - if: steps.download-sessions.outcome == 'failure'
         name: Create fallback session data
         run: "# Create empty session data to prevent downstream errors\nmkdir -p /tmp/gh-aw/agent-sessions/logs\necho '[]' > /tmp/gh-aw/agent-sessions/sessions-list.json\necho \"Created empty session data files for graceful degradation\"\n"
@@ -289,7 +305,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.33
+        run: npm install -g @anthropic-ai/claude-code@2.0.35
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -1243,12 +1259,10 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_EXPR_D892F163: ${{ github.repository }}
-          GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
-          GH_AW_EXPR_F76B6721: ${{ github.workflow }}
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
+          # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           ## jqschema - JSON Schema Discovery
           
@@ -1766,6 +1780,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
               raise FileNotFoundError(f"Data file not found: {data_file}")
           ```
@@ -2296,6 +2311,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
           - **Average Duration**: [TIME]
           - **Experimental Strategy**: [STRATEGY NAME] (if applicable)
@@ -2736,7 +2752,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2768,7 +2785,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2781,7 +2799,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2806,7 +2825,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2831,7 +2851,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          cat >> "$GH_AW_PROMPT" << 'PROMPT_EOF'
+          # shellcheck disable=SC2006,SC2287
+          cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
           
@@ -2861,10 +2882,13 @@ jobs:
           Use this context information to understand the scope of your work.
           
           PROMPT_EOF
-      - name: Render template conditionals
+      - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_D892F163: ${{ github.repository }}
+          GH_AW_EXPR_B50B6E9C: ${{ github.run_id }}
+          GH_AW_EXPR_F76B6721: ${{ github.workflow }}
         with:
           script: |
             const fs = require("fs");
@@ -2872,34 +2896,61 @@ jobs:
               const v = expr.trim().toLowerCase();
               return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
             }
+            function interpolateVariables(content, variables) {
+              let result = content;
+              for (const [varName, value] of Object.entries(variables)) {
+                const pattern = new RegExp(`\\$\\{${varName}\\}`, "g");
+                result = result.replace(pattern, value);
+              }
+              return result;
+            }
             function renderMarkdownTemplate(markdown) {
               return markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
             }
-            function main() {
+            async function main() {
               try {
                 const promptPath = process.env.GH_AW_PROMPT;
                 if (!promptPath) {
                   core.setFailed("GH_AW_PROMPT environment variable is not set");
-                  process.exit(1);
+                  return;
                 }
-                const markdown = fs.readFileSync(promptPath, "utf8");
-                const hasConditionals = /{{#if\s+[^}]+}}/.test(markdown);
-                if (!hasConditionals) {
+                let content = fs.readFileSync(promptPath, "utf8");
+                const variables = {};
+                for (const [key, value] of Object.entries(process.env)) {
+                  if (key.startsWith("GH_AW_EXPR_")) {
+                    variables[key] = value || "";
+                  }
+                }
+                const varCount = Object.keys(variables).length;
+                if (varCount > 0) {
+                  core.info(`Found ${varCount} expression variable(s) to interpolate`);
+                  content = interpolateVariables(content, variables);
+                  core.info(`Successfully interpolated ${varCount} variable(s) in prompt`);
+                } else {
+                  core.info("No expression variables found, skipping interpolation");
+                }
+                const hasConditionals = /{{#if\s+[^}]+}}/.test(content);
+                if (hasConditionals) {
+                  core.info("Processing conditional template blocks");
+                  content = renderMarkdownTemplate(content);
+                  core.info("Template rendered successfully");
+                } else {
                   core.info("No conditional blocks found in prompt, skipping template rendering");
-                  process.exit(0);
                 }
-                const rendered = renderMarkdownTemplate(markdown);
-                fs.writeFileSync(promptPath, rendered, "utf8");
-                core.info("Template rendered successfully");
+                fs.writeFileSync(promptPath, content, "utf8");
               } catch (error) {
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
             }
             main();
-      - name: Print prompt to step summary
+      - name: Print prompt
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # Print prompt to workflow logs (equivalent to core.info)
+          echo "Generated Prompt:"
+          cat "$GH_AW_PROMPT"
+          # Print prompt to step summary
           {
             echo "<details>"
             echo "<summary>Generated Prompt</summary>"
@@ -2928,7 +2979,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: "2.0.33",
+              agent_version: "2.0.35",
               workflow_name: "Copilot Session Insights",
               experimental: false,
               supports_tools_allowlist: true,
@@ -4071,33 +4122,85 @@ jobs:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
           script: |
-            function main() {
+            function runLogParser(options) {
               const fs = require("fs");
+              const path = require("path");
+              const { parseLog, parserName, supportsDirectories = false } = options;
               try {
-                const logFile = process.env.GH_AW_AGENT_OUTPUT;
-                if (!logFile) {
+                const logPath = process.env.GH_AW_AGENT_OUTPUT;
+                if (!logPath) {
                   core.info("No agent log file specified");
                   return;
                 }
-                if (!fs.existsSync(logFile)) {
-                  core.info(`Log file not found: ${logFile}`);
+                if (!fs.existsSync(logPath)) {
+                  core.info(`Log path not found: ${logPath}`);
                   return;
                 }
-                const logContent = fs.readFileSync(logFile, "utf8");
-                const result = parseClaudeLog(logContent);
-                core.info(result.markdown);
-                core.summary.addRaw(result.markdown).write();
-                if (result.mcpFailures && result.mcpFailures.length > 0) {
-                  const failedServers = result.mcpFailures.join(", ");
+                let content = "";
+                const stat = fs.statSync(logPath);
+                if (stat.isDirectory()) {
+                  if (!supportsDirectories) {
+                    core.info(`Log path is a directory but ${parserName} parser does not support directories: ${logPath}`);
+                    return;
+                  }
+                  const files = fs.readdirSync(logPath);
+                  const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
+                  if (logFiles.length === 0) {
+                    core.info(`No log files found in directory: ${logPath}`);
+                    return;
+                  }
+                  logFiles.sort();
+                  for (const file of logFiles) {
+                    const filePath = path.join(logPath, file);
+                    const fileContent = fs.readFileSync(filePath, "utf8");
+                    if (content.length > 0 && !content.endsWith("\n")) {
+                      content += "\n";
+                    }
+                    content += fileContent;
+                  }
+                } else {
+                  content = fs.readFileSync(logPath, "utf8");
+                }
+                const result = parseLog(content);
+                let markdown = "";
+                let mcpFailures = [];
+                let maxTurnsHit = false;
+                if (typeof result === "string") {
+                  markdown = result;
+                } else if (result && typeof result === "object") {
+                  markdown = result.markdown || "";
+                  mcpFailures = result.mcpFailures || [];
+                  maxTurnsHit = result.maxTurnsHit || false;
+                }
+                if (markdown) {
+                  core.info(markdown);
+                  core.summary.addRaw(markdown).write();
+                  core.info(`${parserName} log parsed successfully`);
+                } else {
+                  core.error(`Failed to parse ${parserName} log`);
+                }
+                if (mcpFailures && mcpFailures.length > 0) {
+                  const failedServers = mcpFailures.join(", ");
                   core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
                 }
-                if (result.maxTurnsHit) {
+                if (maxTurnsHit) {
                   core.setFailed(`Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.`);
                 }
               } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.setFailed(errorMessage);
+                core.setFailed(error instanceof Error ? error : String(error));
               }
+            }
+            if (typeof module !== "undefined" && module.exports) {
+              module.exports = {
+                runLogParser,
+              };
+            }
+            function main() {
+              runLogParser({
+                parseLog: parseClaudeLog,
+                parserName: "Claude",
+                supportsDirectories: false,
+              });
             }
             function parseClaudeLog(logContent) {
               try {
@@ -5176,7 +5279,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.33
+        run: npm install -g @anthropic-ai/claude-code@2.0.35
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

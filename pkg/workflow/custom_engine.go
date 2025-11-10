@@ -161,33 +161,21 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 	customArgs := getGitHubCustomArgs(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
+	toolsets := getGitHubToolsets(githubTool)
 
 	yaml.WriteString("              \"github\": {\n")
 
 	// Always use Docker-based GitHub MCP server (services mode has been removed)
-	yaml.WriteString("                \"command\": \"docker\",\n")
-	yaml.WriteString("                \"args\": [\n")
-	yaml.WriteString("                  \"run\",\n")
-	yaml.WriteString("                  \"-i\",\n")
-	yaml.WriteString("                  \"--rm\",\n")
-	yaml.WriteString("                  \"-e\",\n")
-	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
-	if readOnly {
-		yaml.WriteString("                  \"-e\",\n")
-		yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
-	}
-	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
-
-	// Append custom args if present
-	writeArgsToYAML(yaml, customArgs, "                  ")
-
-	yaml.WriteString("\n")
-	yaml.WriteString("                ],\n")
-	yaml.WriteString("                \"env\": {\n")
-	// Use shell environment variable instead of GitHub Actions expression to prevent template injection
-	// The actual GitHub expression is set in the step's env: block
-	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"$GITHUB_MCP_SERVER_TOKEN\"\n")
-	yaml.WriteString("                }\n")
+	// Use shared helper to ensure consistency with other engines
+	RenderGitHubMCPDockerConfig(yaml, GitHubMCPDockerOptions{
+		ReadOnly:           readOnly,
+		Toolsets:           toolsets,
+		DockerImageVersion: githubDockerImageVersion,
+		CustomArgs:         customArgs,
+		IncludeTypeField:   false, // Custom engine doesn't include "type" field (like Claude)
+		AllowedTools:       nil,   // Custom engine doesn't use tools field (like Claude)
+		EffectiveToken:     "",    // Not used - token passed via env
+	})
 
 	if isLast {
 		yaml.WriteString("              }\n")

@@ -329,7 +329,7 @@ safe-outputs:
             /tmp/gh-aw/ollama-logs/
           if-no-files-found: ignore
 
-timeout_minutes: 20
+timeout-minutes: 20
 ---
 
 # Test Ollama Threat Scanning

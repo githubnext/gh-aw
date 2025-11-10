@@ -8,6 +8,7 @@ permissions:
   pull-requests: read
 engine: copilot
 tools:
+  agentic-workflows:
   edit:
 imports:
   - shared/python-dataviz.md
@@ -16,7 +17,7 @@ safe-outputs:
   create-discussion:
     category: "artifacts"
     max: 1
-timeout_minutes: 15
+timeout-minutes: 15
 ---
 
 # Python Data Visualization Generator

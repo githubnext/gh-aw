@@ -1,34 +1,14 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-function main() {
-  const fs = require("fs");
+const { runLogParser } = require("./log_parser_bootstrap.cjs");
 
-  try {
-    const logFile = process.env.GH_AW_AGENT_OUTPUT;
-    if (!logFile) {
-      core.info("No agent log file specified");
-      return;
-    }
-    if (!fs.existsSync(logFile)) {
-      core.info(`Log file not found: ${logFile}`);
-      return;
-    }
-    const logContent = fs.readFileSync(logFile, "utf8");
-    const result = parseClaudeLog(logContent);
-    core.info(result.markdown);
-    core.summary.addRaw(result.markdown).write();
-    if (result.mcpFailures && result.mcpFailures.length > 0) {
-      const failedServers = result.mcpFailures.join(", ");
-      core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
-    }
-    if (result.maxTurnsHit) {
-      core.setFailed(`Agent execution stopped: max-turns limit reached. The agent did not complete its task successfully.`);
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    core.setFailed(errorMessage);
-  }
+function main() {
+  runLogParser({
+    parseLog: parseClaudeLog,
+    parserName: "Claude",
+    supportsDirectories: false,
+  });
 }
 
 /**

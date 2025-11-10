@@ -14,7 +14,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
-	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 	"github.com/goccy/go-yaml"
 )
 
@@ -528,8 +527,8 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 		// Validate file size after writing
 		if lockFileInfo, err := os.Stat(lockFile); err == nil {
 			if lockFileInfo.Size() > MaxLockFileSize {
-				lockSize := pretty.FormatFileSize(lockFileInfo.Size())
-				maxSize := pretty.FormatFileSize(MaxLockFileSize)
+				lockSize := console.FormatFileSize(lockFileInfo.Size())
+				maxSize := console.FormatFileSize(MaxLockFileSize)
 				err := fmt.Errorf("generated lock file size (%s) exceeds maximum allowed size (%s)", lockSize, maxSize)
 				formattedErr := console.FormatError(console.CompilerError{
 					Position: console.ErrorPosition{
@@ -551,7 +550,7 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 	} else {
 		// Get the size of the generated lock file for display
 		if lockFileInfo, err := os.Stat(lockFile); err == nil {
-			lockSize := pretty.FormatFileSize(lockFileInfo.Size())
+			lockSize := console.FormatFileSize(lockFileInfo.Size())
 			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("%s (%s)", console.ToRelativePath(markdownPath), lockSize)))
 		} else {
 			// Fallback to original display if we can't get file info
@@ -675,7 +674,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract top-level permissions first
 	topLevelPermissions := c.extractPermissions(result.Frontmatter)
 	if importsResult.MergedPermissions != "" {
-		if err := c.ValidatePermissions(topLevelPermissions, importsResult.MergedPermissions); err != nil {
+		if err := c.ValidateIncludedPermissions(topLevelPermissions, importsResult.MergedPermissions); err != nil {
 			return nil, fmt.Errorf("permission validation failed: %w", err)
 		}
 	}
@@ -972,7 +971,15 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Env = c.extractTopLevelYAMLSection(result.Frontmatter, "env")
 	workflowData.Features = c.extractFeatures(result.Frontmatter)
 	workflowData.If = c.extractIfCondition(result.Frontmatter)
-	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout_minutes")
+	// Prefer timeout-minutes (new) over timeout_minutes (deprecated)
+	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout-minutes")
+	if workflowData.TimeoutMinutes == "" {
+		workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout_minutes")
+		if workflowData.TimeoutMinutes != "" {
+			// Emit deprecation warning
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Field 'timeout_minutes' is deprecated. Please use 'timeout-minutes' instead to follow GitHub Actions naming convention."))
+		}
+	}
 	workflowData.CustomSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "steps")
 
 	// Merge imported steps if any
@@ -1124,7 +1131,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
 
-	// Extract safe-jobs from the new location (safe-outputs.jobs) or old location (safe-jobs) for backwards compatibility
+	// Extract safe-jobs from safe-outputs.jobs location
 	topSafeJobs := extractSafeJobsFromFrontmatter(result.Frontmatter)
 
 	// Process @include directives to extract additional safe-outputs configurations
@@ -1252,6 +1259,8 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})
 		if err == nil {
 			yamlStr := strings.TrimSuffix(string(onEventsYAML), "\n")
+			// Post-process YAML to ensure cron expressions are quoted
+			yamlStr = parser.QuoteCronExpressions(yamlStr)
 			// Apply comment processing to filter fields (draft, forks, names)
 			yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr)
 			// Keep "on" quoted as it's a YAML boolean keyword
@@ -1522,14 +1531,6 @@ func needsGitCommands(safeOutputs *SafeOutputsConfig) bool {
 	return safeOutputs.CreatePullRequests != nil || safeOutputs.PushToPullRequestBranch != nil
 }
 
-// detectTextOutputUsage checks if the markdown content uses ${{ needs.activation.outputs.text }}
-func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
-	// Check for the specific GitHub Actions expression
-	hasUsage := strings.Contains(markdownContent, "${{ needs.activation.outputs.text }}")
-	log.Printf("Detected usage of activation.outputs.text: %v", hasUsage)
-	return hasUsage
-}
-
 // generateYAML generates the complete GitHub Actions YAML content
 
 // isActivationJobNeeded determines if the activation job is required
@@ -1558,43 +1559,3 @@ func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
 // generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata
 
 // generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
-// parseBaseSafeOutputConfig parses common fields (max, min, github-token) from a config map
-func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *BaseSafeOutputConfig) {
-	// Parse max
-	if max, exists := configMap["max"]; exists {
-		if maxInt, ok := parseIntValue(max); ok {
-			config.Max = maxInt
-		}
-	}
-
-	// Parse github-token
-	if githubToken, exists := configMap["github-token"]; exists {
-		if githubTokenStr, ok := githubToken.(string); ok {
-			config.GitHubToken = githubTokenStr
-		}
-	}
-}
-
-// computeAllowedDomainsForSanitization computes the allowed domains for sanitization
-// based on the engine and network configuration, matching what's provided to the firewall
-func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) string {
-	// Determine which engine is being used
-	var engineID string
-	if data.EngineConfig != nil {
-		engineID = data.EngineConfig.ID
-	} else if data.AI != "" {
-		engineID = data.AI
-	}
-
-	// Compute domains based on engine type
-	// For Copilot with firewall support, use GetCopilotAllowedDomains which merges
-	// Copilot defaults with network permissions
-	// For other engines, use GetAllowedDomains which uses network permissions only
-	if engineID == "copilot" {
-		return GetCopilotAllowedDomains(data.NetworkPermissions)
-	}
-
-	// For Claude, Codex, and other engines, use network permissions
-	domains := GetAllowedDomains(data.NetworkPermissions)
-	return strings.Join(domains, ",")
-}

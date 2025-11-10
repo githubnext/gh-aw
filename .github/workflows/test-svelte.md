@@ -7,7 +7,7 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
-timeout_minutes: 5
+timeout-minutes: 5
 imports:
   - shared/mcp/svelte.md
 tools:

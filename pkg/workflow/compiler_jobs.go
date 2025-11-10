@@ -109,7 +109,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build additional custom jobs from frontmatter jobs section
-	if err := c.buildCustomJobs(data); err != nil {
+	if err := c.buildCustomJobs(data, activationJobCreated); err != nil {
 		return fmt.Errorf("failed to build custom jobs: %w", err)
 	}
 
@@ -597,16 +597,20 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		activationCondition = c.combineJobIfConditions(activationCondition, workflowRunRepoSafety)
 	}
 
-	// Set permissions - add reaction permissions if reaction is configured and not "none"
-	var permissions string
-	if data.AIReaction != "" && data.AIReaction != "none" {
-		perms := NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-			PermissionDiscussions:  PermissionWrite,
-			PermissionIssues:       PermissionWrite,
-			PermissionPullRequests: PermissionWrite,
-		})
-		permissions = perms.RenderToYAML()
+	// Set permissions - activation job always needs contents:read for checkout step
+	// Also add reaction permissions if reaction is configured and not "none"
+	permsMap := map[PermissionScope]PermissionLevel{
+		PermissionContents: PermissionRead, // Always needed for checkout step
 	}
+
+	if data.AIReaction != "" && data.AIReaction != "none" {
+		permsMap[PermissionDiscussions] = PermissionWrite
+		permsMap[PermissionIssues] = PermissionWrite
+		permsMap[PermissionPullRequests] = PermissionWrite
+	}
+
+	perms := NewPermissionsFromMap(permsMap)
+	permissions := perms.RenderToYAML()
 
 	// Set environment if manual-approval is configured
 	var environment string
@@ -656,6 +660,14 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	var depends []string
 	if activationJobCreated {
 		depends = []string{constants.ActivationJobName} // Depend on the activation job only if it exists
+	}
+
+	// Add custom jobs as dependencies if they exist
+	// This allows the agent job to wait for custom jobs to complete before running
+	if data.Jobs != nil {
+		for jobName := range data.Jobs {
+			depends = append(depends, jobName)
+		}
 	}
 
 	// Build outputs for all engines (GH_AW_SAFE_OUTPUTS functionality)
@@ -718,7 +730,7 @@ func (c *Compiler) extractJobsFromFrontmatter(frontmatter map[string]any) map[st
 }
 
 // buildCustomJobs creates custom jobs defined in the frontmatter jobs section
-func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
+func (c *Compiler) buildCustomJobs(data *WorkflowData, activationJobCreated bool) error {
 	for jobName, jobConfig := range data.Jobs {
 		if configMap, ok := jobConfig.(map[string]any); ok {
 			job := &Job{
@@ -726,7 +738,9 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 			}
 
 			// Extract job dependencies
+			hasExplicitNeeds := false
 			if needs, hasNeeds := configMap["needs"]; hasNeeds {
+				hasExplicitNeeds = true
 				if needsList, ok := needs.([]any); ok {
 					for _, need := range needsList {
 						if needStr, ok := need.(string); ok {
@@ -737,6 +751,13 @@ func (c *Compiler) buildCustomJobs(data *WorkflowData) error {
 					// Single dependency as string
 					job.Needs = append(job.Needs, needStr)
 				}
+			}
+
+			// If no explicit needs and activation job exists, automatically add activation as dependency
+			// This ensures custom jobs wait for workflow validation before executing
+			if !hasExplicitNeeds && activationJobCreated {
+				job.Needs = append(job.Needs, constants.ActivationJobName)
+				log.Printf("Added automatic dependency: custom job '%s' now depends on '%s'", jobName, constants.ActivationJobName)
 			}
 
 			// Extract other job properties

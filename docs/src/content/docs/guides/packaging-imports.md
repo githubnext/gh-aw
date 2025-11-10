@@ -1,8 +1,8 @@
 ---
-title: Packaging and Updating
-description: Complete guide to adding, updating, and importing workflows from external repositories using workflow specifications and import directives.
+title: Packaging & Distribution
+description: How to add, share, update, and import workflows from external repositories using workflow specifications and import directives.
 sidebar:
-  order: 600
+  order: 2
 ---
 
 ## Adding Workflows
@@ -92,4 +92,4 @@ Workflow specifications require minimum 3 parts (owner/repo/workflow-name) for s
 
 Use semantic versioning for stable workflows, branches for development, and commit SHAs for immutability. Organize reusable components in a `shared/` directory with descriptive names. Review updates with `--verbose` before applying, test on branches, and keep local modifications minimal to reduce merge conflicts.
 
-**Related:** [CLI Commands](/gh-aw/tools/cli/) | [Workflow Structure](/gh-aw/reference/workflow-structure/) | [Frontmatter](/gh-aw/reference/frontmatter/) | [Imports](/gh-aw/reference/imports/)
+**Related:** [CLI Commands](/gh-aw/setup/cli/) | [Workflow Structure](/gh-aw/reference/workflow-structure/) | [Frontmatter](/gh-aw/reference/frontmatter/) | [Imports](/gh-aw/reference/imports/)

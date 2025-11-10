@@ -22,7 +22,7 @@ safe-outputs:
     category: "audits"
     title-prefix: "[Schema Consistency] "
     max: 1
-timeout_minutes: 30
+timeout-minutes: 30
 imports:
   - shared/reporting.md
 ---
@@ -89,7 +89,10 @@ Strategy database structure:
 - `pkg/workflow/safe_outputs.go` - safe-outputs configuration
 - `pkg/workflow/cache.go` - cache and cache-memory configuration
 - `pkg/workflow/permissions.go` - permissions processing
-- `pkg/workflow/network.go` - network permissions
+- `pkg/workflow/engine.go` - engine config and network permissions types
+- `pkg/workflow/domains.go` - network domain allowlist functions
+- `pkg/workflow/engine_network_hooks.go` - network hook generation
+- `pkg/workflow/engine_firewall_support.go` - firewall support checking
 - `pkg/workflow/strict_mode.go` - strict mode validation
 - `pkg/workflow/stop_after.go` - stop-after processing
 - `pkg/workflow/safe_jobs.go` - safe-jobs configuration

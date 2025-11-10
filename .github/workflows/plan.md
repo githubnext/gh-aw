@@ -18,7 +18,7 @@ safe-outputs:
     title-prefix: "[task] "
     labels: [task, ai-generated]
     max: 5
-timeout_minutes: 10
+timeout-minutes: 10
 ---
 
 # Planning Assistant

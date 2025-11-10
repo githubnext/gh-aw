@@ -66,7 +66,7 @@ on:
 
 **Error Message:**
 ```
-timeout_minutes must be an integer
+timeout-minutes must be an integer
 ```
 
 **Cause:** A field received a value of the wrong type according to the schema.
@@ -75,10 +75,10 @@ timeout_minutes must be an integer
 
 ```yaml wrap
 # Incorrect
-timeout_minutes: "10"
+timeout-minutes: "10"
 
 # Correct
-timeout_minutes: 10
+timeout-minutes: 10
 ```
 
 ### Imports Field Must Be Array
@@ -899,52 +899,6 @@ mcp-servers:
       Authorization: "Bearer ${{ secrets.API_TOKEN }}"
 ```
 
-### Strict Mode Bash Wildcard Not Allowed
-
-**Error Message:**
-```
-strict mode: bash wildcard '*' is not allowed - use specific commands instead
-```
-
-**Cause:** The workflow uses bash wildcard `*` or `:*` when compiled with `--strict` flag.
-
-**Solution:** Replace wildcards with specific command allowlists:
-
-```yaml wrap
-# Incorrect
-tools:
-  bash:
-    - "*"
-
-# Correct - specify exact commands
-tools:
-  bash:
-    - "git status"
-    - "git diff"
-    - "npm test"
-    - "ls -la"
-```
-
-**Example:** Complete workflow with specific bash commands:
-
-```aw wrap
----
-on: push
-permissions:
-  contents: read
-network: defaults
-tools:
-  bash:
-    - "git --no-pager status"
-    - "git --no-pager diff"
-    - "npm run lint"
----
-
-# Code Check
-
-Run specific bash commands for validation.
-```
-
 ### Strict Mode Custom MCP Server Requires Network Configuration
 
 **Error Message:**
@@ -1078,7 +1032,7 @@ network: defaults
 If you encounter an error not documented here:
 
 1. **Search this page:** Use Ctrl+F / Cmd+F to search for keywords from your error message
-2. **Check examples:** Review workflow examples in [Research & Planning](/gh-aw/samples/research-planning/), [Triage & Analysis](/gh-aw/samples/triage-analysis/), [Coding & Development](/gh-aw/samples/coding-development/), or [Quality & Testing](/gh-aw/samples/quality-testing/)
+2. **Check examples:** Review workflow examples in [Research & Planning](/gh-aw/examples/scheduled/research-planning/), [Triage & Analysis](/gh-aw/examples/issue-pr-events/triage-analysis/), [Coding & Development](/gh-aw/examples/issue-pr-events/coding-development/), or [Quality & Testing](/gh-aw/examples/issue-pr-events/quality-testing/)
 3. **Enable verbose mode:** Run `gh aw compile --verbose` for detailed error context
 4. **Review validation timing:** See [Validation Timing](/gh-aw/troubleshooting/validation-timing/) to understand when errors occur
 5. **Report issues:** If you believe you've found a bug, [report it on GitHub](https://github.com/githubnext/gh-aw/issues)

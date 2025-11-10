@@ -5,10 +5,6 @@ sidebar:
   order: 800
 ---
 
-One of the primary security features of GitHub Agentic Workflows is "safe output processing", enabling the creation of GitHub issues, comments, pull requests, and other outputs without giving the agentic portion of the workflow write permissions.
-
-## Overview
-
 The `safe-outputs:` element of your workflow's frontmatter declares that your agentic workflow should conclude with optional automated actions based on the agentic workflow's output. This enables your workflow to write content that is then automatically processed to create GitHub issues, comments, pull requests, or add labels—all without giving the agentic portion of the workflow any write permissions.
 
 **How It Works:**
@@ -84,7 +80,7 @@ safe-outputs:
 ```
 
 :::caution
-Bot assignments (including `copilot`) require a PAT. Store as `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN` in secrets. The default `GITHUB_TOKEN` lacks bot assignment permissions.
+Bot assignments (including `copilot`) require a PAT. Store as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN` in secrets. The default `GITHUB_TOKEN` lacks bot assignment permissions.
 :::
 
 ### Comment Creation (`add-comment:`)
@@ -146,7 +142,7 @@ safe-outputs:
 ```
 
 :::caution
-Bot reviewers (including `copilot`) require a PAT. Store as `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN` in secrets.
+Bot reviewers (including `copilot`) require a PAT. Store as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN` in secrets.
 :::
 
 > [!NOTE]
@@ -217,7 +213,7 @@ safe-outputs:
 
 ### Agent Task Creation (`create-agent-task:`)
 
-Creates GitHub Copilot agent tasks to delegate coding tasks. Requires a PAT stored as `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN`.
+Creates GitHub Copilot agent tasks to delegate coding tasks. Requires a PAT stored as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN`.
 
 ```yaml wrap
 safe-outputs:
@@ -286,7 +282,7 @@ safe-outputs:
 
 ## Assigning to Copilot
 
-Use `assignees: copilot` in `create-issue` or `reviewers: copilot` in `create-pull-request` to assign to the Copilot bot. Requires a PAT stored as `GH_AW_COPILOT_TOKEN` or `GH_AW_GITHUB_TOKEN`. The default `GITHUB_TOKEN` lacks bot assignment permissions.
+Use `assignees: copilot` in `create-issue` or `reviewers: copilot` in `create-pull-request` to assign to the Copilot bot. Requires a PAT stored as `COPILOT_GITHUB_TOKEN` (recommended) or legacy `GH_AW_COPILOT_TOKEN` / `GH_AW_GITHUB_TOKEN`. The default `GITHUB_TOKEN` lacks bot assignment permissions.
 
 ```yaml wrap
 safe-outputs:
@@ -332,4 +328,4 @@ See [Threat Detection Guide](/gh-aw/guides/threat-detection/) for details.
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options for workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special /my-bot triggers and context text
-- [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
+- [CLI Commands](/gh-aw/setup/cli/) - CLI commands for workflow management
