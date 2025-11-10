@@ -838,6 +838,8 @@ jobs:
               footer += "\n";
               return footer;
             }
+              generateFooter,
+            };
             function getRepositoryUrl() {
               const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
               if (targetRepoSlug) {
@@ -850,7 +852,6 @@ jobs:
                 return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
               }
             }
-              generateFooter,
               getRepositoryUrl,
             };
             async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
@@ -4829,6 +4830,8 @@ jobs:
               footer += "\n";
               return footer;
             }
+              generateFooter,
+            };
             function getRepositoryUrl() {
               const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
               if (targetRepoSlug) {
@@ -4841,7 +4844,6 @@ jobs:
                 return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
               }
             }
-              generateFooter,
               getRepositoryUrl,
             };
             async function main() {

@@ -863,9 +863,6 @@ jobs:
                 return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
               }
             }
-              generateFooter,
-              getRepositoryUrl,
-            };
             async function commentOnDiscussion(github, owner, repo, discussionNumber, message, replyToId) {
               const { repository } = await github.graphql(
                 `

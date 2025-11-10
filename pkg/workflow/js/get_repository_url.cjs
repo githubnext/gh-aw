@@ -24,6 +24,4 @@ function getRepositoryUrl() {
   }
 }
 
-module.exports = {
-  getRepositoryUrl,
-};
+module.exports = { getRepositoryUrl };

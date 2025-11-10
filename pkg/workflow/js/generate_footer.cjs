@@ -40,6 +40,4 @@ function generateFooter(
   return footer;
 }
 
-module.exports = {
-  generateFooter,
-};
+module.exports = { generateFooter };
