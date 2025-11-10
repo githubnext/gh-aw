@@ -134,6 +134,10 @@ func removeExports(content string) string {
 	inConditionalExport := false
 	conditionalDepth := 0
 
+	// Track if we're inside an unconditional module.exports block
+	inModuleExports := false
+	moduleExportsDepth := 0
+
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
@@ -172,8 +176,42 @@ func removeExports(content string) string {
 			continue
 		}
 
-		// Skip lines that are unconditional module.exports or exports.* assignments
-		if moduleExportsRegex.MatchString(line) || exportsRegex.MatchString(line) {
+		// Check if this line starts an unconditional module.exports assignment
+		if moduleExportsRegex.MatchString(line) {
+			// Check if it's a multi-line object export (ends with {)
+			if strings.Contains(trimmed, "{") && !strings.Contains(trimmed, "}") {
+				// This is a multi-line module.exports = { ... }
+				inModuleExports = true
+				moduleExportsDepth = 1
+				// Skip this line and start tracking the export block
+				continue
+			} else {
+				// Single-line export, skip just this line
+				continue
+			}
+		}
+
+		// Track braces if we're in an unconditional module.exports block
+		if inModuleExports {
+			// Count braces to track when the export block ends
+			for _, ch := range trimmed {
+				if ch == '{' {
+					moduleExportsDepth++
+				} else if ch == '}' {
+					moduleExportsDepth--
+					if moduleExportsDepth == 0 {
+						inModuleExports = false
+						// Skip this closing line and continue
+						continue
+					}
+				}
+			}
+			// Skip all lines inside the export block
+			continue
+		}
+
+		// Skip lines that are unconditional exports.* assignments
+		if exportsRegex.MatchString(line) {
 			// Skip this line - it's an unconditional export
 			continue
 		}

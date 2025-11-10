@@ -476,3 +476,111 @@ main();
 		t.Error("Bundled output should not contain local require")
 	}
 }
+
+// TestRemoveExportsMultiLine tests that multi-line module.exports statements are properly removed
+func TestRemoveExportsMultiLine(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "multi-line module.exports with single property",
+			input: `function test() {
+  return 42;
+}
+
+module.exports = {
+  test,
+};
+`,
+			expected: `function test() {
+  return 42;
+}
+
+`,
+		},
+		{
+			name: "multi-line module.exports with multiple properties",
+			input: `function test() {
+  return 42;
+}
+
+function helper() {
+  return "help";
+}
+
+module.exports = {
+  test,
+  helper,
+};
+`,
+			expected: `function test() {
+  return 42;
+}
+
+function helper() {
+  return "help";
+}
+
+`,
+		},
+		{
+			name: "single-line module.exports with object",
+			input: `function test() {
+  return 42;
+}
+
+module.exports = { test };
+`,
+			expected: `function test() {
+  return 42;
+}
+
+`,
+		},
+		{
+			name: "multi-line module.exports with nested objects",
+			input: `function test() {
+  return 42;
+}
+
+module.exports = {
+  test,
+  config: {
+    enabled: true,
+  },
+};
+`,
+			expected: `function test() {
+  return 42;
+}
+
+`,
+		},
+		{
+			name: "multi-line exports with trailing comma",
+			input: `function updateActivationComment() {
+  console.log("test");
+}
+
+module.exports = {
+  updateActivationComment,
+};`,
+			expected: `function updateActivationComment() {
+  console.log("test");
+}
+
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := removeExports(tt.input)
+			if result != tt.expected {
+				t.Errorf("removeExports() =\n%q\n\nwant:\n%q", result, tt.expected)
+			}
+		})
+	}
+}
