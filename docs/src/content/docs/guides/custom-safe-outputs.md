@@ -1,8 +1,8 @@
 ---
 title: Custom Safe Outputs
-description: Learn how to create custom safe outputs for third-party integrations using custom jobs and MCP servers.
+description: How to create custom safe outputs for third-party integrations using custom jobs and MCP servers.
 sidebar:
-  order: 700
+  order: 5
 ---
 
 Custom safe outputs extend GitHub Agentic Workflows with your own output processing logic for third-party services. Create reusable, secure integrations using custom jobs combined with MCP servers.

@@ -155,10 +155,15 @@ func (c *Compiler) MergeNetworkPermissions(topNetwork *NetworkPermissions, impor
 	return result, nil
 }
 
-// ValidatePermissions validates that the main workflow permissions satisfy the imported workflow requirements
+// ValidateIncludedPermissions validates that the main workflow permissions satisfy the imported workflow requirements
+// This function is specifically used when merging included/imported workflow files to ensure the main workflow
+// has sufficient permissions to support the requirements from all imported files.
 // Takes the top-level permissions YAML string and imported permissions JSON string
 // Returns an error if the main workflow permissions are insufficient
-func (c *Compiler) ValidatePermissions(topPermissionsYAML string, importedPermissionsJSON string) error {
+//
+// Use ValidatePermissions (in permissions_validator.go) for general permission validation against GitHub MCP toolsets.
+// Use ValidateIncludedPermissions (this function) when validating permissions from included/imported workflow files.
+func (c *Compiler) ValidateIncludedPermissions(topPermissionsYAML string, importedPermissionsJSON string) error {
 	importsLog.Print("Validating permissions from imports")
 
 	// If no imported permissions, no validation needed

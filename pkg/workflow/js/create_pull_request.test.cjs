@@ -15,10 +15,11 @@ const createTestableFunction = scriptContent => {
   // Remove const declarations for fs and crypto since they'll be provided as parameters
   scriptBody = scriptBody.replace(/\/\*\* @type \{typeof import\("fs"\)\} \*\/\s*const fs = require\("fs"\);?\s*/g, "");
   scriptBody = scriptBody.replace(/\/\*\* @type \{typeof import\("crypto"\)\} \*\/\s*const crypto = require\("crypto"\);?\s*/g, "");
+  scriptBody = scriptBody.replace(/const \{ updateActivationComment \} = require\("\.\/update_activation_comment\.cjs"\);?\s*/g, "");
 
   // Create a testable function that has the same logic but can be called with dependencies
   return new Function(`
-    const { fs, crypto, github, core, context, process, console } = arguments[0];
+    const { fs, crypto, github, core, context, process, console, updateActivationComment } = arguments[0];
     
     ${scriptBody}
     
@@ -154,6 +155,7 @@ describe("create_pull_request.cjs", () => {
       console: {
         log: vi.fn(),
       },
+      updateActivationComment: vi.fn(),
     };
   });
 
@@ -1596,6 +1598,167 @@ describe("create_pull_request.cjs", () => {
 
       // Verify setFailed was still called
       expect(mockDependencies.core.setFailed).toHaveBeenCalledWith("Failed to apply patch");
+    });
+  });
+
+  describe("activation comment update", () => {
+    it("should update activation comment with PR link when comment_id is provided", async () => {
+      mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+      mockDependencies.process.env.GH_AW_COMMENT_ID = "123456";
+      mockDependencies.process.env.GH_AW_COMMENT_REPO = "testowner/testrepo";
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "create_pull_request",
+            title: "Test PR",
+            body: "Test PR body",
+          },
+        ],
+      });
+
+      const mockPullRequest = {
+        number: 42,
+        html_url: "https://github.com/testowner/testrepo/pull/42",
+      };
+
+      mockDependencies.github.rest.pulls.create.mockResolvedValue({
+        data: mockPullRequest,
+      });
+
+      const mainFunction = createMainFunction(mockDependencies);
+      await mainFunction();
+
+      // Verify PR was created
+      expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
+
+      // Verify updateActivationComment was called with correct parameters
+      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(
+        mockDependencies.github,
+        mockDependencies.context,
+        mockDependencies.core,
+        "https://github.com/testowner/testrepo/pull/42",
+        42
+      );
+    });
+
+    it("should update discussion comment with PR link when comment_id starts with DC_", async () => {
+      mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+      mockDependencies.process.env.GH_AW_COMMENT_ID = "DC_kwDOABCDEF4ABCDEF";
+      mockDependencies.process.env.GH_AW_COMMENT_REPO = "testowner/testrepo";
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "create_pull_request",
+            title: "Test PR",
+            body: "Test PR body",
+          },
+        ],
+      });
+
+      const mockPullRequest = {
+        number: 42,
+        html_url: "https://github.com/testowner/testrepo/pull/42",
+      };
+
+      mockDependencies.github.rest.pulls.create.mockResolvedValue({
+        data: mockPullRequest,
+      });
+
+      const mainFunction = createMainFunction(mockDependencies);
+      await mainFunction();
+
+      // Verify PR was created
+      expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
+
+      // Verify updateActivationComment was called with correct parameters
+      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(
+        mockDependencies.github,
+        mockDependencies.context,
+        mockDependencies.core,
+        "https://github.com/testowner/testrepo/pull/42",
+        42
+      );
+    });
+
+    it("should skip updating comment when GH_AW_COMMENT_ID is not set", async () => {
+      mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+      // No GH_AW_COMMENT_ID set
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "create_pull_request",
+            title: "Test PR",
+            body: "Test PR body",
+          },
+        ],
+      });
+
+      const mockPullRequest = {
+        number: 42,
+        html_url: "https://github.com/testowner/testrepo/pull/42",
+      };
+
+      mockDependencies.github.rest.pulls.create.mockResolvedValue({
+        data: mockPullRequest,
+      });
+
+      const mainFunction = createMainFunction(mockDependencies);
+      await mainFunction();
+
+      // Verify PR was created
+      expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
+
+      // Verify updateActivationComment was still called (it will check internally if comment_id is set)
+      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(
+        mockDependencies.github,
+        mockDependencies.context,
+        mockDependencies.core,
+        "https://github.com/testowner/testrepo/pull/42",
+        42
+      );
+    });
+
+    it("should not fail workflow if comment update fails", async () => {
+      mockDependencies.process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+      mockDependencies.process.env.GH_AW_BASE_BRANCH = "main";
+      mockDependencies.process.env.GH_AW_COMMENT_ID = "123456";
+      mockDependencies.process.env.GH_AW_COMMENT_REPO = "testowner/testrepo";
+      mockDependencies.process.env.GH_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "create_pull_request",
+            title: "Test PR",
+            body: "Test PR body",
+          },
+        ],
+      });
+
+      const mockPullRequest = {
+        number: 42,
+        html_url: "https://github.com/testowner/testrepo/pull/42",
+      };
+
+      mockDependencies.github.rest.pulls.create.mockResolvedValue({
+        data: mockPullRequest,
+      });
+
+      const mainFunction = createMainFunction(mockDependencies);
+      await mainFunction();
+
+      // Verify PR was created successfully
+      expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
+
+      // Verify updateActivationComment was called (error handling is tested in update_activation_comment.test.cjs)
+      expect(mockDependencies.updateActivationComment).toHaveBeenCalledWith(
+        mockDependencies.github,
+        mockDependencies.context,
+        mockDependencies.core,
+        "https://github.com/testowner/testrepo/pull/42",
+        42
+      );
     });
   });
 });

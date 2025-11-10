@@ -296,6 +296,13 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.20.1
+      - name: Install gh-aw extension
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Installing gh-aw extension..."
+          gh extension install githubnext/gh-aw
+          gh aw --version
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
@@ -1126,12 +1133,22 @@ jobs:
           GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
           GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
           cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
+              "agentic_workflows": {
+                "type": "local",
+                "command": "gh",
+                "args": ["aw", "mcp-server"],
+                "tools": ["*"],
+                "env": {
+                  "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
+                }
+              },
               "github": {
                 "type": "local",
                 "command": "docker",
@@ -1183,6 +1200,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
+          # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Python Data Visualization Guide
           
@@ -1560,6 +1578,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
@@ -1592,6 +1611,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
@@ -1605,6 +1625,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           
@@ -1624,6 +1645,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
@@ -1649,6 +1671,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
@@ -1674,6 +1697,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---

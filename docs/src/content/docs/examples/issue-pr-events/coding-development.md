@@ -1,11 +1,18 @@
 ---
-title: Coding & Development 
-description: Automated workflows for dependency management, documentation updates, and pull request assistance
+title: Coding & Development
+description: PR assistance, dependency updates, and documentation maintenance - automated development help
 sidebar:
-  order: 300
+  badge: { text: 'Event-triggered', variant: 'success' }
 ---
 
 Coding and development workflows streamline common development tasks through intelligent automation, reducing manual overhead and improving code quality. You can write your own workflows tailored to your specific technology stack and development practices.
+
+## When to Use Coding & Development Workflows
+
+- **PR assistance** - Automated code review suggestions
+- **Dependency updates** - Smart package upgrade proposals
+- **Documentation sync** - Keep docs in sync with code changes
+- **Code generation** - Automated boilerplate or tests
 
 ## Sample Workflows
 

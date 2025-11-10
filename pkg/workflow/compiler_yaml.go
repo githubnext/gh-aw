@@ -601,6 +601,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 	if len(chunks) > 0 {
 		// Use quoted heredoc marker to prevent shell variable expansion
+		// shellcheck disable directive suppresses false positives from markdown backticks
+		yaml.WriteString("          " + shellcheckDisableBackticks)
 		yaml.WriteString("          cat > \"$GH_AW_PROMPT\" << 'PROMPT_EOF'\n")
 		// Pre-allocate buffer to avoid repeated allocations
 		lines := strings.Split(chunks[0], "\n")
@@ -622,6 +624,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 		yaml.WriteString("        run: |\n")
 		// Use quoted heredoc marker to prevent shell variable expansion
+		// shellcheck disable directive suppresses false positives from markdown backticks
+		yaml.WriteString("          " + shellcheckDisableBackticks)
 		yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << 'PROMPT_EOF'\n")
 		// Avoid string concatenation in loop - write components separately
 		lines := strings.Split(chunk, "\n")
@@ -655,6 +659,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 		yaml.WriteString("        run: |\n")
+		// shellcheck disable directive suppresses false positives from markdown backticks
+		yaml.WriteString("          " + shellcheckDisableBackticks)
 		yaml.WriteString("          cat >> \"$GH_AW_PROMPT\" << PROMPT_EOF\n")
 		yaml.WriteString("          ## Note\n")
 		yaml.WriteString(fmt.Sprintf("          This workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.\n", c.trialLogicalRepoSlug))
@@ -682,30 +688,6 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("          GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
 	WriteShellScriptToYAML(yaml, printPromptSummaryScript, "          ")
-}
-
-func (c *Compiler) generateCacheMemoryPromptStep(yaml *strings.Builder, config *CacheMemoryConfig) {
-	if config == nil || len(config.Caches) == 0 {
-		return
-	}
-
-	appendPromptStepWithHeredoc(yaml,
-		"Append cache memory instructions to prompt",
-		func(y *strings.Builder) {
-			generateCacheMemoryPromptSection(y, config)
-		})
-}
-
-func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutputs *SafeOutputsConfig) {
-	if safeOutputs == nil {
-		return
-	}
-
-	appendPromptStepWithHeredoc(yaml,
-		"Append safe outputs instructions to prompt",
-		func(y *strings.Builder) {
-			generateSafeOutputsPromptSection(y, safeOutputs)
-		})
 }
 
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {

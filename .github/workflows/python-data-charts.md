@@ -8,6 +8,7 @@ permissions:
   pull-requests: read
 engine: copilot
 tools:
+  agentic-workflows:
   edit:
 imports:
   - shared/python-dataviz.md

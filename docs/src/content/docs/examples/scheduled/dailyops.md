@@ -1,9 +1,18 @@
 ---
 title: DailyOps
-description: Learn how to implement DailyOps workflows that make incremental improvements through scheduled, bite-sized changes at regular intervals.
+description: Scheduled workflows for incremental daily improvements - small automated changes that compound over time
+sidebar:
+  badge: { text: 'Scheduled', variant: 'tip' }
 ---
 
 DailyOps workflows use scheduled automation to make incremental progress toward large goals through small, daily changes. Instead of overwhelming the team with major changes, work happens automatically in manageable pieces that are easy to review and integrate. This pattern transforms ambitious long-term goals into achievable daily tasks.
+
+## When to Use DailyOps
+
+- **Continuous improvement** - Daily code quality improvements
+- **Progressive migrations** - Gradually update dependencies or patterns
+- **Documentation maintenance** - Keep docs fresh with daily updates
+- **Technical debt** - Chip away at issues one small PR at a time
 
 ## The DailyOps Pattern
 

@@ -6,9 +6,6 @@ import (
 	"strings"
 )
 
-//go:embed js/create_pull_request.cjs
-var createPullRequestScript string
-
 //go:embed js/create_agent_task.cjs
 var createAgentTaskScript string
 
@@ -72,17 +69,21 @@ var stagedPreviewScript string
 //go:embed js/is_truthy.cjs
 var isTruthyScript string
 
+//go:embed js/update_activation_comment.cjs
+var updateActivationCommentScript string
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
 	return map[string]string{
-		"sanitize_content.cjs":       sanitizeContentScript,
-		"sanitize_label_content.cjs": sanitizeLabelContentScript,
-		"sanitize_workflow_name.cjs": sanitizeWorkflowNameScript,
-		"load_agent_output.cjs":      loadAgentOutputScript,
-		"staged_preview.cjs":         stagedPreviewScript,
-		"is_truthy.cjs":              isTruthyScript,
-		"log_parser_bootstrap.cjs":   logParserBootstrapScript,
+		"sanitize_content.cjs":          sanitizeContentScript,
+		"sanitize_label_content.cjs":    sanitizeLabelContentScript,
+		"sanitize_workflow_name.cjs":    sanitizeWorkflowNameScript,
+		"load_agent_output.cjs":         loadAgentOutputScript,
+		"staged_preview.cjs":            stagedPreviewScript,
+		"is_truthy.cjs":                 isTruthyScript,
+		"log_parser_bootstrap.cjs":      logParserBootstrapScript,
+		"update_activation_comment.cjs": updateActivationCommentScript,
 	}
 }
 

@@ -91,24 +91,29 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightTool 
 	}
 }
 
-// renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration
-// This is a shared function used by both Claude and Custom engines
-func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
-	mcpLog.Print("Rendering Safe Outputs MCP configuration")
-	renderSafeOutputsMCPConfigWithOptions(yaml, isLast, false)
-}
-
-// renderSafeOutputsMCPConfigWithOptions generates the Safe Outputs MCP server configuration with engine-specific options
-func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool) {
-	yaml.WriteString("              \"" + constants.SafeOutputsMCPServerID + "\": {\n")
+// renderBuiltinMCPServerBlock is a shared helper function that renders MCP server configuration blocks
+// for built-in servers (Safe Outputs and Agentic Workflows) with consistent formatting.
+// This eliminates code duplication between renderSafeOutputsMCPConfigWithOptions and
+// renderAgenticWorkflowsMCPConfigWithOptions by extracting the common YAML generation pattern.
+func renderBuiltinMCPServerBlock(yaml *strings.Builder, serverID string, command string, args []string, envVars []string, isLast bool, includeCopilotFields bool) {
+	yaml.WriteString("              \"" + serverID + "\": {\n")
 
 	// Add type field for Copilot
 	if includeCopilotFields {
 		yaml.WriteString("                \"type\": \"local\",\n")
 	}
 
-	yaml.WriteString("                \"command\": \"node\",\n")
-	yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safeoutputs/mcp-server.cjs\"],\n")
+	yaml.WriteString("                \"command\": \"" + command + "\",\n")
+
+	// Write args array
+	yaml.WriteString("                \"args\": [")
+	for i, arg := range args {
+		if i > 0 {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("\"" + arg + "\"")
+	}
+	yaml.WriteString("],\n")
 
 	// Add tools field for Copilot
 	if includeCopilotFields {
@@ -117,24 +122,21 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 
 	yaml.WriteString("                \"env\": {\n")
 
-	// Use shell environment variables instead of GitHub Actions expressions to prevent template injection
-	// For both Copilot and Claude/Custom engines, reference shell env vars
-	// The actual GitHub expressions are set in the step's env: block
-	// Config is now read from file, so we don't pass GH_AW_SAFE_OUTPUTS_CONFIG
-	if includeCopilotFields {
-		yaml.WriteString("                  \"GH_AW_SAFE_OUTPUTS\": \"\\${GH_AW_SAFE_OUTPUTS}\",\n")
-		yaml.WriteString("                  \"GH_AW_ASSETS_BRANCH\": \"\\${GH_AW_ASSETS_BRANCH}\",\n")
-		yaml.WriteString("                  \"GH_AW_ASSETS_MAX_SIZE_KB\": \"\\${GH_AW_ASSETS_MAX_SIZE_KB}\",\n")
-		yaml.WriteString("                  \"GH_AW_ASSETS_ALLOWED_EXTS\": \"\\${GH_AW_ASSETS_ALLOWED_EXTS}\",\n")
-		yaml.WriteString("                  \"GITHUB_REPOSITORY\": \"\\${GITHUB_REPOSITORY}\",\n")
-		yaml.WriteString("                  \"GITHUB_SERVER_URL\": \"\\${GITHUB_SERVER_URL}\"\n")
-	} else {
-		yaml.WriteString("                  \"GH_AW_SAFE_OUTPUTS\": \"$GH_AW_SAFE_OUTPUTS\",\n")
-		yaml.WriteString("                  \"GH_AW_ASSETS_BRANCH\": \"$GH_AW_ASSETS_BRANCH\",\n")
-		yaml.WriteString("                  \"GH_AW_ASSETS_MAX_SIZE_KB\": \"$GH_AW_ASSETS_MAX_SIZE_KB\",\n")
-		yaml.WriteString("                  \"GH_AW_ASSETS_ALLOWED_EXTS\": \"$GH_AW_ASSETS_ALLOWED_EXTS\",\n")
-		yaml.WriteString("                  \"GITHUB_REPOSITORY\": \"$GITHUB_REPOSITORY\",\n")
-		yaml.WriteString("                  \"GITHUB_SERVER_URL\": \"$GITHUB_SERVER_URL\"\n")
+	// Write environment variables with appropriate escaping
+	for i, envVar := range envVars {
+		isLastEnvVar := i == len(envVars)-1
+		comma := ""
+		if !isLastEnvVar {
+			comma = ","
+		}
+
+		if includeCopilotFields {
+			// Copilot format: backslash-escaped shell variable reference
+			yaml.WriteString("                  \"" + envVar + "\": \"\\${" + envVar + "}\"" + comma + "\n")
+		} else {
+			// Claude/Custom format: direct shell variable reference
+			yaml.WriteString("                  \"" + envVar + "\": \"$" + envVar + "\"" + comma + "\n")
+		}
 	}
 
 	yaml.WriteString("                }\n")
@@ -144,6 +146,35 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 	} else {
 		yaml.WriteString("              },\n")
 	}
+}
+
+// renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration
+// This is a shared function used by both Claude and Custom engines
+func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
+	mcpLog.Print("Rendering Safe Outputs MCP configuration")
+	renderSafeOutputsMCPConfigWithOptions(yaml, isLast, false)
+}
+
+// renderSafeOutputsMCPConfigWithOptions generates the Safe Outputs MCP server configuration with engine-specific options
+func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool) {
+	envVars := []string{
+		"GH_AW_SAFE_OUTPUTS",
+		"GH_AW_ASSETS_BRANCH",
+		"GH_AW_ASSETS_MAX_SIZE_KB",
+		"GH_AW_ASSETS_ALLOWED_EXTS",
+		"GITHUB_REPOSITORY",
+		"GITHUB_SERVER_URL",
+	}
+
+	renderBuiltinMCPServerBlock(
+		yaml,
+		constants.SafeOutputsMCPServerID,
+		"node",
+		[]string{"/tmp/gh-aw/safeoutputs/mcp-server.cjs"},
+		envVars,
+		isLast,
+		includeCopilotFields,
+	)
 }
 
 // renderAgenticWorkflowsMCPConfig generates the Agentic Workflows MCP server configuration
@@ -154,39 +185,19 @@ func renderAgenticWorkflowsMCPConfig(yaml *strings.Builder, isLast bool) {
 
 // renderAgenticWorkflowsMCPConfigWithOptions generates the Agentic Workflows MCP server configuration with engine-specific options
 func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool) {
-	yaml.WriteString("              \"agentic_workflows\": {\n")
-
-	// Add type field for Copilot
-	if includeCopilotFields {
-		yaml.WriteString("                \"type\": \"local\",\n")
+	envVars := []string{
+		"GITHUB_TOKEN",
 	}
 
-	yaml.WriteString("                \"command\": \"gh\",\n")
-	yaml.WriteString("                \"args\": [\"aw\", \"mcp-server\"],\n")
-
-	// Add tools field for Copilot
-	if includeCopilotFields {
-		yaml.WriteString("                \"tools\": [\"*\"],\n")
-	}
-
-	yaml.WriteString("                \"env\": {\n")
-
-	// Use shell environment variables instead of GitHub Actions expressions to prevent template injection
-	// For both Copilot and Claude/Custom engines, reference shell env vars
-	// The actual GitHub expressions are set in the step's env: block
-	if includeCopilotFields {
-		yaml.WriteString("                  \"GITHUB_TOKEN\": \"\\${GITHUB_TOKEN}\"\n")
-	} else {
-		yaml.WriteString("                  \"GITHUB_TOKEN\": \"$GITHUB_TOKEN\"\n")
-	}
-
-	yaml.WriteString("                }\n")
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
+	renderBuiltinMCPServerBlock(
+		yaml,
+		"agentic_workflows",
+		"gh",
+		[]string{"aw", "mcp-server"},
+		envVars,
+		isLast,
+		includeCopilotFields,
+	)
 }
 
 // renderPlaywrightMCPConfigTOML generates the Playwright MCP server configuration in TOML format for Codex

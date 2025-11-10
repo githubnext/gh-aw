@@ -237,7 +237,7 @@ func TestEmbeddedScriptsNotEmpty(t *testing.T) {
 		name   string
 		script string
 	}{
-		{"createPullRequestScript", createPullRequestScript},
+		{"createPullRequestScript", getCreatePullRequestScript()},
 		{"createIssueScript", getCreateIssueScript()},
 		{"createDiscussionScript", getCreateDiscussionScript()},
 		{"createCommentScript", getAddCommentScript()},

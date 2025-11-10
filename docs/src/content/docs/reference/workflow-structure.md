@@ -5,10 +5,6 @@ sidebar:
   order: 100
 ---
 
-This guide explains how agentic workflows are organized and structured within your repository.
-
-## Overview
-
 Each workflow consists of:
 
 1. **YAML Frontmatter**: Configuration options wrapped in `---`. See [Frontmatter](/gh-aw/reference/frontmatter/) for details.

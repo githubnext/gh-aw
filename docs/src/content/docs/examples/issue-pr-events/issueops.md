@@ -1,11 +1,20 @@
 ---
 title: IssueOps
-description: Learn how to implement IssueOps workflows using GitHub Agentic Workflows with issue created triggers and automated comment responses for streamlined issue management.
+description: Automate issue triage, categorization, and responses when issues are opened - fully automated issue management
+sidebar:
+  badge: { text: 'Event-triggered', variant: 'success' }
 ---
 
 IssueOps transforms GitHub issues into powerful automation triggers that automatically analyze, categorize, and respond to issues as they're created. GitHub Agentic Workflows makes IssueOps natural through issue creation triggers and safe comment outputs that handle automated responses securely without requiring write permissions for the main AI job.
 
-## Overview
+## When to Use IssueOps
+
+- **Auto-triage new issues** - Classify and label issues automatically
+- **Smart routing** - Tag relevant team members based on content
+- **Initial responses** - Welcome contributors, ask clarifying questions
+- **Quality checks** - Ensure issues have required information
+
+## How It Works
 
 Through issue triggers, workflows activate automatically when new issues are created in your repository. The AI agent analyzes the issue content, applies your defined logic, and provides intelligent responses through automated comments.
 

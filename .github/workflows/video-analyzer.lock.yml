@@ -1135,6 +1135,7 @@ jobs:
         run: |
           PROMPT_DIR="$(dirname "$GH_AW_PROMPT")"
           mkdir -p "$PROMPT_DIR"
+          # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # FFmpeg Usage Guide
           
@@ -1406,6 +1407,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
@@ -1438,6 +1440,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
@@ -1451,6 +1454,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---
@@ -1472,6 +1476,7 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
+          # shellcheck disable=SC2006,SC2287
           cat >> "$GH_AW_PROMPT" << PROMPT_EOF
           
           ---

@@ -1,13 +1,18 @@
 ---
 title: LabelOps
-description: Learn how to use GitHub labels as workflow triggers with AI-powered automation for intelligent issue and pull request management using label filtering.
+description: Workflows triggered by label changes - automate actions when specific labels are added or removed
+sidebar:
+  badge: { text: 'Event-triggered', variant: 'success' }
 ---
 
 LabelOps uses GitHub labels for workflow triggers, metadata, and state markers. GitHub Agentic Workflows supports LabelOps through label-based triggers with filtering, allowing workflows to activate only for specific label changes while maintaining secure, automated responses.
 
-## Overview
+## When to Use LabelOps
 
-LabelOps transforms GitHub labels into workflow triggers, metadata, and state markers. When combined with AI-driven automation, labels enable intelligent, event-driven issue and pull request management that reduces manual effort and accelerates triage.
+- **Priority-based workflows** - Run checks when `priority: high` is added
+- **Stage transitions** - Trigger actions when moving between workflow states
+- **Specialized processing** - Different workflows for different label categories
+- **Team coordination** - Automate handoffs between teams using labels
 
 ## Label Filtering
 
@@ -127,6 +132,6 @@ Schedule periodic label audits to identify duplicates, unused labels, inconsiste
 ## Additional Resources
 
 - [Trigger Events](/gh-aw/reference/triggers/) - Complete trigger configuration including label filtering
-- [IssueOps Guide](/gh-aw/guides/issueops) - Learn about issue-triggered workflows
-- [Safe Outputs Reference](/gh-aw/reference/safe-outputs) - Secure output handling
-- [Frontmatter Reference](/gh-aw/reference/frontmatter) - Complete workflow configuration options
+- [IssueOps Guide](/gh-aw/examples/issue-pr-events/issueops/) - Learn about issue-triggered workflows
+- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Secure output handling
+- [Frontmatter Reference](/gh-aw/reference/frontmatter/) - Complete workflow configuration options

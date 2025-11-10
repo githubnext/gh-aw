@@ -1,11 +1,18 @@
 ---
 title: Triage & Analysis
-description: Intelligent automation for issue management, accessibility reviews, and CI failure investigation
+description: Automated issue triage, accessibility reviews, and CI failure investigation - intelligent problem analysis
 sidebar:
-  order: 200
+  badge: { text: 'Event-triggered', variant: 'success' }
 ---
 
 Triage and analysis workflows provide intelligent automation for managing issues, investigating problems, and ensuring quality standards.
+
+## When to Use Triage & Analysis Workflows
+
+- **Auto-triage issues** - Classify and prioritize incoming issues
+- **Accessibility audits** - Automated a11y checks on PRs
+- **CI failure analysis** - Investigate and explain test failures
+- **Problem investigation** - Deep dive into reported issues
 
 Here are sample workflows from the Agentics collection you can customize for your project:
 

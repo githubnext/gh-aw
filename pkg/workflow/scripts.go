@@ -56,6 +56,9 @@ var parseFirewallLogsScriptSource string
 //go:embed js/push_to_pull_request_branch.cjs
 var pushToPullRequestBranchScriptSource string
 
+//go:embed js/create_pull_request.cjs
+var createPullRequestScriptSource string
+
 // Log parser source scripts
 //
 //go:embed js/parse_claude_log.cjs
@@ -113,6 +116,9 @@ var (
 
 	pushToPullRequestBranchScript     string
 	pushToPullRequestBranchScriptOnce sync.Once
+
+	createPullRequestScript     string
+	createPullRequestScriptOnce sync.Once
 
 	interpolatePromptBundled     string
 	interpolatePromptBundledOnce sync.Once
@@ -366,6 +372,23 @@ func getPushToPullRequestBranchScript() string {
 		}
 	})
 	return pushToPullRequestBranchScript
+}
+
+// getCreatePullRequestScript returns the bundled create_pull_request script
+// Bundling is performed on first access and cached for subsequent calls
+func getCreatePullRequestScript() string {
+	createPullRequestScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(createPullRequestScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for create_pull_request, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			createPullRequestScript = createPullRequestScriptSource
+		} else {
+			createPullRequestScript = bundled
+		}
+	})
+	return createPullRequestScript
 }
 
 // getInterpolatePromptScript returns the bundled interpolate_prompt script

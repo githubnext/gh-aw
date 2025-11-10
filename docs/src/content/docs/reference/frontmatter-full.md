@@ -641,25 +641,38 @@ run-name: "example-value"
 jobs:
   {}
 
-# Runner type for workflow execution (GitHub Actions standard field). Typically
-# configured at the job level instead.
+# Runner type for workflow execution (GitHub Actions standard field). Supports
+# multiple forms: simple string for single runner label (e.g., 'ubuntu-latest'),
+# array for runner selection with fallbacks, or object for GitHub-hosted runner
+# groups with specific labels. For agentic workflows, runner selection matters
+# when AI workloads require specific compute resources or when using self-hosted
+# runners with specialized capabilities. Typically configured at the job level
+# instead. See
+# https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job
 # (optional)
 # This field supports multiple formats (oneOf):
 
-# Option 1: Runner type as string
+# Option 1: Simple runner label string. Use for standard GitHub-hosted runners
+# (e.g., 'ubuntu-latest', 'windows-latest', 'macos-latest') or self-hosted runner
+# labels. Most common form for agentic workflows.
 runs-on: "example-value"
 
-# Option 2: Runner type as array
+# Option 2: Array of runner labels for selection with fallbacks. GitHub Actions
+# will use the first available runner that matches any label in the array. Useful
+# for high-availability setups or when multiple runner types are acceptable.
 runs-on: []
   # Array items: string
 
-# Option 3: Runner type as object
+# Option 3: Runner group configuration for GitHub-hosted runners. Use this form to
+# target specific runner groups (e.g., larger runners with more CPU/memory) or
+# self-hosted runner pools with specific label requirements. Agentic workflows may
+# benefit from larger runners for complex AI processing tasks.
 runs-on:
-  # Runner group name for self-hosted runners
+  # Runner group name for self-hosted runners or GitHub-hosted runner groups
   # (optional)
   group: "example-value"
 
-  # List of runner labels for self-hosted runners
+  # List of runner labels for self-hosted runners or GitHub-hosted runner selection
   # (optional)
   labels: []
     # Array of strings
@@ -671,22 +684,38 @@ runs-on:
 timeout-minutes: 1
 
 # Concurrency control to limit concurrent workflow runs (GitHub Actions standard
-# field). Agentic workflows use enhanced concurrency management.
+# field). Supports two forms: simple string for basic group isolation, or object
+# with cancel-in-progress option for advanced control. Agentic workflows enhance
+# this with automatic per-engine concurrency policies (defaults to single job per
+# engine across all workflows) and token-based rate limiting. Default behavior:
+# workflows in the same group queue sequentially unless cancel-in-progress is
+# true. See https://docs.github.com/en/actions/using-jobs/using-concurrency
 # (optional)
 # This field supports multiple formats (oneOf):
 
-# Option 1: Simple concurrency group name to prevent multiple runs. Agentic
-# workflows automatically generate enhanced concurrency policies.
+# Option 1: Simple concurrency group name to prevent multiple runs in the same
+# group. Use expressions like '${{ github.workflow }}' for per-workflow isolation
+# or '${{ github.ref }}' for per-branch isolation. Agentic workflows automatically
+# generate enhanced concurrency policies using 'gh-aw-{engine-id}' as the default
+# group to limit concurrent AI workloads across all workflows using the same
+# engine.
 concurrency: "example-value"
 
 # Option 2: Concurrency configuration object with group isolation and cancellation
-# control
+# control. Use object form when you need fine-grained control over whether to
+# cancel in-progress runs. For agentic workflows, this is useful to prevent
+# multiple AI agents from running simultaneously and consuming excessive resources
+# or API quotas.
 concurrency:
   # Concurrency group name. Workflows in the same group cannot run simultaneously.
+  # Supports GitHub Actions expressions for dynamic group names based on branch,
+  # workflow, or other context.
   group: "example-value"
 
   # Whether to cancel in-progress workflows in the same concurrency group when a new
-  # one starts
+  # one starts. Default: false (queue new runs). Set to true for agentic workflows
+  # where only the latest run matters (e.g., PR analysis that becomes stale when new
+  # commits are pushed).
   # (optional)
   cancel-in-progress: true
 
@@ -845,7 +874,7 @@ post-steps: []
   # Array items: undefined
 
 # AI engine configuration that specifies which AI processor interprets and
-# executes the markdown content of the workflow. Defaults to 'claude'.
+# executes the markdown content of the workflow. Defaults to 'copilot'.
 # (optional)
 # This field supports multiple formats (oneOf):
 

@@ -674,7 +674,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract top-level permissions first
 	topLevelPermissions := c.extractPermissions(result.Frontmatter)
 	if importsResult.MergedPermissions != "" {
-		if err := c.ValidatePermissions(topLevelPermissions, importsResult.MergedPermissions); err != nil {
+		if err := c.ValidateIncludedPermissions(topLevelPermissions, importsResult.MergedPermissions); err != nil {
 			return nil, fmt.Errorf("permission validation failed: %w", err)
 		}
 	}
@@ -1131,7 +1131,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
 
-	// Extract safe-jobs from the new location (safe-outputs.jobs) or old location (safe-jobs) for backwards compatibility
+	// Extract safe-jobs from safe-outputs.jobs location
 	topSafeJobs := extractSafeJobsFromFrontmatter(result.Frontmatter)
 
 	// Process @include directives to extract additional safe-outputs configurations

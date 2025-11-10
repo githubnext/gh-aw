@@ -5,6 +5,8 @@ import Default from '@astrojs/starlight/components/Head.astro';
 
 <Default {...Astro.props}><slot /></Default>
 
+<link rel="icon" type="image/svg+xml" href="/gh-aw/favicon.svg" />
+
 <script is:inline>
   (function() {
     const storedTheme = localStorage.getItem('starlight-theme') || 'auto';

@@ -5,6 +5,7 @@
 const fs = require("fs");
 /** @type {typeof import("crypto")} */
 const crypto = require("crypto");
+const { updateActivationComment } = require("./update_activation_comment.cjs");
 
 /**
  * Generate a patch preview with max 500 lines and 2000 chars for issue body
@@ -516,6 +517,9 @@ ${patchPreview}`;
     core.setOutput("pull_request_number", pullRequest.number);
     core.setOutput("pull_request_url", pullRequest.html_url);
     core.setOutput("branch_name", branchName);
+
+    // Update the activation comment with PR link (if a comment was created)
+    await updateActivationComment(github, context, core, pullRequest.html_url, pullRequest.number);
 
     // Write summary to GitHub Actions summary
     await core.summary

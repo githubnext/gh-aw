@@ -1287,36 +1287,44 @@
       }
     },
     "runs-on": {
-      "description": "Runner type for workflow execution (GitHub Actions standard field). Typically configured at the job level instead.",
+      "description": "Runner type for workflow execution (GitHub Actions standard field). Supports multiple forms: simple string for single runner label (e.g., 'ubuntu-latest'), array for runner selection with fallbacks, or object for GitHub-hosted runner groups with specific labels. For agentic workflows, runner selection matters when AI workloads require specific compute resources or when using self-hosted runners with specialized capabilities. Typically configured at the job level instead. See https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job",
       "oneOf": [
         {
           "type": "string",
-          "description": "Runner type as string"
+          "description": "Simple runner label string. Use for standard GitHub-hosted runners (e.g., 'ubuntu-latest', 'windows-latest', 'macos-latest') or self-hosted runner labels. Most common form for agentic workflows."
         },
         {
           "type": "array",
-          "description": "Runner type as array",
+          "description": "Array of runner labels for selection with fallbacks. GitHub Actions will use the first available runner that matches any label in the array. Useful for high-availability setups or when multiple runner types are acceptable.",
           "items": {
             "type": "string"
           }
         },
         {
           "type": "object",
-          "description": "Runner type as object",
+          "description": "Runner group configuration for GitHub-hosted runners. Use this form to target specific runner groups (e.g., larger runners with more CPU/memory) or self-hosted runner pools with specific label requirements. Agentic workflows may benefit from larger runners for complex AI processing tasks.",
           "additionalProperties": false,
           "properties": {
             "group": {
               "type": "string",
-              "description": "Runner group name for self-hosted runners"
+              "description": "Runner group name for self-hosted runners or GitHub-hosted runner groups"
             },
             "labels": {
               "type": "array",
-              "description": "List of runner labels for self-hosted runners",
+              "description": "List of runner labels for self-hosted runners or GitHub-hosted runner selection",
               "items": {
                 "type": "string"
               }
             }
           }
+        }
+      ],
+      "examples": [
+        "ubuntu-latest",
+        ["ubuntu-latest", "self-hosted"],
+        {
+          "group": "larger-runners",
+          "labels": ["ubuntu-latest-8-cores"]
         }
       ]
     },
@@ -1332,25 +1340,25 @@
       "deprecated": true
     },
     "concurrency": {
-      "description": "Concurrency control to limit concurrent workflow runs (GitHub Actions standard field). Agentic workflows use enhanced concurrency management.",
+      "description": "Concurrency control to limit concurrent workflow runs (GitHub Actions standard field). Supports two forms: simple string for basic group isolation, or object with cancel-in-progress option for advanced control. Agentic workflows enhance this with automatic per-engine concurrency policies (defaults to single job per engine across all workflows) and token-based rate limiting. Default behavior: workflows in the same group queue sequentially unless cancel-in-progress is true. See https://docs.github.com/en/actions/using-jobs/using-concurrency",
       "oneOf": [
         {
           "type": "string",
-          "description": "Simple concurrency group name to prevent multiple runs. Agentic workflows automatically generate enhanced concurrency policies.",
+          "description": "Simple concurrency group name to prevent multiple runs in the same group. Use expressions like '${{ github.workflow }}' for per-workflow isolation or '${{ github.ref }}' for per-branch isolation. Agentic workflows automatically generate enhanced concurrency policies using 'gh-aw-{engine-id}' as the default group to limit concurrent AI workloads across all workflows using the same engine.",
           "examples": ["my-workflow-group", "workflow-${{ github.ref }}"]
         },
         {
           "type": "object",
-          "description": "Concurrency configuration object with group isolation and cancellation control",
+          "description": "Concurrency configuration object with group isolation and cancellation control. Use object form when you need fine-grained control over whether to cancel in-progress runs. For agentic workflows, this is useful to prevent multiple AI agents from running simultaneously and consuming excessive resources or API quotas.",
           "additionalProperties": false,
           "properties": {
             "group": {
               "type": "string",
-              "description": "Concurrency group name. Workflows in the same group cannot run simultaneously."
+              "description": "Concurrency group name. Workflows in the same group cannot run simultaneously. Supports GitHub Actions expressions for dynamic group names based on branch, workflow, or other context."
             },
             "cancel-in-progress": {
               "type": "boolean",
-              "description": "Whether to cancel in-progress workflows in the same concurrency group when a new one starts"
+              "description": "Whether to cancel in-progress workflows in the same concurrency group when a new one starts. Default: false (queue new runs). Set to true for agentic workflows where only the latest run matters (e.g., PR analysis that becomes stale when new commits are pushed)."
             }
           },
           "required": ["group"],
@@ -1360,6 +1368,18 @@
               "cancel-in-progress": true
             }
           ]
+        }
+      ],
+      "examples": [
+        "my-workflow-group",
+        "workflow-${{ github.ref }}",
+        {
+          "group": "agentic-analysis-${{ github.workflow }}",
+          "cancel-in-progress": false
+        },
+        {
+          "group": "pr-review-${{ github.event.pull_request.number }}",
+          "cancel-in-progress": true
         }
       ]
     },
@@ -1717,7 +1737,8 @@
       ]
     },
     "engine": {
-      "description": "AI engine configuration that specifies which AI processor interprets and executes the markdown content of the workflow. Defaults to 'claude'.",
+      "description": "AI engine configuration that specifies which AI processor interprets and executes the markdown content of the workflow. Defaults to 'copilot'.",
+      "default": "copilot",
       "$ref": "#/$defs/engine_config"
     },
     "mcp-servers": {
