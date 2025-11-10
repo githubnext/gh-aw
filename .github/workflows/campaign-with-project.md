@@ -7,7 +7,7 @@ on:
     inputs:
       research_topics:
         description: 'Comma-separated list of research topics'
-        required: true
+        required: false
         default: 'AI safety, Machine learning ethics, Responsible AI'
 
 campaign:

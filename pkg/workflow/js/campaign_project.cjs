@@ -71,9 +71,14 @@ async function main() {
     core.info(`Owner type: ${ownerType}, ID: ${ownerId}`);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes("does not have permission") || errorMessage.includes("Resource not accessible")) {
-      core.warning(`⚠️  GitHub Actions token does not have permission to manage projects. Project board features will be skipped.`);
-      core.warning(`💡 To enable project boards, provide a personal access token with 'project' scope via the 'github-token' field in your workflow configuration.`);
+    // Check for insufficient scopes or permission errors
+    if (errorMessage.includes("INSUFFICIENT_SCOPES") || 
+        errorMessage.includes("read:project") || 
+        errorMessage.includes("does not have permission") || 
+        errorMessage.includes("Resource not accessible")) {
+      core.warning(`⚠️  GitHub token does not have the required 'project' scope. Project board features will be skipped.`);
+      core.warning(`💡 To enable project boards, provide a personal access token with 'project' scope.`);
+      core.warning(`   Visit: https://github.com/settings/tokens to add 'project' scope to your token.`);
       core.info(`✓ Workflow will continue without project board integration.`);
       return; // Exit gracefully
     }
@@ -140,7 +145,17 @@ async function main() {
       core.info(`Created project #${project.number}: ${project.url}`);
     }
   } catch (error) {
-    core.error(`Failed to find/create project: ${error instanceof Error ? error.message : String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    // Check for insufficient scopes or permission errors
+    if (errorMessage.includes("INSUFFICIENT_SCOPES") || 
+        errorMessage.includes("read:project") || 
+        errorMessage.includes("does not have permission") || 
+        errorMessage.includes("Resource not accessible")) {
+      core.warning(`⚠️  Cannot create/access project board - insufficient permissions. Skipping project board features.`);
+      core.warning(`💡 To enable: provide a personal access token with 'project' scope.`);
+      return; // Exit gracefully
+    }
+    core.error(`Failed to find/create project: ${errorMessage}`);
     throw error;
   }
 
