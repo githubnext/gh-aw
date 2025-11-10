@@ -10,8 +10,10 @@ The `permissions:` section controls what GitHub API operations your workflow can
 ```yaml wrap
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
+  actions: read
+safe-outputs:
+  create-issue:
+  add-comment:
 ```
 
 ## Permission Model
@@ -20,9 +22,9 @@ permissions:
 
 Agentic workflows follow a principle of least privilege:
 
-- **Read-only by default**: Workflows run with minimal permissions
+- **Read-only by default**: Main job runs with minimal read permissions only
 - **Write through safe outputs**: Write operations happen in separate jobs with sanitized content
-- **Explicit permissions**: All permissions must be declared in frontmatter
+- **No direct write permissions**: Use safe-outputs instead of `write` permissions in the main job
 
 This model prevents AI agents from accidentally or maliciously modifying repository content during execution.
 
@@ -39,40 +41,45 @@ Specify individual permission levels:
 ```yaml wrap
 permissions:
   contents: read
-  issues: write
+  actions: read
+safe-outputs:
+  create-issue:
 ```
 
 ### Shorthand Options
 
 - **`read-all`**: Read access to all scopes (useful for inspection workflows)
-- **`write-all`**: Write access to all scopes (avoid in agentic workflows; use specific permissions with safe outputs)
 - **`{}`**: No permissions (for computation-only workflows)
+
+:::caution
+Avoid using `write-all` or direct write permissions in agentic workflows. Use [safe outputs](/gh-aw/reference/safe-outputs/) instead for secure write operations.
+:::
 
 ## Common Patterns
 
-Most workflows follow a similar pattern: read-only permissions for the AI job, with write operations handled through safe outputs:
+All workflows should use read-only permissions with safe outputs for write operations:
 
 ```yaml wrap
-# IssueOps: Read code, write to issues
+# IssueOps: Read code, comment via safe outputs
 permissions:
   contents: read
-  issues: write
+  actions: read
 safe-outputs:
   add-comment:
     max: 5
 
-# PR Review: Read code, write to PRs
+# PR Review: Read code, review via safe outputs
 permissions:
   contents: read
-  pull-requests: write
+  actions: read
 safe-outputs:
   create-pr-review-comment:
     max: 10
 
-# Scheduled: Analysis with issue creation
+# Scheduled: Analysis with issue creation via safe outputs
 permissions:
   contents: read
-  issues: write
+  actions: read
 safe-outputs:
   create-issue:
     max: 3
@@ -88,7 +95,7 @@ Write operations use safe outputs instead of direct API access. This provides co
 
 ## Permission Validation
 
-Run `gh aw compile workflow.md` to validate permissions. Common errors include undefined permissions, write permissions without safe outputs, and insufficient permissions for declared tools. Use `--strict` mode to refuse write permissions and require explicit network configuration.
+Run `gh aw compile workflow.md` to validate permissions. Common errors include undefined permissions, direct write permissions in the main job (use safe outputs instead), and insufficient permissions for declared tools. Use `--strict` mode to enforce read-only permissions and require explicit network configuration.
 
 ## Related Documentation
 
