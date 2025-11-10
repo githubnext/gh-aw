@@ -346,6 +346,22 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, createAgentTaskJob.Name)
 	}
 
+	// Build update_project job if safe-outputs.update-project is configured
+	if data.SafeOutputs.UpdateProjects != nil {
+		updateProjectJob, err := c.buildUpdateProjectJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build update_project job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			updateProjectJob.Needs = append(updateProjectJob.Needs, constants.DetectionJobName)
+		}
+		if err := c.jobManager.AddJob(updateProjectJob); err != nil {
+			return fmt.Errorf("failed to add update_project job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, updateProjectJob.Name)
+	}
+
 	// Build update_reaction job if add-comment is configured OR if command trigger is configured with reactions
 	// This job runs last, after all safe output jobs, to update the activation comment on failure
 	// The buildUpdateReactionJob function itself will decide whether to create the job based on the configuration

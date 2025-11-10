@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"strings"
+	"sync"
 )
 
 //go:embed js/create_agent_task.cjs
@@ -71,6 +72,14 @@ var isTruthyScript string
 
 //go:embed js/update_activation_comment.cjs
 var updateActivationCommentScript string
+
+//go:embed js/update_project.cjs
+var updateProjectScriptSource string
+
+var (
+	updateProjectScript     string
+	updateProjectScriptOnce sync.Once
+)
 
 // getUpdateProjectScript returns the bundled update_project script
 // Bundling is performed on first access and cached for subsequent calls
