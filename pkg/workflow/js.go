@@ -72,6 +72,12 @@ var isTruthyScript string
 //go:embed js/update_activation_comment.cjs
 var updateActivationCommentScript string
 
+//go:embed js/generate_footer.cjs
+var generateFooterScript string
+
+//go:embed js/get_repository_url.cjs
+var getRepositoryUrlScript string
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
@@ -84,6 +90,8 @@ func GetJavaScriptSources() map[string]string {
 		"is_truthy.cjs":                 isTruthyScript,
 		"log_parser_bootstrap.cjs":      logParserBootstrapScript,
 		"update_activation_comment.cjs": updateActivationCommentScript,
+		"generate_footer.cjs":           generateFooterScript,
+		"get_repository_url.cjs":        getRepositoryUrlScript,
 	}
 }
 
