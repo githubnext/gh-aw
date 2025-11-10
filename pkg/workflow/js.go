@@ -115,6 +115,9 @@ var addCommentScriptSource string
 //go:embed js/upload_assets.cjs
 var uploadAssetsScriptSource string
 
+//go:embed js/update_project.cjs
+var updateProjectScriptSource string
+
 //go:embed js/parse_firewall_logs.cjs
 var parseFirewallLogsScriptSource string
 
@@ -152,6 +155,9 @@ var (
 
 	uploadAssetsScript     string
 	uploadAssetsScriptOnce sync.Once
+
+	updateProjectScript     string
+	updateProjectScriptOnce sync.Once
 
 	parseFirewallLogsScript     string
 	parseFirewallLogsScriptOnce sync.Once
@@ -352,6 +358,22 @@ func getUploadAssetsScript() string {
 		}
 	})
 	return uploadAssetsScript
+}
+
+// getUpdateProjectScript returns the bundled update_project script
+// Bundling is performed on first access and cached for subsequent calls
+func getUpdateProjectScript() string {
+	updateProjectScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(updateProjectScriptSource, sources, "")
+		if err != nil {
+			// If bundling fails, use the source as-is
+			updateProjectScript = updateProjectScriptSource
+		} else {
+			updateProjectScript = bundled
+		}
+	})
+	return updateProjectScript
 }
 
 // GetJavaScriptSources returns a map of all embedded JavaScript sources

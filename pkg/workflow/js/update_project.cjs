@@ -9,7 +9,27 @@ const github = require("@actions/github");
  * @property {number} [pull_request] - PR number to add/update on the board
  * @property {Object} [fields] - Custom field values to set/update
  * @property {Object} [fields_schema] - Define custom fields when creating a new project
+ * @property {string} [campaign_id] - Campaign tracking ID (auto-generated if not provided)
  */
+
+/**
+ * Generate a campaign ID from project name
+ * @param {string} projectName - The project/campaign name
+ * @returns {string} Campaign ID in format: slug-timestamp (e.g., "perf-q1-2025-a3f2b4c8")
+ */
+function generateCampaignId(projectName) {
+  // Create slug from project name
+  const slug = projectName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .substring(0, 30);
+  
+  // Add short timestamp hash for uniqueness
+  const timestamp = Date.now().toString(36).substring(0, 8);
+  
+  return `${slug}-${timestamp}`;
+}
 
 /**
  * Smart project board management - handles create/add/update automatically
@@ -25,6 +45,9 @@ async function updateProject(output) {
   const octokit = github.getOctokit(token);
   const { owner, repo } = github.context.repo;
 
+  // Generate or use provided campaign ID
+  const campaignId = output.campaign_id || generateCampaignId(output.project);
+  core.info(`Campaign ID: ${campaignId}`);
   core.info(`Managing project: ${output.project}`);
 
   try {
@@ -71,11 +94,16 @@ async function updateProject(output) {
     } else {
       // Create new project
       core.info(`Creating new project: ${output.project}`);
+      
+      // Include campaign ID in project description
+      const projectDescription = `Campaign ID: ${campaignId}`;
+      
       const createResult = await octokit.graphql(
-        `mutation($ownerId: ID!, $title: String!) {
+        `mutation($ownerId: ID!, $title: String!, $shortDescription: String) {
           createProjectV2(input: {
             ownerId: $ownerId,
-            title: $title
+            title: $title,
+            shortDescription: $shortDescription
           }) {
             projectV2 {
               id
@@ -85,7 +113,11 @@ async function updateProject(output) {
             }
           }
         }`,
-        { ownerId: repositoryId, title: output.project }
+        { 
+          ownerId: repositoryId, 
+          title: output.project,
+          shortDescription: projectDescription
+        }
       );
 
       const newProject = createResult.createProjectV2.projectV2;
@@ -108,9 +140,11 @@ async function updateProject(output) {
       );
 
       core.info(`✓ Created and linked project: ${newProject.title} (${newProject.url})`);
+      core.info(`✓ Campaign ID stored in project: ${campaignId}`);
       core.setOutput("project-id", projectId);
       core.setOutput("project-number", projectNumber);
       core.setOutput("project-url", newProject.url);
+      core.setOutput("campaign-id", campaignId);
     }
 
     // Step 3: If issue or PR specified, add/update it on the board
@@ -196,6 +230,20 @@ async function updateProject(output) {
         );
         itemId = addResult.addProjectV2ItemById.item.id;
         core.info(`✓ Added ${contentType} #${contentNumber} to project board`);
+        
+        // Add campaign label to issue/PR
+        try {
+          const campaignLabel = `campaign:${campaignId}`;
+          await octokit.rest.issues.addLabels({
+            owner,
+            repo,
+            issue_number: contentNumber,
+            labels: [campaignLabel]
+          });
+          core.info(`✓ Added campaign label: ${campaignLabel}`);
+        } catch (labelError) {
+          core.warning(`Failed to add campaign label: ${labelError.message}`);
+        }
       }
 
       // Step 4: Update custom fields if provided

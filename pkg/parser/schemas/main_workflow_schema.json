@@ -2276,40 +2276,15 @@
             }
           ]
         },
-        "create-project": {
+        "update-project": {
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for creating GitHub Projects v2 boards from agentic workflow output. Requires repository-projects: write permission.",
+              "description": "Configuration for managing GitHub Projects v2 boards. Smart tool that auto-detects whether to create projects, add items, or update fields. Requires repository-projects: write permission.",
               "properties": {
                 "max": {
                   "type": "integer",
-                  "description": "Maximum number of projects to create (default: 1)",
-                  "minimum": 1,
-                  "maximum": 1
-                },
-                "github-token": {
-                  "$ref": "#/$defs/github_token",
-                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
-                }
-              },
-              "additionalProperties": false
-            },
-            {
-              "type": "null",
-              "description": "Enable project creation with default configuration"
-            }
-          ]
-        },
-        "add-project-item": {
-          "oneOf": [
-            {
-              "type": "object",
-              "description": "Configuration for adding items to GitHub Projects v2 boards. Requires repository-projects: write permission.",
-              "properties": {
-                "max": {
-                  "type": "integer",
-                  "description": "Maximum number of project items to add (default: 10)",
+                  "description": "Maximum number of project operations to perform (default: 10)",
                   "minimum": 1,
                   "maximum": 100
                 },
@@ -2322,32 +2297,7 @@
             },
             {
               "type": "null",
-              "description": "Enable adding project items with default configuration"
-            }
-          ]
-        },
-        "update-project-item": {
-          "oneOf": [
-            {
-              "type": "object",
-              "description": "Configuration for updating items in GitHub Projects v2 boards. Requires repository-projects: write permission.",
-              "properties": {
-                "max": {
-                  "type": "integer",
-                  "description": "Maximum number of project items to update (default: 10)",
-                  "minimum": 1,
-                  "maximum": 100
-                },
-                "github-token": {
-                  "$ref": "#/$defs/github_token",
-                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
-                }
-              },
-              "additionalProperties": false
-            },
-            {
-              "type": "null",
-              "description": "Enable updating project items with default configuration"
+              "description": "Enable project management with default configuration"
             }
           ]
         },

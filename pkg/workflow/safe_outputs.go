@@ -263,22 +263,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.CreateAgentTasks = agentTaskConfig
 			}
 
-			// Handle create-project
-			createProjectsConfig := c.parseCreateProjectsConfig(outputMap)
-			if createProjectsConfig != nil {
-				config.CreateProjects = createProjectsConfig
-			}
-
-			// Handle add-project-item
-			addProjectItemsConfig := c.parseAddProjectItemsConfig(outputMap)
-			if addProjectItemsConfig != nil {
-				config.AddProjectItems = addProjectItemsConfig
-			}
-
-			// Handle update-project-item
-			updateProjectItemsConfig := c.parseUpdateProjectItemsConfig(outputMap)
-			if updateProjectItemsConfig != nil {
-				config.UpdateProjectItems = updateProjectItemsConfig
+			// Handle update-project (smart project board management)
+			updateProjectConfig := c.parseUpdateProjectConfig(outputMap)
+			if updateProjectConfig != nil {
+				config.UpdateProjects = updateProjectConfig
 			}
 
 			// Handle create-discussion
