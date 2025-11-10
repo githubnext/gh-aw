@@ -907,6 +907,20 @@ starlight-toc a {
   hyphens: auto;
 }
 
+starlight-toc ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+starlight-toc ul ul {
+  padding-left: 1rem;
+}
+
+starlight-toc ul ul ul {
+  padding-left: 1rem;
+}
+
 starlight-toc a:hover {
   color: #f0f6fc;
   background: none !important;
@@ -1083,7 +1097,7 @@ starlight-toc * {
 .sl-markdown-content aside,
 .sl-markdown-content .starlight-aside {
   margin: 1.5rem 0;
-  padding: 1rem 0.75rem 1rem 0.5rem;
+  padding: 1rem 0.75rem 1rem 1.25rem;
   border-radius: 6px;
   position: relative;
   border-left: none;

@@ -43,11 +43,12 @@ export default defineConfig({
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/githubnext/gh-aw' },
 			],
 			tableOfContents: { 
-				minHeadingLevel: 2, 
-				maxHeadingLevel: 3 
-			},
+			minHeadingLevel: 2, 
+			maxHeadingLevel: 4 
+		},
 			pagination: true,
 			expressiveCode: {
+				frames: false,
 				shiki: {
 						langs: /** @type {any[]} */ ([
 							"markdown",
@@ -125,6 +126,7 @@ export default defineConfig({
 						{ label: 'Frontmatter (Full)', link: '/reference/frontmatter-full/' },
 						{ label: 'Triggers', link: '/reference/triggers/' },
 						{ label: 'Command Triggers', link: '/reference/command-triggers/' },
+						{ label: 'Permissions', link: '/reference/permissions/' },
 						{ label: 'AI Engines', link: '/reference/engines/' },
 						{ label: 'Tools', link: '/reference/tools/' },
 						{ label: 'Safe Outputs', link: '/reference/safe-outputs/' },
