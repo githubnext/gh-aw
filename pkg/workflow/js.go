@@ -543,4 +543,3 @@ func GetLogParserBootstrap() string {
 func GetSafeOutputsMCPServerScript() string {
 	return safeOutputsMCPServerScript
 }
-
