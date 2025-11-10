@@ -1,9 +1,18 @@
 ---
 title: ChatOps
-description: A guide to building interactive automation using command triggers and safe outputs for ChatOps-style workflows.
+description: Interactive automation triggered by slash commands (/review, /deploy) in issues and PRs - human-in-the-loop workflows
+sidebar:
+  badge: { text: 'Command-triggered', variant: 'note' }
 ---
 
 ChatOps brings automation into GitHub conversations through command triggers that respond to slash commands in issues, pull requests, and comments. Team members can trigger workflows by typing commands like `/review` or `/deploy` directly in discussions.
+
+## When to Use ChatOps
+
+- **Interactive code reviews** - `/review` to analyze PR changes on demand
+- **On-demand deployments** - `/deploy staging` when you're ready
+- **Assisted analysis** - `/analyze` for specific investigations
+- **Team collaboration** - Shared commands everyone can use
 
 ```aw wrap
 ---

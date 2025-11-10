@@ -41,10 +41,10 @@ import FeatureGrid from '../../components/FeatureGrid.astro';
 ## Key Features
 
 <FeatureGrid columns={3}>
-  <FeatureCard icon="pencil" title="Natural Language Workflows" href="/gh-aw/get-started/about/#natural-language-to-github-actions">
+  <FeatureCard icon="pencil" title="Natural Language Workflows" href="/gh-aw/introduction/overview/#natural-language-to-github-actions">
     Write automation in markdown instead of complex YAML
   </FeatureCard>
-  <FeatureCard icon="cpu" title="AI-Powered Decision Making" href="/gh-aw/get-started/concepts/#ai-engines">
+  <FeatureCard icon="cpu" title="AI-Powered Decision Making" href="/gh-aw/introduction/how-it-works/#core-concepts">
     Workflows that understand context and adapt to situations
   </FeatureCard>
   <FeatureCard icon="mark-github" title="GitHub Integration" href="/gh-aw/reference/tools/#github-tools-github">
@@ -56,24 +56,36 @@ import FeatureGrid from '../../components/FeatureGrid.astro';
   <FeatureCard icon="beaker" title="Multiple AI Engines" href="/gh-aw/reference/engines/">
     Support for Claude, Codex, and custom AI processors
   </FeatureCard>
-  <FeatureCard icon="workflow" title="Continuous AI" href="/gh-aw/get-started/concepts/">
+  <FeatureCard icon="workflow" title="Continuous AI" href="/gh-aw/introduction/how-it-works/">
     Systematic, automated application of AI to software collaboration
   </FeatureCard>
 </FeatureGrid>
 
-## Application Areas
+## Workflow Examples
 
 <FeatureGrid columns={3}>
-  <FeatureCard icon="graph" title="Research & Planning" badge="automated" href="/gh-aw/samples/research-planning/">
-    Research, team coordination, and project planning with automated intelligence gathering.
+  <FeatureCard icon="comment" title="ChatOps" badge="command" href="/gh-aw/examples/comment-triggered/chatops/">
+    Interactive automation triggered by slash commands like /review and /deploy
   </FeatureCard>
-  <FeatureCard icon="issue-opened" title="Triage & Analysis" badge="automated" href="/gh-aw/samples/triage-analysis/">
-    Issue management, accessibility reviews, and CI failure investigation.
+  <FeatureCard icon="issue-opened" title="IssueOps" badge="automated" href="/gh-aw/examples/issue-pr-events/issueops/">
+    Auto-triage and respond to issues as they're created
   </FeatureCard>
-  <FeatureCard icon="code" title="Coding & Development" badge="semi-automated" href="/gh-aw/samples/coding-development/">
-    Dependency management, documentation updates, and pull request assistance.
+  <FeatureCard icon="tag" title="LabelOps" badge="automated" href="/gh-aw/examples/issue-pr-events/labelops/">
+    Workflows triggered by label changes on issues and PRs
   </FeatureCard>
-  <FeatureCard icon="check-circle" title="Quality & Testing" badge="semi-automated" href="/gh-aw/samples/quality-testing/">
-    Test coverage improvement and performance optimization.
+  <FeatureCard icon="calendar" title="DailyOps" badge="scheduled" href="/gh-aw/examples/scheduled/dailyops/">
+    Small daily improvements that compound over time
+  </FeatureCard>
+  <FeatureCard icon="graph" title="Research & Planning" badge="scheduled" href="/gh-aw/examples/scheduled/research-planning/">
+    Weekly research reports and automated team status updates
+  </FeatureCard>
+  <FeatureCard icon="beaker" title="Triage & Analysis" badge="automated" href="/gh-aw/examples/issue-pr-events/triage-analysis/">
+    Intelligent issue triage and CI failure investigation
+  </FeatureCard>
+  <FeatureCard icon="code" title="Coding & Development" badge="automated" href="/gh-aw/examples/issue-pr-events/coding-development/">
+    PR assistance and automated dependency updates
+  </FeatureCard>
+  <FeatureCard icon="check-circle" title="Quality & Testing" badge="automated" href="/gh-aw/examples/issue-pr-events/quality-testing/">
+    Test coverage improvements and performance optimization
   </FeatureCard>
 </FeatureGrid>

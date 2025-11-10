@@ -41,8 +41,8 @@ import { chromium } from 'playwright';
   ];
 
   const pages = [
-    { url: 'http://localhost:4321/gh-aw/', name: 'homepage' },
-    { url: 'http://localhost:4321/gh-aw/get-started/about/', name: 'content' },
+    { url: 'http://localhost:4321/gh-aw/', name: 'home' },
+    { url: 'http://localhost:4321/gh-aw/introduction/overview/', name: 'content' },
   ];
 
   for (const formFactor of formFactors) {

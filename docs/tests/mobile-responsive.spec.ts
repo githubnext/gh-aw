@@ -9,8 +9,8 @@ test.describe('Mobile and Responsive Layout', () => {
   ];
 
   const pages = [
-    { url: '/gh-aw/', name: 'homepage' },
-    { url: '/gh-aw/get-started/about/', name: 'content page' },
+    { url: '/gh-aw/', name: 'home page' },
+    { url: '/gh-aw/introduction/overview/', name: 'content page' },
   ];
 
   for (const formFactor of formFactors) {
@@ -47,7 +47,7 @@ test.describe('Mobile and Responsive Layout', () => {
 
       test('should have proper content spacing on mobile', async ({ page }) => {
         if (formFactor.width <= 768) {
-          await page.goto('/gh-aw/get-started/about/');
+          await page.goto('/gh-aw/introduction/overview/');
           await page.waitForLoadState('networkidle');
 
           // Content should have proper padding
