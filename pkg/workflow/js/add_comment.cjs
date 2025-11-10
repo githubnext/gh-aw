@@ -2,7 +2,8 @@
 /// <reference types="@actions/github-script" />
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { generateFooter, getRepositoryUrl } = require("./comment_helpers.cjs");
+const { generateFooter } = require("./generate_footer.cjs");
+const { getRepositoryUrl } = require("./get_repository_url.cjs");
 
 /**
  * Comment on a GitHub Discussion using GraphQL

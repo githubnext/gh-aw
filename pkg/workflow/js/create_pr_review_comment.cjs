@@ -3,7 +3,8 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
-const { generateFooter, getRepositoryUrl } = require("./comment_helpers.cjs");
+const { generateFooter } = require("./generate_footer.cjs");
+const { getRepositoryUrl } = require("./get_repository_url.cjs");
 
 async function main() {
   // Check if we're in staged mode

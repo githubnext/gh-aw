@@ -4,7 +4,7 @@
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
-const { generateFooter } = require("./comment_helpers.cjs");
+const { generateFooter } = require("./generate_footer.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
