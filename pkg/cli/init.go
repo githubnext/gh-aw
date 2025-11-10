@@ -12,7 +12,7 @@ import (
 var initLog = logger.New("cli:init")
 
 // InitRepository initializes the repository for agentic workflows
-func InitRepository(verbose bool, mcp bool, projectBoard bool) error {
+func InitRepository(verbose bool, mcp bool) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
 
 	// Ensure we're in a git repository
@@ -99,29 +99,6 @@ func InitRepository(verbose bool, mcp bool, projectBoard bool) error {
 		}
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .vscode/mcp.json"))
-		}
-	}
-
-	// Configure project board if requested
-	if projectBoard {
-		initLog.Print("Configuring project board observability platform")
-
-		// Create orchestrator workflow
-		if err := ensureProjectBoardOrchestrator(verbose); err != nil {
-			initLog.Printf("Failed to create orchestrator workflow: %v", err)
-			return fmt.Errorf("failed to create orchestrator workflow: %w", err)
-		}
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created orchestrator workflow"))
-		}
-
-		// Create issue templates
-		if err := ensureIssueTemplates(verbose); err != nil {
-			initLog.Printf("Failed to create issue templates: %v", err)
-			return fmt.Errorf("failed to create issue templates: %w", err)
-		}
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created issue templates"))
 		}
 	}
 
