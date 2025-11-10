@@ -54,7 +54,7 @@ func getEcosystemDomains(category string) []string {
 // Returns empty slice if network permissions configured but no domains allowed (deny all)
 // Returns domain list if network permissions configured with allowed domains
 // Supports ecosystem identifiers:
-//   - "defaults": basic infrastructure (certs, JSON schema, Ubuntu, common package mirrors, Microsoft sources)
+//   - "defaults": basic infrastructure (certs, JSON schema, Ubuntu, common package mirrors, Microsoft sources, Go, Node, Python)
 //   - "containers": container registries (Docker, GitHub Container Registry, etc.)
 //   - "dotnet": .NET and NuGet ecosystem
 //   - "dart": Dart/Flutter ecosystem
