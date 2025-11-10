@@ -179,7 +179,7 @@ jobs:
                     try {
                       const { data: pr } = await github.rest.pulls.get({
                         owner: github.context.repo.owner,
-                        repo: github.context.repo.repo,
+                        repo: github.context.repo.name,
                         pull_number: prNumber,
                       });
                       sha = pr.head.sha;
@@ -208,12 +208,12 @@ jobs:
                 core.info(`Workflow: ${workflowName}`);
                 await github.rest.repos.createCommitStatus({
                   owner: github.context.repo.owner,
-                  repo: github.context.repo.repo,
+                  repo: github.context.repo.name,
                   sha: sha,
                   state: "pending",
                   context: statusContext,
                   description: `${workflowName} is running...`,
-                  target_url: `${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.repo}/actions/runs/${github.context.runId}`,
+                  target_url: `${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.name}/actions/runs/${github.context.runId}`,
                 });
                 core.info("✓ Successfully created pending commit status");
                 core.setOutput("status_context", statusContext);
@@ -4146,7 +4146,7 @@ jobs:
                 core.info(`Description: ${description}`);
                 await github.rest.repos.createCommitStatus({
                   owner: github.context.repo.owner,
-                  repo: github.context.repo.repo,
+                  repo: github.context.repo.name,
                   sha: sha,
                   state: state,
                   context: statusContext,
