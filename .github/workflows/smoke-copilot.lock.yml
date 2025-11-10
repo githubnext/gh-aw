@@ -4064,8 +4064,6 @@ jobs:
               footer += "\n";
               return footer;
             }
-              generateFooter,
-            };
             async function main() {
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
