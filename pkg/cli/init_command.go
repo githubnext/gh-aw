@@ -30,6 +30,11 @@ With --mcp flag:
 - Creates .github/workflows/copilot-setup-steps.yml with gh-aw installation steps
 - Creates .vscode/mcp.json with gh-aw MCP server configuration
 
+With --project-board flag:
+- Creates orchestrator workflow that manages project board and issues
+- Creates issue templates for workflow starters
+- Sets up universal observability platform for all workflows
+
 After running this command, you can:
 - Use GitHub Copilot Chat with @.github/agents/create-agentic-workflow.md to create workflows interactively
 - Use GitHub Copilot Chat with @.github/agents/setup-agentic-workflows.md for setup guidance
@@ -39,12 +44,14 @@ After running this command, you can:
 Examples:
   ` + constants.CLIExtensionPrefix + ` init
   ` + constants.CLIExtensionPrefix + ` init -v
-  ` + constants.CLIExtensionPrefix + ` init --mcp`,
+  ` + constants.CLIExtensionPrefix + ` init --mcp
+  ` + constants.CLIExtensionPrefix + ` init --project-board`,
 		Run: func(cmd *cobra.Command, args []string) {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			mcp, _ := cmd.Flags().GetBool("mcp")
-			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v", verbose, mcp)
-			if err := InitRepository(verbose, mcp); err != nil {
+			projectBoard, _ := cmd.Flags().GetBool("project-board")
+			initCommandLog.Printf("Executing init command: verbose=%v, mcp=%v, projectBoard=%v", verbose, mcp, projectBoard)
+			if err := InitRepository(verbose, mcp, projectBoard); err != nil {
 				initCommandLog.Printf("Init command failed: %v", err)
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
@@ -54,6 +61,7 @@ Examples:
 	}
 
 	cmd.Flags().Bool("mcp", false, "Configure GitHub Copilot Agent MCP server integration")
+	cmd.Flags().Bool("project-board", false, "Set up project board steering/observability platform")
 
 	return cmd
 }
