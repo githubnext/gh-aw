@@ -18,6 +18,13 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 			"archive.ubuntu.com",     // Ubuntu
 			"packagecloud.io",        // Common Package Mirrors
 			"packages.microsoft.com", // Microsoft Sources
+			"golang.org",             // Go ecosystem
+			"proxy.golang.org",       // Go proxy
+			"sum.golang.org",         // Go checksum database
+			"npmjs.org",              // Node ecosystem
+			"registry.npmjs.org",     // NPM registry
+			"pypi.org",               // Python ecosystem
+			"files.pythonhosted.org", // Python files
 		}
 
 		for _, expectedDomain := range expectedDomains {
@@ -38,9 +45,6 @@ func TestEcosystemDomainExpansion(t *testing.T) {
 			"ghcr.io",    // Container registries
 			"nuget.org",  // .NET
 			"github.com", // GitHub (not in defaults anymore)
-			"golang.org", // Go
-			"npmjs.org",  // Node
-			"pypi.org",   // Python
 		}
 
 		for _, excludedDomain := range excludedDomains {

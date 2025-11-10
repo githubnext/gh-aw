@@ -33,7 +33,14 @@
     "api.snapcraft.io",
     "packagecloud.io",
     "packages.cloud.google.com",
-    "packages.microsoft.com"
+    "packages.microsoft.com",
+    "golang.org",
+    "proxy.golang.org",
+    "sum.golang.org",
+    "npmjs.org",
+    "registry.npmjs.org",
+    "pypi.org",
+    "files.pythonhosted.org"
   ],
   "containers": [
     "ghcr.io",
