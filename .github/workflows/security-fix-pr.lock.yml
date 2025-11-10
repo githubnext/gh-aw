@@ -3752,8 +3752,6 @@ jobs:
                 core.warning(`Failed to update activation comment: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
-              updateActivationComment,
-            };
             function generatePatchPreview(patchContent) {
               if (!patchContent || !patchContent.trim()) {
                 return "";
