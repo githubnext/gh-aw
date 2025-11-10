@@ -192,7 +192,6 @@ type WorkflowData struct {
 	ActionResolver      *ActionResolver        // resolver for action pins
 	StrictMode          bool                   // strict mode for action pinning
 	SecretMasking       *SecretMaskingConfig   // secret masking configuration
-	CampaignProject     *CampaignProjectConfig // campaign project board configuration
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
@@ -771,14 +770,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract SafeOutputs configuration early so we can use it when applying default tools
 	safeOutputs := c.extractSafeOutputsConfig(result.Frontmatter)
 
-	// Extract Campaign Project configuration
-	var campaignProject *CampaignProjectConfig
-	if campaign, exists := result.Frontmatter["campaign"]; exists {
-		if campaignMap, ok := campaign.(map[string]any); ok {
-			campaignProject = c.parseCampaignProjectConfig(campaignMap)
-		}
-	}
-
 	// Extract SecretMasking configuration
 	secretMasking := c.extractSecretMaskingConfig(result.Frontmatter)
 
@@ -962,7 +953,6 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		GitHubToken:         extractStringValue(result.Frontmatter, "github-token"),
 		StrictMode:          c.strictMode,
 		SecretMasking:       secretMasking,
-		CampaignProject:     campaignProject,
 	}
 
 	// Initialize action cache and resolver

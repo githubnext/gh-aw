@@ -346,19 +346,6 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, createAgentTaskJob.Name)
 	}
 
-	// Build campaign_project job if campaign.project is configured
-	if data.CampaignProject != nil {
-		campaignProjectJob, err := c.buildCampaignProjectJob(data, jobName)
-		if err != nil {
-			return fmt.Errorf("failed to build campaign_project job: %w", err)
-		}
-		// Campaign project job doesn't need detection dependency as it runs with always()
-		if err := c.jobManager.AddJob(campaignProjectJob); err != nil {
-			return fmt.Errorf("failed to add campaign_project job: %w", err)
-		}
-		// Note: Not added to safeOutputJobNames as it uses always() condition
-	}
-
 	// Build update_reaction job if add-comment is configured OR if command trigger is configured with reactions
 	// This job runs last, after all safe output jobs, to update the activation comment on failure
 	// The buildUpdateReactionJob function itself will decide whether to create the job based on the configuration

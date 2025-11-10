@@ -118,9 +118,6 @@ var uploadAssetsScriptSource string
 //go:embed js/parse_firewall_logs.cjs
 var parseFirewallLogsScriptSource string
 
-//go:embed js/project_board.cjs
-var projectBoardScriptSource string
-
 // Bundled scripts (lazily bundled on-demand and cached)
 var (
 	collectJSONLOutputScript     string
@@ -152,9 +149,6 @@ var (
 
 	addCommentScript     string
 	addCommentScriptOnce sync.Once
-
-	projectBoardScript     string
-	projectBoardScriptOnce sync.Once
 
 	uploadAssetsScript     string
 	uploadAssetsScriptOnce sync.Once
@@ -261,6 +255,8 @@ func getParseFirewallLogsScript() string {
 	})
 	return parseFirewallLogsScript
 }
+
+// GetCreateProjectScript returns the bundled create_project script
 
 // getCreateDiscussionScript returns the bundled create_discussion script
 // Bundling is performed on first access and cached for subsequent calls
@@ -796,18 +792,3 @@ func GetSafeOutputsMCPServerScript() string {
 	return safeOutputsMCPServerScript
 }
 
-// getProjectBoardScript returns the bundled project_board script
-// Bundling is performed on first access and cached for subsequent calls
-func getProjectBoardScript() string {
-	projectBoardScriptOnce.Do(func() {
-		sources := GetJavaScriptSources()
-		bundled, err := BundleJavaScriptFromSources(projectBoardScriptSource, sources, "")
-		if err != nil {
-			// If bundling fails, use the source as-is
-			projectBoardScript = projectBoardScriptSource
-		} else {
-			projectBoardScript = bundled
-		}
-	})
-	return projectBoardScript
-}
