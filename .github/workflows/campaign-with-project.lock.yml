@@ -3520,7 +3520,7 @@ jobs:
           GH_AW_PROJECT_VIEW: "board"
           GH_AW_PROJECT_STATUS_FIELD: "Status"
           GH_AW_PROJECT_AGENT_FIELD: "Agent"
-          GH_AW_PROJECT_FIELDS: "{\"started-at\":\"${{ github.event.repository.updated_at }}\",\"agent-name\":\"${{ github.job }}\",\"campaign-id\":\"${{ github.run_id }}\"}"
+          GH_AW_PROJECT_FIELDS: "{\"agent-name\":\"${{ github.job }}\",\"campaign-id\":\"${{ github.run_id }}\",\"started-at\":\"${{ github.event.repository.updated_at }}\"}"
           GH_AW_PROJECT_INSIGHTS: "agent-velocity,campaign-progress"
           GH_AW_PROJECT_CUSTOM_FIELDS: "[{\"name\":\"Priority\",\"type\":\"single_select\",\"value\":\"Medium\",\"description\":\"Research priority level\",\"options\":[\"Critical\",\"High\",\"Medium\",\"Low\"]},{\"name\":\"Effort (hours)\",\"type\":\"number\",\"value\":\"4\",\"description\":\"Estimated research effort in hours\"},{\"name\":\"Due Date\",\"type\":\"date\",\"value\":\"${{ github.event.repository.updated_at }}\",\"description\":\"Research completion target\"},{\"name\":\"Team\",\"type\":\"single_select\",\"value\":\"Research\",\"options\":[\"Research\",\"Engineering\",\"Product\",\"Design\"]},{\"name\":\"Tags\",\"type\":\"text\",\"value\":\"AI, Research, Ethics\"}]"
         with:
@@ -3596,9 +3596,13 @@ jobs:
                 core.info(`Owner type: ${ownerType}, ID: ${ownerId}`);
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                if (errorMessage.includes("does not have permission") || errorMessage.includes("Resource not accessible")) {
-                  core.warning(`⚠️  GitHub Actions token does not have permission to manage projects. Project board features will be skipped.`);
-                  core.warning(`💡 To enable project boards, provide a personal access token with 'project' scope via the 'github-token' field in your workflow configuration.`);
+                if (errorMessage.includes("INSUFFICIENT_SCOPES") || 
+                    errorMessage.includes("read:project") || 
+                    errorMessage.includes("does not have permission") || 
+                    errorMessage.includes("Resource not accessible")) {
+                  core.warning(`⚠️  GitHub token does not have the required 'project' scope. Project board features will be skipped.`);
+                  core.warning(`💡 To enable project boards, provide a personal access token with 'project' scope.`);
+                  core.warning(`   Visit: https://github.com/settings/tokens to add 'project' scope to your token.`);
                   core.info(`✓ Workflow will continue without project board integration.`);
                   return; 
                 }
@@ -3654,7 +3658,16 @@ jobs:
                   core.info(`Created project #${project.number}: ${project.url}`);
                 }
               } catch (error) {
-                core.error(`Failed to find/create project: ${error instanceof Error ? error.message : String(error)}`);
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                if (errorMessage.includes("INSUFFICIENT_SCOPES") || 
+                    errorMessage.includes("read:project") || 
+                    errorMessage.includes("does not have permission") || 
+                    errorMessage.includes("Resource not accessible")) {
+                  core.warning(`⚠️  Cannot create/access project board - insufficient permissions. Skipping project board features.`);
+                  core.warning(`💡 To enable: provide a personal access token with 'project' scope.`);
+                  return; 
+                }
+                core.error(`Failed to find/create project: ${errorMessage}`);
                 throw error;
               }
               let customFieldsConfig = [];
@@ -3814,6 +3827,7 @@ jobs:
                           variables.options = customField.options.map(( opt) => ({
                             name: opt,
                             color: "GRAY",
+                            description: "",
                           }));
                         } else {
                           core.warning(`Skipping single_select field ${customField.name}: no options provided`);

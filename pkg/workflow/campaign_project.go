@@ -6,14 +6,14 @@ import (
 
 // CampaignProjectConfig holds configuration for creating and managing GitHub Projects v2 boards for campaigns
 type CampaignProjectConfig struct {
-	Name         string                       `yaml:"name"`                     // Project name (supports template expressions like {{campaign.id}})
-	View         string                       `yaml:"view,omitempty"`           // Project view type: board, table, or roadmap (default: board)
-	StatusField  string                       `yaml:"status-field"`             // Name of the status field (default: Status)
-	AgentField   string                       `yaml:"agent-field,omitempty"`    // Name of the agent field (default: Agent)
-	Fields       map[string]string            `yaml:"fields,omitempty"`         // Simple text fields to add to project items
-	CustomFields []CampaignProjectCustomField `yaml:"custom-fields,omitempty"`  // Advanced custom fields for analytics (number, date, select, iteration)
-	Insights     []string                     `yaml:"insights,omitempty"`       // Insights to generate: agent-velocity, campaign-progress, bottlenecks
-	GitHubToken  string                       `yaml:"github-token,omitempty"`   // GitHub token for project operations
+	Name         string                       `yaml:"name"`                    // Project name (supports template expressions like {{campaign.id}})
+	View         string                       `yaml:"view,omitempty"`          // Project view type: board, table, or roadmap (default: board)
+	StatusField  string                       `yaml:"status-field"`            // Name of the status field (default: Status)
+	AgentField   string                       `yaml:"agent-field,omitempty"`   // Name of the agent field (default: Agent)
+	Fields       map[string]string            `yaml:"fields,omitempty"`        // Simple text fields to add to project items
+	CustomFields []CampaignProjectCustomField `yaml:"custom-fields,omitempty"` // Advanced custom fields for analytics (number, date, select, iteration)
+	Insights     []string                     `yaml:"insights,omitempty"`      // Insights to generate: agent-velocity, campaign-progress, bottlenecks
+	GitHubToken  string                       `yaml:"github-token,omitempty"`  // GitHub token for project operations
 }
 
 // CampaignProjectCustomField defines a custom field for advanced analytics

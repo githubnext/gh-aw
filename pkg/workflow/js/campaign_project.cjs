@@ -72,10 +72,12 @@ async function main() {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     // Check for insufficient scopes or permission errors
-    if (errorMessage.includes("INSUFFICIENT_SCOPES") || 
-        errorMessage.includes("read:project") || 
-        errorMessage.includes("does not have permission") || 
-        errorMessage.includes("Resource not accessible")) {
+    if (
+      errorMessage.includes("INSUFFICIENT_SCOPES") ||
+      errorMessage.includes("read:project") ||
+      errorMessage.includes("does not have permission") ||
+      errorMessage.includes("Resource not accessible")
+    ) {
       core.warning(`⚠️  GitHub token does not have the required 'project' scope. Project board features will be skipped.`);
       core.warning(`💡 To enable project boards, provide a personal access token with 'project' scope.`);
       core.warning(`   Visit: https://github.com/settings/tokens to add 'project' scope to your token.`);
@@ -147,10 +149,12 @@ async function main() {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     // Check for insufficient scopes or permission errors
-    if (errorMessage.includes("INSUFFICIENT_SCOPES") || 
-        errorMessage.includes("read:project") || 
-        errorMessage.includes("does not have permission") || 
-        errorMessage.includes("Resource not accessible")) {
+    if (
+      errorMessage.includes("INSUFFICIENT_SCOPES") ||
+      errorMessage.includes("read:project") ||
+      errorMessage.includes("does not have permission") ||
+      errorMessage.includes("Resource not accessible")
+    ) {
       core.warning(`⚠️  Cannot create/access project board - insufficient permissions. Skipping project board features.`);
       core.warning(`💡 To enable: provide a personal access token with 'project' scope.`);
       return; // Exit gracefully
@@ -336,6 +340,7 @@ async function main() {
               variables.options = customField.options.map((/** @type {string} */ opt) => ({
                 name: opt,
                 color: "GRAY",
+                description: "",
               }));
             } else {
               core.warning(`Skipping single_select field ${customField.name}: no options provided`);
@@ -607,7 +612,9 @@ async function main() {
 
               case "single_select":
                 if (fieldInfo.options) {
-                  const option = fieldInfo.options.find((/** @type {{id: string, name: string}} */ o) => o.name === customFieldConfig.value);
+                  const option = fieldInfo.options.find(
+                    (/** @type {{id: string, name: string}} */ o) => o.name === customFieldConfig.value
+                  );
                   if (option) {
                     mutation = `
                       mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
