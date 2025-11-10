@@ -3520,7 +3520,7 @@ jobs:
           GH_AW_PROJECT_VIEW: "board"
           GH_AW_PROJECT_STATUS_FIELD: "Status"
           GH_AW_PROJECT_AGENT_FIELD: "Agent"
-          GH_AW_PROJECT_FIELDS: "{\"agent-name\":\"${{ github.job }}\",\"campaign-id\":\"${{ github.run_id }}\",\"started-at\":\"${{ github.event.repository.updated_at }}\"}"
+          GH_AW_PROJECT_FIELDS: "{\"campaign-id\":\"${{ github.run_id }}\",\"started-at\":\"${{ github.event.repository.updated_at }}\",\"agent-name\":\"${{ github.job }}\"}"
           GH_AW_PROJECT_INSIGHTS: "agent-velocity,campaign-progress"
           GH_AW_PROJECT_CUSTOM_FIELDS: "[{\"name\":\"Priority\",\"type\":\"single_select\",\"value\":\"Medium\",\"description\":\"Research priority level\",\"options\":[\"Critical\",\"High\",\"Medium\",\"Low\"]},{\"name\":\"Effort (hours)\",\"type\":\"number\",\"value\":\"4\",\"description\":\"Estimated research effort in hours\"},{\"name\":\"Due Date\",\"type\":\"date\",\"value\":\"${{ github.event.repository.updated_at }}\",\"description\":\"Research completion target\"},{\"name\":\"Team\",\"type\":\"single_select\",\"value\":\"Research\",\"options\":[\"Research\",\"Engineering\",\"Product\",\"Design\"]},{\"name\":\"Tags\",\"type\":\"text\",\"value\":\"AI, Research, Ethics\"}]"
         with:
@@ -3578,7 +3578,8 @@ jobs:
               const view = process.env.GH_AW_PROJECT_VIEW || "board";
               core.info(`Managing campaign project: ${projectName}`);
               core.info(`Status field: ${statusField}, Agent field: ${agentField}, View: ${view}`);
-              const owner = context.repo.owner;
+              const owner = process.env.GH_AW_HOST_REPO_OWNER || context.repo.owner;
+              core.info(`Project owner: ${owner} (host: ${process.env.GH_AW_HOST_REPO_OWNER || "not set"})`);
               let ownerType = "USER";
               let ownerId;
               try {
@@ -3596,10 +3597,12 @@ jobs:
                 core.info(`Owner type: ${ownerType}, ID: ${ownerId}`);
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                if (errorMessage.includes("INSUFFICIENT_SCOPES") || 
-                    errorMessage.includes("read:project") || 
-                    errorMessage.includes("does not have permission") || 
-                    errorMessage.includes("Resource not accessible")) {
+                if (
+                  errorMessage.includes("INSUFFICIENT_SCOPES") ||
+                  errorMessage.includes("read:project") ||
+                  errorMessage.includes("does not have permission") ||
+                  errorMessage.includes("Resource not accessible")
+                ) {
                   core.warning(`⚠️  GitHub token does not have the required 'project' scope. Project board features will be skipped.`);
                   core.warning(`💡 To enable project boards, provide a personal access token with 'project' scope.`);
                   core.warning(`   Visit: https://github.com/settings/tokens to add 'project' scope to your token.`);
@@ -3659,16 +3662,58 @@ jobs:
                 }
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                if (errorMessage.includes("INSUFFICIENT_SCOPES") || 
-                    errorMessage.includes("read:project") || 
-                    errorMessage.includes("does not have permission") || 
-                    errorMessage.includes("Resource not accessible")) {
+                if (
+                  errorMessage.includes("INSUFFICIENT_SCOPES") ||
+                  errorMessage.includes("read:project") ||
+                  errorMessage.includes("does not have permission") ||
+                  errorMessage.includes("Resource not accessible")
+                ) {
                   core.warning(`⚠️  Cannot create/access project board - insufficient permissions. Skipping project board features.`);
                   core.warning(`💡 To enable: provide a personal access token with 'project' scope.`);
                   return; 
                 }
                 core.error(`Failed to find/create project: ${errorMessage}`);
                 throw error;
+              }
+              try {
+                const hostRepoOwner = process.env.GH_AW_HOST_REPO_OWNER || context.repo.owner;
+                const hostRepoName = process.env.GH_AW_HOST_REPO_NAME || context.repo.repo;
+                const repoQuery = `
+                  query($owner: String!, $name: String!) {
+                    repository(owner: $owner, name: $name) {
+                      id
+                    }
+                  }
+                `;
+                const repoResult = await github.graphql(repoQuery, {
+                  owner: hostRepoOwner,
+                  name: hostRepoName,
+                });
+                const repositoryId = repoResult.repository.id;
+                const linkMutation = `
+                  mutation($projectId: ID!, $repositoryId: ID!) {
+                    linkProjectV2ToRepository(input: {
+                      projectId: $projectId,
+                      repositoryId: $repositoryId
+                    }) {
+                      repository {
+                        id
+                      }
+                    }
+                  }
+                `;
+                await github.graphql(linkMutation, {
+                  projectId: project.id,
+                  repositoryId: repositoryId,
+                });
+                core.info(`✓ Linked project to repository ${hostRepoOwner}/${hostRepoName}`);
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                if (errorMessage.includes("already linked") || errorMessage.includes("Project is already linked")) {
+                  core.info(`Project already linked to repository`);
+                } else {
+                  core.warning(`Failed to link project to repository: ${errorMessage}`);
+                }
               }
               let customFieldsConfig = [];
               const customFieldsJSON = process.env.GH_AW_PROJECT_CUSTOM_FIELDS;
@@ -4059,7 +4104,9 @@ jobs:
                             break;
                           case "single_select":
                             if (fieldInfo.options) {
-                              const option = fieldInfo.options.find(( o) => o.name === customFieldConfig.value);
+                              const option = fieldInfo.options.find(
+                                ( o) => o.name === customFieldConfig.value
+                              );
                               if (option) {
                                 mutation = `
                                   mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {

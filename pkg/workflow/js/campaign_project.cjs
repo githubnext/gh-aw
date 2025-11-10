@@ -50,7 +50,9 @@ async function main() {
   core.info(`Status field: ${statusField}, Agent field: ${agentField}, View: ${view}`);
 
   // Get organization or user login for project operations
-  const owner = context.repo.owner;
+  // Use host repo owner if available (for trial/remote workflows), otherwise workflow repo owner
+  const owner = process.env.GH_AW_HOST_REPO_OWNER || context.repo.owner;
+  core.info(`Project owner: ${owner} (host: ${process.env.GH_AW_HOST_REPO_OWNER || "not set"})`);
 
   // Determine if this is an organization or user
   let ownerType = "USER";
@@ -161,6 +163,55 @@ async function main() {
     }
     core.error(`Failed to find/create project: ${errorMessage}`);
     throw error;
+  }
+
+  // Link project to repository so it appears in the repo's Projects tab
+  try {
+    // Get repository node ID
+    const hostRepoOwner = process.env.GH_AW_HOST_REPO_OWNER || context.repo.owner;
+    const hostRepoName = process.env.GH_AW_HOST_REPO_NAME || context.repo.repo;
+
+    const repoQuery = `
+      query($owner: String!, $name: String!) {
+        repository(owner: $owner, name: $name) {
+          id
+        }
+      }
+    `;
+    const repoResult = await github.graphql(repoQuery, {
+      owner: hostRepoOwner,
+      name: hostRepoName,
+    });
+    const repositoryId = repoResult.repository.id;
+
+    // Link the project to the repository
+    const linkMutation = `
+      mutation($projectId: ID!, $repositoryId: ID!) {
+        linkProjectV2ToRepository(input: {
+          projectId: $projectId,
+          repositoryId: $repositoryId
+        }) {
+          repository {
+            id
+          }
+        }
+      }
+    `;
+
+    await github.graphql(linkMutation, {
+      projectId: project.id,
+      repositoryId: repositoryId,
+    });
+
+    core.info(`✓ Linked project to repository ${hostRepoOwner}/${hostRepoName}`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    // If already linked, that's fine - just log it
+    if (errorMessage.includes("already linked") || errorMessage.includes("Project is already linked")) {
+      core.info(`Project already linked to repository`);
+    } else {
+      core.warning(`Failed to link project to repository: ${errorMessage}`);
+    }
   }
 
   // Parse custom fields configuration
