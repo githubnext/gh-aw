@@ -36,7 +36,10 @@
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
         {"$ref": "#/$defs/CreateDiscussionOutput"},
         {"$ref": "#/$defs/MissingToolOutput"},
-        {"$ref": "#/$defs/CreateCodeScanningAlertOutput"}
+        {"$ref": "#/$defs/CreateCodeScanningAlertOutput"},
+        {"$ref": "#/$defs/CreateProjectOutput"},
+        {"$ref": "#/$defs/AddProjectItemOutput"},
+        {"$ref": "#/$defs/UpdateProjectItemOutput"}
       ]
     },
     "CreateIssueOutput": {
@@ -303,6 +306,104 @@
         }
       },
       "required": ["type", "sarif"],
+      "additionalProperties": false
+    },
+    "CreateProjectOutput": {
+      "title": "Create Project Output",
+      "description": "Output for creating or finding a GitHub Projects v2 board",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "create-project"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the project board",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description of the project"
+        }
+      },
+      "required": ["type", "title"],
+      "additionalProperties": false
+    },
+    "AddProjectItemOutput": {
+      "title": "Add Project Item Output",
+      "description": "Output for adding an item (issue, PR, or draft) to a project board",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "add-project-item"
+        },
+        "project": {
+          "type": "string",
+          "description": "Project title or number to add item to",
+          "minLength": 1
+        },
+        "content_type": {
+          "type": "string",
+          "enum": ["issue", "pull_request", "draft"],
+          "description": "Type of content to add"
+        },
+        "content_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Issue or PR number (required for issue/pull_request types)"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title for draft items (required when content_type is 'draft')"
+        },
+        "body": {
+          "type": "string",
+          "description": "Body content for draft items"
+        },
+        "fields": {
+          "type": "object",
+          "description": "Custom field values to set on the item",
+          "additionalProperties": true
+        }
+      },
+      "required": ["type", "project", "content_type"],
+      "additionalProperties": false
+    },
+    "UpdateProjectItemOutput": {
+      "title": "Update Project Item Output",
+      "description": "Output for updating field values on a project item",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "update-project-item"
+        },
+        "project": {
+          "type": "string",
+          "description": "Project title or number containing the item",
+          "minLength": 1
+        },
+        "content_type": {
+          "type": "string",
+          "enum": ["issue", "pull_request"],
+          "description": "Type of content to update"
+        },
+        "content_number": {
+          "oneOf": [
+            {"type": "number"},
+            {"type": "string"}
+          ],
+          "description": "Issue or PR number to find and update"
+        },
+        "fields": {
+          "type": "object",
+          "description": "Field values to update",
+          "additionalProperties": true,
+          "minProperties": 1
+        }
+      },
+      "required": ["type", "project", "content_type", "content_number", "fields"],
       "additionalProperties": false
     }
   }

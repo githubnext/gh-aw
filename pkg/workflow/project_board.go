@@ -242,7 +242,7 @@ func (c *Compiler) buildCampaignProjectJob(data *WorkflowData, mainJobName strin
 		StepID:        "campaign_project",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
-		Script:        getCampaignProjectScript(),
+		Script:        getProjectBoardScript(),
 		Token:         token,
 	})
 
