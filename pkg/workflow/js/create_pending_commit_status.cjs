@@ -7,34 +7,39 @@
  */
 
 async function main() {
+  const statusContext = process.env.GH_AW_COMMIT_STATUS_CONTEXT || "agentic-workflow";
+  const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Workflow";
+  
+  // Determine the SHA from the GitHub context
+  let sha;
+  
   try {
-    const statusContext = process.env.GH_AW_COMMIT_STATUS_CONTEXT || "agentic-workflow";
-    const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Workflow";
-    
-    // Determine the SHA from the GitHub context
-    let sha;
-    
     // Try to get SHA from pull request head (for pull_request and pull_request_target events)
     if (github.context.payload.pull_request && github.context.payload.pull_request.head && github.context.payload.pull_request.head.sha) {
       sha = github.context.payload.pull_request.head.sha;
       core.info(`Using SHA from PR head: ${sha}`);
     }
     // Try to get SHA from issue events that have associated pull request
-    else if (github.context.payload.issue && github.context.payload.issue.pull_request) {
-      // For issue events on PRs, we need to fetch the PR to get the head SHA
-      const prNumber = github.context.payload.issue.number;
-      core.info(`Fetching PR #${prNumber} to get head SHA...`);
-      try {
-        const { data: pr } = await github.rest.pulls.get({
-          owner: github.context.repo.owner,
-          repo: github.context.repo.repo,
-          pull_number: prNumber,
-        });
-        sha = pr.head.sha;
-        core.info(`Using SHA from PR #${prNumber} head: ${sha}`);
-      } catch (prError) {
-        core.warning(`Failed to fetch PR #${prNumber}: ${prError instanceof Error ? prError.message : String(prError)}`);
-        // Continue to fallback options
+    // Check if this is a PR-related issue event by verifying the pull_request property exists
+    if (!sha && github.context.payload.issue && github.context.payload.issue.number) {
+      // Check if there's a pull_request field (even if just an object with url)
+      // This indicates the issue is actually a pull request
+      if (github.context.payload.issue.pull_request && typeof github.context.payload.issue.pull_request === 'object') {
+        // For issue events on PRs, we need to fetch the PR to get the head SHA
+        const prNumber = github.context.payload.issue.number;
+        core.info(`Fetching PR #${prNumber} to get head SHA...`);
+        try {
+          const { data: pr } = await github.rest.pulls.get({
+            owner: github.context.repo.owner,
+            repo: github.context.repo.name,
+            pull_number: prNumber,
+          });
+          sha = pr.head.sha;
+          core.info(`Using SHA from PR #${prNumber} head: ${sha}`);
+        } catch (prError) {
+          core.warning(`Failed to fetch PR #${prNumber}: ${prError instanceof Error ? prError.message : String(prError)}`);
+          // Continue to fallback options
+        }
       }
     }
     // Try to get SHA from push event
@@ -49,7 +54,10 @@ async function main() {
     }
     
     if (!sha) {
-      core.setFailed("Could not determine commit SHA for status creation");
+      core.warning("Could not determine commit SHA for status creation - status will be skipped");
+      // Set outputs even when SHA can't be determined so conclusion job doesn't fail
+      core.setOutput("status_context", statusContext);
+      core.setOutput("status_sha", "");
       return;
     }
 
@@ -60,21 +68,25 @@ async function main() {
     // Create the pending commit status
     await github.rest.repos.createCommitStatus({
       owner: github.context.repo.owner,
-      repo: github.context.repo.repo,
+      repo: github.context.repo.name,
       sha: sha,
       state: "pending",
       context: statusContext,
       description: `${workflowName} is running...`,
-      target_url: `${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.repo}/actions/runs/${github.context.runId}`,
+      target_url: `${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.name}/actions/runs/${github.context.runId}`,
     });
 
     core.info("✓ Successfully created pending commit status");
+    
+    // Set outputs after successful creation
     core.setOutput("status_context", statusContext);
     core.setOutput("status_sha", sha);
   } catch (error) {
-    core.error(`Failed to create pending commit status: ${error instanceof Error ? error.message : String(error)}`);
-    // Don't fail the workflow if pending status creation fails
-    // This is a non-critical operation
+    core.warning(`Failed to create pending commit status: ${error instanceof Error ? error.message : String(error)}`);
+    // Set outputs even on error so conclusion job doesn't fail
+    core.setOutput("status_context", statusContext);
+    core.setOutput("status_sha", sha || "");
+    // Continue - this is a non-critical operation
   }
 }
 

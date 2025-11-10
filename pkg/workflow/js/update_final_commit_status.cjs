@@ -63,7 +63,7 @@ async function main() {
     // Update the commit status
     await github.rest.repos.createCommitStatus({
       owner: github.context.repo.owner,
-      repo: github.context.repo.repo,
+      repo: github.context.repo.name,
       sha: sha,
       state: state,
       context: statusContext,

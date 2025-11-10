@@ -416,27 +416,29 @@ jobs:
         with:
           script: |
             async function main() {
+              const statusContext = process.env.GH_AW_COMMIT_STATUS_CONTEXT || "agentic-workflow";
+              const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Workflow";
+              let sha;
               try {
-                const statusContext = process.env.GH_AW_COMMIT_STATUS_CONTEXT || "agentic-workflow";
-                const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Agentic Workflow";
-                let sha;
                 if (github.context.payload.pull_request && github.context.payload.pull_request.head && github.context.payload.pull_request.head.sha) {
                   sha = github.context.payload.pull_request.head.sha;
                   core.info(`Using SHA from PR head: ${sha}`);
                 }
-                else if (github.context.payload.issue && github.context.payload.issue.pull_request) {
-                  const prNumber = github.context.payload.issue.number;
-                  core.info(`Fetching PR #${prNumber} to get head SHA...`);
-                  try {
-                    const { data: pr } = await github.rest.pulls.get({
-                      owner: github.context.repo.owner,
-                      repo: github.context.repo.repo,
-                      pull_number: prNumber,
-                    });
-                    sha = pr.head.sha;
-                    core.info(`Using SHA from PR #${prNumber} head: ${sha}`);
-                  } catch (prError) {
-                    core.warning(`Failed to fetch PR #${prNumber}: ${prError instanceof Error ? prError.message : String(prError)}`);
+                if (!sha && github.context.payload.issue && github.context.payload.issue.number) {
+                  if (github.context.payload.issue.pull_request && typeof github.context.payload.issue.pull_request === 'object') {
+                    const prNumber = github.context.payload.issue.number;
+                    core.info(`Fetching PR #${prNumber} to get head SHA...`);
+                    try {
+                      const { data: pr } = await github.rest.pulls.get({
+                        owner: github.context.repo.owner,
+                        repo: github.context.repo.repo,
+                        pull_number: prNumber,
+                      });
+                      sha = pr.head.sha;
+                      core.info(`Using SHA from PR #${prNumber} head: ${sha}`);
+                    } catch (prError) {
+                      core.warning(`Failed to fetch PR #${prNumber}: ${prError instanceof Error ? prError.message : String(prError)}`);
+                    }
                   }
                 }
                 if (!sha && github.context.payload.after && github.context.payload.after !== "0000000000000000000000000000000000000000") {
@@ -448,7 +450,9 @@ jobs:
                   core.info(`Using SHA from workflow context: ${sha}`);
                 }
                 if (!sha) {
-                  core.setFailed("Could not determine commit SHA for status creation");
+                  core.warning("Could not determine commit SHA for status creation - status will be skipped");
+                  core.setOutput("status_context", statusContext);
+                  core.setOutput("status_sha", "");
                   return;
                 }
                 core.info(`Creating pending commit status with context: ${statusContext}`);
@@ -467,7 +471,9 @@ jobs:
                 core.setOutput("status_context", statusContext);
                 core.setOutput("status_sha", sha);
               } catch (error) {
-                core.error(`Failed to create pending commit status: ${error instanceof Error ? error.message : String(error)}`);
+                core.warning(`Failed to create pending commit status: ${error instanceof Error ? error.message : String(error)}`);
+                core.setOutput("status_context", statusContext);
+                core.setOutput("status_sha", sha || "");
               }
             }
             await main();
