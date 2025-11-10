@@ -4,6 +4,9 @@ on:
     - cron: "*/5 * * * *"  # Every 5 minutes
   workflow_dispatch:
 
+engine: claude
+model: claude-3-5-sonnet-20241022
+
 permissions:
   contents: read
   issues: write
