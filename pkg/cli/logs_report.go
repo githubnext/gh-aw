@@ -368,52 +368,87 @@ func buildMCPFailuresSummary(processedRuns []ProcessedRun) []MCPFailureSummary {
 	return result
 }
 
-// buildAccessLogSummary aggregates access log data across all runs
-func buildAccessLogSummary(processedRuns []ProcessedRun) *AccessLogSummary {
-	allAllowedDomains := make(map[string]bool)
-	allDeniedDomains := make(map[string]bool)
-	byWorkflow := make(map[string]*DomainAnalysis)
-	totalRequests := 0
-	allowedCount := 0
-	deniedCount := 0
+// domainAggregation holds the result of aggregating domain statistics
+type domainAggregation struct {
+	allAllowedDomains map[string]bool
+	allDeniedDomains  map[string]bool
+	totalRequests     int
+	allowedCount      int
+	deniedCount       int
+}
+
+// aggregateDomainStats aggregates domain statistics across runs
+// This is a shared helper for both access log and firewall log summaries
+func aggregateDomainStats(processedRuns []ProcessedRun, getAnalysis func(*ProcessedRun) (allowedDomains, deniedDomains []string, totalRequests, allowedCount, deniedCount int, exists bool)) *domainAggregation {
+	agg := &domainAggregation{
+		allAllowedDomains: make(map[string]bool),
+		allDeniedDomains:  make(map[string]bool),
+	}
 
 	for _, pr := range processedRuns {
-		if pr.AccessAnalysis != nil {
-			totalRequests += pr.AccessAnalysis.TotalRequests
-			allowedCount += pr.AccessAnalysis.AllowedCount
-			deniedCount += pr.AccessAnalysis.DeniedCount
-			byWorkflow[pr.Run.WorkflowName] = pr.AccessAnalysis
+		allowedDomains, deniedDomains, totalRequests, allowedCount, deniedCount, exists := getAnalysis(&pr)
+		if !exists {
+			continue
+		}
 
-			for _, domain := range pr.AccessAnalysis.AllowedDomains {
-				allAllowedDomains[domain] = true
-			}
-			for _, domain := range pr.AccessAnalysis.DeniedDomains {
-				allDeniedDomains[domain] = true
-			}
+		agg.totalRequests += totalRequests
+		agg.allowedCount += allowedCount
+		agg.deniedCount += deniedCount
+
+		for _, domain := range allowedDomains {
+			agg.allAllowedDomains[domain] = true
+		}
+		for _, domain := range deniedDomains {
+			agg.allDeniedDomains[domain] = true
 		}
 	}
 
-	if totalRequests == 0 {
+	return agg
+}
+
+// convertDomainsToSortedSlices converts domain maps to sorted slices
+func convertDomainsToSortedSlices(allowedMap, deniedMap map[string]bool) (allowed, denied []string) {
+	for domain := range allowedMap {
+		allowed = append(allowed, domain)
+	}
+	sort.Strings(allowed)
+
+	for domain := range deniedMap {
+		denied = append(denied, domain)
+	}
+	sort.Strings(denied)
+
+	return allowed, denied
+}
+
+// buildAccessLogSummary aggregates access log data across all runs
+func buildAccessLogSummary(processedRuns []ProcessedRun) *AccessLogSummary {
+	byWorkflow := make(map[string]*DomainAnalysis)
+
+	// Use shared aggregation helper
+	agg := aggregateDomainStats(processedRuns, func(pr *ProcessedRun) ([]string, []string, int, int, int, bool) {
+		if pr.AccessAnalysis == nil {
+			return nil, nil, 0, 0, 0, false
+		}
+		byWorkflow[pr.Run.WorkflowName] = pr.AccessAnalysis
+		return pr.AccessAnalysis.AllowedDomains,
+			pr.AccessAnalysis.DeniedDomains,
+			pr.AccessAnalysis.TotalRequests,
+			pr.AccessAnalysis.AllowedCount,
+			pr.AccessAnalysis.DeniedCount,
+			true
+	})
+
+	if agg.totalRequests == 0 {
 		return nil
 	}
 
-	// Convert maps to slices
-	var allowedDomains []string
-	for domain := range allAllowedDomains {
-		allowedDomains = append(allowedDomains, domain)
-	}
-	sort.Strings(allowedDomains)
-
-	var deniedDomains []string
-	for domain := range allDeniedDomains {
-		deniedDomains = append(deniedDomains, domain)
-	}
-	sort.Strings(deniedDomains)
+	allowedDomains, deniedDomains := convertDomainsToSortedSlices(agg.allAllowedDomains, agg.allDeniedDomains)
 
 	return &AccessLogSummary{
-		TotalRequests:  totalRequests,
-		AllowedCount:   allowedCount,
-		DeniedCount:    deniedCount,
+		TotalRequests:  agg.totalRequests,
+		AllowedCount:   agg.allowedCount,
+		DeniedCount:    agg.deniedCount,
 		AllowedDomains: allowedDomains,
 		DeniedDomains:  deniedDomains,
 		ByWorkflow:     byWorkflow,
@@ -422,59 +457,42 @@ func buildAccessLogSummary(processedRuns []ProcessedRun) *AccessLogSummary {
 
 // buildFirewallLogSummary aggregates firewall log data across all runs
 func buildFirewallLogSummary(processedRuns []ProcessedRun) *FirewallLogSummary {
-	allAllowedDomains := make(map[string]bool)
-	allDeniedDomains := make(map[string]bool)
 	allRequestsByDomain := make(map[string]DomainRequestStats)
 	byWorkflow := make(map[string]*FirewallAnalysis)
-	totalRequests := 0
-	allowedRequests := 0
-	deniedRequests := 0
 
-	for _, pr := range processedRuns {
-		if pr.FirewallAnalysis != nil {
-			totalRequests += pr.FirewallAnalysis.TotalRequests
-			allowedRequests += pr.FirewallAnalysis.AllowedRequests
-			deniedRequests += pr.FirewallAnalysis.DeniedRequests
-			byWorkflow[pr.Run.WorkflowName] = pr.FirewallAnalysis
-
-			for _, domain := range pr.FirewallAnalysis.AllowedDomains {
-				allAllowedDomains[domain] = true
-			}
-			for _, domain := range pr.FirewallAnalysis.DeniedDomains {
-				allDeniedDomains[domain] = true
-			}
-
-			// Aggregate request stats by domain
-			for domain, stats := range pr.FirewallAnalysis.RequestsByDomain {
-				existing := allRequestsByDomain[domain]
-				existing.Allowed += stats.Allowed
-				existing.Denied += stats.Denied
-				allRequestsByDomain[domain] = existing
-			}
+	// Use shared aggregation helper
+	agg := aggregateDomainStats(processedRuns, func(pr *ProcessedRun) ([]string, []string, int, int, int, bool) {
+		if pr.FirewallAnalysis == nil {
+			return nil, nil, 0, 0, 0, false
 		}
-	}
+		byWorkflow[pr.Run.WorkflowName] = pr.FirewallAnalysis
 
-	if totalRequests == 0 {
+		// Aggregate request stats by domain (firewall-specific)
+		for domain, stats := range pr.FirewallAnalysis.RequestsByDomain {
+			existing := allRequestsByDomain[domain]
+			existing.Allowed += stats.Allowed
+			existing.Denied += stats.Denied
+			allRequestsByDomain[domain] = existing
+		}
+
+		return pr.FirewallAnalysis.AllowedDomains,
+			pr.FirewallAnalysis.DeniedDomains,
+			pr.FirewallAnalysis.TotalRequests,
+			pr.FirewallAnalysis.AllowedRequests,
+			pr.FirewallAnalysis.DeniedRequests,
+			true
+	})
+
+	if agg.totalRequests == 0 {
 		return nil
 	}
 
-	// Convert maps to slices
-	var allowedDomains []string
-	for domain := range allAllowedDomains {
-		allowedDomains = append(allowedDomains, domain)
-	}
-	sort.Strings(allowedDomains)
-
-	var deniedDomains []string
-	for domain := range allDeniedDomains {
-		deniedDomains = append(deniedDomains, domain)
-	}
-	sort.Strings(deniedDomains)
+	allowedDomains, deniedDomains := convertDomainsToSortedSlices(agg.allAllowedDomains, agg.allDeniedDomains)
 
 	return &FirewallLogSummary{
-		TotalRequests:    totalRequests,
-		AllowedRequests:  allowedRequests,
-		DeniedRequests:   deniedRequests,
+		TotalRequests:    agg.totalRequests,
+		AllowedRequests:  agg.allowedCount,
+		DeniedRequests:   agg.deniedCount,
 		AllowedDomains:   allowedDomains,
 		DeniedDomains:    deniedDomains,
 		RequestsByDomain: allRequestsByDomain,
