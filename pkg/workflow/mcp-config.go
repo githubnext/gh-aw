@@ -932,4 +932,3 @@ func hasMCPConfig(toolConfig map[string]any) (bool, string) {
 
 	return false, ""
 }
-
