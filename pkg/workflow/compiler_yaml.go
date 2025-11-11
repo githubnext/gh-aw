@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -397,12 +398,14 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GH_AW_AGENT_OUTPUT: %s\n", logFileForParsing)
 
-	// Add workflow file paths for step summary links
+	// Add workflow filenames for step summary links (just the filename, not full path)
 	if data.MarkdownPath != "" {
-		fmt.Fprintf(yaml, "          GH_AW_WORKFLOW_SOURCE: \"%s\"\n", data.MarkdownPath)
+		markdownFilename := filepath.Base(data.MarkdownPath)
+		fmt.Fprintf(yaml, "          GH_AW_WORKFLOW_SOURCE: \"%s\"\n", markdownFilename)
 	}
 	if data.LockFilePath != "" {
-		fmt.Fprintf(yaml, "          GH_AW_WORKFLOW_COMPILED: \"%s\"\n", data.LockFilePath)
+		lockFilename := filepath.Base(data.LockFilePath)
+		fmt.Fprintf(yaml, "          GH_AW_WORKFLOW_COMPILED: \"%s\"\n", lockFilename)
 	}
 
 	yaml.WriteString("        with:\n")

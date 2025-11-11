@@ -100,24 +100,22 @@ function runLogParser(options) {
         const sha = context.sha;
 
         if (workflowSource) {
-          // Extract relative path from workflow source (remove leading .github/workflows/ if present)
-          const sourcePath = workflowSource.replace(/^\.github\/workflows\//, "");
-
           if (repository && repository.html_url && sha) {
-            core.summary.addRaw(`- **Source**: [\`${sourcePath}\`](${repository.html_url}/blob/${sha}/${workflowSource})\n`);
+            // Construct URL: repo/blob/sha/.github/workflows/filename
+            const sourceUrl = `${repository.html_url}/blob/${sha}/.github/workflows/${workflowSource}`;
+            core.summary.addRaw(`- **Source**: [\`${workflowSource}\`](${sourceUrl})\n`);
           } else {
-            core.summary.addRaw(`- **Source**: \`${sourcePath}\`\n`);
+            core.summary.addRaw(`- **Source**: \`${workflowSource}\`\n`);
           }
         }
 
         if (workflowCompiled) {
-          // Extract relative path from compiled workflow
-          const compiledPath = workflowCompiled.replace(/^\.github\/workflows\//, "");
-
           if (repository && repository.html_url && sha) {
-            core.summary.addRaw(`- **Compiled**: [\`${compiledPath}\`](${repository.html_url}/blob/${sha}/${workflowCompiled})\n`);
+            // Construct URL: repo/blob/sha/.github/workflows/filename
+            const compiledUrl = `${repository.html_url}/blob/${sha}/.github/workflows/${workflowCompiled}`;
+            core.summary.addRaw(`- **Compiled**: [\`${workflowCompiled}\`](${compiledUrl})\n`);
           } else {
-            core.summary.addRaw(`- **Compiled**: \`${compiledPath}\`\n`);
+            core.summary.addRaw(`- **Compiled**: \`${workflowCompiled}\`\n`);
           }
         }
       }
