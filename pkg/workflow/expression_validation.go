@@ -51,7 +51,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/logger"
 )
 
-var expressionSafetyLog = logger.New("workflow:expression_safety")
+var expressionValidationLog = logger.New("workflow:expression_validation")
 
 // Pre-compiled regexes for expression validation (performance optimization)
 var (
@@ -68,7 +68,7 @@ var (
 // validateExpressionSafety checks that all GitHub Actions expressions in the markdown content
 // are in the allowed list and returns an error if any unauthorized expressions are found
 func validateExpressionSafety(markdownContent string) error {
-	expressionSafetyLog.Print("Validating expression safety in markdown content")
+	expressionValidationLog.Print("Validating expression safety in markdown content")
 
 	// Regular expression to match GitHub Actions expressions: ${{ ... }}
 	// Use (?s) flag to enable dotall mode so . matches newlines to capture multiline expressions
@@ -76,7 +76,7 @@ func validateExpressionSafety(markdownContent string) error {
 
 	// Find all expressions in the markdown content
 	matches := expressionRegex.FindAllStringSubmatch(markdownContent, -1)
-	expressionSafetyLog.Printf("Found %d expressions to validate", len(matches))
+	expressionValidationLog.Printf("Found %d expressions to validate", len(matches))
 
 	var unauthorizedExpressions []string
 
@@ -115,7 +115,7 @@ func validateExpressionSafety(markdownContent string) error {
 
 	// If we found unauthorized expressions, return an error
 	if len(unauthorizedExpressions) > 0 {
-		expressionSafetyLog.Printf("Expression safety validation failed: %d unauthorized expressions found", len(unauthorizedExpressions))
+		expressionValidationLog.Printf("Expression safety validation failed: %d unauthorized expressions found", len(unauthorizedExpressions))
 		// Format unauthorized expressions list
 		var unauthorizedList strings.Builder
 		unauthorizedList.WriteString("\n")
@@ -143,7 +143,7 @@ func validateExpressionSafety(markdownContent string) error {
 			unauthorizedList.String(), allowedList.String())
 	}
 
-	expressionSafetyLog.Print("Expression safety validation passed")
+	expressionValidationLog.Print("Expression safety validation passed")
 	return nil
 }
 
