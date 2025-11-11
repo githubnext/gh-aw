@@ -21,6 +21,7 @@ network:
   allowed:
     - defaults
     - python
+    - node
   firewall: true
 
 safe-outputs:

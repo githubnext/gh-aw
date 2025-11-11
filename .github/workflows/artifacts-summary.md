@@ -8,6 +8,9 @@ permissions:
   actions: read
 engine: copilot
 network:
+  allowed:
+    - defaults
+    - node
   firewall: true
 tools:
   edit:
