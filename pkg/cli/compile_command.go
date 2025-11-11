@@ -20,7 +20,7 @@ import (
 var compileLog = logger.New("cli:compile_command")
 
 // CompileWorkflowWithValidation compiles a workflow with always-on YAML validation for CLI usage
-func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string, verbose bool, runZizmorPerFile bool, runPoutinePerFile bool, runActionlintPerFile bool, strict bool) error {
+func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string, verbose bool, runZizmorPerFile bool, runPoutinePerFile bool, runActionlintPerFile bool, strict bool, validateActionSHAs bool) error {
 	// Compile the workflow first
 	if err := compiler.CompileWorkflow(filePath); err != nil {
 		return err
@@ -44,6 +44,24 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 	var yamlValidationTest any
 	if err := yaml.Unmarshal(lockContent, &yamlValidationTest); err != nil {
 		return fmt.Errorf("generated lock file is not valid YAML: %w", err)
+	}
+
+	// Validate action SHAs if requested
+	if validateActionSHAs {
+		compileLog.Print("Validating action SHAs in lock file")
+		// Find git root for action cache
+		gitRoot, err := findGitRoot()
+		if err != nil {
+			compileLog.Printf("Unable to find git root for action cache: %v", err)
+			// Continue without validation if we can't find git root
+		} else {
+			// Create action cache for validation
+			actionCache := workflow.NewActionCache(gitRoot)
+			if err := workflow.ValidateActionSHAsInLockFile(lockFile, actionCache, verbose); err != nil {
+				// Action SHA validation warnings are non-fatal
+				compileLog.Printf("Action SHA validation completed with warnings: %v", err)
+			}
+		}
 	}
 
 	// Run zizmor on the generated lock file if requested
@@ -72,7 +90,7 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 
 // CompileWorkflowDataWithValidation compiles from already-parsed WorkflowData with validation
 // This avoids re-parsing when the workflow data has already been parsed
-func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData *workflow.WorkflowData, filePath string, verbose bool, runZizmorPerFile bool, runPoutinePerFile bool, runActionlintPerFile bool, strict bool) error {
+func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData *workflow.WorkflowData, filePath string, verbose bool, runZizmorPerFile bool, runPoutinePerFile bool, runActionlintPerFile bool, strict bool, validateActionSHAs bool) error {
 	// Compile the workflow using already-parsed data
 	if err := compiler.CompileWorkflowData(workflowData, filePath); err != nil {
 		return err
@@ -96,6 +114,24 @@ func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData
 	var yamlValidationTest any
 	if err := yaml.Unmarshal(lockContent, &yamlValidationTest); err != nil {
 		return fmt.Errorf("generated lock file is not valid YAML: %w", err)
+	}
+
+	// Validate action SHAs if requested
+	if validateActionSHAs {
+		compileLog.Print("Validating action SHAs in lock file")
+		// Find git root for action cache
+		gitRoot, err := findGitRoot()
+		if err != nil {
+			compileLog.Printf("Unable to find git root for action cache: %v", err)
+			// Continue without validation if we can't find git root
+		} else {
+			// Create action cache for validation
+			actionCache := workflow.NewActionCache(gitRoot)
+			if err := workflow.ValidateActionSHAsInLockFile(lockFile, actionCache, verbose); err != nil {
+				// Action SHA validation warnings are non-fatal
+				compileLog.Printf("Action SHA validation completed with warnings: %v", err)
+			}
+		}
 	}
 
 	// Run zizmor on the generated lock file if requested
@@ -281,7 +317,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			workflowDataList = append(workflowDataList, workflowData)
 
 			compileLog.Printf("Starting compilation of %s", resolvedFile)
-			if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict); err != nil {
+			if err := CompileWorkflowDataWithValidation(compiler, workflowData, resolvedFile, verbose, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
 				// Always put error on a new line and don't wrap with "failed to compile workflow"
 				fmt.Fprintln(os.Stderr, err.Error())
 				errorMessages = append(errorMessages, err.Error())
@@ -422,7 +458,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 		workflowDataList = append(workflowDataList, workflowData)
 
-		if err := CompileWorkflowDataWithValidation(compiler, workflowData, file, verbose, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict); err != nil {
+		if err := CompileWorkflowDataWithValidation(compiler, workflowData, file, verbose, zizmor && !noEmit, poutine && !noEmit, actionlint && !noEmit, strict, validate && !noEmit); err != nil {
 			// Print the error to stderr (errors from CompileWorkflow are already formatted)
 			fmt.Fprintln(os.Stderr, err.Error())
 			errorCount++
@@ -610,7 +646,7 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		if verbose {
 			fmt.Fprintf(os.Stderr, "🔨 Initial compilation of %s...\n", markdownFile)
 		}
-		if err := CompileWorkflowWithValidation(compiler, markdownFile, verbose, false, false, false, false); err != nil {
+		if err := CompileWorkflowWithValidation(compiler, markdownFile, verbose, false, false, false, false, false); err != nil {
 			// Always show initial compilation errors on new line without wrapping
 			fmt.Fprintln(os.Stderr, err.Error())
 			stats.Errors++
@@ -722,7 +758,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 		if verbose {
 			fmt.Printf("🔨 Compiling: %s\n", file)
 		}
-		if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false); err != nil {
+		if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
 			// Always show compilation errors on new line
 			fmt.Fprintln(os.Stderr, err.Error())
 			stats.Errors++
@@ -779,7 +815,7 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 			fmt.Fprintf(os.Stderr, "🔨 Compiling: %s\n", file)
 		}
 
-		if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false); err != nil {
+		if err := CompileWorkflowWithValidation(compiler, file, verbose, false, false, false, false, false); err != nil {
 			// Always show compilation errors on new line
 			fmt.Fprintln(os.Stderr, err.Error())
 			stats.Errors++
