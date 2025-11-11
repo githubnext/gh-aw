@@ -6,6 +6,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
 const { generateFingerprintComment } = require("./generate_fingerprint_comment.cjs");
+const { getFingerprint } = require("./get_fingerprint.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
@@ -106,10 +107,7 @@ async function main() {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-    const fingerprint = process.env.GH_AW_FINGERPRINT || "";
-    if (fingerprint) {
-      core.info(`Fingerprint: ${fingerprint}`);
-    }
+    const fingerprint = getFingerprint();
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const runUrl = context.payload.repository

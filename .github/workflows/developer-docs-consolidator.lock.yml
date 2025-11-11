@@ -4267,6 +4267,13 @@ jobs:
               }
               return `\n\n<!-- fingerprint: ${fingerprint} -->`;
             }
+            function getFingerprint() {
+              const fingerprint = process.env.GH_AW_FINGERPRINT || "";
+              if (fingerprint) {
+                core.info(`Fingerprint: ${fingerprint}`);
+              }
+              return fingerprint;
+            }
             async function main() {
               core.setOutput("discussion_number", "");
               core.setOutput("discussion_url", "");
@@ -4395,10 +4402,7 @@ jobs:
                   title = titlePrefix + title;
                 }
                 const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-                const fingerprint = process.env.GH_AW_FINGERPRINT || "";
-                if (fingerprint) {
-                  core.info(`Fingerprint: ${fingerprint}`);
-                }
+                const fingerprint = getFingerprint();
                 const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                 const runUrl = context.payload.repository
@@ -4632,6 +4636,13 @@ jobs:
               }
               return `\n\n<!-- fingerprint: ${fingerprint} -->`;
             }
+            function getFingerprint() {
+              const fingerprint = process.env.GH_AW_FINGERPRINT || "";
+              if (fingerprint) {
+                core.info(`Fingerprint: ${fingerprint}`);
+              }
+              return fingerprint;
+            }
             function generatePatchPreview(patchContent) {
               if (!patchContent || !patchContent.trim()) {
                 return "";
@@ -4816,10 +4827,7 @@ jobs:
                 title = titlePrefix + title;
               }
               const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-              const fingerprint = process.env.GH_AW_FINGERPRINT || "";
-              if (fingerprint) {
-                core.info(`Fingerprint: ${fingerprint}`);
-              }
+              const fingerprint = getFingerprint();
               const runId = context.runId;
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const runUrl = context.payload.repository

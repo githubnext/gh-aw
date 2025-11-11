@@ -838,6 +838,13 @@ jobs:
               }
               return `\n\n<!-- fingerprint: ${fingerprint} -->`;
             }
+            function getFingerprint() {
+              const fingerprint = process.env.GH_AW_FINGERPRINT || "";
+              if (fingerprint) {
+                core.info(`Fingerprint: ${fingerprint}`);
+              }
+              return fingerprint;
+            }
             function getRepositoryUrl() {
               const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
               if (targetRepoSlug) {
@@ -1074,10 +1081,7 @@ jobs:
                 const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
                 const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
                 const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-                const fingerprint = process.env.GH_AW_FINGERPRINT || "";
-                if (fingerprint) {
-                  core.info(`Fingerprint: ${fingerprint}`);
-                }
+                const fingerprint = getFingerprint();
                 const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                 const runUrl = context.payload.repository

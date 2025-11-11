@@ -7,6 +7,7 @@ const fs = require("fs");
 const crypto = require("crypto");
 const { updateActivationComment } = require("./update_activation_comment.cjs");
 const { generateFingerprintComment } = require("./generate_fingerprint_comment.cjs");
+const { getFingerprint } = require("./get_fingerprint.cjs");
 
 /**
  * Generate a patch preview with max 500 lines and 2000 chars for issue body
@@ -268,10 +269,7 @@ async function main() {
 
   // Add AI disclaimer with workflow name and run url
   const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
-  const fingerprint = process.env.GH_AW_FINGERPRINT || "";
-  if (fingerprint) {
-    core.info(`Fingerprint: ${fingerprint}`);
-  }
+  const fingerprint = getFingerprint();
   const runId = context.runId;
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
   const runUrl = context.payload.repository
