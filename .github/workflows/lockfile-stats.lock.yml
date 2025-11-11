@@ -254,7 +254,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.35
+        run: npm install -g @anthropic-ai/claude-code@2.0.37
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -1841,7 +1841,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              agent_version: "2.0.35",
+              agent_version: "2.0.37",
               workflow_name: "Lockfile Statistics Analysis Agent",
               experimental: false,
               supports_tools_allowlist: true,
@@ -4140,7 +4140,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.35
+        run: npm install -g @anthropic-ai/claude-code@2.0.37
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
