@@ -78,6 +78,9 @@ var generateFooterScript string
 //go:embed js/get_repository_url.cjs
 var getRepositoryUrlScript string
 
+//go:embed js/create_pending_commit_status.cjs
+var createPendingCommitStatusScript string
+
 // GetJavaScriptSources returns a map of all embedded JavaScript sources
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {

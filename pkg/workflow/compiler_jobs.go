@@ -586,17 +586,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		steps = append(steps, "      - name: Create pending commit status\n")
 		steps = append(steps, "        id: pending_status\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GH_AW_COMMIT_STATUS_CONTEXT: %s\n", statusContext))
 		steps = append(steps, "        with:\n")
 		steps = append(steps, "          script: |\n")
-		steps = append(steps, "            await github.rest.repos.createCommitStatus({\n")
-		steps = append(steps, "              owner: context.repo.owner,\n")
-		steps = append(steps, "              repo: context.repo.repo,\n")
-		steps = append(steps, "              sha: context.sha,\n")
-		steps = append(steps, "              state: 'pending',\n")
-		steps = append(steps, fmt.Sprintf("              context: '%s',\n", statusContext))
-		steps = append(steps, "              description: 'Agentic workflow is running',\n")
-		steps = append(steps, "              target_url: `${context.payload.repository.html_url}/actions/runs/${context.runId}`\n")
-		steps = append(steps, "            });\n")
+
+		// Use the dedicated JavaScript file
+		formattedScript := FormatJavaScriptForYAML(createPendingCommitStatusScript)
+		steps = append(steps, formattedScript...)
 
 		// Add status output
 		outputs["commit_status_created"] = "${{ steps.pending_status.outcome == 'success' }}"

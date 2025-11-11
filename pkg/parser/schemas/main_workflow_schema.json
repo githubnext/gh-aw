@@ -2841,20 +2841,10 @@
               "type": "object",
               "description": "Configuration for updating commit status via GitHub API",
               "properties": {
-                "max": {
-                  "type": "integer",
-                  "description": "Maximum number of commit status updates (default: 1)",
-                  "minimum": 1,
-                  "default": 1
-                },
                 "context": {
                   "type": "string",
                   "description": "Status context/label (default: 'agentic-workflow')",
                   "default": "agentic-workflow"
-                },
-                "target-repo": {
-                  "type": "string",
-                  "description": "Target repository in format 'owner/repo' for cross-repository status updates. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
                   "$ref": "#/$defs/github_token",

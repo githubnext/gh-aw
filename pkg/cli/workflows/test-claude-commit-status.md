@@ -6,7 +6,6 @@ permissions:
 engine: claude
 safe-outputs:
   commit-status:
-    max: 1
     context: "test-workflow"
 timeout-minutes: 5
 ---

@@ -7,8 +7,7 @@ import (
 // CommitStatusConfig holds configuration for commit status updates from agent output
 type CommitStatusConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Context              string `yaml:"context,omitempty"`     // Status context/label (defaults to "agentic-workflow")
-	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository for cross-repo status updates
+	Context              string `yaml:"context,omitempty"` // Status context/label (defaults to "agentic-workflow")
 }
 
 // buildCommitStatusJob creates the commit_status job
@@ -28,12 +27,12 @@ func (c *Compiler) buildCommitStatusJob(data *WorkflowData, mainJobName string) 
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMIT_STATUS_CONTEXT: %q\n", data.SafeOutputs.CommitStatus.Context))
 	}
 
-	// Add common safe output job environment variables (staged/target repo)
+	// Add common safe output job environment variables (staged mode only)
 	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
 		c.trialMode,
 		c.trialLogicalRepoSlug,
 		data.SafeOutputs.Staged,
-		data.SafeOutputs.CommitStatus.TargetRepoSlug,
+		"", // No target repo support
 	)...)
 
 	// Get token from config
@@ -59,7 +58,7 @@ func (c *Compiler) buildCommitStatusJob(data *WorkflowData, mainJobName string) 
 		Permissions:    NewPermissionsContentsReadRepositoryWrite(),
 		Outputs:        outputs,
 		Token:          token,
-		TargetRepoSlug: data.SafeOutputs.CommitStatus.TargetRepoSlug,
+		TargetRepoSlug: "", // No target repo support
 	})
 }
 
@@ -79,10 +78,6 @@ func (c *Compiler) parseCommitStatusConfig(outputMap map[string]any) *CommitStat
 					commitStatusConfig.Context = contextStr
 				}
 			}
-
-			// Parse target-repo using shared helper
-			targetRepoSlug := parseTargetRepoFromConfig(configMap)
-			commitStatusConfig.TargetRepoSlug = targetRepoSlug
 		}
 
 		return commitStatusConfig
