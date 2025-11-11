@@ -11,6 +11,9 @@ permissions:
 engine: copilot
 network:
   firewall: true
+  allowed:
+    - defaults
+    - containers
 tools:
   edit:
   bash:
