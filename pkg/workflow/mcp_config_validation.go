@@ -208,7 +208,7 @@ func validateMCPRequirements(toolName string, mcpConfig map[string]any, toolConf
 		typeStr = "stdio"
 	}
 
-	// Validate type is one of the supported types (using helper from mcp-config.go)
+	// Validate type is one of the supported types
 	if !isMCPType(typeStr) {
 		return fmt.Errorf("tool '%s' mcp configuration 'type' value must be one of: stdio, http, local", toolName)
 	}
