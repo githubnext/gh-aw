@@ -895,12 +895,12 @@ func buildWorkflowMetadataEnvVars(workflowName string, workflowSource string) []
 // buildWorkflowMetadataEnvVarsWithFingerprint builds workflow metadata env vars including fingerprint
 func buildWorkflowMetadataEnvVarsWithFingerprint(workflowName string, workflowSource string, fingerprint string) []string {
 	customEnvVars := buildWorkflowMetadataEnvVars(workflowName, workflowSource)
-	
+
 	// Add fingerprint if present
 	if fingerprint != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_FINGERPRINT: %q\n", fingerprint))
 	}
-	
+
 	return customEnvVars
 }
 

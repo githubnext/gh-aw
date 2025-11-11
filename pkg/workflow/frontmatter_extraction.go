@@ -414,7 +414,7 @@ func (c *Compiler) extractFingerprint(frontmatter map[string]any) (string, error
 	}
 
 	fingerprint := strings.TrimSpace(strValue)
-	
+
 	// Validate minimum length
 	if len(fingerprint) < 8 {
 		return "", fmt.Errorf("fingerprint must be at least 8 characters long (got %d)", len(fingerprint))
@@ -422,7 +422,7 @@ func (c *Compiler) extractFingerprint(frontmatter map[string]any) (string, error
 
 	// Validate that it's a valid identifier (alphanumeric, hyphens, underscores)
 	for i, char := range fingerprint {
-		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || 
+		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||
 			(char >= '0' && char <= '9') || char == '-' || char == '_') {
 			return "", fmt.Errorf("fingerprint contains invalid character at position %d: '%c' (only alphanumeric, hyphens, and underscores allowed)", i+1, char)
 		}

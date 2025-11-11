@@ -27,11 +27,7 @@
       "minLength": 8,
       "pattern": "^[a-zA-Z0-9_-]+$",
       "description": "Optional fingerprint identifier to tag all created assets (issues, discussions, comments, pull requests). Must be at least 8 characters and contain only alphanumeric characters, hyphens, and underscores. This identifier will be inserted in the body/description of all created assets to enable searching and retrieving assets associated with this workflow.",
-      "examples": [
-        "workflow-2024-q1",
-        "team-alpha-bot",
-        "security_audit_v2"
-      ]
+      "examples": ["workflow-2024-q1", "team-alpha-bot", "security_audit_v2"]
     },
     "imports": {
       "type": "array",

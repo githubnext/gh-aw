@@ -298,12 +298,12 @@ async function main() {
     const runUrl = context.payload.repository
       ? `${context.payload.repository.html_url}/actions/runs/${runId}`
       : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-    
+
     // Add fingerprint before the footer if present
     if (fingerprint) {
       body += `\n\n<!-- fingerprint: ${fingerprint} -->\n\n`;
     }
-    
+
     body += generateFooter(
       workflowName,
       runUrl,
