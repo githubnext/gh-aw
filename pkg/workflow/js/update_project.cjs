@@ -1,3 +1,5 @@
+const { loadAgentOutput } = require("./load_agent_output.cjs");
+
 /**
  * @typedef {Object} UpdateProjectOutput
  * @property {"update_project"} type
@@ -34,12 +36,7 @@ function generateCampaignId(projectName) {
  * @returns {Promise<void>}
  */
 async function updateProject(output) {
-  const token = process.env.GITHUB_TOKEN;
-  if (!token) {
-    throw new Error("GITHUB_TOKEN environment variable is required");
-  }
-
-  const octokit = github.getOctokit(token);
+  // In actions/github-script, 'github' is already authenticated
   const { owner, repo } = github.context.repo;
 
   // Generate or use provided campaign ID
@@ -49,7 +46,7 @@ async function updateProject(output) {
 
   try {
     // Step 1: Get repository ID
-    const repoResult = await octokit.graphql(
+    const repoResult = await github.graphql(
       `query($owner: String!, $repo: String!) {
         repository(owner: $owner, name: $repo) {
           id
@@ -64,7 +61,7 @@ async function updateProject(output) {
     let projectNumber;
     
     // Try to find existing project by title
-    const existingProjectsResult = await octokit.graphql(
+    const existingProjectsResult = await github.graphql(
       `query($owner: String!, $repo: String!) {
         repository(owner: $owner, name: $repo) {
           projectsV2(first: 100) {
@@ -95,7 +92,7 @@ async function updateProject(output) {
       // Include campaign ID in project description
       const projectDescription = `Campaign ID: ${campaignId}`;
       
-      const createResult = await octokit.graphql(
+      const createResult = await github.graphql(
         `mutation($ownerId: ID!, $title: String!, $shortDescription: String) {
           createProjectV2(input: {
             ownerId: $ownerId,
@@ -122,7 +119,7 @@ async function updateProject(output) {
       projectNumber = newProject.number;
 
       // Link project to repository
-      await octokit.graphql(
+      await github.graphql(
         `mutation($projectId: ID!, $repositoryId: ID!) {
           linkProjectV2ToRepository(input: {
             projectId: $projectId,
@@ -168,7 +165,7 @@ async function updateProject(output) {
             }
           }`;
 
-      const contentResult = await octokit.graphql(contentQuery, {
+      const contentResult = await github.graphql(contentQuery, {
         owner,
         repo,
         number: contentNumber,
@@ -179,7 +176,7 @@ async function updateProject(output) {
         : contentResult.repository.pullRequest.id;
 
       // Check if item already exists on board
-      const existingItemsResult = await octokit.graphql(
+      const existingItemsResult = await github.graphql(
         `query($projectId: ID!, $contentId: ID!) {
           node(id: $projectId) {
             ... on ProjectV2 {
@@ -212,7 +209,7 @@ async function updateProject(output) {
         core.info(`✓ Item already on board`);
       } else {
         // Add item to board
-        const addResult = await octokit.graphql(
+        const addResult = await github.graphql(
           `mutation($projectId: ID!, $contentId: ID!) {
             addProjectV2ItemById(input: {
               projectId: $projectId,
@@ -231,7 +228,7 @@ async function updateProject(output) {
         // Add campaign label to issue/PR
         try {
           const campaignLabel = `campaign:${campaignId}`;
-          await octokit.rest.issues.addLabels({
+          await github.rest.issues.addLabels({
             owner,
             repo,
             issue_number: contentNumber,
@@ -248,7 +245,7 @@ async function updateProject(output) {
         core.info(`Updating custom fields...`);
         
         // Get project fields
-        const fieldsResult = await octokit.graphql(
+        const fieldsResult = await github.graphql(
           `query($projectId: ID!) {
             node(id: $projectId) {
               ... on ProjectV2 {
@@ -300,7 +297,7 @@ async function updateProject(output) {
             valueToSet = { text: String(fieldValue) };
           }
 
-          await octokit.graphql(
+          await github.graphql(
             `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
               updateProjectV2ItemFieldValue(input: {
                 projectId: $projectId,
@@ -335,4 +332,7 @@ async function updateProject(output) {
   }
 }
 
-module.exports = { updateProject };
+(async () => {
+  const output = await loadAgentOutput();
+  await updateProject(output);
+})();
