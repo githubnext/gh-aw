@@ -2038,10 +2038,6 @@
                   "type": "string",
                   "description": "Optional description for the cache that will be shown in the agent prompt"
                 },
-                "docker-image": {
-                  "type": "string",
-                  "description": "Docker image to use for the memory MCP server (default: mcp/memory)"
-                },
                 "retention-days": {
                   "type": "integer",
                   "minimum": 1,
