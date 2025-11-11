@@ -646,7 +646,7 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          docker pull ghcr.io/github/github-mcp-server:v0.20.1
+          docker pull ghcr.io/github/github-mcp-server:v0.20.2
       - name: Install gh-aw extension
         env:
           GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1481,7 +1481,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=pull_requests,actions,repos",
-                  "ghcr.io/github/github-mcp-server:v0.20.1"
+                  "ghcr.io/github/github-mcp-server:v0.20.2"
                 ],
                 "tools": ["*"],
                 "env": {
