@@ -1178,13 +1178,13 @@ func TestValidateIncludedFileFrontmatterWithSchema(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "valid frontmatter with cache-memory with all options",
+			name: "valid frontmatter with cache-memory with all valid options",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
 					"cache-memory": map[string]any{
 						"key":            "custom-key",
 						"retention-days": 30,
-						"docker-image":   "custom/memory:latest",
+						"description":    "Test cache description",
 					},
 				},
 			},
@@ -1213,6 +1213,18 @@ func TestValidateIncludedFileFrontmatterWithSchema(t *testing.T) {
 			},
 			wantErr:     true,
 			errContains: "got 91, want 90",
+		},
+		{
+			name: "invalid cache-memory with unsupported docker-image field",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"cache-memory": map[string]any{
+						"docker-image": "custom/memory:latest",
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties 'docker-image' not allowed",
 		},
 		{
 			name: "invalid cache-memory with additional property",

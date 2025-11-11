@@ -1158,10 +1158,6 @@ tools:
     # (optional)
     description: "Description of the workflow"
 
-    # Docker image to use for the memory MCP server (default: mcp/memory)
-    # (optional)
-    docker-image: "example-value"
-
     # Number of days to retain uploaded artifacts (1-90 days, default: repository
     # setting)
     # (optional)
