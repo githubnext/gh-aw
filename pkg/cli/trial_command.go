@@ -219,7 +219,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 	} else {
 		// Fall back to current repository for logical-repo mode
 		var err error
-		logicalRepoSlug, err = getCurrentRepositoryInfo()
+		logicalRepoSlug, err = GetCurrentRepoSlug()
 		if err != nil {
 			return fmt.Errorf("failed to determine simulated host repository: %w", err)
 		}
@@ -454,12 +454,6 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 		UseStderr: true,
 	})
 
-}
-
-// getCurrentRepositoryInfo determines the current repository from the gh CLI (cached)
-// This is a wrapper around GetCurrentRepoSlug for backward compatibility
-func getCurrentRepositoryInfo() (string, error) {
-	return GetCurrentRepoSlug()
 }
 
 // getCurrentGitHubUsername gets the current GitHub username from gh CLI
