@@ -108,19 +108,8 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ASSETS_MAX_SIZE_KB: %d\n", data.SafeOutputs.UploadAssets.MaxSizeKB))
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ASSETS_ALLOWED_EXTS: %q\n", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ",")))
 
-	// Add common safe output job environment variables (staged/target repo)
-	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
-		c.trialMode,
-		c.trialLogicalRepoSlug,
-		data.SafeOutputs.Staged,
-		"", // No target repo for upload assets
-	)...)
-
-	// Get token from config
-	var token string
-	if data.SafeOutputs.UploadAssets != nil {
-		token = data.SafeOutputs.UploadAssets.GitHubToken
-	}
+	// Add standard environment variables (metadata + staged/target repo)
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, "")...) // No target repo for upload assets
 
 	// Build the GitHub Script step using the common helper
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
@@ -129,7 +118,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
 		Script:        getUploadAssetsScript(),
-		Token:         token,
+		Token:         data.SafeOutputs.UploadAssets.GitHubToken,
 	})
 	steps = append(steps, scriptSteps...)
 
