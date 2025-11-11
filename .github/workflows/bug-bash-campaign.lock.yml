@@ -4034,7 +4034,7 @@ jobs:
               return `${slug}-${timestamp}`;
             }
             async function updateProject(output) {
-              const { owner, repo } = github.context.repo;
+              const { owner, repo } = context.repo;
               const campaignId = output.campaign_id || generateCampaignId(output.project);
               core.info(`Campaign ID: ${campaignId}`);
               core.info(`Managing project: ${output.project}`);
@@ -4281,7 +4281,18 @@ jobs:
               }
             }
             (async () => {
-              const output = await loadAgentOutput();
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const updateProjectItems = result.items.filter(
+                (item) => item.type === "update_project"
+              );
+              if (updateProjectItems.length === 0) {
+                core.info("No update-project items found in agent output");
+                return;
+              }
+              const output = updateProjectItems[0];
               await updateProject(output);
             })();
 

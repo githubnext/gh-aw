@@ -36,8 +36,8 @@ function generateCampaignId(projectName) {
  * @returns {Promise<void>}
  */
 async function updateProject(output) {
-  // In actions/github-script, 'github' is already authenticated
-  const { owner, repo } = github.context.repo;
+  // In actions/github-script, 'github' and 'context' are already available
+  const { owner, repo } = context.repo;
 
   // Generate or use provided campaign ID
   const campaignId = output.campaign_id || generateCampaignId(output.project);
@@ -333,6 +333,20 @@ async function updateProject(output) {
 }
 
 (async () => {
-  const output = await loadAgentOutput();
+  const result = loadAgentOutput();
+  if (!result.success) {
+    return;
+  }
+
+  const updateProjectItems = result.items.filter(
+    (item) => item.type === "update_project"
+  );
+  if (updateProjectItems.length === 0) {
+    core.info("No update-project items found in agent output");
+    return;
+  }
+
+  // Process the first update_project item
+  const output = updateProjectItems[0];
   await updateProject(output);
 })();
