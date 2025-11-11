@@ -13,6 +13,7 @@
 #   missing_tool["missing_tool"]
 #   activation --> agent
 #   agent --> create_pull_request
+#   activation --> create_pull_request
 #   detection --> create_pull_request
 #   agent --> detection
 #   agent --> missing_tool
@@ -3645,6 +3646,7 @@ jobs:
   create_pull_request:
     needs:
       - agent
+      - activation
       - detection
     if: >
       ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))

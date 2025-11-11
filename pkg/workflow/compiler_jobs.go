@@ -189,7 +189,8 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err != nil {
 			return fmt.Errorf("failed to build create_pull_request job: %w", err)
 		}
-		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		// Safe-output jobs should depend on agent job (always), activation job (for comment linking), AND detection job (if enabled)
+		createPullRequestJob.Needs = append(createPullRequestJob.Needs, constants.ActivationJobName)
 		if threatDetectionEnabled {
 			createPullRequestJob.Needs = append(createPullRequestJob.Needs, constants.DetectionJobName)
 		}
