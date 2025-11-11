@@ -74,6 +74,30 @@ func TestBashDefaultsConsistency(t *testing.T) {
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
 		},
+		{
+			name: "edit tool only",
+			tools: map[string]any{
+				"edit": nil,
+			},
+			safeOutputs: nil,
+		},
+		{
+			name: "edit tool with create-pull-request safe output",
+			tools: map[string]any{
+				"edit": nil,
+			},
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+		},
+		{
+			name: "bash with star wildcard and edit tool",
+			tools: map[string]any{
+				"bash": []any{"*"},
+				"edit": nil,
+			},
+			safeOutputs: nil,
+		},
 	}
 
 	for _, tt := range tests {
@@ -111,6 +135,7 @@ func TestBashDefaultsConsistency(t *testing.T) {
 			// Check for bash-related tools in both results
 			claudeHasBash := false
 			claudeHasGit := false
+			claudeHasEdit := false
 			for _, tool := range claudeResultParts {
 				tool = strings.TrimSpace(tool)
 				if tool == "Bash" || strings.HasPrefix(tool, "Bash(") {
@@ -119,14 +144,25 @@ func TestBashDefaultsConsistency(t *testing.T) {
 						claudeHasGit = true
 					}
 				}
+				// Check for edit/write tools
+				if tool == "Edit" || tool == "MultiEdit" || tool == "Write" {
+					claudeHasEdit = true
+				}
 			}
 
 			copilotHasShell := false
 			copilotHasGit := false
+			copilotHasWrite := false
 			for i := 0; i < len(copilotResult); i++ {
 				// Check for --allow-all-tools flag
 				if copilotResult[i] == "--allow-all-tools" {
 					copilotHasShell = true // --allow-all-tools includes shell
+					// Note: --allow-all-tools includes write, but we should only flag it
+					// if edit was explicitly configured in tools, not implicitly via wildcard
+					// Check if edit was explicitly configured
+					if _, hasEdit := tt.tools["edit"]; hasEdit {
+						copilotHasWrite = true
+					}
 					// Note: Don't set copilotHasGit=true here because --allow-all-tools
 					// means all tools are allowed, but for consistency checking we should
 					// only flag git as true if git commands are explicitly listed
@@ -141,12 +177,16 @@ func TestBashDefaultsConsistency(t *testing.T) {
 							copilotHasGit = true
 						}
 					}
+					// Check for write tool
+					if tool == "write" {
+						copilotHasWrite = true
+					}
 				}
 			}
 
 			// Log detailed analysis for debugging
-			t.Logf("Analysis - Claude has bash: %v (git: %v), Copilot has shell: %v (git: %v)",
-				claudeHasBash, claudeHasGit, copilotHasShell, copilotHasGit)
+			t.Logf("Analysis - Claude has bash: %v (git: %v, edit: %v), Copilot has shell: %v (git: %v, write: %v)",
+				claudeHasBash, claudeHasGit, claudeHasEdit, copilotHasShell, copilotHasGit, copilotHasWrite)
 
 			// Both engines should agree on whether bash/shell tools are present
 			if claudeHasBash != copilotHasShell {
@@ -156,6 +196,11 @@ func TestBashDefaultsConsistency(t *testing.T) {
 			// Both engines should agree on whether git commands are present
 			if claudeHasGit != copilotHasGit {
 				t.Errorf("Inconsistency: Claude has git commands: %v, Copilot has git commands: %v", claudeHasGit, copilotHasGit)
+			}
+
+			// Both engines should agree on whether edit/write tools are present
+			if claudeHasEdit != copilotHasWrite {
+				t.Errorf("Inconsistency: Claude has edit tools: %v, Copilot has write tool: %v", claudeHasEdit, copilotHasWrite)
 			}
 		})
 	}
