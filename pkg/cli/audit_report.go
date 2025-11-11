@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/timeutil"
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -236,7 +237,7 @@ func extractDownloadedFiles(logsPath string) []FileInfo {
 			}
 		} else {
 			// For directories, sum the sizes of files inside
-			totalSize := calculateDirectorySize(fullPath)
+			totalSize := fileutil.CalculateDirectorySize(fullPath)
 			fileInfo.Size = totalSize
 			if totalSize > 0 {
 				fileInfo.SizeFormatted = console.FormatFileSize(totalSize)
@@ -275,23 +276,6 @@ func describeFile(filename string) string {
 	}
 
 	return ""
-}
-
-// calculateDirectorySize recursively calculates the total size of files in a directory
-func calculateDirectorySize(dirPath string) int64 {
-	var totalSize int64
-
-	_ = filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if !info.IsDir() {
-			totalSize += info.Size()
-		}
-		return nil
-	})
-
-	return totalSize
 }
 
 // parseDurationString parses a duration string back to time.Duration (best effort)

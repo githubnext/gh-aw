@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 )
 
@@ -237,7 +238,7 @@ func listArtifacts(outputDir string) ([]string, error) {
 // downloadRunArtifacts downloads artifacts for a specific workflow run
 func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 	// Check if artifacts already exist on disk (since they're immutable)
-	if dirExists(outputDir) && !isDirEmpty(outputDir) {
+	if fileutil.DirExists(outputDir) && !fileutil.IsDirEmpty(outputDir) {
 		// Try to load cached summary
 		if summary, ok := loadRunSummary(outputDir, verbose); ok {
 			// Valid cached summary exists, skip download
@@ -348,49 +349,4 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 	}
 
 	return nil
-}
-
-// fileExists checks if a file exists and is not a directory
-func fileExists(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return !info.IsDir()
-}
-
-// copyFileSimple copies a file from src to dst using buffered IO.
-func copyFileSimple(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = out.Close() }()
-	if _, err = io.Copy(out, in); err != nil {
-		return err
-	}
-	return out.Sync()
-}
-
-// dirExists checks if a directory exists
-func dirExists(path string) bool {
-	info, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return info.IsDir()
-}
-
-// isDirEmpty checks if a directory is empty
-func isDirEmpty(path string) bool {
-	files, err := os.ReadDir(path)
-	if err != nil {
-		return true // Consider it empty if we can't read it
-	}
-	return len(files) == 0
 }

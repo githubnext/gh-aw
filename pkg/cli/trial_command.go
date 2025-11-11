@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -1433,7 +1434,7 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 		sourceFile := fmt.Sprintf("trials/%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID)
 		destFile := filepath.Join(trialsDir, fmt.Sprintf("%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID))
 
-		if err := copyFile(sourceFile, destFile); err != nil {
+		if err := fileutil.CopyFile(sourceFile, destFile); err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy %s: %v", sourceFile, err)))
 			}
@@ -1451,7 +1452,7 @@ func copyTrialResultsToHostRepo(tempDir, dateTimeID string, workflowNames []stri
 		combinedSourceFile := fmt.Sprintf("trials/%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID)
 		combinedDestFile := filepath.Join(trialsDir, fmt.Sprintf("%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID))
 
-		if err := copyFile(combinedSourceFile, combinedDestFile); err != nil {
+		if err := fileutil.CopyFile(combinedSourceFile, combinedDestFile); err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy combined results: %v", err)))
 			}
@@ -1525,25 +1526,6 @@ func sanitizeRepoSlugForFilename(repoSlug string) string {
 		return "clone-mode"
 	}
 	return strings.ReplaceAll(repoSlug, "/", "-")
-}
-
-// copyFile copies a file from source to destination
-// copyFile copies a file from source to destination
-func copyFile(src, dst string) error {
-	sourceFile, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer sourceFile.Close()
-
-	destFile, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer destFile.Close()
-
-	_, err = destFile.ReadFrom(sourceFile)
-	return err
 }
 
 // cloneRepoContentsIntoHost clones the contents of the source repo into the host repo

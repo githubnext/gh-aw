@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 )
 
 func TestCalculateDirectorySize(t *testing.T) {
@@ -69,9 +71,9 @@ func TestCalculateDirectorySize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := tt.setup(t)
-			got := calculateDirectorySize(dir)
+			got := fileutil.CalculateDirectorySize(dir)
 			if got != tt.expected {
-				t.Errorf("calculateDirectorySize() = %d, want %d", got, tt.expected)
+				t.Errorf("fileutil.CalculateDirectorySize() = %d, want %d", got, tt.expected)
 			}
 		})
 	}

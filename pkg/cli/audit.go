@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/logger"
@@ -139,7 +140,7 @@ func AuditWorkflowRun(runInfo RunURLInfo, outputDir string, verbose bool, parse 
 	auditLog.Printf("Using output directory: %s", runOutputDir)
 
 	// Check if we have locally cached artifacts first
-	hasLocalCache := dirExists(runOutputDir) && !isDirEmpty(runOutputDir)
+	hasLocalCache := fileutil.DirExists(runOutputDir) && !fileutil.IsDirEmpty(runOutputDir)
 
 	// Try to get run metadata from GitHub API
 	run, metadataErr := fetchWorkflowRunMetadata(runInfo, verbose)
