@@ -42,8 +42,8 @@ jobs:
 
 	// Check that we have the expected repositories
 	expectedRepos := map[string]bool{
-		"actions/checkout":                   false,
-		"actions/setup-node":                 false,
+		"actions/checkout":                  false,
+		"actions/setup-node":                false,
 		"github/codeql-action/upload-sarif": false,
 	}
 
