@@ -8,6 +8,7 @@ permissions:
   issues: read
   pull-requests: read
   discussions: read
+fingerprint: daily-repo-chronicle
 engine: copilot
 
 timeout-minutes: 45

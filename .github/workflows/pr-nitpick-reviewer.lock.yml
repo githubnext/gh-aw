@@ -638,19 +638,9 @@ jobs:
               const fingerprint = process.env.GH_AW_FINGERPRINT || "";
               if (fingerprint) {
                 core.info(`Fingerprint: ${fingerprint}`);
+                return format === "markdown" ? `\n\n<!-- fingerprint: ${fingerprint} -->` : fingerprint;
               }
-              if (!fingerprint) {
-                return "";
-              }
-              if (format === "markdown") {
-                return `\n\n<!-- fingerprint: ${fingerprint} -->`;
-              } else if (format === "text") {
-                return fingerprint;
-              } else if (format === undefined) {
-                return fingerprint;
-              } else {
-                return fingerprint;
-              }
+              return "";
             }
             function getRepositoryUrl() {
               const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
@@ -4908,19 +4898,9 @@ jobs:
               const fingerprint = process.env.GH_AW_FINGERPRINT || "";
               if (fingerprint) {
                 core.info(`Fingerprint: ${fingerprint}`);
+                return format === "markdown" ? `\n\n<!-- fingerprint: ${fingerprint} -->` : fingerprint;
               }
-              if (!fingerprint) {
-                return "";
-              }
-              if (format === "markdown") {
-                return `\n\n<!-- fingerprint: ${fingerprint} -->`;
-              } else if (format === "text") {
-                return fingerprint;
-              } else if (format === undefined) {
-                return fingerprint;
-              } else {
-                return fingerprint;
-              }
+              return "";
             }
             async function main() {
               core.setOutput("discussion_number", "");
