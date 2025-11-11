@@ -7,7 +7,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var metricsLog = logger.New("workflow:metrics")
 
 // Pre-compiled regexes for performance (avoid recompiling in hot paths)
 var (
@@ -93,6 +97,10 @@ func ExtractJSONMetrics(line string, verbose bool) LogMetrics {
 		return metrics
 	}
 
+	if metricsLog.Enabled() {
+		metricsLog.Printf("Extracting metrics from JSON line: line_length=%d", len(trimmed))
+	}
+
 	// If the line isn't a clean JSON object, try to extract a JSON object substring
 	jsonStr := trimmed
 	if !(strings.HasPrefix(trimmed, "{") && strings.HasSuffix(trimmed, "}")) {
@@ -119,11 +127,17 @@ func ExtractJSONMetrics(line string, verbose bool) LogMetrics {
 	// Extract token usage from various possible fields and structures
 	if tokens := ExtractJSONTokenUsage(jsonData); tokens > 0 {
 		metrics.TokenUsage = tokens
+		if metricsLog.Enabled() {
+			metricsLog.Printf("Extracted token usage: %d", tokens)
+		}
 	}
 
 	// Extract cost information from various possible fields
 	if cost := ExtractJSONCost(jsonData); cost > 0 {
 		metrics.EstimatedCost = cost
+		if metricsLog.Enabled() {
+			metricsLog.Printf("Extracted cost: %.4f", cost)
+		}
 	}
 
 	return metrics

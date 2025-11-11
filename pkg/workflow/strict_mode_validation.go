@@ -40,12 +40,18 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var strictModeLog = logger.New("workflow:strict_mode_validation")
 
 // validateStrictPermissions refuses write permissions in strict mode
 func (c *Compiler) validateStrictPermissions(frontmatter map[string]any) error {
+	strictModeLog.Print("Validating strict mode permissions")
 	permissionsValue, exists := frontmatter["permissions"]
 	if !exists {
+		strictModeLog.Print("No permissions specified, validation passed")
 		// No permissions specified is fine
 		return nil
 	}
@@ -57,31 +63,38 @@ func (c *Compiler) validateStrictPermissions(frontmatter map[string]any) error {
 	writePermissions := []string{"contents", "issues", "pull-requests"}
 	for _, scope := range writePermissions {
 		if perms.IsAllowed(scope, "write") {
+			strictModeLog.Printf("Strict mode validation failed: write permission on %s is not allowed", scope)
 			return fmt.Errorf("strict mode: write permission '%s: write' is not allowed", scope)
 		}
 	}
 
+	strictModeLog.Print("Strict permissions validation passed")
 	return nil
 }
 
 // validateStrictNetwork requires network configuration and refuses "*" wildcard
 func (c *Compiler) validateStrictNetwork(networkPermissions *NetworkPermissions) error {
+	strictModeLog.Print("Validating strict mode network configuration")
 	if networkPermissions == nil {
+		strictModeLog.Print("Network configuration missing in strict mode")
 		return fmt.Errorf("strict mode: 'network' configuration is required")
 	}
 
 	// If mode is "defaults", that's acceptable
 	if networkPermissions.Mode == "defaults" {
+		strictModeLog.Print("Network mode is 'defaults', validation passed")
 		return nil
 	}
 
 	// Check for wildcard "*" in allowed domains
 	for _, domain := range networkPermissions.Allowed {
 		if domain == "*" {
+			strictModeLog.Print("Wildcard domain not allowed in strict mode")
 			return fmt.Errorf("strict mode: wildcard '*' is not allowed in network.allowed domains")
 		}
 	}
 
+	strictModeLog.Printf("Network validation passed: allowed_domains=%d", len(networkPermissions.Allowed))
 	return nil
 }
 
@@ -138,8 +151,11 @@ func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any) error {
 // findings as compilation errors rather than warnings.
 func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermissions *NetworkPermissions) error {
 	if !c.strictMode {
+		strictModeLog.Print("Strict mode disabled, skipping validation")
 		return nil
 	}
+
+	strictModeLog.Print("Starting strict mode validation")
 
 	// 1. Refuse write permissions
 	if err := c.validateStrictPermissions(frontmatter); err != nil {
@@ -156,5 +172,6 @@ func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermiss
 		return err
 	}
 
+	strictModeLog.Print("All strict mode validations passed")
 	return nil
 }
