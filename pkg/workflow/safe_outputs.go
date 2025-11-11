@@ -872,6 +872,26 @@ func applySafeOutputEnvToSlice(stepLines *[]string, workflowData *WorkflowData) 
 	}
 }
 
+// buildWorkflowMetadataEnvVars builds workflow name and source environment variables
+// This extracts the duplicated workflow metadata setup logic from safe-output job builders
+func buildWorkflowMetadataEnvVars(workflowName string, workflowSource string) []string {
+	var customEnvVars []string
+
+	// Add workflow name
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", workflowName))
+
+	// Add workflow source and source URL if present
+	if workflowSource != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE: %q\n", workflowSource))
+		sourceURL := buildSourceURL(workflowSource)
+		if sourceURL != "" {
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
+		}
+	}
+
+	return customEnvVars
+}
+
 // buildSafeOutputJobEnvVars builds environment variables for safe-output jobs with staged/target repo handling
 // This extracts the duplicated env setup logic in safe-output job builders (create_issue, add_comment, etc.)
 func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, staged bool, targetRepoSlug string) []string {
