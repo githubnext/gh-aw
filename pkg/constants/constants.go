@@ -24,7 +24,7 @@ const DefaultCopilotVersion = "0.0.354"
 const DefaultCodexVersion = "0.55.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion = "v0.20.1"
+const DefaultGitHubMCPServerVersion = "v0.20.2"
 
 // DefaultFirewallVersion is the default version of the gh-aw-firewall (AWF) binary
 const DefaultFirewallVersion = "v0.1.1"
