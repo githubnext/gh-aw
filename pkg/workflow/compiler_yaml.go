@@ -302,7 +302,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateUploadMCPLogs(yaml)
 
 	// parse agent logs for GITHUB_STEP_SUMMARY
-	c.generateLogParsing(yaml, engine)
+	c.generateLogParsing(yaml, engine, data)
 
 	// Add Squid logs collection and upload steps for Copilot engine
 	if copilotEngine, ok := engine.(*CopilotEngine); ok {
@@ -375,7 +375,7 @@ func (c *Compiler) generateUploadAssets(yaml *strings.Builder) {
 	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
-func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentEngine) {
+func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentEngine, data *WorkflowData) {
 	parserScriptName := engine.GetLogParserScriptId()
 	if parserScriptName == "" {
 		// Skip log parsing if engine doesn't provide a parser
@@ -396,6 +396,15 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString(fmt.Sprintf("        uses: %s\n", GetActionPin("actions/github-script")))
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GH_AW_AGENT_OUTPUT: %s\n", logFileForParsing)
+
+	// Add workflow file paths for step summary links
+	if data.MarkdownPath != "" {
+		fmt.Fprintf(yaml, "          GH_AW_WORKFLOW_SOURCE: \"%s\"\n", data.MarkdownPath)
+	}
+	if data.LockFilePath != "" {
+		fmt.Fprintf(yaml, "          GH_AW_WORKFLOW_COMPILED: \"%s\"\n", data.LockFilePath)
+	}
+
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 

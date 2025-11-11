@@ -129,7 +129,11 @@ Create a report based on repository analysis.`
 		}
 
 		lockStr := string(lockContent)
-		if strings.Contains(lockStr, "compute-text") {
+		// Check for specific indicators that compute-text step is present
+		// (not just the string "compute-text" which might appear in file paths)
+		hasComputeTextStep := strings.Contains(lockStr, "id: compute-text") ||
+			strings.Contains(lockStr, "steps.compute-text.outputs")
+		if hasComputeTextStep {
 			t.Error("Expected compiled workflow NOT to contain compute-text step")
 		}
 		if strings.Contains(lockStr, "text: ${{ steps.compute-text.outputs.text }}") {

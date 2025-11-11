@@ -192,6 +192,8 @@ type WorkflowData struct {
 	ActionResolver      *ActionResolver      // resolver for action pins
 	StrictMode          bool                 // strict mode for action pinning
 	SecretMasking       *SecretMaskingConfig // secret masking configuration
+	MarkdownPath        string               // path to the source markdown workflow file
+	LockFilePath        string               // path to the compiled lock file
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
@@ -264,6 +266,10 @@ func (c *Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath 
 
 	// replace the .md extension by .lock.yml
 	lockFile := strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
+
+	// Store the markdown and lock file paths in WorkflowData for use in step summary
+	workflowData.MarkdownPath = markdownPath
+	workflowData.LockFilePath = lockFile
 
 	log.Printf("Starting compilation: %s -> %s", markdownPath, lockFile)
 

@@ -85,7 +85,44 @@ function runLogParser(options) {
 
     if (markdown) {
       core.info(markdown);
-      core.summary.addRaw(markdown).write();
+      core.summary.addRaw(markdown);
+
+      // Add workflow file links if available
+      const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE;
+      const workflowCompiled = process.env.GH_AW_WORKFLOW_COMPILED;
+
+      if (workflowSource || workflowCompiled) {
+        core.summary.addRaw("\n\n---\n\n");
+        core.summary.addRaw("## 📄 Workflow Files\n\n");
+
+        // Check if we have the necessary context for building URLs
+        const repository = context.payload && context.payload.repository;
+        const sha = context.sha;
+
+        if (workflowSource) {
+          // Extract relative path from workflow source (remove leading .github/workflows/ if present)
+          const sourcePath = workflowSource.replace(/^\.github\/workflows\//, "");
+
+          if (repository && repository.html_url && sha) {
+            core.summary.addRaw(`- **Source**: [\`${sourcePath}\`](${repository.html_url}/blob/${sha}/${workflowSource})\n`);
+          } else {
+            core.summary.addRaw(`- **Source**: \`${sourcePath}\`\n`);
+          }
+        }
+
+        if (workflowCompiled) {
+          // Extract relative path from compiled workflow
+          const compiledPath = workflowCompiled.replace(/^\.github\/workflows\//, "");
+
+          if (repository && repository.html_url && sha) {
+            core.summary.addRaw(`- **Compiled**: [\`${compiledPath}\`](${repository.html_url}/blob/${sha}/${workflowCompiled})\n`);
+          } else {
+            core.summary.addRaw(`- **Compiled**: \`${compiledPath}\`\n`);
+          }
+        }
+      }
+
+      core.summary.write();
       core.info(`${parserName} log parsed successfully`);
     } else {
       core.error(`Failed to parse ${parserName} log`);
