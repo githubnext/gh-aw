@@ -482,78 +482,21 @@ func buildFirewallLogSummary(processedRuns []ProcessedRun) *FirewallLogSummary {
 	}
 }
 
-// buildCombinedErrorsSummary aggregates errors and warnings across all runs into a single list
-func buildCombinedErrorsSummary(processedRuns []ProcessedRun) []ErrorSummary {
-	// Track all errors and warnings in a single map
-	combinedMap := make(map[string]*ErrorSummary)
-
-	for _, pr := range processedRuns {
-		// Extract metrics from run's logs
-		metrics := ExtractLogMetricsFromRun(pr)
-
-		// Get engine information for this run
-		engineID := ""
-		awInfoPath := filepath.Join(pr.Run.LogsPath, "aw_info.json")
-		if info, err := parseAwInfo(awInfoPath, false); err == nil && info != nil {
-			engineID = info.EngineID
-		}
-
-		// Process each error/warning
-		for _, logErr := range metrics.Errors {
-			// Create a combined key using type and message
-			key := logErr.Type + ":" + logErr.Message
-
-			if existing, exists := combinedMap[key]; exists {
-				// Increment count for existing error/warning
-				existing.Count++
-			} else {
-				// Create new entry
-				// Capitalize the type for display
-				displayType := logErr.Type
-				if displayType == "error" {
-					displayType = "Error"
-				} else if displayType == "warning" {
-					displayType = "Warning"
-				}
-
-				combinedMap[key] = &ErrorSummary{
-					Type:         displayType,
-					Message:      logErr.Message,
-					Count:        1,
-					PatternID:    logErr.PatternID,
-					Engine:       engineID,
-					RunID:        pr.Run.DatabaseID,
-					RunURL:       pr.Run.URL,
-					WorkflowName: pr.Run.WorkflowName,
-				}
-			}
-		}
-	}
-
-	// Convert map to slice and sort by count (descending), then by type (errors first)
-	var combined []ErrorSummary
-	for _, summary := range combinedMap {
-		combined = append(combined, *summary)
-	}
-	sort.Slice(combined, func(i, j int) bool {
-		// First sort by type (Error before Warning)
-		if combined[i].Type != combined[j].Type {
-			return combined[i].Type == "Error"
-		}
-		// Then by count (descending)
-		return combined[i].Count > combined[j].Count
-	})
-
-	return combined
+// logErrorAggregator defines how to aggregate log errors
+type logErrorAggregator struct {
+	// generateKey creates a unique key for deduplication
+	generateKey func(logErr workflow.LogError) string
+	// selectMap chooses which map to store the error in (for separate error/warning maps)
+	selectMap func(logErr workflow.LogError) map[string]*ErrorSummary
+	// sortResults sorts the final aggregated results
+	sortResults func(results []ErrorSummary)
 }
 
-// buildErrorsSummary aggregates errors and warnings across all runs
-// Returns two slices: errorsSummary and warningsSummary
-// DEPRECATED: Use buildCombinedErrorsSummary instead
-func buildErrorsSummary(processedRuns []ProcessedRun) ([]ErrorSummary, []ErrorSummary) {
-	// Track errors and warnings separately
-	errorMap := make(map[string]*ErrorSummary)
-	warningMap := make(map[string]*ErrorSummary)
+// aggregateLogErrors extracts common error aggregation logic
+// It iterates through processedRuns, extracts metrics, resolves engine info,
+// and aggregates errors using the provided aggregator strategy
+func aggregateLogErrors(processedRuns []ProcessedRun, agg logErrorAggregator) []ErrorSummary {
+	aggregatedMap := make(map[string]*ErrorSummary)
 
 	for _, pr := range processedRuns {
 		// Extract metrics from run's logs
@@ -568,14 +511,13 @@ func buildErrorsSummary(processedRuns []ProcessedRun) ([]ErrorSummary, []ErrorSu
 
 		// Process each error/warning
 		for _, logErr := range metrics.Errors {
-			// Use message as the key for aggregation
-			key := logErr.Message
+			// Generate key for this error
+			key := agg.generateKey(logErr)
 
-			var targetMap map[string]*ErrorSummary
-			if logErr.Type == "error" {
-				targetMap = errorMap
-			} else {
-				targetMap = warningMap
+			// Determine target map (if using multiple maps)
+			targetMap := aggregatedMap
+			if agg.selectMap != nil {
+				targetMap = agg.selectMap(logErr)
 			}
 
 			if existing, exists := targetMap[key]; exists {
@@ -605,19 +547,66 @@ func buildErrorsSummary(processedRuns []ProcessedRun) ([]ErrorSummary, []ErrorSu
 		}
 	}
 
-	// Convert maps to slices and sort by count (descending)
-	var errorsSummary []ErrorSummary
-	for _, summary := range errorMap {
-		errorsSummary = append(errorsSummary, *summary)
+	// Convert map to slice
+	var results []ErrorSummary
+	for _, summary := range aggregatedMap {
+		results = append(results, *summary)
 	}
+
+	// Sort results using provided strategy
+	if agg.sortResults != nil {
+		agg.sortResults(results)
+	}
+
+	return results
+}
+
+// buildCombinedErrorsSummary aggregates errors and warnings across all runs into a single list
+func buildCombinedErrorsSummary(processedRuns []ProcessedRun) []ErrorSummary {
+	agg := logErrorAggregator{
+		generateKey: func(logErr workflow.LogError) string {
+			// Create a combined key using type and message
+			return logErr.Type + ":" + logErr.Message
+		},
+		selectMap: nil, // Use single map
+		sortResults: func(results []ErrorSummary) {
+			sort.Slice(results, func(i, j int) bool {
+				// First sort by type (Error before Warning)
+				if results[i].Type != results[j].Type {
+					return results[i].Type == "Error"
+				}
+				// Then by count (descending)
+				return results[i].Count > results[j].Count
+			})
+		},
+	}
+
+	return aggregateLogErrors(processedRuns, agg)
+}
+
+// buildErrorsSummary aggregates errors and warnings across all runs
+// Returns two slices: errorsSummary and warningsSummary
+// DEPRECATED: Use buildCombinedErrorsSummary instead
+func buildErrorsSummary(processedRuns []ProcessedRun) ([]ErrorSummary, []ErrorSummary) {
+	// Get combined summary
+	combined := buildCombinedErrorsSummary(processedRuns)
+
+	// Separate into errors and warnings
+	var errorsSummary []ErrorSummary
+	var warningsSummary []ErrorSummary
+
+	for _, summary := range combined {
+		if summary.Type == "Error" {
+			errorsSummary = append(errorsSummary, summary)
+		} else {
+			warningsSummary = append(warningsSummary, summary)
+		}
+	}
+
+	// Sort each by count (descending)
 	sort.Slice(errorsSummary, func(i, j int) bool {
 		return errorsSummary[i].Count > errorsSummary[j].Count
 	})
-
-	var warningsSummary []ErrorSummary
-	for _, summary := range warningMap {
-		warningsSummary = append(warningsSummary, *summary)
-	}
 	sort.Slice(warningsSummary, func(i, j int) bool {
 		return warningsSummary[i].Count > warningsSummary[j].Count
 	})
