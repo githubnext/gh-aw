@@ -5,6 +5,7 @@ const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
+const { getFingerprint } = require("./get_fingerprint.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
@@ -110,6 +111,13 @@ async function main() {
     const runUrl = context.payload.repository
       ? `${context.payload.repository.html_url}/actions/runs/${runId}`
       : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+
+    // Add fingerprint comment if present
+    const fingerprintComment = getFingerprint("markdown");
+    if (fingerprintComment) {
+      bodyLines.push(fingerprintComment);
+    }
+
     bodyLines.push(
       ``,
       ``,

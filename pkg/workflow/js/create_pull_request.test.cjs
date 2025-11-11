@@ -16,10 +16,11 @@ const createTestableFunction = scriptContent => {
   scriptBody = scriptBody.replace(/\/\*\* @type \{typeof import\("fs"\)\} \*\/\s*const fs = require\("fs"\);?\s*/g, "");
   scriptBody = scriptBody.replace(/\/\*\* @type \{typeof import\("crypto"\)\} \*\/\s*const crypto = require\("crypto"\);?\s*/g, "");
   scriptBody = scriptBody.replace(/const \{ updateActivationComment \} = require\("\.\/update_activation_comment\.cjs"\);?\s*/g, "");
+  scriptBody = scriptBody.replace(/const \{ getFingerprint \} = require\("\.\/get_fingerprint\.cjs"\);?\s*/g, "");
 
   // Create a testable function that has the same logic but can be called with dependencies
   return new Function(`
-    const { fs, crypto, github, core, context, process, console, updateActivationComment } = arguments[0];
+    const { fs, crypto, github, core, context, process, console, updateActivationComment, getFingerprint } = arguments[0];
     
     ${scriptBody}
     
@@ -156,6 +157,12 @@ describe("create_pull_request.cjs", () => {
         log: vi.fn(),
       },
       updateActivationComment: vi.fn(),
+      getFingerprint: vi.fn(format => {
+        if (format === "markdown") {
+          return "";
+        }
+        return "";
+      }),
     };
   });
 

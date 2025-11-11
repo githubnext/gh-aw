@@ -880,6 +880,14 @@ jobs:
               footer += "\n";
               return footer;
             }
+            function getFingerprint(format) {
+              const fingerprint = process.env.GH_AW_FINGERPRINT || "";
+              if (fingerprint) {
+                core.info(`Fingerprint: ${fingerprint}`);
+                return format === "markdown" ? `\n\n<!-- fingerprint: ${fingerprint} -->` : fingerprint;
+              }
+              return "";
+            }
             function getRepositoryUrl() {
               const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
               if (targetRepoSlug) {
@@ -1121,6 +1129,7 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                body += getFingerprint("markdown");
                 body += generateFooter(
                   workflowName,
                   runUrl,

@@ -3497,6 +3497,14 @@ jobs:
               footer += "\n";
               return footer;
             }
+            function getFingerprint(format) {
+              const fingerprint = process.env.GH_AW_FINGERPRINT || "";
+              if (fingerprint) {
+                core.info(`Fingerprint: ${fingerprint}`);
+                return format === "markdown" ? `\n\n<!-- fingerprint: ${fingerprint} -->` : fingerprint;
+              }
+              return "";
+            }
             async function main() {
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
@@ -3589,6 +3597,10 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                const fingerprintComment = getFingerprint("markdown");
+                if (fingerprintComment) {
+                  bodyLines.push(fingerprintComment);
+                }
                 bodyLines.push(
                   ``,
                   ``,
