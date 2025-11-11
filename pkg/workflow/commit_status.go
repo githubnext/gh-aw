@@ -7,8 +7,8 @@ import (
 // CommitStatusConfig holds configuration for commit status updates from agent output
 type CommitStatusConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Context              string `yaml:"context,omitempty"`      // Status context/label (defaults to "agentic-workflow")
-	TargetRepoSlug       string `yaml:"target-repo,omitempty"`  // Target repository for cross-repo status updates
+	Context              string `yaml:"context,omitempty"`     // Status context/label (defaults to "agentic-workflow")
+	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository for cross-repo status updates
 }
 
 // buildCommitStatusJob creates the commit_status job
@@ -19,7 +19,7 @@ func (c *Compiler) buildCommitStatusJob(data *WorkflowData, mainJobName string) 
 
 	// Build custom environment variables specific to commit-status
 	var customEnvVars []string
-	
+
 	// Pass the commit SHA from activation job output or github context
 	customEnvVars = append(customEnvVars, "          GH_AW_COMMIT_SHA: ${{ github.sha }}\n")
 

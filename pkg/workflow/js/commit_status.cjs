@@ -14,9 +14,7 @@ async function main() {
   }
 
   // Find commit_status items
-  const commitStatusItems = result.items.filter(
-    /** @param {any} item */ item => item.type === "commit_status"
-  );
+  const commitStatusItems = result.items.filter(/** @param {any} item */ item => item.type === "commit_status");
 
   if (commitStatusItems.length === 0) {
     core.info("No commit_status items found in agent output");
@@ -62,7 +60,7 @@ async function main() {
   for (const item of commitStatusItems) {
     try {
       const statusContext = item.context || defaultContext;
-      
+
       core.info(`Updating commit status for ${commitSha}`);
       core.info(`State: ${item.state}`);
       core.info(`Description: ${item.description}`);

@@ -2607,6 +2607,8 @@ jobs:
                     return 40;
                   case "upload_asset":
                     return 10;
+                  case "commit_status":
+                    return 1;
                   default:
                     return 1;
                 }
@@ -3205,6 +3207,30 @@ jobs:
                       item.message = sanitizeContent(item.message, 2048);
                       if (item.ruleIdSuffix) {
                         item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix, 128);
+                      }
+                      break;
+                    case "commit_status":
+                      if (!item.state || typeof item.state !== "string") {
+                        errors.push(`Line ${i + 1}: commit_status requires a 'state' field (string)`);
+                        continue;
+                      }
+                      const allowedStates = ["success", "error", "failure"];
+                      if (!allowedStates.includes(item.state)) {
+                        errors.push(`Line ${i + 1}: commit_status 'state' must be one of: ${allowedStates.join(", ")}, got ${item.state}`);
+                        continue;
+                      }
+                      if (!item.description || typeof item.description !== "string") {
+                        errors.push(`Line ${i + 1}: commit_status requires a 'description' field (string)`);
+                        continue;
+                      }
+                      item.state = sanitizeContent(item.state, 64);
+                      item.description = sanitizeContent(item.description, 140);
+                      if (item.context !== undefined) {
+                        if (typeof item.context !== "string") {
+                          errors.push(`Line ${i + 1}: commit_status 'context' must be a string`);
+                          continue;
+                        }
+                        item.context = sanitizeContent(item.context, 100);
                       }
                       break;
                     default:

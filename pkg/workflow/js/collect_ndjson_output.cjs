@@ -652,9 +652,7 @@ async function main() {
           }
           const allowedStates = ["success", "error", "failure"];
           if (!allowedStates.includes(item.state)) {
-            errors.push(
-              `Line ${i + 1}: commit_status 'state' must be one of: ${allowedStates.join(", ")}, got ${item.state}`
-            );
+            errors.push(`Line ${i + 1}: commit_status 'state' must be one of: ${allowedStates.join(", ")}, got ${item.state}`);
             continue;
           }
           if (!item.description || typeof item.description !== "string") {

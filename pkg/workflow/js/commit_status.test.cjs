@@ -112,7 +112,7 @@ describe("commit_status.cjs", () => {
   it("should handle missing agent output", async () => {
     // No GH_AW_AGENT_OUTPUT set
     await eval(`(async () => { ${commitStatusScript} })()`);
-    
+
     expect(mockCore.info).toHaveBeenCalledWith("No GH_AW_AGENT_OUTPUT environment variable found");
   });
 

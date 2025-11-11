@@ -1676,6 +1676,32 @@ safe-outputs:
   # Option 2: Enable asset publishing with default configuration
   upload-assets: null
 
+  # (optional)
+  # This field supports multiple formats (oneOf):
+
+  # Option 1: Configuration for updating commit status via GitHub API
+  commit-status:
+    # Maximum number of commit status updates (default: 1)
+    # (optional)
+    max: 1
+
+    # Status context/label (default: 'agentic-workflow')
+    # (optional)
+    context: "example-value"
+
+    # Target repository in format 'owner/repo' for cross-repository status updates.
+    # Takes precedence over trial target repo settings.
+    # (optional)
+    target-repo: "example-value"
+
+    # GitHub token to use for this specific output type. Overrides global github-token
+    # if specified.
+    # (optional)
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+  # Option 2: Enable commit status updates with default configuration
+  commit-status: null
+
   # If true, emit step summary messages instead of making GitHub API calls (preview
   # mode)
   # (optional)
