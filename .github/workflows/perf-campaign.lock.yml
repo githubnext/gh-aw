@@ -236,7 +236,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"create_issue":{"max":5},"missing_tool":{}}
+          {"create_issue":{"max":5},"missing_tool":{},"update_project":{"max":10}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -4325,8 +4325,6 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const core = require("@actions/core");
-            const github = require("@actions/github");
             function generateCampaignId(projectName) {
               const slug = projectName
                 .toLowerCase()

@@ -1,6 +1,3 @@
-const core = require("@actions/core");
-const github = require("@actions/github");
-
 /**
  * @typedef {Object} UpdateProjectOutput
  * @property {"update_project"} type

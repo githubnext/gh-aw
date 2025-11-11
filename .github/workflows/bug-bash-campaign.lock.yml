@@ -3990,8 +3990,6 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const core = require("@actions/core");
-            const github = require("@actions/github");
             function generateCampaignId(projectName) {
               const slug = projectName
                 .toLowerCase()
