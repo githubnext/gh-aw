@@ -83,23 +83,36 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.CreateIssues.TargetRepoSlug)...)
 
 	// Build post-steps for assignees if configured
+	// Only generate assignee steps when "copilot" is in the assignees list
 	var postSteps []string
 	if len(data.SafeOutputs.CreateIssues.Assignees) > 0 {
-		// Get the effective GitHub token to use for gh CLI
-		var safeOutputsToken string
-		if data.SafeOutputs != nil {
-			safeOutputsToken = data.SafeOutputs.GitHubToken
+		// Check if "copilot" is in the assignees list
+		hasCopilot := false
+		for _, assignee := range data.SafeOutputs.CreateIssues.Assignees {
+			if assignee == "copilot" {
+				hasCopilot = true
+				break
+			}
 		}
 
-		postSteps = buildCopilotParticipantSteps(CopilotParticipantConfig{
-			Participants:       data.SafeOutputs.CreateIssues.Assignees,
-			ParticipantType:    "assignee",
-			CustomToken:        data.SafeOutputs.CreateIssues.GitHubToken,
-			SafeOutputsToken:   safeOutputsToken,
-			WorkflowToken:      data.GitHubToken,
-			ConditionStepID:    "create_issue",
-			ConditionOutputKey: "issue_number",
-		})
+		// Only generate steps if copilot is an assignee
+		if hasCopilot {
+			// Get the effective GitHub token to use for gh CLI
+			var safeOutputsToken string
+			if data.SafeOutputs != nil {
+				safeOutputsToken = data.SafeOutputs.GitHubToken
+			}
+
+			postSteps = buildCopilotParticipantSteps(CopilotParticipantConfig{
+				Participants:       []string{"copilot"}, // Only pass copilot as participant
+				ParticipantType:    "assignee",
+				CustomToken:        data.SafeOutputs.CreateIssues.GitHubToken,
+				SafeOutputsToken:   safeOutputsToken,
+				WorkflowToken:      data.GitHubToken,
+				ConditionStepID:    "create_issue",
+				ConditionOutputKey: "issue_number",
+			})
+		}
 	}
 
 	// Create outputs for the job

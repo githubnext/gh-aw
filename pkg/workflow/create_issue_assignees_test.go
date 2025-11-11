@@ -9,7 +9,8 @@ func TestCreateIssueJobWithAssignees(t *testing.T) {
 	// Create a compiler instance
 	c := NewCompiler(false, "", "test")
 
-	// Test with assignees configured
+	// Test with assignees configured (but without copilot)
+	// After the change, assignee steps are only generated when "copilot" is in the list
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
@@ -27,63 +28,13 @@ func TestCreateIssueJobWithAssignees(t *testing.T) {
 	// Convert steps to a single string for testing
 	stepsContent := strings.Join(job.Steps, "")
 
-	// Check that checkout step is included before assignee steps
-	if !strings.Contains(stepsContent, "Checkout repository for gh CLI") {
-		t.Error("Expected checkout step for gh CLI")
+	// Since assignees don't include "copilot", no assignee steps should be generated
+	if strings.Contains(stepsContent, "Checkout repository for gh CLI") {
+		t.Error("Did not expect checkout step when copilot is not in assignees")
 	}
 
-	// Verify that checkout step is conditional on issue creation
-	checkoutPattern := "Checkout repository for gh CLI"
-	checkoutIndex := strings.Index(stepsContent, checkoutPattern)
-	if checkoutIndex == -1 {
-		t.Error("Expected checkout step")
-	} else {
-		// Check that conditional appears after the checkout step name
-		afterCheckout := stepsContent[checkoutIndex:]
-		if !strings.Contains(afterCheckout, "if: steps.create_issue.outputs.issue_number != ''") {
-			t.Error("Expected checkout step to be conditional on issue creation")
-		}
-	}
-
-	// Check that assignee steps are included
-	if !strings.Contains(stepsContent, "Assign issue to user1") {
-		t.Error("Expected assignee step for user1")
-	}
-	if !strings.Contains(stepsContent, "Assign issue to user2") {
-		t.Error("Expected assignee step for user2")
-	}
-	if !strings.Contains(stepsContent, "Assign issue to bot-user") {
-		t.Error("Expected assignee step for bot-user")
-	}
-
-	// Check that actions/github-script is used for assigning
-	if !strings.Contains(stepsContent, "actions/github-script") {
-		t.Error("Expected actions/github-script to be used for assignee steps")
-	}
-
-	// Check that the JavaScript assigns issues using exec.exec with gh CLI
-	if !strings.Contains(stepsContent, "exec.exec") {
-		t.Error("Expected exec.exec to be used in assignee script")
-	}
-
-	// Check that ISSUE_NUMBER environment variable is set from step output
-	if !strings.Contains(stepsContent, "ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}") {
-		t.Error("Expected ISSUE_NUMBER to be set from create_issue step output")
-	}
-
-	// Check that condition is set to only run if issue_number is not empty
-	if !strings.Contains(stepsContent, "if: steps.create_issue.outputs.issue_number != ''") {
-		t.Error("Expected conditional if statement for assignee steps")
-	}
-
-	// Verify that GH_TOKEN is set with proper token expression (without GITHUB_TOKEN fallback for regular assignees)
-	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
-		t.Error("Expected GH_TOKEN environment variable to be set with proper token expression")
-	}
-
-	// Verify that checkout uses actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-	if !strings.Contains(stepsContent, "uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8") {
-		t.Error("Expected checkout to use actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8")
+	if strings.Contains(stepsContent, "Assign issue to") {
+		t.Error("Did not expect assignee steps when copilot is not in assignees")
 	}
 }
 
@@ -122,7 +73,8 @@ func TestCreateIssueJobWithSingleAssignee(t *testing.T) {
 	// Create a compiler instance
 	c := NewCompiler(false, "", "test")
 
-	// Test with a single assignee
+	// Test with a single assignee (not copilot)
+	// After the change, no assignee steps should be generated unless copilot is in the list
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
@@ -140,19 +92,13 @@ func TestCreateIssueJobWithSingleAssignee(t *testing.T) {
 	// Convert steps to a single string for testing
 	stepsContent := strings.Join(job.Steps, "")
 
-	// Check that single assignee step is included
-	if !strings.Contains(stepsContent, "Assign issue to single-user") {
-		t.Error("Expected assignee step for single-user")
+	// Since the assignee is not "copilot", no assignee steps should be generated
+	if strings.Contains(stepsContent, "Assign issue to") {
+		t.Error("Did not expect assignee steps when copilot is not in the assignees list")
 	}
 
-	// Check that actions/github-script is used
-	if !strings.Contains(stepsContent, "actions/github-script") {
-		t.Error("Expected actions/github-script to be used in assignee step")
-	}
-
-	// Verify environment variable for assignee
-	if !strings.Contains(stepsContent, `ASSIGNEE: "single-user"`) {
-		t.Error("Expected ASSIGNEE environment variable to be set")
+	if strings.Contains(stepsContent, "Checkout repository for gh CLI") {
+		t.Error("Did not expect checkout step when copilot is not in the assignees list")
 	}
 }
 
@@ -282,7 +228,7 @@ func TestCreateIssueJobWithCustomGitHubToken(t *testing.T) {
 	// Create a compiler instance
 	c := NewCompiler(false, "", "test")
 
-	// Test with custom GitHub token configuration
+	// Test with custom GitHub token configuration and copilot as assignee
 	workflowData := &WorkflowData{
 		Name:        "test-workflow",
 		GitHubToken: "${{ secrets.CUSTOM_PAT }}",
@@ -291,7 +237,7 @@ func TestCreateIssueJobWithCustomGitHubToken(t *testing.T) {
 				BaseSafeOutputConfig: BaseSafeOutputConfig{
 					GitHubToken: "${{ secrets.ISSUE_SPECIFIC_PAT }}",
 				},
-				Assignees: []string{"user1"},
+				Assignees: []string{"copilot"}, // Changed to copilot so assignee steps are generated
 			},
 		},
 	}

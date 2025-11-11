@@ -165,7 +165,8 @@ func TestCopilotAssigneeSpecialHandling(t *testing.T) {
 	// Create a compiler instance
 	c := NewCompiler(false, "", "test")
 
-	// Test with "copilot" as assignee
+	// Test with "copilot" and other users as assignees
+	// After the change, only copilot gets an assignee step, other users are ignored
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
@@ -188,16 +189,14 @@ func TestCopilotAssigneeSpecialHandling(t *testing.T) {
 		t.Error("Expected copilot to be mapped to @copilot")
 	}
 
-	// Verify that other users are NOT mapped to @
-	if !strings.Contains(stepsContent, `ASSIGNEE: "user1"`) {
-		t.Error("Expected user1 to remain as-is without @ prefix")
-	}
-
-	// Verify that both assignee steps are present
+	// Verify that copilot assignee step is present
 	if !strings.Contains(stepsContent, "Assign issue to copilot") {
 		t.Error("Expected assignee step for copilot")
 	}
-	if !strings.Contains(stepsContent, "Assign issue to user1") {
-		t.Error("Expected assignee step for user1")
+
+	// After the change, only copilot gets an assignee step
+	// user1 should NOT have an assignee step
+	if strings.Contains(stepsContent, "Assign issue to user1") {
+		t.Error("Did not expect assignee step for user1 (only copilot should have a step)")
 	}
 }

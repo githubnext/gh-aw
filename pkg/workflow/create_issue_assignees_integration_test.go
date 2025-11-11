@@ -64,71 +64,14 @@ This is a test workflow that should create an issue and assign it to multiple us
 		t.Error("Expected create_issue job in compiled workflow")
 	}
 
-	// Verify that assignee steps are present
-	if !strings.Contains(compiledStr, "Assign issue to user1") {
-		t.Error("Expected assignee step for user1 in compiled workflow")
-	}
-	if !strings.Contains(compiledStr, "Assign issue to user2") {
-		t.Error("Expected assignee step for user2 in compiled workflow")
-	}
-	if !strings.Contains(compiledStr, "Assign issue to bot-helper") {
-		t.Error("Expected assignee step for bot-helper in compiled workflow")
+	// After the change, assignee steps are only generated when "copilot" is in the list
+	// Since the assignees list doesn't include copilot, no assignee steps should be present
+	if strings.Contains(compiledStr, "Assign issue to") {
+		t.Error("Did not expect assignee steps when copilot is not in the assignees list")
 	}
 
-	// Verify actions/github-script is used
-	if !strings.Contains(compiledStr, "actions/github-script") {
-		t.Error("Expected actions/github-script to be used in compiled workflow")
-	}
-
-	// Verify exec.exec is used for gh CLI
-	if !strings.Contains(compiledStr, "exec.exec") {
-		t.Error("Expected exec.exec to be used in assign script")
-	}
-
-	// Verify ISSUE_NUMBER from step output
-	if !strings.Contains(compiledStr, "${{ steps.create_issue.outputs.issue_number }}") {
-		t.Error("Expected ISSUE_NUMBER to reference create_issue step output")
-	}
-
-	// Verify conditional execution
-	if !strings.Contains(compiledStr, "if: steps.create_issue.outputs.issue_number != ''") {
-		t.Error("Expected conditional if statement for assignee steps")
-	}
-
-	// Verify GH_TOKEN is set with proper token expression
-	if !strings.Contains(compiledStr, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
-		t.Error("Expected GH_TOKEN environment variable with proper token expression in compiled workflow")
-	}
-
-	// Verify checkout step is present
-	if !strings.Contains(compiledStr, "Checkout repository for gh CLI") {
-		t.Error("Expected checkout step for gh CLI in compiled workflow")
-	}
-
-	if !strings.Contains(compiledStr, "uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8") {
-		t.Error("Expected checkout to use actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 in compiled workflow")
-	}
-
-	// Verify checkout step is conditional on issue creation
-	checkoutPattern := "Checkout repository for gh CLI"
-	checkoutIndex := strings.Index(compiledStr, checkoutPattern)
-	if checkoutIndex != -1 {
-		// Check that conditional appears after the checkout step name
-		afterCheckout := compiledStr[checkoutIndex:]
-		if !strings.Contains(afterCheckout[:200], "if: steps.create_issue.outputs.issue_number != ''") {
-			t.Error("Expected checkout step to be conditional on issue creation")
-		}
-	}
-
-	// Verify environment variables for assignees are properly quoted
-	if !strings.Contains(compiledStr, `ASSIGNEE: "user1"`) {
-		t.Error("Expected quoted ASSIGNEE environment variable for user1")
-	}
-	if !strings.Contains(compiledStr, `ASSIGNEE: "user2"`) {
-		t.Error("Expected quoted ASSIGNEE environment variable for user2")
-	}
-	if !strings.Contains(compiledStr, `ASSIGNEE: "bot-helper"`) {
-		t.Error("Expected quoted ASSIGNEE environment variable for bot-helper")
+	if strings.Contains(compiledStr, "Checkout repository for gh CLI") {
+		t.Error("Did not expect checkout step when copilot is not in the assignees list")
 	}
 }
 
@@ -311,13 +254,13 @@ Create an issue with a single assignee.
 
 	compiledStr := string(compiledContent)
 
-	// Verify that assignee step is created
-	if !strings.Contains(compiledStr, "Assign issue to single-user") {
-		t.Error("Expected assignee step for single-user")
+	// After the change, assignee steps are only generated when "copilot" is in the list
+	// Since the assignee is not copilot, no assignee steps should be generated
+	if strings.Contains(compiledStr, "Assign issue to") {
+		t.Error("Did not expect assignee steps when copilot is not in the assignees list")
 	}
 
-	// Verify the assignee environment variable
-	if !strings.Contains(compiledStr, `ASSIGNEE: "single-user"`) {
-		t.Error("Expected ASSIGNEE environment variable for single-user")
+	if strings.Contains(compiledStr, "Checkout repository for gh CLI") {
+		t.Error("Did not expect checkout step when copilot is not in the assignees list")
 	}
 }
