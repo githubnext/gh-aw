@@ -839,6 +839,15 @@ func NewPermissionsContentsReadIssuesWritePRWriteDiscussionsWrite() *Permissions
 	})
 }
 
+// NewPermissionsContentsReadRepositoryWrite creates permissions with contents: read and statuses: write
+// Used for commit status updates
+func NewPermissionsContentsReadRepositoryWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionContents: PermissionRead,
+		PermissionStatuses: PermissionWrite,
+	})
+}
+
 // NewPermissionsContentsWrite creates permissions with contents: write
 func NewPermissionsContentsWrite() *Permissions {
 	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{

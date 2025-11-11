@@ -394,6 +394,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UploadAssets = uploadAssetsConfig
 			}
 
+			// Handle commit-status
+			commitStatusConfig := c.parseCommitStatusConfig(outputMap)
+			if commitStatusConfig != nil {
+				config.CommitStatus = commitStatusConfig
+			}
+
 			// Handle missing-tool (parse configuration if present, or enable by default)
 			missingToolConfig := c.parseMissingToolConfig(outputMap)
 			if missingToolConfig != nil {

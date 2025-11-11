@@ -314,6 +314,22 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		safeOutputJobNames = append(safeOutputJobNames, missingToolJob.Name)
 	}
 
+	// Build commit_status job if output.commit-status is configured
+	if data.SafeOutputs.CommitStatus != nil {
+		commitStatusJob, err := c.buildCommitStatusJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build commit_status job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			commitStatusJob.Needs = append(commitStatusJob.Needs, constants.DetectionJobName)
+		}
+		if err := c.jobManager.AddJob(commitStatusJob); err != nil {
+			return fmt.Errorf("failed to add commit_status job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, commitStatusJob.Name)
+	}
+
 	// Build upload_assets job if output.upload-asset is configured
 	if data.SafeOutputs.UploadAssets != nil {
 		uploadAssetsJob, err := c.buildUploadAssetsJob(data, jobName)

@@ -26,6 +26,9 @@ var createIssueScriptSource string
 //go:embed js/add_labels.cjs
 var addLabelsScriptSource string
 
+//go:embed js/commit_status.cjs
+var commitStatusScriptSource string
+
 //go:embed js/create_discussion.cjs
 var createDiscussionScriptSource string
 
@@ -80,6 +83,9 @@ var (
 
 	addLabelsScript     string
 	addLabelsScriptOnce sync.Once
+
+	commitStatusScript     string
+	commitStatusScriptOnce sync.Once
 
 	createDiscussionScript     string
 	createDiscussionScriptOnce sync.Once
@@ -206,6 +212,23 @@ func getAddLabelsScript() string {
 		}
 	})
 	return addLabelsScript
+}
+
+// getCommitStatusScript returns the bundled commit_status script
+// Bundling is performed on first access and cached for subsequent calls
+func getCommitStatusScript() string {
+	commitStatusScriptOnce.Do(func() {
+		sources := GetJavaScriptSources()
+		bundled, err := BundleJavaScriptFromSources(commitStatusScriptSource, sources, "")
+		if err != nil {
+			scriptsLog.Printf("Bundling failed for commit_status, using source as-is: %v", err)
+			// If bundling fails, use the source as-is
+			commitStatusScript = commitStatusScriptSource
+		} else {
+			commitStatusScript = bundled
+		}
+	})
+	return commitStatusScript
 }
 
 // getParseFirewallLogsScript returns the bundled parse_firewall_logs script

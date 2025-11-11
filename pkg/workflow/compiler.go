@@ -213,6 +213,7 @@ type SafeOutputsConfig struct {
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
 	CreateAgentTasks                *CreateAgentTaskConfig                 `yaml:"create-agent-task,omitempty"` // Create GitHub Copilot agent tasks
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`      // Optional for reporting missing functionality
+	CommitStatus                    *CommitStatusConfig                    `yaml:"commit-status,omitempty"`     // Commit status updates
 	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"`  // Threat detection configuration
 	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`              // Safe-jobs configuration (moved from top-level)
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
