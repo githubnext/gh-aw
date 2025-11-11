@@ -892,6 +892,18 @@ func buildWorkflowMetadataEnvVars(workflowName string, workflowSource string) []
 	return customEnvVars
 }
 
+// buildWorkflowMetadataEnvVarsWithFingerprint builds workflow metadata env vars including fingerprint
+func buildWorkflowMetadataEnvVarsWithFingerprint(workflowName string, workflowSource string, fingerprint string) []string {
+	customEnvVars := buildWorkflowMetadataEnvVars(workflowName, workflowSource)
+	
+	// Add fingerprint if present
+	if fingerprint != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_FINGERPRINT: %q\n", fingerprint))
+	}
+	
+	return customEnvVars
+}
+
 // buildSafeOutputJobEnvVars builds environment variables for safe-output jobs with staged/target repo handling
 // This extracts the duplicated env setup logic in safe-output job builders (create_issue, add_comment, etc.)
 func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, staged bool, targetRepoSlug string) []string {

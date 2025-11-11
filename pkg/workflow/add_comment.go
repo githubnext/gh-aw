@@ -36,8 +36,8 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	// Build custom environment variables specific to add-comment
 	var customEnvVars []string
 
-	// Add workflow metadata (name and source)
-	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVars(data.Name, data.Source)...)
+	// Add workflow metadata (name, source, and fingerprint)
+	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithFingerprint(data.Name, data.Source, data.Fingerprint)...)
 
 	// Pass the comment target configuration
 	if data.SafeOutputs.AddComments.Target != "" {

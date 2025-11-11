@@ -292,11 +292,18 @@ async function main() {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
+    const fingerprint = process.env.GH_AW_FINGERPRINT || "";
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const runUrl = context.payload.repository
       ? `${context.payload.repository.html_url}/actions/runs/${runId}`
       : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+    
+    // Add fingerprint before the footer if present
+    if (fingerprint) {
+      body += `\n\n<!-- fingerprint: ${fingerprint} -->\n\n`;
+    }
+    
     body += generateFooter(
       workflowName,
       runUrl,

@@ -47,6 +47,10 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_ID: %q\n", mainJobName))
 	// Pass the workflow name for footer generation
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+	// Pass the fingerprint if present
+	if data.Fingerprint != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_FINGERPRINT: %q\n", data.Fingerprint))
+	}
 	// Pass the base branch from GitHub context
 	customEnvVars = append(customEnvVars, "          GH_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
 	if data.SafeOutputs.CreatePullRequests.TitlePrefix != "" {

@@ -63,8 +63,8 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	// Build custom environment variables specific to create-discussion
 	var customEnvVars []string
 
-	// Add workflow metadata (name and source)
-	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVars(data.Name, data.Source)...)
+	// Add workflow metadata (name, source, and fingerprint)
+	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithFingerprint(data.Name, data.Source, data.Fingerprint)...)
 
 	if data.SafeOutputs.CreateDiscussions.TitlePrefix != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_DISCUSSION_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateDiscussions.TitlePrefix))

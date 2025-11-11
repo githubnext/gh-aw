@@ -21,8 +21,8 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	// Build custom environment variables specific to create-pull-request-review-comment
 	var customEnvVars []string
 
-	// Add workflow metadata (name and source)
-	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVars(data.Name, data.Source)...)
+	// Add workflow metadata (name, source, and fingerprint)
+	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithFingerprint(data.Name, data.Source, data.Fingerprint)...)
 
 	// Pass the side configuration
 	if data.SafeOutputs.CreatePullRequestReviewComments.Side != "" {

@@ -55,6 +55,10 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_REPO: ${{ needs.%s.outputs.comment_repo }}\n", constants.ActivationJobName))
 	customEnvVars = append(customEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+	// Pass the fingerprint if present
+	if data.Fingerprint != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_FINGERPRINT: %q\n", data.Fingerprint))
+	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 
 	// Get token from config
