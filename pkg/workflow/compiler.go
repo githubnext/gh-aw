@@ -915,7 +915,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Check if frontmatter specifies a custom name and use it instead
-	frontmatterName := extractStringValue(result.Frontmatter, "name")
+	frontmatterName := extractStringFromMap(result.Frontmatter, "name", nil)
 	if frontmatterName != "" {
 		workflowName = frontmatterName
 	}
@@ -954,7 +954,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		ToolsStartupTimeout: toolsStartupTimeout,
 		TrialMode:           c.trialMode,
 		TrialLogicalRepo:    c.trialLogicalRepoSlug,
-		GitHubToken:         extractStringValue(result.Frontmatter, "github-token"),
+		GitHubToken:         extractStringFromMap(result.Frontmatter, "github-token", nil),
 		StrictMode:          c.strictMode,
 		SecretMasking:       secretMasking,
 	}
