@@ -614,7 +614,7 @@ func TestBuildAgentOutputDownloadSteps(t *testing.T) {
 	expectedComponents := []string{
 		"- name: Download agent output artifact",
 		"continue-on-error: true",
-		"uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0",
+		"uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53",
 		"name: agent_output.json",
 		"path: /tmp/gh-aw/safeoutputs/",
 		"- name: Setup agent output environment variable",

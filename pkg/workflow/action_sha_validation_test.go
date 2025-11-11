@@ -178,7 +178,7 @@ Just a simple test workflow.
 		"actions/checkout@v5",
 		"actions/github-script@v8",
 		"actions/upload-artifact@v4",
-		"actions/download-artifact@v5",
+		"actions/download-artifact@v6",
 		"actions/cache@v4",
 		"actions/setup-node@v6",
 		"actions/setup-python@v5",
