@@ -3391,6 +3391,9 @@ jobs:
                 const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
                 const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
                 const fingerprint = process.env.GH_AW_FINGERPRINT || "";
+                if (fingerprint) {
+                  core.info(`Fingerprint: ${fingerprint}`);
+                }
                 const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                 const runUrl = context.payload.repository
