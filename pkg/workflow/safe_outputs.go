@@ -923,3 +923,23 @@ func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, stag
 
 	return customEnvVars
 }
+
+// buildStandardSafeOutputEnvVars builds the standard set of environment variables
+// that all safe-output job builders need: metadata + staged/target repo handling
+// This reduces duplication in safe-output job builders
+func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepoSlug string) []string {
+	var customEnvVars []string
+
+	// Add workflow metadata (name, source, and fingerprint)
+	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithFingerprint(data.Name, data.Source, data.Fingerprint)...)
+
+	// Add common safe output job environment variables (staged/target repo)
+	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
+		c.trialMode,
+		c.trialLogicalRepoSlug,
+		data.SafeOutputs.Staged,
+		targetRepoSlug,
+	)...)
+
+	return customEnvVars
+}
