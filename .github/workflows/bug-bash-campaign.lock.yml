@@ -4043,11 +4043,18 @@ jobs:
                   `query($owner: String!, $repo: String!) {
                     repository(owner: $owner, name: $repo) {
                       id
+                      owner {
+                        id
+                        __typename
+                      }
                     }
                   }`,
                   { owner, repo }
                 );
                 const repositoryId = repoResult.repository.id;
+                const ownerId = repoResult.repository.owner.id;
+                const ownerType = repoResult.repository.owner.__typename;
+                core.info(`Owner type: ${ownerType}, Owner ID: ${ownerId}`);
                 let projectId;
                 let projectNumber;
                 const existingProjectsResult = await github.graphql(
@@ -4088,7 +4095,7 @@ jobs:
                       }
                     }`,
                     { 
-                      ownerId: repositoryId, 
+                      ownerId: ownerId,  
                       title: output.project
                     }
                   );

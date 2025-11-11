@@ -45,16 +45,24 @@ async function updateProject(output) {
   core.info(`Managing project: ${output.project}`);
 
   try {
-    // Step 1: Get repository ID
+    // Step 1: Get repository and owner IDs
     const repoResult = await github.graphql(
       `query($owner: String!, $repo: String!) {
         repository(owner: $owner, name: $repo) {
           id
+          owner {
+            id
+            __typename
+          }
         }
       }`,
       { owner, repo }
     );
     const repositoryId = repoResult.repository.id;
+    const ownerId = repoResult.repository.owner.id;
+    const ownerType = repoResult.repository.owner.__typename;
+    
+    core.info(`Owner type: ${ownerType}, Owner ID: ${ownerId}`);
 
     // Step 2: Find existing project or create it
     let projectId;
@@ -104,7 +112,7 @@ async function updateProject(output) {
           }
         }`,
         { 
-          ownerId: repositoryId, 
+          ownerId: ownerId,  // Use owner ID (org/user), not repository ID
           title: output.project
         }
       );
