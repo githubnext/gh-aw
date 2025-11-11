@@ -202,15 +202,15 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Daily Test Coverage Improver"
-          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/1f181b37d3fe5862ab590648f25a292e345b5de6/workflows/daily-test-improver.md"
           GH_AW_COMMENT_TARGET: "*"
           GITHUB_AW_COMMENT_DISCUSSION: "true"
           GH_AW_CREATED_DISCUSSION_URL: ${{ needs.create_discussion.outputs.discussion_url }}
           GH_AW_CREATED_DISCUSSION_NUMBER: ${{ needs.create_discussion.outputs.discussion_number }}
           GH_AW_CREATED_PULL_REQUEST_URL: ${{ needs.create_pull_request.outputs.pull_request_url }}
           GH_AW_CREATED_PULL_REQUEST_NUMBER: ${{ needs.create_pull_request.outputs.pull_request_number }}
+          GH_AW_WORKFLOW_NAME: "Daily Test Coverage Improver"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/1f181b37d3fe5862ab590648f25a292e345b5de6/workflows/daily-test-improver.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4357,11 +4357,11 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_DISCUSSION_TITLE_PREFIX: "${{ github.workflow }}"
+          GH_AW_DISCUSSION_CATEGORY: "ideas"
           GH_AW_WORKFLOW_NAME: "Daily Test Coverage Improver"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/1f181b37d3fe5862ab590648f25a292e345b5de6/workflows/daily-test-improver.md"
-          GH_AW_DISCUSSION_TITLE_PREFIX: "${{ github.workflow }}"
-          GH_AW_DISCUSSION_CATEGORY: "ideas"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4660,13 +4660,15 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_WORKFLOW_ID: "agent"
-          GH_AW_WORKFLOW_NAME: "Daily Test Coverage Improver"
           GH_AW_BASE_BRANCH: ${{ github.ref_name }}
           GH_AW_PR_DRAFT: "true"
           GH_AW_PR_IF_NO_CHANGES: "warn"
           GH_AW_MAX_PATCH_SIZE: 1024
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GH_AW_WORKFLOW_NAME: "Daily Test Coverage Improver"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/1f181b37d3fe5862ab590648f25a292e345b5de6/workflows/daily-test-improver.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5469,6 +5471,9 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_NAME: "Daily Test Coverage Improver"
+          GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/daily-test-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/1f181b37d3fe5862ab590648f25a292e345b5de6/workflows/daily-test-improver.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

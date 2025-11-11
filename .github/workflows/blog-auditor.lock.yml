@@ -3681,10 +3681,10 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Blog Auditor"
-          GH_AW_FINGERPRINT: "blog-auditor-weekly"
           GH_AW_DISCUSSION_TITLE_PREFIX: "[audit] "
           GH_AW_DISCUSSION_CATEGORY: "Audits"
+          GH_AW_WORKFLOW_NAME: "Blog Auditor"
+          GH_AW_FINGERPRINT: "blog-auditor-weekly"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4196,6 +4196,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_NAME: "Blog Auditor"
+          GH_AW_FINGERPRINT: "blog-auditor-weekly"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
