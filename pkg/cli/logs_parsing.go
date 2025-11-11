@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -154,7 +155,7 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 	if logFileForParsing != "" && logFileForParsing != defaultAgentStdioLogPath {
 		// Check for agent_output directory (artifact)
 		agentOutputDir := filepath.Join(logDir, "agent_output")
-		if dirExists(agentOutputDir) {
+		if fileutil.DirExists(agentOutputDir) {
 			// Find the first file in this directory
 			var foundFile string
 			_ = filepath.Walk(agentOutputDir, func(path string, info os.FileInfo, err error) error {
@@ -175,7 +176,7 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 
 	// Default to agent-stdio.log
 	agentStdioLog := filepath.Join(logDir, "agent-stdio.log")
-	if fileExists(agentStdioLog) {
+	if fileutil.FileExists(agentStdioLog) {
 		return agentStdioLog, true
 	}
 
@@ -333,9 +334,9 @@ func parseFirewallLogs(runDir string, verbose bool) error {
 
 	// Determine which directory to use
 	var logsDir string
-	if dirExists(squidLogsDir) {
+	if fileutil.DirExists(squidLogsDir) {
 		logsDir = squidLogsDir
-	} else if dirExists(workflowLogsSquidDir) {
+	} else if fileutil.DirExists(workflowLogsSquidDir) {
 		logsDir = workflowLogsSquidDir
 	} else {
 		// No firewall logs found - this is not an error, just skip parsing

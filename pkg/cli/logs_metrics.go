@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/workflow"
@@ -84,7 +85,7 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 		if filepath.Dir(agentOutputPath) != logDir {
 			rootCopy := filepath.Join(logDir, constants.AgentOutputArtifactName)
 			if _, err := os.Stat(rootCopy); errors.Is(err, os.ErrNotExist) {
-				if copyErr := copyFileSimple(agentOutputPath, rootCopy); copyErr == nil && verbose {
+				if copyErr := fileutil.CopyFile(agentOutputPath, rootCopy); copyErr == nil && verbose {
 					fmt.Println(console.FormatInfoMessage("Copied agent_output.json to run root for easy access"))
 				}
 			}

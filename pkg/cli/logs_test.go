@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
@@ -261,14 +262,14 @@ func TestDirExists(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Test existing directory
-	if !dirExists(tmpDir) {
-		t.Errorf("dirExists should return true for existing directory")
+	if !fileutil.DirExists(tmpDir) {
+		t.Errorf("DirExists should return true for existing directory")
 	}
 
 	// Test non-existing directory
 	nonExistentDir := filepath.Join(tmpDir, "does-not-exist")
-	if dirExists(nonExistentDir) {
-		t.Errorf("dirExists should return false for non-existing directory")
+	if fileutil.DirExists(nonExistentDir) {
+		t.Errorf("DirExists should return false for non-existing directory")
 	}
 
 	// Test file vs directory
@@ -278,8 +279,8 @@ func TestDirExists(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	if dirExists(testFile) {
-		t.Errorf("dirExists should return false for a file")
+	if fileutil.DirExists(testFile) {
+		t.Errorf("DirExists should return false for a file")
 	}
 }
 
@@ -293,8 +294,8 @@ func TestIsDirEmpty(t *testing.T) {
 		t.Fatalf("Failed to create empty directory: %v", err)
 	}
 
-	if !isDirEmpty(emptyDir) {
-		t.Errorf("isDirEmpty should return true for empty directory")
+	if !fileutil.IsDirEmpty(emptyDir) {
+		t.Errorf("IsDirEmpty should return true for empty directory")
 	}
 
 	// Test directory with files
@@ -310,14 +311,14 @@ func TestIsDirEmpty(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	if isDirEmpty(nonEmptyDir) {
-		t.Errorf("isDirEmpty should return false for directory with files")
+	if fileutil.IsDirEmpty(nonEmptyDir) {
+		t.Errorf("IsDirEmpty should return false for directory with files")
 	}
 
 	// Test non-existing directory
 	nonExistentDir := filepath.Join(tmpDir, "does-not-exist")
-	if !isDirEmpty(nonExistentDir) {
-		t.Errorf("isDirEmpty should return true for non-existing directory")
+	if !fileutil.IsDirEmpty(nonExistentDir) {
+		t.Errorf("IsDirEmpty should return true for non-existing directory")
 	}
 }
 
@@ -1529,27 +1530,27 @@ func TestDownloadWorkflowRunLogsStructure(t *testing.T) {
 	}
 
 	// Verify that workflow-logs directory exists
-	if !dirExists(workflowLogsDir) {
+	if !fileutil.DirExists(workflowLogsDir) {
 		t.Error("workflow-logs directory should exist")
 	}
 
 	// Verify that log files are in the workflow-logs subdirectory, not in run root
 	for filename := range logFiles {
 		expectedPath := filepath.Join(workflowLogsDir, filename)
-		if !fileExists(expectedPath) {
+		if !fileutil.FileExists(expectedPath) {
 			t.Errorf("Expected log file %s to be in workflow-logs subdirectory", filename)
 		}
 
 		// Verify the file is NOT in the run directory root
 		wrongPath := filepath.Join(runDir, filename)
-		if fileExists(wrongPath) {
+		if fileutil.FileExists(wrongPath) {
 			t.Errorf("Log file %s should not be in run directory root", filename)
 		}
 	}
 
 	// Verify that other artifacts remain in the run directory root
 	awInfoPath := filepath.Join(runDir, "aw_info.json")
-	if !fileExists(awInfoPath) {
+	if !fileutil.FileExists(awInfoPath) {
 		t.Error("aw_info.json should remain in run directory root")
 	}
 
@@ -1567,7 +1568,7 @@ func TestDownloadWorkflowRunLogsStructure(t *testing.T) {
 
 	// Verify nested directory structure is preserved
 	nestedLogPath := filepath.Join(workflowLogsDir, "3_build", "build.txt")
-	if !fileExists(nestedLogPath) {
+	if !fileutil.FileExists(nestedLogPath) {
 		t.Error("Nested log directory structure should be preserved")
 	}
 }
