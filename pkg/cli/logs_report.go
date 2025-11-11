@@ -292,36 +292,74 @@ func addUniqueWorkflow(workflows []string, workflow string) []string {
 	return append(workflows, workflow)
 }
 
-// buildMissingToolsSummary aggregates missing tools across all runs
-func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary {
-	toolSummary := make(map[string]*MissingToolSummary)
+// aggregateSummaryItems is a generic helper that aggregates items from processed runs into summaries
+// It handles the common pattern of grouping by key, counting occurrences, tracking unique workflows, and collecting run IDs
+func aggregateSummaryItems[TItem any, TSummary any](
+	processedRuns []ProcessedRun,
+	getItems func(ProcessedRun) []TItem,
+	getKey func(TItem) string,
+	createSummary func(TItem) *TSummary,
+	updateSummary func(*TSummary, TItem),
+	finalizeSummary func(*TSummary),
+) []TSummary {
+	summaryMap := make(map[string]*TSummary)
 
+	// Aggregate items from all runs
 	for _, pr := range processedRuns {
-		for _, tool := range pr.MissingTools {
-			if summary, exists := toolSummary[tool.Tool]; exists {
-				summary.Count++
-				summary.Workflows = addUniqueWorkflow(summary.Workflows, tool.WorkflowName)
-				summary.RunIDs = append(summary.RunIDs, tool.RunID)
+		for _, item := range getItems(pr) {
+			key := getKey(item)
+			if summary, exists := summaryMap[key]; exists {
+				updateSummary(summary, item)
 			} else {
-				toolSummary[tool.Tool] = &MissingToolSummary{
-					Tool:        tool.Tool,
-					Count:       1,
-					Workflows:   []string{tool.WorkflowName},
-					FirstReason: tool.Reason,
-					RunIDs:      []int64{tool.RunID},
-				}
+				summaryMap[key] = createSummary(item)
 			}
 		}
 	}
 
-	var result []MissingToolSummary
-	for _, summary := range toolSummary {
-		// Populate WorkflowsDisplay and FirstReasonDisplay fields for console rendering (truncation handled by maxlen tag)
-		summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
-		summary.FirstReasonDisplay = summary.FirstReason
-
+	// Convert map to slice and finalize each summary
+	var result []TSummary
+	for _, summary := range summaryMap {
+		finalizeSummary(summary)
 		result = append(result, *summary)
 	}
+
+	return result
+}
+
+// buildMissingToolsSummary aggregates missing tools across all runs
+func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary {
+	result := aggregateSummaryItems(
+		processedRuns,
+		// getItems: extract missing tools from each run
+		func(pr ProcessedRun) []MissingToolReport {
+			return pr.MissingTools
+		},
+		// getKey: use tool name as the aggregation key
+		func(tool MissingToolReport) string {
+			return tool.Tool
+		},
+		// createSummary: create new summary for first occurrence
+		func(tool MissingToolReport) *MissingToolSummary {
+			return &MissingToolSummary{
+				Tool:        tool.Tool,
+				Count:       1,
+				Workflows:   []string{tool.WorkflowName},
+				FirstReason: tool.Reason,
+				RunIDs:      []int64{tool.RunID},
+			}
+		},
+		// updateSummary: update existing summary with new occurrence
+		func(summary *MissingToolSummary, tool MissingToolReport) {
+			summary.Count++
+			summary.Workflows = addUniqueWorkflow(summary.Workflows, tool.WorkflowName)
+			summary.RunIDs = append(summary.RunIDs, tool.RunID)
+		},
+		// finalizeSummary: populate display fields for console rendering
+		func(summary *MissingToolSummary) {
+			summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
+			summary.FirstReasonDisplay = summary.FirstReason
+		},
+	)
 
 	// Sort by count descending
 	sort.Slice(result, func(i, j int) bool {
@@ -333,32 +371,36 @@ func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary
 
 // buildMCPFailuresSummary aggregates MCP failures across all runs
 func buildMCPFailuresSummary(processedRuns []ProcessedRun) []MCPFailureSummary {
-	failureSummary := make(map[string]*MCPFailureSummary)
-
-	for _, pr := range processedRuns {
-		for _, failure := range pr.MCPFailures {
-			if summary, exists := failureSummary[failure.ServerName]; exists {
-				summary.Count++
-				summary.Workflows = addUniqueWorkflow(summary.Workflows, failure.WorkflowName)
-				summary.RunIDs = append(summary.RunIDs, failure.RunID)
-			} else {
-				failureSummary[failure.ServerName] = &MCPFailureSummary{
-					ServerName: failure.ServerName,
-					Count:      1,
-					Workflows:  []string{failure.WorkflowName},
-					RunIDs:     []int64{failure.RunID},
-				}
+	result := aggregateSummaryItems(
+		processedRuns,
+		// getItems: extract MCP failures from each run
+		func(pr ProcessedRun) []MCPFailureReport {
+			return pr.MCPFailures
+		},
+		// getKey: use server name as the aggregation key
+		func(failure MCPFailureReport) string {
+			return failure.ServerName
+		},
+		// createSummary: create new summary for first occurrence
+		func(failure MCPFailureReport) *MCPFailureSummary {
+			return &MCPFailureSummary{
+				ServerName: failure.ServerName,
+				Count:      1,
+				Workflows:  []string{failure.WorkflowName},
+				RunIDs:     []int64{failure.RunID},
 			}
-		}
-	}
-
-	var result []MCPFailureSummary
-	for _, summary := range failureSummary {
-		// Populate WorkflowsDisplay field for console rendering (truncation handled by maxlen tag)
-		summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
-
-		result = append(result, *summary)
-	}
+		},
+		// updateSummary: update existing summary with new occurrence
+		func(summary *MCPFailureSummary, failure MCPFailureReport) {
+			summary.Count++
+			summary.Workflows = addUniqueWorkflow(summary.Workflows, failure.WorkflowName)
+			summary.RunIDs = append(summary.RunIDs, failure.RunID)
+		},
+		// finalizeSummary: populate display fields for console rendering
+		func(summary *MCPFailureSummary) {
+			summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
+		},
+	)
 
 	// Sort by count descending
 	sort.Slice(result, func(i, j int) bool {
