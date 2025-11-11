@@ -42,19 +42,8 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_LABELS_TARGET: %q\n", data.SafeOutputs.AddLabels.Target))
 	}
 
-	// Add common safe output job environment variables (staged/target repo)
-	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
-		c.trialMode,
-		c.trialLogicalRepoSlug,
-		data.SafeOutputs.Staged,
-		data.SafeOutputs.AddLabels.TargetRepoSlug,
-	)...)
-
-	// Get token from config
-	token := ""
-	if data.SafeOutputs.AddLabels != nil {
-		token = data.SafeOutputs.AddLabels.GitHubToken
-	}
+	// Add standard environment variables (metadata + staged/target repo)
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.AddLabels.TargetRepoSlug)...)
 
 	// Build the GitHub Script step using the common helper
 	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
@@ -63,7 +52,7 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
 		Script:        getAddLabelsScript(),
-		Token:         token,
+		Token:         data.SafeOutputs.AddLabels.GitHubToken,
 	})
 
 	// Create outputs for the job

@@ -67,11 +67,8 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
 
-	// Get token from config
-	var token string
-	if data.SafeOutputs.PushToPullRequestBranch != nil {
-		token = data.SafeOutputs.PushToPullRequestBranch.GitHubToken
-	}
+	// Add workflow metadata for consistency
+	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithFingerprint(data.Name, data.Source, data.Fingerprint)...)
 
 	// Step 4: Push to Branch using buildGitHubScriptStep
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
@@ -80,7 +77,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
 		Script:        getPushToPullRequestBranchScript(),
-		Token:         token,
+		Token:         data.SafeOutputs.PushToPullRequestBranch.GitHubToken,
 	})
 	steps = append(steps, scriptSteps...)
 
