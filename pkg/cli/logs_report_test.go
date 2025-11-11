@@ -375,6 +375,100 @@ func TestBuildMCPFailuresSummaryDeduplication(t *testing.T) {
 	}
 }
 
+// TestAggregateSummaryItems tests the generic aggregation helper function
+func TestAggregateSummaryItems(t *testing.T) {
+	// Test with MissingToolReport data using the generic helper
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				WorkflowName: "workflow-a",
+			},
+			MissingTools: []MissingToolReport{
+				{
+					Tool:         "docker",
+					Reason:       "Container operations needed",
+					WorkflowName: "workflow-a",
+					RunID:        1001,
+				},
+			},
+		},
+		{
+			Run: WorkflowRun{
+				WorkflowName: "workflow-b",
+			},
+			MissingTools: []MissingToolReport{
+				{
+					Tool:         "docker",
+					Reason:       "Container build needed",
+					WorkflowName: "workflow-b",
+					RunID:        1002,
+				},
+			},
+		},
+	}
+
+	// Use the generic aggregation helper directly
+	result := aggregateSummaryItems(
+		processedRuns,
+		func(pr ProcessedRun) []MissingToolReport {
+			return pr.MissingTools
+		},
+		func(tool MissingToolReport) string {
+			return tool.Tool
+		},
+		func(tool MissingToolReport) *MissingToolSummary {
+			return &MissingToolSummary{
+				Tool:        tool.Tool,
+				Count:       1,
+				Workflows:   []string{tool.WorkflowName},
+				FirstReason: tool.Reason,
+				RunIDs:      []int64{tool.RunID},
+			}
+		},
+		func(summary *MissingToolSummary, tool MissingToolReport) {
+			summary.Count++
+			summary.Workflows = addUniqueWorkflow(summary.Workflows, tool.WorkflowName)
+			summary.RunIDs = append(summary.RunIDs, tool.RunID)
+		},
+		func(summary *MissingToolSummary) {
+			summary.WorkflowsDisplay = "test-display"
+		},
+	)
+
+	// Verify aggregation worked correctly
+	if len(result) != 1 {
+		t.Errorf("Expected 1 aggregated summary, got %d", len(result))
+		return
+	}
+
+	summary := result[0]
+
+	// Verify count aggregation
+	if summary.Count != 2 {
+		t.Errorf("Expected count = 2, got %d", summary.Count)
+	}
+
+	// Verify workflow deduplication
+	if len(summary.Workflows) != 2 {
+		t.Errorf("Expected 2 unique workflows, got %d", len(summary.Workflows))
+	}
+
+	// Verify run IDs collected
+	if len(summary.RunIDs) != 2 {
+		t.Errorf("Expected 2 run IDs, got %d", len(summary.RunIDs))
+	}
+
+	// Verify first reason preserved
+	if summary.FirstReason != "Container operations needed" {
+		t.Errorf("Expected FirstReason = 'Container operations needed', got '%s'", summary.FirstReason)
+	}
+
+	// Verify finalize was called
+	if summary.WorkflowsDisplay != "test-display" {
+		t.Errorf("Expected WorkflowsDisplay = 'test-display', got '%s'", summary.WorkflowsDisplay)
+	}
+}
+
 // TestAggregateDomainStats tests the shared domain aggregation helper
 func TestAggregateDomainStats(t *testing.T) {
 	t.Run("aggregates domains correctly", func(t *testing.T) {
