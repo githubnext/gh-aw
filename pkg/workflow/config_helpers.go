@@ -30,16 +30,26 @@ func parseLabelsFromConfig(configMap map[string]any) []string {
 	return nil
 }
 
-// parseStringFromConfig is a generic helper that extracts and validates a string value from a config map
+// extractStringFromMap is a generic helper that extracts and validates a string value from a map
 // Returns the string value, or empty string if not present or invalid
-func parseStringFromConfig(configMap map[string]any, key string) string {
-	if value, exists := configMap[key]; exists {
+// If log is provided, it will log the extracted value for debugging
+func extractStringFromMap(m map[string]any, key string, log *logger.Logger) string {
+	if value, exists := m[key]; exists {
 		if valueStr, ok := value.(string); ok {
-			configHelpersLog.Printf("Parsed %s from config: %s", key, valueStr)
+			if log != nil {
+				log.Printf("Parsed %s from config: %s", key, valueStr)
+			}
 			return valueStr
 		}
 	}
 	return ""
+}
+
+// parseStringFromConfig is a generic helper that extracts and validates a string value from a config map
+// Returns the string value, or empty string if not present or invalid
+// Deprecated: Use extractStringFromMap with configHelpersLog for logging behavior
+func parseStringFromConfig(configMap map[string]any, key string) string {
+	return extractStringFromMap(configMap, key, configHelpersLog)
 }
 
 // parseTitlePrefixFromConfig extracts and validates title-prefix from a config map

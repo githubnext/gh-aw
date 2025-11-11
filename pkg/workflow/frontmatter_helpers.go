@@ -1,17 +1,9 @@
 package workflow
 
 // extractStringValue extracts a string value from the frontmatter map
+// Deprecated: This function is kept for backward compatibility but delegates to extractStringFromMap
 func extractStringValue(frontmatter map[string]any, key string) string {
-	value, exists := frontmatter[key]
-	if !exists {
-		return ""
-	}
-
-	if strValue, ok := value.(string); ok {
-		return strValue
-	}
-
-	return ""
+	return extractStringFromMap(frontmatter, key, nil)
 }
 
 // parseIntValue safely parses various numeric types to int
