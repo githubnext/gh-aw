@@ -1,11 +1,5 @@
 package workflow
 
-// extractStringValue extracts a string value from the frontmatter map
-// Deprecated: This function is kept for backward compatibility but delegates to extractStringFromMap
-func extractStringValue(frontmatter map[string]any, key string) string {
-	return extractStringFromMap(frontmatter, key, nil)
-}
-
 // parseIntValue safely parses various numeric types to int
 // This is a common utility used across multiple parsing functions
 func parseIntValue(value any) (int, bool) {

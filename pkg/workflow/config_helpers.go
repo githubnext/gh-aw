@@ -45,17 +45,10 @@ func extractStringFromMap(m map[string]any, key string, log *logger.Logger) stri
 	return ""
 }
 
-// parseStringFromConfig is a generic helper that extracts and validates a string value from a config map
-// Returns the string value, or empty string if not present or invalid
-// Deprecated: Use extractStringFromMap with configHelpersLog for logging behavior
-func parseStringFromConfig(configMap map[string]any, key string) string {
-	return extractStringFromMap(configMap, key, configHelpersLog)
-}
-
 // parseTitlePrefixFromConfig extracts and validates title-prefix from a config map
 // Returns the title prefix string, or empty string if not present or invalid
 func parseTitlePrefixFromConfig(configMap map[string]any) string {
-	return parseStringFromConfig(configMap, "title-prefix")
+	return extractStringFromMap(configMap, "title-prefix", configHelpersLog)
 }
 
 // parseTargetRepoFromConfig extracts the target-repo value from a config map.
@@ -63,5 +56,5 @@ func parseTitlePrefixFromConfig(configMap map[string]any) string {
 // This function does not perform any special handling or validation for wildcard values ("*");
 // callers are responsible for validating the returned value as needed.
 func parseTargetRepoFromConfig(configMap map[string]any) string {
-	return parseStringFromConfig(configMap, "target-repo")
+	return extractStringFromMap(configMap, "target-repo", configHelpersLog)
 }
