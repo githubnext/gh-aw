@@ -2,7 +2,11 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var createPRReviewCommentLog = logger.New("workflow:create_pr_review_comment")
 
 // CreatePullRequestReviewCommentsConfig holds configuration for creating GitHub pull request review comments from agent output
 type CreatePullRequestReviewCommentsConfig struct {
@@ -14,9 +18,16 @@ type CreatePullRequestReviewCommentsConfig struct {
 
 // buildCreateOutputPullRequestReviewCommentJob creates the create_pr_review_comment job
 func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	createPRReviewCommentLog.Printf("Building PR review comment job: main_job=%s", mainJobName)
+
 	if data.SafeOutputs == nil || data.SafeOutputs.CreatePullRequestReviewComments == nil {
 		return nil, fmt.Errorf("safe-outputs.create-pull-request-review-comment configuration is required")
 	}
+
+	// Log configuration details
+	side := data.SafeOutputs.CreatePullRequestReviewComments.Side
+	target := data.SafeOutputs.CreatePullRequestReviewComments.Target
+	createPRReviewCommentLog.Printf("Configuration: side=%s, target=%s", side, target)
 
 	// Build custom environment variables specific to create-pull-request-review-comment
 	var customEnvVars []string
@@ -93,8 +104,11 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 // parsePullRequestReviewCommentsConfig handles create-pull-request-review-comment configuration
 func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any) *CreatePullRequestReviewCommentsConfig {
 	if _, exists := outputMap["create-pull-request-review-comment"]; !exists {
+		createPRReviewCommentLog.Printf("Configuration not found")
 		return nil
 	}
+
+	createPRReviewCommentLog.Printf("Parsing PR review comment configuration")
 
 	configData := outputMap["create-pull-request-review-comment"]
 	prReviewCommentsConfig := &CreatePullRequestReviewCommentsConfig{Side: "RIGHT"} // Default side is RIGHT

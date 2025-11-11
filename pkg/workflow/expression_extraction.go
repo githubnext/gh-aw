@@ -7,7 +7,11 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var expressionExtractionLog = logger.New("workflow:expression_extraction")
 
 // ExpressionMapping represents a mapping between a GitHub expression and its environment variable
 type ExpressionMapping struct {
@@ -34,11 +38,14 @@ func NewExpressionExtractor() *ExpressionExtractor {
 // ExtractExpressions extracts all ${{ ... }} expressions from the markdown content
 // and creates environment variable mappings for each unique expression
 func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*ExpressionMapping, error) {
+	expressionExtractionLog.Printf("Extracting expressions from markdown: content_length=%d", len(markdown))
+
 	// Regular expression to match GitHub Actions expressions: ${{ ... }}
 	// Use (?s) flag for dotall mode, non-greedy matching
 	expressionRegex := regexp.MustCompile(`\$\{\{(.*?)\}\}`)
 
 	matches := expressionRegex.FindAllStringSubmatch(markdown, -1)
+	expressionExtractionLog.Printf("Found %d expression matches", len(matches))
 
 	for _, match := range matches {
 		if len(match) < 2 {
@@ -80,6 +87,8 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 		return result[i].Original < result[j].Original
 	})
 
+	expressionExtractionLog.Printf("Extracted %d unique expressions", len(result))
+
 	return result, nil
 }
 
@@ -100,6 +109,8 @@ func (e *ExpressionExtractor) generateEnvVarName(content string) string {
 // ReplaceExpressionsWithEnvVars replaces all ${{ ... }} expressions in the markdown
 // with references to their corresponding environment variables
 func (e *ExpressionExtractor) ReplaceExpressionsWithEnvVars(markdown string) string {
+	expressionExtractionLog.Printf("Replacing expressions with env vars: mapping_count=%d", len(e.mappings))
+
 	result := markdown
 
 	// Sort mappings by length of original expression (longest first)
