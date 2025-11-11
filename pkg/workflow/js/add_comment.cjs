@@ -3,6 +3,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
+const { generateFingerprintComment } = require("./generate_fingerprint_comment.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 
 /**
@@ -299,10 +300,8 @@ async function main() {
       ? `${context.payload.repository.html_url}/actions/runs/${runId}`
       : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
-    // Add fingerprint before the footer if present
-    if (fingerprint) {
-      body += `\n\n<!-- fingerprint: ${fingerprint} -->\n\n`;
-    }
+    // Add fingerprint comment if present
+    body += generateFingerprintComment(fingerprint);
 
     body += generateFooter(
       workflowName,

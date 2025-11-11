@@ -624,6 +624,12 @@ jobs:
               footer += "\n";
               return footer;
             }
+            function generateFingerprintComment(fingerprint) {
+              if (!fingerprint) {
+                return "";
+              }
+              return `\n\n<!-- fingerprint: ${fingerprint} -->`;
+            }
             function getRepositoryUrl() {
               const targetRepoSlug = process.env.GH_AW_TARGET_REPO_SLUG;
               if (targetRepoSlug) {
@@ -866,9 +872,7 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                if (fingerprint) {
-                  body += `\n\n<!-- fingerprint: ${fingerprint} -->\n\n`;
-                }
+                body += generateFingerprintComment(fingerprint);
                 body += generateFooter(
                   workflowName,
                   runUrl,
@@ -4559,6 +4563,12 @@ jobs:
               footer += "\n";
               return footer;
             }
+            function generateFingerprintComment(fingerprint) {
+              if (!fingerprint) {
+                return "";
+              }
+              return `\n\n<!-- fingerprint: ${fingerprint} -->`;
+            }
             async function main() {
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
@@ -4652,8 +4662,9 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                if (fingerprint) {
-                  bodyLines.push(``, ``, `<!-- fingerprint: ${fingerprint} -->`);
+                const fingerprintComment = generateFingerprintComment(fingerprint);
+                if (fingerprintComment) {
+                  bodyLines.push(fingerprintComment);
                 }
                 bodyLines.push(
                   ``,

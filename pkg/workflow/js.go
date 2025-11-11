@@ -75,6 +75,9 @@ var updateActivationCommentScript string
 //go:embed js/generate_footer.cjs
 var generateFooterScript string
 
+//go:embed js/generate_fingerprint_comment.cjs
+var generateFingerprintCommentScript string
+
 //go:embed js/get_repository_url.cjs
 var getRepositoryUrlScript string
 
@@ -82,16 +85,17 @@ var getRepositoryUrlScript string
 // The keys are the relative paths from the js directory
 func GetJavaScriptSources() map[string]string {
 	return map[string]string{
-		"sanitize_content.cjs":          sanitizeContentScript,
-		"sanitize_label_content.cjs":    sanitizeLabelContentScript,
-		"sanitize_workflow_name.cjs":    sanitizeWorkflowNameScript,
-		"load_agent_output.cjs":         loadAgentOutputScript,
-		"staged_preview.cjs":            stagedPreviewScript,
-		"is_truthy.cjs":                 isTruthyScript,
-		"log_parser_bootstrap.cjs":      logParserBootstrapScript,
-		"update_activation_comment.cjs": updateActivationCommentScript,
-		"generate_footer.cjs":           generateFooterScript,
-		"get_repository_url.cjs":        getRepositoryUrlScript,
+		"sanitize_content.cjs":             sanitizeContentScript,
+		"sanitize_label_content.cjs":       sanitizeLabelContentScript,
+		"sanitize_workflow_name.cjs":       sanitizeWorkflowNameScript,
+		"load_agent_output.cjs":            loadAgentOutputScript,
+		"staged_preview.cjs":               stagedPreviewScript,
+		"is_truthy.cjs":                    isTruthyScript,
+		"log_parser_bootstrap.cjs":         logParserBootstrapScript,
+		"update_activation_comment.cjs":    updateActivationCommentScript,
+		"generate_footer.cjs":              generateFooterScript,
+		"generate_fingerprint_comment.cjs": generateFingerprintCommentScript,
+		"get_repository_url.cjs":           getRepositoryUrlScript,
 	}
 }
 

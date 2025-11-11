@@ -4064,6 +4064,12 @@ jobs:
               footer += "\n";
               return footer;
             }
+            function generateFingerprintComment(fingerprint) {
+              if (!fingerprint) {
+                return "";
+              }
+              return `\n\n<!-- fingerprint: ${fingerprint} -->`;
+            }
             async function main() {
               core.setOutput("issue_number", "");
               core.setOutput("issue_url", "");
@@ -4157,8 +4163,9 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                if (fingerprint) {
-                  bodyLines.push(``, ``, `<!-- fingerprint: ${fingerprint} -->`);
+                const fingerprintComment = generateFingerprintComment(fingerprint);
+                if (fingerprintComment) {
+                  bodyLines.push(fingerprintComment);
                 }
                 bodyLines.push(
                   ``,
