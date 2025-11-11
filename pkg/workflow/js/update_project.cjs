@@ -63,7 +63,7 @@ async function updateProject(output) {
     const ownerType = repoResult.repository.owner.__typename;
     
     core.info(`Owner type: ${ownerType}, Owner ID: ${ownerId}`);
-
+    
     // Step 2: Find existing project or create it
     let projectId;
     let projectNumber;
@@ -94,7 +94,23 @@ async function updateProject(output) {
       projectNumber = existingProject.number;
       core.info(`✓ Found existing project: ${output.project} (#${projectNumber})`);
     } else {
-      // Create new project
+      // Check if owner is a User before attempting to create
+      if (ownerType === "User") {
+        const manualUrl = `https://github.com/users/${owner}/projects/new`;
+        core.error(
+          `❌ Cannot create project "${output.project}" on user account.\n\n` +
+          `GitHub Actions cannot create projects on user accounts due to permission restrictions.\n\n` +
+          `📋 To fix this:\n` +
+          `  1. Go to: ${manualUrl}\n` +
+          `  2. Create a project named "${output.project}"\n` +
+          `  3. Link it to this repository\n` +
+          `  4. Re-run this workflow\n\n` +
+          `The workflow will then be able to add issues/PRs to the existing project.`
+        );
+        throw new Error(`Cannot create project on user account. Please create it manually at ${manualUrl}`);
+      }
+      
+      // Create new project (organization only)
       core.info(`Creating new project: ${output.project}`);
       
       const createResult = await github.graphql(
@@ -330,7 +346,18 @@ async function updateProject(output) {
 
     core.info(`✓ Project management completed successfully`);
   } catch (error) {
-    core.error(`Failed to manage project: ${error.message}`);
+    // Provide helpful error messages for common permission issues
+    if (error.message && error.message.includes("does not have permission to create projects")) {
+      core.error(
+        `Failed to manage project: ${error.message}\n\n` +
+        `💡 Troubleshooting:\n` +
+        `  - If this is a User account, GitHub Actions cannot create projects. Use an Organization repository instead.\n` +
+        `  - Or, create the project manually first, then the workflow can add items to it.\n` +
+        `  - Ensure the workflow has 'projects: write' permission in the workflow file.`
+      );
+    } else {
+      core.error(`Failed to manage project: ${error.message}`);
+    }
     throw error;
   }
 }
