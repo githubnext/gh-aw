@@ -46,7 +46,7 @@ async function main() {
   // Get commit SHA from environment
   const commitSha = process.env.GH_AW_COMMIT_SHA;
   if (!commitSha) {
-    core.setFailed("GH_AW_COMMIT_SHA environment variable not set");
+    core.info("No commit SHA available - skipping commit status update");
     return;
   }
 

@@ -145,7 +145,7 @@ describe("commit_status.cjs", () => {
     expect(mockGithub.rest.repos.createCommitStatus).not.toHaveBeenCalled();
   });
 
-  it("should fail when GH_AW_COMMIT_SHA is not set", async () => {
+  it("should skip gracefully when GH_AW_COMMIT_SHA is not set", async () => {
     setAgentOutput({
       items: [
         {
@@ -159,8 +159,9 @@ describe("commit_status.cjs", () => {
 
     await eval(`(async () => { ${commitStatusScript} })()`);
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith("GH_AW_COMMIT_SHA environment variable not set");
+    expect(mockCore.info).toHaveBeenCalledWith("No commit SHA available - skipping commit status update");
     expect(mockGithub.rest.repos.createCommitStatus).not.toHaveBeenCalled();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
 
   it("should update commit status successfully", async () => {

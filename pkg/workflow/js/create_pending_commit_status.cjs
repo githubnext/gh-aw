@@ -6,9 +6,15 @@
  * This indicates to users that the workflow is in progress
  */
 async function main() {
+  // Check if commit SHA is available
+  const commitSha = context.sha;
+  if (!commitSha) {
+    core.info("No commit SHA available in context - skipping commit status creation");
+    return;
+  }
+
   // Read configuration from environment variables
   const statusContext = process.env.GH_AW_COMMIT_STATUS_CONTEXT || "agentic-workflow";
-  const commitSha = context.sha;
   const runId = context.runId;
   const owner = context.repo.owner;
   const repo = context.repo.repo;

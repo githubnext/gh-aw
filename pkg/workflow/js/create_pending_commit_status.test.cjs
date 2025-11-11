@@ -68,4 +68,18 @@ describe("create_pending_commit_status", () => {
     );
     expect(mockCore.setFailed).not.toHaveBeenCalled();
   });
+
+  it("should skip when no commit SHA is available", async () => {
+    // Set context.sha to empty string
+    mockContext.sha = "";
+    global.context = mockContext;
+
+    await import("./create_pending_commit_status.cjs?nosha=" + Date.now());
+
+    expect(mockCore.info).toHaveBeenCalledWith(
+      "No commit SHA available in context - skipping commit status creation"
+    );
+    expect(mockGithub.rest.repos.createCommitStatus).not.toHaveBeenCalled();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
 });
