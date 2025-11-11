@@ -3672,6 +3672,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
+          GH_AW_WORKFLOW_SOURCE: "/home/runner/work/gh-aw/gh-aw/.github/workflows/archie.md"
+          GH_AW_WORKFLOW_COMPILED: "/home/runner/work/gh-aw/gh-aw/.github/workflows/archie.lock.yml"
         with:
           script: |
             function runLogParser(options) {
@@ -3726,7 +3728,32 @@ jobs:
                 }
                 if (markdown) {
                   core.info(markdown);
-                  core.summary.addRaw(markdown).write();
+                  core.summary.addRaw(markdown);
+                  const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE;
+                  const workflowCompiled = process.env.GH_AW_WORKFLOW_COMPILED;
+                  if (workflowSource || workflowCompiled) {
+                    core.summary.addRaw("\n\n---\n\n");
+                    core.summary.addRaw("## 📄 Workflow Files\n\n");
+                    const repository = context.payload && context.payload.repository;
+                    const sha = context.sha;
+                    if (workflowSource) {
+                      const sourcePath = workflowSource.replace(/^\.github\/workflows\//, "");
+                      if (repository && repository.html_url && sha) {
+                        core.summary.addRaw(`- **Source**: [\`${sourcePath}\`](${repository.html_url}/blob/${sha}/${workflowSource})\n`);
+                      } else {
+                        core.summary.addRaw(`- **Source**: \`${sourcePath}\`\n`);
+                      }
+                    }
+                    if (workflowCompiled) {
+                      const compiledPath = workflowCompiled.replace(/^\.github\/workflows\//, "");
+                      if (repository && repository.html_url && sha) {
+                        core.summary.addRaw(`- **Compiled**: [\`${compiledPath}\`](${repository.html_url}/blob/${sha}/${workflowCompiled})\n`);
+                      } else {
+                        core.summary.addRaw(`- **Compiled**: \`${compiledPath}\`\n`);
+                      }
+                    }
+                  }
+                  core.summary.write();
                   core.info(`${parserName} log parsed successfully`);
                 } else {
                   core.error(`Failed to parse ${parserName} log`);
