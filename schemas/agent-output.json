@@ -36,7 +36,8 @@
         {"$ref": "#/$defs/CreatePullRequestReviewCommentOutput"},
         {"$ref": "#/$defs/CreateDiscussionOutput"},
         {"$ref": "#/$defs/MissingToolOutput"},
-        {"$ref": "#/$defs/CreateCodeScanningAlertOutput"}
+        {"$ref": "#/$defs/CreateCodeScanningAlertOutput"},
+        {"$ref": "#/$defs/CommitStatusOutput"}
       ]
     },
     "CreateIssueOutput": {
@@ -303,6 +304,32 @@
         }
       },
       "required": ["type", "sarif"],
+      "additionalProperties": false
+    },
+    "CommitStatusOutput": {
+      "title": "Commit Status Output",
+      "description": "Output for updating GitHub commit status",
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "commit_status"
+        },
+        "state": {
+          "type": "string",
+          "description": "Commit status state",
+          "enum": ["success", "error", "failure"]
+        },
+        "description": {
+          "type": "string",
+          "description": "Short description of the status",
+          "minLength": 1
+        },
+        "context": {
+          "type": "string",
+          "description": "Optional status context/label"
+        }
+      },
+      "required": ["type", "state", "description"],
       "additionalProperties": false
     }
   }

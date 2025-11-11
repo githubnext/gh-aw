@@ -1759,6 +1759,148 @@ Line 3"}
     });
   });
 
+  describe("commit_status validation", () => {
+    it("should validate valid commit_status entries", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "commit_status", "state": "success", "description": "All tests passed"}
+{"type": "commit_status", "state": "failure", "description": "Tests failed", "context": "ci/tests"}
+{"type": "commit_status", "state": "error", "description": "Build error", "context": "ci/build"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"commit_status": {"max": 3}}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(3);
+      expect(parsedOutput.errors).toHaveLength(0);
+
+      expect(parsedOutput.items[0]).toEqual({
+        type: "commit_status",
+        state: "success",
+        description: "All tests passed",
+      });
+      expect(parsedOutput.items[1]).toEqual({
+        type: "commit_status",
+        state: "failure",
+        description: "Tests failed",
+        context: "ci/tests",
+      });
+      expect(parsedOutput.items[2]).toEqual({
+        type: "commit_status",
+        state: "error",
+        description: "Build error",
+        context: "ci/build",
+      });
+    });
+
+    it("should reject commit_status entries with missing required fields", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "commit_status", "description": "Missing state"}
+{"type": "commit_status", "state": "success"}
+{"type": "commit_status"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"commit_status": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+      const failedMessage = mockCore.setFailed.mock.calls[0][0];
+      expect(failedMessage).toContain("commit_status requires a 'state' field (string)");
+      expect(failedMessage).toContain("commit_status requires a 'description' field (string)");
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeUndefined();
+    });
+
+    it("should reject commit_status entries with invalid state values", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "commit_status", "state": "pending", "description": "Invalid state"}
+{"type": "commit_status", "state": "invalid", "description": "Another invalid state"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"commit_status": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+      const failedMessage = mockCore.setFailed.mock.calls[0][0];
+      expect(failedMessage).toContain("commit_status 'state' must be one of: success, error, failure");
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeUndefined();
+    });
+
+    it("should reject commit_status entries with invalid context type", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "commit_status", "state": "success", "description": "Test", "context": 123}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"commit_status": true}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+      const failedMessage = mockCore.setFailed.mock.calls[0][0];
+      expect(failedMessage).toContain("commit_status 'context' must be a string");
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeUndefined();
+    });
+
+    it("should handle mixed valid and invalid commit_status entries", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "commit_status", "state": "success", "description": "Valid entry"}
+{"type": "commit_status", "state": "invalid", "description": "Invalid state"}
+{"type": "commit_status", "state": "failure", "description": "Another valid entry", "context": "ci/test"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      const __config = '{"commit_status": {"max": 2}}';
+      const configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: true });
+      fs.writeFileSync(configPath, __config);
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(2); // 2 valid items
+      expect(parsedOutput.errors).toHaveLength(1); // 1 error
+
+      expect(parsedOutput.items[0].state).toBe("success");
+      expect(parsedOutput.items[1].state).toBe("failure");
+      expect(parsedOutput.errors).toContain("Line 2: commit_status 'state' must be one of: success, error, failure, got invalid");
+    });
+  });
+
   describe("Content sanitization functionality", () => {
     it("should preserve command-line flags with colons", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";

@@ -159,6 +159,19 @@ interface UploadAssetItem extends BaseSafeOutputItem {
 }
 
 /**
+ * JSONL item for updating commit status
+ */
+interface CommitStatusItem extends BaseSafeOutputItem {
+  type: "commit_status";
+  /** Commit status state: success, error, or failure */
+  state: "success" | "error" | "failure";
+  /** Short description of the status */
+  description: string;
+  /** Optional status context/label */
+  context?: string;
+}
+
+/**
  * Union type of all possible safe output items
  */
 type SafeOutputItem =
@@ -172,7 +185,8 @@ type SafeOutputItem =
   | UpdateIssueItem
   | PushToPrBranchItem
   | MissingToolItem
-  | UploadAssetItem;
+  | UploadAssetItem
+  | CommitStatusItem;
 
 /**
  * Sanitized safe output items
@@ -196,6 +210,7 @@ export {
   PushToPrBranchItem,
   MissingToolItem,
   UploadAssetItem,
+  CommitStatusItem,
   SafeOutputItem,
   SafeOutputItems,
 };

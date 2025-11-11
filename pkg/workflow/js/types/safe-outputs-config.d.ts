@@ -93,6 +93,13 @@ interface UploadAssetConfig extends SafeOutputConfig {
 }
 
 /**
+ * Configuration for commit status updates
+ */
+interface CommitStatusConfig extends SafeOutputConfig {
+  context?: string;
+}
+
+/**
  * Configuration for reporting missing tools
  */
 interface MissingToolConfig extends SafeOutputConfig {}
@@ -147,6 +154,7 @@ type SpecificSafeOutputConfig =
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
   | MissingToolConfig
+  | CommitStatusConfig
   | ThreatDetectionConfig;
 
 type SafeOutputConfigs = Record<string, SafeOutputConfig | SpecificSafeOutputConfig>;
@@ -166,6 +174,7 @@ export {
   PushToPullRequestBranchConfig,
   UploadAssetConfig,
   MissingToolConfig,
+  CommitStatusConfig,
   ThreatDetectionConfig,
   SpecificSafeOutputConfig,
   // Safe job configuration types
