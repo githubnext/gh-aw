@@ -96,7 +96,7 @@ func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 		repo = fmt.Sprintf("%s/%s", pathParts[0], pathParts[1])
 	} else if repo == "." {
 		// Handle current directory as repo (local workflow)
-		currentRepo, err := getCurrentRepositoryInfo()
+		currentRepo, err := GetCurrentRepoSlug()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get current repository info: %w", err)
 		}
@@ -269,7 +269,7 @@ func parseLocalWorkflowSpec(spec string) (*WorkflowSpec, error) {
 	}
 
 	// Get current repository info
-	repoInfo, err := getCurrentRepositoryInfo()
+	repoInfo, err := GetCurrentRepoSlug()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current repository info for local workflow: %w", err)
 	}
