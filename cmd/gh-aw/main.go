@@ -332,7 +332,7 @@ Use "` + constants.CLIExtensionPrefix + ` help all" to show help for all command
 
 	// Add AI flag to compile and add commands
 	compileCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, copilot)")
-	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation and container image validation")
+	compileCmd.Flags().Bool("validate", false, "Enable GitHub Actions workflow schema validation, container image validation, and action SHA validation")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
 	compileCmd.Flags().String("workflows-dir", "", "Relative directory containing workflows (default: .github/workflows)")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
