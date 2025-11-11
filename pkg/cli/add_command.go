@@ -745,7 +745,7 @@ func updateWorkflowTitle(content string, number int) string {
 func compileWorkflow(filePath string, verbose bool, engineOverride string) error {
 	// Create compiler and compile the workflow
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
-	if err := CompileWorkflowWithValidation(compiler, filePath, verbose, false, false, false, false); err != nil {
+	if err := CompileWorkflowWithValidation(compiler, filePath, verbose, false, false, false, false, false); err != nil {
 		return err
 	}
 
@@ -801,7 +801,7 @@ func compileWorkflowWithTracking(filePath string, verbose bool, engineOverride s
 	// Create compiler and set the file tracker
 	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
 	compiler.SetFileTracker(tracker)
-	if err := CompileWorkflowWithValidation(compiler, filePath, verbose, false, false, false, false); err != nil {
+	if err := CompileWorkflowWithValidation(compiler, filePath, verbose, false, false, false, false, false); err != nil {
 		return err
 	}
 
