@@ -5,7 +5,6 @@ const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
-const { generateFingerprintComment } = require("./generate_fingerprint_comment.cjs");
 const { getFingerprint } = require("./get_fingerprint.cjs");
 
 async function main() {
@@ -107,7 +106,6 @@ async function main() {
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || "Workflow";
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
-    const fingerprint = getFingerprint();
     const runId = context.runId;
     const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const runUrl = context.payload.repository
@@ -115,7 +113,7 @@ async function main() {
       : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
     // Add fingerprint comment if present
-    const fingerprintComment = generateFingerprintComment(fingerprint);
+    const fingerprintComment = getFingerprint("markdown");
     if (fingerprintComment) {
       bodyLines.push(fingerprintComment);
     }
