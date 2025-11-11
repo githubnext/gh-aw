@@ -216,19 +216,109 @@ engine: copilot
 
 ### Network Permissions (`network:`)
 
-Control network access for AI engines using ecosystem identifiers and domain allowlists. See [Network Permissions](/gh-aw/reference/network/) for detailed configuration options, security model, and examples.
+The `network:` field provides workflow-level network access control for AI engines' web-fetch and web-search tools. This configuration controls what external domains and services the AI engine can access during workflow execution, independent of MCP server network configurations.
 
-Quick example:
+#### Purpose
+
+Network permissions serve as a security boundary for AI engines, enforcing the principle of least privilege for outbound network access. When specified, only explicitly allowed domains and ecosystem services are accessible. This prevents unintended data exfiltration and limits the attack surface of agentic workflows.
+
+#### Basic Configuration
+
+```yaml wrap
+# Default: basic infrastructure only
+network: defaults
+
+# Allow specific ecosystems
+network:
+  allowed:
+    - defaults              # Basic infrastructure (certificates, Ubuntu, package mirrors)
+    - python               # Python/PyPI ecosystem
+    - node                 # Node.js/NPM ecosystem
+    - "api.example.com"    # Custom domain
+
+# Deny all network access
+network: {}
+```
+
+#### Ecosystem Identifiers
+
+Use ecosystem identifiers to grant access to common development tool domains without enumerating individual URLs:
+
+| Identifier | Includes |
+|------------|----------|
+| `defaults` | Basic infrastructure (certificates, JSON schema, Ubuntu, package mirrors) |
+| `python`, `node`, `ruby`, `go`, `rust`, `java`, `dotnet`, `php`, `perl`, `swift`, `dart`, `haskell` | Language-specific package managers and registries |
+| `github` | GitHub domains |
+| `containers` | Docker Hub, GitHub Container Registry, Quay |
+| `linux-distros` | Debian, Alpine, and other Linux package repositories |
+| `terraform` | HashiCorp and Terraform domains |
+| `playwright` | Playwright testing framework domains |
+
+**Example with multiple ecosystems:**
 ```yaml wrap
 engine:
   id: claude
 
 network:
   allowed:
-    - defaults              # Basic infrastructure
-    - python               # Python/PyPI ecosystem
-    - "api.example.com"    # Custom domain
+    - defaults              # Always include for basic functionality
+    - python               # Python package ecosystem
+    - node                 # Node.js package ecosystem
+    - containers           # Container registries
+    - "api.internal.com"   # Organization-specific API
 ```
+
+#### Security Model
+
+When `network:` is configured with an `allowed` list, a **deny-by-default policy** is enforced:
+- Only domains/ecosystems in the `allowed` list are accessible
+- Unlisted domains are blocked by the AI engine
+- Wildcard patterns (`*.example.com`) are supported and match nested subdomains
+- Default configuration (`network: defaults`) provides minimal infrastructure access
+
+#### Engine Network vs MCP Network
+
+Network permissions operate at two distinct security boundaries:
+
+| Aspect | Engine Network (`network:`) | MCP Network (`tools.*.allowed_domains`) |
+|--------|----------------------------|------------------------------------------|
+| **Scope** | AI engine web-fetch and web-search tools | Individual MCP server network access |
+| **Purpose** | Control what external services AI can access | Control what domains a specific tool can access |
+| **Configuration** | Top-level `network:` field | Per-tool `allowed_domains` field |
+| **Default** | `defaults` (basic infrastructure) | `["localhost", "127.0.0.1"]` (local only) |
+| **Example** | Python package index, GitHub API | Playwright browser domain access |
+
+These configurations are **complementary security boundaries** that work together:
+- **Engine network** limits the AI's ability to fetch arbitrary web content
+- **MCP network** limits what domains a specific tool (like Playwright) can interact with
+
+**Example showing both:**
+```yaml wrap
+engine: claude
+
+# AI engine can access Python ecosystem and custom API
+network:
+  allowed:
+    - defaults
+    - python
+    - "api.example.com"
+
+tools:
+  # Playwright tool can only access specific test domains
+  playwright:
+    allowed_domains:
+      - "localhost"
+      - "test.example.com"
+```
+
+#### Advanced Features
+
+For engine-specific network features like AWF (Agent Workflow Firewall) for the Copilot engine, see [Engine-Specific Network Features](/gh-aw/reference/engines/#network-permissions).
+
+**Additional Resources:**
+- [Network Permissions](/gh-aw/reference/network/) - Complete network configuration reference
+- [AI Engines](/gh-aw/reference/engines/) - Engine-specific network features
+- [Tools](/gh-aw/reference/tools/) - MCP server network configuration
 
 ### Safe Outputs (`safe-outputs:`)
 
