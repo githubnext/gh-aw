@@ -70,10 +70,10 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	// Build custom environment variables specific to create-issue
 	var customEnvVars []string
-	
+
 	// Add workflow metadata (name and source)
 	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVars(data.Name, data.Source)...)
-	
+
 	if data.SafeOutputs.CreateIssues.TitlePrefix != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ISSUE_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateIssues.TitlePrefix))
 	}

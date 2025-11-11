@@ -20,10 +20,10 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 
 	// Build custom environment variables specific to create-pull-request-review-comment
 	var customEnvVars []string
-	
+
 	// Add workflow metadata (name and source)
 	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVars(data.Name, data.Source)...)
-	
+
 	// Pass the side configuration
 	if data.SafeOutputs.CreatePullRequestReviewComments.Side != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_PR_REVIEW_COMMENT_SIDE: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Side))
