@@ -8,6 +8,9 @@ permissions:
 fingerprint: weekly-issue-summary
 engine: copilot
 network:
+  allowed:
+    - defaults
+    - python
   firewall: true
 tools:
   edit:

@@ -14,6 +14,9 @@ engine: copilot
 timeout-minutes: 45
 
 network:
+  allowed:
+    - defaults
+    - python
   firewall: true
 tools:
   edit:
