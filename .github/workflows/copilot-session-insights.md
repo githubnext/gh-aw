@@ -18,6 +18,7 @@ network:
   allowed:
     - defaults
     - github
+    - python
 
 safe-outputs:
   upload-assets:

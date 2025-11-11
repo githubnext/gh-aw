@@ -18,6 +18,9 @@ engine: copilot
 timeout-minutes: 30  # Reduced from 45 since pre-fetching data is faster
 
 network:
+  allowed:
+    - defaults
+    - python
   firewall: true
 
 safe-outputs:
