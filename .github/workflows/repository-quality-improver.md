@@ -10,6 +10,8 @@ permissions:
   pull-requests: read
 engine: copilot
 tools:
+  edit:
+  bash: ["*"]
   cache-memory:
     - id: focus-areas
       key: quality-focus-${{ github.workflow }}
