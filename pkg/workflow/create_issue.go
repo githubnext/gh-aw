@@ -70,15 +70,10 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	// Build custom environment variables specific to create-issue
 	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
-	// Pass the workflow source URL for installation instructions
-	if data.Source != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE: %q\n", data.Source))
-		sourceURL := buildSourceURL(data.Source)
-		if sourceURL != "" {
-			customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
-		}
-	}
+	
+	// Add workflow metadata (name and source)
+	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVars(data.Name, data.Source)...)
+	
 	if data.SafeOutputs.CreateIssues.TitlePrefix != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ISSUE_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateIssues.TitlePrefix))
 	}
