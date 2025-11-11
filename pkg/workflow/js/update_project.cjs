@@ -89,15 +89,11 @@ async function updateProject(output) {
       // Create new project
       core.info(`Creating new project: ${output.project}`);
       
-      // Include campaign ID in project description
-      const projectDescription = `Campaign ID: ${campaignId}`;
-      
       const createResult = await github.graphql(
-        `mutation($ownerId: ID!, $title: String!, $shortDescription: String) {
+        `mutation($ownerId: ID!, $title: String!) {
           createProjectV2(input: {
             ownerId: $ownerId,
-            title: $title,
-            shortDescription: $shortDescription
+            title: $title
           }) {
             projectV2 {
               id
@@ -109,8 +105,7 @@ async function updateProject(output) {
         }`,
         { 
           ownerId: repositoryId, 
-          title: output.project,
-          shortDescription: projectDescription
+          title: output.project
         }
       );
 

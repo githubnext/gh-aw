@@ -4702,13 +4702,11 @@ jobs:
                   core.info(`✓ Found existing project: ${output.project} (#${projectNumber})`);
                 } else {
                   core.info(`Creating new project: ${output.project}`);
-                  const projectDescription = `Campaign ID: ${campaignId}`;
                   const createResult = await github.graphql(
-                    `mutation($ownerId: ID!, $title: String!, $shortDescription: String) {
+                    `mutation($ownerId: ID!, $title: String!) {
                       createProjectV2(input: {
                         ownerId: $ownerId,
-                        title: $title,
-                        shortDescription: $shortDescription
+                        title: $title
                       }) {
                         projectV2 {
                           id
@@ -4720,8 +4718,7 @@ jobs:
                     }`,
                     { 
                       ownerId: repositoryId, 
-                      title: output.project,
-                      shortDescription: projectDescription
+                      title: output.project
                     }
                   );
                   const newProject = createResult.createProjectV2.projectV2;
