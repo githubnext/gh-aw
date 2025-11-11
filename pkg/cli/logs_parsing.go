@@ -1,3 +1,13 @@
+// Package cli provides command-line interface functionality for gh-aw.
+// This file (logs_parsing.go) contains functions for parsing and analyzing
+// workflow logs from various AI engines.
+//
+// Key responsibilities:
+//   - Parsing engine-specific log formats (Claude, Copilot, Codex, Custom)
+//   - Extracting engine configuration from aw_info.json
+//   - Locating agent log files and output artifacts
+//   - Parsing firewall logs and generating summaries
+//   - Running JavaScript parsers to generate markdown reports
 package cli
 
 import (
