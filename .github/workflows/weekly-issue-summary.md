@@ -11,6 +11,7 @@ network:
   allowed:
     - defaults
     - python
+    - node
   firewall: true
 tools:
   edit:

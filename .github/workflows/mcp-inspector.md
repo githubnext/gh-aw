@@ -14,6 +14,7 @@ network:
   allowed:
     - defaults
     - containers
+    - node
 tools:
   edit:
   bash:

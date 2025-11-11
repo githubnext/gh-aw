@@ -15,6 +15,9 @@ permissions:
 engine: copilot
 
 network:
+  allowed:
+    - defaults
+    - node
   firewall: true
 
 imports:
