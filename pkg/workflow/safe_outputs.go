@@ -783,6 +783,13 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["missing_tool"] = missingToolConfig
 		}
+		if data.SafeOutputs.UpdateProjects != nil {
+			updateProjectConfig := map[string]any{}
+			if data.SafeOutputs.UpdateProjects.Max > 0 {
+				updateProjectConfig["max"] = data.SafeOutputs.UpdateProjects.Max
+			}
+			safeOutputsConfig["update_project"] = updateProjectConfig
+		}
 	}
 
 	// Add safe-jobs configuration from SafeOutputs.Jobs
