@@ -8,10 +8,15 @@
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
+#   commit_status["commit_status"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
+#   pre_activation["pre_activation"]
 #   push_to_pull_request_branch["push_to_pull_request_branch"]
+#   pre_activation --> activation
 #   activation --> agent
+#   agent --> commit_status
+#   detection --> commit_status
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
@@ -33,6 +38,9 @@
 
 name: "Dev"
 "on":
+  push:
+    branches:
+    - main
   workflow_dispatch: null
 
 permissions:
@@ -48,9 +56,14 @@ run-name: "Dev"
 
 jobs:
   activation:
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      statuses: write
+    outputs:
+      commit_status_created: ${{ steps.pending_status.outcome == 'success' }}
     steps:
       - name: Checkout workflows
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -133,6 +146,46 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: Create pending commit status
+        id: pending_status
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_COMMIT_STATUS_CONTEXT: dev/humor-check
+        with:
+          script: |
+            async function main() {
+              const commitSha = context.sha;
+              if (!commitSha) {
+                core.info("No commit SHA available in context - skipping commit status creation");
+                return;
+              }
+              const statusContext = process.env.GH_AW_COMMIT_STATUS_CONTEXT || "agentic-workflow";
+              const runId = context.runId;
+              const owner = context.repo.owner;
+              const repo = context.repo.repo;
+              const targetUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                : `${process.env.GITHUB_SERVER_URL || "https://github.com"}/${owner}/${repo}/actions/runs/${runId}`;
+              core.info(`Creating pending commit status for commit: ${commitSha}`);
+              core.info(`Status context: ${statusContext}`);
+              core.info(`Target URL: ${targetUrl}`);
+              try {
+                await github.rest.repos.createCommitStatus({
+                  owner,
+                  repo,
+                  sha: commitSha,
+                  state: "pending",
+                  context: statusContext,
+                  description: "Agentic workflow is running",
+                  target_url: targetUrl,
+                });
+                core.info("✓ Successfully created pending commit status");
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.setFailed(`Failed to create pending commit status: ${errorMessage}`);
+              }
+            }
+            await main();
 
   agent:
     needs: activation
@@ -141,8 +194,6 @@ jobs:
       contents: read
       issues: read
       pull-requests: read
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
     outputs:
@@ -1089,7 +1140,7 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          # Generate a Poem
+          # Generate a Poem and Check for Humor
           
           Create or update a `poem.md` file with a creative poem about GitHub Agentic Workflows and push the changes to the pull request branch.
           
@@ -1106,6 +1157,23 @@ jobs:
           Commit your changes.
           
           Call the `push-to-pull-request-branch` tool after making your changes.
+          
+          **After making the changes**, analyze whether the code changes you made are funny or humorous. Consider:
+          - Are there any amusing variable names, comments, or code patterns?
+          - Does the poem contain clever wordplay or humor?
+          - Are there any entertaining aspects to the changes?
+          
+          If the changes are genuinely funny or humorous, emit a commit status update with state "success" and a description explaining what's funny about the changes.
+          
+          Output the commit status as JSONL format:
+          ```json
+          {"type": "commit_status", "state": "success", "description": "The poem contains clever wordplay about automation"}
+          ```
+          
+          If the changes are not particularly funny, emit a commit status with state "error" and description "Changes lack humor":
+          ```json
+          {"type": "commit_status", "state": "error", "description": "Changes lack humor"}
+          ```
           
           **Example poem file structure:**
           ```markdown
@@ -3747,12 +3815,169 @@ jobs:
           path: /tmp/gh-aw/aw.patch
           if-no-files-found: ignore
 
+  commit_status:
+    needs:
+      - agent
+      - detection
+    if: ((!cancelled()) && (needs.agent.result != 'skipped')) && (contains(needs.agent.outputs.output_types, 'commit_status'))
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      statuses: write
+    timeout-minutes: 10
+    outputs:
+      status_id: ${{ steps.commit_status.outputs.status_id }}
+      status_url: ${{ steps.commit_status.outputs.status_url }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safeoutputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safeoutputs/
+          find "/tmp/gh-aw/safeoutputs/" -type f -print
+          echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/safeoutputs/agent_output.json" >> "$GITHUB_ENV"
+      - name: Update Commit Status
+        id: commit_status
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_COMMIT_SHA: ${{ github.sha }}
+          GH_AW_COMMIT_STATUS_CONTEXT: "dev/humor-check"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            function loadAgentOutput() {
+              const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GH_AW_AGENT_OUTPUT environment variable found");
+                return { success: false };
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                const errorMessage = `Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return { success: false };
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                const errorMessage = `Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`;
+                core.setFailed(errorMessage);
+                return { success: false, error: errorMessage };
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return { success: false };
+              }
+              return { success: true, items: validatedOutput.items };
+            }
+            async function generateStagedPreview(options) {
+              const { title, description, items, renderItem } = options;
+              let summaryContent = `## 🎭 Staged Mode: ${title} Preview\n\n`;
+              summaryContent += `${description}\n\n`;
+              for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                summaryContent += renderItem(item, i);
+                summaryContent += "---\n\n";
+              }
+              try {
+                await core.summary.addRaw(summaryContent).write();
+                core.info(summaryContent);
+                core.info(`📝 ${title} preview written to step summary`);
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error : String(error));
+              }
+            }
+            async function main() {
+              const isStaged = process.env.GH_AW_SAFE_OUTPUTS_STAGED === "true";
+              const result = loadAgentOutput();
+              if (!result.success) {
+                return;
+              }
+              const commitStatusItems = result.items.filter( item => item.type === "commit_status");
+              if (commitStatusItems.length === 0) {
+                core.info("No commit_status items found in agent output");
+                return;
+              }
+              core.info(`Found ${commitStatusItems.length} commit_status item(s)`);
+              if (isStaged) {
+                await generateStagedPreview({
+                  title: "Commit Status Update",
+                  description: "The following commit status would be updated if staged mode was disabled:",
+                  items: commitStatusItems,
+                  renderItem: item => {
+                    let content = "";
+                    content += `**State:** ${item.state}\n`;
+                    content += `**Description:** ${item.description}\n`;
+                    if (item.context) {
+                      content += `**Context:** ${item.context}\n`;
+                    }
+                    content += "\n";
+                    return content;
+                  },
+                });
+                return;
+              }
+              const commitSha = process.env.GH_AW_COMMIT_SHA;
+              if (!commitSha) {
+                core.info("No commit SHA available - skipping commit status update");
+                return;
+              }
+              const defaultContext = process.env.GH_AW_COMMIT_STATUS_CONTEXT || "agentic-workflow";
+              const runUrl = `${context.payload.repository.html_url}/actions/runs/${context.runId}`;
+              for (const item of commitStatusItems) {
+                try {
+                  const statusContext = item.context || defaultContext;
+                  core.info(`Updating commit status for ${commitSha}`);
+                  core.info(`State: ${item.state}`);
+                  core.info(`Description: ${item.description}`);
+                  core.info(`Context: ${statusContext}`);
+                  await github.rest.repos.createCommitStatus({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    sha: commitSha,
+                    state: item.state,
+                    description: item.description,
+                    context: statusContext,
+                    target_url: runUrl,
+                  });
+                  core.info(`Successfully updated commit status to '${item.state}'`);
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  core.error(`Failed to update commit status: ${errorMessage}`);
+                  core.setFailed(`Failed to update commit status: ${errorMessage}`);
+                  return;
+                }
+              }
+              await core.summary
+                .addRaw(
+                  `
+            ## Commit Status Updated
+            Successfully updated commit status for commit \`${commitSha.substring(0, 7)}\`:
+            ${commitStatusItems.map((item, i) => `**Status ${i + 1}:** ${item.state} - ${item.description}`).join("\n")}
+            `
+                )
+                .write();
+            }
+            await main();
+
   detection:
     needs: agent
     runs-on: ubuntu-latest
     permissions: {}
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     steps:
       - name: Download prompt artifact
@@ -4373,6 +4598,86 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
+
+  pre_activation:
+    runs-on: ubuntu-slim
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          GH_AW_REQUIRED_ROLES: admin,maintainer,write
+        with:
+          script: |
+            async function main() {
+              const { eventName } = context;
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissionsEnv = process.env.GH_AW_REQUIRED_ROLES;
+              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+              if (eventName === "workflow_dispatch") {
+                const hasWriteRole = requiredPermissions.includes("write");
+                if (hasWriteRole) {
+                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
+                  core.setOutput("is_team_member", "true");
+                  core.setOutput("result", "safe_event");
+                  return;
+                }
+                core.info(`Event ${eventName} requires validation (write role not allowed)`);
+              }
+              const safeEvents = ["workflow_run", "schedule"];
+              if (safeEvents.includes(eventName)) {
+                core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
+                return;
+              }
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
+                return;
+              }
+              try {
+                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.info(`Repository permission level: ${permission}`);
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    core.setOutput("is_team_member", "true");
+                    core.setOutput("result", "authorized");
+                    core.setOutput("user_permission", permission);
+                    return;
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", permission);
+                core.setOutput(
+                  "error_message",
+                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+                );
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
+                return;
+              }
+            }
+            await main();
 
   push_to_pull_request_branch:
     needs:

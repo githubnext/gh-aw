@@ -1,5 +1,7 @@
 ---
 on: 
+  push:
+    branches: [main]
   workflow_dispatch:
 concurrency:
   group: dev-workflow-${{ github.ref }}
@@ -13,6 +15,8 @@ permissions:
 tools:
   edit:
 safe-outputs:
+  commit-status:
+    context: "dev/humor-check"
   threat-detection:
     engine: false
     steps:
@@ -331,7 +335,7 @@ safe-outputs:
 timeout-minutes: 20
 ---
 
-# Generate a Poem
+# Generate a Poem and Check for Humor
 
 Create or update a `poem.md` file with a creative poem about GitHub Agentic Workflows and push the changes to the pull request branch.
 
@@ -348,6 +352,23 @@ The poem should be:
 Commit your changes.
 
 Call the `push-to-pull-request-branch` tool after making your changes.
+
+**After making the changes**, analyze whether the code changes you made are funny or humorous. Consider:
+- Are there any amusing variable names, comments, or code patterns?
+- Does the poem contain clever wordplay or humor?
+- Are there any entertaining aspects to the changes?
+
+If the changes are genuinely funny or humorous, emit a commit status update with state "success" and a description explaining what's funny about the changes.
+
+Output the commit status as JSONL format:
+```json
+{"type": "commit_status", "state": "success", "description": "The poem contains clever wordplay about automation"}
+```
+
+If the changes are not particularly funny, emit a commit status with state "error" and description "Changes lack humor":
+```json
+{"type": "commit_status", "state": "error", "description": "Changes lack humor"}
+```
 
 **Example poem file structure:**
 ```markdown
