@@ -67,32 +67,85 @@ async function updateProject(output) {
     // Step 2: Find existing project or create it
     let projectId;
     let projectNumber;
+    let existingProject = null;
     
-    // Try to find existing project by title
-    const existingProjectsResult = await github.graphql(
-      `query($owner: String!, $repo: String!) {
-        repository(owner: $owner, name: $repo) {
-          projectsV2(first: 100) {
-            nodes {
-              id
-              title
-              number
+    // Search for projects at the owner level (user/org)
+    // Note: repository.projectsV2 doesn't reliably return user-owned projects even when linked
+    core.info(`Searching ${ownerType.toLowerCase()} projects...`);
+    
+    const ownerQuery = ownerType === "User"
+        ? `query($login: String!) {
+            user(login: $login) {
+              projectsV2(first: 100) {
+                nodes {
+                  id
+                  title
+                  number
+                }
+              }
             }
-          }
-        }
-      }`,
-      { owner, repo }
-    );
+          }`
+        : `query($login: String!) {
+            organization(login: $login) {
+              projectsV2(first: 100) {
+                nodes {
+                  id
+                  title
+                  number
+                }
+              }
+            }
+          }`;
 
-    const existingProject = existingProjectsResult.repository.projectsV2.nodes.find(
+    const ownerProjectsResult = await github.graphql(ownerQuery, { login: owner });
+    
+    const ownerProjects = ownerType === "User" 
+      ? ownerProjectsResult.user.projectsV2.nodes
+      : ownerProjectsResult.organization.projectsV2.nodes;
+    
+    core.info(`Found ${ownerProjects.length} ${ownerType.toLowerCase()} projects`);
+    ownerProjects.forEach(p => {
+      core.info(`  - "${p.title}" (#${p.number})`);
+    });
+    
+    existingProject = ownerProjects.find(
       p => p.title === output.project || p.number.toString() === output.project.toString()
     );
+    
+    // If found at owner level, ensure it's linked to the repository
+    if (existingProject) {
+      core.info(`✓ Found project "${existingProject.title}" (#${existingProject.number})`);
+      
+      try {
+        await github.graphql(
+          `mutation($projectId: ID!, $repositoryId: ID!) {
+            linkProjectV2ToRepository(input: {
+              projectId: $projectId,
+              repositoryId: $repositoryId
+            }) {
+              repository {
+                id
+              }
+            }
+          }`,
+          { projectId: existingProject.id, repositoryId }
+        );
+        core.info(`✓ Ensured project is linked to repository`);
+      } catch (linkError) {
+        // Project might already be linked, that's okay
+        if (linkError.message && linkError.message.includes("already linked")) {
+          core.info(`✓ Project already linked to repository`);
+        } else {
+          core.warning(`Could not link project to repository: ${linkError.message}`);
+        }
+      }
+    }
 
     if (existingProject) {
       // Project exists
       projectId = existingProject.id;
       projectNumber = existingProject.number;
-      core.info(`✓ Found existing project: ${output.project} (#${projectNumber})`);
+      core.info(`✓ Using project: ${output.project} (#${projectNumber})`);
     } else {
       // Check if owner is a User before attempting to create
       if (ownerType === "User") {

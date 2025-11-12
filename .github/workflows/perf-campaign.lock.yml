@@ -4392,27 +4392,71 @@ jobs:
                 core.info(`Owner type: ${ownerType}, Owner ID: ${ownerId}`);
                 let projectId;
                 let projectNumber;
-                const existingProjectsResult = await github.graphql(
-                  `query($owner: String!, $repo: String!) {
-                    repository(owner: $owner, name: $repo) {
-                      projectsV2(first: 100) {
-                        nodes {
-                          id
-                          title
-                          number
+                let existingProject = null;
+                core.info(`Searching ${ownerType.toLowerCase()} projects...`);
+                const ownerQuery = ownerType === "User"
+                    ? `query($login: String!) {
+                        user(login: $login) {
+                          projectsV2(first: 100) {
+                            nodes {
+                              id
+                              title
+                              number
+                            }
+                          }
                         }
-                      }
-                    }
-                  }`,
-                  { owner, repo }
-                );
-                const existingProject = existingProjectsResult.repository.projectsV2.nodes.find(
+                      }`
+                    : `query($login: String!) {
+                        organization(login: $login) {
+                          projectsV2(first: 100) {
+                            nodes {
+                              id
+                              title
+                              number
+                            }
+                          }
+                        }
+                      }`;
+                const ownerProjectsResult = await github.graphql(ownerQuery, { login: owner });
+                const ownerProjects = ownerType === "User" 
+                  ? ownerProjectsResult.user.projectsV2.nodes
+                  : ownerProjectsResult.organization.projectsV2.nodes;
+                core.info(`Found ${ownerProjects.length} ${ownerType.toLowerCase()} projects`);
+                ownerProjects.forEach(p => {
+                  core.info(`  - "${p.title}" (#${p.number})`);
+                });
+                existingProject = ownerProjects.find(
                   p => p.title === output.project || p.number.toString() === output.project.toString()
                 );
                 if (existingProject) {
+                  core.info(`✓ Found project "${existingProject.title}" (#${existingProject.number})`);
+                  try {
+                    await github.graphql(
+                      `mutation($projectId: ID!, $repositoryId: ID!) {
+                        linkProjectV2ToRepository(input: {
+                          projectId: $projectId,
+                          repositoryId: $repositoryId
+                        }) {
+                          repository {
+                            id
+                          }
+                        }
+                      }`,
+                      { projectId: existingProject.id, repositoryId }
+                    );
+                    core.info(`✓ Ensured project is linked to repository`);
+                  } catch (linkError) {
+                    if (linkError.message && linkError.message.includes("already linked")) {
+                      core.info(`✓ Project already linked to repository`);
+                    } else {
+                      core.warning(`Could not link project to repository: ${linkError.message}`);
+                    }
+                  }
+                }
+                if (existingProject) {
                   projectId = existingProject.id;
                   projectNumber = existingProject.number;
-                  core.info(`✓ Found existing project: ${output.project} (#${projectNumber})`);
+                  core.info(`✓ Using project: ${output.project} (#${projectNumber})`);
                 } else {
                   if (ownerType === "User") {
                     const manualUrl = `https://github.com/users/${owner}/projects/new`;
