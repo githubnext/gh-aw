@@ -339,6 +339,18 @@ Exposes CLI commands (`status`, `compile`, `logs`, `audit`) as MCP tools, enabli
 
 See **[MCP Server Guide](/gh-aw/setup/mcp-server/)** for integration details.
 
+### Utility Commands
+
+#### `version`
+
+Show version information for the gh-aw CLI.
+
+```bash wrap
+gh aw version
+```
+
+Displays the current version of gh-aw and product information. Equivalent to using the `--version` flag.
+
 ## Examples
 
 ### Basic Workflow Lifecycle
