@@ -59,14 +59,6 @@ func checkSecretExists(secretName string) (bool, error) {
 	return false, nil
 }
 
-// extractSecretName extracts the secret name from a GitHub Actions expression
-// Examples: "${{ secrets.DD_API_KEY }}" -> "DD_API_KEY"
-//
-//	"${{ secrets.DD_SITE || 'datadoghq.com' }}" -> "DD_SITE"
-func extractSecretName(value string) string {
-	return workflow.ExtractSecretName(value)
-}
-
 // extractSecretsFromConfig extracts all required secrets from an MCP server config
 func extractSecretsFromConfig(config parser.MCPServerConfig) []SecretInfo {
 	secretsLog.Printf("Extracting secrets from MCP config: command=%s", config.Command)
@@ -75,7 +67,7 @@ func extractSecretsFromConfig(config parser.MCPServerConfig) []SecretInfo {
 
 	// Extract from HTTP headers
 	for key, value := range config.Headers {
-		secretName := extractSecretName(value)
+		secretName := workflow.ExtractSecretName(value)
 		if secretName != "" && !seen[secretName] {
 			secrets = append(secrets, SecretInfo{
 				Name:   secretName,
@@ -87,7 +79,7 @@ func extractSecretsFromConfig(config parser.MCPServerConfig) []SecretInfo {
 
 	// Extract from environment variables
 	for key, value := range config.Env {
-		secretName := extractSecretName(value)
+		secretName := workflow.ExtractSecretName(value)
 		if secretName != "" && !seen[secretName] {
 			secrets = append(secrets, SecretInfo{
 				Name:   secretName,

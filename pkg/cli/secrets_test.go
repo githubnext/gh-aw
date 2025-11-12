@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 func TestExtractSecretName(t *testing.T) {
@@ -47,7 +48,7 @@ func TestExtractSecretName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractSecretName(tt.value)
+			result := workflow.ExtractSecretName(tt.value)
 			if result != tt.expected {
 				t.Errorf("Expected %q, got %q", tt.expected, result)
 			}
