@@ -1,14 +1,18 @@
 ---
 name: Multi-Device Docs Tester
 on:
+  schedule:
+    - cron: '0 9 * * *'  # Daily at 9 AM UTC
   workflow_dispatch:
     inputs:
       devices:
         description: 'Device types to test (comma-separated: mobile,tablet,desktop)'
         required: false
         default: 'mobile,tablet,desktop'
-permissions: read-all
-engine: copilot
+permissions:
+  contents: read
+  issues: write
+engine: claude
 timeout-minutes: 30
 tools:
   playwright:
@@ -25,7 +29,9 @@ tools:
     - "kill*"
     - "lsof*"
 safe-outputs:
+  upload-assets:
   create-issue:
+
 network:
   allowed:
     - node
