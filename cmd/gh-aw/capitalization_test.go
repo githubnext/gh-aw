@@ -57,7 +57,7 @@ func TestCapitalizationConsistency(t *testing.T) {
 		}
 
 		// If they mention it, ensure it's lowercase
-		if (strings.Contains(cmd.Short, "agentic workflow") || strings.Contains(cmd.Long, "agentic workflow")) {
+		if strings.Contains(cmd.Short, "agentic workflow") || strings.Contains(cmd.Long, "agentic workflow") {
 			// Lowercase usage found - this is correct
 			continue
 		}
