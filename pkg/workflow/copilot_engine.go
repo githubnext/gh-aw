@@ -123,9 +123,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Add --agent flag if custom agent file is specified (via imports)
+	// Copilot CLI expects agent identifier (filename without extension), not full path
 	if workflowData.AgentFile != "" {
-		agentPath := ResolveAgentFilePath(workflowData.AgentFile)
-		copilotArgs = append(copilotArgs, "--agent", agentPath)
+		agentIdentifier := ExtractAgentIdentifier(workflowData.AgentFile)
+		copilotArgs = append(copilotArgs, "--agent", agentIdentifier)
 	}
 
 	// Add tool permission arguments based on configuration
