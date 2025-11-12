@@ -5,19 +5,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 var secretsLog = logger.New("cli:secrets")
-
-// Pre-compiled regexes for secret extraction (performance optimization)
-var (
-	secretPattern = regexp.MustCompile(`\$\{\{\s*secrets\.([A-Z_][A-Z0-9_]*)\s*(?:\|\|.*?)?\s*\}\}`)
-)
 
 // SecretInfo contains information about a required secret
 type SecretInfo struct {
@@ -69,12 +64,7 @@ func checkSecretExists(secretName string) (bool, error) {
 //
 //	"${{ secrets.DD_SITE || 'datadoghq.com' }}" -> "DD_SITE"
 func extractSecretName(value string) string {
-	// Match pattern: ${{ secrets.SECRET_NAME }} or ${{ secrets.SECRET_NAME || 'default' }}
-	matches := secretPattern.FindStringSubmatch(value)
-	if len(matches) >= 2 {
-		return matches[1]
-	}
-	return ""
+	return workflow.ExtractSecretName(value)
 }
 
 // extractSecretsFromConfig extracts all required secrets from an MCP server config
