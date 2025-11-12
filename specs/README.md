@@ -19,6 +19,12 @@ This directory contains design specifications and implementation documentation f
 | [Schema Validation](./SCHEMA_VALIDATION.md) | ✅ Documented | `pkg/parser/schemas/` |
 | [GitHub Actions Security Best Practices](./github-actions-security-best-practices.md) | ✅ Documented | Workflow security guidelines and patterns |
 
+## Security Reviews
+
+| Document | Date | Status |
+|----------|------|--------|
+| [Template Injection Security Review](./SECURITY_REVIEW_TEMPLATE_INJECTION.md) | 2025-11-11 | ✅ No vulnerabilities found |
+
 ## Related Documentation
 
 For user-facing documentation, see [docs/](../docs/).
@@ -35,4 +41,4 @@ When adding new specifications:
 
 ---
 
-**Last Updated**: 2025-11-06
+**Last Updated**: 2025-11-12
