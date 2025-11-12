@@ -603,30 +603,23 @@ func extractGoPackages(workflowData *WorkflowData) []string {
 // extractGoFromCommands extracts Go package paths from command strings
 func extractGoFromCommands(commands string) []string {
 	var packages []string
-	lines := strings.Split(commands, "\n")
-
-	for _, line := range lines {
-		// Look for "go install <package>" or "go get <package>" patterns
-		words := strings.Fields(line)
-		for i, word := range words {
-			if word == "go" && i+1 < len(words) {
-				cmd := words[i+1]
-				if cmd == "install" || cmd == "get" {
-					// Find the package path
-					for j := i + 2; j < len(words); j++ {
-						pkg := words[j]
-						pkg = strings.TrimRight(pkg, "&|;")
-						// Skip flags (start with - or --)
-						if !strings.HasPrefix(pkg, "-") {
-							packages = append(packages, pkg)
-							break
-						}
-					}
-				}
-			}
-		}
+	
+	// Extract "go install <package>" pattern
+	installExtractor := PackageExtractor{
+		CommandNames:       []string{"go"},
+		RequiredSubcommand: "install",
+		TrimSuffixes:       "&|;",
 	}
-
+	packages = append(packages, installExtractor.ExtractPackages(commands)...)
+	
+	// Extract "go get <package>" pattern
+	getExtractor := PackageExtractor{
+		CommandNames:       []string{"go"},
+		RequiredSubcommand: "get",
+		TrimSuffixes:       "&|;",
+	}
+	packages = append(packages, getExtractor.ExtractPackages(commands)...)
+	
 	return packages
 }
 

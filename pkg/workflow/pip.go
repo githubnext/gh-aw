@@ -37,35 +37,12 @@ func extractPipPackages(workflowData *WorkflowData) []string {
 
 // extractPipFromCommands extracts pip package names from command strings
 func extractPipFromCommands(commands string) []string {
-	var packages []string
-	lines := strings.Split(commands, "\n")
-
-	for _, line := range lines {
-		// Look for "pip install <package>" or "pip3 install <package>" patterns
-		words := strings.Fields(line)
-		for i, word := range words {
-			if (word == "pip" || word == "pip3") && i+1 < len(words) {
-				// Look for install command
-				for j := i + 1; j < len(words); j++ {
-					if words[j] == "install" {
-						// Skip flags and find the first package name
-						for k := j + 1; k < len(words); k++ {
-							pkg := words[k]
-							pkg = strings.TrimRight(pkg, "&|;")
-							// Skip flags (start with - or --)
-							if !strings.HasPrefix(pkg, "-") {
-								packages = append(packages, pkg)
-								break
-							}
-						}
-						break
-					}
-				}
-			}
-		}
+	extractor := PackageExtractor{
+		CommandNames:       []string{"pip", "pip3"},
+		RequiredSubcommand: "install",
+		TrimSuffixes:       "&|;",
 	}
-
-	return packages
+	return extractor.ExtractPackages(commands)
 }
 
 // extractUvPackages extracts uv package names from workflow data
@@ -77,28 +54,31 @@ func extractUvPackages(workflowData *WorkflowData) []string {
 func extractUvFromCommands(commands string) []string {
 	var packages []string
 	lines := strings.Split(commands, "\n")
-
+	
+	uvxExtractor := PackageExtractor{
+		CommandNames:       []string{"uvx"},
+		RequiredSubcommand: "",
+		TrimSuffixes:       "&|;",
+	}
+	
+	uvPipHelper := PackageExtractor{TrimSuffixes: "&|;"}
+	
 	for _, line := range lines {
-		// Look for "uv pip install <package>" or "uvx <package>" patterns
 		words := strings.Fields(line)
 		for i, word := range words {
+			// Check for "uvx <package>" pattern
 			if word == "uvx" && i+1 < len(words) {
-				pkg := words[i+1]
-				pkg = strings.TrimRight(pkg, "&|;")
-				packages = append(packages, pkg)
+				pkg := uvxExtractor.FindPackageName(words, i+1)
+				if pkg != "" {
+					packages = append(packages, pkg)
+				}
 			} else if word == "uv" && i+2 < len(words) && words[i+1] == "pip" {
-				// Look for install command
+				// Check for "uv pip install <package>" pattern
 				for j := i + 2; j < len(words); j++ {
 					if words[j] == "install" {
-						// Skip flags and find the first package name
-						for k := j + 1; k < len(words); k++ {
-							pkg := words[k]
-							pkg = strings.TrimRight(pkg, "&|;")
-							// Skip flags (start with - or --)
-							if !strings.HasPrefix(pkg, "-") {
-								packages = append(packages, pkg)
-								break
-							}
+						pkg := uvPipHelper.FindPackageName(words, j+1)
+						if pkg != "" {
+							packages = append(packages, pkg)
 						}
 						break
 					}
@@ -106,6 +86,6 @@ func extractUvFromCommands(commands string) []string {
 			}
 		}
 	}
-
+	
 	return packages
 }
