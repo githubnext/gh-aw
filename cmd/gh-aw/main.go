@@ -32,7 +32,7 @@ var rootCmd = &cobra.Command{
 	Version: version,
 	Long: `GitHub Agentic Workflows from GitHub Next
 
-A natural language GitHub Action is a markdown file checked into the .github/workflows directory of a repository.
+A natural language GitHub Action is a Markdown file checked into the .github/workflows directory of a repository.
 The file contains a natural language description of the workflow, which is then compiled into a GitHub Actions workflow file.
 The workflow file is then executed by GitHub Actions in response to events in the repository.`,
 	Run: func(cmd *cobra.Command, args []string) {
