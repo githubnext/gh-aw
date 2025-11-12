@@ -24,3 +24,8 @@ pnpm-debug.log*
 test-results/
 playwright-report/
 playwright/.cache/
+custom-original.css
+custom.css.backup
+take-screenshots.mjs
+test-results/
+playwright-report/
