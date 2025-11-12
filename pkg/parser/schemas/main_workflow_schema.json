@@ -2392,11 +2392,11 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for managing GitHub Projects v2 boards. Smart tool that auto-detects whether to create projects, add items, or update fields. Requires repository-projects: write permission.",
+              "description": "Configuration for managing GitHub Projects v2 boards. Smart tool that auto-detects whether to create a project (if missing), add issue/PR items, or update custom fields on existing items. Requires repository-projects: write permission. Safe output items produced by the agent use type=update_project and may include: project (board name), content_type (issue|pull_request), content_number, and a fields object mapping project field names to values.",
               "properties": {
                 "max": {
                   "type": "integer",
-                  "description": "Maximum number of project operations to perform (default: 10)",
+                  "description": "Maximum number of project operations to perform (default: 10). Each operation may add a project item, or update its fields.",
                   "minimum": 1,
                   "maximum": 100
                 },
@@ -2405,11 +2405,20 @@
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "max": 15
+                },
+                {
+                  "github-token": "${{ secrets.PROJECT_GITHUB_TOKEN }}",
+                  "max": 15
+                }
+              ]
             },
             {
               "type": "null",
-              "description": "Enable project management with default configuration"
+              "description": "Enable project management with default configuration (max=10)"
             }
           ]
         },
@@ -3210,95 +3219,8 @@
     "github-token": {
       "$ref": "#/$defs/github_token",
       "description": "GitHub token expression to use for all steps that require GitHub authentication. Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}. If not specified, defaults to ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}. This value can be overridden by safe-outputs github-token or individual safe-output github-token fields."
-    },
-    "campaign": {
-      "type": "object",
-      "description": "Campaign configuration for coordinating multiple AI agents across workflow runs with project board tracking",
-      "properties": {
-        "project": {
-          "type": "object",
-          "description": "GitHub Projects (v2) configuration for campaign tracking",
-          "properties": {
-            "name": {
-              "type": "string",
-              "description": "Project board name (supports GitHub expressions like ${{ github.run_id }})"
-            },
-            "view": {
-              "type": "string",
-              "enum": ["board", "table", "roadmap"],
-              "description": "Default project view type"
-            },
-            "status-field": {
-              "type": "string",
-              "description": "Name of the status field in the project"
-            },
-            "agent-field": {
-              "type": "string",
-              "description": "Name of the field to track agent information"
-            },
-            "fields": {
-              "type": "object",
-              "description": "Standard field values to set on project items",
-              "additionalProperties": {
-                "type": "string"
-              }
-            },
-            "custom-fields": {
-              "type": "array",
-              "description": "Custom fields to create in the project",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "description": "Field name"
-                  },
-                  "type": {
-                    "type": "string",
-                    "enum": ["text", "number", "date", "single_select", "iteration"],
-                    "description": "Field type"
-                  },
-                  "options": {
-                    "type": "array",
-                    "description": "Options for single_select fields",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "value": {
-                    "description": "Default value for this field",
-                    "oneOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "number"
-                      }
-                    ]
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Field description"
-                  }
-                },
-                "required": ["name", "type"],
-                "additionalProperties": false
-              }
-            },
-            "insights": {
-              "type": "array",
-              "description": "Insights to enable for campaign analytics",
-              "items": {
-                "type": "string",
-                "enum": ["agent-velocity", "campaign-progress"]
-              }
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
     }
+    
   },
   "additionalProperties": false,
   "allOf": [
