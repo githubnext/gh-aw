@@ -50,12 +50,12 @@ jobs:
           if [ -f "super-linter.log" ] && [ -s "super-linter.log" ]; then
             # Check if there are actual errors (not just the header)
             if grep -qE "ERROR|WARN|FAIL" super-linter.log; then
-              echo "needs-linting=true" >> $GITHUB_OUTPUT
+              echo "needs-linting=true" >> "$GITHUB_OUTPUT"
             else
-              echo "needs-linting=false" >> $GITHUB_OUTPUT
+              echo "needs-linting=false" >> "$GITHUB_OUTPUT"
             fi
           else
-            echo "needs-linting=false" >> $GITHUB_OUTPUT
+            echo "needs-linting=false" >> "$GITHUB_OUTPUT"
           fi
       
       - name: Upload super-linter log

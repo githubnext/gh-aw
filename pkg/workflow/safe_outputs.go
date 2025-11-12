@@ -892,6 +892,18 @@ func buildWorkflowMetadataEnvVars(workflowName string, workflowSource string) []
 	return customEnvVars
 }
 
+// buildWorkflowMetadataEnvVarsWithFingerprint builds workflow metadata env vars including fingerprint
+func buildWorkflowMetadataEnvVarsWithFingerprint(workflowName string, workflowSource string, fingerprint string) []string {
+	customEnvVars := buildWorkflowMetadataEnvVars(workflowName, workflowSource)
+
+	// Add fingerprint if present
+	if fingerprint != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_FINGERPRINT: %q\n", fingerprint))
+	}
+
+	return customEnvVars
+}
+
 // buildSafeOutputJobEnvVars builds environment variables for safe-output jobs with staged/target repo handling
 // This extracts the duplicated env setup logic in safe-output job builders (create_issue, add_comment, etc.)
 func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, staged bool, targetRepoSlug string) []string {
@@ -908,6 +920,26 @@ func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, stag
 	} else if trialMode && trialLogicalRepoSlug != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_TARGET_REPO_SLUG: %q\n", trialLogicalRepoSlug))
 	}
+
+	return customEnvVars
+}
+
+// buildStandardSafeOutputEnvVars builds the standard set of environment variables
+// that all safe-output job builders need: metadata + staged/target repo handling
+// This reduces duplication in safe-output job builders
+func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepoSlug string) []string {
+	var customEnvVars []string
+
+	// Add workflow metadata (name, source, and fingerprint)
+	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithFingerprint(data.Name, data.Source, data.Fingerprint)...)
+
+	// Add common safe output job environment variables (staged/target repo)
+	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
+		c.trialMode,
+		c.trialLogicalRepoSlug,
+		data.SafeOutputs.Staged,
+		targetRepoSlug,
+	)...)
 
 	return customEnvVars
 }

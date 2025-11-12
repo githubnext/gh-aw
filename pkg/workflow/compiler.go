@@ -61,6 +61,8 @@ type Compiler struct {
 	fileTracker          FileTracker       // Optional file tracker for tracking created files
 	warningCount         int               // Number of warnings encountered during compilation
 	stepOrderTracker     *StepOrderTracker // Tracks step ordering for validation
+	actionCache          *ActionCache      // Shared cache for action pin resolutions across all workflows
+	actionResolver       *ActionResolver   // Shared resolver for action pins across all workflows
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -123,6 +125,31 @@ func (c *Compiler) ResetWarningCount() {
 	c.warningCount = 0
 }
 
+// getSharedActionResolver returns the shared action resolver, initializing it on first use
+// This ensures all workflows compiled by this compiler instance share the same in-memory cache
+func (c *Compiler) getSharedActionResolver() (*ActionCache, *ActionResolver) {
+	if c.actionCache == nil {
+		// Initialize cache and resolver on first use
+		cwd, err := os.Getwd()
+		if err != nil {
+			cwd = "."
+		}
+		c.actionCache = NewActionCache(cwd)
+		_ = c.actionCache.Load() // Ignore errors if cache doesn't exist
+		c.actionResolver = NewActionResolver(c.actionCache)
+		log.Print("Initialized shared action cache and resolver for compiler")
+	}
+	return c.actionCache, c.actionResolver
+}
+
+// GetSharedActionCache returns the shared action cache used by this compiler instance.
+// The cache is lazily initialized on first access and shared across all workflows.
+// This allows action SHA validation and other operations to reuse cached resolutions.
+func (c *Compiler) GetSharedActionCache() *ActionCache {
+	cache, _ := c.getSharedActionResolver()
+	return cache
+}
+
 // NewCompilerWithCustomOutput creates a new workflow compiler with custom output path
 func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutput string, version string) *Compiler {
 	c := &Compiler{
@@ -146,6 +173,7 @@ type WorkflowData struct {
 	FrontmatterName     string   // name field from frontmatter (for code scanning alert driver default)
 	Description         string   // optional description rendered as comment in lock file
 	Source              string   // optional source field (owner/repo@ref/path) rendered as comment in lock file
+	Fingerprint         string   // optional fingerprint identifier for created assets (min 8 chars, alphanumeric + hyphens/underscores)
 	ImportedFiles       []string // list of files imported via imports field (rendered as comment in lock file)
 	IncludedFiles       []string // list of files included via @include directives (rendered as comment in lock file)
 	On                  string
@@ -709,9 +737,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	if engineSetting == "" {
 		defaultEngine := c.engineRegistry.GetDefaultEngine()
 		engineSetting = defaultEngine.GetID()
-		if c.verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("NOTE: No 'engine:' setting found, defaulting to: %s", engineSetting)))
-		}
+		log.Printf("No 'engine:' setting found, defaulting to: %s", engineSetting)
 		// Create a default EngineConfig with the default engine ID if not already set
 		if engineConfig == nil {
 			engineConfig = &EngineConfig{ID: engineSetting}
@@ -914,7 +940,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Check if frontmatter specifies a custom name and use it instead
-	frontmatterName := extractStringValue(result.Frontmatter, "name")
+	frontmatterName := extractStringFromMap(result.Frontmatter, "name", nil)
 	if frontmatterName != "" {
 		workflowName = frontmatterName
 	}
@@ -924,12 +950,19 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Check if the markdown content uses the text output
 	needsTextOutput := c.detectTextOutputUsage(markdownContent)
 
+	// Extract and validate fingerprint
+	fingerprint, err := c.extractFingerprint(result.Frontmatter)
+	if err != nil {
+		return nil, fmt.Errorf("invalid fingerprint: %w", err)
+	}
+
 	// Build workflow data
 	workflowData := &WorkflowData{
 		Name:                workflowName,
 		FrontmatterName:     frontmatterName,
 		Description:         c.extractDescription(result.Frontmatter),
 		Source:              c.extractSource(result.Frontmatter),
+		Fingerprint:         fingerprint,
 		ImportedFiles:       importsResult.ImportedFiles,
 		IncludedFiles:       allIncludedFiles,
 		Tools:               tools,
@@ -946,19 +979,16 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		ToolsStartupTimeout: toolsStartupTimeout,
 		TrialMode:           c.trialMode,
 		TrialLogicalRepo:    c.trialLogicalRepoSlug,
-		GitHubToken:         extractStringValue(result.Frontmatter, "github-token"),
+		GitHubToken:         extractStringFromMap(result.Frontmatter, "github-token", nil),
 		StrictMode:          c.strictMode,
 		SecretMasking:       secretMasking,
 	}
 
-	// Initialize action cache and resolver
-	cwd, err := os.Getwd()
-	if err != nil {
-		cwd = "."
-	}
-	workflowData.ActionCache = NewActionCache(cwd)
-	_ = workflowData.ActionCache.Load() // Ignore errors if cache doesn't exist
-	workflowData.ActionResolver = NewActionResolver(workflowData.ActionCache)
+	// Use shared action cache and resolver from the compiler
+	// This ensures cache is shared across all workflows during compilation
+	actionCache, actionResolver := c.getSharedActionResolver()
+	workflowData.ActionCache = actionCache
+	workflowData.ActionResolver = actionResolver
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
 	// to avoid issues with nested keys (e.g., tools.mcps.*.env being confused with top-level env)

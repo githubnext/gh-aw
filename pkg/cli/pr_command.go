@@ -96,28 +96,6 @@ func parsePRURL(prURL string) (owner, repo string, prNumber int, err error) {
 	return parser.ParsePRURL(prURL)
 }
 
-// getCurrentRepo gets the current repository information using gh CLI
-func getCurrentRepo() (owner, repo string, err error) {
-	cmd := exec.Command("gh", "repo", "view", "--json", "owner,name")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get current repository info: %w", err)
-	}
-
-	var repoInfo struct {
-		Owner struct {
-			Login string `json:"login"`
-		} `json:"owner"`
-		Name string `json:"name"`
-	}
-
-	if err := json.Unmarshal(output, &repoInfo); err != nil {
-		return "", "", fmt.Errorf("failed to parse repository info: %w", err)
-	}
-
-	return repoInfo.Owner.Login, repoInfo.Name, nil
-}
-
 // checkRepositoryAccess checks if the current user has write access to the target repository
 func checkRepositoryAccess(owner, repo string) (bool, error) {
 	// Get current user
@@ -593,9 +571,13 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 		targetOwner, targetRepoName = parts[0], parts[1]
 	} else {
 		// Use current repository as target
-		targetOwner, targetRepoName, err = getCurrentRepo()
+		slug, err := GetCurrentRepoSlug()
 		if err != nil {
 			return fmt.Errorf("failed to determine target repository: %w", err)
+		}
+		targetOwner, targetRepoName, err = SplitRepoSlug(slug)
+		if err != nil {
+			return fmt.Errorf("failed to parse target repository: %w", err)
 		}
 	}
 
@@ -615,12 +597,39 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 	if targetRepo != "" {
 		// Check if we're already in the target repository
 		if isGitRepo() {
-			currentOwner, currentRepoName, err := getCurrentRepo()
-			if err == nil && currentOwner == targetOwner && currentRepoName == targetRepoName {
-				// We're already in the target repo
-				workingDir = "."
+			slug, err := GetCurrentRepoSlug()
+			if err == nil {
+				currentOwner, currentRepoName, err := SplitRepoSlug(slug)
+				if err == nil && currentOwner == targetOwner && currentRepoName == targetRepoName {
+					// We're already in the target repo
+					workingDir = "."
+				} else {
+					// We need to clone the target repository
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Cloning target repository %s/%s...", targetOwner, targetRepoName)))
+					}
+					tempDir, err := os.MkdirTemp("", "gh-aw-pr-transfer-repo-")
+					if err != nil {
+						return fmt.Errorf("failed to create temp directory for repo: %w", err)
+					}
+
+					cloneCmd := exec.Command("gh", "repo", "clone", fmt.Sprintf("%s/%s", targetOwner, targetRepoName), tempDir)
+					if err := cloneCmd.Run(); err != nil {
+						os.RemoveAll(tempDir)
+						return fmt.Errorf("failed to clone target repository: %w", err)
+					}
+
+					workingDir = tempDir
+					needsCleanup = true
+
+					// Change to the cloned repository directory
+					if err := os.Chdir(tempDir); err != nil {
+						os.RemoveAll(tempDir)
+						return fmt.Errorf("failed to change to cloned repository directory: %w", err)
+					}
+				}
 			} else {
-				// We need to clone the target repository
+				// Error getting current repo, clone anyway
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Cloning target repository %s/%s...", targetOwner, targetRepoName)))
 				}

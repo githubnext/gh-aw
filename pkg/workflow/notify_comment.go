@@ -4,7 +4,10 @@ import (
 	"fmt"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var notifyCommentLog = logger.New("workflow:notify_comment")
 
 // buildUpdateReactionJob creates a job that updates the activation comment with workflow completion status
 // This job is only generated when both add-comment and ai-reaction are configured.
@@ -15,6 +18,8 @@ import (
 // 4. NO create_pull_request output was produced by the agent
 // This job depends on all safe output jobs to ensure it runs last
 func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string, safeOutputJobNames []string) (*Job, error) {
+	notifyCommentLog.Printf("Building update reaction job: main_job=%s, safe_output_jobs_count=%d", mainJobName, len(safeOutputJobNames))
+
 	// Create this job when:
 	// 1. add-comment is configured with a reaction, OR
 	// 2. command is configured with a reaction (which auto-creates a comment in activation)
@@ -23,13 +28,17 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 	hasCommand := data.Command != ""
 	hasReaction := data.AIReaction != "" && data.AIReaction != "none"
 
+	notifyCommentLog.Printf("Configuration checks: has_add_comment=%t, has_command=%t, has_reaction=%t", hasAddComment, hasCommand, hasReaction)
+
 	// Only create this job when reactions are being used AND either add-comment or command is configured
 	// This job updates the activation comment, which is only created when AIReaction is configured
 	if !hasReaction {
+		notifyCommentLog.Printf("Skipping job: no reaction configured")
 		return nil, nil // No reaction configured or explicitly disabled, no comment to update
 	}
 
 	if !hasAddComment && !hasCommand {
+		notifyCommentLog.Printf("Skipping job: neither add-comment nor command configured")
 		return nil, nil // Neither add-comment nor command is configured, no need for update_reaction job
 	}
 
@@ -55,6 +64,10 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_COMMENT_REPO: ${{ needs.%s.outputs.comment_repo }}\n", constants.ActivationJobName))
 	customEnvVars = append(customEnvVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_NAME: %q\n", data.Name))
+	// Pass the fingerprint if present
+	if data.Fingerprint != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_FINGERPRINT: %q\n", data.Fingerprint))
+	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 
 	// Get token from config
@@ -135,6 +148,8 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 	// Build dependencies - this job depends on all safe output jobs to ensure it runs last
 	needs := []string{mainJobName, constants.ActivationJobName}
 	needs = append(needs, safeOutputJobNames...)
+
+	notifyCommentLog.Printf("Job built successfully: dependencies_count=%d", len(needs))
 
 	job := &Job{
 		Name:        "update_reaction",

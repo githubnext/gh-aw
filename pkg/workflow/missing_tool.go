@@ -21,11 +21,8 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_MISSING_TOOL_MAX: %d\n", data.SafeOutputs.MissingTool.Max))
 	}
 
-	// Get token from config
-	var token string
-	if data.SafeOutputs.MissingTool != nil {
-		token = data.SafeOutputs.MissingTool.GitHubToken
-	}
+	// Add workflow metadata for consistency
+	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithFingerprint(data.Name, data.Source, data.Fingerprint)...)
 
 	// Build the GitHub Script step using the common helper
 	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
@@ -34,7 +31,7 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
 		Script:        missingToolScript,
-		Token:         token,
+		Token:         data.SafeOutputs.MissingTool.GitHubToken,
 	})
 
 	// Create outputs for the job

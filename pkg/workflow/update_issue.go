@@ -21,28 +21,18 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 	}
 
 	// Build custom environment variables specific to update-issue
-	var customEnvVars []string
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_UPDATE_STATUS: %t\n", data.SafeOutputs.UpdateIssues.Status != nil))
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_UPDATE_TITLE: %t\n", data.SafeOutputs.UpdateIssues.Title != nil))
-	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_UPDATE_BODY: %t\n", data.SafeOutputs.UpdateIssues.Body != nil))
+	customEnvVars := []string{
+		fmt.Sprintf("          GH_AW_UPDATE_STATUS: %t\n", data.SafeOutputs.UpdateIssues.Status != nil),
+		fmt.Sprintf("          GH_AW_UPDATE_TITLE: %t\n", data.SafeOutputs.UpdateIssues.Title != nil),
+		fmt.Sprintf("          GH_AW_UPDATE_BODY: %t\n", data.SafeOutputs.UpdateIssues.Body != nil),
+	}
 
 	if data.SafeOutputs.UpdateIssues.Target != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_UPDATE_TARGET: %q\n", data.SafeOutputs.UpdateIssues.Target))
 	}
 
-	// Add common safe output job environment variables (staged/target repo)
-	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
-		c.trialMode,
-		c.trialLogicalRepoSlug,
-		data.SafeOutputs.Staged,
-		data.SafeOutputs.UpdateIssues.TargetRepoSlug,
-	)...)
-
-	// Get token from config
-	var token string
-	if data.SafeOutputs.UpdateIssues != nil {
-		token = data.SafeOutputs.UpdateIssues.GitHubToken
-	}
+	// Add standard environment variables (metadata + staged/target repo)
+	customEnvVars = append(customEnvVars, c.buildStandardSafeOutputEnvVars(data, data.SafeOutputs.UpdateIssues.TargetRepoSlug)...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
@@ -68,7 +58,7 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 		Permissions:    NewPermissionsContentsReadIssuesWrite(),
 		Outputs:        outputs,
 		Condition:      jobCondition,
-		Token:          token,
+		Token:          data.SafeOutputs.UpdateIssues.GitHubToken,
 		TargetRepoSlug: data.SafeOutputs.UpdateIssues.TargetRepoSlug,
 	})
 }

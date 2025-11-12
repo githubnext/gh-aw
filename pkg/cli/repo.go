@@ -104,3 +104,12 @@ func GetCurrentRepoSlug() (string, error) {
 	repoLog.Printf("Using cached repository slug: %s", currentRepoSlugResult)
 	return currentRepoSlugResult, nil
 }
+
+// SplitRepoSlug splits "owner/repo" into owner and repo
+func SplitRepoSlug(slug string) (owner, repo string, err error) {
+	parts := strings.Split(slug, "/")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid repo format: %s", slug)
+	}
+	return parts[0], parts[1], nil
+}

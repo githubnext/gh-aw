@@ -10,24 +10,57 @@ import (
 
 var engineHelpersLog = logger.New("workflow:engine_helpers")
 
-// ResolveAgentFilePath returns the properly quoted agent file path with GITHUB_WORKSPACE prefix.
-// This helper extracts the common pattern shared by Copilot, Codex, and Claude engines.
-//
-// The agent file path is relative to the repository root, so we prefix it with ${GITHUB_WORKSPACE}
-// and wrap the entire expression in quotes to handle paths with spaces.
+// ExtractAgentIdentifier extracts the agent identifier (filename without extension) from an agent file path.
+// This is used by the Copilot CLI which expects agent identifiers, not full paths.
 //
 // Parameters:
 //   - agentFile: The relative path to the agent file (e.g., ".github/agents/test-agent.md")
 //
 // Returns:
-//   - string: The quoted path with GITHUB_WORKSPACE prefix (e.g., "${GITHUB_WORKSPACE}/.github/agents/test-agent.md")
+//   - string: The agent identifier (e.g., "test-agent")
+//
+// Example:
+//
+//	identifier := ExtractAgentIdentifier(".github/agents/my-agent.md")
+//	// Returns: "my-agent"
+func ExtractAgentIdentifier(agentFile string) string {
+	// Extract the base filename from the path
+	lastSlash := strings.LastIndex(agentFile, "/")
+	filename := agentFile
+	if lastSlash >= 0 {
+		filename = agentFile[lastSlash+1:]
+	}
+
+	// Remove the .md extension using TrimSuffix (unconditionally safe)
+	filename = strings.TrimSuffix(filename, ".md")
+
+	return filename
+}
+
+// ResolveAgentFilePath returns the properly quoted agent file path with GITHUB_WORKSPACE prefix.
+// This helper extracts the common pattern shared by Copilot, Codex, and Claude engines.
+//
+// The agent file path is relative to the repository root, so we prefix it with ${GITHUB_WORKSPACE}
+// and wrap the entire expression in double quotes to handle paths with spaces while allowing
+// shell variable expansion.
+//
+// Parameters:
+//   - agentFile: The relative path to the agent file (e.g., ".github/agents/test-agent.md")
+//
+// Returns:
+//   - string: The double-quoted path with GITHUB_WORKSPACE prefix (e.g., "${GITHUB_WORKSPACE}/.github/agents/test-agent.md")
 //
 // Example:
 //
 //	agentPath := ResolveAgentFilePath(".github/agents/my-agent.md")
 //	// Returns: "${GITHUB_WORKSPACE}/.github/agents/my-agent.md"
+//
+// Note: The entire path is wrapped in double quotes (not just the variable) to ensure:
+//  1. The shellEscapeArg function recognizes it as already-quoted and doesn't add single quotes
+//  2. Shell variable expansion works (${GITHUB_WORKSPACE} gets expanded inside double quotes)
+//  3. Paths with spaces are properly handled
 func ResolveAgentFilePath(agentFile string) string {
-	return fmt.Sprintf("\"${GITHUB_WORKSPACE}\"/%s", agentFile)
+	return fmt.Sprintf("\"${GITHUB_WORKSPACE}/%s\"", agentFile)
 }
 
 // BuildStandardNpmEngineInstallSteps creates standard npm installation steps for engines

@@ -22,6 +22,13 @@
         "githubnext/agentics/workflows/daily-perf-improver.md@1f181b37d3fe5862ab590648f25a292e345b5de6"
       ]
     },
+    "fingerprint": {
+      "type": "string",
+      "minLength": 8,
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "description": "Optional fingerprint identifier to tag all created assets (issues, discussions, comments, pull requests). Must be at least 8 characters and contain only alphanumeric characters, hyphens, and underscores. This identifier will be inserted in the body/description of all created assets to enable searching and retrieving assets associated with this workflow.",
+      "examples": ["workflow-2024-q1", "team-alpha-bot", "security_audit_v2"]
+    },
     "imports": {
       "type": "array",
       "description": "Optional array of workflow specifications to import (similar to @include directives but defined in frontmatter). Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/shared/common.md@v1.0.0). Any markdown files under .github/agents directory are treated as custom agent files and only one agent file is allowed per workflow.",

@@ -400,6 +400,37 @@ func (c *Compiler) extractSource(frontmatter map[string]any) string {
 	return ""
 }
 
+// extractFingerprint extracts and validates the fingerprint field from frontmatter
+func (c *Compiler) extractFingerprint(frontmatter map[string]any) (string, error) {
+	value, exists := frontmatter["fingerprint"]
+	if !exists {
+		return "", nil
+	}
+
+	// Convert the value to string
+	strValue, ok := value.(string)
+	if !ok {
+		return "", fmt.Errorf("fingerprint must be a string")
+	}
+
+	fingerprint := strings.TrimSpace(strValue)
+
+	// Validate minimum length
+	if len(fingerprint) < 8 {
+		return "", fmt.Errorf("fingerprint must be at least 8 characters long (got %d)", len(fingerprint))
+	}
+
+	// Validate that it's a valid identifier (alphanumeric, hyphens, underscores)
+	for i, char := range fingerprint {
+		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') || char == '-' || char == '_') {
+			return "", fmt.Errorf("fingerprint contains invalid character at position %d: '%c' (only alphanumeric, hyphens, and underscores allowed)", i+1, char)
+		}
+	}
+
+	return fingerprint, nil
+}
+
 // buildSourceURL converts a source string (owner/repo/path@ref) to a GitHub URL
 // For enterprise deployments, the URL will use the GitHub server URL from the workflow context
 func buildSourceURL(source string) string {

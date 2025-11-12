@@ -14,8 +14,8 @@
     },
     "actions/download-artifact": {
       "repo": "actions/download-artifact",
-      "version": "v5",
-      "sha": "634f93cb2916e3fdff6788551b99b062d0335ce0"
+      "version": "v6",
+      "sha": "018cc2cf5baa6db3ef3c5f8a56943fffe632ef53"
     },
     "actions/setup-go": {
       "repo": "actions/setup-go",

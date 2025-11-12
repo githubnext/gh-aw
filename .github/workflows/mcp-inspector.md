@@ -11,6 +11,10 @@ permissions:
 engine: copilot
 network:
   firewall: true
+  allowed:
+    - defaults
+    - containers
+    - node
 tools:
   edit:
   bash:

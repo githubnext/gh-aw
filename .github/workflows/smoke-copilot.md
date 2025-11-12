@@ -13,6 +13,9 @@ permissions:
 name: Smoke Copilot
 engine: copilot
 network:
+  allowed:
+    - defaults
+    - node
   firewall: true
 tools:
   edit:

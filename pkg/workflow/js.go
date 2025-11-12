@@ -75,6 +75,9 @@ var updateActivationCommentScript string
 //go:embed js/generate_footer.cjs
 var generateFooterScript string
 
+//go:embed js/get_fingerprint.cjs
+var getFingerprintScript string
+
 //go:embed js/get_repository_url.cjs
 var getRepositoryUrlScript string
 
@@ -91,6 +94,7 @@ func GetJavaScriptSources() map[string]string {
 		"log_parser_bootstrap.cjs":      logParserBootstrapScript,
 		"update_activation_comment.cjs": updateActivationCommentScript,
 		"generate_footer.cjs":           generateFooterScript,
+		"get_fingerprint.cjs":           getFingerprintScript,
 		"get_repository_url.cjs":        getRepositoryUrlScript,
 	}
 }

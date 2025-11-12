@@ -19,6 +19,9 @@ safe-outputs:
     engine: false
 timeout-minutes: 20
 network:
+  allowed:
+    - defaults
+    - node
   firewall: true
 tools:
   bash:

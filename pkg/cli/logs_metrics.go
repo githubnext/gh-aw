@@ -1,0 +1,415 @@
+// Package cli provides command-line interface functionality for gh-aw.
+// This file (logs_metrics.go) contains functions for extracting and analyzing
+// metrics from workflow execution logs.
+//
+// Key responsibilities:
+//   - Extracting token usage, cost, and turn metrics from logs
+//   - Identifying missing tools requested by AI agents
+//   - Detecting MCP (Model Context Protocol) server failures
+//   - Aggregating metrics across multiple log files
+//   - Processing structured output from agent execution
+package cli
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
+	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/workflow"
+)
+
+// Shared utilities are now in workflow package
+// extractJSONMetrics is available as an alias
+var extractJSONMetrics = workflow.ExtractJSONMetrics
+
+// extractLogMetrics extracts metrics from downloaded log files
+func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
+	var metrics LogMetrics
+	if verbose {
+		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Beginning metric extraction in %s", logDir)))
+	}
+
+	// First check for aw_info.json to determine the engine
+	var detectedEngine workflow.CodingAgentEngine
+	infoFilePath := filepath.Join(logDir, "aw_info.json")
+	if _, err := os.Stat(infoFilePath); err == nil {
+		// aw_info.json exists, try to extract engine information
+		if engine := extractEngineFromAwInfo(infoFilePath, verbose); engine != nil {
+			detectedEngine = engine
+			if verbose {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Detected engine from aw_info.json: %s", engine.GetID())))
+			}
+		}
+	}
+
+	// Check for safe_output.jsonl artifact file
+	awOutputPath := filepath.Join(logDir, "safe_output.jsonl")
+	if _, err := os.Stat(awOutputPath); err == nil {
+		if verbose {
+			// Report that the agentic output file was found
+			fileInfo, statErr := os.Stat(awOutputPath)
+			if statErr == nil {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agentic output file: safe_output.jsonl (%s)", console.FormatFileSize(fileInfo.Size()))))
+			}
+		}
+	}
+
+	// Check for aw.patch artifact file
+	awPatchPath := filepath.Join(logDir, "aw.patch")
+	if _, err := os.Stat(awPatchPath); err == nil {
+		if verbose {
+			// Report that the git patch file was found
+			fileInfo, statErr := os.Stat(awPatchPath)
+			if statErr == nil {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found git patch file: aw.patch (%s)", console.FormatFileSize(fileInfo.Size()))))
+			}
+		}
+	}
+
+	// Check for agent_output.json artifact (some workflows may store this under a nested directory)
+	agentOutputPath, agentOutputFound := findAgentOutputFile(logDir)
+	if agentOutputFound {
+		if verbose {
+			fileInfo, statErr := os.Stat(agentOutputPath)
+			if statErr == nil {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agent output file: %s (%s)", filepath.Base(agentOutputPath), console.FormatFileSize(fileInfo.Size()))))
+			}
+		}
+		// If the file is not already in the logDir root, copy it for convenience
+		if filepath.Dir(agentOutputPath) != logDir {
+			rootCopy := filepath.Join(logDir, constants.AgentOutputArtifactName)
+			if _, err := os.Stat(rootCopy); errors.Is(err, os.ErrNotExist) {
+				if copyErr := fileutil.CopyFile(agentOutputPath, rootCopy); copyErr == nil && verbose {
+					fmt.Println(console.FormatInfoMessage("Copied agent_output.json to run root for easy access"))
+				}
+			}
+		}
+	}
+
+	// Walk through all files in the log directory
+	err := filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip directories
+		if info.IsDir() {
+			return nil
+		}
+
+		// Process log files - exclude output artifacts like aw_output.txt and agent_output.json
+		fileName := strings.ToLower(info.Name())
+		if (strings.HasSuffix(fileName, ".log") ||
+			(strings.HasSuffix(fileName, ".txt") && strings.Contains(fileName, "log"))) &&
+			!strings.Contains(fileName, "aw_output") &&
+			fileName != "agent_output.json" {
+
+			fileMetrics, err := parseLogFileWithEngine(path, detectedEngine, verbose)
+			if err != nil && verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse log file %s: %v", path, err)))
+				return nil // Continue processing other files
+			}
+
+			// Aggregate metrics
+			metrics.TokenUsage += fileMetrics.TokenUsage
+			metrics.EstimatedCost += fileMetrics.EstimatedCost
+			if fileMetrics.Turns > metrics.Turns {
+				// For turns, take the maximum rather than summing, since turns represent
+				// the total conversation turns for the entire workflow run
+				metrics.Turns = fileMetrics.Turns
+			}
+
+			// Aggregate tool sequences and tool calls
+			metrics.ToolSequences = append(metrics.ToolSequences, fileMetrics.ToolSequences...)
+			metrics.ToolCalls = append(metrics.ToolCalls, fileMetrics.ToolCalls...)
+
+			// Aggregate errors and set file path
+			for _, logErr := range fileMetrics.Errors {
+				logErr.File = path // Set the file path for this error
+				metrics.Errors = append(metrics.Errors, logErr)
+			}
+		}
+
+		return nil
+	})
+
+	return metrics, err
+}
+
+// ExtractLogMetricsFromRun extracts log metrics from a processed run's log directory
+func ExtractLogMetricsFromRun(processedRun ProcessedRun) workflow.LogMetrics {
+	// Use the LogsPath from the WorkflowRun to get metrics
+	if processedRun.Run.LogsPath == "" {
+		return workflow.LogMetrics{}
+	}
+
+	// Extract metrics from the log directory
+	metrics, err := extractLogMetrics(processedRun.Run.LogsPath, false)
+	if err != nil {
+		return workflow.LogMetrics{}
+	}
+
+	return metrics
+}
+
+// extractMissingToolsFromRun extracts missing tool reports from a workflow run's artifacts
+func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([]MissingToolReport, error) {
+	var missingTools []MissingToolReport
+
+	// Look for the safe output artifact file that contains structured JSON with items array
+	// This file is created by the collect_ndjson_output.cjs script during workflow execution
+	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+
+	// Support both file and directory forms of agent_output.json artifact (directory contains nested agent_output.json file)
+	// Also fall back to searching the tree if neither form exists at root.
+	var resolvedAgentOutputFile string
+	if stat, err := os.Stat(agentOutputPath); err == nil {
+		if stat.IsDir() {
+			// Directory form – look for nested file
+			nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
+			if _, nestedErr := os.Stat(nested); nestedErr == nil {
+				resolvedAgentOutputFile = nested
+				if verbose {
+					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("agent_output.json is a directory; using nested file %s", nested)))
+				}
+			} else if verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
+			}
+		} else {
+			// Regular file
+			resolvedAgentOutputFile = agentOutputPath
+		}
+	} else {
+		// Not present at root – search recursively (depth-first) for a file named agent_output.json
+		if found, ok := findAgentOutputFile(runDir); ok {
+			resolvedAgentOutputFile = found
+			if verbose && found != agentOutputPath {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agent_output.json at %s", found)))
+			}
+		}
+	}
+
+	if resolvedAgentOutputFile != "" {
+		// Read the safe output artifact file
+		content, readErr := os.ReadFile(resolvedAgentOutputFile)
+		if readErr != nil {
+			if verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to read safe output file %s: %v", resolvedAgentOutputFile, readErr)))
+			}
+			return missingTools, nil // Continue processing without this file
+		}
+
+		// Parse the structured JSON output from the collect script
+		var safeOutput struct {
+			Items  []json.RawMessage `json:"items"`
+			Errors []string          `json:"errors,omitempty"`
+		}
+
+		if err := json.Unmarshal(content, &safeOutput); err != nil {
+			if verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse safe output JSON from %s: %v", resolvedAgentOutputFile, err)))
+			}
+			return missingTools, nil // Continue processing without this file
+		}
+
+		// Extract missing-tool entries from the items array
+		for _, itemRaw := range safeOutput.Items {
+			var item struct {
+				Type         string `json:"type"`
+				Tool         string `json:"tool,omitempty"`
+				Reason       string `json:"reason,omitempty"`
+				Alternatives string `json:"alternatives,omitempty"`
+				Timestamp    string `json:"timestamp,omitempty"`
+			}
+
+			if err := json.Unmarshal(itemRaw, &item); err != nil {
+				if verbose {
+					fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse item from safe output: %v", err)))
+				}
+				continue // Skip malformed items
+			}
+
+			// Check if this is a missing-tool entry
+			if item.Type == "missing_tool" {
+				missingTool := MissingToolReport{
+					Tool:         item.Tool,
+					Reason:       item.Reason,
+					Alternatives: item.Alternatives,
+					Timestamp:    item.Timestamp,
+					WorkflowName: run.WorkflowName,
+					RunID:        run.DatabaseID,
+				}
+				missingTools = append(missingTools, missingTool)
+
+				if verbose {
+					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found missing_tool entry: %s (%s)", item.Tool, item.Reason)))
+				}
+			}
+		}
+
+		if verbose && len(missingTools) > 0 {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d missing tool reports in safe output artifact for run %d", len(missingTools), run.DatabaseID)))
+		}
+	} else if verbose {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("No safe output artifact found at %s for run %d", agentOutputPath, run.DatabaseID)))
+	}
+
+	return missingTools, nil
+}
+
+// extractMCPFailuresFromRun extracts MCP server failure reports from a workflow run's logs
+func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool) ([]MCPFailureReport, error) {
+	var mcpFailures []MCPFailureReport
+
+	// Look for agent output logs that contain the system init entry with MCP server status
+	// This information is available in the raw log files, typically with names containing "log"
+	err := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip directories
+		if info.IsDir() {
+			return nil
+		}
+
+		// Process log files - exclude output artifacts
+		fileName := strings.ToLower(info.Name())
+		if (strings.HasSuffix(fileName, ".log") ||
+			(strings.HasSuffix(fileName, ".txt") && strings.Contains(fileName, "log"))) &&
+			!strings.Contains(fileName, "aw_output") &&
+			!strings.Contains(fileName, "agent_output") &&
+			!strings.Contains(fileName, "access") {
+
+			failures, parseErr := extractMCPFailuresFromLogFile(path, run, verbose)
+			if parseErr != nil {
+				if verbose {
+					fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse MCP failures from %s: %v", filepath.Base(path), parseErr)))
+				}
+				return nil // Continue processing other files
+			}
+			mcpFailures = append(mcpFailures, failures...)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return mcpFailures, fmt.Errorf("error walking run directory: %w", err)
+	}
+
+	if verbose && len(mcpFailures) > 0 {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server failures for run %d", len(mcpFailures), run.DatabaseID)))
+	}
+
+	return mcpFailures, nil
+}
+
+// extractMCPFailuresFromLogFile parses a single log file for MCP server failures
+func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool) ([]MCPFailureReport, error) {
+	var mcpFailures []MCPFailureReport
+
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		return mcpFailures, fmt.Errorf("error reading log file: %w", err)
+	}
+
+	logContent := string(content)
+
+	// First try to parse as JSON array
+	var logEntries []map[string]any
+	if err := json.Unmarshal(content, &logEntries); err == nil {
+		// Successfully parsed as JSON array, process entries
+		for _, entry := range logEntries {
+			if entryType, ok := entry["type"].(string); ok && entryType == "system" {
+				if subtype, ok := entry["subtype"].(string); ok && subtype == "init" {
+					if mcpServers, ok := entry["mcp_servers"].([]any); ok {
+						for _, serverInterface := range mcpServers {
+							if server, ok := serverInterface.(map[string]any); ok {
+								serverName, hasName := server["name"].(string)
+								status, hasStatus := server["status"].(string)
+
+								if hasName && hasStatus && status == "failed" {
+									failure := MCPFailureReport{
+										ServerName:   serverName,
+										Status:       status,
+										WorkflowName: run.WorkflowName,
+										RunID:        run.DatabaseID,
+									}
+
+									// Try to extract timestamp if available
+									if timestamp, hasTimestamp := entry["timestamp"].(string); hasTimestamp {
+										failure.Timestamp = timestamp
+									}
+
+									mcpFailures = append(mcpFailures, failure)
+
+									if verbose {
+										fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Found MCP server failure: %s (status: %s)", serverName, status)))
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	} else {
+		// Fallback: Try to parse as JSON lines (Claude logs are typically NDJSON format)
+		lines := strings.Split(logContent, "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" || !strings.HasPrefix(line, "{") {
+				continue
+			}
+
+			// Try to parse each line as JSON
+			var entry map[string]any
+			if err := json.Unmarshal([]byte(line), &entry); err != nil {
+				continue // Skip non-JSON lines
+			}
+
+			// Look for system init entries that contain MCP server information
+			if entryType, ok := entry["type"].(string); ok && entryType == "system" {
+				if subtype, ok := entry["subtype"].(string); ok && subtype == "init" {
+					if mcpServers, ok := entry["mcp_servers"].([]any); ok {
+						for _, serverInterface := range mcpServers {
+							if server, ok := serverInterface.(map[string]any); ok {
+								serverName, hasName := server["name"].(string)
+								status, hasStatus := server["status"].(string)
+
+								if hasName && hasStatus && status == "failed" {
+									failure := MCPFailureReport{
+										ServerName:   serverName,
+										Status:       status,
+										WorkflowName: run.WorkflowName,
+										RunID:        run.DatabaseID,
+									}
+
+									// Try to extract timestamp if available
+									if timestamp, hasTimestamp := entry["timestamp"].(string); hasTimestamp {
+										failure.Timestamp = timestamp
+									}
+
+									mcpFailures = append(mcpFailures, failure)
+
+									if verbose {
+										fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Found MCP server failure: %s (status: %s)", serverName, status)))
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return mcpFailures, nil
+}

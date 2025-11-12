@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+	"github.com/githubnext/gh-aw/pkg/cli/fileutil"
 )
 
 // Global binary path shared across all integration tests
@@ -48,7 +49,7 @@ func TestMain(m *testing.M) {
 
 	// Copy binary to temp directory
 	srcBinary := filepath.Join(projectRoot, "gh-aw")
-	if err := copyFile(srcBinary, globalBinaryPath); err != nil {
+	if err := fileutil.CopyFile(srcBinary, globalBinaryPath); err != nil {
 		panic("Failed to copy gh-aw binary to temp directory: " + err.Error())
 	}
 
@@ -99,7 +100,7 @@ func setupIntegrationTest(t *testing.T) *integrationTestSetup {
 
 	// Copy the pre-built binary to this test's temp directory
 	binaryPath := filepath.Join(tempDir, "gh-aw")
-	if err := copyFile(globalBinaryPath, binaryPath); err != nil {
+	if err := fileutil.CopyFile(globalBinaryPath, binaryPath); err != nil {
 		t.Fatalf("Failed to copy gh-aw binary to temp directory: %v", err)
 	}
 

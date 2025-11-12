@@ -50,8 +50,8 @@
 #     https://github.com/actions/cache/commit/0057852bfaa89a56745cba8c7296529d2fc39830
 #   - actions/checkout@v5 (08c6903cd8c0fde910a37f88322edcfb5dd907a8)
 #     https://github.com/actions/checkout/commit/08c6903cd8c0fde910a37f88322edcfb5dd907a8
-#   - actions/download-artifact@v5 (634f93cb2916e3fdff6788551b99b062d0335ce0)
-#     https://github.com/actions/download-artifact/commit/634f93cb2916e3fdff6788551b99b062d0335ce0
+#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
+#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
 #   - actions/setup-go@v5 (d35c59abb061a4a6fb18e82ac0862c26744d6ab5)
@@ -183,6 +183,7 @@ jobs:
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
     outputs:
+      has_patch: ${{ steps.collect_output.outputs.has_patch }}
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
@@ -329,7 +330,7 @@ jobs:
         run: |
           set -e
           docker pull docker.io/mcp/brave-search
-          docker pull ghcr.io/github/github-mcp-server:v0.20.1
+          docker pull ghcr.io/github/github-mcp-server:v0.20.2
           docker pull mcp/arxiv-mcp-server
           docker pull mcp/ast-grep:latest
           docker pull mcp/context7
@@ -1130,9 +1131,6 @@ jobs:
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
-          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
-          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -1280,7 +1278,7 @@ jobs:
                   "GITHUB_READ_ONLY=1",
                   "-e",
                   "GITHUB_TOOLSETS=default",
-                  "ghcr.io/github/github-mcp-server:v0.20.1"
+                  "ghcr.io/github/github-mcp-server:v0.20.2"
                 ],
                 "tools": ["*"],
                 "env": {
@@ -2056,7 +2054,7 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          sudo -E awf --env-all --allow-domains api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org --log-level info \
+          sudo -E awf --env-all --allow-domains '*.docker.com,*.docker.io,api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,auth.docker.io,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,dl.k8s.io,gcr.io,get.pnpm.io,ghcr.io,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,mcr.microsoft.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pkgs.k8s.io,ppa.launchpad.net,production.cloudflare.docker.com,quay.io,raw.githubusercontent.com,registry.bower.io,registry.hub.docker.com,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com' --log-level info \
             "npx -y @github/copilot@0.0.354 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-tool arxiv --allow-tool 'arxiv(get_paper_details)' --allow-tool 'arxiv(get_paper_pdf)' --allow-tool 'arxiv(search_arxiv)' --allow-tool ast-grep --allow-tool 'ast-grep(*)' --allow-tool brave-search --allow-tool 'brave-search(*)' --allow-tool context7 --allow-tool 'context7(get-library-docs)' --allow-tool 'context7(resolve-library-id)' --allow-tool datadog --allow-tool 'datadog(get_datadog_metric)' --allow-tool 'datadog(search_datadog_dashboards)' --allow-tool 'datadog(search_datadog_metrics)' --allow-tool 'datadog(search_datadog_slos)' --allow-tool deepwiki --allow-tool 'deepwiki(ask_question)' --allow-tool 'deepwiki(read_wiki_contents)' --allow-tool 'deepwiki(read_wiki_structure)' --allow-tool fabric-rti --allow-tool 'fabric-rti(get_eventstream)' --allow-tool 'fabric-rti(get_eventstream_definition)' --allow-tool 'fabric-rti(kusto_get_entities_schema)' --allow-tool 'fabric-rti(kusto_get_function_schema)' --allow-tool 'fabric-rti(kusto_get_shots)' --allow-tool 'fabric-rti(kusto_get_table_schema)' --allow-tool 'fabric-rti(kusto_known_services)' --allow-tool 'fabric-rti(kusto_list_databases)' --allow-tool 'fabric-rti(kusto_list_tables)' --allow-tool 'fabric-rti(kusto_query)' --allow-tool 'fabric-rti(kusto_sample_function_data)' --allow-tool 'fabric-rti(kusto_sample_table_data)' --allow-tool 'fabric-rti(list_eventstreams)' --allow-tool gh-aw --allow-tool github --allow-tool markitdown --allow-tool 'markitdown(*)' --allow-tool memory --allow-tool 'memory(delete_memory)' --allow-tool 'memory(list_memories)' --allow-tool 'memory(retrieve_memory)' --allow-tool 'memory(store_memory)' --allow-tool microsoftdocs --allow-tool 'microsoftdocs(*)' --allow-tool notion --allow-tool 'notion(get_database)' --allow-tool 'notion(get_page)' --allow-tool 'notion(query_database)' --allow-tool 'notion(search_pages)' --allow-tool safeoutputs --allow-tool sentry --allow-tool 'sentry(analyze_issue_with_seer)' --allow-tool 'sentry(find_dsns)' --allow-tool 'sentry(find_organizations)' --allow-tool 'sentry(find_projects)' --allow-tool 'sentry(find_releases)' --allow-tool 'sentry(find_teams)' --allow-tool 'sentry(get_doc)' --allow-tool 'sentry(get_event_attachment)' --allow-tool 'sentry(get_issue_details)' --allow-tool 'sentry(get_trace_details)' --allow-tool 'sentry(search_docs requires SENTRY_OPENAI_API_KEY)' --allow-tool 'sentry(search_events)' --allow-tool 'sentry(search_issues)' --allow-tool 'sentry(whoami)' --allow-tool serena --allow-tool 'serena(*)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
@@ -2224,7 +2222,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "api.enterprise.githubcopilot.com,api.github.com,github.com,raw.githubusercontent.com,registry.npmjs.org"
+          GH_AW_ALLOWED_DOMAINS: "*.docker.com,*.docker.io,api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,auth.docker.io,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,dl.k8s.io,gcr.io,get.pnpm.io,ghcr.io,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,mcr.microsoft.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,pkgs.k8s.io,ppa.launchpad.net,production.cloudflare.docker.com,quay.io,raw.githubusercontent.com,registry.bower.io,registry.hub.docker.com,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -3085,6 +3083,10 @@ jobs:
               const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
               core.info(`output_types: ${outputTypes.join(", ")}`);
               core.setOutput("output_types", outputTypes.join(","));
+              const patchPath = "/tmp/gh-aw/aw.patch";
+              const hasPatch = fs.existsSync(patchPath);
+              core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
+              core.setOutput("has_patch", hasPatch ? "true" : "false");
             }
             await main();
       - name: Upload sanitized agent output
@@ -4647,7 +4649,7 @@ jobs:
     steps:
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
         with:
           name: agent_output.json
           path: /tmp/gh-aw/safeoutputs/
@@ -4661,8 +4663,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "MCP Inspector Agent"
           GH_AW_DISCUSSION_CATEGORY: "audits"
+          GH_AW_WORKFLOW_NAME: "MCP Inspector Agent"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4699,6 +4701,14 @@ jobs:
                 return { success: false };
               }
               return { success: true, items: validatedOutput.items };
+            }
+            function getFingerprint(format) {
+              const fingerprint = process.env.GH_AW_FINGERPRINT || "";
+              if (fingerprint) {
+                core.info(`Fingerprint: ${fingerprint}`);
+                return format === "markdown" ? `\n\n<!-- fingerprint: ${fingerprint} -->` : fingerprint;
+              }
+              return "";
             }
             async function main() {
               core.setOutput("discussion_number", "");
@@ -4833,6 +4843,10 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                const fingerprintComment = getFingerprint("markdown");
+                if (fingerprintComment) {
+                  bodyLines.push(fingerprintComment);
+                }
                 bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
                 const body = bodyLines.join("\n").trim();
                 core.info(`Creating discussion with title: ${title}`);
@@ -4891,6 +4905,7 @@ jobs:
 
   detection:
     needs: agent
+    if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
     runs-on: ubuntu-latest
     permissions: {}
     concurrency:
@@ -4899,19 +4914,19 @@ jobs:
     steps:
       - name: Download prompt artifact
         continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
         with:
           name: prompt.txt
           path: /tmp/gh-aw/threat-detection/
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
         with:
           name: agent_output.json
           path: /tmp/gh-aw/threat-detection/
       - name: Download patch artifact
         continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
         with:
           name: aw.patch
           path: /tmp/gh-aw/threat-detection/
@@ -5140,7 +5155,7 @@ jobs:
     steps:
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
         with:
           name: agent_output.json
           path: /tmp/gh-aw/safeoutputs/
@@ -5154,6 +5169,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_NAME: "MCP Inspector Agent"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -5269,7 +5285,7 @@ jobs:
     steps:
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
         with:
           name: agent_output.json
           path: /tmp/gh-aw/safe-jobs/
@@ -5399,7 +5415,7 @@ jobs:
     steps:
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
         with:
           name: agent_output.json
           path: /tmp/gh-aw/safe-jobs/

@@ -60,7 +60,8 @@ func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType 
 		pipValidationLog.Printf("Validating %s package: %s", packageType, pkgName)
 
 		// Use pip index to check if package exists on PyPI
-		cmd := exec.Command(pipCmd, "index", "versions", pkgName)
+		// Include --pre flag to check for pre-release versions (alpha, beta, rc)
+		cmd := exec.Command(pipCmd, "index", "versions", pkgName, "--pre")
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
