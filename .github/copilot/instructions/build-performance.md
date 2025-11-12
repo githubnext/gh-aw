@@ -109,6 +109,40 @@ for key, pin := range actionPins {
 
 **Key Insight**: Network-bound tests benefit significantly from parallelization since they're I/O-bound rather than CPU-bound. Always capture loop variables when using `t.Parallel()`.
 
+**Anti-Pattern: Parent-Aggregates-Results Tests (2025-11)**:
+```go
+// ✗ NOT SUITABLE for t.Parallel() - parent aggregates results
+func TestMultipleServers(t *testing.T) {
+    setup := setupTest(t)
+    defer setup.cleanup()  // Runs before parallel subtests!
+    
+    successCount := 0  // Shared state
+    
+    for _, server := range servers {
+        t.Run(server, func(t *testing.T) {
+            t.Parallel()  // ✗ BAD: Parent continues and cleans up
+            successCount++  // ✗ BAD: Race condition
+        })
+    }
+    
+    // ✗ BAD: This runs before parallel subtests execute!
+    if successCount == 0 {
+        t.Error("No servers succeeded")
+    }
+}
+```
+
+**Why it fails:**
+1. `t.Parallel()` pauses subtests until parent function returns
+2. Parent's `defer cleanup()` executes before subtests resume
+3. Cleanup deletes resources subtests need
+4. Parent checks `successCount` before subtests update it
+
+**Solution:** Either:
+- Remove `t.Parallel()` for tests with parent aggregation
+- Restructure to avoid parent aggregation pattern
+- Use separate parent/child test functions
+
 **Example Benchmark**:
 ```go
 func BenchmarkCompileWorkflow(b *testing.B) {
