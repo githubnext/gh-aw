@@ -3,7 +3,11 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var createIssueLog = logger.New("workflow:create_issue")
 
 // CreateIssuesConfig holds configuration for creating GitHub issues from agent output
 type CreateIssuesConfig struct {
@@ -17,6 +21,7 @@ type CreateIssuesConfig struct {
 // parseIssuesConfig handles create-issue configuration
 func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConfig {
 	if configData, exists := outputMap["create-issue"]; exists {
+		createIssueLog.Print("Parsing create-issue configuration")
 		issuesConfig := &CreateIssuesConfig{}
 		issuesConfig.Max = 1 // Default max is 1
 
@@ -66,6 +71,11 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.CreateIssues == nil {
 		return nil, fmt.Errorf("safe-outputs.create-issue configuration is required")
+	}
+
+	if createIssueLog.Enabled() {
+		createIssueLog.Printf("Building create-issue job: workflow=%s, main_job=%s, assignees=%d, labels=%d",
+			data.Name, mainJobName, len(data.SafeOutputs.CreateIssues.Assignees), len(data.SafeOutputs.CreateIssues.Labels))
 	}
 
 	// Build custom environment variables specific to create-issue

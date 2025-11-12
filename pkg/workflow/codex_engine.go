@@ -9,7 +9,10 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var codexEngineLog = logger.New("workflow:codex_engine")
 
 // Pre-compiled regexes for Codex log parsing (performance optimization)
 var (
@@ -43,6 +46,7 @@ func NewCodexEngine() *CodexEngine {
 }
 
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
+	codexEngineLog.Printf("Generating installation steps for Codex engine: workflow=%s", workflowData.Name)
 	var steps []GitHubActionStep
 
 	// Add secret validation step - Codex supports both CODEX_API_KEY and OPENAI_API_KEY as fallback
@@ -76,6 +80,13 @@ func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
+	model := ""
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
+		model = workflowData.EngineConfig.Model
+	}
+	codexEngineLog.Printf("Building Codex execution steps: workflow=%s, model=%s, has_agent_file=%v",
+		workflowData.Name, model, workflowData.AgentFile != "")
+
 	// Handle custom steps if they exist in engine config
 	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
 
@@ -269,6 +280,10 @@ func (e *CodexEngine) renderShellEnvironmentPolicy(yaml *strings.Builder, tools 
 }
 
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+	if codexEngineLog.Enabled() {
+		codexEngineLog.Printf("Rendering MCP config for Codex: mcp_tools=%v, tool_count=%d", mcpTools, len(tools))
+	}
+
 	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/config.toml << EOF\n")
 
 	// Add history configuration to disable persistence
@@ -325,6 +340,8 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 
 // ParseLogMetrics implements engine-specific log parsing for Codex
 func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
+	codexEngineLog.Printf("Parsing Codex log metrics: log_size=%d bytes, lines=%d", len(logContent), len(strings.Split(logContent, "\n")))
+
 	var metrics LogMetrics
 	var totalTokenUsage int
 
@@ -394,6 +411,9 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	if len(errorPatterns) > 0 {
 		metrics.Errors = CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
 	}
+
+	codexEngineLog.Printf("Parsed Codex metrics: turns=%d, token_usage=%d, tool_calls=%d, errors=%d",
+		metrics.Turns, metrics.TokenUsage, len(metrics.ToolCalls), len(metrics.Errors))
 
 	return metrics
 }
