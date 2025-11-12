@@ -49,18 +49,11 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 	// Validate action SHAs if requested
 	if validateActionSHAs {
 		compileLog.Print("Validating action SHAs in lock file")
-		// Find git root for action cache
-		gitRoot, err := findGitRoot()
-		if err != nil {
-			compileLog.Printf("Unable to find git root for action cache: %v", err)
-			// Continue without validation if we can't find git root
-		} else {
-			// Create action cache for validation
-			actionCache := workflow.NewActionCache(gitRoot)
-			if err := workflow.ValidateActionSHAsInLockFile(lockFile, actionCache, verbose); err != nil {
-				// Action SHA validation warnings are non-fatal
-				compileLog.Printf("Action SHA validation completed with warnings: %v", err)
-			}
+		// Use the compiler's shared action cache to benefit from cached resolutions
+		actionCache := compiler.GetSharedActionCache()
+		if err := workflow.ValidateActionSHAsInLockFile(lockFile, actionCache, verbose); err != nil {
+			// Action SHA validation warnings are non-fatal
+			compileLog.Printf("Action SHA validation completed with warnings: %v", err)
 		}
 	}
 
@@ -119,18 +112,11 @@ func CompileWorkflowDataWithValidation(compiler *workflow.Compiler, workflowData
 	// Validate action SHAs if requested
 	if validateActionSHAs {
 		compileLog.Print("Validating action SHAs in lock file")
-		// Find git root for action cache
-		gitRoot, err := findGitRoot()
-		if err != nil {
-			compileLog.Printf("Unable to find git root for action cache: %v", err)
-			// Continue without validation if we can't find git root
-		} else {
-			// Create action cache for validation
-			actionCache := workflow.NewActionCache(gitRoot)
-			if err := workflow.ValidateActionSHAsInLockFile(lockFile, actionCache, verbose); err != nil {
-				// Action SHA validation warnings are non-fatal
-				compileLog.Printf("Action SHA validation completed with warnings: %v", err)
-			}
+		// Use the compiler's shared action cache to benefit from cached resolutions
+		actionCache := compiler.GetSharedActionCache()
+		if err := workflow.ValidateActionSHAsInLockFile(lockFile, actionCache, verbose); err != nil {
+			// Action SHA validation warnings are non-fatal
+			compileLog.Printf("Action SHA validation completed with warnings: %v", err)
 		}
 	}
 

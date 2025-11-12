@@ -142,6 +142,14 @@ func (c *Compiler) getSharedActionResolver() (*ActionCache, *ActionResolver) {
 	return c.actionCache, c.actionResolver
 }
 
+// GetSharedActionCache returns the shared action cache used by this compiler instance.
+// The cache is lazily initialized on first access and shared across all workflows.
+// This allows action SHA validation and other operations to reuse cached resolutions.
+func (c *Compiler) GetSharedActionCache() *ActionCache {
+	cache, _ := c.getSharedActionResolver()
+	return cache
+}
+
 // NewCompilerWithCustomOutput creates a new workflow compiler with custom output path
 func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutput string, version string) *Compiler {
 	c := &Compiler{
