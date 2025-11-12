@@ -99,7 +99,7 @@ The --force flag overwrites existing workflow files.`,
 	cmd.Flags().StringP("name", "n", "", "Specify name for the added workflow (without .md extension)")
 
 	// Add AI flag to add command
-	cmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, copilot, custom)")
+	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 
 	// Add repository flag to add command
 	cmd.Flags().StringP("repo", "r", "", "Install and use workflows from specified repository (org/repo)")

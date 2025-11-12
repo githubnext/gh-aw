@@ -59,7 +59,7 @@ Examples:
 
 	cmd.Flags().Bool("major", false, "Allow major version updates when updating tagged releases")
 	cmd.Flags().Bool("force", false, "Force update even if no changes detected")
-	cmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, copilot)")
+	cmd.Flags().StringP("engine", "e", "", "Override AI engine (claude, codex, copilot, custom)")
 	cmd.Flags().Bool("pr", false, "Create a pull request with the workflow changes")
 
 	return cmd
