@@ -7,9 +7,15 @@ import (
 	"testing"
 )
 
-// Note: TestIsGitRepo is in commands_utils_test.go
-// Note: TestFindGitRoot is in gitroot_test.go
-// Note: TestEnsureGitAttributes is in gitattributes_test.go
+// Note: The following tests exist in other test files and are not duplicated here:
+// - TestIsGitRepo is in commands_utils_test.go (tests isGitRepo utility)
+// - TestFindGitRoot is in gitroot_test.go (tests findGitRoot utility)
+// - TestEnsureGitAttributes is in gitattributes_test.go (comprehensive gitattributes tests)
+//
+// Note: The following tests remain in commands_compile_workflow_test.go because they test
+// compile-specific workflow behavior, not just Git operations:
+// - TestStageWorkflowChanges (tests staging behavior during workflow compilation)
+// - TestStageGitAttributesIfChanged (tests conditional staging during compilation)
 
 func TestGetCurrentBranch(t *testing.T) {
 	tmpDir := t.TempDir()

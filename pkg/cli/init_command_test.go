@@ -33,6 +33,7 @@ func TestNewInitCommand(t *testing.T) {
 	mcpFlag := cmd.Flags().Lookup("mcp")
 	if mcpFlag == nil {
 		t.Error("Expected 'mcp' flag to be defined")
+		return
 	}
 
 	if mcpFlag.DefValue != "false" {
@@ -204,7 +205,7 @@ func TestInitRepositoryNotInGitRepo(t *testing.T) {
 
 	// Don't initialize git repo - should fail for some operations
 	err = InitRepository(false, false)
-	
+
 	// The function should handle this gracefully or return an error
 	// Based on the implementation, ensureGitAttributes requires git
 	if err == nil {
@@ -255,7 +256,7 @@ func TestInitRepositoryIdempotent(t *testing.T) {
 	}
 
 	expectedEntry := ".github/workflows/*.lock.yml linguist-generated=true merge=ours"
-	
+
 	// Count occurrences - should only appear once
 	count := strings.Count(string(content), expectedEntry)
 	if count != 1 {
@@ -394,7 +395,7 @@ func TestInitRepositoryErrorHandling(t *testing.T) {
 
 	// Test init without git repo
 	err = InitRepository(false, false)
-	
+
 	// Should handle error gracefully or return error
 	// The actual behavior depends on implementation
 	if err != nil {
@@ -448,7 +449,7 @@ func TestInitRepositoryWithExistingFiles(t *testing.T) {
 	}
 
 	contentStr := string(content)
-	
+
 	// Should contain both old and new entries
 	if !strings.Contains(contentStr, "*.md linguist-documentation=true") {
 		t.Error("Expected existing content to be preserved")

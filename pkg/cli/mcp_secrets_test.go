@@ -5,6 +5,25 @@ import (
 	"testing"
 )
 
+// Helper constants for secret syntax validation in tests
+const (
+	testSecretPrefix = "${{ secrets."
+	testSecretSuffix = " }}"
+)
+
+// testIsSecretSyntax checks if a value matches GitHub Actions secret syntax (test helper)
+func testIsSecretSyntax(value string) bool {
+	return strings.HasPrefix(value, testSecretPrefix) && strings.HasSuffix(value, testSecretSuffix)
+}
+
+// testExtractSecretName extracts the secret name from GitHub Actions secret syntax (test helper)
+func testExtractSecretName(value string) string {
+	if !testIsSecretSyntax(value) {
+		return ""
+	}
+	return value[len(testSecretPrefix) : len(value)-len(testSecretSuffix)]
+}
+
 func TestCheckAndSuggestSecrets(t *testing.T) {
 	t.Parallel()
 
@@ -60,7 +79,7 @@ func TestCheckAndSuggestSecrets(t *testing.T) {
 			skipReason: "requires GitHub CLI and repository access",
 		},
 		{
-			name: "empty tool config",
+			name:       "empty tool config",
 			toolConfig: map[string]any{},
 			verbose:    false,
 			wantErr:    false,
@@ -96,10 +115,10 @@ func TestSecretExtraction(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name           string
-		toolConfig     map[string]any
-		expectedCount  int
-		expectedNames  []string
+		name          string
+		toolConfig    map[string]any
+		expectedCount int
+		expectedNames []string
 	}{
 		{
 			name: "single secret",
@@ -132,9 +151,9 @@ func TestSecretExtraction(t *testing.T) {
 			toolConfig: map[string]any{
 				"mcp": map[string]any{
 					"env": map[string]string{
-						"SECRET":     "${{ secrets.MY_SECRET }}",
-						"PLAIN":      "plain_value",
-						"ANOTHER":    "another_plain",
+						"SECRET":  "${{ secrets.MY_SECRET }}",
+						"PLAIN":   "plain_value",
+						"ANOTHER": "another_plain",
 					},
 				},
 			},
@@ -164,8 +183,7 @@ func TestSecretExtraction(t *testing.T) {
 				if env, hasEnv := mcpSection["env"].(map[string]string); hasEnv {
 					for _, value := range env {
 						// Extract secret name from GitHub Actions syntax
-						if strings.HasPrefix(value, "${{ secrets.") && strings.HasSuffix(value, " }}") {
-							secretName := value[12 : len(value)-3]
+						if secretName := testExtractSecretName(value); secretName != "" {
 							requiredSecrets = append(requiredSecrets, secretName)
 						}
 					}
@@ -242,14 +260,14 @@ func TestSecretSyntaxParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isSecret := strings.HasPrefix(tt.value, "${{ secrets.") && strings.HasSuffix(tt.value, " }}")
-			
+			isSecret := testIsSecretSyntax(tt.value)
+
 			if isSecret != tt.expectSecret {
 				t.Errorf("Expected isSecret=%v, got %v", tt.expectSecret, isSecret)
 			}
 
 			if tt.expectSecret && isSecret {
-				secretName := tt.value[12 : len(tt.value)-3]
+				secretName := testExtractSecretName(tt.value)
 				if secretName != tt.secretName {
 					t.Errorf("Expected secret name %q, got %q", tt.secretName, secretName)
 				}
@@ -322,7 +340,7 @@ func TestSecretExtractionEdgeCases(t *testing.T) {
 		{
 			name:          "extra spaces before closing - still valid",
 			value:         "${{ secrets.KEY  }}",
-			shouldExtract: true, // Has extra spaces but still matches pattern
+			shouldExtract: true,   // Has extra spaces but still matches pattern
 			extractedName: "KEY ", // Will include one trailing space (string is trimmed by 3 chars from end)
 		},
 		{
@@ -350,16 +368,14 @@ func TestSecretExtractionEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hasPrefix := strings.HasPrefix(tt.value, "${{ secrets.")
-			hasSuffix := strings.HasSuffix(tt.value, " }}")
-			isValid := hasPrefix && hasSuffix
+			isValid := testIsSecretSyntax(tt.value)
 
 			if isValid != tt.shouldExtract {
 				t.Errorf("Expected shouldExtract=%v, got %v", tt.shouldExtract, isValid)
 			}
 
 			if tt.shouldExtract && isValid {
-				secretName := tt.value[12 : len(tt.value)-3]
+				secretName := testExtractSecretName(tt.value)
 				if secretName != tt.extractedName {
 					t.Errorf("Expected extracted name %q, got %q", tt.extractedName, secretName)
 				}

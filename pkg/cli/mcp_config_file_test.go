@@ -115,9 +115,11 @@ func TestEnsureMCPConfig(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to get current directory: %v", err)
 			}
-			defer func() {
-				_ = os.Chdir(originalDir)
-			}()
+			t.Cleanup(func() {
+				if err := os.Chdir(originalDir); err != nil {
+					t.Logf("Failed to restore directory: %v", err)
+				}
+			})
 
 			if err := os.Chdir(tmpDir); err != nil {
 				t.Fatalf("Failed to change to temp directory: %v", err)

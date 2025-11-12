@@ -91,16 +91,35 @@ func TestEnsureCopilotSetupSteps(t *testing.T) {
 			verbose: false,
 			wantErr: false,
 			validateContent: func(t *testing.T, content []byte) {
-				if !strings.Contains(string(content), "Install gh-aw extension") {
+				// Unmarshal YAML content into Workflow struct for structured validation
+				var wf Workflow
+				if err := yaml.Unmarshal(content, &wf); err != nil {
+					t.Fatalf("Failed to unmarshal workflow YAML: %v", err)
+				}
+				job, ok := wf.Jobs["copilot-setup-steps"]
+				if !ok {
+					t.Fatalf("Expected job 'copilot-setup-steps' not found")
+				}
+
+				// Find step indices
+				var goIdx, installIdx int = -1, -1
+				for i, step := range job.Steps {
+					if step.Name == "Set up Go" {
+						goIdx = i
+					}
+					if step.Name == "Install gh-aw extension" {
+						installIdx = i
+					}
+				}
+
+				if installIdx == -1 {
 					t.Error("Expected extension install step to be injected")
 				}
-				// Verify it's after "Set up Go"
-				goIndex := strings.Index(string(content), "Set up Go")
-				installIndex := strings.Index(string(content), "Install gh-aw extension")
-				if goIndex == -1 || installIndex == -1 {
-					t.Error("Could not find expected steps in workflow")
-				} else if installIndex < goIndex {
-					t.Error("Extension install should come after Set up Go")
+				if goIdx == -1 {
+					t.Error("Expected 'Set up Go' step to be present")
+				}
+				if goIdx != -1 && installIdx != -1 && installIdx <= goIdx {
+					t.Errorf("Extension install should come after Set up Go (install at %d, go at %d)", installIdx, goIdx)
 				}
 			},
 		},
@@ -171,11 +190,11 @@ func TestInjectExtensionInstallStep(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name            string
-		workflow        *Workflow
-		wantErr         bool
-		expectedSteps   int
-		validateFunc    func(*testing.T, *Workflow)
+		name          string
+		workflow      *Workflow
+		wantErr       bool
+		expectedSteps int
+		validateFunc  func(*testing.T, *Workflow)
 	}{
 		{
 			name: "injects after Set up Go",
