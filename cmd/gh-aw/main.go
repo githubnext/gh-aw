@@ -201,10 +201,10 @@ This command only works with workflows that have workflow_dispatch triggers.
 It executes 'gh workflow run <workflow-lock-file>' to trigger each workflow on GitHub Actions.
 
 Examples:
-  gh aw run daily-perf-improver
-  gh aw run daily-perf-improver --repeat 3  # Run 3 times total
-  gh aw run daily-perf-improver --enable-if-needed # Enable if disabled, run, then restore state
-  gh aw run daily-perf-improver --auto-merge-prs # Auto-merge any PRs created during execution`,
+  ` + constants.CLIExtensionPrefix + ` run daily-perf-improver
+  ` + constants.CLIExtensionPrefix + ` run daily-perf-improver --repeat 3  # Run 3 times total
+  ` + constants.CLIExtensionPrefix + ` run daily-perf-improver --enable-if-needed # Enable if disabled, run, then restore state
+  ` + constants.CLIExtensionPrefix + ` run daily-perf-improver --auto-merge-prs # Auto-merge any PRs created during execution`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		repeatCount, _ := cmd.Flags().GetInt("repeat")
