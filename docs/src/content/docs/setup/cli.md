@@ -311,7 +311,13 @@ gh aw mcp add                              # Add servers from registry
 
 Lists MCP servers configured in workflows, inspects server configuration, tests connectivity, and adds new servers from the registry. See **[MCPs Guide](/gh-aw/guides/mcps/)** for complete documentation.
 
-#### `pr transfer`
+#### `pr`
+
+Pull request management utilities.
+
+**Subcommands:**
+
+##### `pr transfer`
 
 Transfer pull requests between repositories.
 

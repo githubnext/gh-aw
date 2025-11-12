@@ -12,7 +12,9 @@ on:
 permissions:
   contents: read
   issues: write
-engine: claude
+engine:
+  id: claude
+  max-turns: 30  # Prevent runaway token usage
 timeout-minutes: 30
 tools:
   playwright:
@@ -28,6 +30,9 @@ tools:
     - "curl*"
     - "kill*"
     - "lsof*"
+    - "ls*"      # List files for directory navigation
+    - "pwd*"     # Print working directory
+    - "cd*"      # Change directory
 safe-outputs:
   upload-assets:
   create-issue:
@@ -46,195 +51,87 @@ You are a documentation testing specialist. Your task is to comprehensively test
 - Repository: ${{ github.repository }}
 - Triggered by: @${{ github.actor }}
 - Devices to test: ${{ inputs.devices }}
+- Working directory: ${{ github.workspace }}
+
+**IMPORTANT SETUP NOTES:**
+1. You're already in the repository root
+2. The docs folder is at: `${{ github.workspace }}/docs`
+3. Use absolute paths or change directory explicitly
+4. Keep token usage low by being efficient with your code and minimizing iterations
 
 ## Your Mission
 
-Build the documentation site locally, serve it, and perform comprehensive multi-device testing including:
+Build the documentation site locally, serve it, and perform comprehensive multi-device testing. Test layout responsiveness, accessibility, interactive elements, and visual rendering across all device types. Use a single Playwright browser instance for efficiency.
 
-1. **Layout & Responsive Design Testing**
-   - Test across all specified device types (mobile, tablet, desktop)
-   - Verify proper breakpoint behavior
-   - Check for layout overflow, text truncation, or element overlapping
-   - Validate navigation menu behavior on different screen sizes
+## Step 1: Build and Serve
 
-2. **Accessibility Audits**
-   - Run automated accessibility checks using Playwright's accessibility tree
-   - Check for proper heading hierarchy
-   - Verify ARIA labels and roles
-   - Test keyboard navigation
-   - Check color contrast ratios
-
-3. **Interactive Element Testing**
-   - Test navigation links and menu interactions
-   - Verify search functionality (if present)
-   - Test code copy buttons
-   - Check form submissions (if any)
-   - Validate anchor links and table of contents navigation
-
-4. **Visual Validation**
-   - Capture screenshots for each device type
-   - Check for visual regressions or rendering issues
-   - Verify images load correctly and have proper alt text
-   - Check for broken styles or missing CSS
-
-## Setup Instructions
-
-### Step 1: Build and Serve the Documentation
+Navigate to the docs folder and build the site:
 
 ```bash
-cd docs
+cd ${{ github.workspace }}/docs
 npm install
 npm run build
 ```
 
-After building, start the preview server in the background:
+Start the preview server in the background and save PID to file for reliable cleanup:
 
 ```bash
-npm run preview &
-SERVER_PID=$!
-echo "Server PID: $SERVER_PID"
+npm run preview > /tmp/preview.log 2>&1 &
+echo $! > /tmp/server.pid
 ```
 
-Wait for the server to be ready (usually runs on port 4321):
+Wait for server to be ready (port 4321):
 
 ```bash
 for i in {1..30}; do
-  if curl -s http://localhost:4321 > /dev/null; then
-    echo "Server is ready!"
-    break
-  fi
-  echo "Waiting for server... ($i/30)"
-  sleep 2
+  curl -s http://localhost:4321 > /dev/null && echo "Server ready!" && break
+  echo "Waiting... ($i/30)" && sleep 2
 done
 ```
 
-### Step 2: Run Multi-Device Tests
+## Step 2: Device Configuration
 
-Parse the device input and run tests for each device type:
+Test these device types based on input `${{ inputs.devices }}`:
 
-```javascript
-const devices = '${{ inputs.devices }}'.split(',').map(d => d.trim());
+**Mobile:** iPhone 12 (390x844), iPhone 12 Pro Max (428x926), Pixel 5 (393x851), Galaxy S21 (360x800)
+**Tablet:** iPad (768x1024), iPad Pro 11 (834x1194), iPad Pro 12.9 (1024x1366)
+**Desktop:** HD (1366x768), FHD (1920x1080), 4K (2560x1440)
 
-// Device configurations
-const deviceConfigs = {
-  mobile: [
-    { name: 'iPhone 12', width: 390, height: 844 },
-    { name: 'iPhone 12 Pro Max', width: 428, height: 926 },
-    { name: 'Pixel 5', width: 393, height: 851 },
-    { name: 'Galaxy S21', width: 360, height: 800 }
-  ],
-  tablet: [
-    { name: 'iPad', width: 768, height: 1024 },
-    { name: 'iPad Pro 11', width: 834, height: 1194 },
-    { name: 'iPad Pro 12.9', width: 1024, height: 1366 }
-  ],
-  desktop: [
-    { name: 'Desktop HD', width: 1366, height: 768 },
-    { name: 'Desktop FHD', width: 1920, height: 1080 },
-    { name: 'Desktop 4K', width: 2560, height: 1440 }
-  ]
-};
+## Step 3: Run Playwright Tests
 
-const results = {
-  passed: [],
-  failed: [],
-  warnings: [],
-  screenshots: []
-};
+For each device, use Playwright to:
+- Set viewport size and navigate to http://localhost:4321
+- Take screenshots and run accessibility audits
+- Test interactions (navigation, search, buttons)
+- Check for layout issues (overflow, truncation, broken layouts)
 
-for (const deviceType of devices) {
-  const configs = deviceConfigs[deviceType] || [];
-  
-  for (const config of configs) {
-    console.log(`Testing ${config.name} (${config.width}x${config.height})...`);
-    
-    // Test this device configuration
-    // (Playwright testing code will be executed by the agent)
-  }
-}
-```
-
-Use Playwright to:
-- Set viewport size for each device
-- Navigate to http://localhost:4321
-- Take screenshots
-- Run accessibility audits
-- Test interactions (click navigation, test search, etc.)
-- Detect layout issues
-
-### Step 3: Analyze Results
-
-Review all test results and compile findings:
-
-- **Layout Issues**: Any overflow, truncation, or broken layouts
-- **Accessibility Issues**: Missing alt text, poor contrast, heading hierarchy problems
-- **Interaction Failures**: Broken links, non-functional buttons, search issues
-- **Visual Problems**: Missing images, broken styles, rendering issues
+## Step 4: Analyze Results
 
 Organize findings by severity:
 - 🔴 **Critical**: Blocks functionality or major accessibility issues
 - 🟡 **Warning**: Minor issues or potential problems
 - 🟢 **Passed**: Everything working as expected
 
-### Step 4: Create Issue if Problems Found
+## Step 5: Report Results
 
-If any critical or warning-level issues are detected, create a GitHub issue with:
+If issues are detected, create a GitHub issue titled "🔍 Multi-Device Docs Testing Report - [Date]" with:
+- Test summary (triggered by, workflow run, devices tested)
+- Results overview (passed/warning/critical counts)
+- Critical issues and warnings with device names
+- Screenshots showing issues
+- Accessibility findings and recommendations
 
-**Title**: "🔍 Multi-Device Docs Testing Report - [Date]"
+Label with: `documentation`, `testing`, `automated`
 
-**Body**:
-```markdown
-## Test Summary
+## Step 6: Cleanup
 
-- **Triggered by**: @${{ github.actor }}
-- **Workflow Run**: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-- **Devices Tested**: [list all devices]
-
-## Results Overview
-
-- ✅ Passed: [count]
-- 🟡 Warnings: [count]  
-- 🔴 Critical: [count]
-
-## Critical Issues
-
-[List critical issues with device names and descriptions]
-
-## Warnings
-
-[List warning-level issues]
-
-## Screenshots
-
-[Include key screenshots showing issues, organized by device]
-
-## Accessibility Report
-
-[Summarize accessibility findings]
-
-## Recommendations
-
-[Provide specific recommendations for fixing issues]
-
----
-*Automated multi-device testing report*
-```
-
-Label the issue with: `documentation`, `testing`, `automated`
-
-### Step 5: Cleanup
-
-Stop the preview server:
+Stop the preview server using the saved PID:
 
 ```bash
-kill $SERVER_PID
+kill $(cat /tmp/server.pid) 2>/dev/null || true
+rm -f /tmp/server.pid
 ```
 
-## Output
+## Summary
 
-Provide a summary of:
-- Total devices tested
-- Number of tests passed/failed/warnings
-- Key findings
-- Link to created issue (if any)
-- Workflow artifacts location for detailed logs and screenshots
+Provide: total devices tested, test results (passed/failed/warnings), key findings, and link to issue (if created).
