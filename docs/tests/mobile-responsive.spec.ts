@@ -51,7 +51,7 @@ test.describe('Mobile and Responsive Layout', () => {
           await page.waitForLoadState('networkidle');
 
           // Content should have proper padding
-          const contentPanel = page.locator('.content-panel');
+          const contentPanel = page.locator('.content-panel').first();
           await expect(contentPanel).toBeVisible();
 
           // Sidebar should be hidden on mobile
