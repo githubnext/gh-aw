@@ -15,7 +15,7 @@ permissions:
   issues: read
   pull-requests: read
   actions: read
-fingerprint: ci-doctor-failures
+campaign: ci-doctor-failures
 safe-outputs:
   add-comment: null
   create-issue:

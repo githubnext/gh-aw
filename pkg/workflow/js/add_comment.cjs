@@ -3,7 +3,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { generateFooter } = require("./generate_footer.cjs");
-const { getFingerprint } = require("./get_fingerprint.cjs");
+const { getCampaign } = require("./get_campaign.cjs");
 const { getRepositoryUrl } = require("./get_repository_url.cjs");
 
 /**
@@ -300,7 +300,7 @@ async function main() {
       : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
     // Add fingerprint comment if present
-    body += getFingerprint("markdown");
+    body += getCampaign("markdown");
 
     body += generateFooter(
       workflowName,
