@@ -85,7 +85,7 @@ var removeCmd = &cobra.Command{
 
 var enableCmd = &cobra.Command{
 	Use:   "enable [workflow-name]...",
-	Short: "Enable natural language action workflows",
+	Short: "Enable agentic workflows",
 	Long: `Enable one or more workflows by name, or all workflows if no names are provided.
 
 Examples:
@@ -102,7 +102,7 @@ Examples:
 
 var disableCmd = &cobra.Command{
 	Use:   "disable [workflow-name]...",
-	Short: "Disable natural language action workflows and cancel any in-progress runs",
+	Short: "Disable agentic workflows and cancel any in-progress runs",
 	Long: `Disable one or more workflows by name, or all workflows if no names are provided.
 
 Examples:
