@@ -3,7 +3,11 @@ package workflow
 import (
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/logger"
 )
+
+var customEngineLog = logger.New("workflow:custom_engine")
 
 // CustomEngine represents a custom agentic engine that executes user-defined GitHub Actions steps
 type CustomEngine struct {
@@ -34,6 +38,12 @@ func (e *CustomEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 
 // GetExecutionSteps returns the GitHub Actions steps for executing custom steps
 func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
+	stepCount := 0
+	if workflowData.EngineConfig != nil {
+		stepCount = len(workflowData.EngineConfig.Steps)
+	}
+	customEngineLog.Printf("Building custom engine execution steps: workflow=%s, custom_steps=%d", workflowData.Name, stepCount)
+
 	var steps []GitHubActionStep
 
 	// Generate each custom step if they exist, with environment variables
@@ -219,6 +229,7 @@ func (e *CustomEngine) renderAgenticWorkflowsMCPConfig(yaml *strings.Builder, is
 // ParseLogMetrics implements basic log parsing for custom engine
 // For custom engines, try both Claude and Codex parsing approaches to extract turn information
 func (e *CustomEngine) ParseLogMetrics(logContent string, verbose bool) LogMetrics {
+	customEngineLog.Printf("Parsing custom engine log metrics: log_size=%d bytes", len(logContent))
 	var metrics LogMetrics
 
 	// First try Claude-style parsing to see if the logs are Claude-format
@@ -228,6 +239,7 @@ func (e *CustomEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 		claudeMetrics := claudeEngine.ParseLogMetrics(logContent, verbose)
 		if claudeMetrics.Turns > 0 || claudeMetrics.TokenUsage > 0 || claudeMetrics.EstimatedCost > 0 {
 			// Found structured data, use Claude parsing
+			customEngineLog.Print("Using Claude-style parsing for custom engine logs")
 			if verbose {
 				fmt.Println("Custom engine: Using Claude-style parsing for logs")
 			}
@@ -241,6 +253,7 @@ func (e *CustomEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 		codexMetrics := codexEngine.ParseLogMetrics(logContent, verbose)
 		if codexMetrics.Turns > 0 || codexMetrics.TokenUsage > 0 {
 			// Found some data, use Codex parsing
+			customEngineLog.Print("Using Codex-style parsing for custom engine logs")
 			if verbose {
 				fmt.Println("Custom engine: Using Codex-style parsing for logs")
 			}
@@ -249,6 +262,7 @@ func (e *CustomEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 	}
 
 	// Fall back to basic parsing if neither Claude nor Codex approaches work
+	customEngineLog.Print("Using basic fallback parsing for custom engine logs")
 	if verbose {
 		fmt.Println("Custom engine: Using basic fallback parsing for logs")
 	}
