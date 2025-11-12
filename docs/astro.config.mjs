@@ -141,6 +141,10 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Specs',
+					autogenerate: { directory: 'specs' },
+				},
+				{
 					label: 'Troubleshooting',
 					autogenerate: { directory: 'troubleshooting' },
 				},
