@@ -135,7 +135,7 @@ The --dependabot flag generates dependency manifests when dependencies are detec
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` compile                    # Compile all markdown files
-  ` + constants.CLIExtensionPrefix + ` compile ci-doctor    # Compile a specific workflow
+  ` + constants.CLIExtensionPrefix + ` compile ci-doctor              # Compile a specific workflow
   ` + constants.CLIExtensionPrefix + ` compile ci-doctor daily-plan  # Compile multiple workflows
   ` + constants.CLIExtensionPrefix + ` compile workflow.md        # Compile by file path
   ` + constants.CLIExtensionPrefix + ` compile --workflows-dir custom/workflows  # Compile from custom directory
