@@ -207,6 +207,60 @@ func TestResolveAgentFilePathFormat(t *testing.T) {
 	}
 }
 
+// TestExtractAgentIdentifier tests extracting agent identifier from file paths
+func TestExtractAgentIdentifier(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "basic agent file path",
+			input:    ".github/agents/test-agent.md",
+			expected: "test-agent",
+		},
+		{
+			name:     "path with spaces",
+			input:    ".github/agents/my agent file.md",
+			expected: "my agent file",
+		},
+		{
+			name:     "deeply nested path",
+			input:    ".github/copilot/instructions/deep/nested/agent.md",
+			expected: "agent",
+		},
+		{
+			name:     "simple filename",
+			input:    "agent.md",
+			expected: "agent",
+		},
+		{
+			name:     "path with special characters",
+			input:    ".github/agents/test-agent_v2.0.md",
+			expected: "test-agent_v2.0",
+		},
+		{
+			name:     "cli-consistency-checker example",
+			input:    ".github/agents/cli-consistency-checker.md",
+			expected: "cli-consistency-checker",
+		},
+		{
+			name:     "path without extension",
+			input:    ".github/agents/test-agent",
+			expected: "test-agent",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExtractAgentIdentifier(tt.input)
+			if result != tt.expected {
+				t.Errorf("ExtractAgentIdentifier(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
 // TestShellVariableExpansionInAgentPath tests that agent paths allow shell variable expansion
 func TestShellVariableExpansionInAgentPath(t *testing.T) {
 	agentFile := ".github/agents/test-agent.md"

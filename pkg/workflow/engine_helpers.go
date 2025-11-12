@@ -10,6 +10,33 @@ import (
 
 var engineHelpersLog = logger.New("workflow:engine_helpers")
 
+// ExtractAgentIdentifier extracts the agent identifier (filename without extension) from an agent file path.
+// This is used by the Copilot CLI which expects agent identifiers, not full paths.
+//
+// Parameters:
+//   - agentFile: The relative path to the agent file (e.g., ".github/agents/test-agent.md")
+//
+// Returns:
+//   - string: The agent identifier (e.g., "test-agent")
+//
+// Example:
+//
+//	identifier := ExtractAgentIdentifier(".github/agents/my-agent.md")
+//	// Returns: "my-agent"
+func ExtractAgentIdentifier(agentFile string) string {
+	// Extract the base filename from the path
+	lastSlash := strings.LastIndex(agentFile, "/")
+	filename := agentFile
+	if lastSlash >= 0 {
+		filename = agentFile[lastSlash+1:]
+	}
+
+	// Remove the .md extension using TrimSuffix (unconditionally safe)
+	filename = strings.TrimSuffix(filename, ".md")
+
+	return filename
+}
+
 // ResolveAgentFilePath returns the properly quoted agent file path with GITHUB_WORKSPACE prefix.
 // This helper extracts the common pattern shared by Copilot, Codex, and Claude engines.
 //
