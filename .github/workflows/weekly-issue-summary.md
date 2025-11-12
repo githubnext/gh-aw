@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 permissions:
   issues: read
-fingerprint: weekly-issue-summary
+campaign: weekly-issue-summary
 engine: copilot
 network:
   allowed:
