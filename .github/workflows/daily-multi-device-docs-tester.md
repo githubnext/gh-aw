@@ -51,11 +51,11 @@ You are a documentation testing specialist. Your task is to comprehensively test
 - Repository: ${{ github.repository }}
 - Triggered by: @${{ github.actor }}
 - Devices to test: ${{ inputs.devices }}
-- Working directory: /home/runner/work/gh-aw/gh-aw
+- Working directory: ${{ github.workspace }}
 
 **IMPORTANT SETUP NOTES:**
 1. You're already in the repository root
-2. The docs folder is at: `/home/runner/work/gh-aw/gh-aw/docs`
+2. The docs folder is at: `${{ github.workspace }}/docs`
 3. Use absolute paths or change directory explicitly
 4. Keep token usage low by being efficient with your code and minimizing iterations
 
@@ -68,7 +68,7 @@ Build the documentation site locally, serve it, and perform comprehensive multi-
 Navigate to the docs folder and build the site:
 
 ```bash
-cd /home/runner/work/gh-aw/gh-aw/docs
+cd ${{ github.workspace }}/docs
 npm install
 npm run build
 ```
