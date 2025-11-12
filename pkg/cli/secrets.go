@@ -5,19 +5,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/logger"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 var secretsLog = logger.New("cli:secrets")
-
-// Pre-compiled regexes for secret extraction (performance optimization)
-var (
-	secretPattern = regexp.MustCompile(`\$\{\{\s*secrets\.([A-Z_][A-Z0-9_]*)\s*(?:\|\|.*?)?\s*\}\}`)
-)
 
 // SecretInfo contains information about a required secret
 type SecretInfo struct {
@@ -64,19 +59,6 @@ func checkSecretExists(secretName string) (bool, error) {
 	return false, nil
 }
 
-// extractSecretName extracts the secret name from a GitHub Actions expression
-// Examples: "${{ secrets.DD_API_KEY }}" -> "DD_API_KEY"
-//
-//	"${{ secrets.DD_SITE || 'datadoghq.com' }}" -> "DD_SITE"
-func extractSecretName(value string) string {
-	// Match pattern: ${{ secrets.SECRET_NAME }} or ${{ secrets.SECRET_NAME || 'default' }}
-	matches := secretPattern.FindStringSubmatch(value)
-	if len(matches) >= 2 {
-		return matches[1]
-	}
-	return ""
-}
-
 // extractSecretsFromConfig extracts all required secrets from an MCP server config
 func extractSecretsFromConfig(config parser.MCPServerConfig) []SecretInfo {
 	secretsLog.Printf("Extracting secrets from MCP config: command=%s", config.Command)
@@ -85,7 +67,7 @@ func extractSecretsFromConfig(config parser.MCPServerConfig) []SecretInfo {
 
 	// Extract from HTTP headers
 	for key, value := range config.Headers {
-		secretName := extractSecretName(value)
+		secretName := workflow.ExtractSecretName(value)
 		if secretName != "" && !seen[secretName] {
 			secrets = append(secrets, SecretInfo{
 				Name:   secretName,
@@ -97,7 +79,7 @@ func extractSecretsFromConfig(config parser.MCPServerConfig) []SecretInfo {
 
 	// Extract from environment variables
 	for key, value := range config.Env {
-		secretName := extractSecretName(value)
+		secretName := workflow.ExtractSecretName(value)
 		if secretName != "" && !seen[secretName] {
 			secrets = append(secrets, SecretInfo{
 				Name:   secretName,

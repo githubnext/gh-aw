@@ -300,7 +300,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 	// Extract secrets from headers for HTTP MCP tools (copilot engine only)
 	var headerSecrets map[string]string
 	if mcpConfig.Type == "http" && renderer.RequiresCopilotFields {
-		headerSecrets = extractSecretsFromHeaders(mcpConfig.Headers)
+		headerSecrets = ExtractSecretsFromMap(mcpConfig.Headers)
 	}
 
 	// Determine properties based on type
@@ -545,7 +545,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				// Replace secret expressions with env var references for copilot
 				headerValue := mcpConfig.Headers[headerKey]
 				if renderer.RequiresCopilotFields && len(headerSecrets) > 0 {
-					headerValue = replaceSecretsWithEnvVars(headerValue, headerSecrets)
+					headerValue = ReplaceSecretsWithEnvVars(headerValue, headerSecrets)
 				}
 
 				fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, headerKey, headerValue, headerComma)
@@ -650,82 +650,6 @@ func (m MapToolConfig) GetAny(key string) (any, bool) {
 	return value, exists
 }
 
-// extractSecretsFromValue extracts GitHub Actions secret expressions from a string value
-// Returns a map of environment variable names to their secret expressions
-// Example: "${{ secrets.DD_API_KEY }}" -> {"DD_API_KEY": "${{ secrets.DD_API_KEY }}"}
-// Example: "${{ secrets.DD_SITE || 'datadoghq.com' }}" -> {"DD_SITE": "${{ secrets.DD_SITE || 'datadoghq.com' }}"}
-func extractSecretsFromValue(value string) map[string]string {
-	secrets := make(map[string]string)
-
-	// Pattern to match ${{ secrets.VARIABLE_NAME }} or ${{ secrets.VARIABLE_NAME || 'default' }}
-	// We need to extract the variable name and the full expression
-	start := 0
-	for {
-		// Find the start of an expression
-		startIdx := strings.Index(value[start:], "${{ secrets.")
-		if startIdx == -1 {
-			break
-		}
-		startIdx += start
-
-		// Find the end of the expression
-		endIdx := strings.Index(value[startIdx:], "}}")
-		if endIdx == -1 {
-			break
-		}
-		endIdx += startIdx + 2 // Include the closing }}
-
-		// Extract the full expression
-		fullExpr := value[startIdx:endIdx]
-
-		// Extract the variable name from "secrets.VARIABLE_NAME" or "secrets.VARIABLE_NAME ||"
-		secretsPart := strings.TrimPrefix(fullExpr, "${{ secrets.")
-		secretsPart = strings.TrimSuffix(secretsPart, "}}")
-		secretsPart = strings.TrimSpace(secretsPart)
-
-		// Find the variable name (everything before space, ||, or end)
-		varName := secretsPart
-		if spaceIdx := strings.IndexAny(varName, " |"); spaceIdx != -1 {
-			varName = varName[:spaceIdx]
-		}
-
-		// Store the variable name and full expression
-		if varName != "" {
-			secrets[varName] = fullExpr
-		}
-
-		start = endIdx
-	}
-
-	return secrets
-}
-
-// extractSecretsFromHeaders extracts all secrets from HTTP MCP headers
-// Returns a map of environment variable names to their secret expressions
-func extractSecretsFromHeaders(headers map[string]string) map[string]string {
-	allSecrets := make(map[string]string)
-
-	for _, headerValue := range headers {
-		secrets := extractSecretsFromValue(headerValue)
-		for varName, expr := range secrets {
-			allSecrets[varName] = expr
-		}
-	}
-
-	return allSecrets
-}
-
-// replaceSecretsWithEnvVars replaces secret expressions in a value with environment variable references
-// Example: "${{ secrets.DD_API_KEY }}" -> "\${DD_API_KEY}"
-func replaceSecretsWithEnvVars(value string, secrets map[string]string) string {
-	result := value
-	for varName, secretExpr := range secrets {
-		// Replace ${{ secrets.VAR }} with \${VAR} (backslash-escaped for copilot JSON config)
-		result = strings.ReplaceAll(result, secretExpr, "\\${"+varName+"}")
-	}
-	return result
-}
-
 // collectHTTPMCPHeaderSecrets collects all secrets from HTTP MCP tool headers
 // Returns a map of environment variable names to their secret expressions
 func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
@@ -737,7 +661,7 @@ func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 			if hasMcp, mcpType := hasMCPConfig(toolConfig); hasMcp && mcpType == "http" {
 				// Extract MCP config to get headers
 				if mcpConfig, err := getMCPConfig(toolConfig, toolName); err == nil {
-					secrets := extractSecretsFromHeaders(mcpConfig.Headers)
+					secrets := ExtractSecretsFromMap(mcpConfig.Headers)
 					for varName, expr := range secrets {
 						allSecrets[varName] = expr
 					}
