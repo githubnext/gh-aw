@@ -34,8 +34,8 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 	// Pass the workflow filename for rule ID prefix
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_WORKFLOW_FILENAME: %s\n", workflowFilename))
 
-	// Add workflow metadata (name, source, and fingerprint) for consistency
-	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithFingerprint(data.Name, data.Source, data.Fingerprint)...)
+	// Add workflow metadata (name, source, and campaign) for consistency
+	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithCampaign(data.Name, data.Source, data.Campaign)...)
 
 	// Build the GitHub Script step using the common helper
 	var steps []string

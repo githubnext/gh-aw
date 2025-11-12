@@ -6,7 +6,7 @@ const fs = require("fs");
 /** @type {typeof import("crypto")} */
 const crypto = require("crypto");
 const { updateActivationComment } = require("./update_activation_comment.cjs");
-const { getFingerprint } = require("./get_fingerprint.cjs");
+const { getCampaign } = require("./get_campaign.cjs");
 
 /**
  * Generate a patch preview with max 500 lines and 2000 chars for issue body
@@ -275,7 +275,7 @@ async function main() {
     : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
   // Add fingerprint comment if present
-  const fingerprintComment = getFingerprint("markdown");
+  const fingerprintComment = getCampaign("markdown");
   if (fingerprintComment) {
     bodyLines.push(fingerprintComment);
   }
