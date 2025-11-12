@@ -20,11 +20,8 @@ func TestCapitalizationConsistency(t *testing.T) {
 		t.Errorf("Root command Long should use capitalized product name 'GitHub Agentic Workflows', got: %s", rootCmd.Long)
 	}
 
-	// Test version command uses product name with capital
-	if !strings.Contains(versionCmd.Long, "GitHub Agentic Workflows") && !strings.Contains(versionCmd.Short, "GitHub Agentic Workflows") {
-		// Version command is allowed to not have the product name in descriptions
-		// since it's output in the Run function instead
-	}
+	// Version command is allowed to not have the product name in descriptions,
+	// since it's output in the Run function instead.
 
 	// Define commands that should use lowercase "agentic workflows" (generic usage)
 	genericWorkflowCommands := []*cobra.Command{
@@ -38,36 +35,12 @@ func TestCapitalizationConsistency(t *testing.T) {
 	}
 
 	for _, cmd := range genericWorkflowCommands {
-		// Check Short description
-		if strings.Contains(cmd.Short, "Agentic Workflows") && !strings.Contains(cmd.Short, "GitHub Agentic Workflows") {
-			t.Errorf("Command '%s' Short description should use lowercase 'agentic workflows' for generic usage, not 'Agentic Workflows'. Got: %s", cmd.Name(), cmd.Short)
-		}
-
-		// Check Long description
-		if strings.Contains(cmd.Long, "Agentic Workflows") && !strings.Contains(cmd.Long, "GitHub Agentic Workflows") {
-			t.Errorf("Command '%s' Long description should use lowercase 'agentic workflows' for generic usage, not 'Agentic Workflows'. Got: %s", cmd.Name(), cmd.Long)
-		}
-
-		// Verify they use lowercase "agentic workflows" or "agentic workflow" somewhere
-		lowerShort := strings.ToLower(cmd.Short)
-		lowerLong := strings.ToLower(cmd.Long)
-		if !strings.Contains(lowerShort, "agentic workflow") && !strings.Contains(lowerLong, "agentic workflow") {
-			// Not all commands need to mention agentic workflows
-			continue
-		}
-
-		// If they mention it, ensure it's lowercase
-		if strings.Contains(cmd.Short, "agentic workflow") || strings.Contains(cmd.Long, "agentic workflow") {
-			// Lowercase usage found - this is correct
-			continue
-		}
-
-		// Check if uppercase was used without "GitHub" prefix (which would be wrong)
+		// Directly check for incorrect usage of "Agentic Workflow" without "GitHub" prefix
 		if strings.Contains(cmd.Short, "Agentic Workflow") && !strings.Contains(cmd.Short, "GitHub Agentic Workflow") {
-			t.Errorf("Command '%s' should use lowercase 'agentic workflow' not 'Agentic Workflow' in Short", cmd.Name())
+			t.Errorf("Command '%s' Short description should use lowercase 'agentic workflow' for generic usage, not 'Agentic Workflow'. Got: %s", cmd.Name(), cmd.Short)
 		}
 		if strings.Contains(cmd.Long, "Agentic Workflow") && !strings.Contains(cmd.Long, "GitHub Agentic Workflow") {
-			t.Errorf("Command '%s' should use lowercase 'agentic workflow' not 'Agentic Workflow' in Long", cmd.Name())
+			t.Errorf("Command '%s' Long description should use lowercase 'agentic workflow' for generic usage, not 'Agentic Workflow'. Got: %s", cmd.Name(), cmd.Long)
 		}
 	}
 }
