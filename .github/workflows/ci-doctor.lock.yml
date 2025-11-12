@@ -198,7 +198,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/main/workflows/ci-doctor.md"
-          GH_AW_FINGERPRINT: "ci-doctor-failures"
+          GH_AW_CAMPAIGN: "ci-doctor-failures"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -259,11 +259,11 @@ jobs:
               footer += "\n";
               return footer;
             }
-            function getFingerprint(format) {
-              const fingerprint = process.env.GH_AW_FINGERPRINT || "";
-              if (fingerprint) {
-                core.info(`Fingerprint: ${fingerprint}`);
-                return format === "markdown" ? `\n\n<!-- fingerprint: ${fingerprint} -->` : fingerprint;
+            function getCampaign(format) {
+              const campaign = process.env.GH_AW_CAMPAIGN || "";
+              if (campaign) {
+                core.info(`Campaign: ${campaign}`);
+                return format === "markdown" ? `\n\n<!-- campaign: ${campaign} -->` : campaign;
               }
               return "";
             }
@@ -508,7 +508,7 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                body += getFingerprint("markdown");
+                body += getCampaign("markdown");
                 body += generateFooter(
                   workflowName,
                   runUrl,
@@ -4205,7 +4205,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/main/workflows/ci-doctor.md"
-          GH_AW_FINGERPRINT: "ci-doctor-failures"
+          GH_AW_CAMPAIGN: "ci-doctor-failures"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -4297,11 +4297,11 @@ jobs:
               footer += "\n";
               return footer;
             }
-            function getFingerprint(format) {
-              const fingerprint = process.env.GH_AW_FINGERPRINT || "";
-              if (fingerprint) {
-                core.info(`Fingerprint: ${fingerprint}`);
-                return format === "markdown" ? `\n\n<!-- fingerprint: ${fingerprint} -->` : fingerprint;
+            function getCampaign(format) {
+              const campaign = process.env.GH_AW_CAMPAIGN || "";
+              if (campaign) {
+                core.info(`Campaign: ${campaign}`);
+                return format === "markdown" ? `\n\n<!-- campaign: ${campaign} -->` : campaign;
               }
               return "";
             }
@@ -4397,7 +4397,7 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                const fingerprintComment = getFingerprint("markdown");
+                const fingerprintComment = getCampaign("markdown");
                 if (fingerprintComment) {
                   bodyLines.push(fingerprintComment);
                 }
@@ -4795,7 +4795,7 @@ jobs:
           GH_AW_WORKFLOW_NAME: "CI Failure Doctor"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/ci-doctor.md"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/main/workflows/ci-doctor.md"
-          GH_AW_FINGERPRINT: "ci-doctor-failures"
+          GH_AW_CAMPAIGN: "ci-doctor-failures"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |

@@ -12,7 +12,7 @@ permissions:
   discussions: read
   actions: read
 
-fingerprint: daily-news-weekday
+campaign: daily-news-weekday
 engine: copilot
 
 timeout-minutes: 30  # Reduced from 45 since pre-fetching data is faster

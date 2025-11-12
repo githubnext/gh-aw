@@ -897,7 +897,7 @@ safe-outputs:
 
 # Helper Bot
 
-Respond to /helper-bot mentions with helpful information realted to ${{ github.repository }}. THe request is "${{ needs.activation.outputs.text }}".
+Respond to /helper-bot mentions with helpful information realted to ${{ github.repository }}. The request is "${{ needs.activation.outputs.text }}".
 ```
 
 ### Workflow Improvement Bot

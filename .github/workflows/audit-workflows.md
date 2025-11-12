@@ -8,7 +8,7 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
-fingerprint: audit-workflows-daily
+campaign: audit-workflows-daily
 engine: claude
 tools:
   cache-memory: true

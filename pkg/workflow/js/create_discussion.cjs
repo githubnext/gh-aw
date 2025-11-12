@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
-const { getFingerprint } = require("./get_fingerprint.cjs");
+const { getCampaign } = require("./get_campaign.cjs");
 
 async function main() {
   // Initialize outputs to empty strings to ensure they're always set
@@ -146,7 +146,7 @@ async function main() {
       : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
     // Add fingerprint comment if present
-    const fingerprintComment = getFingerprint("markdown");
+    const fingerprintComment = getCampaign("markdown");
     if (fingerprintComment) {
       bodyLines.push(fingerprintComment);
     }
