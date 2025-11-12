@@ -1,0 +1,511 @@
+package cli
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/goccy/go-yaml"
+)
+
+func TestEnsureCopilotSetupSteps(t *testing.T) {
+	tests := []struct {
+		name             string
+		existingWorkflow *Workflow
+		verbose          bool
+		wantErr          bool
+		validateContent  func(*testing.T, []byte)
+	}{
+		{
+			name:    "creates new copilot-setup-steps.yml",
+			verbose: false,
+			wantErr: false,
+			validateContent: func(t *testing.T, content []byte) {
+				if !strings.Contains(string(content), "copilot-setup-steps") {
+					t.Error("Expected workflow to contain 'copilot-setup-steps' job name")
+				}
+				if !strings.Contains(string(content), "gh extension install githubnext/gh-aw") {
+					t.Error("Expected workflow to contain gh extension install command")
+				}
+			},
+		},
+		{
+			name: "skips update when extension install already exists",
+			existingWorkflow: &Workflow{
+				Name: "Copilot Setup Steps",
+				On:   "workflow_dispatch",
+				Jobs: map[string]WorkflowJob{
+					"copilot-setup-steps": {
+						RunsOn: "ubuntu-latest",
+						Steps: []WorkflowStep{
+							{
+								Name: "Checkout code",
+								Uses: "actions/checkout@v5",
+							},
+							{
+								Name: "Install gh-aw extension",
+								Run:  "gh extension install githubnext/gh-aw",
+								Env: map[string]any{
+									"GH_TOKEN": "${{ github.token }}",
+								},
+							},
+						},
+					},
+				},
+			},
+			verbose: true,
+			wantErr: false,
+			validateContent: func(t *testing.T, content []byte) {
+				// Should not modify existing correct config
+				count := strings.Count(string(content), "Install gh-aw extension")
+				if count != 1 {
+					t.Errorf("Expected exactly 1 occurrence of 'Install gh-aw extension', got %d", count)
+				}
+			},
+		},
+		{
+			name: "injects extension install into existing workflow",
+			existingWorkflow: &Workflow{
+				Name: "Copilot Setup Steps",
+				On:   "workflow_dispatch",
+				Jobs: map[string]WorkflowJob{
+					"copilot-setup-steps": {
+						RunsOn: "ubuntu-latest",
+						Steps: []WorkflowStep{
+							{
+								Name: "Checkout code",
+								Uses: "actions/checkout@v5",
+							},
+							{
+								Name: "Set up Go",
+								Uses: "actions/setup-go@v5",
+								With: map[string]any{
+									"go-version-file": "go.mod",
+								},
+							},
+						},
+					},
+				},
+			},
+			verbose: false,
+			wantErr: false,
+			validateContent: func(t *testing.T, content []byte) {
+				if !strings.Contains(string(content), "Install gh-aw extension") {
+					t.Error("Expected extension install step to be injected")
+				}
+				// Verify it's after "Set up Go"
+				goIndex := strings.Index(string(content), "Set up Go")
+				installIndex := strings.Index(string(content), "Install gh-aw extension")
+				if goIndex == -1 || installIndex == -1 {
+					t.Error("Could not find expected steps in workflow")
+				} else if installIndex < goIndex {
+					t.Error("Extension install should come after Set up Go")
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+
+			originalDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Failed to get current directory: %v", err)
+			}
+			defer func() {
+				_ = os.Chdir(originalDir)
+			}()
+
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatalf("Failed to change to temp directory: %v", err)
+			}
+
+			// Create existing workflow if specified
+			if tt.existingWorkflow != nil {
+				workflowsDir := filepath.Join(".github", "workflows")
+				if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+					t.Fatalf("Failed to create workflows directory: %v", err)
+				}
+
+				data, err := yaml.Marshal(tt.existingWorkflow)
+				if err != nil {
+					t.Fatalf("Failed to marshal existing workflow: %v", err)
+				}
+
+				setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
+				if err := os.WriteFile(setupStepsPath, data, 0644); err != nil {
+					t.Fatalf("Failed to write existing workflow: %v", err)
+				}
+			}
+
+			// Call the function
+			err = ensureCopilotSetupSteps(tt.verbose)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ensureCopilotSetupSteps() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr {
+				return
+			}
+
+			// Verify the file was created/updated
+			setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
+			content, err := os.ReadFile(setupStepsPath)
+			if err != nil {
+				t.Fatalf("Failed to read copilot-setup-steps.yml: %v", err)
+			}
+
+			// Run custom validation if provided
+			if tt.validateContent != nil {
+				tt.validateContent(t, content)
+			}
+		})
+	}
+}
+
+func TestInjectExtensionInstallStep(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		workflow        *Workflow
+		wantErr         bool
+		expectedSteps   int
+		validateFunc    func(*testing.T, *Workflow)
+	}{
+		{
+			name: "injects after Set up Go",
+			workflow: &Workflow{
+				Jobs: map[string]WorkflowJob{
+					"copilot-setup-steps": {
+						Steps: []WorkflowStep{
+							{Name: "Checkout code"},
+							{Name: "Set up Go"},
+							{Name: "Build"},
+						},
+					},
+				},
+			},
+			wantErr:       false,
+			expectedSteps: 4,
+			validateFunc: func(t *testing.T, w *Workflow) {
+				steps := w.Jobs["copilot-setup-steps"].Steps
+				// Extension install should be at index 2 (after Set up Go)
+				if steps[2].Name != "Install gh-aw extension" {
+					t.Errorf("Expected step 2 to be 'Install gh-aw extension', got %q", steps[2].Name)
+				}
+			},
+		},
+		{
+			name: "injects after Checkout when no Set up Go",
+			workflow: &Workflow{
+				Jobs: map[string]WorkflowJob{
+					"copilot-setup-steps": {
+						Steps: []WorkflowStep{
+							{Name: "Checkout code", Uses: "actions/checkout@v5"},
+							{Name: "Build"},
+						},
+					},
+				},
+			},
+			wantErr:       false,
+			expectedSteps: 3,
+			validateFunc: func(t *testing.T, w *Workflow) {
+				steps := w.Jobs["copilot-setup-steps"].Steps
+				// Extension install should be at index 1 (after Checkout)
+				if steps[1].Name != "Install gh-aw extension" {
+					t.Errorf("Expected step 1 to be 'Install gh-aw extension', got %q", steps[1].Name)
+				}
+			},
+		},
+		{
+			name: "appends when no matching steps found",
+			workflow: &Workflow{
+				Jobs: map[string]WorkflowJob{
+					"copilot-setup-steps": {
+						Steps: []WorkflowStep{
+							{Name: "Some step"},
+						},
+					},
+				},
+			},
+			wantErr:       false,
+			expectedSteps: 2,
+			validateFunc: func(t *testing.T, w *Workflow) {
+				steps := w.Jobs["copilot-setup-steps"].Steps
+				// Extension install should be at the end
+				lastStep := steps[len(steps)-1]
+				if lastStep.Name != "Install gh-aw extension" {
+					t.Errorf("Expected last step to be 'Install gh-aw extension', got %q", lastStep.Name)
+				}
+			},
+		},
+		{
+			name: "returns error when job not found",
+			workflow: &Workflow{
+				Jobs: map[string]WorkflowJob{
+					"other-job": {
+						Steps: []WorkflowStep{},
+					},
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := injectExtensionInstallStep(tt.workflow)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("injectExtensionInstallStep() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr {
+				return
+			}
+
+			job := tt.workflow.Jobs["copilot-setup-steps"]
+			if len(job.Steps) != tt.expectedSteps {
+				t.Errorf("Expected %d steps, got %d", tt.expectedSteps, len(job.Steps))
+			}
+
+			if tt.validateFunc != nil {
+				tt.validateFunc(t, tt.workflow)
+			}
+		})
+	}
+}
+
+func TestWorkflowStructMarshaling(t *testing.T) {
+	t.Parallel()
+
+	workflow := Workflow{
+		Name: "Test Workflow",
+		On:   "push",
+		Jobs: map[string]WorkflowJob{
+			"test-job": {
+				RunsOn: "ubuntu-latest",
+				Permissions: map[string]any{
+					"contents": "read",
+				},
+				Steps: []WorkflowStep{
+					{
+						Name: "Checkout",
+						Uses: "actions/checkout@v5",
+					},
+					{
+						Name: "Run script",
+						Run:  "echo 'test'",
+						Env: map[string]any{
+							"TEST_VAR": "value",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Marshal to YAML
+	data, err := yaml.Marshal(&workflow)
+	if err != nil {
+		t.Fatalf("Failed to marshal workflow: %v", err)
+	}
+
+	// Unmarshal back
+	var unmarshaledWorkflow Workflow
+	if err := yaml.Unmarshal(data, &unmarshaledWorkflow); err != nil {
+		t.Fatalf("Failed to unmarshal workflow: %v", err)
+	}
+
+	// Verify structure
+	if unmarshaledWorkflow.Name != "Test Workflow" {
+		t.Errorf("Expected name 'Test Workflow', got %q", unmarshaledWorkflow.Name)
+	}
+
+	job, exists := unmarshaledWorkflow.Jobs["test-job"]
+	if !exists {
+		t.Fatal("Expected 'test-job' to exist")
+	}
+
+	if len(job.Steps) != 2 {
+		t.Errorf("Expected 2 steps, got %d", len(job.Steps))
+	}
+}
+
+func TestCopilotSetupStepsYAMLConstant(t *testing.T) {
+	t.Parallel()
+
+	// Verify the constant can be parsed
+	var workflow Workflow
+	if err := yaml.Unmarshal([]byte(copilotSetupStepsYAML), &workflow); err != nil {
+		t.Fatalf("Failed to parse copilotSetupStepsYAML constant: %v", err)
+	}
+
+	// Verify key elements
+	if workflow.Name != "Copilot Setup Steps" {
+		t.Errorf("Expected workflow name 'Copilot Setup Steps', got %q", workflow.Name)
+	}
+
+	job, exists := workflow.Jobs["copilot-setup-steps"]
+	if !exists {
+		t.Fatal("Expected 'copilot-setup-steps' job to exist")
+	}
+
+	// Verify it has the extension install step
+	hasExtensionInstall := false
+	for _, step := range job.Steps {
+		if strings.Contains(step.Run, "gh extension install githubnext/gh-aw") {
+			hasExtensionInstall = true
+			break
+		}
+	}
+
+	if !hasExtensionInstall {
+		t.Error("Expected copilotSetupStepsYAML to contain extension install step")
+	}
+}
+
+func TestEnsureCopilotSetupStepsFilePermissions(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	err = ensureCopilotSetupSteps(false)
+	if err != nil {
+		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+	}
+
+	// Check file permissions
+	setupStepsPath := filepath.Join(".github", "workflows", "copilot-setup-steps.yml")
+	info, err := os.Stat(setupStepsPath)
+	if err != nil {
+		t.Fatalf("Failed to stat copilot-setup-steps.yml: %v", err)
+	}
+
+	// Verify file is readable and writable
+	mode := info.Mode()
+	if mode.Perm()&0600 != 0600 {
+		t.Errorf("Expected file to have at least 0600 permissions, got %o", mode.Perm())
+	}
+}
+
+func TestWorkflowStepStructure(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		step WorkflowStep
+	}{
+		{
+			name: "step with uses",
+			step: WorkflowStep{
+				Name: "Checkout",
+				Uses: "actions/checkout@v5",
+			},
+		},
+		{
+			name: "step with run",
+			step: WorkflowStep{
+				Name: "Run command",
+				Run:  "echo 'test'",
+			},
+		},
+		{
+			name: "step with environment",
+			step: WorkflowStep{
+				Name: "Run with env",
+				Run:  "echo $TEST",
+				Env: map[string]any{
+					"TEST": "value",
+				},
+			},
+		},
+		{
+			name: "step with with parameters",
+			step: WorkflowStep{
+				Name: "Setup",
+				Uses: "actions/setup-go@v5",
+				With: map[string]any{
+					"go-version": "1.21",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Marshal to YAML
+			data, err := yaml.Marshal(&tt.step)
+			if err != nil {
+				t.Fatalf("Failed to marshal step: %v", err)
+			}
+
+			// Unmarshal back
+			var unmarshaledStep WorkflowStep
+			if err := yaml.Unmarshal(data, &unmarshaledStep); err != nil {
+				t.Fatalf("Failed to unmarshal step: %v", err)
+			}
+
+			// Verify name is preserved
+			if unmarshaledStep.Name != tt.step.Name {
+				t.Errorf("Expected name %q, got %q", tt.step.Name, unmarshaledStep.Name)
+			}
+		})
+	}
+}
+
+func TestEnsureCopilotSetupStepsDirectoryCreation(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalDir)
+	}()
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	// Call function when .github/workflows doesn't exist
+	err = ensureCopilotSetupSteps(false)
+	if err != nil {
+		t.Fatalf("ensureCopilotSetupSteps() failed: %v", err)
+	}
+
+	// Verify directory structure was created
+	workflowsDir := filepath.Join(".github", "workflows")
+	info, err := os.Stat(workflowsDir)
+	if os.IsNotExist(err) {
+		t.Error("Expected .github/workflows directory to be created")
+		return
+	}
+
+	if !info.IsDir() {
+		t.Error("Expected .github/workflows to be a directory")
+	}
+
+	// Verify file was created
+	setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
+	if _, err := os.Stat(setupStepsPath); os.IsNotExist(err) {
+		t.Error("Expected copilot-setup-steps.yml to be created")
+	}
+}
