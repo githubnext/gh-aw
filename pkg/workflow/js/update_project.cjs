@@ -43,10 +43,29 @@ async function updateProject(output) {
   const campaignId = output.campaign_id || generateCampaignId(output.project);
   core.info(`Campaign ID: ${campaignId}`);
   core.info(`Managing project: ${output.project}`);
+  
+  // Check for custom token with projects permissions and create authenticated client
+  let githubClient = github;
+  if (process.env.GITHUB_PROJECTS_TOKEN) {
+    core.info(`✓ Using custom GITHUB_PROJECTS_TOKEN for project operations`);
+    // Create new Octokit instance with the custom token
+    const { Octokit } = require("@octokit/rest");
+    const octokit = new Octokit({
+      auth: process.env.GITHUB_PROJECTS_TOKEN,
+      baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
+    });
+    // Wrap in the same interface as github-script provides
+    githubClient = {
+      graphql: octokit.graphql.bind(octokit),
+      rest: octokit.rest,
+    };
+  } else {
+    core.info(`ℹ Using default GITHUB_TOKEN (may not have project creation permissions)`);
+  }
 
   try {
     // Step 1: Get repository and owner IDs
-    const repoResult = await github.graphql(
+    const repoResult = await githubClient.graphql(
       `query($owner: String!, $repo: String!) {
         repository(owner: $owner, name: $repo) {
           id
@@ -97,7 +116,7 @@ async function updateProject(output) {
             }
           }`;
 
-    const ownerProjectsResult = await github.graphql(ownerQuery, { login: owner });
+    const ownerProjectsResult = await githubClient.graphql(ownerQuery, { login: owner });
     
     const ownerProjects = ownerType === "User" 
       ? ownerProjectsResult.user.projectsV2.nodes
@@ -117,7 +136,7 @@ async function updateProject(output) {
       core.info(`✓ Found project "${existingProject.title}" (#${existingProject.number})`);
       
       try {
-        await github.graphql(
+        await githubClient.graphql(
           `mutation($projectId: ID!, $repositoryId: ID!) {
             linkProjectV2ToRepository(input: {
               projectId: $projectId,
@@ -166,7 +185,7 @@ async function updateProject(output) {
       // Create new project (organization only)
       core.info(`Creating new project: ${output.project}`);
       
-      const createResult = await github.graphql(
+      const createResult = await githubClient.graphql(
         `mutation($ownerId: ID!, $title: String!) {
           createProjectV2(input: {
             ownerId: $ownerId,
@@ -191,7 +210,7 @@ async function updateProject(output) {
       projectNumber = newProject.number;
 
       // Link project to repository
-      await github.graphql(
+      await githubClient.graphql(
         `mutation($projectId: ID!, $repositoryId: ID!) {
           linkProjectV2ToRepository(input: {
             projectId: $projectId,
@@ -237,7 +256,7 @@ async function updateProject(output) {
             }
           }`;
 
-      const contentResult = await github.graphql(contentQuery, {
+      const contentResult = await githubClient.graphql(contentQuery, {
         owner,
         repo,
         number: contentNumber,
@@ -248,7 +267,7 @@ async function updateProject(output) {
         : contentResult.repository.pullRequest.id;
 
       // Check if item already exists on board
-      const existingItemsResult = await github.graphql(
+      const existingItemsResult = await githubClient.graphql(
         `query($projectId: ID!, $contentId: ID!) {
           node(id: $projectId) {
             ... on ProjectV2 {
@@ -281,7 +300,7 @@ async function updateProject(output) {
         core.info(`✓ Item already on board`);
       } else {
         // Add item to board
-        const addResult = await github.graphql(
+        const addResult = await githubClient.graphql(
           `mutation($projectId: ID!, $contentId: ID!) {
             addProjectV2ItemById(input: {
               projectId: $projectId,
@@ -300,7 +319,7 @@ async function updateProject(output) {
         // Add campaign label to issue/PR
         try {
           const campaignLabel = `campaign:${campaignId}`;
-          await github.rest.issues.addLabels({
+          await githubClient.rest.issues.addLabels({
             owner,
             repo,
             issue_number: contentNumber,
@@ -317,7 +336,7 @@ async function updateProject(output) {
         core.info(`Updating custom fields...`);
         
         // Get project fields
-        const fieldsResult = await github.graphql(
+        const fieldsResult = await githubClient.graphql(
           `query($projectId: ID!) {
             node(id: $projectId) {
               ... on ProjectV2 {
@@ -369,7 +388,7 @@ async function updateProject(output) {
             valueToSet = { text: String(fieldValue) };
           }
 
-          await github.graphql(
+          await githubClient.graphql(
             `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
               updateProjectV2ItemFieldValue(input: {
                 projectId: $projectId,
@@ -401,12 +420,18 @@ async function updateProject(output) {
   } catch (error) {
     // Provide helpful error messages for common permission issues
     if (error.message && error.message.includes("does not have permission to create projects")) {
+      const usingCustomToken = !!process.env.GITHUB_PROJECTS_TOKEN;
       core.error(
         `Failed to manage project: ${error.message}\n\n` +
         `💡 Troubleshooting:\n` +
-        `  - If this is a User account, GitHub Actions cannot create projects. Use an Organization repository instead.\n` +
-        `  - Or, create the project manually first, then the workflow can add items to it.\n` +
-        `  - Ensure the workflow has 'projects: write' permission in the workflow file.`
+        `  1. Create the project manually first at https://github.com/orgs/${owner}/projects/new\n` +
+        `     Then the workflow can add items to it automatically.\n\n` +
+        `  2. Or, add a Personal Access Token (PAT) with 'project' permissions:\n` +
+        `     - Create a PAT at https://github.com/settings/tokens/new?scopes=project\n` +
+        `     - Add it as a secret named GITHUB_PROJECTS_TOKEN\n` +
+        `     - Pass it to the workflow: GITHUB_PROJECTS_TOKEN: \${{ secrets.GITHUB_PROJECTS_TOKEN }}\n\n` +
+        `  3. Ensure the workflow has 'projects: write' permission.\n\n` +
+        `${usingCustomToken ? '⚠️  Note: Already using GITHUB_PROJECTS_TOKEN but still getting permission error.' : '📝 Currently using default GITHUB_TOKEN (no project create permissions).'}`
       );
     } else {
       core.error(`Failed to manage project: ${error.message}`);
