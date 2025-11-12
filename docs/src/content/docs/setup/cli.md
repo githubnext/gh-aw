@@ -135,12 +135,14 @@ gh aw compile --purge                      # Remove orphaned .lock.yml files
 
 | Option | Description |
 |--------|-------------|
-| `--validate` | Schema validation and container checks |
+| `--validate` | Schema validation, container checks, and action SHA validation |
 | `--strict` | Requires timeouts, explicit network config, blocks write permissions |
 | `--zizmor` | Security scanning with [zizmor](https://github.com/woodruffw/zizmor) |
 | `--dependabot` | Generate npm/pip/Go manifests and update dependabot.yml |
 | `--watch` | Auto-recompile on file changes |
 | `--purge` | Remove orphaned `.lock.yml` files |
+
+The `--validate` flag performs schema validation, checks container configurations, and validates that all pinned GitHub Actions are using current SHAs. When outdated action SHAs are detected, warnings are emitted with information about available updates.
 
 ### Testing
 

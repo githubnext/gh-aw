@@ -70,6 +70,23 @@ source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"
 
 When you run `gh aw add githubnext/agentics/ci-doctor@v1.0.0`, the source field is automatically added to the workflow frontmatter. This field is optional for manually created workflows.
 
+### Asset Tracking (`fingerprint:`)
+
+The `fingerprint:` field enables tracking of assets created by the workflow. When specified, this identifier is automatically included in all created issues, pull requests, discussions, and comments, allowing retrieval of related assets through GitHub search.
+
+```yaml wrap
+fingerprint: "daily-audit-workflow"
+```
+
+The fingerprint must be at least 8 characters and contain only alphanumeric characters, hyphens, and underscores. The identifier is embedded as an HTML comment in created assets, making it searchable but invisible in the rendered view.
+
+Search for workflow-created assets using the fingerprint:
+```bash wrap
+gh search issues --repo owner/repo "fingerprint: daily-audit-workflow"
+```
+
+This field is useful for workflows that create multiple assets over time (daily reports, scheduled analyses, automated issues) and need to track or aggregate those assets.
+
 ### GitHub Token (`github-token:`)
 
 The `github-token:` field configures the default GitHub token for the entire workflow. This token is used for engine authentication, checkout steps, and safe-output operations unless overridden at more specific levels.
