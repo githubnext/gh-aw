@@ -603,7 +603,7 @@ func extractGoPackages(workflowData *WorkflowData) []string {
 // extractGoFromCommands extracts Go package paths from command strings
 func extractGoFromCommands(commands string) []string {
 	var packages []string
-	
+
 	// Extract "go install <package>" pattern
 	installExtractor := PackageExtractor{
 		CommandNames:       []string{"go"},
@@ -611,7 +611,7 @@ func extractGoFromCommands(commands string) []string {
 		TrimSuffixes:       "&|;",
 	}
 	packages = append(packages, installExtractor.ExtractPackages(commands)...)
-	
+
 	// Extract "go get <package>" pattern
 	getExtractor := PackageExtractor{
 		CommandNames:       []string{"go"},
@@ -619,7 +619,7 @@ func extractGoFromCommands(commands string) []string {
 		TrimSuffixes:       "&|;",
 	}
 	packages = append(packages, getExtractor.ExtractPackages(commands)...)
-	
+
 	return packages
 }
 

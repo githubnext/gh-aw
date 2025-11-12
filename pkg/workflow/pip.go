@@ -54,15 +54,15 @@ func extractUvPackages(workflowData *WorkflowData) []string {
 func extractUvFromCommands(commands string) []string {
 	var packages []string
 	lines := strings.Split(commands, "\n")
-	
+
 	uvxExtractor := PackageExtractor{
 		CommandNames:       []string{"uvx"},
 		RequiredSubcommand: "",
 		TrimSuffixes:       "&|;",
 	}
-	
+
 	uvPipHelper := PackageExtractor{TrimSuffixes: "&|;"}
-	
+
 	for _, line := range lines {
 		words := strings.Fields(line)
 		for i, word := range words {
@@ -86,6 +86,6 @@ func extractUvFromCommands(commands string) []string {
 			}
 		}
 	}
-	
+
 	return packages
 }
