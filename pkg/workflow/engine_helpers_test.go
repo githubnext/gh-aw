@@ -149,27 +149,27 @@ func TestResolveAgentFilePath(t *testing.T) {
 		{
 			name:     "basic agent file path",
 			input:    ".github/agents/test-agent.md",
-			expected: "\"${GITHUB_WORKSPACE}\"/.github/agents/test-agent.md",
+			expected: "\"${GITHUB_WORKSPACE}/.github/agents/test-agent.md\"",
 		},
 		{
 			name:     "path with spaces",
 			input:    ".github/agents/my agent file.md",
-			expected: "\"${GITHUB_WORKSPACE}\"/.github/agents/my agent file.md",
+			expected: "\"${GITHUB_WORKSPACE}/.github/agents/my agent file.md\"",
 		},
 		{
 			name:     "deeply nested path",
 			input:    ".github/copilot/instructions/deep/nested/agent.md",
-			expected: "\"${GITHUB_WORKSPACE}\"/.github/copilot/instructions/deep/nested/agent.md",
+			expected: "\"${GITHUB_WORKSPACE}/.github/copilot/instructions/deep/nested/agent.md\"",
 		},
 		{
 			name:     "simple filename",
 			input:    "agent.md",
-			expected: "\"${GITHUB_WORKSPACE}\"/agent.md",
+			expected: "\"${GITHUB_WORKSPACE}/agent.md\"",
 		},
 		{
 			name:     "path with special characters",
 			input:    ".github/agents/test-agent_v2.0.md",
-			expected: "\"${GITHUB_WORKSPACE}\"/.github/agents/test-agent_v2.0.md",
+			expected: "\"${GITHUB_WORKSPACE}/.github/agents/test-agent_v2.0.md\"",
 		},
 	}
 
@@ -188,15 +188,21 @@ func TestResolveAgentFilePathFormat(t *testing.T) {
 	input := ".github/agents/test.md"
 	result := ResolveAgentFilePath(input)
 
-	// Verify it starts with quoted GITHUB_WORKSPACE
-	if result[:22] != "\"${GITHUB_WORKSPACE}\"/" {
-		t.Errorf("Expected path to start with '\"${GITHUB_WORKSPACE}\"/', got: %s", result)
+	// Verify it starts with opening quote, GITHUB_WORKSPACE variable, and forward slash
+	expectedPrefix := "\"${GITHUB_WORKSPACE}/"
+	if !strings.HasPrefix(result, expectedPrefix) {
+		t.Errorf("Expected path to start with %q, got: %s", expectedPrefix, result)
 	}
 
-	// Verify it ends with the input path
-	expectedSuffix := input
-	actualSuffix := result[22:]
-	if actualSuffix != expectedSuffix {
-		t.Errorf("Expected path to end with %q, got: %q", expectedSuffix, actualSuffix)
+	// Verify it ends with the input path and a closing quote
+	expectedSuffix := input + "\""
+	if !strings.HasSuffix(result, expectedSuffix) {
+		t.Errorf("Expected path to end with %q, got: %q", expectedSuffix, result)
+	}
+
+	// Verify the complete expected format
+	expected := "\"${GITHUB_WORKSPACE}/" + input + "\""
+	if result != expected {
+		t.Errorf("Expected %q, got: %q", expected, result)
 	}
 }

@@ -14,20 +14,26 @@ var engineHelpersLog = logger.New("workflow:engine_helpers")
 // This helper extracts the common pattern shared by Copilot, Codex, and Claude engines.
 //
 // The agent file path is relative to the repository root, so we prefix it with ${GITHUB_WORKSPACE}
-// and wrap the entire expression in quotes to handle paths with spaces.
+// and wrap the entire expression in double quotes to handle paths with spaces while allowing
+// shell variable expansion.
 //
 // Parameters:
 //   - agentFile: The relative path to the agent file (e.g., ".github/agents/test-agent.md")
 //
 // Returns:
-//   - string: The quoted path with GITHUB_WORKSPACE prefix (e.g., "${GITHUB_WORKSPACE}/.github/agents/test-agent.md")
+//   - string: The double-quoted path with GITHUB_WORKSPACE prefix (e.g., "${GITHUB_WORKSPACE}/.github/agents/test-agent.md")
 //
 // Example:
 //
 //	agentPath := ResolveAgentFilePath(".github/agents/my-agent.md")
 //	// Returns: "${GITHUB_WORKSPACE}/.github/agents/my-agent.md"
+//
+// Note: The entire path is wrapped in double quotes (not just the variable) to ensure:
+//  1. The shellEscapeArg function recognizes it as already-quoted and doesn't add single quotes
+//  2. Shell variable expansion works (${GITHUB_WORKSPACE} gets expanded inside double quotes)
+//  3. Paths with spaces are properly handled
 func ResolveAgentFilePath(agentFile string) string {
-	return fmt.Sprintf("\"${GITHUB_WORKSPACE}\"/%s", agentFile)
+	return fmt.Sprintf("\"${GITHUB_WORKSPACE}/%s\"", agentFile)
 }
 
 // BuildStandardNpmEngineInstallSteps creates standard npm installation steps for engines
