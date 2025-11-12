@@ -61,6 +61,8 @@ type Compiler struct {
 	fileTracker          FileTracker       // Optional file tracker for tracking created files
 	warningCount         int               // Number of warnings encountered during compilation
 	stepOrderTracker     *StepOrderTracker // Tracks step ordering for validation
+	actionCache          *ActionCache      // Shared cache for action pin resolutions across all workflows
+	actionResolver       *ActionResolver   // Shared resolver for action pins across all workflows
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -121,6 +123,23 @@ func (c *Compiler) GetWarningCount() int {
 // ResetWarningCount resets the warning counter to zero
 func (c *Compiler) ResetWarningCount() {
 	c.warningCount = 0
+}
+
+// getSharedActionResolver returns the shared action resolver, initializing it on first use
+// This ensures all workflows compiled by this compiler instance share the same in-memory cache
+func (c *Compiler) getSharedActionResolver() (*ActionCache, *ActionResolver) {
+	if c.actionCache == nil {
+		// Initialize cache and resolver on first use
+		cwd, err := os.Getwd()
+		if err != nil {
+			cwd = "."
+		}
+		c.actionCache = NewActionCache(cwd)
+		_ = c.actionCache.Load() // Ignore errors if cache doesn't exist
+		c.actionResolver = NewActionResolver(c.actionCache)
+		log.Print("Initialized shared action cache and resolver for compiler")
+	}
+	return c.actionCache, c.actionResolver
 }
 
 // NewCompilerWithCustomOutput creates a new workflow compiler with custom output path
@@ -957,14 +976,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		SecretMasking:       secretMasking,
 	}
 
-	// Initialize action cache and resolver
-	cwd, err := os.Getwd()
-	if err != nil {
-		cwd = "."
-	}
-	workflowData.ActionCache = NewActionCache(cwd)
-	_ = workflowData.ActionCache.Load() // Ignore errors if cache doesn't exist
-	workflowData.ActionResolver = NewActionResolver(workflowData.ActionCache)
+	// Use shared action cache and resolver from the compiler
+	// This ensures cache is shared across all workflows during compilation
+	actionCache, actionResolver := c.getSharedActionResolver()
+	workflowData.ActionCache = actionCache
+	workflowData.ActionResolver = actionResolver
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
 	// to avoid issues with nested keys (e.g., tools.mcps.*.env being confused with top-level env)
