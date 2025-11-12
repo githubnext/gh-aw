@@ -1081,7 +1081,7 @@ jobs:
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Bug Bash Campaign - Weekly Sprint
           
-          > **💡 Setup Note:** If you want this workflow to automatically create projects, add a Personal Access Token (PAT) with `project` scope as a secret named `GITHUB_PROJECTS_TOKEN`, then uncomment the `env:` section above. Otherwise, manually create the "Bug Bash 2025" project first.
+          > **💡 Setup Note:** If you want this workflow to automatically create projects, add a Personal Access Token (PAT) with `project` scope as a secret named `PROJECT_GITHUB_TOKEN`, then uncomment the `env:` section above. Otherwise, manually create the "Bug Bash 2025" project first.
           
           You are the Bug Bash Campaign orchestrator. Every week, you organize a focused bug hunting session.
           
@@ -4040,23 +4040,8 @@ jobs:
               const campaignId = output.campaign_id || generateCampaignId(output.project);
               core.info(`Campaign ID: ${campaignId}`);
               core.info(`Managing project: ${output.project}`);
-              let githubClient = github;
-              if (process.env.GITHUB_PROJECTS_TOKEN) {
-                core.info(`✓ Using custom GITHUB_PROJECTS_TOKEN for project operations`);
-                const { Octokit } = require("@octokit/rest");
-                const octokit = new Octokit({
-                  auth: process.env.GITHUB_PROJECTS_TOKEN,
-                  baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
-                });
-                githubClient = {
-                  graphql: octokit.graphql.bind(octokit),
-                  rest: octokit.rest,
-                };
-              } else {
-                core.info(`ℹ Using default GITHUB_TOKEN (may not have project creation permissions)`);
-              }
               try {
-                const repoResult = await githubClient.graphql(
+                const repoResult = await github.graphql(
                   `query($owner: String!, $repo: String!) {
                     repository(owner: $owner, name: $repo) {
                       id
@@ -4074,71 +4059,32 @@ jobs:
                 core.info(`Owner type: ${ownerType}, Owner ID: ${ownerId}`);
                 let projectId;
                 let projectNumber;
-                let existingProject = null;
-                core.info(`Searching ${ownerType.toLowerCase()} projects...`);
-                const ownerQuery = ownerType === "User"
-                    ? `query($login: String!) {
-                        user(login: $login) {
-                          projectsV2(first: 100) {
-                            nodes {
-                              id
-                              title
-                              number
-                            }
-                          }
+                const existingProjectsResult = await github.graphql(
+                  `query($owner: String!, $repo: String!) {
+                    repository(owner: $owner, name: $repo) {
+                      projectsV2(first: 100) {
+                        nodes {
+                          id
+                          title
+                          number
                         }
-                      }`
-                    : `query($login: String!) {
-                        organization(login: $login) {
-                          projectsV2(first: 100) {
-                            nodes {
-                              id
-                              title
-                              number
-                            }
-                          }
-                        }
-                      }`;
-                const ownerProjectsResult = await githubClient.graphql(ownerQuery, { login: owner });
-                const ownerProjects = ownerType === "User" 
-                  ? ownerProjectsResult.user.projectsV2.nodes
-                  : ownerProjectsResult.organization.projectsV2.nodes;
-                core.info(`Found ${ownerProjects.length} ${ownerType.toLowerCase()} projects`);
-                ownerProjects.forEach(p => {
+                      }
+                    }
+                  }`,
+                  { owner, repo }
+                );
+                const availableProjects = existingProjectsResult.repository.projectsV2.nodes;
+                core.info(`Found ${availableProjects.length} linked projects`);
+                availableProjects.forEach(p => {
                   core.info(`  - "${p.title}" (#${p.number})`);
                 });
-                existingProject = ownerProjects.find(
+                const existingProject = availableProjects.find(
                   p => p.title === output.project || p.number.toString() === output.project.toString()
                 );
                 if (existingProject) {
-                  core.info(`✓ Found project "${existingProject.title}" (#${existingProject.number})`);
-                  try {
-                    await githubClient.graphql(
-                      `mutation($projectId: ID!, $repositoryId: ID!) {
-                        linkProjectV2ToRepository(input: {
-                          projectId: $projectId,
-                          repositoryId: $repositoryId
-                        }) {
-                          repository {
-                            id
-                          }
-                        }
-                      }`,
-                      { projectId: existingProject.id, repositoryId }
-                    );
-                    core.info(`✓ Ensured project is linked to repository`);
-                  } catch (linkError) {
-                    if (linkError.message && linkError.message.includes("already linked")) {
-                      core.info(`✓ Project already linked to repository`);
-                    } else {
-                      core.warning(`Could not link project to repository: ${linkError.message}`);
-                    }
-                  }
-                }
-                if (existingProject) {
                   projectId = existingProject.id;
                   projectNumber = existingProject.number;
-                  core.info(`✓ Using project: ${output.project} (#${projectNumber})`);
+                  core.info(`✓ Found existing project: ${output.project} (#${projectNumber})`);
                 } else {
                   if (ownerType === "User") {
                     const manualUrl = `https://github.com/users/${owner}/projects/new`;
@@ -4155,7 +4101,7 @@ jobs:
                     throw new Error(`Cannot create project on user account. Please create it manually at ${manualUrl}`);
                   }
                   core.info(`Creating new project: ${output.project}`);
-                  const createResult = await githubClient.graphql(
+                  const createResult = await github.graphql(
                     `mutation($ownerId: ID!, $title: String!) {
                       createProjectV2(input: {
                         ownerId: $ownerId,
@@ -4177,7 +4123,7 @@ jobs:
                   const newProject = createResult.createProjectV2.projectV2;
                   projectId = newProject.id;
                   projectNumber = newProject.number;
-                  await githubClient.graphql(
+                  await github.graphql(
                     `mutation($projectId: ID!, $repositoryId: ID!) {
                       linkProjectV2ToRepository(input: {
                         projectId: $projectId,
@@ -4216,7 +4162,7 @@ jobs:
                           }
                         }
                       }`;
-                  const contentResult = await githubClient.graphql(contentQuery, {
+                  const contentResult = await github.graphql(contentQuery, {
                     owner,
                     repo,
                     number: contentNumber,
@@ -4224,7 +4170,7 @@ jobs:
                   const contentId = output.issue
                     ? contentResult.repository.issue.id
                     : contentResult.repository.pullRequest.id;
-                  const existingItemsResult = await githubClient.graphql(
+                  const existingItemsResult = await github.graphql(
                     `query($projectId: ID!, $contentId: ID!) {
                       node(id: $projectId) {
                         ... on ProjectV2 {
@@ -4254,7 +4200,7 @@ jobs:
                     itemId = existingItem.id;
                     core.info(`✓ Item already on board`);
                   } else {
-                    const addResult = await githubClient.graphql(
+                    const addResult = await github.graphql(
                       `mutation($projectId: ID!, $contentId: ID!) {
                         addProjectV2ItemById(input: {
                           projectId: $projectId,
@@ -4271,7 +4217,7 @@ jobs:
                     core.info(`✓ Added ${contentType} #${contentNumber} to project board`);
                     try {
                       const campaignLabel = `campaign:${campaignId}`;
-                      await githubClient.rest.issues.addLabels({
+                      await github.rest.issues.addLabels({
                         owner,
                         repo,
                         issue_number: contentNumber,
@@ -4284,7 +4230,7 @@ jobs:
                   }
                   if (output.fields && Object.keys(output.fields).length > 0) {
                     core.info(`Updating custom fields...`);
-                    const fieldsResult = await githubClient.graphql(
+                    const fieldsResult = await github.graphql(
                       `query($projectId: ID!) {
                         node(id: $projectId) {
                           ... on ProjectV2 {
@@ -4328,7 +4274,7 @@ jobs:
                       } else {
                         valueToSet = { text: String(fieldValue) };
                       }
-                      await githubClient.graphql(
+                      await github.graphql(
                         `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
                           updateProjectV2ItemFieldValue(input: {
                             projectId: $projectId,
@@ -4356,18 +4302,12 @@ jobs:
                 core.info(`✓ Project management completed successfully`);
               } catch (error) {
                 if (error.message && error.message.includes("does not have permission to create projects")) {
-                  const usingCustomToken = !!process.env.GITHUB_PROJECTS_TOKEN;
                   core.error(
                     `Failed to manage project: ${error.message}\n\n` +
                     `💡 Troubleshooting:\n` +
-                    `  1. Create the project manually first at https://github.com/orgs/${owner}/projects/new\n` +
-                    `     Then the workflow can add items to it automatically.\n\n` +
-                    `  2. Or, add a Personal Access Token (PAT) with 'project' permissions:\n` +
-                    `     - Create a PAT at https://github.com/settings/tokens/new?scopes=project\n` +
-                    `     - Add it as a secret named GITHUB_PROJECTS_TOKEN\n` +
-                    `     - Pass it to the workflow: GITHUB_PROJECTS_TOKEN: \${{ secrets.GITHUB_PROJECTS_TOKEN }}\n\n` +
-                    `  3. Ensure the workflow has 'projects: write' permission.\n\n` +
-                    `${usingCustomToken ? '⚠️  Note: Already using GITHUB_PROJECTS_TOKEN but still getting permission error.' : '📝 Currently using default GITHUB_TOKEN (no project create permissions).'}`
+                    `  - If this is a User account, GitHub Actions cannot create projects. Use an Organization repository instead.\n` +
+                    `  - Or, create the project manually first, then the workflow can add items to it.\n` +
+                    `  - Ensure the workflow has 'projects: write' permission in the workflow file.`
                   );
                 } else {
                   core.error(`Failed to manage project: ${error.message}`);

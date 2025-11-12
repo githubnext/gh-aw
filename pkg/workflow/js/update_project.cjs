@@ -46,12 +46,12 @@ async function updateProject(output) {
   
   // Check for custom token with projects permissions and create authenticated client
   let githubClient = github;
-  if (process.env.GITHUB_PROJECTS_TOKEN) {
-    core.info(`✓ Using custom GITHUB_PROJECTS_TOKEN for project operations`);
+  if (process.env.PROJECT_GITHUB_TOKEN) {
+    core.info(`✓ Using custom PROJECT_GITHUB_TOKEN for project operations`);
     // Create new Octokit instance with the custom token
     const { Octokit } = require("@octokit/rest");
     const octokit = new Octokit({
-      auth: process.env.GITHUB_PROJECTS_TOKEN,
+      auth: process.env.PROJECT_GITHUB_TOKEN,
       baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
     });
     // Wrap in the same interface as github-script provides
@@ -420,7 +420,7 @@ async function updateProject(output) {
   } catch (error) {
     // Provide helpful error messages for common permission issues
     if (error.message && error.message.includes("does not have permission to create projects")) {
-      const usingCustomToken = !!process.env.GITHUB_PROJECTS_TOKEN;
+      const usingCustomToken = !!process.env.PROJECT_GITHUB_TOKEN;
       core.error(
         `Failed to manage project: ${error.message}\n\n` +
         `💡 Troubleshooting:\n` +
@@ -428,10 +428,10 @@ async function updateProject(output) {
         `     Then the workflow can add items to it automatically.\n\n` +
         `  2. Or, add a Personal Access Token (PAT) with 'project' permissions:\n` +
         `     - Create a PAT at https://github.com/settings/tokens/new?scopes=project\n` +
-        `     - Add it as a secret named GITHUB_PROJECTS_TOKEN\n` +
-        `     - Pass it to the workflow: GITHUB_PROJECTS_TOKEN: \${{ secrets.GITHUB_PROJECTS_TOKEN }}\n\n` +
+        `     - Add it as a secret named PROJECT_GITHUB_TOKEN\n` +
+        `     - Pass it to the workflow: PROJECT_GITHUB_TOKEN: \${{ secrets.PROJECT_GITHUB_TOKEN }}\n\n` +
         `  3. Ensure the workflow has 'projects: write' permission.\n\n` +
-        `${usingCustomToken ? '⚠️  Note: Already using GITHUB_PROJECTS_TOKEN but still getting permission error.' : '📝 Currently using default GITHUB_TOKEN (no project create permissions).'}`
+        `${usingCustomToken ? '⚠️  Note: Already using PROJECT_GITHUB_TOKEN but still getting permission error.' : '📝 Currently using default GITHUB_TOKEN (no project create permissions).'}`
       );
     } else {
       core.error(`Failed to manage project: ${error.message}`);

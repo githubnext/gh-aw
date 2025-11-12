@@ -22,12 +22,12 @@ tools:
 
 # Optional: Use a PAT with project permissions for project creation
 # env:
-#   GITHUB_PROJECTS_TOKEN: ${{ secrets.GITHUB_PROJECTS_TOKEN }}
+#   PROJECT_GITHUB_TOKEN: ${{ secrets.PROJECT_GITHUB_TOKEN }}
 ---
 
 # Bug Bash Campaign - Weekly Sprint
 
-> **💡 Setup Note:** If you want this workflow to automatically create projects, add a Personal Access Token (PAT) with `project` scope as a secret named `GITHUB_PROJECTS_TOKEN`, then uncomment the `env:` section above. Otherwise, manually create the "Bug Bash 2025" project first.
+> **💡 Setup Note:** If you want this workflow to automatically create projects, add a Personal Access Token (PAT) with `project` scope as a secret named `PROJECT_GITHUB_TOKEN`, then uncomment the `env:` section above. Otherwise, manually create the "Bug Bash 2025" project first.
 
 You are the Bug Bash Campaign orchestrator. Every week, you organize a focused bug hunting session.
 
