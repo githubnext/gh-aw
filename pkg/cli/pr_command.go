@@ -739,3 +739,46 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 
 	return nil
 }
+
+// createPR creates a pull request using GitHub CLI
+func createPR(branchName, title, body string, verbose bool) error {
+	if verbose {
+		fmt.Printf("Creating PR: %s\n", title)
+	}
+
+	// Get the current repository info to ensure PR is created in the correct repo
+	cmd := exec.Command("gh", "repo", "view", "--json", "owner,name")
+	repoOutput, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to get current repository info: %w", err)
+	}
+
+	var repoInfo struct {
+		Owner struct {
+			Login string `json:"login"`
+		} `json:"owner"`
+		Name string `json:"name"`
+	}
+
+	if err := json.Unmarshal(repoOutput, &repoInfo); err != nil {
+		return fmt.Errorf("failed to parse repository info: %w", err)
+	}
+
+	repoSpec := fmt.Sprintf("%s/%s", repoInfo.Owner.Login, repoInfo.Name)
+
+	// Explicitly specify the repository to ensure PR is created in the current repo (not upstream)
+	cmd = exec.Command("gh", "pr", "create", "--repo", repoSpec, "--title", title, "--body", body, "--head", branchName)
+	output, err := cmd.Output()
+	if err != nil {
+		// Try to get stderr for better error reporting
+		if exitError, ok := err.(*exec.ExitError); ok {
+			return fmt.Errorf("failed to create PR: %w\nOutput: %s\nError: %s", err, string(output), string(exitError.Stderr))
+		}
+		return fmt.Errorf("failed to create PR: %w", err)
+	}
+
+	prURL := strings.TrimSpace(string(output))
+	fmt.Printf("📢 Pull Request created: %s\n", prURL)
+
+	return nil
+}
