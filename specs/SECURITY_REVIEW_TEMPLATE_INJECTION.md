@@ -31,6 +31,23 @@ Reviewed 2 zizmor template injection findings in GitHub Actions workflows. Both 
 
 ### Data Flow Analysis
 
+```mermaid
+graph LR
+    A[Install gh Extension Step] --> B[Shell Conditional]
+    B --> C{Extension Check}
+    C -->|Success| D["echo 'EXTENSION_INSTALLED=true'"]
+    C -->|Failure| E["echo 'EXTENSION_INSTALLED=false'"]
+    D --> F[GITHUB_OUTPUT]
+    E --> F
+    F --> G[steps.install-extension.outputs.EXTENSION_INSTALLED]
+    G --> H[Template Expansion in Warning]
+
+    style D fill:#90EE90
+    style E fill:#FFB6C1
+    style F fill:#87CEEB
+    style H fill:#FFD700
+```
+
 1. **Source**: `${{ steps.install-extension.outputs.EXTENSION_INSTALLED }}`
 2. **Origin**: Set by the "Install gh agent-task extension" step (lines 198-203)
 3. **Value Assignment**:
@@ -76,6 +93,30 @@ Reviewed 2 zizmor template injection findings in GitHub Actions workflows. Both 
 ```
 
 ### Data Flow Analysis
+
+```mermaid
+graph TD
+    A[Job-Level Environment] --> B[GH_AW_SAFE_OUTPUTS]
+    B --> C["/tmp/gh-aw/safeoutputs/outputs.jsonl"]
+    C --> D[Template Expansion]
+
+    E[Workflow Config] --> F{upload-assets configured?}
+    F -->|No| G[GH_AW_ASSETS_* NOT SET]
+    F -->|Yes| H[GH_AW_ASSETS_* SET]
+    G --> I[Empty String]
+    H --> J[Defined Values]
+    I --> K[Template Expansion - Undefined Vars]
+    J --> K
+
+    D --> L[MCP Server Environment]
+    K --> L
+
+    style B fill:#87CEEB
+    style C fill:#90EE90
+    style G fill:#FFB6C1
+    style I fill:#FFA500
+    style L fill:#DDA0DD
+```
 
 #### GH_AW_SAFE_OUTPUTS
 1. **Source**: `${{ env.GH_AW_SAFE_OUTPUTS }}`
