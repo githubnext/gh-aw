@@ -710,9 +710,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	if engineSetting == "" {
 		defaultEngine := c.engineRegistry.GetDefaultEngine()
 		engineSetting = defaultEngine.GetID()
-		if c.verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("NOTE: No 'engine:' setting found, defaulting to: %s", engineSetting)))
-		}
+		log.Printf("No 'engine:' setting found, defaulting to: %s", engineSetting)
 		// Create a default EngineConfig with the default engine ID if not already set
 		if engineConfig == nil {
 			engineConfig = &EngineConfig{ID: engineSetting}
