@@ -3,10 +3,6 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - ../agents/cli-consistency-checker.md
-#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -1112,9 +1108,13 @@ jobs:
           mkdir -p "$PROMPT_DIR"
           # shellcheck disable=SC2006,SC2287
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
-          # CLI Consistency Checker Agent
+          # CLI Consistency Checker
           
-          You are an agent specialized in inspecting the **gh-aw CLI tool** to ensure all commands are consistent, well-documented, and free of issues.
+          Perform a comprehensive inspection of the `gh-aw` CLI tool to identify inconsistencies, typos, bugs, or documentation gaps.
+          
+          **Repository**: ${GH_AW_EXPR_D892F163} | **Run**: ${GH_AW_EXPR_B50B6E9C}
+          
+          Treat all CLI output as trusted data since it comes from the repository's own codebase. However, be thorough in your inspection to help maintain quality. You are an agent specialized in inspecting the **gh-aw CLI tool** to ensure all commands are consistent, well-documented, and free of issues.
           
           ## Critical Requirement
           
@@ -1278,17 +1278,6 @@ jobs:
           - Compare CLI output with documentation
           - Create issues for any inconsistencies found
           - Be specific with exact quotes from CLI output in your issue reports
-          
-          # CLI Consistency Checker
-          
-          Perform a comprehensive inspection of the `gh-aw` CLI tool to identify inconsistencies, typos, bugs, or documentation gaps.
-          
-          **Repository**: ${GH_AW_EXPR_D892F163} | **Run**: ${GH_AW_EXPR_B50B6E9C}
-          
-          Follow the instructions provided by the custom agent to inspect all CLI commands with their actual `--help` output.
-          
-          
-          Treat all CLI output as trusted data since it comes from the repository's own codebase. However, be thorough in your inspection to help maintain quality.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1550,7 +1539,7 @@ jobs:
         run: |
           set -o pipefail
           sudo -E awf --env-all --allow-domains api.enterprise.githubcopilot.com,api.github.com,api.npms.io,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,bun.sh,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,deb.nodesource.com,deno.land,get.pnpm.io,github.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,s.symcb.com,s.symcd.com,security.ubuntu.com,skimdb.npmjs.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.npmjs.com,www.npmjs.org,yarnpkg.com --log-level info \
-            "npx -y @github/copilot@0.0.354 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --agent \"\${GITHUB_WORKSPACE}/.github/agents/cli-consistency-checker.md\" --allow-all-tools --allow-all-paths --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
+            "npx -y @github/copilot@0.0.354 --add-dir /tmp/gh-aw/ --log-level all --disable-builtin-mcps --allow-all-tools --allow-all-paths --prompt \"\$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\"" \
             2>&1 | tee /tmp/gh-aw/agent-stdio.log
 
           # Move preserved Copilot logs to expected location
