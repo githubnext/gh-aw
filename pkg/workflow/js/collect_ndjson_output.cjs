@@ -705,5 +705,11 @@ async function main() {
   const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
   core.info(`output_types: ${outputTypes.join(", ")}`);
   core.setOutput("output_types", outputTypes.join(","));
+
+  // Check if patch file exists for detection job conditional
+  const patchPath = "/tmp/gh-aw/aw.patch";
+  const hasPatch = fs.existsSync(patchPath);
+  core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
+  core.setOutput("has_patch", hasPatch ? "true" : "false");
 }
 await main();

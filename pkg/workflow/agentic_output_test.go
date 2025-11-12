@@ -79,8 +79,13 @@ This workflow tests the agentic output collection functionality.
 	}
 
 	// Verify job output declaration for GH_AW_SAFE_OUTPUTS
-	if !strings.Contains(lockContent, "outputs:\n      output: ${{ steps.collect_output.outputs.output }}") {
+	if !strings.Contains(lockContent, "output: ${{ steps.collect_output.outputs.output }}") {
 		t.Error("Expected job output declaration for 'output'")
+	}
+
+	// Verify has_patch output is declared
+	if !strings.Contains(lockContent, "has_patch: ${{ steps.collect_output.outputs.has_patch }}") {
+		t.Error("Expected job output declaration for 'has_patch'")
 	}
 
 	// Verify GH_AW_SAFE_OUTPUTS is passed to Claude
@@ -187,8 +192,13 @@ This workflow tests that Codex engine gets GH_AW_SAFE_OUTPUTS but not engine out
 	}
 
 	// Verify that job outputs section includes output for GH_AW_SAFE_OUTPUTS
-	if !strings.Contains(lockContent, "outputs:\n      output: ${{ steps.collect_output.outputs.output }}") {
+	if !strings.Contains(lockContent, "output: ${{ steps.collect_output.outputs.output }}") {
 		t.Error("Codex workflow should have job output declaration for 'output' (GH_AW_SAFE_OUTPUTS)")
+	}
+
+	// Verify has_patch output is declared
+	if !strings.Contains(lockContent, "has_patch: ${{ steps.collect_output.outputs.has_patch }}") {
+		t.Error("Codex workflow should have job output declaration for 'has_patch'")
 	}
 
 	// Verify that Codex workflow DOES have engine output collection steps

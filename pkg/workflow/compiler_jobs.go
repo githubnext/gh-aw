@@ -678,6 +678,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		outputs = map[string]string{
 			"output":       "${{ steps.collect_output.outputs.output }}",
 			"output_types": "${{ steps.collect_output.outputs.output_types }}",
+			"has_patch":    "${{ steps.collect_output.outputs.has_patch }}",
 		}
 	}
 
