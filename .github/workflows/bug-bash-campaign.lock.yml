@@ -22,8 +22,8 @@
 # Pinned GitHub Actions:
 #   - actions/checkout@v5 (08c6903cd8c0fde910a37f88322edcfb5dd907a8)
 #     https://github.com/actions/checkout/commit/08c6903cd8c0fde910a37f88322edcfb5dd907a8
-#   - actions/download-artifact@v5 (634f93cb2916e3fdff6788551b99b062d0335ce0)
-#     https://github.com/actions/download-artifact/commit/634f93cb2916e3fdff6788551b99b062d0335ce0
+#   - actions/download-artifact@v6 (018cc2cf5baa6db3ef3c5f8a56943fffe632ef53)
+#     https://github.com/actions/download-artifact/commit/018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
 #   - actions/github-script@v8 (ed597411d8f924073f98dfc5c65a23a2325f34cd)
 #     https://github.com/actions/github-script/commit/ed597411d8f924073f98dfc5c65a23a2325f34cd
 #   - actions/setup-node@v6 (2028fbc5c25fe9cf00d9f06a71cc4710d4507903)
@@ -31,27 +31,35 @@
 #   - actions/upload-artifact@v5 (330a01c490aca151604b8cf639adc76d48f6c5d4)
 #     https://github.com/actions/upload-artifact/commit/330a01c490aca151604b8cf639adc76d48f6c5d4
 
-name: "Bug Bash Campaign - Weekly Sprint"
+name: "Bug Bash Campaign"
 "on":
   schedule:
   - cron: "0 10 * * 1"
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      project_url:
+        description: "GitHub project URL (org or user). Examples: https://github.com/orgs/ACME/projects/42 | https://github.com/users/alice/projects/19"
+        required: true
+        type: string
 
 permissions:
   contents: read
   issues: write
+  pull-requests: read
   repository-projects: write
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Bug Bash Campaign - Weekly Sprint"
+run-name: "Bug Bash Campaign"
 
 jobs:
   activation:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+    outputs:
+      text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Checkout workflows
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -134,6 +142,245 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: Compute current body text
+        id: compute-text
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        with:
+          script: |
+            function extractDomainsFromUrl(url) {
+              if (!url || typeof url !== "string") {
+                return [];
+              }
+              try {
+                const urlObj = new URL(url);
+                const hostname = urlObj.hostname.toLowerCase();
+                const domains = [hostname];
+                if (hostname === "github.com") {
+                  domains.push("api.github.com");
+                  domains.push("raw.githubusercontent.com");
+                  domains.push("*.githubusercontent.com");
+                }
+                else if (!hostname.startsWith("api.")) {
+                  domains.push("api." + hostname);
+                  domains.push("raw." + hostname);
+                }
+                return domains;
+              } catch (e) {
+                return [];
+              }
+            }
+            function sanitizeContent(content, maxLength) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              const allowedDomainsEnv = process.env.GH_AW_ALLOWED_DOMAINS;
+              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
+              let allowedDomains = allowedDomainsEnv
+                ? allowedDomainsEnv
+                    .split(",")
+                    .map(d => d.trim())
+                    .filter(d => d)
+                : defaultAllowedDomains;
+              const githubServerUrl = process.env.GITHUB_SERVER_URL;
+              const githubApiUrl = process.env.GITHUB_API_URL;
+              if (githubServerUrl) {
+                const serverDomains = extractDomainsFromUrl(githubServerUrl);
+                allowedDomains = allowedDomains.concat(serverDomains);
+              }
+              if (githubApiUrl) {
+                const apiDomains = extractDomainsFromUrl(githubApiUrl);
+                allowedDomains = allowedDomains.concat(apiDomains);
+              }
+              allowedDomains = [...new Set(allowedDomains)];
+              let sanitized = content;
+              sanitized = neutralizeCommands(sanitized);
+              sanitized = neutralizeMentions(sanitized);
+              sanitized = removeXmlComments(sanitized);
+              sanitized = convertXmlTags(sanitized);
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitizeUrlProtocols(sanitized);
+              sanitized = sanitizeUrlDomains(sanitized);
+              const lines = sanitized.split("\n");
+              const maxLines = 65000;
+              maxLength = maxLength || 524288;
+              if (lines.length > maxLines) {
+                const truncationMsg = "\n[Content truncated due to line count]";
+                const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
+                if (truncatedLines.length > maxLength) {
+                  sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
+                } else {
+                  sanitized = truncatedLines;
+                }
+              } else if (sanitized.length > maxLength) {
+                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
+              }
+              sanitized = neutralizeBotTriggers(sanitized);
+              return sanitized.trim();
+              function sanitizeUrlDomains(s) {
+                s = s.replace(/\bhttps:\/\/([^\s\])}'"<>&\x00-\x1f,;]+)/gi, (match, rest) => {
+                  const hostname = rest.split(/[\/:\?#]/)[0].toLowerCase();
+                  const isAllowed = allowedDomains.some(allowedDomain => {
+                    const normalizedAllowed = allowedDomain.toLowerCase();
+                    return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
+                  });
+                  if (isAllowed) {
+                    return match; 
+                  }
+                  const domain = hostname;
+                  const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                  core.info(`Redacted URL: ${truncated}`);
+                  core.debug(`Redacted URL (full): ${match}`);
+                  const urlParts = match.split(/([?&#])/);
+                  let result = "(redacted)"; 
+                  for (let i = 1; i < urlParts.length; i++) {
+                    if (urlParts[i].match(/^[?&#]$/)) {
+                      result += urlParts[i]; 
+                    } else {
+                      result += sanitizeUrlDomains(urlParts[i]);
+                    }
+                  }
+                  return result;
+                });
+                return s;
+              }
+              function sanitizeUrlProtocols(s) {
+                return s.replace(/(?<![-\/\w])([A-Za-z][A-Za-z0-9+.-]*):(?:\/\/|(?=[^\s:]))[^\s\])}'"<>&\x00-\x1f]+/g, (match, protocol) => {
+                  if (protocol.toLowerCase() === "https") {
+                    return match;
+                  }
+                  if (match.includes("::")) {
+                    return match;
+                  }
+                  if (match.includes("://")) {
+                    const domainMatch = match.match(/^[^:]+:\/\/([^\/\s?#]+)/);
+                    const domain = domainMatch ? domainMatch[1] : match;
+                    const truncated = domain.length > 12 ? domain.substring(0, 12) + "..." : domain;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
+                    return "(redacted)";
+                  }
+                  const dangerousProtocols = ["javascript", "data", "vbscript", "file", "about", "mailto", "tel", "ssh", "ftp"];
+                  if (dangerousProtocols.includes(protocol.toLowerCase())) {
+                    const truncated = match.length > 12 ? match.substring(0, 12) + "..." : match;
+                    core.info(`Redacted URL: ${truncated}`);
+                    core.debug(`Redacted URL (full): ${match}`);
+                    return "(redacted)";
+                  }
+                  return match;
+                });
+              }
+              function neutralizeCommands(s) {
+                const commandName = process.env.GH_AW_COMMAND;
+                if (!commandName) {
+                  return s;
+                }
+                const escapedCommand = commandName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                return s.replace(new RegExp(`^(\\s*)/(${escapedCommand})\\b`, "i"), "$1`/$2`");
+              }
+              function neutralizeMentions(s) {
+                return s.replace(
+                  /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                  (_m, p1, p2) => `${p1}\`@${p2}\``
+                );
+              }
+              function removeXmlComments(s) {
+                return s.replace(/<!--[\s\S]*?-->/g, "").replace(/<!--[\s\S]*?--!>/g, "");
+              }
+              function convertXmlTags(s) {
+                const allowedTags = ["details", "summary", "code", "em", "b"];
+                s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
+                  const convertedContent = content.replace(/<(\/?[A-Za-z][A-Za-z0-9]*(?:[^>]*?))>/g, "($1)");
+                  return `(![CDATA[${convertedContent}]])`;
+                });
+                return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
+                  const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
+                  if (tagNameMatch) {
+                    const tagName = tagNameMatch[1].toLowerCase();
+                    if (allowedTags.includes(tagName)) {
+                      return match; 
+                    }
+                  }
+                  return `(${tagContent})`; 
+                });
+              }
+              function neutralizeBotTriggers(s) {
+                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
+              }
+            }
+            async function main() {
+              let text = "";
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: owner,
+                repo: repo,
+                username: actor,
+              });
+              const permission = repoPermission.data.permission;
+              core.info(`Repository permission level: ${permission}`);
+              if (permission !== "admin" && permission !== "maintain") {
+                core.setOutput("text", "");
+                return;
+              }
+              switch (context.eventName) {
+                case "issues":
+                  if (context.payload.issue) {
+                    const title = context.payload.issue.title || "";
+                    const body = context.payload.issue.body || "";
+                    text = `${title}\n\n${body}`;
+                  }
+                  break;
+                case "pull_request":
+                  if (context.payload.pull_request) {
+                    const title = context.payload.pull_request.title || "";
+                    const body = context.payload.pull_request.body || "";
+                    text = `${title}\n\n${body}`;
+                  }
+                  break;
+                case "pull_request_target":
+                  if (context.payload.pull_request) {
+                    const title = context.payload.pull_request.title || "";
+                    const body = context.payload.pull_request.body || "";
+                    text = `${title}\n\n${body}`;
+                  }
+                  break;
+                case "issue_comment":
+                  if (context.payload.comment) {
+                    text = context.payload.comment.body || "";
+                  }
+                  break;
+                case "pull_request_review_comment":
+                  if (context.payload.comment) {
+                    text = context.payload.comment.body || "";
+                  }
+                  break;
+                case "pull_request_review":
+                  if (context.payload.review) {
+                    text = context.payload.review.body || "";
+                  }
+                  break;
+                case "discussion":
+                  if (context.payload.discussion) {
+                    const title = context.payload.discussion.title || "";
+                    const body = context.payload.discussion.body || "";
+                    text = `${title}\n\n${body}`;
+                  }
+                  break;
+                case "discussion_comment":
+                  if (context.payload.comment) {
+                    text = context.payload.comment.body || "";
+                  }
+                  break;
+                default:
+                  text = "";
+                  break;
+              }
+              const sanitizedText = sanitizeContent(text);
+              core.info(`text: ${sanitizedText}`);
+              core.setOutput("text", sanitizedText);
+            }
+            await main();
 
   agent:
     needs: activation
@@ -141,12 +388,14 @@ jobs:
     permissions:
       contents: read
       issues: write
+      pull-requests: read
       repository-projects: write
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       GH_AW_SAFE_OUTPUTS: /tmp/gh-aw/safeoutputs/outputs.jsonl
     outputs:
+      has_patch: ${{ steps.collect_output.outputs.has_patch }}
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
@@ -233,7 +482,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safeoutputs
           cat > /tmp/gh-aw/safeoutputs/config.json << 'EOF'
-          {"missing_tool":{},"update_project":{"max":50}}
+          {"missing_tool":{},"update_project":{"max":15}}
           EOF
           cat > /tmp/gh-aw/safeoutputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1024,9 +1273,6 @@ jobs:
         env:
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_SAFE_OUTPUTS: ${{ env.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
-          GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
-          GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -1081,98 +1327,43 @@ jobs:
           cat > "$GH_AW_PROMPT" << 'PROMPT_EOF'
           # Bug Bash Campaign - Weekly Sprint
           
-          > **💡 Setup Note:** If you want this workflow to automatically create projects, add a Personal Access Token (PAT) with `project` scope as a secret named `PROJECT_GITHUB_TOKEN`, then uncomment the `env:` section above. Otherwise, manually create the "Bug Bash 2025" project first.
-          
           You are the Bug Bash Campaign orchestrator. Every week, you organize a focused bug hunting session.
           
-          ## Your Mission
+          ## Steps
           
-          1. **Create the Bug Bash project board** (if it doesn't exist):
-             - project: "Bug Bash 2025"
-             - description: "Weekly bug bash campaigns - find and fix bugs fast"
-             - create_if_missing: true
-             - The campaign ID will be auto-generated
+          1. Ensure the board exists (create if missing) using `project_url`.
+          2. Find recent open issues (last 30 days) with labels: `bug`, `defect`, or `regression` that are not already on the board and not closed.
+          3. For each selected issue emit an `update-project` safe output with fields:
+             - Status: "To Do"
+             - Priority: "Critical" if P0/P1 label, else "High" if multiple comments/reactions (>=3), else "Medium".
+             - Complexity: "Quick Win" if short/simple (<600 chars body) else "Standard" otherwise; use "Complex" only if label `architecture` or `security` present.
+             - Impact: "Blocker" if blocking major feature (label `blocker`), else "Major" if multiple area/component labels, else "Minor".
+          4. Limit additions to `max` (15) in safe-outputs.
+          5. Create one summary issue with:
+             - Count scanned vs added
+             - Top 3 critical items (number + title)
+             - Any quick wins (list numbers)
           
-          2. **Find all open bugs that need attention**:
-             - Search for issues labeled: "bug", "defect", "regression"
-             - Filter for issues that are:
-               - Not in any project board (untracked bugs)
-               - Opened in the last 30 days
-               - Not already closed or in progress
-             - Prioritize by:
-               - Issues with "P0" or "P1" labels (critical/high priority)
-               - Issues affecting multiple users (check reactions/comments)
-               - Issues with recent activity
+          ## Guardrails
+          - Skip items with `enhancement` label unless they also have a bug label.
+          - Do not modify items in progress.
+          - Use `${GH_AW_EXPR_0BABF60D}` for any manual context (if dispatched from an issue).
           
-          3. **Triage and add bugs to the campaign board**:
-             - For each bug found, add it to "Bug Bash 2025" using `update-project`:
-               - content_type: "issue"
-               - content_number: (the bug's issue number)
-               - fields:
-                 - Status: "To Do"
-                 - Priority: "Critical" (if P0/P1), "High" (if multiple comments), "Medium" (others)
-                 - Complexity: "Quick Win" (cosmetic/typo), "Standard" (typical bug), "Complex" (architecture issue)
-                 - Impact: "Blocker", "Major", or "Minor"
-          
-          4. **Summarize in a comment on this issue**:
-             - How many bugs were found
-             - How many were added to the board
-             - Top 3 critical bugs that need immediate attention
-             - Campaign ID for tracking
-          
-          ## Example Safe Outputs
-          
-          **Create the bug bash board:**
-          ```json
-          {
-            "type": "update-project",
-            "project": "Bug Bash 2025",
-            "description": "Weekly bug bash campaigns - find and fix bugs fast",
-            "create_if_missing": true
-          }
-          ```
-          
-          **Add a critical bug to the board:**
+          ## Example
           ```json
           {
             "type": "update-project",
             "project": "Bug Bash 2025",
             "content_type": "issue",
-            "content_number": 456,
+            "content_number": 123,
             "fields": {
               "Status": "To Do",
-              "Priority": "Critical",
+              "Priority": "High",
               "Complexity": "Standard",
-              "Impact": "Blocker"
+              "Impact": "Major"
             }
           }
           ```
-          
-          **Add a quick win bug:**
-          ```json
-          {
-            "type": "update-project",
-            "project": "Bug Bash 2025",
-            "content_type": "issue",
-            "content_number": 457,
-            "fields": {
-              "Status": "To Do",
-              "Priority": "Medium",
-              "Complexity": "Quick Win",
-              "Impact": "Minor"
-            }
-          }
-          ```
-          
-          ## Bug Bash Rules
-          
-          - **Quick Wins First**: Prioritize bugs that can be fixed in < 1 hour
-          - **No Feature Requests**: Only actual bugs/defects
-          - **Fresh Bugs**: Focus on recently reported issues
-          - **User Impact**: Consider how many users are affected
-          - **Regression Priority**: Regressions get automatic "High" priority
-          
-          This campaign automatically labels all bugs with the campaign ID for easy tracking and reporting.
           
           PROMPT_EOF
       - name: Append XPIA security instructions to prompt
@@ -1279,6 +1470,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GH_AW_EXPR_0BABF60D: ${{ needs.activation.outputs.text }}
         with:
           script: |
             const fs = require("fs");
@@ -1370,7 +1562,7 @@ jobs:
               model: "",
               version: "",
               agent_version: "0.0.354",
-              workflow_name: "Bug Bash Campaign - Weekly Sprint",
+              workflow_name: "Bug Bash Campaign",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1406,7 +1598,7 @@ jobs:
         # Copilot CLI tool arguments (sorted):
         # --allow-tool github
         # --allow-tool safeoutputs
-        timeout-minutes: 20
+        timeout-minutes: 10
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"
@@ -2416,6 +2608,10 @@ jobs:
               const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
               core.info(`output_types: ${outputTypes.join(", ")}`);
               core.setOutput("output_types", outputTypes.join(","));
+              const patchPath = "/tmp/gh-aw/aw.patch";
+              const hasPatch = fs.existsSync(patchPath);
+              core.info(`Patch file ${hasPatch ? "exists" : "does not exist"} at: ${patchPath}`);
+              core.setOutput("has_patch", hasPatch ? "true" : "false");
             }
             await main();
       - name: Upload sanitized agent output
@@ -3596,6 +3792,7 @@ jobs:
 
   detection:
     needs: agent
+    if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
     runs-on: ubuntu-latest
     permissions: {}
     concurrency:
@@ -3604,19 +3801,19 @@ jobs:
     steps:
       - name: Download prompt artifact
         continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
         with:
           name: prompt.txt
           path: /tmp/gh-aw/threat-detection/
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
         with:
           name: agent_output.json
           path: /tmp/gh-aw/threat-detection/
       - name: Download patch artifact
         continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
         with:
           name: aw.patch
           path: /tmp/gh-aw/threat-detection/
@@ -3628,7 +3825,7 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
-          WORKFLOW_NAME: "Bug Bash Campaign - Weekly Sprint"
+          WORKFLOW_NAME: "Bug Bash Campaign"
           WORKFLOW_DESCRIPTION: "No description provided"
         with:
           script: |
@@ -3845,7 +4042,7 @@ jobs:
     steps:
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
         with:
           name: agent_output.json
           path: /tmp/gh-aw/safeoutputs/
@@ -3859,6 +4056,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
+          GH_AW_WORKFLOW_NAME: "Bug Bash Campaign"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -3975,7 +4173,7 @@ jobs:
     steps:
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
         with:
           name: agent_output.json
           path: /tmp/gh-aw/safeoutputs/
@@ -3990,7 +4188,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
         with:
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.PROJECT_GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             function loadAgentOutput() {
@@ -4040,8 +4238,23 @@ jobs:
               const campaignId = output.campaign_id || generateCampaignId(output.project);
               core.info(`Campaign ID: ${campaignId}`);
               core.info(`Managing project: ${output.project}`);
+              let githubClient = github;
+              if (process.env.PROJECT_GITHUB_TOKEN) {
+                core.info(`✓ Using custom PROJECT_GITHUB_TOKEN for project operations`);
+                const { Octokit } = require("@octokit/rest");
+                const octokit = new Octokit({
+                  auth: process.env.PROJECT_GITHUB_TOKEN,
+                  baseUrl: process.env.GITHUB_API_URL || "https://api.github.com",
+                });
+                githubClient = {
+                  graphql: octokit.graphql.bind(octokit),
+                  rest: octokit.rest,
+                };
+              } else {
+                core.info(`ℹ Using default GITHUB_TOKEN (may not have project creation permissions)`);
+              }
               try {
-                const repoResult = await github.graphql(
+                const repoResult = await githubClient.graphql(
                   `query($owner: String!, $repo: String!) {
                     repository(owner: $owner, name: $repo) {
                       id
@@ -4059,32 +4272,71 @@ jobs:
                 core.info(`Owner type: ${ownerType}, Owner ID: ${ownerId}`);
                 let projectId;
                 let projectNumber;
-                const existingProjectsResult = await github.graphql(
-                  `query($owner: String!, $repo: String!) {
-                    repository(owner: $owner, name: $repo) {
-                      projectsV2(first: 100) {
-                        nodes {
-                          id
-                          title
-                          number
+                let existingProject = null;
+                core.info(`Searching ${ownerType.toLowerCase()} projects...`);
+                const ownerQuery = ownerType === "User"
+                    ? `query($login: String!) {
+                        user(login: $login) {
+                          projectsV2(first: 100) {
+                            nodes {
+                              id
+                              title
+                              number
+                            }
+                          }
                         }
-                      }
-                    }
-                  }`,
-                  { owner, repo }
-                );
-                const availableProjects = existingProjectsResult.repository.projectsV2.nodes;
-                core.info(`Found ${availableProjects.length} linked projects`);
-                availableProjects.forEach(p => {
+                      }`
+                    : `query($login: String!) {
+                        organization(login: $login) {
+                          projectsV2(first: 100) {
+                            nodes {
+                              id
+                              title
+                              number
+                            }
+                          }
+                        }
+                      }`;
+                const ownerProjectsResult = await githubClient.graphql(ownerQuery, { login: owner });
+                const ownerProjects = ownerType === "User" 
+                  ? ownerProjectsResult.user.projectsV2.nodes
+                  : ownerProjectsResult.organization.projectsV2.nodes;
+                core.info(`Found ${ownerProjects.length} ${ownerType.toLowerCase()} projects`);
+                ownerProjects.forEach(p => {
                   core.info(`  - "${p.title}" (#${p.number})`);
                 });
-                const existingProject = availableProjects.find(
+                existingProject = ownerProjects.find(
                   p => p.title === output.project || p.number.toString() === output.project.toString()
                 );
                 if (existingProject) {
+                  core.info(`✓ Found project "${existingProject.title}" (#${existingProject.number})`);
+                  try {
+                    await githubClient.graphql(
+                      `mutation($projectId: ID!, $repositoryId: ID!) {
+                        linkProjectV2ToRepository(input: {
+                          projectId: $projectId,
+                          repositoryId: $repositoryId
+                        }) {
+                          repository {
+                            id
+                          }
+                        }
+                      }`,
+                      { projectId: existingProject.id, repositoryId }
+                    );
+                    core.info(`✓ Ensured project is linked to repository`);
+                  } catch (linkError) {
+                    if (linkError.message && linkError.message.includes("already linked")) {
+                      core.info(`✓ Project already linked to repository`);
+                    } else {
+                      core.warning(`Could not link project to repository: ${linkError.message}`);
+                    }
+                  }
+                }
+                if (existingProject) {
                   projectId = existingProject.id;
                   projectNumber = existingProject.number;
-                  core.info(`✓ Found existing project: ${output.project} (#${projectNumber})`);
+                  core.info(`✓ Using project: ${output.project} (#${projectNumber})`);
                 } else {
                   if (ownerType === "User") {
                     const manualUrl = `https://github.com/users/${owner}/projects/new`;
@@ -4101,7 +4353,7 @@ jobs:
                     throw new Error(`Cannot create project on user account. Please create it manually at ${manualUrl}`);
                   }
                   core.info(`Creating new project: ${output.project}`);
-                  const createResult = await github.graphql(
+                  const createResult = await githubClient.graphql(
                     `mutation($ownerId: ID!, $title: String!) {
                       createProjectV2(input: {
                         ownerId: $ownerId,
@@ -4123,7 +4375,7 @@ jobs:
                   const newProject = createResult.createProjectV2.projectV2;
                   projectId = newProject.id;
                   projectNumber = newProject.number;
-                  await github.graphql(
+                  await githubClient.graphql(
                     `mutation($projectId: ID!, $repositoryId: ID!) {
                       linkProjectV2ToRepository(input: {
                         projectId: $projectId,
@@ -4162,7 +4414,7 @@ jobs:
                           }
                         }
                       }`;
-                  const contentResult = await github.graphql(contentQuery, {
+                  const contentResult = await githubClient.graphql(contentQuery, {
                     owner,
                     repo,
                     number: contentNumber,
@@ -4170,7 +4422,7 @@ jobs:
                   const contentId = output.issue
                     ? contentResult.repository.issue.id
                     : contentResult.repository.pullRequest.id;
-                  const existingItemsResult = await github.graphql(
+                  const existingItemsResult = await githubClient.graphql(
                     `query($projectId: ID!, $contentId: ID!) {
                       node(id: $projectId) {
                         ... on ProjectV2 {
@@ -4200,7 +4452,7 @@ jobs:
                     itemId = existingItem.id;
                     core.info(`✓ Item already on board`);
                   } else {
-                    const addResult = await github.graphql(
+                    const addResult = await githubClient.graphql(
                       `mutation($projectId: ID!, $contentId: ID!) {
                         addProjectV2ItemById(input: {
                           projectId: $projectId,
@@ -4217,7 +4469,7 @@ jobs:
                     core.info(`✓ Added ${contentType} #${contentNumber} to project board`);
                     try {
                       const campaignLabel = `campaign:${campaignId}`;
-                      await github.rest.issues.addLabels({
+                      await githubClient.rest.issues.addLabels({
                         owner,
                         repo,
                         issue_number: contentNumber,
@@ -4230,7 +4482,7 @@ jobs:
                   }
                   if (output.fields && Object.keys(output.fields).length > 0) {
                     core.info(`Updating custom fields...`);
-                    const fieldsResult = await github.graphql(
+                    const fieldsResult = await githubClient.graphql(
                       `query($projectId: ID!) {
                         node(id: $projectId) {
                           ... on ProjectV2 {
@@ -4274,7 +4526,7 @@ jobs:
                       } else {
                         valueToSet = { text: String(fieldValue) };
                       }
-                      await github.graphql(
+                      await githubClient.graphql(
                         `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
                           updateProjectV2ItemFieldValue(input: {
                             projectId: $projectId,
@@ -4302,12 +4554,18 @@ jobs:
                 core.info(`✓ Project management completed successfully`);
               } catch (error) {
                 if (error.message && error.message.includes("does not have permission to create projects")) {
+                  const usingCustomToken = !!process.env.PROJECT_GITHUB_TOKEN;
                   core.error(
                     `Failed to manage project: ${error.message}\n\n` +
                     `💡 Troubleshooting:\n` +
-                    `  - If this is a User account, GitHub Actions cannot create projects. Use an Organization repository instead.\n` +
-                    `  - Or, create the project manually first, then the workflow can add items to it.\n` +
-                    `  - Ensure the workflow has 'projects: write' permission in the workflow file.`
+                    `  1. Create the project manually first at https://github.com/orgs/${owner}/projects/new\n` +
+                    `     Then the workflow can add items to it automatically.\n\n` +
+                    `  2. Or, add a Personal Access Token (PAT) with 'project' permissions:\n` +
+                    `     - Create a PAT at https://github.com/settings/tokens/new?scopes=project\n` +
+                    `     - Add it as a secret named PROJECT_GITHUB_TOKEN\n` +
+                    `     - Pass it to the workflow: PROJECT_GITHUB_TOKEN: \${{ secrets.PROJECT_GITHUB_TOKEN }}\n\n` +
+                    `  3. Ensure the workflow has 'projects: write' permission.\n\n` +
+                    `${usingCustomToken ? '⚠️  Note: Already using PROJECT_GITHUB_TOKEN but still getting permission error.' : '📝 Currently using default GITHUB_TOKEN (no project create permissions).'}`
                   );
                 } else {
                   core.error(`Failed to manage project: ${error.message}`);

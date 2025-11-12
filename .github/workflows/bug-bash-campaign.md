@@ -1,8 +1,14 @@
 ---
+name: Bug Bash Campaign
 on:
   schedule:
     - cron: "0 10 * * 1"  # Every Monday at 10am - kick off the weekly bug bash
   workflow_dispatch:
+    inputs:
+      project_url:
+        description: "GitHub project URL (org or user). Examples: https://github.com/orgs/ACME/projects/42 | https://github.com/users/alice/projects/19"
+        required: true
+        type: string
 
 engine: copilot
 
@@ -10,112 +16,57 @@ permissions:
   contents: read
   issues: write
   repository-projects: write
+  pull-requests: read
 
 safe-outputs:
   update-project:
-    max: 50  # High limit for adding many bugs to the board
+    github-token: ${{ secrets.PROJECT_GITHUB_TOKEN }}
+    max: 15
 
 tools:
   github:
     mode: remote
     toolsets: [default]
 
-# Optional: Use a PAT with project permissions for project creation
-# env:
-#   PROJECT_GITHUB_TOKEN: ${{ secrets.PROJECT_GITHUB_TOKEN }}
+timeout-minutes: 10
 ---
 
 # Bug Bash Campaign - Weekly Sprint
 
-> **💡 Setup Note:** If you want this workflow to automatically create projects, add a Personal Access Token (PAT) with `project` scope as a secret named `PROJECT_GITHUB_TOKEN`, then uncomment the `env:` section above. Otherwise, manually create the "Bug Bash 2025" project first.
-
 You are the Bug Bash Campaign orchestrator. Every week, you organize a focused bug hunting session.
 
-## Your Mission
+## Steps
 
-1. **Create the Bug Bash project board** (if it doesn't exist):
-   - project: "Bug Bash 2025"
-   - description: "Weekly bug bash campaigns - find and fix bugs fast"
-   - create_if_missing: true
-   - The campaign ID will be auto-generated
+1. Ensure the board exists (create if missing) using `project_url`.
+2. Find recent open issues (last 30 days) with labels: `bug`, `defect`, or `regression` that are not already on the board and not closed.
+3. For each selected issue emit an `update-project` safe output with fields:
+   - Status: "To Do"
+   - Priority: "Critical" if P0/P1 label, else "High" if multiple comments/reactions (>=3), else "Medium".
+   - Complexity: "Quick Win" if short/simple (<600 chars body) else "Standard" otherwise; use "Complex" only if label `architecture` or `security` present.
+   - Impact: "Blocker" if blocking major feature (label `blocker`), else "Major" if multiple area/component labels, else "Minor".
+4. Limit additions to `max` (15) in safe-outputs.
+5. Create one summary issue with:
+   - Count scanned vs added
+   - Top 3 critical items (number + title)
+   - Any quick wins (list numbers)
 
-2. **Find all open bugs that need attention**:
-   - Search for issues labeled: "bug", "defect", "regression"
-   - Filter for issues that are:
-     - Not in any project board (untracked bugs)
-     - Opened in the last 30 days
-     - Not already closed or in progress
-   - Prioritize by:
-     - Issues with "P0" or "P1" labels (critical/high priority)
-     - Issues affecting multiple users (check reactions/comments)
-     - Issues with recent activity
+## Guardrails
+- Skip items with `enhancement` label unless they also have a bug label.
+- Do not modify items in progress.
+- Use `${{ needs.activation.outputs.text }}` for any manual context (if dispatched from an issue).
 
-3. **Triage and add bugs to the campaign board**:
-   - For each bug found, add it to "Bug Bash 2025" using `update-project`:
-     - content_type: "issue"
-     - content_number: (the bug's issue number)
-     - fields:
-       - Status: "To Do"
-       - Priority: "Critical" (if P0/P1), "High" (if multiple comments), "Medium" (others)
-       - Complexity: "Quick Win" (cosmetic/typo), "Standard" (typical bug), "Complex" (architecture issue)
-       - Impact: "Blocker", "Major", or "Minor"
-
-4. **Summarize in a comment on this issue**:
-   - How many bugs were found
-   - How many were added to the board
-   - Top 3 critical bugs that need immediate attention
-   - Campaign ID for tracking
-
-## Example Safe Outputs
-
-**Create the bug bash board:**
-```json
-{
-  "type": "update-project",
-  "project": "Bug Bash 2025",
-  "description": "Weekly bug bash campaigns - find and fix bugs fast",
-  "create_if_missing": true
-}
-```
-
-**Add a critical bug to the board:**
+## Example
 ```json
 {
   "type": "update-project",
   "project": "Bug Bash 2025",
   "content_type": "issue",
-  "content_number": 456,
+  "content_number": 123,
   "fields": {
     "Status": "To Do",
-    "Priority": "Critical",
+    "Priority": "High",
     "Complexity": "Standard",
-    "Impact": "Blocker"
+    "Impact": "Major"
   }
 }
 ```
-
-**Add a quick win bug:**
-```json
-{
-  "type": "update-project",
-  "project": "Bug Bash 2025",
-  "content_type": "issue",
-  "content_number": 457,
-  "fields": {
-    "Status": "To Do",
-    "Priority": "Medium",
-    "Complexity": "Quick Win",
-    "Impact": "Minor"
-  }
-}
-```
-
-## Bug Bash Rules
-
-- **Quick Wins First**: Prioritize bugs that can be fixed in < 1 hour
-- **No Feature Requests**: Only actual bugs/defects
-- **Fresh Bugs**: Focus on recently reported issues
-- **User Impact**: Consider how many users are affected
-- **Regression Priority**: Regressions get automatic "High" priority
-
-This campaign automatically labels all bugs with the campaign ID for easy tracking and reporting.
