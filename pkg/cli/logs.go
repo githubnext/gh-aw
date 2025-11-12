@@ -338,7 +338,10 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000       # Filter runs after run ID 1000
   ` + constants.CLIExtensionPrefix + ` logs --before-run-id 2000      # Filter runs before run ID 2000
   ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
-  ` + constants.CLIExtensionPrefix + ` logs --tool-graph              # Generate Mermaid tool sequence graph`,
+  ` + constants.CLIExtensionPrefix + ` logs --tool-graph              # Generate Mermaid tool sequence graph
+  ` + constants.CLIExtensionPrefix + ` logs --parse                   # Parse logs and generate markdown reports
+  ` + constants.CLIExtensionPrefix + ` logs --json                    # Output metrics in JSON format
+  ` + constants.CLIExtensionPrefix + ` logs --parse --json            # Generate both markdown and JSON`,
 		Run: func(cmd *cobra.Command, args []string) {
 			var workflowName string
 			if len(args) > 0 && args[0] != "" {
