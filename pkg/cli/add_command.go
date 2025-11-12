@@ -22,7 +22,7 @@ var addLog = logger.New("cli:add_command")
 func NewAddCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <workflow>...",
-		Short: "Add one or more workflows from the components to .github/workflows",
+		Short: "Add workflows from repositories to .github/workflows",
 		Long: `Add one or more workflows from repositories to .github/workflows.
 
 Examples:
